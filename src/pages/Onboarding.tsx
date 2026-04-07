@@ -591,6 +591,7 @@ export default function Onboarding() {
             data={data} update={update}
             onBudgetUpload={handleBudgetUpload} uploadingBudget={uploadingBudget} removeBudgetFile={removeBudgetFile}
             onScreenshotsUpload={handleScreenshotsUpload} uploadingScreenshots={uploadingScreenshots} removeScreenshot={removeScreenshot}
+            opData={opData} setOpData={setOpData}
           />
         )}
         {step === 4 && <Step4 data={data} update={update} />}
@@ -768,9 +769,20 @@ interface Step3Props extends StepProps {
   onScreenshotsUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   uploadingScreenshots: boolean;
   removeScreenshot: (i: number) => void;
+  opData: OperationalData;
+  setOpData: React.Dispatch<React.SetStateAction<OperationalData>>;
 }
 
-function Step3({ data, update, onBudgetUpload, uploadingBudget, removeBudgetFile, onScreenshotsUpload, uploadingScreenshots, removeScreenshot }: Step3Props) {
+function Step3({ data, update, onBudgetUpload, uploadingBudget, removeBudgetFile, onScreenshotsUpload, uploadingScreenshots, removeScreenshot, opData, setOpData }: Step3Props) {
+  const addPackage = () => setOpData(prev => ({ ...prev, packages: [...prev.packages, { name: "", base_price: "" }] }));
+  const updatePackageName = (i: number, name: string) => {
+    const pkgs = [...opData.packages];
+    pkgs[i] = { ...pkgs[i], name };
+    setOpData(prev => ({ ...prev, packages: pkgs }));
+  };
+  const removePackage = (i: number) => {
+    setOpData(prev => ({ ...prev, packages: prev.packages.filter((_, idx) => idx !== i) }));
+  };
   return (
     <>
       <StepHeader emoji="📊" title="Operação Atual" subtitle="Como funciona o atendimento hoje?" />
@@ -840,6 +852,29 @@ function Step3({ data, update, onBudgetUpload, uploadingBudget, removeBudgetFile
               <Input value={data.automation_system_name} onChange={e => update("automation_system_name", e.target.value)} placeholder="Ex: ManyChat, Botconversa, Leadster..." />
             </Field>
           )}
+        </FieldSection>
+
+        <FieldSection title="Pacotes do Buffet">
+          <p className="text-xs text-muted-foreground mb-2">
+            Liste os pacotes que você oferece para seus clientes
+          </p>
+          <div className="space-y-2">
+            {opData.packages.map((pkg, i) => (
+              <div key={i} className="flex gap-2">
+                <Input
+                  value={pkg.name}
+                  onChange={e => updatePackageName(i, e.target.value)}
+                  placeholder={`Nome do pacote ${i + 1}`}
+                />
+                <Button variant="ghost" size="icon" onClick={() => removePackage(i)} className="shrink-0">
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+            <Button variant="outline" size="sm" onClick={addPackage} className="w-full">
+              + Adicionar pacote
+            </Button>
+          </div>
         </FieldSection>
 
         <FieldSection title="Envio de orçamento">
