@@ -613,27 +613,28 @@ export default function Onboarding() {
       </main>
 
       {/* Footer navigation */}
-      <footer className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur border-t border-border px-4 py-3 z-50 shadow-elevated">
-        <div className="max-w-2xl mx-auto flex gap-3">
+      <footer className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur border-t border-border px-3 py-3 z-50 shadow-elevated">
+        <div className="max-w-2xl mx-auto flex flex-wrap gap-2">
           {step > 1 && (
-            <Button variant="outline" onClick={handleBack} className="flex-1">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
+            <Button variant="outline" onClick={handleBack} className="flex-1 min-w-[100px] text-sm">
+              <ArrowLeft className="mr-1.5 h-4 w-4" /> Voltar
             </Button>
           )}
           {isOptionalStep && (
-            <Button variant="secondary" onClick={handleSubmit} disabled={submitting} className="flex-1">
-              {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-              Pular e Finalizar
+            <Button variant="secondary" onClick={handleSubmit} disabled={submitting} className="flex-1 min-w-[120px] text-sm">
+              {submitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1.5 h-4 w-4" />}
+              <span className="hidden sm:inline">Pular e Finalizar</span>
+              <span className="sm:hidden">Finalizar</span>
             </Button>
           )}
           {step < TOTAL_STEPS ? (
-            <Button onClick={handleNext} className="flex-1">
-              Próximo <ArrowRight className="ml-2 h-4 w-4" />
+            <Button onClick={handleNext} className="flex-1 min-w-[100px] text-sm">
+              Próximo <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
           ) : (
-            <Button onClick={handleSubmit} disabled={submitting} className="flex-1 bg-accent hover:bg-accent/90">
-              {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-              Finalizar Onboarding
+            <Button onClick={handleSubmit} disabled={submitting} className="flex-1 min-w-[120px] bg-accent hover:bg-accent/90 text-sm">
+              {submitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1.5 h-4 w-4" />}
+              Finalizar
             </Button>
           )}
         </div>
