@@ -60,6 +60,7 @@ const initialOperationalData: OperationalData = {
   company_legal_name: "",
   cnpj: "",
   bank_info: "",
+  attendants: [],
 };
 
 interface OnboardingData {
