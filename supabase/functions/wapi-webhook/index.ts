@@ -3184,13 +3184,20 @@ async function sendQualificationMaterialsThenQuestion(
       });
     }
     
-    // Update conversation to proximo_passo step
-    await supabase.from('wapi_conversations').update({
+    // Update conversation to proximo_passo step (atomic: only if still sending_materials)
+    const { data: stepAdvanced } = await supabase.from('wapi_conversations').update({
       bot_step: 'proximo_passo',
       last_message_at: new Date().toISOString(),
       last_message_content: nextStepQuestion.substring(0, 100),
       last_message_from_me: true
-    }).eq('id', conv.id);
+    }).eq('id', conv.id)
+      .eq('bot_step', 'sending_materials')
+      .select('id')
+      .maybeSingle();
+    
+    if (!stepAdvanced) {
+      console.log(`[Bot] bot_step already changed from sending_materials for conv ${conv.id}, skipping proximo_passo update`);
+    }
     
     console.log(`[Bot] Next step question sent to ${phone}`);
     
@@ -4356,13 +4363,22 @@ async function processWebhookEvent(body: Record<string, unknown>) {
                 const statusMsgId = (sd as Record<string, unknown>)?.key?.id || (body as Record<string, unknown>)?.key?.id;
                 let shouldDisableBot = false;
                 if (ec.bot_enabled === true && statusMsgId) {
-                  const { data: existingStatusMsg } = await supabase.from('wapi_messages')
-                    .select('id')
-                    .eq('message_id', statusMsgId)
-                    .maybeSingle();
-                  if (!existingStatusMsg) {
-                    shouldDisableBot = true;
-                    console.log(`[Bot] Human phone message detected in status handler (msgId ${statusMsgId}), disabling bot for conv ${ec.id}`);
+                  // Don't disable bot during active bot steps — the bot's own outgoing messages
+                  // may trigger status webhooks before the INSERT into wapi_messages completes,
+                  // causing a false "human message" detection that resets bot_step to null.
+                  const statusActiveBotSteps = ['welcome', 'tipo', 'nome', 'mes', 'dia', 'convidados', 'sending_materials', 'proximo_passo', 'proximo_passo_reminded'];
+                  const statusIsFlowStep = (ec.bot_step || '').startsWith('flow_');
+                  const statusIsBotActive = statusActiveBotSteps.includes(ec.bot_step || '') || statusIsFlowStep;
+                  
+                  if (!statusIsBotActive) {
+                    const { data: existingStatusMsg } = await supabase.from('wapi_messages')
+                      .select('id')
+                      .eq('message_id', statusMsgId)
+                      .maybeSingle();
+                    if (!existingStatusMsg) {
+                      shouldDisableBot = true;
+                      console.log(`[Bot] Human phone message detected in status handler (msgId ${statusMsgId}), disabling bot for conv ${ec.id}`);
+                    }
                   }
                 }
                 cv = ec; await supabase.from('wapi_conversations').update({ last_message_at: new Date().toISOString(), last_message_content: pv.substring(0, 100), last_message_from_me: true, ...(shouldDisableBot ? { bot_enabled: false, bot_step: null } : {}) }).eq('id', ec.id);
