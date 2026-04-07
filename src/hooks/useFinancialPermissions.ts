@@ -39,6 +39,7 @@ export function useFinancialPermissions(userId: string | undefined) {
           'financial.values',
           'financial.edit',
           'financial.payments',
+          'financial.bank_accounts',
         ]);
 
       const map: Record<string, boolean> = {};
@@ -51,6 +52,7 @@ export function useFinancialPermissions(userId: string | undefined) {
         canViewValues: map['financial.values'] ?? true,
         canEdit: map['financial.edit'] ?? true,
         canPay: map['financial.payments'] ?? true,
+        canViewBankAccounts: map['financial.bank_accounts'] ?? true,
       });
     } catch (err) {
       console.error('[useFinancialPermissions] Error:', err);
