@@ -13,6 +13,7 @@ export interface EventPayment {
   payment_method: string | null;
   paid_at: string | null;
   notes: string | null;
+  bank_account_id: string | null;
   created_at: string;
 }
 

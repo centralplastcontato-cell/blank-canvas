@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Trash2, CheckCircle, RotateCcw, Tag, Receipt, Clock, CreditCard } from "lucide-react";
+import { Plus, Trash2, CheckCircle, RotateCcw, Tag, Receipt, Clock, CreditCard, Building } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
@@ -15,6 +15,7 @@ import { FinancialSummaryCards } from "./FinancialSummaryCards";
 import { PaymentFormDialog } from "./PaymentFormDialog";
 import { FinancialTimeline } from "./FinancialTimeline";
 import { BankAccountSelect } from "./BankAccountSelect";
+import { useBankAccounts } from "@/hooks/useBankAccounts";
 import { supabase } from "@/integrations/supabase/client";
 
 const METHOD_LABELS: Record<string, string> = {
@@ -42,6 +43,12 @@ interface Props {
 
 export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = true, canPay = true, showValues = true }: Props) {
   const financial = useEventFinancial(eventId, companyId, baseValue);
+  const { activeAccounts } = useBankAccounts();
+  const bankAccountMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    activeAccounts.forEach(a => { map[a.id] = a.name; });
+    return map;
+  }, [activeAccounts]);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [extraDialogOpen, setExtraDialogOpen] = useState(false);
   const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
@@ -300,6 +307,12 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                         {p.payment_method && (
                           <span className="text-[11px] text-muted-foreground">
                             • {METHOD_LABELS[p.payment_method] || p.payment_method}
+                          </span>
+                        )}
+                        {p.status === 'paid' && p.bank_account_id && bankAccountMap[p.bank_account_id] && (
+                          <span className="text-[11px] text-primary/70 flex items-center gap-0.5">
+                            <Building className="h-2.5 w-2.5" />
+                            {bankAccountMap[p.bank_account_id]}
                           </span>
                         )}
                       </div>
