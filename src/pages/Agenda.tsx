@@ -1767,6 +1767,7 @@ export default function Agenda() {
         reportTypes={[
           { value: 'festas_periodo', label: 'Festas do Período', desc: 'Eventos que serão realizados no período selecionado' },
           { value: 'vendas_fechadas', label: 'Vendas Fechadas', desc: 'Festas que foram fechadas (vendidas) no período' },
+          { value: 'ficha_festas', label: 'Ficha de Festas', desc: 'Data, horário, aniversariante e tema de cada festa' },
         ]}
         unitOptions={(() => {
           const vu = canViewAll ? physicalUnits : physicalUnits.filter(u => unitAccess[u.name]);
@@ -1807,8 +1808,14 @@ export default function Agenda() {
           }
           const filtered = p.unit === 'all' ? data : data.filter((e: any) => e.unit === p.unit);
           const reportParams = { type: p.type, companyName: currentCompany?.name || '', periodLabel: p.periodLabel, from: p.from, to: p.to, events: filtered };
-          if (p.format === 'xlsx') generateAgendaXLSX(reportParams);
-          else generateAgendaPDF(reportParams);
+
+          if (p.type === 'ficha_festas') {
+            if (p.format === 'xlsx') generateFichaFestasXLSX(reportParams);
+            else generateFichaFestasPDF(reportParams);
+          } else {
+            if (p.format === 'xlsx') generateAgendaXLSX(reportParams);
+            else generateAgendaPDF(reportParams);
+          }
         }}
       />
     </SidebarProvider>
