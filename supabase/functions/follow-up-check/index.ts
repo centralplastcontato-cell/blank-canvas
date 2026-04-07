@@ -293,6 +293,11 @@ Deno.serve(async (req) => {
     totalSuccessCount += stuckBotResult.successCount;
     allErrors.push(...stuckBotResult.errors);
 
+    // Process stuck sending_materials recovery (materials sent but proximo_passo question never arrived)
+    const stuckMaterialsResult = await processStuckSendingMaterials({ supabase });
+    totalSuccessCount += stuckMaterialsResult.successCount;
+    allErrors.push(...stuckMaterialsResult.errors);
+
     // Process each instance with follow-up enabled
     for (const settings of allSettings) {
       // === PRE-FLIGHT HEALTH GATE: check instance is truly connected + not in quarantine ===
