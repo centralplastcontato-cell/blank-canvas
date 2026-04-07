@@ -1278,21 +1278,15 @@ function OptionalBanner() {
 }
 
 function Step8({ opData, setOpData }: OpStepProps) {
-  const addEventType = () => setOpData(p => ({ ...p, event_types: [...p.event_types, { value: "", label: "" }] }));
-  const removeEventType = (i: number) => setOpData(p => ({ ...p, event_types: p.event_types.filter((_, idx) => idx !== i) }));
+  const addEventType = () => setOpData(p => ({ ...p, event_types: [...p.event_types, { value: `custom_${Date.now()}`, label: "" }] }));
+  const removeEventType = (i: number) => {
+    if (opData.event_types.length <= 1) return;
+    setOpData(p => ({ ...p, event_types: p.event_types.filter((_, idx) => idx !== i) }));
+  };
   const updateEventType = (i: number, label: string) => {
     setOpData(p => ({
       ...p,
       event_types: p.event_types.map((et, idx) => idx === i ? { value: label.toLowerCase().replace(/\s+/g, '_'), label } : et),
-    }));
-  };
-
-  const addPackage = () => setOpData(p => ({ ...p, packages: [...p.packages, { name: "", base_price: "", image_url: "" }] }));
-  const removePackage = (i: number) => setOpData(p => ({ ...p, packages: p.packages.filter((_, idx) => idx !== i) }));
-  const updatePackage = (i: number, field: 'name' | 'base_price', value: string) => {
-    setOpData(p => ({
-      ...p,
-      packages: p.packages.map((pk, idx) => idx === i ? { ...pk, [field]: value } : pk),
     }));
   };
 
@@ -1306,60 +1300,49 @@ function Step8({ opData, setOpData }: OpStepProps) {
 
   return (
     <>
-      <StepHeader emoji="🎉" title="Tipos de Festa e Pacotes" subtitle="Quais festas e pacotes seu buffet oferece?" />
+      <StepHeader emoji="🎉" title="Tipos de Festa e Convidados" subtitle="Quais festas seu buffet oferece?" />
       <OptionalBanner />
       <FieldGroup>
-        <FieldSection title="Tipos de festa">
-          <Field label="Quais tipos de festa você oferece?">
-            <div className="space-y-2">
-              {opData.event_types.map((et, i) => (
-                <div key={i} className="flex gap-2">
-                  <Input
-                    value={et.label}
-                    onChange={e => updateEventType(i, e.target.value)}
-                    placeholder="Ex: Infantil, Adulto, Corporativo..."
-                  />
-                  <Button variant="ghost" size="icon" onClick={() => removeEventType(i)} className="shrink-0">
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              <Button variant="outline" size="sm" onClick={addEventType} className="w-full">
-                + Adicionar tipo de festa
-              </Button>
+        {/* Event Types — same pattern as EventTypesConfig on the platform */}
+        <div className="rounded-xl border border-border/60 bg-card p-4 space-y-4">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <PartyPopper className="h-4 w-4 text-primary" />
             </div>
-          </Field>
-        </FieldSection>
-
-        <FieldSection title="Pacotes">
-          <Field label="Seus pacotes (nome e valor base)">
-            <div className="space-y-2">
-              {opData.packages.map((pk, i) => (
-                <div key={i} className="flex gap-2">
-                  <Input
-                    value={pk.name}
-                    onChange={e => updatePackage(i, 'name', e.target.value)}
-                    placeholder="Nome do pacote"
-                    className="flex-1"
-                  />
-                  <Input
-                    value={pk.base_price}
-                    onChange={e => updatePackage(i, 'base_price', e.target.value)}
-                    placeholder="R$ valor"
-                    className="w-28"
-                  />
-                  <Button variant="ghost" size="icon" onClick={() => removePackage(i)} className="shrink-0">
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              <Button variant="outline" size="sm" onClick={addPackage} className="w-full">
-                + Adicionar pacote
-              </Button>
+            <div>
+              <h3 className="text-sm font-semibold">Tipos de Festa</h3>
+              <p className="text-xs text-muted-foreground">Defina os tipos de evento que seu buffet trabalha</p>
             </div>
-          </Field>
-        </FieldSection>
+          </div>
 
+          <div className="space-y-2">
+            {opData.event_types.map((et, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Input
+                  className="h-9 text-sm flex-1"
+                  value={et.label}
+                  onChange={e => updateEventType(i, e.target.value)}
+                  placeholder="Ex: Aniversário, Formatura, Corporativo..."
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 shrink-0"
+                  onClick={() => removeEventType(i)}
+                  disabled={opData.event_types.length <= 1}
+                >
+                  <X className="h-3.5 w-3.5 text-destructive" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          <Button variant="outline" size="sm" className="text-xs" onClick={addEventType}>
+            + Adicionar tipo
+          </Button>
+        </div>
+
+        {/* Guest Ranges */}
         <FieldSection title="Faixas de convidados">
           <Field label="Quantidades de convidados que você atende">
             <div className="flex flex-wrap gap-2">
