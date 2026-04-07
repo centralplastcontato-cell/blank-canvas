@@ -194,7 +194,7 @@ export default function Onboarding() {
 
   const saveProgress = async (nextStep: number) => {
     if (!companyId) return;
-    const payload: any = { ...data, company_id: companyId, current_step: nextStep, status: wasCompleted ? 'completo' : 'em_andamento' };
+    const payload: any = { ...data, company_id: companyId, current_step: nextStep, status: wasCompleted ? 'completo' : 'em_andamento', operational_data: opData };
     delete payload.photo_urls_files;
 
     let targetId = onboardingId;
