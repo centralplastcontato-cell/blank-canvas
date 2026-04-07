@@ -59,7 +59,7 @@ export function BankAccountsManager() {
     setAgency(acc.agency || '');
     setAccountNumber(acc.account_number || '');
     setAccountType(acc.account_type);
-    setInitialBalance(acc.initial_balance.toString());
+    setInitialBalance(acc.initial_balance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     setIsDefault(acc.is_default);
     setDialogOpen(true);
   };
