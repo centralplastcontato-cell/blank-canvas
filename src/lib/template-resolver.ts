@@ -376,6 +376,9 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
   opcionais: {
     resolver: (ctx) => ctx.contract?.opcionais || 'Nenhum opcional contratado',
   },
+  desconto: {
+    resolver: (ctx) => ctx.contract?.desconto || 'Sem desconto',
+  },
 
   // --- Freelancer / Schedule ---
   titulo: {
