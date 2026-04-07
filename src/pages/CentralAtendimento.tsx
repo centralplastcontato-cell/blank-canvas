@@ -100,6 +100,7 @@ export default function CentralAtendimento() {
   const { units } = useCompanyUnits(currentCompany?.id);
   const [activeTab, setActiveTab] = useState<"chat" | "leads">("chat");
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadPerInstance, setUnreadPerInstance] = useState<Record<string, number>>({});
   const [newLeadsCount, setNewLeadsCount] = useState(0);
   const [showMetrics, setShowMetrics] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -557,11 +558,19 @@ export default function CentralAtendimento() {
   const fetchUnreadCount = useCallback(async () => {
     const { data } = await supabase
       .from("wapi_conversations")
-      .select("unread_count"); // Only fetch unread_count column
+      .select("unread_count, instance_id");
     
     if (data) {
       const total = data.reduce((sum, conv) => sum + (conv.unread_count || 0), 0);
       setUnreadCount(total);
+      
+      const perInst: Record<string, number> = {};
+      data.forEach((conv: any) => {
+        if (conv.instance_id && (conv.unread_count || 0) > 0) {
+          perInst[conv.instance_id] = (perInst[conv.instance_id] || 0) + (conv.unread_count || 0);
+        }
+      });
+      setUnreadPerInstance(perInst);
     }
   }, []);
 
@@ -954,11 +963,22 @@ export default function CentralAtendimento() {
                       </div>
                     </SelectTrigger>
                     <SelectContent>
-                      {chatUnitOptions.map((unit) => (
-                        <SelectItem key={unit} value={unit}>
-                          {unit}
-                        </SelectItem>
-                      ))}
+                      {chatUnitOptions.map((unit) => {
+                        const inst = chatInstances.find(i => i.unit === unit);
+                        const instUnread = inst ? (unreadPerInstance[inst.id] || 0) : 0;
+                        return (
+                          <SelectItem key={unit} value={unit}>
+                            <span className="flex items-center gap-2">
+                              {unit}
+                              {instUnread > 0 && selectedChatUnit !== unit && (
+                                <span className="h-4 min-w-4 px-1 text-[9px] font-bold rounded-full bg-destructive text-destructive-foreground flex items-center justify-center">
+                                  {instUnread > 99 ? "99+" : instUnread}
+                                </span>
+                              )}
+                            </span>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1252,6 +1272,11 @@ export default function CentralAtendimento() {
                         >
                           <Building2 className="w-3.5 h-3.5 mr-1" />
                           {inst.unit}
+                          {(unreadPerInstance[inst.id] || 0) > 0 && selectedChatUnit !== inst.unit && (
+                            <span className="ml-1 h-4 min-w-4 px-1 text-[9px] font-bold rounded-full bg-destructive text-destructive-foreground flex items-center justify-center">
+                              {(unreadPerInstance[inst.id] || 0) > 99 ? "99+" : unreadPerInstance[inst.id]}
+                            </span>
+                          )}
                         </Button>
                       ))}
                     </div>
