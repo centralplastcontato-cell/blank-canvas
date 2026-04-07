@@ -943,7 +943,7 @@ function Step4({ data, update }: StepProps) {
   );
 }
 
-function Step5({ data, update }: StepProps) {
+function Step5({ data, update, opData, setOpData }: StepProps & { opData: OperationalData; setOpData: React.Dispatch<React.SetStateAction<OperationalData>> }) {
   const addWhatsApp = () => update("whatsapp_numbers", [...data.whatsapp_numbers, ""]);
   const updateWhatsApp = (i: number, v: string) => {
     const nums = [...data.whatsapp_numbers];
@@ -955,33 +955,78 @@ function Step5({ data, update }: StepProps) {
     update("whatsapp_numbers", data.whatsapp_numbers.filter((_, idx) => idx !== i));
   };
 
+  const handleCountChange = (count: number) => {
+    update("attendants_count", count);
+    const current = [...opData.attendants];
+    if (count > current.length) {
+      for (let i = current.length; i < count; i++) {
+        current.push({ name: "", email: "", password: "" });
+      }
+    } else {
+      current.splice(count);
+    }
+    setOpData(prev => ({ ...prev, attendants: current }));
+  };
+
+  const updateAttendant = (i: number, field: keyof AttendantProfile, value: string) => {
+    const updated = [...opData.attendants];
+    updated[i] = { ...updated[i], [field]: value };
+    setOpData(prev => ({ ...prev, attendants: updated }));
+  };
+
+  // Initialize attendants array if empty but count > 0
+  useEffect(() => {
+    if (opData.attendants.length === 0 && data.attendants_count > 0) {
+      const initial: AttendantProfile[] = Array.from({ length: data.attendants_count }, () => ({ name: "", email: "", password: "" }));
+      setOpData(prev => ({ ...prev, attendants: initial }));
+    }
+  }, []);
+
   return (
     <>
       <StepHeader emoji="💬" title="WhatsApp e Atendimento" subtitle="Detalhes sobre sua operação de atendimento" />
       <FieldGroup>
-        <FieldSection title="Números de WhatsApp">
-          <Field label="Número(s) de WhatsApp">
-            <div className="space-y-2">
-              {data.whatsapp_numbers.map((num, i) => (
-                <div key={i} className="flex gap-2">
-                  <Input value={num} onChange={e => updateWhatsApp(i, e.target.value)} placeholder="(11) 99999-9999" />
-                  {data.whatsapp_numbers.length > 1 && (
-                    <Button variant="ghost" size="icon" onClick={() => removeWhatsApp(i)} className="shrink-0">
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-              <Button variant="outline" size="sm" onClick={addWhatsApp} className="w-full">
-                + Adicionar outro número
-              </Button>
+        <FieldSection title="WhatsApp para Conexão">
+          <p className="text-xs text-muted-foreground mb-2">
+            Informe o número do WhatsApp que será conectado à plataforma para responder os clientes automaticamente.
+          </p>
+          <Field label="Número principal (será conectado)">
+            <div className="flex gap-2">
+              <Input
+                value={data.whatsapp_numbers[0] || ""}
+                onChange={e => updateWhatsApp(0, e.target.value)}
+                placeholder="(11) 99999-9999"
+                className="border-primary/50 ring-1 ring-primary/20"
+              />
             </div>
+            <p className="text-xs text-primary/70 mt-1 flex items-center gap-1">
+              <MessageSquare className="h-3 w-3" />
+              Este número receberá e responderá mensagens pela plataforma
+            </p>
           </Field>
         </FieldSection>
 
+        {data.whatsapp_numbers.length > 1 && (
+          <FieldSection title="Números adicionais">
+            <div className="space-y-2">
+              {data.whatsapp_numbers.slice(1).map((num, i) => (
+                <div key={i + 1} className="flex gap-2">
+                  <Input value={num} onChange={e => updateWhatsApp(i + 1, e.target.value)} placeholder="(11) 99999-9999" />
+                  <Button variant="ghost" size="icon" onClick={() => removeWhatsApp(i + 1)} className="shrink-0">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </FieldSection>
+        )}
+        <Button variant="outline" size="sm" onClick={addWhatsApp} className="w-full">
+          + Adicionar outro número
+        </Button>
+
         <FieldSection title="Operação">
           <Field label="Quantidade de atendentes">
-            <Input type="number" min={1} value={data.attendants_count} onChange={e => update("attendants_count", parseInt(e.target.value) || 1)} />
+            <Input type="number" min={1} max={20} value={data.attendants_count} onChange={e => handleCountChange(parseInt(e.target.value) || 1)} />
           </Field>
           <Field label="Horário de atendimento">
             <Input value={data.service_hours} onChange={e => update("service_hours", e.target.value)} placeholder="Ex: Seg a Sex, 9h às 18h" />
@@ -993,6 +1038,33 @@ function Step5({ data, update }: StepProps) {
             </div>
           </Field>
         </FieldSection>
+
+        {opData.attendants.length > 0 && (
+          <FieldSection title="Perfis dos Atendentes">
+            <p className="text-xs text-muted-foreground mb-3">
+              Crie o acesso de cada atendente. Eles poderão usar esses dados para entrar na plataforma.
+            </p>
+            <div className="space-y-4">
+              {opData.attendants.map((att, i) => (
+                <div key={i} className="p-4 rounded-xl border border-border bg-muted/20 space-y-3">
+                  <p className="text-sm font-semibold text-foreground">Atendente {i + 1}</p>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Nome completo</Label>
+                    <Input value={att.name} onChange={e => updateAttendant(i, "name", e.target.value)} placeholder="Nome do atendente" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">E-mail de acesso</Label>
+                    <Input type="email" value={att.email} onChange={e => updateAttendant(i, "email", e.target.value)} placeholder="atendente@email.com" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Senha</Label>
+                    <Input type="password" value={att.password} onChange={e => updateAttendant(i, "password", e.target.value)} placeholder="Mínimo 6 caracteres" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </FieldSection>
+        )}
       </FieldGroup>
     </>
   );
