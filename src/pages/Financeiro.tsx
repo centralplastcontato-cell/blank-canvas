@@ -103,6 +103,7 @@ export default function Financeiro() {
   const [pageRecebidos, setPageRecebidos] = useState(1);
   const [pageDespesas, setPageDespesas] = useState(1);
   const [despesasSortAsc, setDespesasSortAsc] = useState(true);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [selectedEventData, setSelectedEventData] = useState<{ title: string; event_date: string; total_value: number; status: string } | null>(null);
   const [activePreset, setActivePreset] = useState<PeriodPreset>('mes');
@@ -189,10 +190,12 @@ export default function Financeiro() {
     );
   }
 
+  const sortByDueDate = (a: any, b: any) => sortOrder === 'asc' ? a.due_date.localeCompare(b.due_date) : b.due_date.localeCompare(a.due_date);
+
   // Categorized payment lists
-  const allPaid = dashboard.payments.filter(p => p.status === 'paid').sort((a, b) => (b.paid_at || '').localeCompare(a.paid_at || ''));
-  const allPending = dashboard.payments.filter(p => p.status === 'pending').sort((a, b) => b.due_date.localeCompare(a.due_date));
-  const allLate = [...dashboard.latePayments].sort((a, b) => b.due_date.localeCompare(a.due_date));
+  const allPaid = dashboard.payments.filter(p => p.status === 'paid').sort((a, b) => sortOrder === 'asc' ? (a.paid_at || '').localeCompare(b.paid_at || '') : (b.paid_at || '').localeCompare(a.paid_at || ''));
+  const allPending = dashboard.payments.filter(p => p.status === 'pending').sort(sortByDueDate);
+  const allLate = [...dashboard.latePayments].sort(sortByDueDate);
 
   return (
     <SidebarProvider>
@@ -501,6 +504,10 @@ export default function Financeiro() {
                           Em Atraso ({allLate.length})
                           {allLate.length > 0 && <span className="ml-2 text-red-400 font-bold">{fmt(allLate.reduce((s, p) => s + p.amount, 0))}</span>}
                         </h2>
+                        <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-muted-foreground" onClick={() => setSortOrder(s => s === 'asc' ? 'desc' : 'asc')}>
+                          <ArrowUpDown className="h-3.5 w-3.5" />
+                          {sortOrder === 'asc' ? 'Mais próximo' : 'Mais distante'}
+                        </Button>
                       </div>
                       {viewMode === 'client' ? (
                         <PaymentsByClientView payments={allLate} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
@@ -522,6 +529,10 @@ export default function Financeiro() {
                           A Receber ({allPending.length})
                           {allPending.length > 0 && <span className="ml-2 text-amber-400 font-bold">{fmt(allPending.reduce((s, p) => s + p.amount, 0))}</span>}
                         </h2>
+                        <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-muted-foreground" onClick={() => setSortOrder(s => s === 'asc' ? 'desc' : 'asc')}>
+                          <ArrowUpDown className="h-3.5 w-3.5" />
+                          {sortOrder === 'asc' ? 'Mais próximo' : 'Mais distante'}
+                        </Button>
                       </div>
                       {viewMode === 'client' ? (
                         <PaymentsByClientView payments={allPending} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
@@ -543,6 +554,10 @@ export default function Financeiro() {
                           Recebidos ({allPaid.length})
                           {allPaid.length > 0 && <span className="ml-2 text-emerald-400 font-bold">{fmt(allPaid.reduce((s, p) => s + p.amount, 0))}</span>}
                         </h2>
+                        <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-muted-foreground" onClick={() => setSortOrder(s => s === 'asc' ? 'desc' : 'asc')}>
+                          <ArrowUpDown className="h-3.5 w-3.5" />
+                          {sortOrder === 'asc' ? 'Mais próximo' : 'Mais distante'}
+                        </Button>
                       </div>
                       {viewMode === 'client' ? (
                         <PaymentsByClientView payments={allPaid} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
