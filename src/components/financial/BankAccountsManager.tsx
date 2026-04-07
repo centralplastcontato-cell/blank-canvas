@@ -20,6 +20,16 @@ const ACCOUNT_TYPES = [
 
 const TYPE_LABELS: Record<string, string> = Object.fromEntries(ACCOUNT_TYPES.map(t => [t.value, t.label]));
 
+const formatCurrency = (value: string): string => {
+  const digits = value.replace(/\D/g, '');
+  const cents = parseInt(digits || '0', 10);
+  return (cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const parseCurrency = (formatted: string): number => {
+  const digits = formatted.replace(/\D/g, '');
+  return parseInt(digits || '0', 10) / 100;
+};
 
 
 export function BankAccountsManager() {
@@ -38,7 +48,7 @@ export function BankAccountsManager() {
   const openCreate = () => {
     setEditing(null);
     setName(''); setBankName(''); setAgency(''); setAccountNumber('');
-    setAccountType('corrente'); setInitialBalance(''); setIsDefault(false);
+    setAccountType('corrente'); setInitialBalance('0,00'); setIsDefault(false);
     setDialogOpen(true);
   };
 
@@ -49,7 +59,7 @@ export function BankAccountsManager() {
     setAgency(acc.agency || '');
     setAccountNumber(acc.account_number || '');
     setAccountType(acc.account_type);
-    setInitialBalance(acc.initial_balance.toString());
+    setInitialBalance(acc.initial_balance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     setIsDefault(acc.is_default);
     setDialogOpen(true);
   };
@@ -62,7 +72,7 @@ export function BankAccountsManager() {
       agency: agency.trim() || undefined,
       account_number: accountNumber.trim() || undefined,
       account_type: accountType,
-      initial_balance: parseFloat(initialBalance) || 0,
+      initial_balance: parseCurrency(initialBalance),
       is_default: isDefault,
     };
 
@@ -209,7 +219,16 @@ export function BankAccountsManager() {
             )}
             <div>
               <Label>Saldo inicial (R$)</Label>
-              <Input type="number" step="0.01" value={initialBalance} onChange={e => setInitialBalance(e.target.value)} placeholder="0,00" />
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                <Input
+                  className="pl-10"
+                  value={initialBalance}
+                  onChange={e => setInitialBalance(formatCurrency(e.target.value))}
+                  placeholder="0,00"
+                  inputMode="numeric"
+                />
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <Switch checked={isDefault} onCheckedChange={setIsDefault} />
