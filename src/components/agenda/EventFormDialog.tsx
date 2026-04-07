@@ -277,6 +277,15 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [saving, setSaving] = useState(false);
   const { currentCompany } = useCompany();
 
+  // Dynamic event types from company settings, with fallback to defaults
+  const EVENT_TYPES = useMemo(() => {
+    const s = (currentCompany?.settings || {}) as Record<string, unknown>;
+    if (Array.isArray(s.event_types) && s.event_types.length > 0) {
+      return s.event_types as Array<{ value: string; label: string }>;
+    }
+    return DEFAULT_EVENT_TYPES;
+  }, [currentCompany?.settings]);
+
   const [dateDay, setDateDay] = useState("");
   const [dateMonth, setDateMonth] = useState("");
   const [dateYear, setDateYear] = useState("");
