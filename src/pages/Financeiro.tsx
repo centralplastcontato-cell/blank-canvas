@@ -117,6 +117,11 @@ export default function Financeiro() {
   const [markPaidPayment, setMarkPaidPayment] = useState<any>(null);
   const [markPaidBankId, setMarkPaidBankId] = useState<string | null>(null);
   const bankAccounts = useBankAccounts();
+  const bankAccountMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    bankAccounts.activeAccounts.forEach(a => { map[a.id] = a.name; });
+    return map;
+  }, [bankAccounts.activeAccounts]);
 
   const handleMarkPaymentAsPaid = (paymentId: string) => {
     const payment = dashboard.payments.find((p: any) => p.id === paymentId);
