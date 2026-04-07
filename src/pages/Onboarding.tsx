@@ -35,7 +35,7 @@ interface AttendantProfile {
 
 interface OperationalData {
   event_types: { value: string; label: string }[];
-  packages: { name: string; base_price: string }[];
+  packages: { name: string; base_price: string; image_url: string }[];
   guest_ranges: string[];
   units: { name: string }[];
   party_schedules: { label: string; start: string; end: string }[];
