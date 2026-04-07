@@ -854,6 +854,29 @@ function Step3({ data, update, onBudgetUpload, uploadingBudget, removeBudgetFile
           )}
         </FieldSection>
 
+        <FieldSection title="Pacotes do Buffet">
+          <p className="text-xs text-muted-foreground mb-2">
+            Liste os pacotes que você oferece para seus clientes
+          </p>
+          <div className="space-y-2">
+            {opData.packages.map((pkg, i) => (
+              <div key={i} className="flex gap-2">
+                <Input
+                  value={pkg.name}
+                  onChange={e => updatePackageName(i, e.target.value)}
+                  placeholder={`Nome do pacote ${i + 1}`}
+                />
+                <Button variant="ghost" size="icon" onClick={() => removePackage(i)} className="shrink-0">
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+            <Button variant="outline" size="sm" onClick={addPackage} className="w-full">
+              + Adicionar pacote
+            </Button>
+          </div>
+        </FieldSection>
+
         <FieldSection title="Envio de orçamento">
           <Field label="Como você envia o orçamento para o cliente?">
             <Select value={data.budget_format} onValueChange={v => update("budget_format", v)}>
