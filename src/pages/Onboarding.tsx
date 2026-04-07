@@ -178,6 +178,9 @@ export default function Onboarding() {
               video_urls: e.video_urls || [], brand_notes: e.brand_notes || "",
               main_goal: e.main_goal || "", additional_notes: e.additional_notes || "",
             });
+            if (e.operational_data) {
+              setOpData({ ...initialOperationalData, ...(e.operational_data as any) });
+            }
         }
       }
       setLoading(false);
