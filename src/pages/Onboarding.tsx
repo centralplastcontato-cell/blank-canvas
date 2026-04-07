@@ -27,6 +27,12 @@ const LEAD_SOURCE_OPTIONS = [
 
 
 
+interface AttendantProfile {
+  name: string;
+  email: string;
+  password: string;
+}
+
 interface OperationalData {
   event_types: { value: string; label: string }[];
   packages: { name: string; base_price: string }[];
@@ -39,6 +45,7 @@ interface OperationalData {
   company_legal_name: string;
   cnpj: string;
   bank_info: string;
+  attendants: AttendantProfile[];
 }
 
 const initialOperationalData: OperationalData = {
