@@ -774,7 +774,7 @@ interface Step3Props extends StepProps {
 }
 
 function Step3({ data, update, onBudgetUpload, uploadingBudget, removeBudgetFile, onScreenshotsUpload, uploadingScreenshots, removeScreenshot, opData, setOpData }: Step3Props) {
-  const addPackage = () => setOpData(prev => ({ ...prev, packages: [...prev.packages, { name: "", base_price: "" }] }));
+  const addPackage = () => setOpData(prev => ({ ...prev, packages: [...prev.packages, { name: "", base_price: "", image_url: "" }] }));
   const updatePackageName = (i: number, name: string) => {
     const pkgs = [...opData.packages];
     pkgs[i] = { ...pkgs[i], name };
@@ -1258,7 +1258,7 @@ function Step8({ opData, setOpData }: OpStepProps) {
     }));
   };
 
-  const addPackage = () => setOpData(p => ({ ...p, packages: [...p.packages, { name: "", base_price: "" }] }));
+  const addPackage = () => setOpData(p => ({ ...p, packages: [...p.packages, { name: "", base_price: "", image_url: "" }] }));
   const removePackage = (i: number) => setOpData(p => ({ ...p, packages: p.packages.filter((_, idx) => idx !== i) }));
   const updatePackage = (i: number, field: 'name' | 'base_price', value: string) => {
     setOpData(p => ({
