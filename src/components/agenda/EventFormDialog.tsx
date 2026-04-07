@@ -556,7 +556,25 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     (form.event_optionals || []).reduce((sum, o) => sum + (o.value || 0), 0),
     [form.event_optionals]
   );
-  const grandTotal = (form.total_value || 0) + optionalsSubtotal;
+  const discountAmount = useMemo(() => {
+    if (!form.discount_type || !form.discount_value || form.discount_value <= 0) return 0;
+    const base = form.discount_base === 'pacote' ? (form.total_value || 0) : ((form.total_value || 0) + optionalsSubtotal);
+    if (form.discount_type === 'percentage') {
+      return Math.round(base * form.discount_value / 100 * 100) / 100;
+    }
+    return Math.min(form.discount_value, base);
+  }, [form.discount_type, form.discount_value, form.discount_base, form.total_value, optionalsSubtotal]);
+
+  const grandTotal = Math.max(0, (form.total_value || 0) + optionalsSubtotal - discountAmount);
+
+  const [showDiscount, setShowDiscount] = useState(false);
+
+  // Show discount section if there's already a discount value (editing)
+  useEffect(() => {
+    if (open && form.discount_value && form.discount_value > 0) {
+      setShowDiscount(true);
+    }
+  }, [open, form.discount_value]);
 
   // Update payment saldo when optionals or base value changes
   useEffect(() => {
