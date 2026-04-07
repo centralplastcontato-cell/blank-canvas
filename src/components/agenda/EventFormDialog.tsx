@@ -52,6 +52,8 @@ export interface EventOptional {
   name: string;
   value: number | null;
   valor_por_pessoa?: number | null;
+  quantity?: number | null;
+  unit_price?: number | null;
 }
 
 export interface EventFormData {
