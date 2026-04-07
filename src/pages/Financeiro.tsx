@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useFinanceiroDashboard } from '@/hooks/useFinanceiroDashboard';
@@ -117,6 +117,11 @@ export default function Financeiro() {
   const [markPaidPayment, setMarkPaidPayment] = useState<any>(null);
   const [markPaidBankId, setMarkPaidBankId] = useState<string | null>(null);
   const bankAccounts = useBankAccounts();
+  const bankAccountMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    bankAccounts.activeAccounts.forEach(a => { map[a.id] = a.name; });
+    return map;
+  }, [bankAccounts.activeAccounts]);
 
   const handleMarkPaymentAsPaid = (paymentId: string) => {
     const payment = dashboard.payments.find((p: any) => p.id === paymentId);
@@ -533,7 +538,7 @@ export default function Financeiro() {
                       ) : (
                         <>
                           <div className="space-y-2">
-                            {allLate.slice((pageAtraso - 1) * PAGE_SIZE, pageAtraso * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={handleMarkPaymentAsPaid} onOpenEvent={handleOpenEvent} />)}
+                            {allLate.slice((pageAtraso - 1) * PAGE_SIZE, pageAtraso * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={handleMarkPaymentAsPaid} onOpenEvent={handleOpenEvent} bankAccountName={p.bank_account_id ? bankAccountMap[p.bank_account_id] : undefined} />)}
                           </div>
                           <PaginationControls page={pageAtraso} totalPages={Math.ceil(allLate.length / PAGE_SIZE)} onPageChange={setPageAtraso} />
                         </>
@@ -558,7 +563,7 @@ export default function Financeiro() {
                       ) : (
                         <>
                           <div className="space-y-2">
-                            {allPending.slice((pageReceber - 1) * PAGE_SIZE, pageReceber * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={handleMarkPaymentAsPaid} onOpenEvent={handleOpenEvent} />)}
+                            {allPending.slice((pageReceber - 1) * PAGE_SIZE, pageReceber * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onMarkAsPaid={handleMarkPaymentAsPaid} onOpenEvent={handleOpenEvent} bankAccountName={p.bank_account_id ? bankAccountMap[p.bank_account_id] : undefined} />)}
                           </div>
                           <PaginationControls page={pageReceber} totalPages={Math.ceil(allPending.length / PAGE_SIZE)} onPageChange={setPageReceber} />
                         </>
@@ -583,7 +588,7 @@ export default function Financeiro() {
                       ) : (
                         <>
                           <div className="space-y-2">
-                            {allPaid.slice((pageRecebidos - 1) * PAGE_SIZE, pageRecebidos * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onOpenEvent={handleOpenEvent} />)}
+                            {allPaid.slice((pageRecebidos - 1) * PAGE_SIZE, pageRecebidos * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onOpenEvent={handleOpenEvent} bankAccountName={p.bank_account_id ? bankAccountMap[p.bank_account_id] : undefined} />)}
                           </div>
                           <PaginationControls page={pageRecebidos} totalPages={Math.ceil(allPaid.length / PAGE_SIZE)} onPageChange={setPageRecebidos} />
                         </>

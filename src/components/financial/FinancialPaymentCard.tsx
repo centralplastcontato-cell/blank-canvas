@@ -1,6 +1,6 @@
 import { format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarDays, ExternalLink, Check, MapPin, PartyPopper } from 'lucide-react';
+import { CalendarDays, ExternalLink, Check, MapPin, PartyPopper, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { EnrichedPayment } from '@/hooks/useFinanceiroDashboard';
@@ -9,6 +9,7 @@ interface Props {
   payment: EnrichedPayment;
   onMarkAsPaid?: (id: string) => void;
   onOpenEvent?: (eventId: string) => void;
+  bankAccountName?: string;
 }
 
 const statusConfig = {
@@ -28,7 +29,7 @@ const borderColors: Record<string, string> = {
   paid: 'border-l-emerald-500',
 };
 
-export function FinancialPaymentCard({ payment, onMarkAsPaid, onOpenEvent }: Props) {
+export function FinancialPaymentCard({ payment, onMarkAsPaid, onOpenEvent, bankAccountName }: Props) {
   const cfg = statusConfig[payment.status];
   const daysLate = payment.status === 'late' ? differenceInDays(new Date(), new Date(payment.due_date)) : 0;
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -88,6 +89,12 @@ export function FinancialPaymentCard({ payment, onMarkAsPaid, onOpenEvent }: Pro
                   : `Venc. ${format(new Date(payment.due_date + 'T12:00:00'), 'dd/MM/yyyy')}`
               }
             </p>
+            {payment.status === 'paid' && bankAccountName && (
+              <p className="text-[10px] text-primary/70 flex items-center gap-1">
+                <Building className="h-2.5 w-2.5" />
+                {bankAccountName}
+              </p>
+            )}
           </div>
 
           <div className="flex items-center gap-1">
