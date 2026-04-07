@@ -594,6 +594,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
     return statusMap;
   }, [conversations, conversationLeadsMap]);
+  const instanceUnitMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    instances.forEach(inst => { if (inst.unit) map[inst.id] = inst.unit; });
+    return map;
+  }, [instances]);
   const scrollAreaDesktopRef = useRef<HTMLDivElement>(null);
   const scrollAreaMobileRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
