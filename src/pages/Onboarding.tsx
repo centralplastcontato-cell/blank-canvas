@@ -592,6 +592,7 @@ export default function Onboarding() {
             onBudgetUpload={handleBudgetUpload} uploadingBudget={uploadingBudget} removeBudgetFile={removeBudgetFile}
             onScreenshotsUpload={handleScreenshotsUpload} uploadingScreenshots={uploadingScreenshots} removeScreenshot={removeScreenshot}
             opData={opData} setOpData={setOpData}
+            uploadFile={uploadFile}
           />
         )}
         {step === 4 && <Step4 data={data} update={update} />}
@@ -771,6 +772,7 @@ interface Step3Props extends StepProps {
   removeScreenshot: (i: number) => void;
   opData: OperationalData;
   setOpData: React.Dispatch<React.SetStateAction<OperationalData>>;
+  uploadFile: (file: File, folder: string) => Promise<string | null>;
 }
 
 function Step3({ data, update, onBudgetUpload, uploadingBudget, removeBudgetFile, onScreenshotsUpload, uploadingScreenshots, removeScreenshot, opData, setOpData }: Step3Props) {
