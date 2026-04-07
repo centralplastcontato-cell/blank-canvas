@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Check, Upload, Loader2, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { BankAccountSelect } from './BankAccountSelect';
 
 interface Props {
   open: boolean;
