@@ -554,6 +554,10 @@ export default function Financeiro() {
                           Recebidos ({allPaid.length})
                           {allPaid.length > 0 && <span className="ml-2 text-emerald-400 font-bold">{fmt(allPaid.reduce((s, p) => s + p.amount, 0))}</span>}
                         </h2>
+                        <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-muted-foreground" onClick={() => setSortOrder(s => s === 'asc' ? 'desc' : 'asc')}>
+                          <ArrowUpDown className="h-3.5 w-3.5" />
+                          {sortOrder === 'asc' ? 'Mais próximo' : 'Mais distante'}
+                        </Button>
                       </div>
                       {viewMode === 'client' ? (
                         <PaymentsByClientView payments={allPaid} onMarkAsPaid={dashboard.markPaymentAsPaid} onOpenEvent={handleOpenEvent} />
