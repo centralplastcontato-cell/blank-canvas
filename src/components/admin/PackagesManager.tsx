@@ -307,7 +307,7 @@ export function PackagesManager() {
             </div>
 
             {/* Seção: Grade de Preços — sempre visível */}
-            <div className="rounded-xl border border-border/60 bg-card p-4">
+            <div className="rounded-xl border border-border/60 bg-card p-2 sm:p-4 overflow-x-auto">
               <PackagePriceGrid
                 ref={priceGridRef}
                 packageId={editing?.id}
