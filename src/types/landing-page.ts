@@ -47,6 +47,11 @@ export interface LPVideo {
   videos?: LPVideoUnit[];
 }
 
+export interface LPGalleryImage {
+  url: string;
+  alt?: string;
+}
+
 export interface LPGalleryUnit {
   name: string;
   photos: string[];
@@ -57,6 +62,7 @@ export interface LPGallery {
   title: string;
   photos: string[];
   units?: LPGalleryUnit[];
+  images?: LPGalleryImage[];
 }
 
 export interface LPTestimonialItem {
