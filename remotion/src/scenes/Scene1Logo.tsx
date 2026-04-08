@@ -47,7 +47,7 @@ export const Scene1Logo = () => {
             letterSpacing: 8, textTransform: "uppercase", margin: 0,
             opacity: tagOpacity, transform: `translateY(${tagY}px)`,
           }}>
-            PLATAFORMA PARA BUFFETS
+            Plataforma completa para gerenciamento de buffet infantil
           </p>
         </div>
       </AbsoluteFill>
