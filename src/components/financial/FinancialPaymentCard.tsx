@@ -1,6 +1,6 @@
 import { format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarDays, ExternalLink, Check, MapPin, PartyPopper, Building } from 'lucide-react';
+import { CalendarDays, Check, MapPin, PartyPopper, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { EnrichedPayment } from '@/hooks/useFinanceiroDashboard';
