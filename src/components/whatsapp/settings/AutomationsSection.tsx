@@ -763,56 +763,56 @@ export function AutomationsSection() {
 
       {/* Tabs */}
       <Tabs defaultValue="geral" className="w-full">
-        <TabsList className="w-full flex overflow-x-auto h-auto flex-wrap gap-1 bg-muted/50 p-1">
-          <TabsTrigger value="geral" className="flex items-center gap-1.5 text-xs sm:text-sm">
+        <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex-wrap flex overflow-x-auto">
+          <TabsTrigger value="geral" className="rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
             <Power className="w-3.5 h-3.5" />
             <span>Geral</span>
           </TabsTrigger>
-          <TabsTrigger value="perguntas" className="flex items-center gap-1.5 text-xs sm:text-sm">
+          <TabsTrigger value="perguntas" className="rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
             <MessageSquare className="w-3.5 h-3.5" />
             <span>Perguntas</span>
           </TabsTrigger>
-          <TabsTrigger value="followups" className="flex items-center gap-1.5 text-xs sm:text-sm">
+          <TabsTrigger value="followups" className="rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Follow-ups</span>
           </TabsTrigger>
-          <TabsTrigger value="bot-lp" className="flex items-center gap-1.5 text-xs sm:text-sm">
+          <TabsTrigger value="bot-lp" className="rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
             <Globe2 className="w-3.5 h-3.5" />
             <span>Bot LP</span>
           </TabsTrigger>
           {modules.bot_festa && (
-            <TabsTrigger value="festa" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <TabsTrigger value="festa" className="rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
               <Send className="w-3.5 h-3.5" />
               <span>Bot Festa</span>
             </TabsTrigger>
           )}
-          <TabsTrigger value="vip" className="flex items-center gap-1.5 text-xs sm:text-sm">
+          <TabsTrigger value="vip" className="rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
             <Shield className="w-3.5 h-3.5" />
             <span>VIP</span>
           </TabsTrigger>
-          <TabsTrigger value="gatilhos" className="flex items-center gap-1.5 text-xs sm:text-sm">
+          <TabsTrigger value="gatilhos" className="rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
             <Workflow className="w-3.5 h-3.5" />
             <span>Gatilhos</span>
           </TabsTrigger>
           {modules.flow_builder && (
-            <TabsTrigger value="fluxos" className="flex items-center gap-1.5 text-xs sm:text-sm">
+            <TabsTrigger value="fluxos" className="rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
               <GitBranch className="w-3.5 h-3.5" />
               <span>Fluxos</span>
             </TabsTrigger>
           )}
-          <TabsTrigger value="reativacao" className="flex items-center gap-1.5 text-xs sm:text-sm">
+          <TabsTrigger value="reativacao" className="rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Reativação</span>
           </TabsTrigger>
-          <TabsTrigger value="visitas" className="flex items-center gap-1.5 text-xs sm:text-sm">
+          <TabsTrigger value="visitas" className="rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
             <Map className="w-3.5 h-3.5" />
             <span>Visitas</span>
           </TabsTrigger>
-          <TabsTrigger value="contrato" className="flex items-center gap-1.5 text-xs sm:text-sm">
+          <TabsTrigger value="contrato" className="rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
             <FileText className="w-3.5 h-3.5" />
             <span>Contrato</span>
           </TabsTrigger>
-          <TabsTrigger value="prereserva" className="flex items-center gap-1.5 text-xs sm:text-sm">
+          <TabsTrigger value="prereserva" className="rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
             <CalendarClock className="w-3.5 h-3.5" />
             <span>Pré-reserva</span>
           </TabsTrigger>
