@@ -1,16 +1,23 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowUpCircle, ArrowDownCircle, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { ArrowUpCircle, ArrowDownCircle, Loader2, SlidersHorizontal } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { toast } from 'sonner';
+import { formatCurrencyInput, parseCurrencyInput } from '@/lib/currency-input';
 import type { BankAccountBalance } from '@/hooks/useBankAccounts';
 
 interface Props {
   account: BankAccountBalance;
+  onBalanceChanged?: () => void;
 }
 
 interface Movement {
@@ -24,109 +31,174 @@ interface Movement {
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-export function BankAccountStatement({ account }: Props) {
+export function BankAccountStatement({ account, onBalanceChanged }: Props) {
   const [movements, setMovements] = useState<Movement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [dateFrom, setDateFrom] = useState('');
+  const [dateFrom, setDateFrom] = useState(() => format(subDays(new Date(), 90), 'yyyy-MM-dd'));
   const [dateTo, setDateTo] = useState('');
 
-  useEffect(() => {
-    async function fetchMovements() {
-      setIsLoading(true);
-      try {
-        const [entriesRes, exitsRes] = await Promise.all([
-          supabase
-            .from('event_payments')
-            .select('id, amount, paid_at, type, payment_method, notes, event_id')
-            .eq('bank_account_id', account.id)
-            .eq('status', 'paid')
-            .order('paid_at', { ascending: false }),
-          supabase
-            .from('company_expenses')
-            .select('id, amount, expense_date, description, category')
-            .eq('bank_account_id', account.id)
-            .eq('status', 'pago')
-            .order('expense_date', { ascending: false }),
-        ]);
+  // Balance before the filtered window (for running balance)
+  const [balanceBefore, setBalanceBefore] = useState(account.initial_balance);
 
-        const entries: Movement[] = (entriesRes.data || []).map((p: any) => ({
-          id: p.id,
-          date: p.paid_at?.split('T')[0] || '',
-          description: `${p.type === 'entrada' ? 'Entrada' : 'Parcela'}${p.notes ? ' — ' + p.notes : ''}`,
-          amount: Number(p.amount),
-          type: 'entry' as const,
-          source: 'Recebimento',
-        }));
+  // Adjust balance dialog
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustType, setAdjustType] = useState<'entry' | 'exit'>('entry');
+  const [adjustAmount, setAdjustAmount] = useState('');
+  const [adjustDescription, setAdjustDescription] = useState('');
+  const [adjustSaving, setAdjustSaving] = useState(false);
 
-        const exits: Movement[] = (exitsRes.data || []).map((e: any) => {
-          const amt = Number(e.amount);
-          // Negative expenses are transfer credits (entries)
-          if (amt < 0) {
-            return {
-              id: e.id,
-              date: e.expense_date,
-              description: e.description,
-              amount: Math.abs(amt),
-              type: 'entry' as const,
-              source: e.category || 'Transferência',
-            };
-          }
+  const fetchMovements = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // Build queries with date filters pushed to the server
+      let entriesQuery = supabase
+        .from('event_payments')
+        .select('id, amount, paid_at, type, notes')
+        .eq('bank_account_id', account.id)
+        .eq('status', 'paid')
+        .order('paid_at', { ascending: false });
+
+      let exitsQuery = supabase
+        .from('company_expenses')
+        .select('id, amount, expense_date, description, category')
+        .eq('bank_account_id', account.id)
+        .eq('status', 'pago')
+        .order('expense_date', { ascending: false });
+
+      if (dateFrom) {
+        entriesQuery = entriesQuery.gte('paid_at', dateFrom);
+        exitsQuery = exitsQuery.gte('expense_date', dateFrom);
+      }
+      if (dateTo) {
+        entriesQuery = entriesQuery.lte('paid_at', dateTo);
+        exitsQuery = exitsQuery.lte('expense_date', dateTo);
+      }
+
+      // Also fetch aggregates for everything BEFORE dateFrom to compute running balance
+      let preEntriesQuery = supabase
+        .from('event_payments')
+        .select('amount')
+        .eq('bank_account_id', account.id)
+        .eq('status', 'paid');
+      let preExitsQuery = supabase
+        .from('company_expenses')
+        .select('amount')
+        .eq('bank_account_id', account.id)
+        .eq('status', 'pago');
+
+      if (dateFrom) {
+        preEntriesQuery = preEntriesQuery.lt('paid_at', dateFrom);
+        preExitsQuery = preExitsQuery.lt('expense_date', dateFrom);
+      }
+
+      const [entriesRes, exitsRes, preEntriesRes, preExitsRes] = await Promise.all([
+        entriesQuery,
+        exitsQuery,
+        dateFrom ? preEntriesQuery : Promise.resolve({ data: [] }),
+        dateFrom ? preExitsQuery : Promise.resolve({ data: [] }),
+      ]);
+
+      // Pre-period balance
+      const preEntries = (preEntriesRes.data || []).reduce((s: number, p: any) => s + Number(p.amount), 0);
+      const preExits = (preExitsRes.data || []).reduce((s: number, e: any) => {
+        const amt = Number(e.amount);
+        return amt < 0 ? s - Math.abs(amt) : s + amt; // negative = transfer credit
+      }, 0);
+      setBalanceBefore(account.initial_balance + preEntries - preExits);
+
+      const entries: Movement[] = (entriesRes.data || []).map((p: any) => ({
+        id: p.id,
+        date: p.paid_at?.split('T')[0] || '',
+        description: `${p.type === 'entrada' ? 'Entrada' : 'Parcela'}${p.notes ? ' — ' + p.notes : ''}`,
+        amount: Number(p.amount),
+        type: 'entry' as const,
+        source: 'Recebimento',
+      }));
+
+      const exits: Movement[] = (exitsRes.data || []).map((e: any) => {
+        const amt = Number(e.amount);
+        if (amt < 0) {
           return {
             id: e.id,
             date: e.expense_date,
             description: e.description,
-            amount: amt,
-            type: 'exit' as const,
-            source: e.category || 'Despesa',
+            amount: Math.abs(amt),
+            type: 'entry' as const,
+            source: e.category || 'Transferência',
           };
-        });
+        }
+        return {
+          id: e.id,
+          date: e.expense_date,
+          description: e.description,
+          amount: amt,
+          type: 'exit' as const,
+          source: e.category || 'Despesa',
+        };
+      });
 
-        setMovements([...entries, ...exits].sort((a, b) => b.date.localeCompare(a.date)));
-      } finally {
-        setIsLoading(false);
-      }
+      setMovements([...entries, ...exits].sort((a, b) => b.date.localeCompare(a.date)));
+    } finally {
+      setIsLoading(false);
     }
-    fetchMovements();
-  }, [account.id]);
+  }, [account.id, account.initial_balance, dateFrom, dateTo]);
 
-  // Compute live totals from fetched movements (not from parent prop which may be stale)
+  useEffect(() => { fetchMovements(); }, [fetchMovements]);
+
+  // Live totals from filtered movements
   const liveTotals = useMemo(() => {
     const totalEntries = movements.filter(m => m.type === 'entry').reduce((s, m) => s + m.amount, 0);
     const totalExits = movements.filter(m => m.type === 'exit').reduce((s, m) => s + m.amount, 0);
-    const currentBalance = account.initial_balance + totalEntries - totalExits;
+    const currentBalance = balanceBefore + totalEntries - totalExits;
     return { totalEntries, totalExits, currentBalance };
-  }, [movements, account.initial_balance]);
+  }, [movements, balanceBefore]);
 
-  const filtered = useMemo(() => {
-    return movements.filter(m => {
-      if (dateFrom && m.date < dateFrom) return false;
-      if (dateTo && m.date > dateTo) return false;
-      return true;
-    });
-  }, [movements, dateFrom, dateTo]);
-
-  // Running balance: account for ALL movements before the filter start, then build from there
+  // Running balance
   const movementsWithBalance = useMemo(() => {
-    const allSorted = [...movements].sort((a, b) => a.date.localeCompare(b.date));
-    
-    // Calculate balance up to (but not including) filtered movements
-    let balanceBefore = account.initial_balance;
-    if (dateFrom) {
-      for (const m of allSorted) {
-        if (m.date >= dateFrom) break;
-        if (m.type === 'entry') balanceBefore += m.amount;
-        else balanceBefore -= m.amount;
-      }
-    }
-
-    const sorted = [...filtered].sort((a, b) => a.date.localeCompare(b.date));
-    let balance = dateFrom ? balanceBefore : account.initial_balance;
+    const sorted = [...movements].sort((a, b) => a.date.localeCompare(b.date));
+    let balance = balanceBefore;
     return sorted.map(m => {
       if (m.type === 'entry') balance += m.amount;
       else balance -= m.amount;
       return { ...m, balance };
     }).reverse();
-  }, [filtered, movements, dateFrom, account.initial_balance]);
+  }, [movements, balanceBefore]);
+
+  // Handle balance adjustment
+  const handleAdjust = async () => {
+    const amount = parseCurrencyInput(adjustAmount);
+    if (!amount || amount <= 0) { toast.error('Informe um valor válido'); return; }
+    if (!adjustDescription.trim()) { toast.error('Informe uma descrição'); return; }
+
+    setAdjustSaving(true);
+    try {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const expenseAmount = adjustType === 'exit' ? amount : -amount; // negative = credit entry
+
+      const { error } = await supabase.from('company_expenses').insert({
+        company_id: account.company_id,
+        bank_account_id: account.id,
+        amount: expenseAmount,
+        expense_date: today,
+        description: adjustDescription.trim(),
+        category: 'ajuste',
+        expense_type: 'fixa',
+        status: 'pago',
+      });
+
+      if (error) throw error;
+      toast.success('Ajuste de saldo realizado');
+      setAdjustOpen(false);
+      setAdjustAmount('');
+      setAdjustDescription('');
+      fetchMovements();
+      onBalanceChanged?.();
+    } catch (err: any) {
+      toast.error('Erro ao salvar ajuste: ' + err.message);
+    } finally {
+      setAdjustSaving(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -138,7 +210,7 @@ export function BankAccountStatement({ account }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Balance summary — computed from fresh data */}
+      {/* Balance summary */}
       <div className="grid grid-cols-3 gap-3">
         <Card className="p-3 text-center">
           <p className="text-[10px] text-muted-foreground uppercase">Saldo Inicial</p>
@@ -161,6 +233,16 @@ export function BankAccountStatement({ account }: Props) {
           {fmt(liveTotals.currentBalance)}
         </p>
       </Card>
+
+      {/* Adjust balance button */}
+      <Button
+        variant="outline"
+        className="w-full gap-2"
+        onClick={() => setAdjustOpen(true)}
+      >
+        <SlidersHorizontal className="h-4 w-4" />
+        Ajustar Saldo
+      </Button>
 
       {/* Date filter */}
       <div className="flex gap-3">
@@ -207,6 +289,58 @@ export function BankAccountStatement({ account }: Props) {
           ))}
         </div>
       )}
+
+      {/* Adjust balance dialog */}
+      <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Ajustar Saldo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Tipo de ajuste</Label>
+              <Select value={adjustType} onValueChange={v => setAdjustType(v as 'entry' | 'exit')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="entry">➕ Crédito (aumentar saldo)</SelectItem>
+                  <SelectItem value="exit">➖ Débito (diminuir saldo)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Valor (R$)</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                <Input
+                  className="pl-10"
+                  value={adjustAmount}
+                  onChange={e => setAdjustAmount(formatCurrencyInput(e.target.value))}
+                  placeholder="0,00"
+                  inputMode="decimal"
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Descrição *</Label>
+              <Textarea
+                value={adjustDescription}
+                onChange={e => setAdjustDescription(e.target.value)}
+                placeholder="Ex: Ajuste de saldo inicial, correção, depósito não rastreado..."
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAdjustOpen(false)}>Cancelar</Button>
+            <Button onClick={handleAdjust} disabled={adjustSaving}>
+              {adjustSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Salvar Ajuste
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
