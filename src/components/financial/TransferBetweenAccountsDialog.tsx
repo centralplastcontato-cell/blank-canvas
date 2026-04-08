@@ -97,7 +97,7 @@ export function TransferBetweenAccountsDialog({ open, onOpenChange, accounts, on
         expense_type: 'ajuste',
         status: 'pago',
         bank_account_id: toId,
-        notes: `Transferência de ${fromAccount?.name}`,
+        notes: `Transferência de ${fromAccount?.name}\nResponsável: ${responsible.trim()}`,
       });
 
       if (entryError) throw entryError;
