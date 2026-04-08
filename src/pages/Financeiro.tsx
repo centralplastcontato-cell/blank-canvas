@@ -462,12 +462,12 @@ export default function Financeiro() {
 
               {/* Tabs */}
               <Tabs defaultValue="receitas" className="w-full">
-                <TabsList className="bg-transparent p-0 h-auto gap-1 flex-wrap">
+                <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex-wrap">
                   {(financialPerms.canViewBankAccounts ? ['receitas', 'despesas', 'festas', 'resultado', 'contas'] : ['receitas', 'despesas', 'festas', 'resultado']).map(tab => (
                     <TabsTrigger
                       key={tab}
                       value={tab}
-                      className="rounded-full px-5 py-2 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none data-[state=inactive]:border data-[state=inactive]:border-border border-0"
+                      className="rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground"
                     >
                       {tab === 'receitas' ? 'Receitas' : tab === 'despesas' ? 'Despesas' : tab === 'festas' ? '🎉 Festas' : tab === 'resultado' ? 'Resultado' : '🏦 Contas'}
                     </TabsTrigger>

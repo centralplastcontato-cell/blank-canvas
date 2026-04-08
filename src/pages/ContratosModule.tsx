@@ -103,11 +103,11 @@ export default function ContratosModule() {
             </div>
 
             <Tabs defaultValue="modelos" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-2 max-w-md">
-                <TabsTrigger value="modelos" className="gap-2">
+              <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex-wrap">
+                <TabsTrigger value="modelos" className="gap-2 rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground">
                   <FileSignature className="h-4 w-4" /> Modelos
                 </TabsTrigger>
-                <TabsTrigger value="gerados" className="gap-2">
+                <TabsTrigger value="gerados" className="gap-2 rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground">
                   <FileText className="h-4 w-4" /> Gerados
                 </TabsTrigger>
               </TabsList>
