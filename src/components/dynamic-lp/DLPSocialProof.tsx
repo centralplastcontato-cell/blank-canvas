@@ -11,16 +11,25 @@ interface DLPSocialProofProps {
 const decorativeIcons = [Star, PartyPopper, Heart, Star, PartyPopper, Heart];
 
 function AnimatedCounter({ value, isVisible }: { value: string; isVisible: boolean }) {
-  const numericMatch = value.match(/[\d.,]+/);
-  const prefix = numericMatch ? value.slice(0, value.indexOf(numericMatch[0])) : "";
-  const suffix = numericMatch ? value.slice(value.indexOf(numericMatch[0]) + numericMatch[0].length) : "";
-  const target = numericMatch ? parseFloat(numericMatch[0].replace(/\./g, "").replace(",", ".")) : 0;
-  const hasDot = numericMatch ? numericMatch[0].includes(".") : false;
+  // Match number with optional k/K/m/M suffix, e.g. "10k+", "500+", "1.5k", "5⭐"
+  const numericMatch = value.match(/([\d.,]+)\s*(k|m)?/i);
+  if (!numericMatch) return <span>{value}</span>;
+
+  const rawNum = parseFloat(numericMatch[1].replace(/\./g, "").replace(",", "."));
+  const multiplierChar = (numericMatch[2] || "").toLowerCase();
+  const multiplier = multiplierChar === "k" ? 1000 : multiplierChar === "m" ? 1000000 : 1;
+  const target = rawNum * multiplier;
+
+  // Reconstruct prefix/suffix without the matched number+multiplier
+  const matchStart = value.indexOf(numericMatch[0]);
+  const matchEnd = matchStart + numericMatch[0].length;
+  const prefix = value.slice(0, matchStart);
+  const suffix = value.slice(matchEnd);
 
   const [current, setCurrent] = useState(0);
 
   useEffect(() => {
-    if (!isVisible || !numericMatch) return;
+    if (!isVisible) return;
     const duration = 1500;
     const steps = 40;
     const increment = target / steps;
@@ -35,15 +44,16 @@ function AnimatedCounter({ value, isVisible }: { value: string; isVisible: boole
       }
     }, duration / steps);
     return () => clearInterval(interval);
-  }, [isVisible, target, numericMatch]);
-
-  if (!numericMatch) return <span>{value}</span>;
+  }, [isVisible, target]);
 
   const formatNumber = (n: number) => {
-    if (hasDot) {
-      return n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+    if (multiplier >= 1000) {
+      const display = n / multiplier;
+      // Keep the k/m suffix as originally written
+      const formatted = display % 1 === 0 ? Math.round(display).toString() : display.toFixed(1).replace(".", ",");
+      return formatted + multiplierChar;
     }
-    return Math.round(n).toString();
+    return Math.round(n).toLocaleString("pt-BR");
   };
 
   return (
