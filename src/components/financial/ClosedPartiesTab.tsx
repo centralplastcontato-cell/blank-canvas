@@ -4,7 +4,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, CalendarDays, Clock, MapPin, Users, Handshake, ArrowUpDown, Phone, DollarSign, CheckCircle, AlertTriangle } from "lucide-react";
+import { Loader2, CalendarDays, Clock, MapPin, Users, Handshake, ArrowUpDown, Phone, DollarSign, CheckCircle, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 
 
@@ -37,6 +37,7 @@ interface ClosedPartiesTabProps {
   onOpenEvent: (eventId: string) => void;
 }
 
+const PAGE_SIZE = 20;
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export function ClosedPartiesTab({ from, to, unitFilter, onOpenEvent }: ClosedPartiesTabProps) {
