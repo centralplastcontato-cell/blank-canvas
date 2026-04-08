@@ -43,9 +43,10 @@ export const Scene1Logo = () => {
           }} />
 
           <p style={{
-            fontFamily, fontWeight: 500, fontSize: 38, color: "rgba(255,255,255,0.5)",
-            letterSpacing: 8, textTransform: "uppercase", margin: 0,
+            fontFamily, fontWeight: 500, fontSize: 32, color: "rgba(255,255,255,0.5)",
+            letterSpacing: 4, textTransform: "none", margin: 0,
             opacity: tagOpacity, transform: `translateY(${tagY}px)`,
+            textAlign: "center", maxWidth: 800, lineHeight: 1.3,
           }}>
             Plataforma completa para gerenciamento de buffet infantil
           </p>
