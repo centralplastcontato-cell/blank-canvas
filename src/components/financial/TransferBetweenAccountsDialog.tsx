@@ -26,6 +26,7 @@ export function TransferBetweenAccountsDialog({ open, onOpenChange, accounts, on
   const [toId, setToId] = useState('');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [responsible, setResponsible] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const today = new Date().toISOString().split('T')[0];
@@ -34,13 +35,13 @@ export function TransferBetweenAccountsDialog({ open, onOpenChange, accounts, on
 
   const fromAccount = accounts.find(a => a.id === fromId);
   const toAccount = accounts.find(a => a.id === toId);
-  const isValid = fromId && toId && fromId !== toId && parsedAmount > 0 && currentCompanyId;
+  const isValid = fromId && toId && fromId !== toId && parsedAmount > 0 && currentCompanyId && description.trim() && responsible.trim();
 
   const handleSubmit = async () => {
     if (!isValid || !currentCompanyId) return;
     setIsSubmitting(true);
 
-    const label = description.trim() || `Transferência ${fromAccount?.name} → ${toAccount?.name}`;
+    const label = description.trim();
 
     try {
       // 1. Create expense (exit) on origin account
@@ -53,7 +54,7 @@ export function TransferBetweenAccountsDialog({ open, onOpenChange, accounts, on
         expense_type: 'ajuste',
         status: 'pago',
         bank_account_id: fromId,
-        notes: `Transferência para ${toAccount?.name}`,
+        notes: `Transferência para ${toAccount?.name}\nResponsável: ${responsible.trim()}`,
       });
 
       if (exitError) throw exitError;
@@ -96,7 +97,7 @@ export function TransferBetweenAccountsDialog({ open, onOpenChange, accounts, on
         expense_type: 'ajuste',
         status: 'pago',
         bank_account_id: toId,
-        notes: `Transferência de ${fromAccount?.name}`,
+        notes: `Transferência de ${fromAccount?.name}\nResponsável: ${responsible.trim()}`,
       });
 
       if (entryError) throw entryError;
@@ -107,6 +108,7 @@ export function TransferBetweenAccountsDialog({ open, onOpenChange, accounts, on
       setToId('');
       setAmount('');
       setDescription('');
+      setResponsible('');
       onSuccess();
     } catch (err: any) {
       toast({ title: 'Erro na transferência', description: err.message, variant: 'destructive' });
@@ -172,11 +174,22 @@ export function TransferBetweenAccountsDialog({ open, onOpenChange, accounts, on
 
           {/* Description */}
           <div className="space-y-1.5">
-            <Label className="text-xs">Descrição (opcional)</Label>
+            <Label className="text-xs">Descrição *</Label>
             <Input
-              placeholder="Ex: Reforço de caixa"
+              placeholder="Ex: Reforço de caixa, transferência para pagamento"
               value={description}
               onChange={e => setDescription(e.target.value)}
+              className="h-9"
+            />
+          </div>
+
+          {/* Responsible */}
+          <div className="space-y-1.5">
+            <Label className="text-xs">Responsável pela transferência *</Label>
+            <Input
+              placeholder="Nome de quem está realizando a transferência"
+              value={responsible}
+              onChange={e => setResponsible(e.target.value)}
               className="h-9"
             />
           </div>
