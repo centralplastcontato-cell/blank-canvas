@@ -93,37 +93,31 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
         exitsQuery = exitsQuery.lte('expense_date', dateTo);
       }
 
-      // Also fetch aggregates for everything BEFORE dateFrom to compute running balance
-      let preEntriesQuery = supabase
+      // Only fetch movements after the selected end date when needed.
+      // This keeps the default statement open fast even for high-volume accounts.
+      let postEntriesQuery = supabase
         .from('event_payments')
         .select('amount')
         .eq('bank_account_id', account.id)
         .eq('status', 'paid');
-      let preExitsQuery = supabase
+
+      let postExitsQuery = supabase
         .from('company_expenses')
         .select('amount')
         .eq('bank_account_id', account.id)
         .eq('status', 'pago');
 
-      if (dateFrom) {
-        preEntriesQuery = preEntriesQuery.lt('paid_at', dateFrom);
-        preExitsQuery = preExitsQuery.lt('expense_date', dateFrom);
+      if (dateTo) {
+        postEntriesQuery = postEntriesQuery.gt('paid_at', dateTo);
+        postExitsQuery = postExitsQuery.gt('expense_date', dateTo);
       }
 
-      const [entriesRes, exitsRes, preEntriesRes, preExitsRes] = await Promise.all([
+      const [entriesRes, exitsRes, postEntriesRes, postExitsRes] = await Promise.all([
         entriesQuery,
         exitsQuery,
-        dateFrom ? preEntriesQuery : Promise.resolve({ data: [] }),
-        dateFrom ? preExitsQuery : Promise.resolve({ data: [] }),
+        dateTo ? postEntriesQuery : Promise.resolve({ data: [] }),
+        dateTo ? postExitsQuery : Promise.resolve({ data: [] }),
       ]);
-
-      // Pre-period balance
-      const preEntries = (preEntriesRes.data || []).reduce((s: number, p: any) => s + Number(p.amount), 0);
-      const preExits = (preExitsRes.data || []).reduce((s: number, e: any) => {
-        const amt = Number(e.amount);
-        return amt < 0 ? s - Math.abs(amt) : s + amt; // negative = transfer credit
-      }, 0);
-      setBalanceBefore(account.initial_balance + preEntries - preExits);
 
       const entries: Movement[] = (entriesRes.data || []).map((p: any) => {
         const evt = p.company_events;
@@ -172,11 +166,19 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
         };
       });
 
+      const periodEntries = entries.reduce((sum, movement) => sum + movement.amount, 0);
+      const periodExits = exits.reduce((sum, movement) => sum + (movement.type === 'exit' ? movement.amount : 0), 0);
+      const futureEntries = (postEntriesRes.data || []).reduce((sum: number, payment: any) => sum + Number(payment.amount), 0);
+      const futureExitsNet = (postExitsRes.data || []).reduce((sum: number, expense: any) => sum + Number(expense.amount), 0);
+      const balanceAtPeriodEnd = account.current_balance - futureEntries + futureExitsNet;
+
+      setBalanceBefore(balanceAtPeriodEnd - periodEntries + periodExits);
+
       setMovements([...entries, ...exits].sort((a, b) => b.date.localeCompare(a.date)));
     } finally {
       setIsLoading(false);
     }
-  }, [account.id, account.initial_balance, dateFrom, dateTo]);
+  }, [account.current_balance, account.id, dateFrom, dateTo]);
 
   useEffect(() => { fetchMovements(); }, [fetchMovements]);
 
