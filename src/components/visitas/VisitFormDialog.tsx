@@ -64,6 +64,11 @@ export function VisitFormDialog({
   const [leadName, setLeadName] = useState("");
   const [leadResults, setLeadResults] = useState<{ id: string; name: string; whatsapp: string }[]>([]);
 
+  // New client mode
+  const [isNewClient, setIsNewClient] = useState(false);
+  const [newClientName, setNewClientName] = useState("");
+  const [newClientPhone, setNewClientPhone] = useState("");
+
   // Form
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [time, setTime] = useState("");
