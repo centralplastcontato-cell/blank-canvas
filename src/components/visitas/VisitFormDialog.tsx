@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getCurrentCompanyId } from "@/lib/supabase-helpers";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -14,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   CalendarIcon, Loader2, MapPin, Package, User as UserIcon, X,
-  PartyPopper, Clock, Users, DollarSign, CreditCard,
+  PartyPopper, Clock, Users, DollarSign, CreditCard, UserPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -63,6 +64,11 @@ export function VisitFormDialog({
   const [leadName, setLeadName] = useState("");
   const [leadResults, setLeadResults] = useState<{ id: string; name: string; whatsapp: string }[]>([]);
 
+  // New client mode
+  const [isNewClient, setIsNewClient] = useState(false);
+  const [newClientName, setNewClientName] = useState("");
+  const [newClientPhone, setNewClientPhone] = useState("");
+
   // Form
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [time, setTime] = useState("");
@@ -100,6 +106,9 @@ export function VisitFormDialog({
     setLeadId("");
     setLeadName("");
     setLeadResults([]);
+    setIsNewClient(false);
+    setNewClientName("");
+    setNewClientPhone("");
     setDate(undefined);
     setTime("");
     setNotes("");
@@ -140,13 +149,46 @@ export function VisitFormDialog({
   };
 
   const handleSubmit = async () => {
-    if (!leadId || !date) {
-      toast({ title: "Selecione um lead e uma data", variant: "destructive" });
+    if (!date) {
+      toast({ title: "Selecione uma data", variant: "destructive" });
       return;
     }
+
+    let finalLeadId = leadId;
+
+    // If new client mode, create lead first
+    if (isNewClient) {
+      if (!newClientName.trim() || !newClientPhone.trim()) {
+        toast({ title: "Preencha nome e telefone do novo cliente", variant: "destructive" });
+        return;
+      }
+      setSaving(true);
+      const { data: newLead, error: leadError } = await (supabase as any)
+        .from("campaign_leads")
+        .insert({
+          name: newClientName.trim(),
+          whatsapp: newClientPhone.trim(),
+          company_id: getCurrentCompanyId(),
+          status: "novo",
+          campaign_id: "00000000-0000-0000-0000-000000000000",
+        })
+        .select("id")
+        .single();
+
+      if (leadError || !newLead) {
+        toast({ title: "Erro ao criar lead", description: leadError?.message, variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      finalLeadId = newLead.id;
+    } else if (!leadId) {
+      toast({ title: "Selecione um lead", variant: "destructive" });
+      return;
+    }
+
     setSaving(true);
     const payload: any = {
-      lead_id: leadId,
+      lead_id: finalLeadId,
       company_id: getCurrentCompanyId(),
       data_visita: format(date, "yyyy-MM-dd"),
       horario_visita: time || null,
@@ -176,6 +218,8 @@ export function VisitFormDialog({
 
   const selectedEvent = leadEvents.find((e: any) => e.id === eventId);
 
+  const canSubmit = saving || !date || (!isNewClient && !leadId) || (isNewClient && (!newClientName.trim() || !newClientPhone.trim()));
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); onOpenChange(v); }}>
       <DialogContent className="max-w-[520px] max-h-[90vh] p-0 gap-0 overflow-hidden rounded-2xl [&>button]:top-5 [&>button]:right-5">
@@ -195,50 +239,103 @@ export function VisitFormDialog({
           {/* Lead section */}
           <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
             <SectionHeader icon={UserIcon} label="Lead" />
-            <div className="space-y-2.5">
-              <Label className="text-sm font-medium text-foreground/70">Selecionar lead *</Label>
-              {leadId ? (
-                <div className="flex items-center gap-2 p-2.5 rounded-lg border border-primary/30 bg-primary/5">
-                  <UserIcon className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium flex-1">{leadName}</span>
-                  {!fixedLead && (
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setLeadId(""); setLeadName(""); setLeadEvents([]); setEventId(""); }}>
-                      <X className="h-3 w-3" />
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="relative">
+            
+            {/* Toggle: existing lead vs new client */}
+            {!fixedLead && (
+              <div className="flex gap-2 mb-4">
+                <Button
+                  type="button"
+                  variant={!isNewClient ? "default" : "outline"}
+                  size="sm"
+                  className="flex-1 text-xs"
+                  onClick={() => { setIsNewClient(false); setNewClientName(""); setNewClientPhone(""); }}
+                >
+                  <UserIcon className="h-3.5 w-3.5 mr-1.5" />
+                  Lead existente
+                </Button>
+                <Button
+                  type="button"
+                  variant={isNewClient ? "default" : "outline"}
+                  size="sm"
+                  className="flex-1 text-xs"
+                  onClick={() => { setIsNewClient(true); setLeadId(""); setLeadName(""); setLeadResults([]); setLeadSearch(""); }}
+                >
+                  <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+                  Novo cliente
+                </Button>
+              </div>
+            )}
+
+            {isNewClient ? (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-foreground/70">Nome *</Label>
                   <input
                     type="text"
-                    value={leadSearch}
-                    onChange={(e) => setLeadSearch(e.target.value)}
-                    placeholder="Buscar lead por nome ou telefone..."
+                    value={newClientName}
+                    onChange={(e) => setNewClientName(e.target.value)}
+                    placeholder="Nome do cliente"
                     className="w-full h-10 px-3 rounded-lg border border-border/60 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
-                  {leadResults.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 rounded-lg border border-border bg-card shadow-lg max-h-48 overflow-y-auto">
-                      {leadResults.map(l => (
-                        <button
-                          key={l.id}
-                          className="w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors first:rounded-t-lg last:rounded-b-lg"
-                          onClick={() => {
-                            setLeadId(l.id);
-                            setLeadName(l.name);
-                            setLeadResults([]);
-                            setLeadSearch("");
-                            if (isAtendimento) fetchLeadEvents(l.id);
-                          }}
-                        >
-                          <span className="font-medium">{l.name}</span>
-                          <span className="text-muted-foreground ml-2 text-xs">{l.whatsapp}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
-              )}
-            </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-foreground/70">Telefone (WhatsApp) *</Label>
+                  <input
+                    type="tel"
+                    value={newClientPhone}
+                    onChange={(e) => setNewClientPhone(e.target.value)}
+                    placeholder="(11) 99999-9999"
+                    className="w-full h-10 px-3 rounded-lg border border-border/60 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">O lead será criado automaticamente no CRM</p>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                <Label className="text-sm font-medium text-foreground/70">Selecionar lead *</Label>
+                {leadId ? (
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg border border-primary/30 bg-primary/5">
+                    <UserIcon className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium flex-1">{leadName}</span>
+                    {!fixedLead && (
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setLeadId(""); setLeadName(""); setLeadEvents([]); setEventId(""); }}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={leadSearch}
+                      onChange={(e) => setLeadSearch(e.target.value)}
+                      placeholder="Buscar lead por nome ou telefone..."
+                      className="w-full h-10 px-3 rounded-lg border border-border/60 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                    {leadResults.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 rounded-lg border border-border bg-card shadow-lg max-h-48 overflow-y-auto">
+                        {leadResults.map(l => (
+                          <button
+                            key={l.id}
+                            className="w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors first:rounded-t-lg last:rounded-b-lg"
+                            onClick={() => {
+                              setLeadId(l.id);
+                              setLeadName(l.name);
+                              setLeadResults([]);
+                              setLeadSearch("");
+                              if (isAtendimento) fetchLeadEvents(l.id);
+                            }}
+                          >
+                            <span className="font-medium">{l.name}</span>
+                            <span className="text-muted-foreground ml-2 text-xs">{l.whatsapp}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Event link - only for atendimento */}
@@ -374,7 +471,7 @@ export function VisitFormDialog({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button
             onClick={handleSubmit}
-            disabled={saving || !leadId || !date}
+            disabled={canSubmit}
             className={cn("px-8 rounded-lg shadow-sm", isAtendimento && "bg-violet-600 hover:bg-violet-700")}
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
