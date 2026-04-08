@@ -296,6 +296,41 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
           <DialogHeader>
             <DialogTitle>Ajustar Saldo</DialogTitle>
           </DialogHeader>
+
+          {/* Balance preview card */}
+          {(() => {
+            const parsed = parseCurrencyInput(adjustAmount);
+            const delta = adjustType === 'entry' ? parsed : -parsed;
+            const projected = liveTotals.currentBalance + delta;
+            return (
+              <Card className="p-3 bg-muted/30 border-dashed">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Saldo atual</span>
+                  <span className={`font-semibold ${liveTotals.currentBalance >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {fmt(liveTotals.currentBalance)}
+                  </span>
+                </div>
+                {parsed > 0 && (
+                  <>
+                    <div className="flex items-center justify-between text-sm mt-1">
+                      <span className="text-muted-foreground">Ajuste</span>
+                      <span className={adjustType === 'entry' ? 'text-emerald-600 font-medium' : 'text-red-500 font-medium'}>
+                        {adjustType === 'entry' ? '+' : '-'}{fmt(parsed)}
+                      </span>
+                    </div>
+                    <Separator className="my-2" />
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium text-foreground">Saldo projetado</span>
+                      <span className={`font-bold text-base ${projected >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                        {fmt(projected)}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </Card>
+            );
+          })()}
+
           <div className="space-y-3">
             <div>
               <Label>Tipo de ajuste</Label>
