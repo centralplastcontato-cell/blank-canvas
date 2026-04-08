@@ -106,6 +106,9 @@ export function VisitFormDialog({
     setLeadId("");
     setLeadName("");
     setLeadResults([]);
+    setIsNewClient(false);
+    setNewClientName("");
+    setNewClientPhone("");
     setDate(undefined);
     setTime("");
     setNotes("");
