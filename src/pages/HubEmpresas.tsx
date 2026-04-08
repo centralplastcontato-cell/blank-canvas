@@ -109,14 +109,6 @@ function HubEmpresasContent() {
       
       // Fetch all stats in parallel
       const companyIds = (data || []).map((c: any) => c.id);
-      const countForTable = async (query: ReturnType<typeof supabase.from>, companyIds: string[]) => {
-        const counts: Record<string, number> = {};
-        await Promise.all(companyIds.map(async (id) => {
-          // We need a fresh query per id, so we accept a factory pattern
-        }));
-        return counts;
-      };
-
       // Count per company using head:true (no data transferred, just count)
       const countMap = async (tableFn: (id: string) => Promise<number | null>) => {
         const counts: Record<string, number> = {};
