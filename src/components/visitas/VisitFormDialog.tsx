@@ -149,13 +149,46 @@ export function VisitFormDialog({
   };
 
   const handleSubmit = async () => {
-    if (!leadId || !date) {
-      toast({ title: "Selecione um lead e uma data", variant: "destructive" });
+    if (!date) {
+      toast({ title: "Selecione uma data", variant: "destructive" });
       return;
     }
+
+    let finalLeadId = leadId;
+
+    // If new client mode, create lead first
+    if (isNewClient) {
+      if (!newClientName.trim() || !newClientPhone.trim()) {
+        toast({ title: "Preencha nome e telefone do novo cliente", variant: "destructive" });
+        return;
+      }
+      setSaving(true);
+      const { data: newLead, error: leadError } = await (supabase as any)
+        .from("campaign_leads")
+        .insert({
+          name: newClientName.trim(),
+          whatsapp: newClientPhone.trim(),
+          company_id: getCurrentCompanyId(),
+          status: "novo",
+          campaign_id: "00000000-0000-0000-0000-000000000000",
+        })
+        .select("id")
+        .single();
+
+      if (leadError || !newLead) {
+        toast({ title: "Erro ao criar lead", description: leadError?.message, variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      finalLeadId = newLead.id;
+    } else if (!leadId) {
+      toast({ title: "Selecione um lead", variant: "destructive" });
+      return;
+    }
+
     setSaving(true);
     const payload: any = {
-      lead_id: leadId,
+      lead_id: finalLeadId,
       company_id: getCurrentCompanyId(),
       data_visita: format(date, "yyyy-MM-dd"),
       horario_visita: time || null,
@@ -184,6 +217,8 @@ export function VisitFormDialog({
   };
 
   const selectedEvent = leadEvents.find((e: any) => e.id === eventId);
+
+  const canSubmit = saving || !date || (!isNewClient && !leadId) || (isNewClient && (!newClientName.trim() || !newClientPhone.trim()));
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); onOpenChange(v); }}>
