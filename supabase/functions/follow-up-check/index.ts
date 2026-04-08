@@ -1313,6 +1313,14 @@ async function processAutoLost({
 
   console.log(`[follow-up-check] ${leadsToMark.length} leads will be marked as perdido (auto-lost)`);
 
+  // Pre-fetch company_id for this instance (used in history + notifications)
+  const { data: instanceData } = await supabase
+    .from("wapi_instances")
+    .select("company_id")
+    .eq("id", settings.instance_id)
+    .single();
+  const instanceCompanyId = instanceData?.company_id || null;
+
   for (const lead of leadsToMark) {
     try {
       // Test mode guard
@@ -1342,6 +1350,7 @@ async function processAutoLost({
       // Register in lead_history
       await supabase.from("lead_history").insert({
         lead_id: lead.id,
+        company_id: instanceCompanyId,
         user_id: null,
         user_name: "Sistema",
         action: "Lead movido para perdido automaticamente",
