@@ -4,6 +4,7 @@ import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentCompanyId } from "@/lib/supabase-helpers";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
+import { Input } from "@/components/ui/input";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   CalendarIcon, Loader2, MapPin, Package, User as UserIcon, X,
-  PartyPopper, Clock, Users, DollarSign, CreditCard,
+  PartyPopper, Clock, Users, DollarSign, CreditCard, UserPlus, Phone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
