@@ -1,6 +1,6 @@
 import { format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarDays, ExternalLink, Check, MapPin, PartyPopper, Building } from 'lucide-react';
+import { CalendarDays, Check, MapPin, PartyPopper, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { EnrichedPayment } from '@/hooks/useFinanceiroDashboard';
@@ -35,7 +35,10 @@ export function FinancialPaymentCard({ payment, onMarkAsPaid, onOpenEvent, bankA
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   return (
-    <div className={`p-3 md:p-4 rounded-xl border border-border bg-card border-l-4 ${borderColors[payment.status] || 'border-l-border'} transition-all`}>
+    <div
+      className={`p-3 md:p-4 rounded-xl border border-border bg-card border-l-4 ${borderColors[payment.status] || 'border-l-border'} transition-all ${onOpenEvent ? 'cursor-pointer hover:border-primary/40 hover:bg-accent/30' : ''}`}
+      onClick={() => onOpenEvent?.(payment.event_id)}
+    >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
@@ -99,13 +102,8 @@ export function FinancialPaymentCard({ payment, onMarkAsPaid, onOpenEvent, bankA
 
           <div className="flex items-center gap-1">
             {payment.status !== 'paid' && onMarkAsPaid && (
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10" onClick={() => onMarkAsPaid(payment.id)} title="Marcar como pago">
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10" onClick={(e) => { e.stopPropagation(); onMarkAsPaid(payment.id); }} title="Marcar como pago">
                 <Check className="h-4 w-4" />
-              </Button>
-            )}
-            {onOpenEvent && (
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => onOpenEvent(payment.event_id)} title="Abrir evento">
-                <ExternalLink className="h-4 w-4" />
               </Button>
             )}
           </div>
