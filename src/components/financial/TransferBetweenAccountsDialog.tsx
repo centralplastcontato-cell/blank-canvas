@@ -41,7 +41,7 @@ export function TransferBetweenAccountsDialog({ open, onOpenChange, accounts, on
     if (!isValid || !currentCompanyId) return;
     setIsSubmitting(true);
 
-    const label = description.trim() || `Transferência ${fromAccount?.name} → ${toAccount?.name}`;
+    const label = description.trim();
 
     try {
       // 1. Create expense (exit) on origin account
@@ -54,7 +54,7 @@ export function TransferBetweenAccountsDialog({ open, onOpenChange, accounts, on
         expense_type: 'ajuste',
         status: 'pago',
         bank_account_id: fromId,
-        notes: `Transferência para ${toAccount?.name}`,
+        notes: `Transferência para ${toAccount?.name}\nResponsável: ${responsible.trim()}`,
       });
 
       if (exitError) throw exitError;
