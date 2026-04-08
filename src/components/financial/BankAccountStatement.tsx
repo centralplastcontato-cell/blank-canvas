@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowUpCircle, ArrowDownCircle, Loader2, SlidersHorizontal } from 'lucide-react';
@@ -13,6 +14,7 @@ import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { formatCurrencyInput, parseCurrencyInput } from '@/lib/currency-input';
+import { EventFinancialTab } from './EventFinancialTab';
 import type { BankAccountBalance } from '@/hooks/useBankAccounts';
 
 interface Props {
@@ -27,6 +29,9 @@ interface Movement {
   amount: number;
   type: 'entry' | 'exit';
   source: string;
+  eventId?: string;
+  eventTitle?: string;
+  eventDate?: string;
 }
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -47,13 +52,16 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
   const [adjustDescription, setAdjustDescription] = useState('');
   const [adjustSaving, setAdjustSaving] = useState(false);
 
+  // Event financial sheet
+  const [selectedEvent, setSelectedEvent] = useState<{ id: string; title: string } | null>(null);
+
   const fetchMovements = useCallback(async () => {
     setIsLoading(true);
     try {
       // Build queries with date filters pushed to the server
       let entriesQuery = supabase
         .from('event_payments')
-        .select('id, amount, paid_at, type, notes')
+        .select('id, amount, paid_at, type, notes, event_id, company_events(id, title, event_date, total_value)')
         .eq('bank_account_id', account.id)
         .eq('status', 'paid')
         .order('paid_at', { ascending: false });
@@ -106,14 +114,20 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
       }, 0);
       setBalanceBefore(account.initial_balance + preEntries - preExits);
 
-      const entries: Movement[] = (entriesRes.data || []).map((p: any) => ({
-        id: p.id,
-        date: p.paid_at?.split('T')[0] || '',
-        description: `${p.type === 'entrada' ? 'Entrada' : 'Parcela'}${p.notes ? ' — ' + p.notes : ''}`,
-        amount: Number(p.amount),
-        type: 'entry' as const,
-        source: 'Recebimento',
-      }));
+      const entries: Movement[] = (entriesRes.data || []).map((p: any) => {
+        const evt = p.company_events;
+        return {
+          id: p.id,
+          date: p.paid_at?.split('T')[0] || '',
+          description: `${p.type === 'entrada' ? 'Entrada' : 'Parcela'}${p.notes ? ' — ' + p.notes : ''}`,
+          amount: Number(p.amount),
+          type: 'entry' as const,
+          source: 'Recebimento',
+          eventId: evt?.id || p.event_id,
+          eventTitle: evt?.title || undefined,
+          eventDate: evt?.event_date || undefined,
+        };
+      });
 
       const exits: Movement[] = (exitsRes.data || []).map((e: any) => {
         const amt = Number(e.amount);
@@ -264,19 +278,33 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
       ) : (
         <div className="space-y-1.5">
           {movementsWithBalance.map(m => (
-            <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-card">
+            <div
+              key={m.id}
+              className={`flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-card ${m.eventId ? 'cursor-pointer hover:border-primary/40 hover:bg-accent/30 transition-colors' : ''}`}
+              onClick={() => {
+                if (m.eventId) {
+                  setSelectedEvent({ id: m.eventId, title: m.eventTitle || 'Festa' });
+                }
+              }}
+            >
               {m.type === 'entry' ? (
                 <ArrowUpCircle className="h-5 w-5 text-emerald-500 shrink-0" />
               ) : (
                 <ArrowDownCircle className="h-5 w-5 text-red-400 shrink-0" />
               )}
               <div className="flex-1 min-w-0">
+                {m.eventTitle && (
+                  <p className="text-xs font-semibold text-primary truncate mb-0.5">🎉 {m.eventTitle}</p>
+                )}
                 <p className="text-sm font-medium text-foreground truncate">{m.description}</p>
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] text-muted-foreground">
                     {m.date ? format(new Date(m.date + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
                   </span>
                   <Badge variant="secondary" className="text-[9px] h-4">{m.source}</Badge>
+                  {m.eventId && (
+                    <Badge variant="outline" className="text-[9px] h-4 text-primary border-primary/30">Ver festa</Badge>
+                  )}
                 </div>
               </div>
               <div className="text-right shrink-0">
@@ -376,6 +404,26 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Event financial sheet */}
+      <Sheet open={!!selectedEvent} onOpenChange={open => { if (!open) setSelectedEvent(null); }}>
+        <SheetContent className="sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>🎉 {selectedEvent?.title}</SheetTitle>
+          </SheetHeader>
+          {selectedEvent && (
+            <div className="mt-4">
+              <EventFinancialTab
+                eventId={selectedEvent.id}
+                companyId={account.company_id}
+                baseValue={0}
+                canEdit={false}
+                canPay={false}
+              />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
