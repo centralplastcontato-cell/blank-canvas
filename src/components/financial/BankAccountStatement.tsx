@@ -59,6 +59,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
   const [adjustAuthor, setAdjustAuthor] = useState('');
   const [adjustSaving, setAdjustSaving] = useState(false);
 
+  const [pageStmt, setPageStmt] = useState(1);
   const [selectedEvent, setSelectedEvent] = useState<{ id: string; title: string } | null>(null);
   const [eventDetails, setEventDetails] = useState<any>(null);
   const [eventClientData, setEventClientData] = useState<any>(null);
