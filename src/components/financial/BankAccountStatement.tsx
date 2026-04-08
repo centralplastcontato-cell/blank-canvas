@@ -138,7 +138,7 @@ export function BankAccountStatement({ account }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Balance summary */}
+      {/* Balance summary — computed from fresh data */}
       <div className="grid grid-cols-3 gap-3">
         <Card className="p-3 text-center">
           <p className="text-[10px] text-muted-foreground uppercase">Saldo Inicial</p>
@@ -146,19 +146,19 @@ export function BankAccountStatement({ account }: Props) {
         </Card>
         <Card className="p-3 text-center">
           <p className="text-[10px] text-emerald-500 uppercase">Entradas</p>
-          <p className="text-sm font-bold text-emerald-500">+{fmt(account.total_entries)}</p>
+          <p className="text-sm font-bold text-emerald-500">+{fmt(liveTotals.totalEntries)}</p>
         </Card>
         <Card className="p-3 text-center">
           <p className="text-[10px] text-red-400 uppercase">Saídas</p>
-          <p className="text-sm font-bold text-red-400">-{fmt(account.total_exits)}</p>
+          <p className="text-sm font-bold text-red-400">-{fmt(liveTotals.totalExits)}</p>
         </Card>
       </div>
 
       {/* Current balance */}
-      <Card className={`p-4 text-center ${account.current_balance >= 0 ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-red-500/30 bg-red-500/5'}`}>
+      <Card className={`p-4 text-center ${liveTotals.currentBalance >= 0 ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-red-500/30 bg-red-500/5'}`}>
         <p className="text-xs text-muted-foreground">Saldo Atual</p>
-        <p className={`text-2xl font-bold ${account.current_balance >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
-          {fmt(account.current_balance)}
+        <p className={`text-2xl font-bold ${liveTotals.currentBalance >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
+          {fmt(liveTotals.currentBalance)}
         </p>
       </Card>
 
