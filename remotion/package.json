@@ -10,12 +10,12 @@
     "typescript": "^6.0.2"
   },
   "dependencies": {
-    "@remotion/bundler": "^4.0.446",
+    "@remotion/bundler": "^4.0.447",
     "@remotion/cli": "4.0.242",
     "@remotion/compositor-linux-x64-musl": "4.0.242",
     "@remotion/fonts": "4.0.242",
     "@remotion/google-fonts": "4.0.242",
-    "@remotion/renderer": "^4.0.446",
+    "@remotion/renderer": "^4.0.447",
     "@remotion/transitions": "4.0.242",
     "@types/react": "^19.2.14",
     "react": "^19.2.4",
