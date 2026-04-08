@@ -8,6 +8,8 @@ const features = [
   { icon: "📊", title: "Kanban Visual", desc: "Arraste leads entre etapas. Veja tudo num relance." },
   { icon: "🤖", title: "Bot WhatsApp 24/7", desc: "Atendimento automático que qualifica e agenda visitas." },
   { icon: "⭐", title: "Score Inteligente", desc: "IA que prioriza os leads com maior chance de fechar." },
+  { icon: "📋", title: "Propostas Automáticas", desc: "Gere orçamentos personalizados em segundos." },
+  { icon: "📈", title: "Funil de Vendas", desc: "Acompanhe cada etapa da jornada do lead até o fechamento." },
 ];
 
 export const Scene2CRM = () => {
