@@ -465,7 +465,7 @@ export default function Financeiro() {
                     <TabsTrigger
                       key={tab}
                       value={tab}
-                      className="rounded-full px-5 py-2 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none border-0"
+                      className="rounded-full px-5 py-2 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none data-[state=inactive]:border data-[state=inactive]:border-border border-0"
                     >
                       {tab === 'receitas' ? 'Receitas' : tab === 'despesas' ? 'Despesas' : tab === 'festas' ? '🎉 Festas' : tab === 'resultado' ? 'Resultado' : '🏦 Contas'}
                     </TabsTrigger>
