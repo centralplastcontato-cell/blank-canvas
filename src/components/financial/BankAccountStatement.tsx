@@ -634,62 +634,50 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
         <SheetContent className="sm:max-w-md overflow-y-auto">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
-              {selectedExpense?.type === 'exit' ? (
-                <ArrowDownCircle className="h-5 w-5 text-red-400" />
-              ) : (
-                <ArrowUpCircle className="h-5 w-5 text-emerald-500" />
-              )}
+              <div className={`p-2 rounded-full ${selectedExpense?.type === 'exit' ? 'bg-destructive/10' : 'bg-emerald-500/10'}`}>
+                {selectedExpense?.type === 'exit' ? (
+                  <ArrowDownCircle className="h-5 w-5 text-destructive" />
+                ) : (
+                  <ArrowUpCircle className="h-5 w-5 text-emerald-500" />
+                )}
+              </div>
               Detalhes da Movimentação
             </SheetTitle>
           </SheetHeader>
           {selectedExpense && (
-            <div className="mt-4 space-y-4">
-              <Card className="p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Descrição</span>
-                  <span className="text-sm font-medium text-foreground text-right max-w-[60%] truncate">{selectedExpense.description}</span>
+            <div className="mt-5 space-y-5">
+              {/* Valor em destaque */}
+              <div className={`rounded-xl p-5 text-center ${selectedExpense.type === 'exit' ? 'bg-destructive/5 border border-destructive/15' : 'bg-emerald-500/5 border border-emerald-500/15'}`}>
+                <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-medium">Valor</p>
+                <p className={`text-2xl font-bold ${selectedExpense.type === 'exit' ? 'text-destructive' : 'text-emerald-600'}`}>
+                  {selectedExpense.type === 'exit' ? '-' : '+'}{fmt(selectedExpense.amount)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {selectedExpense.date ? format(new Date(selectedExpense.date + 'T12:00:00'), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : '—'}
+                </p>
+              </div>
+
+              {/* Info grid */}
+              <Card className="p-0 overflow-hidden divide-y divide-border">
+                <div className="px-4 py-3">
+                  <p className="text-xs text-muted-foreground mb-1">Descrição</p>
+                  <p className="text-sm font-medium text-foreground leading-relaxed">{selectedExpense.description}</p>
                 </div>
-                <div className="border-t border-border" />
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Descrição</span>
-                  <span className="text-sm font-medium text-right max-w-[60%]">{selectedExpense.description}</span>
-                </div>
-                <div className="border-t border-border" />
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Valor</span>
-                  <span className={`text-lg font-bold ${selectedExpense.type === 'exit' ? 'text-red-400' : 'text-emerald-500'}`}>
-                    {selectedExpense.type === 'exit' ? '-' : '+'}{fmt(selectedExpense.amount)}
-                  </span>
-                </div>
-                <div className="border-t border-border" />
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Data</span>
-                  <span className="text-sm font-medium">
-                    {selectedExpense.date ? format(new Date(selectedExpense.date + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
-                  </span>
-                </div>
-                <div className="border-t border-border" />
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Categoria</span>
-                  <Badge variant="secondary">{selectedExpense.expenseCategory || selectedExpense.source}</Badge>
+                <div className="px-4 py-3 flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Categoria</span>
+                  <Badge variant="secondary" className="rounded-full text-xs">{selectedExpense.expenseCategory || selectedExpense.source}</Badge>
                 </div>
                 {selectedExpense.expenseUnit && (
-                  <>
-                    <div className="border-t border-border" />
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Unidade</span>
-                      <span className="text-sm font-medium">{selectedExpense.expenseUnit}</span>
-                    </div>
-                  </>
+                  <div className="px-4 py-3 flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Unidade</span>
+                    <span className="text-sm font-medium">{selectedExpense.expenseUnit}</span>
+                  </div>
                 )}
                 {selectedExpense.expenseNotes && (
-                  <>
-                    <div className="border-t border-border" />
-                    <div>
-                      <span className="text-sm text-muted-foreground">Observações</span>
-                      <p className="text-sm mt-1 text-foreground bg-muted/30 p-2 rounded-lg">{selectedExpense.expenseNotes}</p>
-                    </div>
-                  </>
+                  <div className="px-4 py-3">
+                    <p className="text-xs text-muted-foreground mb-1.5">Observações</p>
+                    <p className="text-sm text-foreground bg-muted/40 p-3 rounded-lg leading-relaxed">{selectedExpense.expenseNotes}</p>
+                  </div>
                 )}
               </Card>
 
