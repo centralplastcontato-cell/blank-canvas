@@ -454,11 +454,137 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
             <SheetTitle>🎉 {selectedEvent?.title}</SheetTitle>
           </SheetHeader>
           {selectedEvent && (
-            <div className="mt-4">
+            <div className="mt-4 space-y-4">
+              {/* Event info card */}
+              {eventDetails && (
+                <Card className="p-4 space-y-2.5 border-primary/20 bg-primary/5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">📅 Data da Festa</span>
+                    <span className="text-sm font-semibold">
+                      {eventDetails.event_date ? format(new Date(eventDetails.event_date + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
+                      {eventDetails.start_time ? ` às ${eventDetails.start_time.slice(0, 5)}` : ''}
+                    </span>
+                  </div>
+                  {eventDetails.data_fechamento_venda && (
+                    <>
+                      <div className="border-t border-border/50" />
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">🤝 Fechamento</span>
+                        <span className="text-sm font-medium">
+                          {format(new Date(eventDetails.data_fechamento_venda + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR })}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  {eventDetails.package_name && (
+                    <>
+                      <div className="border-t border-border/50" />
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">📦 Pacote</span>
+                        <span className="text-sm font-medium">{eventDetails.package_name}</span>
+                      </div>
+                    </>
+                  )}
+                  {eventDetails.guest_count && (
+                    <>
+                      <div className="border-t border-border/50" />
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">👥 Convidados</span>
+                        <span className="text-sm font-medium">{eventDetails.guest_count} pessoas</span>
+                      </div>
+                    </>
+                  )}
+                  {eventDetails.unit && (
+                    <>
+                      <div className="border-t border-border/50" />
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">📍 Unidade</span>
+                        <span className="text-sm font-medium">{eventDetails.unit}</span>
+                      </div>
+                    </>
+                  )}
+                  {/* Birthday children */}
+                  {(() => {
+                    const children = eventDetails.birthday_children as any[] | null;
+                    if (children && children.length > 0) {
+                      return (
+                        <>
+                          <div className="border-t border-border/50" />
+                          <div>
+                            <span className="text-xs text-muted-foreground">🎂 Aniversariante(s)</span>
+                            <div className="mt-1 space-y-0.5">
+                              {children.map((c: any, i: number) => (
+                                <p key={i} className="text-sm font-medium">
+                                  {c.name}{c.age ? ` — ${c.age}` : ''}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      );
+                    }
+                    if (eventDetails.child_name) {
+                      return (
+                        <>
+                          <div className="border-t border-border/50" />
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">🎂 Aniversariante</span>
+                            <span className="text-sm font-medium">
+                              {eventDetails.child_name}{eventDetails.child_age ? ` — ${eventDetails.child_age}` : ''}
+                            </span>
+                          </div>
+                        </>
+                      );
+                    }
+                    return null;
+                  })()}
+                  {/* Client data - responsáveis */}
+                  {eventClientData && (
+                    <>
+                      <div className="border-t border-border/50" />
+                      <div>
+                        <span className="text-xs text-muted-foreground">👤 Responsável</span>
+                        <p className="text-sm font-medium mt-0.5">
+                          {eventClientData.nome_completo || eventClientData.name || '—'}
+                        </p>
+                        {eventClientData.telefone && (
+                          <p className="text-xs text-muted-foreground">{eventClientData.telefone}</p>
+                        )}
+                        {eventClientData.cpf && (
+                          <p className="text-xs text-muted-foreground">CPF: {eventClientData.cpf}</p>
+                        )}
+                      </div>
+                      {eventClientData.responsaveis_adicionais?.length > 0 && (
+                        <>
+                          <div className="border-t border-border/50" />
+                          <div>
+                            <span className="text-xs text-muted-foreground">👥 Responsáveis adicionais</span>
+                            {eventClientData.responsaveis_adicionais.map((r: any, i: number) => (
+                              <p key={i} className="text-sm mt-0.5">
+                                {r.nome}{r.parentesco ? ` (${r.parentesco})` : ''}{r.telefone ? ` — ${r.telefone}` : ''}
+                              </p>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
+                  {eventDetails.parent_names && !eventClientData && (
+                    <>
+                      <div className="border-t border-border/50" />
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">👤 Responsável</span>
+                        <span className="text-sm font-medium">{eventDetails.parent_names}</span>
+                      </div>
+                    </>
+                  )}
+                </Card>
+              )}
+
               <EventFinancialTab
                 eventId={selectedEvent.id}
                 companyId={account.company_id}
-                baseValue={0}
+                baseValue={eventDetails?.total_value || 0}
                 canEdit={false}
                 canPay={false}
               />
