@@ -217,9 +217,9 @@ export default function Formularios() {
             >
               <div className="px-3 md:px-5 pt-3 md:pt-4">
                 <div className="max-w-7xl mx-auto">
-                  <TabsList>
+                  <TabsList className="bg-transparent p-0 gap-1.5">
                     {visibleSections.map(s => (
-                      <TabsTrigger key={s.value} value={s.value} className="gap-2">
+                      <TabsTrigger key={s.value} value={s.value} className="gap-2 border border-border data-[state=active]:border-foreground data-[state=active]:bg-foreground data-[state=active]:text-background rounded-full px-3.5 py-1.5 text-xs font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground">
                         <s.icon className="h-4 w-4" />
                         {s.label}
                       </TabsTrigger>
@@ -237,14 +237,14 @@ export default function Formularios() {
                   >
                     <div className="px-3 md:px-5 pt-2">
                       <div className="max-w-7xl mx-auto">
-                      <TabsList>
+                      <TabsList className="bg-transparent p-0 gap-1.5">
                         {[
                           { value: "avaliacoes", icon: ClipboardCheck, label: "Avaliações" },
                           { value: "prefesta", icon: PartyPopper, label: "Pré-Festa" },
                           { value: "contrato", icon: FileSignature, label: "Contrato" },
                           { value: "cardapio", icon: UtensilsCrossed, label: "Cardápio" },
                         ].map(t => (
-                          <TabsTrigger key={t.value} value={t.value} className="gap-2" onClick={() => handleTabChange(t.value)}>
+                          <TabsTrigger key={t.value} value={t.value} className="gap-2 border border-border data-[state=active]:border-foreground data-[state=active]:bg-foreground data-[state=active]:text-background rounded-full px-3.5 py-1.5 text-xs font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground" onClick={() => handleTabChange(t.value)}>
                             <t.icon className="h-4 w-4" />
                             {t.label}
                           </TabsTrigger>
