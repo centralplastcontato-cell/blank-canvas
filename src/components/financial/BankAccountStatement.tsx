@@ -569,15 +569,36 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
                       )}
                     </>
                   )}
-                  {eventDetails.parent_names && !eventClientData && (
-                    <>
-                      <div className="border-t border-border/50" />
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">👤 Responsável</span>
-                        <span className="text-sm font-medium">{eventDetails.parent_names}</span>
-                      </div>
-                    </>
-                  )}
+                  {eventDetails.parent_names && !eventClientData && (() => {
+                    let parsed: any[] | null = null;
+                    try { parsed = JSON.parse(eventDetails.parent_names); } catch {}
+                    if (Array.isArray(parsed)) {
+                      const valid = parsed.filter((r: any) => r.name?.trim());
+                      if (valid.length === 0) return null;
+                      return (
+                        <>
+                          <div className="border-t border-border/50" />
+                          <div>
+                            <span className="text-xs text-muted-foreground">👤 Responsável</span>
+                            {valid.map((r: any, i: number) => (
+                              <p key={i} className="text-sm font-medium mt-0.5">
+                                {r.name}{r.relation ? ` (${r.relation})` : ''}{r.phone ? ` — ${r.phone}` : ''}
+                              </p>
+                            ))}
+                          </div>
+                        </>
+                      );
+                    }
+                    return (
+                      <>
+                        <div className="border-t border-border/50" />
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">👤 Responsável</span>
+                          <span className="text-sm font-medium">{eventDetails.parent_names}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </Card>
               )}
 
