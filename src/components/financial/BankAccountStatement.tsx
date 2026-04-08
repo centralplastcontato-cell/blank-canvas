@@ -114,14 +114,20 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
       }, 0);
       setBalanceBefore(account.initial_balance + preEntries - preExits);
 
-      const entries: Movement[] = (entriesRes.data || []).map((p: any) => ({
-        id: p.id,
-        date: p.paid_at?.split('T')[0] || '',
-        description: `${p.type === 'entrada' ? 'Entrada' : 'Parcela'}${p.notes ? ' — ' + p.notes : ''}`,
-        amount: Number(p.amount),
-        type: 'entry' as const,
-        source: 'Recebimento',
-      }));
+      const entries: Movement[] = (entriesRes.data || []).map((p: any) => {
+        const evt = p.company_events;
+        return {
+          id: p.id,
+          date: p.paid_at?.split('T')[0] || '',
+          description: `${p.type === 'entrada' ? 'Entrada' : 'Parcela'}${p.notes ? ' — ' + p.notes : ''}`,
+          amount: Number(p.amount),
+          type: 'entry' as const,
+          source: 'Recebimento',
+          eventId: evt?.id || p.event_id,
+          eventTitle: evt?.title || undefined,
+          eventDate: evt?.event_date || undefined,
+        };
+      });
 
       const exits: Movement[] = (exitsRes.data || []).map((e: any) => {
         const amt = Number(e.amount);
