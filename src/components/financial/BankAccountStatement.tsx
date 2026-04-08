@@ -433,11 +433,10 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
             </div>
             <div>
               <Label>Descrição *</Label>
-              <Textarea
+              <Input
                 value={adjustDescription}
                 onChange={e => setAdjustDescription(e.target.value)}
                 placeholder="Ex: Ajuste de saldo inicial, correção, depósito não rastreado..."
-                rows={2}
               />
             </div>
             <div>
