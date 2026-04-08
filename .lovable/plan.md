@@ -1,36 +1,23 @@
 
 
-## Problema
+## Correção: Coluna "Auto-Perdido" sempre vazia
 
-Quando você cria um **Ajuste de Saldo** (ex: R$ 305.348,90), esse valor é somado nos cards **"Despesas Lançadas"** e **"Despesas Pagas"**, inflando os totais e confundindo a leitura financeira. O ajuste de saldo não é uma despesa real — é apenas uma calibragem do saldo inicial.
+### Problema
+Bug de string mismatch no `FollowUpsTab.tsx`. O array `followUpActions` usa `"Lead marcado como perdido automaticamente"` mas a edge function `follow-up-check` grava no banco como `"Lead movido para perdido automaticamente"`. O filtro SQL nunca retorna esses registros, resultando em 0 leads na coluna Auto-Perdido.
 
-## Solução
+Dados no banco confirmam: existem 60 registros com a ação `"Lead movido para perdido automaticamente"`.
 
-Excluir registros do tipo `expense_type === 'ajuste'` dos cálculos de KPI de despesas, mantendo-os apenas onde fazem sentido (saldo de contas e extrato bancário).
+### Plano
 
-## Alterações
+**Arquivo:** `src/components/inteligencia/FollowUpsTab.tsx`
 
-### 1. `src/hooks/useFinanceiroDashboard.ts`
-- Nos cálculos de `totalExpensesMonth` e `totalExpensesPaidMonth` (linhas 335-337), filtrar para ignorar despesas com `expense_type === 'ajuste'`
-- No cálculo de `saldoMonth`, também usar apenas despesas reais (sem ajustes)
-- Isso garante que os cards "Despesas Lançadas", "Despesas Pagas" e "Saldo" no dashboard mostrem apenas despesas operacionais
+1. Na linha ~132, alterar a string no array `followUpActions`:
+   - De: `"Lead marcado como perdido automaticamente"`
+   - Para: `"Lead movido para perdido automaticamente"`
 
-### 2. `src/pages/Financeiro.tsx`
-- Na aba **Resultado**, onde já aparece uma linha separada "Ajustes de saldo" (linha 858), garantir que o "Total despesas" da tabela de resultado também exclua ajustes
-- Opcionalmente, manter a linha informativa "Ajustes de saldo" na aba Resultado para transparência
+2. Na linha ~158, alterar a condição de detecção do fuNumber=5:
+   - De: `ev.action.includes("perdido automaticamente")`  
+   - Para: `ev.action.includes("perdido automaticamente")` (esta parte já funciona com ambas as strings, mas garantir consistência)
 
-### O que NÃO muda
-- O extrato bancário (`BankAccountStatement`) continua exibindo os ajustes normalmente
-- O cálculo de saldo por conta (`useBankAccounts`) continua incluindo ajustes (pois eles afetam o saldo real da conta)
-- A lista de despesas na aba "Despesas" continua mostrando ajustes (para auditoria)
-
-## Detalhes técnicos
-
-```typescript
-// useFinanceiroDashboard.ts — filtro nas linhas 335-337
-const realExpensesThisMonth = expensesThisMonth.filter(e => e.expense_type !== 'ajuste');
-const totalExpensesMonth = realExpensesThisMonth.reduce((s, e) => s + e.amount, 0);
-const totalExpensesPaidMonth = realExpensesThisMonth.filter(e => e.status === 'pago').reduce((s, e) => s + e.amount, 0);
-const saldoMonth = totalReceivedMonth - totalExpensesMonth;
-```
+Essa é uma correção de uma única linha que resolve o problema por completo.
 
