@@ -239,50 +239,103 @@ export function VisitFormDialog({
           {/* Lead section */}
           <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
             <SectionHeader icon={UserIcon} label="Lead" />
-            <div className="space-y-2.5">
-              <Label className="text-sm font-medium text-foreground/70">Selecionar lead *</Label>
-              {leadId ? (
-                <div className="flex items-center gap-2 p-2.5 rounded-lg border border-primary/30 bg-primary/5">
-                  <UserIcon className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium flex-1">{leadName}</span>
-                  {!fixedLead && (
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setLeadId(""); setLeadName(""); setLeadEvents([]); setEventId(""); }}>
-                      <X className="h-3 w-3" />
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="relative">
+            
+            {/* Toggle: existing lead vs new client */}
+            {!fixedLead && (
+              <div className="flex gap-2 mb-4">
+                <Button
+                  type="button"
+                  variant={!isNewClient ? "default" : "outline"}
+                  size="sm"
+                  className="flex-1 text-xs"
+                  onClick={() => { setIsNewClient(false); setNewClientName(""); setNewClientPhone(""); }}
+                >
+                  <UserIcon className="h-3.5 w-3.5 mr-1.5" />
+                  Lead existente
+                </Button>
+                <Button
+                  type="button"
+                  variant={isNewClient ? "default" : "outline"}
+                  size="sm"
+                  className="flex-1 text-xs"
+                  onClick={() => { setIsNewClient(true); setLeadId(""); setLeadName(""); setLeadResults([]); setLeadSearch(""); }}
+                >
+                  <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+                  Novo cliente
+                </Button>
+              </div>
+            )}
+
+            {isNewClient ? (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-foreground/70">Nome *</Label>
                   <input
                     type="text"
-                    value={leadSearch}
-                    onChange={(e) => setLeadSearch(e.target.value)}
-                    placeholder="Buscar lead por nome ou telefone..."
+                    value={newClientName}
+                    onChange={(e) => setNewClientName(e.target.value)}
+                    placeholder="Nome do cliente"
                     className="w-full h-10 px-3 rounded-lg border border-border/60 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
-                  {leadResults.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 rounded-lg border border-border bg-card shadow-lg max-h-48 overflow-y-auto">
-                      {leadResults.map(l => (
-                        <button
-                          key={l.id}
-                          className="w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors first:rounded-t-lg last:rounded-b-lg"
-                          onClick={() => {
-                            setLeadId(l.id);
-                            setLeadName(l.name);
-                            setLeadResults([]);
-                            setLeadSearch("");
-                            if (isAtendimento) fetchLeadEvents(l.id);
-                          }}
-                        >
-                          <span className="font-medium">{l.name}</span>
-                          <span className="text-muted-foreground ml-2 text-xs">{l.whatsapp}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
-              )}
-            </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-foreground/70">Telefone (WhatsApp) *</Label>
+                  <input
+                    type="tel"
+                    value={newClientPhone}
+                    onChange={(e) => setNewClientPhone(e.target.value)}
+                    placeholder="(11) 99999-9999"
+                    className="w-full h-10 px-3 rounded-lg border border-border/60 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">O lead será criado automaticamente no CRM</p>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                <Label className="text-sm font-medium text-foreground/70">Selecionar lead *</Label>
+                {leadId ? (
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg border border-primary/30 bg-primary/5">
+                    <UserIcon className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium flex-1">{leadName}</span>
+                    {!fixedLead && (
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setLeadId(""); setLeadName(""); setLeadEvents([]); setEventId(""); }}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={leadSearch}
+                      onChange={(e) => setLeadSearch(e.target.value)}
+                      placeholder="Buscar lead por nome ou telefone..."
+                      className="w-full h-10 px-3 rounded-lg border border-border/60 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                    {leadResults.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 rounded-lg border border-border bg-card shadow-lg max-h-48 overflow-y-auto">
+                        {leadResults.map(l => (
+                          <button
+                            key={l.id}
+                            className="w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors first:rounded-t-lg last:rounded-b-lg"
+                            onClick={() => {
+                              setLeadId(l.id);
+                              setLeadName(l.name);
+                              setLeadResults([]);
+                              setLeadSearch("");
+                              if (isAtendimento) fetchLeadEvents(l.id);
+                            }}
+                          >
+                            <span className="font-medium">{l.name}</span>
+                            <span className="text-muted-foreground ml-2 text-xs">{l.whatsapp}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Event link - only for atendimento */}
