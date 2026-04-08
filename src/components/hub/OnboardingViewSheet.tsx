@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { isValidElement, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
@@ -21,24 +21,73 @@ interface OnboardingRecord {
   [key: string]: any;
 }
 
-function InfoRow({ icon: Icon, label, value }: { icon: any; label: string; value: React.ReactNode }) {
-  if (!value || (typeof value === 'string' && !value.trim()) || (Array.isArray(value) && value.length === 0)) return null;
+function getDisplayText(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+
+  if (typeof value === "string") {
+    const cleaned = value.trim();
+    return cleaned || null;
+  }
+
+  if (typeof value === "number") return String(value);
+  if (typeof value === "boolean") return value ? "Sim" : "Não";
+
+  if (Array.isArray(value)) {
+    const items = value.map(getDisplayText).filter(Boolean) as string[];
+    return items.length ? items.join(", ") : null;
+  }
+
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const preferred = [record.label, record.name, record.title, record.value].find(
+      (item) => (typeof item === "string" && item.trim()) || typeof item === "number"
+    );
+
+    return preferred !== undefined ? getDisplayText(preferred) : null;
+  }
+
+  return String(value);
+}
+
+function toDisplayList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map(getDisplayText).filter(Boolean) as string[];
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(/\n+/)
+      .map((item) => item.replace(/^[-•\s]+/, "").trim())
+      .filter(Boolean);
+  }
+
+  const single = getDisplayText(value);
+  return single ? [single] : [];
+}
+
+function InfoRow({ icon: Icon, label, value }: { icon: any; label: string; value: unknown }) {
+  const displayValue = isValidElement(value) ? value : getDisplayText(value);
+
+  if (!displayValue) return null;
+
   return (
     <div className="flex items-start gap-3 py-2">
       <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
       <div className="min-w-0 flex-1">
         <p className="text-xs text-muted-foreground">{label}</p>
-        <div className="text-sm font-medium break-words">{value}</div>
+        <div className="text-sm font-medium break-words">{displayValue}</div>
       </div>
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   const hasContent = Array.isArray(children)
-    ? children.some(c => c !== null && c !== undefined && c !== false)
+    ? children.some((child) => child !== null && child !== undefined && child !== false)
     : !!children;
+
   if (!hasContent) return null;
+
   return (
     <div className="space-y-1">
       <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground pt-3 pb-1">{title}</h3>
@@ -54,6 +103,7 @@ export function OnboardingViewSheet({ companyId, companyName, open, onOpenChange
 
   useEffect(() => {
     if (!open || !companyId) return;
+
     setLoading(true);
     (supabase
       .from("company_onboarding")
@@ -63,16 +113,21 @@ export function OnboardingViewSheet({ companyId, companyName, open, onOpenChange
       .limit(1)
       .maybeSingle()
       .then(({ data: rec, error }) => {
-        if (error) console.error('[OnboardingViewSheet]', error);
+        if (error) console.error("[OnboardingViewSheet]", error);
         setData(rec as any);
         setLoading(false);
       }) as Promise<void>).catch((err) => {
-        console.error('[OnboardingViewSheet] fetch error:', err);
+        console.error("[OnboardingViewSheet] fetch error:", err);
         setLoading(false);
       });
   }, [open, companyId]);
 
   const opData = data?.operational_data as Record<string, any> | null;
+  const eventTypeLabels = toDisplayList(opData?.event_types);
+  const packageLabels = toDisplayList(opData?.packages);
+  const guestRangeLabels = toDisplayList(opData?.guest_ranges);
+  const weekdayLabels = toDisplayList(opData?.weekdays ?? opData?.working_days);
+  const differentialLabels = toDisplayList(opData?.differentials);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -83,8 +138,8 @@ export function OnboardingViewSheet({ companyId, companyName, open, onOpenChange
             Onboarding — {companyName}
           </SheetTitle>
           {data && (
-            <Badge variant={data.status === 'completo' ? 'default' : 'secondary'} className="w-fit">
-              {data.status === 'completo' ? 'Completo' : data.status === 'em_andamento' ? 'Em andamento' : 'Pendente'}
+            <Badge variant={data.status === "completo" ? "default" : "secondary"} className="w-fit">
+              {data.status === "completo" ? "Completo" : data.status === "em_andamento" ? "Em andamento" : "Pendente"}
             </Badge>
           )}
         </SheetHeader>
@@ -119,13 +174,13 @@ export function OnboardingViewSheet({ companyId, companyName, open, onOpenChange
 
               <Section title="Captação de Leads">
                 <InfoRow icon={MessageSquare} label="Volume de leads" value={data.lead_volume} />
-                <InfoRow icon={ClipboardList} label="Fontes de leads" value={
-                  data.lead_sources?.length ? data.lead_sources.join(", ") : null
-                } />
+                <InfoRow icon={ClipboardList} label="Fontes de leads" value={data.lead_sources} />
                 <InfoRow icon={MessageSquare} label="Método de atendimento" value={data.current_service_method} />
-                <InfoRow icon={ClipboardList} label="Sistema de automação" value={
-                  data.has_automation_system ? (data.automation_system_name || "Sim") : "Não"
-                } />
+                <InfoRow
+                  icon={ClipboardList}
+                  label="Sistema de automação"
+                  value={data.has_automation_system ? (data.automation_system_name || "Sim") : "Não"}
+                />
               </Section>
 
               <Section title="Tráfego Pago">
@@ -136,10 +191,8 @@ export function OnboardingViewSheet({ companyId, companyName, open, onOpenChange
               </Section>
 
               <Section title="Operação">
-                <InfoRow icon={MessageSquare} label="WhatsApp(s)" value={
-                  data.whatsapp_numbers?.length ? data.whatsapp_numbers.filter(Boolean).join(", ") : null
-                } />
-                <InfoRow icon={Users} label="Qtd. de atendentes" value={data.attendants_count?.toString()} />
+                <InfoRow icon={MessageSquare} label="WhatsApp(s)" value={data.whatsapp_numbers} />
+                <InfoRow icon={Users} label="Qtd. de atendentes" value={data.attendants_count} />
                 <InfoRow icon={Clock} label="Horário de atendimento" value={data.service_hours} />
                 <InfoRow icon={Building2} label="Múltiplas unidades" value={data.multiple_units ? "Sim" : "Não"} />
                 <InfoRow icon={FileText} label="Formato de orçamento" value={data.budget_format} />
@@ -153,7 +206,7 @@ export function OnboardingViewSheet({ companyId, companyName, open, onOpenChange
                   </div>
                 )}
                 <InfoRow icon={FileText} label="Observações de marca" value={data.brand_notes} />
-                {data.photo_urls?.length > 0 && (
+                {Array.isArray(data.photo_urls) && data.photo_urls.length > 0 && (
                   <div className="py-2">
                     <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Image className="h-3.5 w-3.5" /> Fotos ({data.photo_urls.length})</p>
                     <div className="flex flex-wrap gap-2">
@@ -165,7 +218,7 @@ export function OnboardingViewSheet({ companyId, companyName, open, onOpenChange
                     </div>
                   </div>
                 )}
-                {data.video_urls?.length > 0 && (
+                {Array.isArray(data.video_urls) && data.video_urls.length > 0 && (
                   <div className="py-2">
                     <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Video className="h-3.5 w-3.5" /> Vídeos ({data.video_urls.length})</p>
                     <div className="space-y-1">
@@ -179,80 +232,95 @@ export function OnboardingViewSheet({ companyId, companyName, open, onOpenChange
 
               {opData && (
                 <>
-                  {opData.event_types?.length > 0 && (
+                  {eventTypeLabels.length > 0 && (
                     <Section title="Tipos de Festa">
                       <div className="flex flex-wrap gap-1.5 py-1">
-                        {opData.event_types.map((t: string, i: number) => (
-                          <Badge key={i} variant="secondary" className="text-xs">{t}</Badge>
+                        {eventTypeLabels.map((type, i) => (
+                          <Badge key={i} variant="secondary" className="text-xs">{type}</Badge>
                         ))}
                       </div>
                     </Section>
                   )}
 
-                  {opData.packages?.length > 0 && (
+                  {packageLabels.length > 0 && (
                     <Section title="Pacotes">
                       <div className="flex flex-wrap gap-1.5 py-1">
-                        {opData.packages.map((p: any, i: number) => (
+                        {packageLabels.map((pkg, i) => (
                           <Badge key={i} variant="outline" className="text-xs">
                             <Package className="h-3 w-3 mr-1" />
-                            {typeof p === 'string' ? p : p.name || `Pacote ${i + 1}`}
+                            {pkg}
                           </Badge>
                         ))}
                       </div>
                     </Section>
                   )}
 
-                  {opData.guest_ranges?.length > 0 && (
+                  {guestRangeLabels.length > 0 && (
                     <Section title="Faixas de Convidados">
                       <div className="flex flex-wrap gap-1.5 py-1">
-                        {opData.guest_ranges.map((g: string, i: number) => (
-                          <Badge key={i} variant="secondary" className="text-xs">{g}</Badge>
+                        {guestRangeLabels.map((range, i) => (
+                          <Badge key={i} variant="secondary" className="text-xs">{range}</Badge>
                         ))}
                       </div>
                     </Section>
                   )}
 
-                  {opData.party_schedules?.length > 0 && (
+                  {Array.isArray(opData.party_schedules) && opData.party_schedules.length > 0 && (
                     <Section title="Horários de Festa">
                       <div className="space-y-1 py-1">
-                        {opData.party_schedules.map((s: any, i: number) => (
-                          <div key={i} className="text-sm">
-                            <span className="font-medium">{s.label}</span>
-                            {s.start && s.end && <span className="text-muted-foreground ml-2">{s.start} às {s.end}</span>}
-                          </div>
-                        ))}
+                        {opData.party_schedules.map((schedule: any, i: number) => {
+                          const label = getDisplayText(schedule?.label);
+                          const start = getDisplayText(schedule?.start);
+                          const end = getDisplayText(schedule?.end);
+
+                          if (!label && !start && !end) return null;
+
+                          return (
+                            <div key={i} className="text-sm">
+                              <span className="font-medium">{label || `Horário ${i + 1}`}</span>
+                              {start && end && <span className="text-muted-foreground ml-2">{start} às {end}</span>}
+                            </div>
+                          );
+                        })}
                       </div>
                     </Section>
                   )}
 
-                  {opData.weekdays?.length > 0 && (
+                  {weekdayLabels.length > 0 && (
                     <Section title="Dias de Funcionamento">
                       <div className="flex flex-wrap gap-1.5 py-1">
-                        {opData.weekdays.map((d: string, i: number) => (
-                          <Badge key={i} variant="secondary" className="text-xs">{d}</Badge>
+                        {weekdayLabels.map((day, i) => (
+                          <Badge key={i} variant="secondary" className="text-xs">{day}</Badge>
                         ))}
                       </div>
                     </Section>
                   )}
 
-                  {opData.optionals?.length > 0 && (
+                  {Array.isArray(opData.optionals) && opData.optionals.length > 0 && (
                     <Section title="Opcionais">
                       <div className="space-y-1 py-1">
-                        {opData.optionals.filter((o: any) => o.name).map((o: any, i: number) => (
-                          <div key={i} className="flex items-center justify-between text-sm">
-                            <span>{o.name}</span>
-                            {o.value && <span className="text-muted-foreground">R$ {o.value}</span>}
-                          </div>
-                        ))}
+                        {opData.optionals.map((optional: any, i: number) => {
+                          const name = getDisplayText(optional?.name);
+                          const value = getDisplayText(optional?.value);
+
+                          if (!name) return null;
+
+                          return (
+                            <div key={i} className="flex items-center justify-between text-sm gap-3">
+                              <span>{name}</span>
+                              {value && <span className="text-muted-foreground text-right">{value}</span>}
+                            </div>
+                          );
+                        })}
                       </div>
                     </Section>
                   )}
 
-                  {opData.differentials?.length > 0 && (
+                  {differentialLabels.length > 0 && (
                     <Section title="Diferenciais">
                       <div className="flex flex-wrap gap-1.5 py-1">
-                        {opData.differentials.filter(Boolean).map((d: string, i: number) => (
-                          <Badge key={i} variant="outline" className="text-xs"><Sparkles className="h-3 w-3 mr-1" />{d}</Badge>
+                        {differentialLabels.map((differential, i) => (
+                          <Badge key={i} variant="outline" className="text-xs"><Sparkles className="h-3 w-3 mr-1" />{differential}</Badge>
                         ))}
                       </div>
                     </Section>
@@ -266,15 +334,22 @@ export function OnboardingViewSheet({ companyId, companyName, open, onOpenChange
                     </Section>
                   )}
 
-                  {opData.attendants?.length > 0 && (
+                  {Array.isArray(opData.attendants) && opData.attendants.length > 0 && (
                     <Section title="Atendentes Cadastrados">
                       <div className="space-y-2 py-1">
-                        {opData.attendants.filter((a: any) => a.name).map((a: any, i: number) => (
-                          <div key={i} className="p-2 rounded-lg border border-border/60 bg-muted/20 text-sm space-y-0.5">
-                            <p className="font-medium">{a.name}</p>
-                            {a.email && <p className="text-xs text-muted-foreground">{a.email}</p>}
-                          </div>
-                        ))}
+                        {opData.attendants.map((attendant: any, i: number) => {
+                          const name = getDisplayText(attendant?.name);
+                          const email = getDisplayText(attendant?.email);
+
+                          if (!name) return null;
+
+                          return (
+                            <div key={i} className="p-2 rounded-lg border border-border/60 bg-muted/20 text-sm space-y-0.5">
+                              <p className="font-medium">{name}</p>
+                              {email && <p className="text-xs text-muted-foreground">{email}</p>}
+                            </div>
+                          );
+                        })}
                       </div>
                     </Section>
                   )}
