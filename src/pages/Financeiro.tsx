@@ -15,6 +15,7 @@ import { BankAccountStatement } from '@/components/financial/BankAccountStatemen
 import { ClosedPartiesTab } from '@/components/financial/ClosedPartiesTab';
 import { BankAccountSelect } from '@/components/financial/BankAccountSelect';
 import { TransferBetweenAccountsDialog } from '@/components/financial/TransferBetweenAccountsDialog';
+import { KpiSheetBody } from '@/components/financial/KpiSheetBody';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { MobileMenu } from '@/components/admin/MobileMenu';
 import { NotificationBell } from '@/components/admin/NotificationBell';
