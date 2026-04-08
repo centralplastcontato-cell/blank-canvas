@@ -11,25 +11,22 @@ interface DLPSocialProofProps {
 const decorativeIcons = [Star, PartyPopper, Heart, Star, PartyPopper, Heart];
 
 function AnimatedCounter({ value, isVisible }: { value: string; isVisible: boolean }) {
-  // Match number with optional k/K/m/M suffix, e.g. "10k+", "500+", "1.5k", "5⭐"
   const numericMatch = value.match(/([\d.,]+)\s*(k|m)?/i);
-  if (!numericMatch) return <span>{value}</span>;
 
-  const rawNum = parseFloat(numericMatch[1].replace(/\./g, "").replace(",", "."));
-  const multiplierChar = (numericMatch[2] || "").toLowerCase();
+  const rawNum = numericMatch ? parseFloat(numericMatch[1].replace(/\./g, "").replace(",", ".")) : 0;
+  const multiplierChar = numericMatch ? (numericMatch[2] || "").toLowerCase() : "";
   const multiplier = multiplierChar === "k" ? 1000 : multiplierChar === "m" ? 1000000 : 1;
   const target = rawNum * multiplier;
 
-  // Reconstruct prefix/suffix without the matched number+multiplier
-  const matchStart = value.indexOf(numericMatch[0]);
-  const matchEnd = matchStart + numericMatch[0].length;
-  const prefix = value.slice(0, matchStart);
-  const suffix = value.slice(matchEnd);
+  const matchStart = numericMatch ? value.indexOf(numericMatch[0]) : 0;
+  const matchEnd = numericMatch ? matchStart + numericMatch[0].length : 0;
+  const prefix = numericMatch ? value.slice(0, matchStart) : "";
+  const suffix = numericMatch ? value.slice(matchEnd) : "";
 
   const [current, setCurrent] = useState(0);
 
   useEffect(() => {
-    if (!isVisible) return;
+    if (!isVisible || !numericMatch) return;
     const duration = 1500;
     const steps = 40;
     const increment = target / steps;
@@ -46,10 +43,11 @@ function AnimatedCounter({ value, isVisible }: { value: string; isVisible: boole
     return () => clearInterval(interval);
   }, [isVisible, target]);
 
+  if (!numericMatch) return <span>{value}</span>;
+
   const formatNumber = (n: number) => {
     if (multiplier >= 1000) {
       const display = n / multiplier;
-      // Keep the k/m suffix as originally written
       const formatted = display % 1 === 0 ? Math.round(display).toString() : display.toFixed(1).replace(".", ",");
       return formatted + multiplierChar;
     }
