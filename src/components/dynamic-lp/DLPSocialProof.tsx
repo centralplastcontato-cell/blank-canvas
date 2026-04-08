@@ -11,11 +11,17 @@ interface DLPSocialProofProps {
 const decorativeIcons = [Star, PartyPopper, Heart, Star, PartyPopper, Heart];
 
 function AnimatedCounter({ value, isVisible }: { value: string; isVisible: boolean }) {
-  const numericMatch = value.match(/[\d.,]+/);
-  const prefix = numericMatch ? value.slice(0, value.indexOf(numericMatch[0])) : "";
-  const suffix = numericMatch ? value.slice(value.indexOf(numericMatch[0]) + numericMatch[0].length) : "";
-  const target = numericMatch ? parseFloat(numericMatch[0].replace(/\./g, "").replace(",", ".")) : 0;
-  const hasDot = numericMatch ? numericMatch[0].includes(".") : false;
+  const numericMatch = value.match(/([\d.,]+)\s*(k|m)?/i);
+
+  const rawNum = numericMatch ? parseFloat(numericMatch[1].replace(/\./g, "").replace(",", ".")) : 0;
+  const multiplierChar = numericMatch ? (numericMatch[2] || "").toLowerCase() : "";
+  const multiplier = multiplierChar === "k" ? 1000 : multiplierChar === "m" ? 1000000 : 1;
+  const target = rawNum * multiplier;
+
+  const matchStart = numericMatch ? value.indexOf(numericMatch[0]) : 0;
+  const matchEnd = numericMatch ? matchStart + numericMatch[0].length : 0;
+  const prefix = numericMatch ? value.slice(0, matchStart) : "";
+  const suffix = numericMatch ? value.slice(matchEnd) : "";
 
   const [current, setCurrent] = useState(0);
 
@@ -35,15 +41,17 @@ function AnimatedCounter({ value, isVisible }: { value: string; isVisible: boole
       }
     }, duration / steps);
     return () => clearInterval(interval);
-  }, [isVisible, target, numericMatch]);
+  }, [isVisible, target]);
 
   if (!numericMatch) return <span>{value}</span>;
 
   const formatNumber = (n: number) => {
-    if (hasDot) {
-      return n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+    if (multiplier >= 1000) {
+      const display = n / multiplier;
+      const formatted = display % 1 === 0 ? Math.round(display).toString() : display.toFixed(1).replace(".", ",");
+      return formatted + multiplierChar;
     }
-    return Math.round(n).toString();
+    return Math.round(n).toLocaleString("pt-BR");
   };
 
   return (
