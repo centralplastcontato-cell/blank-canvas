@@ -339,7 +339,9 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
                 {m.eventTitle && (
                   <p className="text-xs font-semibold text-primary truncate mb-0.5">🎉 {m.eventTitle}</p>
                 )}
-                <p className="text-sm font-medium text-foreground truncate">{m.description}</p>
+                <p className="text-sm font-medium text-foreground truncate">
+                  {m.expenseCategory === 'ajuste' ? 'Ajuste de saldo' : m.description}
+                </p>
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] text-muted-foreground">
                     {m.date ? format(new Date(m.date + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
@@ -644,6 +646,11 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Descrição</span>
                   <span className="text-sm font-medium text-foreground text-right max-w-[60%] truncate">{selectedExpense.description}</span>
+                </div>
+                <div className="border-t border-border" />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Descrição</span>
+                  <span className="text-sm font-medium text-right max-w-[60%]">{selectedExpense.description}</span>
                 </div>
                 <div className="border-t border-border" />
                 <div className="flex items-center justify-between">
