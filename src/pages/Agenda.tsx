@@ -900,19 +900,19 @@ export default function Agenda() {
               {/* Mobile content mode toggle - inside header */}
               <div className="pt-2">
                 <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas" | "pre-reservas")}>
-                  <TabsList className="w-full h-10 bg-muted/60">
-                    <TabsTrigger value="agendadas" className="flex-1 gap-1.5 text-xs font-medium">
+                  <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex-wrap w-full">
+                    <TabsTrigger value="agendadas" className="flex-1 gap-1.5 text-xs font-medium rounded-full px-4 py-2 border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none">
                       <CalendarDays className="h-3.5 w-3.5" />
                       Agendadas
                     </TabsTrigger>
-                    <TabsTrigger value="fechadas" className="flex-1 gap-1.5 text-xs font-medium">
+                    <TabsTrigger value="fechadas" className="flex-1 gap-1.5 text-xs font-medium rounded-full px-4 py-2 border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none">
                       <Handshake className="h-3.5 w-3.5" />
                       Fechadas
                       {closedInPeriod > 0 && (
                         <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{closedInPeriod}</Badge>
                       )}
                     </TabsTrigger>
-                    <TabsTrigger value="pre-reservas" className="flex-1 gap-1.5 text-xs font-medium">
+                    <TabsTrigger value="pre-reservas" className="flex-1 gap-1.5 text-xs font-medium rounded-full px-4 py-2 border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none">
                       <CalendarClock className="h-3.5 w-3.5" />
                       Pré-reservas
                       {allPreReservations.filter(pr => pr.status === "ativa").length > 0 && (

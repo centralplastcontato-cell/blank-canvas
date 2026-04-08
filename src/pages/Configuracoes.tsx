@@ -162,17 +162,17 @@ export default function Configuracoes() {
 
         <main className="flex-1 p-3 overflow-auto space-y-4">
           <Tabs defaultValue={defaultTab}>
-            <TabsList className="w-full">
-              <TabsTrigger value="perfil" className="flex-1 gap-2">
+            <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex-wrap w-full">
+              <TabsTrigger value="perfil" className="gap-2 rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground">
                 <UserCircle className="h-4 w-4" />
                 Perfil
               </TabsTrigger>
-              <TabsTrigger value="whatsapp" className="flex-1 gap-2">
+              <TabsTrigger value="whatsapp" className="gap-2 rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground">
                 <MessageSquare className="h-4 w-4" />
                 WhatsApp
               </TabsTrigger>
               {showOperacoes && (
-                <TabsTrigger value="festa" className="flex-1 gap-2">
+                <TabsTrigger value="festa" className="gap-2 rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground">
                   <PartyPopper className="h-4 w-4" />
                   Festa
                 </TabsTrigger>
@@ -228,17 +228,17 @@ export default function Configuracoes() {
               </div>
 
               <Tabs defaultValue={defaultTab}>
-                <TabsList>
-                  <TabsTrigger value="perfil" className="gap-2">
+                <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex-wrap">
+                  <TabsTrigger value="perfil" className="gap-2 rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground">
                     <UserCircle className="h-4 w-4" />
                     Perfil
                   </TabsTrigger>
-                  <TabsTrigger value="whatsapp" className="gap-2">
+                  <TabsTrigger value="whatsapp" className="gap-2 rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground">
                     <MessageSquare className="h-4 w-4" />
                     WhatsApp
                   </TabsTrigger>
                   {showOperacoes && (
-                    <TabsTrigger value="festa" className="gap-2">
+                    <TabsTrigger value="festa" className="gap-2 rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground">
                       <PartyPopper className="h-4 w-4" />
                       Controle da Festa
                     </TabsTrigger>
