@@ -5,23 +5,24 @@
 
 export const campaignConfig = {
   // HERO
-  title: "Mês do Consumidor",
-  subtitle: "Feche sua festa agora e os 10 primeiros contratos ganham bônus especiais para deixar a comemoração ainda mais completa.",
-  tagline: "🎉 Mês do Consumidor no Castelo da Diversão",
+  title: "Promoção de Páscoa",
+  subtitle: "Comemore a Páscoa com uma festa inesquecível! 10 crianças até 8 anos FREE e parcele em até 10x no cartão.",
+  tagline: "🐰 Promoção de Páscoa no Castelo da Diversão",
   
   // OFERTA PRINCIPAL
   offer: {
-    headline: "Promoção especial do mês do consumidor",
-    description: "Para comemorar o mês do consumidor, o Castelo da Diversão preparou um presente especial para as famílias. Os 10 primeiros contratos fechados garantem bônus exclusivos!",
+    headline: "Promoção especial de Páscoa",
+    description: "Nesta Páscoa, o Castelo da Diversão preparou um presente especial: sua festa com 10 crianças até 8 anos FREE! Parcele em até 10x no cartão.",
     benefits: [
-      "Decoração temática encantadora",
-      "Docinhos para mesa de decoração",
-      "Toalhas para as mesas dos convidados",
+      "10 crianças até 8 anos FREE",
+      "Parcelamento em até 10x no cartão",
+      "Estrutura completa para sua festa",
+      "Equipe especializada e dedicada",
     ],
-    validUntil: "31 de Março de 2026",
+    validUntil: "20 de Abril de 2026",
     conditions: [
-      "Válida para os 10 primeiros contratos fechados",
-      "Bônus sem custo adicional",
+      "Válida para festas agendadas até 20/04/2026",
+      "Crianças FREE com até 8 anos de idade",
       "Promoção não cumulativa com outras ofertas",
     ],
   },
@@ -30,8 +31,8 @@ export const campaignConfig = {
   urgency: {
     message: "Garanta agora a data da festa do seu filho",
     spotsLeft: 10,
-    deadline: "Apenas 10 bônus disponíveis",
-    endDate: "2026-03-31T23:59:59",
+    deadline: "Promoção por tempo limitado",
+    endDate: "2026-04-20T23:59:59",
   },
 
   // CHATBOT - Opções configuráveis
@@ -45,8 +46,8 @@ export const campaignConfig = {
   },
 
   // IDENTIFICAÇÃO
-  campaignId: "mes-consumidor-2026",
-  campaignName: "Mês do Consumidor 2026",
+  campaignId: "pascoa-2026",
+  campaignName: "Promoção de Páscoa 2026",
   
   // EMPRESA (multi-tenant) - ID da empresa padrão para leads da landing page
   companyId: "a0000000-0000-0000-0000-000000000001",

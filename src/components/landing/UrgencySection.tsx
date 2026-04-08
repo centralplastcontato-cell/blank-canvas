@@ -71,7 +71,7 @@ export function UrgencySection({ onCtaClick }: UrgencySectionProps) {
             className="inline-flex items-center gap-2 bg-accent-foreground/20 backdrop-blur-sm text-accent-foreground px-6 py-3 rounded-full mb-6"
           >
             <Sparkles className="w-5 h-5" />
-            <span className="font-bold text-lg">MÊS DO CONSUMIDOR</span>
+            <span className="font-bold text-lg">{campaignConfig.campaignName.toUpperCase()}</span>
           </motion.div>
 
           <h2 className="text-3xl md:text-5xl font-display font-bold text-accent-foreground mb-4">

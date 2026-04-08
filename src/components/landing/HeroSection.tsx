@@ -13,6 +13,14 @@ const socialProofItems = [
   { icon: Heart, label: "98% de satisfação", color: "text-castle" },
 ];
 
+const easterColors = [
+  'hsl(270 60% 65%)', // lilás
+  'hsl(330 70% 65%)', // rosa
+  'hsl(50 90% 60%)',  // amarelo
+  'hsl(150 60% 50%)', // verde
+  'hsl(200 70% 60%)', // azul claro
+];
+
 export function HeroSection({ onCtaClick }: HeroSectionProps) {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden" aria-label="Seção principal">
@@ -22,14 +30,14 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
         <div className="absolute inset-0 bg-gradient-to-b from-foreground/70 via-foreground/50 to-background/95" />
       </div>
 
-      {/* Floating Confetti */}
+      {/* Floating Easter Confetti */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(15)].map((_, i) => (
           <motion.div
             key={i}
             className="absolute w-2.5 h-2.5 rounded-full"
             style={{
-              background: ['hsl(215 85% 50%)', 'hsl(42 95% 55%)', 'hsl(155 75% 38%)', 'hsl(15 90% 58%)', 'hsl(350 80% 55%)'][i % 5],
+              background: easterColors[i % easterColors.length],
               left: `${Math.random() * 100}%`,
               top: `-5%`,
             }}
@@ -47,6 +55,16 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
           transition={{ duration: 0.8 }}
           className="space-y-6 max-w-4xl mx-auto"
         >
+          {/* Easter Badge */}
+          <motion.span
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.1, duration: 0.5 }}
+            className="inline-flex items-center gap-2 bg-secondary/90 text-secondary-foreground px-5 py-2 rounded-full text-sm font-bold shadow-lg"
+          >
+            🐰 PROMOÇÃO DE PÁSCOA
+          </motion.span>
+
           {/* Logo */}
           <motion.img
             src={logoCastelo}
@@ -64,8 +82,8 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
             transition={{ delay: 0.3, duration: 0.6 }}
             className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-primary-foreground leading-tight drop-shadow-md"
           >
-            O lugar perfeito para a{" "}
-            <span className="text-secondary">festa do seu filho</span>
+            10 crianças até 8 anos{" "}
+            <span className="text-secondary">FREE!</span>
           </motion.h1>
 
           {/* Subtitle */}
@@ -75,7 +93,7 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
             transition={{ delay: 0.5, duration: 0.6 }}
             className="text-base sm:text-lg md:text-xl text-primary-foreground/85 max-w-3xl mx-auto font-medium"
           >
-            Buffet infantil especializado em festas inesquecíveis. Brinquedos incríveis, cardápio delicioso e uma equipe preparada para cuidar de cada detalhe.
+            Comemore a Páscoa com uma festa inesquecível no Castelo da Diversão. Parcele em até 10x no cartão!
           </motion.p>
 
           {/* CTA */}

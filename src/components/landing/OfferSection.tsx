@@ -19,7 +19,7 @@ export function OfferSection({ onCtaClick }: OfferSectionProps) {
         >
           <span className="inline-flex items-center gap-2 bg-festive text-festive-foreground px-4 py-2 rounded-full text-sm font-bold mb-4">
             <Gift className="w-4 h-4" />
-            MÊS DO CONSUMIDOR
+            {campaignConfig.campaignName.toUpperCase()}
           </span>
           <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-4">
             {campaignConfig.offer.headline}
