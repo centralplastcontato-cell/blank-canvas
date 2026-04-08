@@ -278,19 +278,33 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
       ) : (
         <div className="space-y-1.5">
           {movementsWithBalance.map(m => (
-            <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-card">
+            <div
+              key={m.id}
+              className={`flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-card ${m.eventId ? 'cursor-pointer hover:border-primary/40 hover:bg-accent/30 transition-colors' : ''}`}
+              onClick={() => {
+                if (m.eventId) {
+                  setSelectedEvent({ id: m.eventId, title: m.eventTitle || 'Festa' });
+                }
+              }}
+            >
               {m.type === 'entry' ? (
                 <ArrowUpCircle className="h-5 w-5 text-emerald-500 shrink-0" />
               ) : (
                 <ArrowDownCircle className="h-5 w-5 text-red-400 shrink-0" />
               )}
               <div className="flex-1 min-w-0">
+                {m.eventTitle && (
+                  <p className="text-xs font-semibold text-primary truncate mb-0.5">🎉 {m.eventTitle}</p>
+                )}
                 <p className="text-sm font-medium text-foreground truncate">{m.description}</p>
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] text-muted-foreground">
                     {m.date ? format(new Date(m.date + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
                   </span>
                   <Badge variant="secondary" className="text-[9px] h-4">{m.source}</Badge>
+                  {m.eventId && (
+                    <Badge variant="outline" className="text-[9px] h-4 text-primary border-primary/30">Ver festa</Badge>
+                  )}
                 </div>
               </div>
               <div className="text-right shrink-0">
