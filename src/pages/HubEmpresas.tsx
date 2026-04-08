@@ -416,10 +416,13 @@ function HubEmpresasContent() {
                     </span>
                   </button>
                 ) : (
-                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/30 text-muted-foreground text-xs">
+                  <button
+                    onClick={() => setOnboardingViewCompany(child)}
+                    className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/30 text-muted-foreground text-xs w-full text-left hover:ring-2 hover:ring-primary/30 transition-all cursor-pointer"
+                  >
                     <ClipboardList className="h-4 w-4 shrink-0" />
                     <span>Onboarding não iniciado</span>
-                  </div>
+                  </button>
                 )}
 
                 <Separator />
