@@ -16,138 +16,126 @@ const eventDates = [5, 12, 13, 15, 20, 25];
 export const Scene4Agenda = () => {
   const frame = useCurrentFrame();
 
-  const badgeOpacity = interpolate(frame, [5, 18], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const titleOpacity = interpolate(frame, [12, 30], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const badgeOp = interpolate(frame, [5, 18], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const titleOp = interpolate(frame, [12, 30], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const titleY = interpolate(frame, [12, 30], [25, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const calendarOpacity = interpolate(frame, [35, 55], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const calendarY = interpolate(frame, [35, 55], [30, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const eventsOpacity = interpolate(frame, [60, 80], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const eventsY = interpolate(frame, [60, 80], [30, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const resumoOpacity = interpolate(frame, [85, 105], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const resumoY = interpolate(frame, [85, 105], [30, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const alertOpacity = interpolate(frame, [110, 130], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const alertY = interpolate(frame, [110, 130], [30, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const btnOpacity = interpolate(frame, [135, 150], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const btnScale = interpolate(frame, [135, 150], [0.9, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-
-  // Scroll to reveal bottom content
-  const scrollAmount = interpolate(frame, [100, 170], [0, 480], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const calOp = interpolate(frame, [30, 50], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const calY = interpolate(frame, [30, 50], [25, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const midOp = interpolate(frame, [55, 75], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const midY = interpolate(frame, [55, 75], [25, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const alertOp = interpolate(frame, [80, 100], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const alertY = interpolate(frame, [80, 100], [25, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const btnOp = interpolate(frame, [105, 120], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const btnScale = interpolate(frame, [105, 120], [0.9, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
   return (
     <AbsoluteFill>
       <GridBackground />
-      <AbsoluteFill style={{ padding: "0 55px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <div style={{ transform: `translateY(-${scrollAmount}px)` }}>
-          <div style={{ marginTop: 100 }}>
-            <p style={{
-              fontFamily, fontWeight: 700, fontSize: 22, color: "#f59e0b",
-              letterSpacing: 4, textTransform: "uppercase", margin: "0 0 16px 0", opacity: badgeOpacity,
-            }}>AGENDA & EVENTOS</p>
-            <div style={{ opacity: titleOpacity, transform: `translateY(${titleY}px)` }}>
-              <h2 style={{ fontFamily, fontWeight: 900, fontSize: 62, color: "white", margin: 0, lineHeight: 1.1 }}>
-                Sua agenda sempre cheia e{" "}<span style={{ color: "#f59e0b" }}>organizada</span>
-              </h2>
-            </div>
+      <AbsoluteFill style={{ padding: "0 50px", display: "flex", flexDirection: "column" }}>
+        {/* Title */}
+        <div style={{ marginTop: 80 }}>
+          <p style={{
+            fontFamily, fontWeight: 700, fontSize: 20, color: "#f59e0b",
+            letterSpacing: 4, textTransform: "uppercase", margin: "0 0 10px 0", opacity: badgeOp,
+          }}>AGENDA & EVENTOS</p>
+          <div style={{ opacity: titleOp, transform: `translateY(${titleY}px)` }}>
+            <h2 style={{ fontFamily, fontWeight: 900, fontSize: 54, color: "white", margin: 0, lineHeight: 1.1 }}>
+              Sua agenda sempre cheia e{" "}<span style={{ color: "#f59e0b" }}>organizada</span>
+            </h2>
           </div>
+        </div>
 
-          {/* Calendar */}
+        {/* Calendar */}
+        <div style={{
+          marginTop: 30, opacity: calOp, transform: `translateY(${calY}px)`,
+          background: "rgba(255,255,255,0.04)", borderRadius: 20,
+          border: "1px solid rgba(255,255,255,0.06)", padding: "22px 16px",
+        }}>
+          <p style={{ fontFamily, fontWeight: 800, fontSize: 22, color: "white", margin: "0 0 14px 0" }}>📅 Calendário de Festas</p>
+          <div style={{ display: "flex", justifyContent: "space-around", marginBottom: 8 }}>
+            {calendarDays.map((d, i) => (
+              <span key={i} style={{ fontFamily, fontWeight: 700, fontSize: 16, color: "rgba(255,255,255,0.3)", width: 44, textAlign: "center" }}>{d}</span>
+            ))}
+          </div>
+          {calendarDates.map((week, wi) => (
+            <div key={wi} style={{ display: "flex", justifyContent: "space-around", marginBottom: 4 }}>
+              {week.map((date, di) => {
+                const isEvent = eventDates.includes(date);
+                return (
+                  <div key={di} style={{
+                    width: 44, height: 44, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+                    background: isEvent ? "rgba(245,158,11,0.2)" : "transparent",
+                    border: isEvent ? "1px solid rgba(245,158,11,0.3)" : "none",
+                  }}>
+                    <span style={{ fontFamily, fontWeight: isEvent ? 800 : 400, fontSize: 18, color: isEvent ? "#f59e0b" : "rgba(255,255,255,0.4)" }}>{date}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        {/* Próximos Eventos + Resumo side by side */}
+        <div style={{ display: "flex", gap: 14, marginTop: 14, opacity: midOp, transform: `translateY(${midY}px)` }}>
           <div style={{
-            marginTop: 40, opacity: calendarOpacity, transform: `translateY(${calendarY}px)`,
-            background: "rgba(255,255,255,0.04)", borderRadius: 24,
-            border: "1px solid rgba(255,255,255,0.06)", padding: "28px 20px",
+            flex: 1, background: "rgba(255,255,255,0.04)", borderRadius: 20,
+            border: "1px solid rgba(255,255,255,0.06)", padding: "20px 18px",
           }}>
-            <p style={{ fontFamily, fontWeight: 800, fontSize: 26, color: "white", margin: "0 0 18px 0" }}>📅 Calendário de Festas</p>
-            <div style={{ display: "flex", justifyContent: "space-around", marginBottom: 12 }}>
-              {calendarDays.map((d, i) => (
-                <span key={i} style={{ fontFamily, fontWeight: 700, fontSize: 18, color: "rgba(255,255,255,0.3)", width: 50, textAlign: "center" }}>{d}</span>
-              ))}
-            </div>
-            {calendarDates.map((week, wi) => {
-              const rowDelay = 45 + wi * 8;
-              const rowOpacity = interpolate(frame, [rowDelay, rowDelay + 10], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-              return (
-                <div key={wi} style={{ display: "flex", justifyContent: "space-around", marginBottom: 8, opacity: rowOpacity }}>
-                  {week.map((date, di) => {
-                    const isEvent = eventDates.includes(date);
-                    return (
-                      <div key={di} style={{
-                        width: 50, height: 50, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center",
-                        background: isEvent ? "rgba(245,158,11,0.2)" : "transparent",
-                        border: isEvent ? "1px solid rgba(245,158,11,0.3)" : "none",
-                      }}>
-                        <span style={{ fontFamily, fontWeight: isEvent ? 800 : 400, fontSize: 20, color: isEvent ? "#f59e0b" : "rgba(255,255,255,0.4)" }}>{date}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
+            <p style={{ fontFamily, fontWeight: 800, fontSize: 20, color: "white", margin: "0 0 14px 0" }}>🎉 Próximos Eventos</p>
+            {[
+              { date: "05/Abr", name: "Festa da Laura" },
+              { date: "12/Abr", name: "Aniversário Pedro" },
+              { date: "15/Abr", name: "Festa da Sofia" },
+            ].map((evt, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < 2 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
+                <span style={{ fontFamily, fontWeight: 700, fontSize: 16, color: "#f59e0b" }}>{evt.date}</span>
+                <span style={{ fontFamily, fontWeight: 600, fontSize: 16, color: "rgba(255,255,255,0.8)" }}>{evt.name}</span>
+              </div>
+            ))}
           </div>
 
-          {/* Próximos Eventos + Resumo do Mês side by side */}
-          <div style={{ display: "flex", gap: 16, marginTop: 18 }}>
-            <div style={{
-              flex: 1, opacity: eventsOpacity, transform: `translateY(${eventsY}px)`,
-              background: "rgba(255,255,255,0.04)", borderRadius: 24,
-              border: "1px solid rgba(255,255,255,0.06)", padding: "24px 20px",
-            }}>
-              <p style={{ fontFamily, fontWeight: 800, fontSize: 22, color: "white", margin: "0 0 16px 0" }}>🎉 Próximos Eventos</p>
-              {[
-                { date: "05/Abr", name: "Festa da Laura" },
-                { date: "12/Abr", name: "Aniversário Pedro" },
-                { date: "15/Abr", name: "Festa da Sofia" },
-              ].map((evt, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: i < 2 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
-                  <span style={{ fontFamily, fontWeight: 700, fontSize: 18, color: "#f59e0b" }}>{evt.date}</span>
-                  <span style={{ fontFamily, fontWeight: 600, fontSize: 18, color: "rgba(255,255,255,0.8)" }}>{evt.name}</span>
-                </div>
-              ))}
-            </div>
-
-            <div style={{
-              flex: 1, opacity: resumoOpacity, transform: `translateY(${resumoY}px)`,
-              background: "rgba(255,255,255,0.06)", borderRadius: 24,
-              border: "1px solid rgba(255,255,255,0.08)", padding: "24px 20px",
-            }}>
-              <p style={{ fontFamily, fontWeight: 800, fontSize: 22, color: "white", margin: "0 0 16px 0" }}>Resumo do Mês</p>
-              {[
-                { icon: "🎉", text: "28 festas agendadas" },
-                { icon: "💰", text: "R$ 84.500 faturados" },
-                { icon: "📅", text: "6 datas disponíveis" },
-                { icon: "🔥", text: "3 datas quase lotadas" },
-              ].map((item, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                  <span style={{ fontSize: 20 }}>{item.icon}</span>
-                  <span style={{ fontFamily, fontWeight: 600, fontSize: 18, color: "rgba(255,255,255,0.85)" }}>{item.text}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Alert */}
           <div style={{
-            marginTop: 18, opacity: alertOpacity, transform: `translateY(${alertY}px)`,
-            background: "rgba(245,158,11,0.08)", borderRadius: 20,
-            border: "1px solid rgba(245,158,11,0.2)", padding: "22px 24px",
+            flex: 1, background: "rgba(255,255,255,0.06)", borderRadius: 20,
+            border: "1px solid rgba(255,255,255,0.08)", padding: "20px 18px",
           }}>
-            <p style={{ fontFamily, fontWeight: 800, fontSize: 20, color: "#f59e0b", margin: "0 0 8px 0" }}>⚠️ Atenção</p>
-            <p style={{ fontFamily, fontWeight: 400, fontSize: 18, color: "rgba(255,255,255,0.7)", margin: 0, lineHeight: 1.4 }}>
-              Você tem <span style={{ fontWeight: 800, color: "white" }}>5 datas livres em abril</span> que podem ser preenchidas automaticamente com campanhas.
-            </p>
+            <p style={{ fontFamily, fontWeight: 800, fontSize: 20, color: "white", margin: "0 0 14px 0" }}>Resumo do Mês</p>
+            {[
+              { icon: "🎉", text: "28 festas agendadas" },
+              { icon: "💰", text: "R$ 84.500 faturados" },
+              { icon: "📅", text: "6 datas disponíveis" },
+              { icon: "🔥", text: "3 datas quase lotadas" },
+            ].map((item, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 18 }}>{item.icon}</span>
+                <span style={{ fontFamily, fontWeight: 600, fontSize: 16, color: "rgba(255,255,255,0.85)" }}>{item.text}</span>
+              </div>
+            ))}
           </div>
+        </div>
 
-          {/* CTA Button */}
+        {/* Alert */}
+        <div style={{
+          marginTop: 14, opacity: alertOp, transform: `translateY(${alertY}px)`,
+          background: "rgba(245,158,11,0.08)", borderRadius: 18,
+          border: "1px solid rgba(245,158,11,0.2)", padding: "18px 20px",
+        }}>
+          <p style={{ fontFamily, fontWeight: 800, fontSize: 18, color: "#f59e0b", margin: "0 0 6px 0" }}>⚠️ Atenção</p>
+          <p style={{ fontFamily, fontWeight: 400, fontSize: 16, color: "rgba(255,255,255,0.7)", margin: 0, lineHeight: 1.4 }}>
+            Você tem <span style={{ fontWeight: 800, color: "white" }}>5 datas livres em abril</span> que podem ser preenchidas automaticamente com campanhas.
+          </p>
+        </div>
+
+        {/* CTA Button */}
+        <div style={{
+          marginTop: 20, opacity: btnOp, transform: `scale(${btnScale})`,
+          display: "flex", justifyContent: "center",
+        }}>
           <div style={{
-            marginTop: 24, opacity: btnOpacity, transform: `scale(${btnScale})`,
-            display: "flex", justifyContent: "center",
+            background: "linear-gradient(135deg, #3b82f6, #6366f1)",
+            borderRadius: 50, padding: "18px 70px",
+            boxShadow: "0 8px 32px rgba(99,102,241,0.4)",
           }}>
-            <div style={{
-              background: "linear-gradient(135deg, #3b82f6, #6366f1)",
-              borderRadius: 60, padding: "22px 80px",
-              boxShadow: "0 8px 32px rgba(99,102,241,0.4)",
-            }}>
-              <p style={{ fontFamily, fontWeight: 800, fontSize: 26, color: "white", margin: 0 }}>+ Criar nova festa</p>
-            </div>
+            <p style={{ fontFamily, fontWeight: 800, fontSize: 24, color: "white", margin: 0 }}>+ Criar nova festa</p>
           </div>
         </div>
       </AbsoluteFill>
