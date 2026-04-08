@@ -56,6 +56,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
   const [adjustType, setAdjustType] = useState<'entry' | 'exit'>('entry');
   const [adjustAmount, setAdjustAmount] = useState('');
   const [adjustDescription, setAdjustDescription] = useState('');
+  const [adjustAuthor, setAdjustAuthor] = useState('');
   const [adjustSaving, setAdjustSaving] = useState(false);
 
   const [selectedEvent, setSelectedEvent] = useState<{ id: string; title: string } | null>(null);
@@ -220,6 +221,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
     const amount = parseCurrencyInput(adjustAmount);
     if (!amount || amount <= 0) { toast.error('Informe um valor válido'); return; }
     if (!adjustDescription.trim()) { toast.error('Informe uma descrição'); return; }
+    if (!adjustAuthor.trim()) { toast.error('Informe o nome de quem está fazendo o ajuste'); return; }
 
     setAdjustSaving(true);
     try {
@@ -235,6 +237,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
         category: 'ajuste',
         expense_type: 'fixa',
         status: 'pago',
+        notes: `Ajuste por: ${adjustAuthor.trim()}`,
       });
 
       if (error) throw error;
@@ -242,6 +245,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
       setAdjustOpen(false);
       setAdjustAmount('');
       setAdjustDescription('');
+      setAdjustAuthor('');
       fetchMovements();
       onBalanceChanged?.();
     } catch (err: any) {
@@ -434,6 +438,14 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
                 onChange={e => setAdjustDescription(e.target.value)}
                 placeholder="Ex: Ajuste de saldo inicial, correção, depósito não rastreado..."
                 rows={2}
+              />
+            </div>
+            <div>
+              <Label>Responsável pelo ajuste *</Label>
+              <Input
+                value={adjustAuthor}
+                onChange={e => setAdjustAuthor(e.target.value)}
+                placeholder="Nome de quem está fazendo o ajuste"
               />
             </div>
           </div>
