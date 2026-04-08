@@ -119,6 +119,7 @@ export default function Financeiro() {
   const [markPaidPayment, setMarkPaidPayment] = useState<any>(null);
   const [markPaidBankId, setMarkPaidBankId] = useState<string | null>(null);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [kpiSheet, setKpiSheet] = useState<'recebido' | 'a_receber' | 'atraso' | 'despesas' | 'despesas_pagas' | 'saldo' | null>(null);
   const bankAccounts = useBankAccounts();
   const bankAccountMap = useMemo(() => {
     const map: Record<string, string> = {};
