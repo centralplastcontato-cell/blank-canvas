@@ -56,6 +56,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
   const [adjustType, setAdjustType] = useState<'entry' | 'exit'>('entry');
   const [adjustAmount, setAdjustAmount] = useState('');
   const [adjustDescription, setAdjustDescription] = useState('');
+  const [adjustAuthor, setAdjustAuthor] = useState('');
   const [adjustSaving, setAdjustSaving] = useState(false);
 
   const [selectedEvent, setSelectedEvent] = useState<{ id: string; title: string } | null>(null);
@@ -220,6 +221,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
     const amount = parseCurrencyInput(adjustAmount);
     if (!amount || amount <= 0) { toast.error('Informe um valor válido'); return; }
     if (!adjustDescription.trim()) { toast.error('Informe uma descrição'); return; }
+    if (!adjustAuthor.trim()) { toast.error('Informe o nome de quem está fazendo o ajuste'); return; }
 
     setAdjustSaving(true);
     try {
@@ -235,6 +237,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
         category: 'ajuste',
         expense_type: 'fixa',
         status: 'pago',
+        notes: `Ajuste por: ${adjustAuthor.trim()}`,
       });
 
       if (error) throw error;
@@ -242,6 +245,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
       setAdjustOpen(false);
       setAdjustAmount('');
       setAdjustDescription('');
+      setAdjustAuthor('');
       fetchMovements();
       onBalanceChanged?.();
     } catch (err: any) {
@@ -436,10 +440,18 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
                 rows={2}
               />
             </div>
+            <div>
+              <Label>Responsável pelo ajuste *</Label>
+              <Input
+                value={adjustAuthor}
+                onChange={e => setAdjustAuthor(e.target.value)}
+                placeholder="Nome de quem está fazendo o ajuste"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAdjustOpen(false)}>Cancelar</Button>
-            <Button onClick={handleAdjust} disabled={adjustSaving}>
+            <Button onClick={handleAdjust} disabled={adjustSaving || !adjustDescription.trim() || !adjustAuthor.trim() || !adjustAmount}>
               {adjustSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Salvar Ajuste
             </Button>
