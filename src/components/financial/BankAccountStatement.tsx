@@ -451,7 +451,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAdjustOpen(false)}>Cancelar</Button>
-            <Button onClick={handleAdjust} disabled={adjustSaving}>
+            <Button onClick={handleAdjust} disabled={adjustSaving || !adjustDescription.trim() || !adjustAuthor.trim() || !adjustAmount}>
               {adjustSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Salvar Ajuste
             </Button>
