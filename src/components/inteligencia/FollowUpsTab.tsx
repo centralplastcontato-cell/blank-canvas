@@ -129,7 +129,7 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
         "Follow-up #2 automático enviado",
         "Follow-up #3 automático enviado",
         "Follow-up #4 automático enviado",
-        "Lead marcado como perdido automaticamente",
+        "Lead movido para perdido automaticamente",
       ];
 
       // Filter lead_history to last 90 days + limit 500
