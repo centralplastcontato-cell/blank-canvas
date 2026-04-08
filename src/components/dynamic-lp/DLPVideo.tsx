@@ -157,7 +157,7 @@ function VideoWithPoster({ item, theme }: { item: VideoItem; theme: LPTheme }) {
   const isLogo = item.poster_url?.toLowerCase().endsWith('.png') || item.poster_url?.toLowerCase().endsWith('.svg');
 
   return (
-    <div className="aspect-video relative overflow-hidden bg-black">
+    <div className="aspect-[9/16] sm:aspect-video relative overflow-hidden bg-black">
       <video
         src={item.video_url}
         poster={item.poster_url}
