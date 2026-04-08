@@ -389,37 +389,37 @@ export default function Financeiro() {
 
               {/* 5 Dashboard Cards */}
               <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-                <Card className="p-4 bg-card border-border">
+                <Card className="p-4 bg-card border-border cursor-pointer hover:border-emerald-400/40 transition-colors" onClick={() => setKpiSheet('recebido')}>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
                     <TrendingUp className="h-3.5 w-3.5 text-emerald-400" /> Recebido
                   </div>
                   <p className="text-lg md:text-xl font-bold text-emerald-400">{fmt(dashboard.totalReceivedMonth)}</p>
                 </Card>
-                <Card className="p-4 bg-card border-border">
+                <Card className="p-4 bg-card border-border cursor-pointer hover:border-amber-400/40 transition-colors" onClick={() => setKpiSheet('a_receber')}>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
                     <CalendarDays className="h-3.5 w-3.5 text-amber-400" /> A receber
                   </div>
                   <p className="text-lg md:text-xl font-bold text-amber-400">{fmt(dashboard.totalPendingMonth)}</p>
                 </Card>
-                <Card className="p-4 bg-card border-border">
+                <Card className="p-4 bg-card border-border cursor-pointer hover:border-red-400/40 transition-colors" onClick={() => setKpiSheet('atraso')}>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
                     <AlertTriangle className="h-3.5 w-3.5 text-red-400" /> Em atraso
                   </div>
                   <p className="text-lg md:text-xl font-bold text-red-400">{fmt(dashboard.totalLate)}</p>
                 </Card>
-                <Card className="p-4 bg-card border-border">
+                <Card className="p-4 bg-card border-border cursor-pointer hover:border-blue-400/40 transition-colors" onClick={() => setKpiSheet('despesas')}>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
                     <Wallet className="h-3.5 w-3.5 text-blue-400" /> Despesas Lançadas
                   </div>
                   <p className="text-lg md:text-xl font-bold text-blue-400">{fmt(dashboard.totalExpensesMonth)}</p>
                 </Card>
-                <Card className="p-4 bg-card border-border">
+                <Card className="p-4 bg-card border-border cursor-pointer hover:border-teal-400/40 transition-colors" onClick={() => setKpiSheet('despesas_pagas')}>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
                     <CheckCircle className="h-3.5 w-3.5 text-teal-400" /> Despesas Pagas
                   </div>
                   <p className="text-lg md:text-xl font-bold text-teal-400">{fmt(dashboard.totalExpensesPaidMonth)}</p>
                 </Card>
-                <Card className="p-4 bg-card border-border col-span-2 md:col-span-1">
+                <Card className="p-4 bg-card border-border col-span-2 md:col-span-1 cursor-pointer hover:border-primary/40 transition-colors" onClick={() => setKpiSheet('saldo')}>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
                     <Scale className="h-3.5 w-3.5 text-primary" /> Saldo
                   </div>
