@@ -237,14 +237,14 @@ export default function Formularios() {
                   >
                     <div className="px-3 md:px-5 pt-2">
                       <div className="max-w-7xl mx-auto">
-                      <TabsList className="bg-transparent p-0 gap-1.5">
+                      <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex-wrap">
                         {[
                           { value: "avaliacoes", icon: ClipboardCheck, label: "Avaliações" },
                           { value: "prefesta", icon: PartyPopper, label: "Pré-Festa" },
                           { value: "contrato", icon: FileSignature, label: "Contrato" },
                           { value: "cardapio", icon: UtensilsCrossed, label: "Cardápio" },
                         ].map(t => (
-                          <TabsTrigger key={t.value} value={t.value} className="gap-2 border border-border data-[state=active]:border-foreground data-[state=active]:bg-foreground data-[state=active]:text-background rounded-full px-3.5 py-1.5 text-xs font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground" onClick={() => handleTabChange(t.value)}>
+                          <TabsTrigger key={t.value} value={t.value} className="gap-2 rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground" onClick={() => handleTabChange(t.value)}>
                             <t.icon className="h-4 w-4" />
                             {t.label}
                           </TabsTrigger>
