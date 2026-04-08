@@ -61,14 +61,32 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
           className="space-y-6 max-w-4xl mx-auto"
         >
           {/* Easter Badge */}
-          <motion.span
+          <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.1, duration: 0.5 }}
-            className="inline-flex items-center gap-2 bg-secondary/90 text-secondary-foreground px-5 py-2 rounded-full text-sm font-bold shadow-lg"
+            className="flex justify-center"
           >
-            🐰 PROMOÇÃO DE PÁSCOA
-          </motion.span>
+            <div className="relative inline-flex items-center gap-2.5 bg-gradient-to-r from-purple-500 via-pink-400 to-yellow-400 text-white px-6 py-3 rounded-full text-sm md:text-base font-extrabold shadow-xl tracking-wide uppercase">
+              <motion.span
+                animate={{ rotate: [0, -15, 15, -10, 10, 0] }}
+                transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+                className="text-xl"
+              >
+                🐰
+              </motion.span>
+              Promoção de Páscoa
+              <motion.span
+                animate={{ scale: [1, 1.3, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="text-xl"
+              >
+                🥚
+              </motion.span>
+              {/* Glow */}
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-500/30 via-pink-400/30 to-yellow-400/30 blur-lg -z-10" />
+            </div>
+          </motion.div>
 
           {/* Logo */}
           <motion.img
