@@ -21,6 +21,8 @@ const easterColors = [
   'hsl(200 70% 60%)', // azul claro
 ];
 
+const easterEggs = ['🥚', '🐣', '🐰', '🌷', '🍫', '✨', '🎀', '🐇'];
+
 export function HeroSection({ onCtaClick }: HeroSectionProps) {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden" aria-label="Seção principal">
@@ -30,20 +32,23 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
         <div className="absolute inset-0 bg-gradient-to-b from-foreground/70 via-foreground/50 to-background/95" />
       </div>
 
-      {/* Floating Easter Confetti */}
+      {/* Floating Easter Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(15)].map((_, i) => (
+        {[...Array(20)].map((_, i) => (
           <motion.div
             key={i}
-            className="absolute w-2.5 h-2.5 rounded-full"
+            className="absolute text-lg"
             style={{
-              background: easterColors[i % easterColors.length],
-              left: `${Math.random() * 100}%`,
-              top: `-5%`,
+              left: `${5 + Math.random() * 90}%`,
+              top: `-8%`,
             }}
-            animate={{ y: ['0vh', '110vh'], rotate: [0, 720], opacity: [0.8, 0] }}
-            transition={{ duration: 5 + Math.random() * 4, repeat: Infinity, delay: Math.random() * 6, ease: "linear" }}
-          />
+            animate={{ y: ['0vh', '115vh'], rotate: [0, i % 2 === 0 ? 360 : -360], opacity: [0.9, 0.2] }}
+            transition={{ duration: 7 + Math.random() * 5, repeat: Infinity, delay: Math.random() * 8, ease: "linear" }}
+          >
+            {i < 12 ? easterEggs[i % easterEggs.length] : (
+              <div className="w-2.5 h-2.5 rounded-full" style={{ background: easterColors[i % easterColors.length] }} />
+            )}
+          </motion.div>
         ))}
       </div>
 
@@ -56,14 +61,32 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
           className="space-y-6 max-w-4xl mx-auto"
         >
           {/* Easter Badge */}
-          <motion.span
+          <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.1, duration: 0.5 }}
-            className="inline-flex items-center gap-2 bg-secondary/90 text-secondary-foreground px-5 py-2 rounded-full text-sm font-bold shadow-lg"
+            className="flex justify-center"
           >
-            🐰 PROMOÇÃO DE PÁSCOA
-          </motion.span>
+            <div className="relative inline-flex items-center gap-2.5 bg-gradient-to-r from-purple-500 via-pink-400 to-yellow-400 text-white px-6 py-3 rounded-full text-sm md:text-base font-extrabold shadow-xl tracking-wide uppercase">
+              <motion.span
+                animate={{ rotate: [0, -15, 15, -10, 10, 0] }}
+                transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+                className="text-xl"
+              >
+                🐰
+              </motion.span>
+              Promoção de Páscoa
+              <motion.span
+                animate={{ scale: [1, 1.3, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="text-xl"
+              >
+                🥚
+              </motion.span>
+              {/* Glow */}
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-500/30 via-pink-400/30 to-yellow-400/30 blur-lg -z-10" />
+            </div>
+          </motion.div>
 
           {/* Logo */}
           <motion.img
