@@ -404,6 +404,26 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Event financial sheet */}
+      <Sheet open={!!selectedEvent} onOpenChange={open => { if (!open) setSelectedEvent(null); }}>
+        <SheetContent className="sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>🎉 {selectedEvent?.title}</SheetTitle>
+          </SheetHeader>
+          {selectedEvent && (
+            <div className="mt-4">
+              <EventFinancialTab
+                eventId={selectedEvent.id}
+                companyId={account.company_id}
+                baseValue={0}
+                canEdit={false}
+                canPay={false}
+              />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
