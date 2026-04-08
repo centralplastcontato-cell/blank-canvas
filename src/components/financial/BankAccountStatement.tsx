@@ -32,6 +32,12 @@ interface Movement {
   eventId?: string;
   eventTitle?: string;
   eventDate?: string;
+  expenseId?: string;
+  expenseCategory?: string;
+  expenseNotes?: string;
+  expenseReceiptUrl?: string;
+  expenseBoletoUrl?: string;
+  expenseUnit?: string;
 }
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -71,7 +77,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
 
       let exitsQuery = supabase
         .from('company_expenses')
-        .select('id, amount, expense_date, description, category')
+        .select('id, amount, expense_date, description, category, notes, receipt_url, boleto_url, unit, expense_type')
         .eq('bank_account_id', account.id)
         .eq('status', 'pago')
         .order('expense_date', { ascending: false });
@@ -134,6 +140,14 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
 
       const exits: Movement[] = (exitsRes.data || []).map((e: any) => {
         const amt = Number(e.amount);
+        const expenseExtra = {
+          expenseId: e.id,
+          expenseCategory: e.category,
+          expenseNotes: e.notes || undefined,
+          expenseReceiptUrl: e.receipt_url || undefined,
+          expenseBoletoUrl: e.boleto_url || undefined,
+          expenseUnit: e.unit || undefined,
+        };
         if (amt < 0) {
           return {
             id: e.id,
@@ -142,6 +156,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
             amount: Math.abs(amt),
             type: 'entry' as const,
             source: e.category || 'Transferência',
+            ...expenseExtra,
           };
         }
         return {
@@ -151,6 +166,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
           amount: amt,
           type: 'exit' as const,
           source: e.category || 'Despesa',
+          ...expenseExtra,
         };
       });
 
