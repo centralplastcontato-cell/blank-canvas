@@ -101,17 +101,19 @@ function HubEmpresasContent() {
 
   const fetchCompanies = async () => {
     setIsLoading(true);
+    try {
     const { data, error } = await supabase.from("companies").select("*").order("name");
-    if (error) { console.error(error); }
-    else {
+    if (error) { console.error(error); setIsLoading(false); return; }
+
       setCompanies((data || []) as Company[]);
       
       // Fetch all stats in parallel
+      const companyIds = (data || []).map((c: any) => c.id);
       const [ucRes, leadsRes, convsRes, onbRes] = await Promise.all([
-        supabase.from("user_companies").select("company_id"),
-        supabase.from("campaign_leads").select("company_id"),
-        supabase.from("wapi_conversations").select("company_id"),
-        supabase.from("company_onboarding").select("company_id, status, updated_at").order("created_at", { ascending: false }),
+        supabase.from("user_companies").select("company_id").in("company_id", companyIds),
+        supabase.from("campaign_leads").select("company_id").in("company_id", companyIds),
+        supabase.from("wapi_conversations").select("company_id").in("company_id", companyIds),
+        supabase.from("company_onboarding").select("company_id, status, updated_at").in("company_id", companyIds).order("created_at", { ascending: false }),
       ]);
 
       if (ucRes.data) {
@@ -136,6 +138,8 @@ function HubEmpresasContent() {
         });
         setOnboardingStatus(map);
       }
+    } catch (err) {
+      console.error('[HubEmpresas] fetchCompanies error:', err);
     }
     setIsLoading(false);
   };
