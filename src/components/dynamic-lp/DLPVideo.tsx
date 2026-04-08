@@ -160,6 +160,7 @@ function VideoWithPoster({ item, theme }: { item: VideoItem; theme: LPTheme }) {
     <div className="aspect-video relative overflow-hidden bg-black">
       <video
         src={item.video_url}
+        poster={item.poster_url}
         controls
         className="w-full h-full object-contain"
         preload="none"
