@@ -1,0 +1,1 @@
+UPDATE public.companies SET logo_url = 'https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/object/public/onboarding-uploads/84f6a011-a1e1-4a2a-96f6-38da92a319ce/logos/1775611729795.jpeg' WHERE slug = 'megamegic' AND logo_url IS NULL;
