@@ -61,7 +61,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
       // Build queries with date filters pushed to the server
       let entriesQuery = supabase
         .from('event_payments')
-        .select('id, amount, paid_at, type, notes')
+        .select('id, amount, paid_at, type, notes, event_id, company_events(id, title, event_date, total_value)')
         .eq('bank_account_id', account.id)
         .eq('status', 'paid')
         .order('paid_at', { ascending: false });
