@@ -471,7 +471,7 @@ export function VisitFormDialog({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button
             onClick={handleSubmit}
-            disabled={saving || !leadId || !date}
+            disabled={canSubmit}
             className={cn("px-8 rounded-lg shadow-sm", isAtendimento && "bg-violet-600 hover:bg-violet-700")}
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
