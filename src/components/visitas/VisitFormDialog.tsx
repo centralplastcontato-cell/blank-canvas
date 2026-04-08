@@ -4,7 +4,7 @@ import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentCompanyId } from "@/lib/supabase-helpers";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
-import { Input } from "@/components/ui/input";
+
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
