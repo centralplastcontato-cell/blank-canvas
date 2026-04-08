@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
+
 import { ArrowUpCircle, ArrowDownCircle, Loader2, SlidersHorizontal } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format, subDays } from 'date-fns';
@@ -433,11 +433,10 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
             </div>
             <div>
               <Label>Descrição *</Label>
-              <Textarea
+              <Input
                 value={adjustDescription}
                 onChange={e => setAdjustDescription(e.target.value)}
                 placeholder="Ex: Ajuste de saldo inicial, correção, depósito não rastreado..."
-                rows={2}
               />
             </div>
             <div>
