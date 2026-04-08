@@ -201,114 +201,139 @@ export function ClosedPartiesTab({ from, to, unitFilter, onOpenEvent }: ClosedPa
         </Card>
       ) : (
         <div className="space-y-2.5">
-          {sorted.map((ev) => {
-            const paidPct = ev.total_value && ev.total_value > 0
-              ? Math.min(100, Math.round(((ev.paid_total || 0) / ev.total_value) * 100))
-              : 0;
-
+          {(() => {
+            const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+            const paginated = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
             return (
-              <button
-                key={ev.id}
-                onClick={() => onOpenEvent(ev.id)}
-                className="w-full text-left p-4 rounded-xl border border-border/30 border-l-[3px] border-l-violet-500 bg-violet-500/[0.02] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
-              >
-                <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <span className="font-semibold text-sm truncate">{ev.title}</span>
-                  <Badge
-                    variant={ev.status === "confirmado" ? "default" : ev.status === "cancelado" ? "destructive" : "secondary"}
-                    className="text-[10px] uppercase tracking-wider px-2 py-0.5 shrink-0"
-                  >
-                    {ev.status}
-                  </Badge>
-                </div>
+              <>
+                {paginated.map((ev) => {
+                  const paidPct = ev.total_value && ev.total_value > 0
+                    ? Math.min(100, Math.round(((ev.paid_total || 0) / ev.total_value) * 100))
+                    : 0;
 
-                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <CalendarDays className="h-3 w-3" />
-                    {format(new Date(ev.event_date + "T12:00:00"), "dd/MM/yyyy")}
-                  </span>
-                  {ev.start_time && (
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {ev.start_time.slice(0, 5)}
-                    </span>
-                  )}
-                  {ev.unit && (
-                    <span className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      {ev.unit}
-                    </span>
-                  )}
-                  {ev.guest_count && (
-                    <span className="flex items-center gap-1">
-                      <Users className="h-3 w-3" />
-                      {ev.guest_count}
-                    </span>
-                  )}
-                  {ev.package_name && (
-                    <span className="text-primary/70 font-medium">{ev.package_name}</span>
-                  )}
-                </div>
+                  return (
+                    <button
+                      key={ev.id}
+                      onClick={() => onOpenEvent(ev.id)}
+                      className="w-full text-left p-4 rounded-xl border border-border/30 border-l-[3px] border-l-violet-500 bg-violet-500/[0.02] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="font-semibold text-sm truncate">{ev.title}</span>
+                        <Badge
+                          variant={ev.status === "confirmado" ? "default" : ev.status === "cancelado" ? "destructive" : "secondary"}
+                          className="text-[10px] uppercase tracking-wider px-2 py-0.5 shrink-0"
+                        >
+                          {ev.status}
+                        </Badge>
+                      </div>
 
-                {(ev.lead_name || ev.lead_phone) && (
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-1.5 text-primary/80">
-                    {ev.lead_name && (
-                      <span className="flex items-center gap-1 font-medium">
-                        <Users className="h-3 w-3" />
-                        {ev.lead_name}
-                      </span>
-                    )}
-                    {ev.lead_phone && (
-                      <span className="flex items-center gap-1">
-                        <Phone className="h-3 w-3" />
-                        {ev.lead_phone}
-                      </span>
-                    )}
-                  </div>
-                )}
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <CalendarDays className="h-3 w-3" />
+                          {format(new Date(ev.event_date + "T12:00:00"), "dd/MM/yyyy")}
+                        </span>
+                        {ev.start_time && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {ev.start_time.slice(0, 5)}
+                          </span>
+                        )}
+                        {ev.unit && (
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {ev.unit}
+                          </span>
+                        )}
+                        {ev.guest_count && (
+                          <span className="flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {ev.guest_count}
+                          </span>
+                        )}
+                        {ev.package_name && (
+                          <span className="text-primary/70 font-medium">{ev.package_name}</span>
+                        )}
+                      </div>
 
-                {/* Financial summary row */}
-                <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-border/20">
-                  <div className="flex items-center gap-3">
-                    {ev.total_value != null && ev.total_value > 0 && (
-                      <span className="text-sm font-bold text-foreground">{fmt(ev.total_value)}</span>
-                    )}
-                    {ev.is_permuta && (
-                      <Badge variant="outline" className="text-[9px] border-amber-300 text-amber-600">Permuta</Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {ev.total_value != null && ev.total_value > 0 && (
-                      <>
-                        <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-emerald-500 transition-all"
-                            style={{ width: `${paidPct}%` }}
-                          />
+                      {(ev.lead_name || ev.lead_phone) && (
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-1.5 text-primary/80">
+                          {ev.lead_name && (
+                            <span className="flex items-center gap-1 font-medium">
+                              <Users className="h-3 w-3" />
+                              {ev.lead_name}
+                            </span>
+                          )}
+                          {ev.lead_phone && (
+                            <span className="flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              {ev.lead_phone}
+                            </span>
+                          )}
                         </div>
-                        <span className="text-[11px] font-medium text-muted-foreground">{paidPct}%</span>
-                      </>
-                    )}
+                      )}
+
+                      {/* Financial summary row */}
+                      <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-border/20">
+                        <div className="flex items-center gap-3">
+                          {ev.total_value != null && ev.total_value > 0 && (
+                            <span className="text-sm font-bold text-foreground">{fmt(ev.total_value)}</span>
+                          )}
+                          {ev.is_permuta && (
+                            <Badge variant="outline" className="text-[9px] border-amber-300 text-amber-600">Permuta</Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {ev.total_value != null && ev.total_value > 0 && (
+                            <>
+                              <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-emerald-500 transition-all"
+                                  style={{ width: `${paidPct}%` }}
+                                />
+                              </div>
+                              <span className="text-[11px] font-medium text-muted-foreground">{paidPct}%</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {ev.data_fechamento_venda && (
+                        <span className="text-[11px] text-muted-foreground flex items-center gap-1 mt-1">
+                          <Handshake className="h-3 w-3" />
+                          Fechado em {format(new Date(ev.data_fechamento_venda + "T12:00:00"), "dd/MM/yyyy")}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between pt-3 border-t border-border/40">
+                    <p className="text-xs text-muted-foreground">
+                      Página {page} de {totalPages} ({sorted.length} festas)
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <Button variant="outline" size="icon" className="h-7 w-7" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+                        <ChevronLeft className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="outline" size="icon" className="h-7 w-7" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Total footer */}
+                <div className="pt-3 border-t border-border/30">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground font-medium">Total faturado:</span>
+                    <span className="font-bold text-foreground">{fmt(totalRevenue)}</span>
                   </div>
                 </div>
-
-                {ev.data_fechamento_venda && (
-                  <span className="text-[11px] text-muted-foreground flex items-center gap-1 mt-1">
-                    <Handshake className="h-3 w-3" />
-                    Fechado em {format(new Date(ev.data_fechamento_venda + "T12:00:00"), "dd/MM/yyyy")}
-                  </span>
-                )}
-              </button>
+              </>
             );
-          })}
-
-          {/* Total footer */}
-          <div className="pt-3 border-t border-border/30">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground font-medium">Total faturado:</span>
-              <span className="font-bold text-foreground">{fmt(totalRevenue)}</span>
-            </div>
-          </div>
+          })()}
         </div>
       )}
     </div>
