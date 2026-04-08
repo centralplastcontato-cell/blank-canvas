@@ -38,5 +38,17 @@ await renderMedia({
   concurrency: 1,
 });
 
-console.log("Done! Output: /mnt/documents/celebrei-promo.mp4");
 await browser.close({ silent: false });
+
+// Mux audio track with ffmpeg
+const audioPath = path.resolve(__dirname, "../public/audio/trilha.mp3");
+const outputPath = "/mnt/documents/celebrei-promo.mp4";
+console.log("Muxing audio...");
+
+import { execSync } from "child_process";
+execSync(
+  `ffmpeg -y -i /tmp/celebrei-video-only.mp4 -i "${audioPath}" -c:v copy -c:a aac -b:a 192k -shortest "${outputPath}"`,
+  { stdio: "inherit" }
+);
+
+console.log("Done! Output:", outputPath);
