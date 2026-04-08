@@ -32,6 +32,12 @@ interface Movement {
   eventId?: string;
   eventTitle?: string;
   eventDate?: string;
+  expenseId?: string;
+  expenseCategory?: string;
+  expenseNotes?: string;
+  expenseReceiptUrl?: string;
+  expenseBoletoUrl?: string;
+  expenseUnit?: string;
 }
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -55,6 +61,9 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
   // Event financial sheet
   const [selectedEvent, setSelectedEvent] = useState<{ id: string; title: string } | null>(null);
 
+  // Expense detail sheet
+  const [selectedExpense, setSelectedExpense] = useState<Movement | null>(null);
+
   const fetchMovements = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -68,7 +77,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
 
       let exitsQuery = supabase
         .from('company_expenses')
-        .select('id, amount, expense_date, description, category')
+        .select('id, amount, expense_date, description, category, notes, receipt_url, boleto_url, unit, expense_type')
         .eq('bank_account_id', account.id)
         .eq('status', 'pago')
         .order('expense_date', { ascending: false });
@@ -131,6 +140,14 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
 
       const exits: Movement[] = (exitsRes.data || []).map((e: any) => {
         const amt = Number(e.amount);
+        const expenseExtra = {
+          expenseId: e.id,
+          expenseCategory: e.category,
+          expenseNotes: e.notes || undefined,
+          expenseReceiptUrl: e.receipt_url || undefined,
+          expenseBoletoUrl: e.boleto_url || undefined,
+          expenseUnit: e.unit || undefined,
+        };
         if (amt < 0) {
           return {
             id: e.id,
@@ -139,6 +156,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
             amount: Math.abs(amt),
             type: 'entry' as const,
             source: e.category || 'Transferência',
+            ...expenseExtra,
           };
         }
         return {
@@ -148,6 +166,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
           amount: amt,
           type: 'exit' as const,
           source: e.category || 'Despesa',
+          ...expenseExtra,
         };
       });
 
@@ -280,10 +299,12 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
           {movementsWithBalance.map(m => (
             <div
               key={m.id}
-              className={`flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-card ${m.eventId ? 'cursor-pointer hover:border-primary/40 hover:bg-accent/30 transition-colors' : ''}`}
+              className={`flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-card ${(m.eventId || m.expenseId) ? 'cursor-pointer hover:border-primary/40 hover:bg-accent/30 transition-colors' : ''}`}
               onClick={() => {
                 if (m.eventId) {
                   setSelectedEvent({ id: m.eventId, title: m.eventTitle || 'Festa' });
+                } else if (m.expenseId) {
+                  setSelectedExpense(m);
                 }
               }}
             >
@@ -304,6 +325,9 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
                   <Badge variant="secondary" className="text-[9px] h-4">{m.source}</Badge>
                   {m.eventId && (
                     <Badge variant="outline" className="text-[9px] h-4 text-primary border-primary/30">Ver festa</Badge>
+                  )}
+                  {!m.eventId && m.expenseId && (
+                    <Badge variant="outline" className="text-[9px] h-4 text-muted-foreground border-border">Detalhes</Badge>
                   )}
                 </div>
               </div>
@@ -420,6 +444,89 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
                 canEdit={false}
                 canPay={false}
               />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Expense detail sheet */}
+      <Sheet open={!!selectedExpense} onOpenChange={open => { if (!open) setSelectedExpense(null); }}>
+        <SheetContent className="sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              {selectedExpense?.type === 'exit' ? (
+                <ArrowDownCircle className="h-5 w-5 text-red-400" />
+              ) : (
+                <ArrowUpCircle className="h-5 w-5 text-emerald-500" />
+              )}
+              Detalhes da Movimentação
+            </SheetTitle>
+          </SheetHeader>
+          {selectedExpense && (
+            <div className="mt-4 space-y-4">
+              <Card className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Descrição</span>
+                  <span className="text-sm font-medium text-foreground text-right max-w-[60%] truncate">{selectedExpense.description}</span>
+                </div>
+                <div className="border-t border-border" />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Valor</span>
+                  <span className={`text-lg font-bold ${selectedExpense.type === 'exit' ? 'text-red-400' : 'text-emerald-500'}`}>
+                    {selectedExpense.type === 'exit' ? '-' : '+'}{fmt(selectedExpense.amount)}
+                  </span>
+                </div>
+                <div className="border-t border-border" />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Data</span>
+                  <span className="text-sm font-medium">
+                    {selectedExpense.date ? format(new Date(selectedExpense.date + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
+                  </span>
+                </div>
+                <div className="border-t border-border" />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Categoria</span>
+                  <Badge variant="secondary">{selectedExpense.expenseCategory || selectedExpense.source}</Badge>
+                </div>
+                {selectedExpense.expenseUnit && (
+                  <>
+                    <div className="border-t border-border" />
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Unidade</span>
+                      <span className="text-sm font-medium">{selectedExpense.expenseUnit}</span>
+                    </div>
+                  </>
+                )}
+                {selectedExpense.expenseNotes && (
+                  <>
+                    <div className="border-t border-border" />
+                    <div>
+                      <span className="text-sm text-muted-foreground">Observações</span>
+                      <p className="text-sm mt-1 text-foreground bg-muted/30 p-2 rounded-lg">{selectedExpense.expenseNotes}</p>
+                    </div>
+                  </>
+                )}
+              </Card>
+
+              {(selectedExpense.expenseReceiptUrl || selectedExpense.expenseBoletoUrl) && (
+                <Card className="p-4 space-y-2">
+                  <p className="text-sm font-medium text-foreground">Anexos</p>
+                  {selectedExpense.expenseBoletoUrl && (
+                    <Button variant="outline" size="sm" className="w-full gap-2" asChild>
+                      <a href={selectedExpense.expenseBoletoUrl} target="_blank" rel="noopener noreferrer">
+                        📄 Ver Boleto
+                      </a>
+                    </Button>
+                  )}
+                  {selectedExpense.expenseReceiptUrl && (
+                    <Button variant="outline" size="sm" className="w-full gap-2" asChild>
+                      <a href={selectedExpense.expenseReceiptUrl} target="_blank" rel="noopener noreferrer">
+                        🧾 Ver Comprovante
+                      </a>
+                    </Button>
+                  )}
+                </Card>
+              )}
             </div>
           )}
         </SheetContent>
