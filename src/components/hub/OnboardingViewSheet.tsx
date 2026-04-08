@@ -55,7 +55,7 @@ export function OnboardingViewSheet({ companyId, companyName, open, onOpenChange
   useEffect(() => {
     if (!open || !companyId) return;
     setLoading(true);
-    supabase
+    (supabase
       .from("company_onboarding")
       .select("*")
       .eq("company_id", companyId)
@@ -66,8 +66,7 @@ export function OnboardingViewSheet({ companyId, companyName, open, onOpenChange
         if (error) console.error('[OnboardingViewSheet]', error);
         setData(rec as any);
         setLoading(false);
-      })
-      .catch((err) => {
+      }) as Promise<void>).catch((err) => {
         console.error('[OnboardingViewSheet] fetch error:', err);
         setLoading(false);
       });
