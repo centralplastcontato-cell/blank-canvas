@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/contexts/CompanyContext';
 import { toast } from '@/hooks/use-toast';
 import type { BankAccountBalance } from '@/hooks/useBankAccounts';
+import { formatCurrencyInput, parseCurrencyInput } from '@/lib/currency-input';
 
 interface Props {
   open: boolean;
@@ -29,11 +30,7 @@ export function TransferBetweenAccountsDialog({ open, onOpenChange, accounts, on
 
   const today = new Date().toISOString().split('T')[0];
 
-  const parsedAmount = (() => {
-    const cleaned = amount.replace(/[^\d.,]/g, '').replace(',', '.');
-    const n = Number(cleaned);
-    return Number.isFinite(n) && n > 0 ? n : 0;
-  })();
+  const parsedAmount = parseCurrencyInput(amount);
 
   const fromAccount = accounts.find(a => a.id === fromId);
   const toAccount = accounts.find(a => a.id === toId);
@@ -166,8 +163,9 @@ export function TransferBetweenAccountsDialog({ open, onOpenChange, accounts, on
             <Label className="text-xs">Valor</Label>
             <Input
               placeholder="R$ 0,00"
+              inputMode="decimal"
               value={amount}
-              onChange={e => setAmount(e.target.value)}
+              onChange={e => setAmount(formatCurrencyInput(e.target.value))}
               className="h-9"
             />
           </div>

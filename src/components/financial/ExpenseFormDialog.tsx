@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Camera, X, Loader2, ImageIcon, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { formatCurrencyInput, parseCurrencyInput, numberToCurrencyDisplay } from '@/lib/currency-input';
 
 const CATEGORIES = [
   { value: 'fornecedor', label: 'Fornecedor' },
@@ -66,7 +67,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
   useEffect(() => {
     if (open && defaultValues) {
       setDescription(defaultValues.description || '');
-      setAmount(defaultValues.amount?.toString() || '');
+      setAmount(defaultValues.amount ? numberToCurrencyDisplay(defaultValues.amount) : '');
       setExpenseDate(defaultValues.expense_date || '');
       setCategory(defaultValues.category || 'outros');
       setExpenseType(defaultValues.expense_type || defaultExpenseType || 'fixa');
@@ -158,8 +159,12 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
     if (boletoInputRef.current) boletoInputRef.current.value = '';
   };
 
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAmount(formatCurrencyInput(e.target.value));
+  };
+
   const handleSubmit = () => {
-    const val = parseFloat(amount);
+    const val = parseCurrencyInput(amount);
     if (!val || !description.trim() || !expenseDate) return;
     onSubmit({
       description: description.trim(),
@@ -257,7 +262,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
           </div>
           <div>
             <Label>Valor (R$)</Label>
-            <Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0,00" />
+            <Input inputMode="decimal" value={amount} onChange={handleAmountChange} placeholder="0,00" />
           </div>
           <div>
             <Label>Data</Label>
