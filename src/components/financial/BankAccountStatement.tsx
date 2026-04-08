@@ -178,7 +178,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
     } finally {
       setIsLoading(false);
     }
-  }, [account.id, account.initial_balance, dateFrom, dateTo]);
+  }, [account.current_balance, account.id, dateFrom, dateTo]);
 
   useEffect(() => { fetchMovements(); }, [fetchMovements]);
 
