@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowUpCircle, ArrowDownCircle, Loader2, SlidersHorizontal, Calendar, Users, Clock, User } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Loader2, SlidersHorizontal } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -178,6 +178,23 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
   }, [account.id, account.initial_balance, dateFrom, dateTo]);
 
   useEffect(() => { fetchMovements(); }, [fetchMovements]);
+
+  // Fetch event details + client data when event sheet opens
+  useEffect(() => {
+    if (!selectedEvent) {
+      setEventDetails(null);
+      setEventClientData(null);
+      return;
+    }
+    (async () => {
+      const [evtRes, cdrRes] = await Promise.all([
+        supabase.from('company_events').select('*').eq('id', selectedEvent.id).single(),
+        supabase.from('client_data_requests').select('client_data').eq('event_id', selectedEvent.id).eq('status', 'completed').maybeSingle(),
+      ]);
+      setEventDetails(evtRes.data || null);
+      setEventClientData(cdrRes.data?.client_data || null);
+    })();
+  }, [selectedEvent]);
 
   // Live totals from filtered movements
   const liveTotals = useMemo(() => {
