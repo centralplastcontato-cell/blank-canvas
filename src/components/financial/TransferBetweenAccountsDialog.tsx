@@ -174,11 +174,22 @@ export function TransferBetweenAccountsDialog({ open, onOpenChange, accounts, on
 
           {/* Description */}
           <div className="space-y-1.5">
-            <Label className="text-xs">Descrição (opcional)</Label>
+            <Label className="text-xs">Descrição *</Label>
             <Input
-              placeholder="Ex: Reforço de caixa"
+              placeholder="Ex: Reforço de caixa, transferência para pagamento"
               value={description}
               onChange={e => setDescription(e.target.value)}
+              className="h-9"
+            />
+          </div>
+
+          {/* Responsible */}
+          <div className="space-y-1.5">
+            <Label className="text-xs">Responsável pela transferência *</Label>
+            <Input
+              placeholder="Nome de quem está realizando a transferência"
+              value={responsible}
+              onChange={e => setResponsible(e.target.value)}
               className="h-9"
             />
           </div>
