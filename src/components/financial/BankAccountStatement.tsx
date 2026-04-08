@@ -58,14 +58,28 @@ export function BankAccountStatement({ account }: Props) {
           source: 'Recebimento',
         }));
 
-        const exits: Movement[] = (exitsRes.data || []).map((e: any) => ({
-          id: e.id,
-          date: e.expense_date,
-          description: e.description,
-          amount: Number(e.amount),
-          type: 'exit' as const,
-          source: e.category || 'Despesa',
-        }));
+        const exits: Movement[] = (exitsRes.data || []).map((e: any) => {
+          const amt = Number(e.amount);
+          // Negative expenses are transfer credits (entries)
+          if (amt < 0) {
+            return {
+              id: e.id,
+              date: e.expense_date,
+              description: e.description,
+              amount: Math.abs(amt),
+              type: 'entry' as const,
+              source: e.category || 'Transferência',
+            };
+          }
+          return {
+            id: e.id,
+            date: e.expense_date,
+            description: e.description,
+            amount: amt,
+            type: 'exit' as const,
+            source: e.category || 'Despesa',
+          };
+        });
 
         setMovements([...entries, ...exits].sort((a, b) => b.date.localeCompare(a.date)));
       } finally {
@@ -75,6 +89,14 @@ export function BankAccountStatement({ account }: Props) {
     fetchMovements();
   }, [account.id]);
 
+  // Compute live totals from fetched movements (not from parent prop which may be stale)
+  const liveTotals = useMemo(() => {
+    const totalEntries = movements.filter(m => m.type === 'entry').reduce((s, m) => s + m.amount, 0);
+    const totalExits = movements.filter(m => m.type === 'exit').reduce((s, m) => s + m.amount, 0);
+    const currentBalance = account.initial_balance + totalEntries - totalExits;
+    return { totalEntries, totalExits, currentBalance };
+  }, [movements, account.initial_balance]);
+
   const filtered = useMemo(() => {
     return movements.filter(m => {
       if (dateFrom && m.date < dateFrom) return false;
@@ -83,17 +105,28 @@ export function BankAccountStatement({ account }: Props) {
     });
   }, [movements, dateFrom, dateTo]);
 
-  // Running balance calculation
+  // Running balance: account for ALL movements before the filter start, then build from there
   const movementsWithBalance = useMemo(() => {
-    // Sort ascending for balance calc
+    const allSorted = [...movements].sort((a, b) => a.date.localeCompare(b.date));
+    
+    // Calculate balance up to (but not including) filtered movements
+    let balanceBefore = account.initial_balance;
+    if (dateFrom) {
+      for (const m of allSorted) {
+        if (m.date >= dateFrom) break;
+        if (m.type === 'entry') balanceBefore += m.amount;
+        else balanceBefore -= m.amount;
+      }
+    }
+
     const sorted = [...filtered].sort((a, b) => a.date.localeCompare(b.date));
-    let balance = account.initial_balance;
+    let balance = dateFrom ? balanceBefore : account.initial_balance;
     return sorted.map(m => {
       if (m.type === 'entry') balance += m.amount;
       else balance -= m.amount;
       return { ...m, balance };
-    }).reverse(); // Show newest first
-  }, [filtered, account.initial_balance]);
+    }).reverse();
+  }, [filtered, movements, dateFrom, account.initial_balance]);
 
   if (isLoading) {
     return (
@@ -105,7 +138,7 @@ export function BankAccountStatement({ account }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Balance summary */}
+      {/* Balance summary — computed from fresh data */}
       <div className="grid grid-cols-3 gap-3">
         <Card className="p-3 text-center">
           <p className="text-[10px] text-muted-foreground uppercase">Saldo Inicial</p>
@@ -113,19 +146,19 @@ export function BankAccountStatement({ account }: Props) {
         </Card>
         <Card className="p-3 text-center">
           <p className="text-[10px] text-emerald-500 uppercase">Entradas</p>
-          <p className="text-sm font-bold text-emerald-500">+{fmt(account.total_entries)}</p>
+          <p className="text-sm font-bold text-emerald-500">+{fmt(liveTotals.totalEntries)}</p>
         </Card>
         <Card className="p-3 text-center">
           <p className="text-[10px] text-red-400 uppercase">Saídas</p>
-          <p className="text-sm font-bold text-red-400">-{fmt(account.total_exits)}</p>
+          <p className="text-sm font-bold text-red-400">-{fmt(liveTotals.totalExits)}</p>
         </Card>
       </div>
 
       {/* Current balance */}
-      <Card className={`p-4 text-center ${account.current_balance >= 0 ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-red-500/30 bg-red-500/5'}`}>
+      <Card className={`p-4 text-center ${liveTotals.currentBalance >= 0 ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-red-500/30 bg-red-500/5'}`}>
         <p className="text-xs text-muted-foreground">Saldo Atual</p>
-        <p className={`text-2xl font-bold ${account.current_balance >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
-          {fmt(account.current_balance)}
+        <p className={`text-2xl font-bold ${liveTotals.currentBalance >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
+          {fmt(liveTotals.currentBalance)}
         </p>
       </Card>
 
