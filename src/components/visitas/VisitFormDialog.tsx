@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   CalendarIcon, Loader2, MapPin, Package, User as UserIcon, X,
-  PartyPopper, Clock, Users, DollarSign, CreditCard, UserPlus, Phone,
+  PartyPopper, Clock, Users, DollarSign, CreditCard, UserPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
