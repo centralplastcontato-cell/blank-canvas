@@ -29,6 +29,9 @@ interface Movement {
   amount: number;
   type: 'entry' | 'exit';
   source: string;
+  eventId?: string;
+  eventTitle?: string;
+  eventDate?: string;
 }
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
