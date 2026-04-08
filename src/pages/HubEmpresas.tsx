@@ -101,34 +101,35 @@ function HubEmpresasContent() {
 
   const fetchCompanies = async () => {
     setIsLoading(true);
+    try {
     const { data, error } = await supabase.from("companies").select("*").order("name");
-    if (error) { console.error(error); }
-    else {
+    if (error) { console.error(error); setIsLoading(false); return; }
+
       setCompanies((data || []) as Company[]);
       
       // Fetch all stats in parallel
-      const [ucRes, leadsRes, convsRes, onbRes] = await Promise.all([
-        supabase.from("user_companies").select("company_id"),
-        supabase.from("campaign_leads").select("company_id"),
-        supabase.from("wapi_conversations").select("company_id"),
-        supabase.from("company_onboarding").select("company_id, status, updated_at").order("created_at", { ascending: false }),
+      const companyIds = (data || []).map((c: any) => c.id);
+      // Count per company using head:true (no data transferred, just count)
+      const countMap = async (tableFn: (id: string) => Promise<number | null>) => {
+        const counts: Record<string, number> = {};
+        await Promise.all(companyIds.map(async (id) => {
+          const count = await tableFn(id);
+          if (count !== null && count !== undefined) counts[id] = count;
+        }));
+        return counts;
+      };
+
+      const [memberCountsRes, leadCountsRes, convCountsRes, onbRes] = await Promise.all([
+        countMap(async (id) => { const { count } = await supabase.from("user_companies").select('*', { count: 'exact', head: true }).eq('company_id', id); return count; }),
+        countMap(async (id) => { const { count } = await supabase.from("campaign_leads").select('*', { count: 'exact', head: true }).eq('company_id', id); return count; }),
+        countMap(async (id) => { const { count } = await supabase.from("wapi_conversations").select('*', { count: 'exact', head: true }).eq('company_id', id); return count; }),
+        supabase.from("company_onboarding").select("company_id, status, updated_at").in("company_id", companyIds).order("created_at", { ascending: false }),
       ]);
 
-      if (ucRes.data) {
-        const counts: Record<string, number> = {};
-        ucRes.data.forEach((uc) => { counts[uc.company_id] = (counts[uc.company_id] || 0) + 1; });
-        setMemberCounts(counts);
-      }
-      if (leadsRes.data) {
-        const counts: Record<string, number> = {};
-        leadsRes.data.forEach((l) => { counts[l.company_id] = (counts[l.company_id] || 0) + 1; });
-        setLeadCounts(counts);
-      }
-      if (convsRes.data) {
-        const counts: Record<string, number> = {};
-        convsRes.data.forEach((c) => { counts[c.company_id] = (counts[c.company_id] || 0) + 1; });
-        setConversationCounts(counts);
-      }
+      setMemberCounts(memberCountsRes);
+      setLeadCounts(leadCountsRes);
+      setConversationCounts(convCountsRes);
+
       if (onbRes.data) {
         const map: Record<string, { status: string; updated_at: string }> = {};
         onbRes.data.forEach((o) => {
@@ -136,6 +137,8 @@ function HubEmpresasContent() {
         });
         setOnboardingStatus(map);
       }
+    } catch (err) {
+      console.error('[HubEmpresas] fetchCompanies error:', err);
     }
     setIsLoading(false);
   };

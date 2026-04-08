@@ -55,15 +55,19 @@ export function OnboardingViewSheet({ companyId, companyName, open, onOpenChange
   useEffect(() => {
     if (!open || !companyId) return;
     setLoading(true);
-    supabase
+    (supabase
       .from("company_onboarding")
       .select("*")
       .eq("company_id", companyId)
       .order("created_at", { ascending: false })
       .limit(1)
-      .single()
-      .then(({ data: rec }) => {
+      .maybeSingle()
+      .then(({ data: rec, error }) => {
+        if (error) console.error('[OnboardingViewSheet]', error);
         setData(rec as any);
+        setLoading(false);
+      }) as Promise<void>).catch((err) => {
+        console.error('[OnboardingViewSheet] fetch error:', err);
         setLoading(false);
       });
   }, [open, companyId]);
