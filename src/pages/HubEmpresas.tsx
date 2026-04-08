@@ -109,28 +109,27 @@ function HubEmpresasContent() {
       
       // Fetch all stats in parallel
       const companyIds = (data || []).map((c: any) => c.id);
-      const [ucRes, leadsRes, convsRes, onbRes] = await Promise.all([
-        supabase.from("user_companies").select("company_id").in("company_id", companyIds),
-        supabase.from("campaign_leads").select("company_id").in("company_id", companyIds),
-        supabase.from("wapi_conversations").select("company_id").in("company_id", companyIds),
+      // Use per-company count queries to avoid pulling thousands of rows
+      const countPerCompany = async (table: string, companyIds: string[]) => {
+        const counts: Record<string, number> = {};
+        await Promise.all(companyIds.map(async (id) => {
+          const { count } = await supabase.from(table).select('*', { count: 'exact', head: true }).eq('company_id', id);
+          if (count !== null) counts[id] = count;
+        }));
+        return counts;
+      };
+
+      const [memberCountsRes, leadCountsRes, convCountsRes, onbRes] = await Promise.all([
+        countPerCompany("user_companies", companyIds),
+        countPerCompany("campaign_leads", companyIds),
+        countPerCompany("wapi_conversations", companyIds),
         supabase.from("company_onboarding").select("company_id, status, updated_at").in("company_id", companyIds).order("created_at", { ascending: false }),
       ]);
 
-      if (ucRes.data) {
-        const counts: Record<string, number> = {};
-        ucRes.data.forEach((uc) => { counts[uc.company_id] = (counts[uc.company_id] || 0) + 1; });
-        setMemberCounts(counts);
-      }
-      if (leadsRes.data) {
-        const counts: Record<string, number> = {};
-        leadsRes.data.forEach((l) => { counts[l.company_id] = (counts[l.company_id] || 0) + 1; });
-        setLeadCounts(counts);
-      }
-      if (convsRes.data) {
-        const counts: Record<string, number> = {};
-        convsRes.data.forEach((c) => { counts[c.company_id] = (counts[c.company_id] || 0) + 1; });
-        setConversationCounts(counts);
-      }
+      setMemberCounts(memberCountsRes);
+      setLeadCounts(leadCountsRes);
+      setConversationCounts(convCountsRes);
+
       if (onbRes.data) {
         const map: Record<string, { status: string; updated_at: string }> = {};
         onbRes.data.forEach((o) => {
