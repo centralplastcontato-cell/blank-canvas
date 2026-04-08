@@ -472,6 +472,8 @@ export default function Financeiro() {
                   ))}
                 </TabsList>
 
+                <div className="mt-4" />
+
                 {/* Tab Receitas */}
                 <TabsContent value="receitas" className="space-y-4">
                   <Tabs value={receitasSubTab} onValueChange={setReceitasSubTab} className="w-full">
