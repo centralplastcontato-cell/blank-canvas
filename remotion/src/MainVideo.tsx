@@ -12,6 +12,7 @@ import { Scene5Intel } from "./scenes/Scene5Intel";
 import { SceneFinanceiro } from "./scenes/SceneFinanceiro";
 import { Scene6Metrics } from "./scenes/Scene6Metrics";
 import { Scene7CTA } from "./scenes/Scene7CTA";
+import { SceneFinal } from "./scenes/SceneFinal";
 
 const TRANSITION = 20;
 const timing = springTiming({ config: { damping: 200 }, durationInFrames: TRANSITION });
@@ -77,6 +78,11 @@ export const MainVideo = () => {
 
         <TransitionSeries.Sequence durationInFrames={250}>
           <Scene7CTA />
+        </TransitionSeries.Sequence>
+        <TransitionSeries.Transition presentation={fade()} timing={timing} />
+
+        <TransitionSeries.Sequence durationInFrames={180}>
+          <SceneFinal />
         </TransitionSeries.Sequence>
       </TransitionSeries>
     </AbsoluteFill>
