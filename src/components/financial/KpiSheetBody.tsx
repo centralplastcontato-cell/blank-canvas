@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -50,8 +50,7 @@ export function KpiSheetBody({ kpiSheet, dashboard, fmt, CATEGORY_LABELS }: Prop
   const [page, setPage] = useState(0);
 
   // Reset page when kpiSheet changes
-  const prevSheet = useMemo(() => kpiSheet, [kpiSheet]);
-  if (prevSheet !== kpiSheet) setPage(0);
+  useEffect(() => { setPage(0); }, [kpiSheet]);
 
   const renderPaymentList = (
     payments: any[],
