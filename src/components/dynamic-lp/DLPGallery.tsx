@@ -15,6 +15,49 @@ interface GalleryUnit {
   photos: string[];
 }
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function normalizePhotos(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      if (isNonEmptyString(item)) return item;
+      if (item && typeof item === "object" && "url" in item && isNonEmptyString((item as { url?: unknown }).url)) {
+        return (item as { url: string }).url;
+      }
+      return null;
+    })
+    .filter((item): item is string => isNonEmptyString(item));
+}
+
+function normalizeUnits(gallery: LPGallery, companyName: string): GalleryUnit[] {
+  const unitPhotos = Array.isArray(gallery.units)
+    ? gallery.units
+        .map((unit) => ({
+          name: isNonEmptyString(unit?.name) ? unit.name : companyName,
+          photos: normalizePhotos(unit?.photos),
+        }))
+        .filter((unit) => unit.photos.length > 0)
+    : [];
+
+  if (unitPhotos.length > 0) return unitPhotos;
+
+  const flatPhotos = normalizePhotos(gallery.photos);
+  if (flatPhotos.length > 0) {
+    return [{ name: companyName, photos: flatPhotos }];
+  }
+
+  const legacyPhotos = normalizePhotos((gallery as LPGallery & { images?: unknown[] }).images);
+  if (legacyPhotos.length > 0) {
+    return [{ name: companyName, photos: legacyPhotos }];
+  }
+
+  return [];
+}
+
 export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
   const [activeUnit, setActiveUnit] = useState(0);
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
@@ -24,24 +67,18 @@ export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
     setFailedImages((prev) => new Set(prev).add(src));
   }, []);
 
-  if (!gallery.enabled) return null;
+  if (!gallery?.enabled) return null;
 
-  // Build units: new format (units[]) or legacy (flat photos[])
-  let units: GalleryUnit[] = [];
-
-  if (gallery.units && gallery.units.length > 0) {
-    units = gallery.units;
-  } else if (gallery.photos.length > 0) {
-    units = [{ name: companyName, photos: gallery.photos }];
-  }
-
+  const units = normalizeUnits(gallery, companyName);
   if (units.length === 0) return null;
 
+  const safeActiveUnit = Math.min(activeUnit, units.length - 1);
+  const currentUnit = units[safeActiveUnit];
+  const visiblePhotos = currentUnit.photos.filter((src) => !failedImages.has(src));
   const hasMultipleUnits = units.length >= 2;
 
   return (
     <section className="py-20 relative overflow-hidden">
-      {/* Background blurs */}
       <div className="absolute inset-0 pointer-events-none">
         <div
           className="absolute top-10 left-10 w-32 h-32 rounded-full blur-3xl"
@@ -90,21 +127,20 @@ export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
           </p>
         </motion.div>
 
-        {/* Unit Tabs */}
         {hasMultipleUnits && (
           <div className="flex justify-center gap-3 mb-8">
             {units.map((unit, idx) => (
               <button
-                key={unit.name}
+                key={`${unit.name}-${idx}`}
                 onClick={() => setActiveUnit(idx)}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold transition-all duration-300"
                 style={{
                   backgroundColor:
-                    activeUnit === idx ? theme.primary_color : theme.text_color + "10",
+                    safeActiveUnit === idx ? theme.primary_color : theme.text_color + "10",
                   color:
-                    activeUnit === idx ? "#fff" : theme.text_color + "99",
-                  transform: activeUnit === idx ? "scale(1.05)" : "scale(1)",
-                  boxShadow: activeUnit === idx ? `0 4px 15px ${theme.primary_color}40` : "none",
+                    safeActiveUnit === idx ? "#fff" : theme.text_color + "99",
+                  transform: safeActiveUnit === idx ? "scale(1.05)" : "scale(1)",
+                  boxShadow: safeActiveUnit === idx ? `0 4px 15px ${theme.primary_color}40` : "none",
                   fontFamily: theme.font_body,
                 }}
               >
@@ -115,19 +151,16 @@ export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
           </div>
         )}
 
-        {/* Photo Grid */}
         <AnimatePresence mode="wait">
           <motion.div
-            key={activeUnit}
+            key={safeActiveUnit}
             className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 max-w-5xl mx-auto"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.4 }}
           >
-            {units[activeUnit].photos
-              .filter((src) => !failedImages.has(src))
-              .map((src, index) => (
+            {visiblePhotos.map((src, index) => (
               <motion.div
                 key={src}
                 className="group relative rounded-xl overflow-hidden shadow-lg hover:shadow-2xl aspect-square cursor-pointer transition-shadow duration-300"
@@ -138,7 +171,7 @@ export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
               >
                 <img
                   src={src}
-                  alt={`${units[activeUnit].name} - Foto ${index + 1}`}
+                  alt={`${currentUnit.name} - Foto ${index + 1}`}
                   className="w-full h-full object-cover group-hover:scale-[1.15] transition-transform duration-500"
                   loading="lazy"
                   onError={() => handleImageError(src)}
@@ -157,9 +190,9 @@ export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
           </motion.div>
         </AnimatePresence>
 
-        {selectedImage !== null && (
+        {selectedImage !== null && visiblePhotos.length > 0 && (
           <ImageLightbox
-            images={units[activeUnit].photos.filter((src) => !failedImages.has(src))}
+            images={visiblePhotos}
             currentIndex={selectedImage}
             onClose={() => setSelectedImage(null)}
             onNavigate={setSelectedImage}
