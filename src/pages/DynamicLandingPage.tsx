@@ -133,7 +133,13 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
           company_slug: row.company_slug,
           company_whatsapp: whatsapp,
           company_instagram: onbRow?.instagram || null,
-          hero: row.hero as unknown as LPHero,
+          hero: (() => {
+            const h = row.hero as any;
+            return {
+              ...h,
+              background_image_url: h.background_image_url || h.background_image || null,
+            } as unknown as LPHero;
+          })(),
           video: row.video as unknown as LPVideo,
           gallery: row.gallery as unknown as LPGallery,
           testimonials: row.testimonials as unknown as LPTestimonials,
