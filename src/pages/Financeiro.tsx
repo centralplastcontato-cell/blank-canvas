@@ -872,7 +872,7 @@ export default function Financeiro() {
                         ← Voltar para contas
                       </Button>
                       <h2 className="text-lg font-bold text-foreground">Extrato — {statementAccount.name}</h2>
-                      <BankAccountStatement account={statementAccount} />
+                      <BankAccountStatement account={statementAccount} onBalanceChanged={() => bankAccounts.refresh()} />
                     </div>
                   ) : (
                     <div className="space-y-4">

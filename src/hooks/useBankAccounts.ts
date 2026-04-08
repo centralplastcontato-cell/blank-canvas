@@ -55,21 +55,30 @@ export function useBankAccounts() {
       // Calculate balances for each account
       const balances: BankAccountBalance[] = await Promise.all(
         (accs || []).map(async (acc: any) => {
-          const [entriesRes, exitsRes] = await Promise.all([
-            supabase
-              .from('event_payments')
-              .select('amount')
-              .eq('bank_account_id', acc.id)
-              .eq('status', 'paid'),
-            supabase
-              .from('company_expenses')
-              .select('amount')
-              .eq('bank_account_id', acc.id)
-              .eq('status', 'pago'),
+          // Fetch ALL entries and exits (paginate past 1000-row limit)
+          const fetchAll = async (table: string, filters: Record<string, string>) => {
+            let all: any[] = [];
+            let from = 0;
+            const pageSize = 1000;
+            while (true) {
+              let q = supabase.from(table).select('amount').range(from, from + pageSize - 1);
+              for (const [k, v] of Object.entries(filters)) q = q.eq(k, v);
+              const { data } = await q;
+              if (!data || data.length === 0) break;
+              all = all.concat(data);
+              if (data.length < pageSize) break;
+              from += pageSize;
+            }
+            return all;
+          };
+
+          const [entriesData, exitsData] = await Promise.all([
+            fetchAll('event_payments', { bank_account_id: acc.id, status: 'paid' }),
+            fetchAll('company_expenses', { bank_account_id: acc.id, status: 'pago' }),
           ]);
 
-          const total_entries = (entriesRes.data || []).reduce((s: number, p: any) => s + Number(p.amount), 0);
-          const total_exits = (exitsRes.data || []).reduce((s: number, e: any) => s + Number(e.amount), 0);
+          const total_entries = entriesData.reduce((s: number, p: any) => s + Number(p.amount), 0);
+          const total_exits = exitsData.reduce((s: number, e: any) => s + Number(e.amount), 0);
           const current_balance = Number(acc.initial_balance) + total_entries - total_exits;
 
           return {
