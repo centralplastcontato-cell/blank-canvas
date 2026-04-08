@@ -55,6 +55,9 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
   // Event financial sheet
   const [selectedEvent, setSelectedEvent] = useState<{ id: string; title: string } | null>(null);
 
+  // Expense detail sheet
+  const [selectedExpense, setSelectedExpense] = useState<Movement | null>(null);
+
   const fetchMovements = useCallback(async () => {
     setIsLoading(true);
     try {
