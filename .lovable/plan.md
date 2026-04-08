@@ -1,42 +1,36 @@
 
 
-## Promoção de Páscoa — Castelo da Diversão
+## Problema
 
-Entendi perfeitamente. As imagens são referência dos anúncios Meta, e a landing page (castelodadiversao.online / .com.br) precisa refletir essa mesma promoção de Páscoa. Aqui está o plano:
+Quando você cria um **Ajuste de Saldo** (ex: R$ 305.348,90), esse valor é somado nos cards **"Despesas Lançadas"** e **"Despesas Pagas"**, inflando os totais e confundindo a leitura financeira. O ajuste de saldo não é uma despesa real — é apenas uma calibragem do saldo inicial.
 
-### O que muda
+## Solução
 
-**1. Atualizar `campaignConfig.ts` com a promoção de Páscoa**
-- Título: "Promoção de Páscoa"
-- Tagline: "🐰 Promoção de Páscoa no Castelo da Diversão"
-- Oferta principal: "10 crianças até 8 anos FREE" + parcelamento em até 10x no cartão
-- Benefits: Estrutura completa, Brinquedos incríveis, Equipe especializada, Alimentação de qualidade
-- Data de expiração da promoção (definir prazo da Páscoa — ex: 20 de abril de 2026)
-- Campaign ID: `pascoa-2026`
+Excluir registros do tipo `expense_type === 'ajuste'` dos cálculos de KPI de despesas, mantendo-os apenas onde fazem sentido (saldo de contas e extrato bancário).
 
-**2. Atualizar o HeroSection com tema de Páscoa**
-- Trocar o título principal para destacar a promoção: "Promoção de Páscoa 🐰" + "10 crianças até 8 anos FREE!"
-- Subtítulo mencionando parcelamento em 10x
-- Confetti com cores de Páscoa (verde, amarelo, lilás, rosa)
-- Badge do tag "PROMOÇÃO DE PÁSCOA" no topo
+## Alterações
 
-**3. Adicionar OfferSection e UrgencySection na LandingPage**
-- Atualmente a `LandingPage.tsx` não renderiza `OfferSection` nem `UrgencySection` — serão adicionadas entre as seções existentes
-- OfferSection exibirá os benefícios da promo e CTA
-- UrgencySection com countdown até o fim da promoção
-- Trocar labels de "MÊS DO CONSUMIDOR" para "PROMOÇÃO DE PÁSCOA" nos componentes
+### 1. `src/hooks/useFinanceiroDashboard.ts`
+- Nos cálculos de `totalExpensesMonth` e `totalExpensesPaidMonth` (linhas 335-337), filtrar para ignorar despesas com `expense_type === 'ajuste'`
+- No cálculo de `saldoMonth`, também usar apenas despesas reais (sem ajustes)
+- Isso garante que os cards "Despesas Lançadas", "Despesas Pagas" e "Saldo" no dashboard mostrem apenas despesas operacionais
 
-**4. Atualizar labels hardcoded nos componentes**
-- `OfferSection.tsx`: badge "MÊS DO CONSUMIDOR" → "PROMOÇÃO DE PÁSCOA" (usar `campaignConfig.campaignName`)
-- `UrgencySection.tsx`: idem
+### 2. `src/pages/Financeiro.tsx`
+- Na aba **Resultado**, onde já aparece uma linha separada "Ajustes de saldo" (linha 858), garantir que o "Total despesas" da tabela de resultado também exclua ajustes
+- Opcionalmente, manter a linha informativa "Ajustes de saldo" na aba Resultado para transparência
 
-### Arquivos modificados
-- `src/config/campaignConfig.ts` — dados da campanha
-- `src/components/landing/HeroSection.tsx` — título/subtítulo de Páscoa
-- `src/components/landing/OfferSection.tsx` — badge dinâmico
-- `src/components/landing/UrgencySection.tsx` — badge dinâmico
-- `src/pages/LandingPage.tsx` — incluir OfferSection + UrgencySection
+### O que NÃO muda
+- O extrato bancário (`BankAccountStatement`) continua exibindo os ajustes normalmente
+- O cálculo de saldo por conta (`useBankAccounts`) continua incluindo ajustes (pois eles afetam o saldo real da conta)
+- A lista de despesas na aba "Despesas" continua mostrando ajustes (para auditoria)
 
-### Pergunta rápida
-Preciso confirmar a data limite da promoção para o countdown.
+## Detalhes técnicos
+
+```typescript
+// useFinanceiroDashboard.ts — filtro nas linhas 335-337
+const realExpensesThisMonth = expensesThisMonth.filter(e => e.expense_type !== 'ajuste');
+const totalExpensesMonth = realExpensesThisMonth.reduce((s, e) => s + e.amount, 0);
+const totalExpensesPaidMonth = realExpensesThisMonth.filter(e => e.status === 'pago').reduce((s, e) => s + e.amount, 0);
+const saldoMonth = totalReceivedMonth - totalExpensesMonth;
+```
 
