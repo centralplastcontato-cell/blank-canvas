@@ -113,6 +113,7 @@ export function OnboardingViewSheet({ companyId, companyName, open, onOpenChange
       .limit(1)
       .maybeSingle()
       .then(({ data: rec, error }) => {
+        console.log("[OnboardingViewSheet] result:", { rec, error, companyId });
         if (error) console.error("[OnboardingViewSheet]", error);
         setData(rec as any);
         setLoading(false);
