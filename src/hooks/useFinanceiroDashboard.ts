@@ -333,8 +333,9 @@ export function useFinanceiroDashboard() {
   const totalLate = latePayments.reduce((s, p) => s + p.amount, 0);
 
   const expensesThisMonth = filteredExpenses.filter(e => e.expense_date >= periodFrom && e.expense_date <= periodTo);
-  const totalExpensesMonth = expensesThisMonth.reduce((s, e) => s + e.amount, 0);
-  const totalExpensesPaidMonth = expensesThisMonth.filter(e => e.status === 'pago').reduce((s, e) => s + e.amount, 0);
+  const realExpensesThisMonth = expensesThisMonth.filter(e => e.expense_type !== 'ajuste');
+  const totalExpensesMonth = realExpensesThisMonth.reduce((s, e) => s + e.amount, 0);
+  const totalExpensesPaidMonth = realExpensesThisMonth.filter(e => e.status === 'pago').reduce((s, e) => s + e.amount, 0);
 
   const saldoMonth = totalReceivedMonth - totalExpensesMonth;
 
