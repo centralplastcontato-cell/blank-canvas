@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-import { ArrowUpCircle, ArrowDownCircle, Loader2, SlidersHorizontal } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Loader2, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
