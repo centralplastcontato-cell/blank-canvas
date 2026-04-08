@@ -26,6 +26,7 @@ export function TransferBetweenAccountsDialog({ open, onOpenChange, accounts, on
   const [toId, setToId] = useState('');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [responsible, setResponsible] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const today = new Date().toISOString().split('T')[0];
@@ -34,7 +35,7 @@ export function TransferBetweenAccountsDialog({ open, onOpenChange, accounts, on
 
   const fromAccount = accounts.find(a => a.id === fromId);
   const toAccount = accounts.find(a => a.id === toId);
-  const isValid = fromId && toId && fromId !== toId && parsedAmount > 0 && currentCompanyId;
+  const isValid = fromId && toId && fromId !== toId && parsedAmount > 0 && currentCompanyId && description.trim() && responsible.trim();
 
   const handleSubmit = async () => {
     if (!isValid || !currentCompanyId) return;
