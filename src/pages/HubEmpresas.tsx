@@ -109,20 +109,28 @@ function HubEmpresasContent() {
       
       // Fetch all stats in parallel
       const companyIds = (data || []).map((c: any) => c.id);
-      // Use per-company count queries to avoid pulling thousands of rows
-      const countPerCompany = async (table: string, companyIds: string[]) => {
+      const countForTable = async (query: ReturnType<typeof supabase.from>, companyIds: string[]) => {
         const counts: Record<string, number> = {};
         await Promise.all(companyIds.map(async (id) => {
-          const { count } = await supabase.from(table).select('*', { count: 'exact', head: true }).eq('company_id', id);
-          if (count !== null) counts[id] = count;
+          // We need a fresh query per id, so we accept a factory pattern
+        }));
+        return counts;
+      };
+
+      // Count per company using head:true (no data transferred, just count)
+      const countMap = async (tableFn: (id: string) => Promise<number | null>) => {
+        const counts: Record<string, number> = {};
+        await Promise.all(companyIds.map(async (id) => {
+          const count = await tableFn(id);
+          if (count !== null && count !== undefined) counts[id] = count;
         }));
         return counts;
       };
 
       const [memberCountsRes, leadCountsRes, convCountsRes, onbRes] = await Promise.all([
-        countPerCompany("user_companies", companyIds),
-        countPerCompany("campaign_leads", companyIds),
-        countPerCompany("wapi_conversations", companyIds),
+        countMap(async (id) => { const { count } = await supabase.from("user_companies").select('*', { count: 'exact', head: true }).eq('company_id', id); return count; }),
+        countMap(async (id) => { const { count } = await supabase.from("campaign_leads").select('*', { count: 'exact', head: true }).eq('company_id', id); return count; }),
+        countMap(async (id) => { const { count } = await supabase.from("wapi_conversations").select('*', { count: 'exact', head: true }).eq('company_id', id); return count; }),
         supabase.from("company_onboarding").select("company_id, status, updated_at").in("company_id", companyIds).order("created_at", { ascending: false }),
       ]);
 
