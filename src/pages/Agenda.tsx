@@ -982,19 +982,19 @@ export default function Agenda() {
                     <div className="flex items-center gap-2.5">
                       {/* Content mode toggle: Agendadas vs Fechadas */}
                       <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas" | "pre-reservas")}>
-                        <TabsList className="h-10 bg-muted/60 backdrop-blur-sm">
-                          <TabsTrigger value="agendadas" className="px-3 gap-1.5 data-[state=active]:shadow-sm text-xs font-medium">
+                        <TabsList className="bg-transparent p-0 h-auto gap-1.5">
+                          <TabsTrigger value="agendadas" className="px-5 py-2 gap-1.5 text-sm font-medium rounded-full border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none">
                             <CalendarDays className="h-4 w-4" />
                             <span className="hidden sm:inline">Agendadas</span>
                           </TabsTrigger>
-                          <TabsTrigger value="fechadas" className="px-3 gap-1.5 data-[state=active]:shadow-sm text-xs font-medium">
+                          <TabsTrigger value="fechadas" className="px-5 py-2 gap-1.5 text-sm font-medium rounded-full border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none">
                             <Handshake className="h-4 w-4" />
                             <span className="hidden sm:inline">Fechadas</span>
                             {closedInPeriod > 0 && (
                               <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{closedInPeriod}</Badge>
                             )}
                           </TabsTrigger>
-                          <TabsTrigger value="pre-reservas" className="px-3 gap-1.5 data-[state=active]:shadow-sm text-xs font-medium">
+                          <TabsTrigger value="pre-reservas" className="px-5 py-2 gap-1.5 text-sm font-medium rounded-full border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none">
                             <CalendarClock className="h-4 w-4" />
                             <span className="hidden sm:inline">Pré-reservas</span>
                             {allPreReservations.filter(pr => pr.status === "ativa").length > 0 && (
@@ -1004,9 +1004,9 @@ export default function Agenda() {
                         </TabsList>
                       </Tabs>
                       <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "calendar" | "list")}>
-                        <TabsList className="h-10 bg-muted/60 backdrop-blur-sm">
-                          <TabsTrigger value="calendar" className="px-3 data-[state=active]:shadow-sm"><CalendarDays className="h-4 w-4" /></TabsTrigger>
-                          <TabsTrigger value="list" className="px-3 data-[state=active]:shadow-sm"><List className="h-4 w-4" /></TabsTrigger>
+                        <TabsList className="bg-transparent p-0 h-auto gap-1.5">
+                          <TabsTrigger value="calendar" className="px-4 py-2 rounded-full border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none"><CalendarDays className="h-4 w-4" /></TabsTrigger>
+                          <TabsTrigger value="list" className="px-4 py-2 rounded-full border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none"><List className="h-4 w-4" /></TabsTrigger>
                         </TabsList>
                       </Tabs>
                       {/* Desktop unit filter — hidden when units are sales channels only */}
