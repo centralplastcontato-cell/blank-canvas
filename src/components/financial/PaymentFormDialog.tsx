@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BankAccountSelect } from "./BankAccountSelect";
+import { formatCurrencyInput, parseCurrencyInput, numberToCurrencyDisplay } from "@/lib/currency-input";
 
 interface Props {
   open: boolean;
@@ -16,14 +17,14 @@ interface Props {
 
 export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues }: Props) {
   const [type, setType] = useState(defaultValues?.type || "parcela");
-  const [amount, setAmount] = useState(defaultValues?.amount?.toString() || "");
+  const [amount, setAmount] = useState(defaultValues?.amount ? numberToCurrencyDisplay(defaultValues.amount) : "");
   const [dueDate, setDueDate] = useState(defaultValues?.due_date || "");
   const [method, setMethod] = useState(defaultValues?.payment_method || "pix");
   const [notes, setNotes] = useState(defaultValues?.notes || "");
   const [bankAccountId, setBankAccountId] = useState(defaultValues?.bank_account_id || "");
 
   const handleSubmit = () => {
-    const val = parseFloat(amount);
+    const val = parseCurrencyInput(amount);
     if (!val || !dueDate) return;
     onSubmit({
       type, amount: val, due_date: dueDate, payment_method: method,
@@ -53,7 +54,7 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues 
           </div>
           <div>
             <Label>Valor (R$)</Label>
-            <Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0,00" />
+            <Input inputMode="decimal" value={amount} onChange={e => setAmount(formatCurrencyInput(e.target.value))} placeholder="0,00" />
           </div>
           <div>
             <Label>Vencimento</Label>
