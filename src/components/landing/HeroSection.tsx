@@ -21,6 +21,8 @@ const easterColors = [
   'hsl(200 70% 60%)', // azul claro
 ];
 
+const easterEggs = ['🥚', '🐣', '🐰', '🌷', '🍫', '✨', '🎀', '🐇'];
+
 export function HeroSection({ onCtaClick }: HeroSectionProps) {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden" aria-label="Seção principal">
@@ -30,20 +32,23 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
         <div className="absolute inset-0 bg-gradient-to-b from-foreground/70 via-foreground/50 to-background/95" />
       </div>
 
-      {/* Floating Easter Confetti */}
+      {/* Floating Easter Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(15)].map((_, i) => (
+        {[...Array(20)].map((_, i) => (
           <motion.div
             key={i}
-            className="absolute w-2.5 h-2.5 rounded-full"
+            className="absolute text-lg"
             style={{
-              background: easterColors[i % easterColors.length],
-              left: `${Math.random() * 100}%`,
-              top: `-5%`,
+              left: `${5 + Math.random() * 90}%`,
+              top: `-8%`,
             }}
-            animate={{ y: ['0vh', '110vh'], rotate: [0, 720], opacity: [0.8, 0] }}
-            transition={{ duration: 5 + Math.random() * 4, repeat: Infinity, delay: Math.random() * 6, ease: "linear" }}
-          />
+            animate={{ y: ['0vh', '115vh'], rotate: [0, i % 2 === 0 ? 360 : -360], opacity: [0.9, 0.2] }}
+            transition={{ duration: 7 + Math.random() * 5, repeat: Infinity, delay: Math.random() * 8, ease: "linear" }}
+          >
+            {i < 12 ? easterEggs[i % easterEggs.length] : (
+              <div className="w-2.5 h-2.5 rounded-full" style={{ background: easterColors[i % easterColors.length] }} />
+            )}
+          </motion.div>
         ))}
       </div>
 
