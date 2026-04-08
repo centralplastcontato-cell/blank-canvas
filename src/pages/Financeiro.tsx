@@ -119,6 +119,7 @@ export default function Financeiro() {
   const [markPaidPayment, setMarkPaidPayment] = useState<any>(null);
   const [markPaidBankId, setMarkPaidBankId] = useState<string | null>(null);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [kpiSheet, setKpiSheet] = useState<'recebido' | 'a_receber' | 'atraso' | 'despesas' | 'despesas_pagas' | 'saldo' | null>(null);
   const bankAccounts = useBankAccounts();
   const bankAccountMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -388,37 +389,37 @@ export default function Financeiro() {
 
               {/* 5 Dashboard Cards */}
               <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-                <Card className="p-4 bg-card border-border">
+                <Card className="p-4 bg-card border-border cursor-pointer hover:border-emerald-400/40 transition-colors" onClick={() => setKpiSheet('recebido')}>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
                     <TrendingUp className="h-3.5 w-3.5 text-emerald-400" /> Recebido
                   </div>
                   <p className="text-lg md:text-xl font-bold text-emerald-400">{fmt(dashboard.totalReceivedMonth)}</p>
                 </Card>
-                <Card className="p-4 bg-card border-border">
+                <Card className="p-4 bg-card border-border cursor-pointer hover:border-amber-400/40 transition-colors" onClick={() => setKpiSheet('a_receber')}>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
                     <CalendarDays className="h-3.5 w-3.5 text-amber-400" /> A receber
                   </div>
                   <p className="text-lg md:text-xl font-bold text-amber-400">{fmt(dashboard.totalPendingMonth)}</p>
                 </Card>
-                <Card className="p-4 bg-card border-border">
+                <Card className="p-4 bg-card border-border cursor-pointer hover:border-red-400/40 transition-colors" onClick={() => setKpiSheet('atraso')}>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
                     <AlertTriangle className="h-3.5 w-3.5 text-red-400" /> Em atraso
                   </div>
                   <p className="text-lg md:text-xl font-bold text-red-400">{fmt(dashboard.totalLate)}</p>
                 </Card>
-                <Card className="p-4 bg-card border-border">
+                <Card className="p-4 bg-card border-border cursor-pointer hover:border-blue-400/40 transition-colors" onClick={() => setKpiSheet('despesas')}>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
                     <Wallet className="h-3.5 w-3.5 text-blue-400" /> Despesas Lançadas
                   </div>
                   <p className="text-lg md:text-xl font-bold text-blue-400">{fmt(dashboard.totalExpensesMonth)}</p>
                 </Card>
-                <Card className="p-4 bg-card border-border">
+                <Card className="p-4 bg-card border-border cursor-pointer hover:border-teal-400/40 transition-colors" onClick={() => setKpiSheet('despesas_pagas')}>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
                     <CheckCircle className="h-3.5 w-3.5 text-teal-400" /> Despesas Pagas
                   </div>
                   <p className="text-lg md:text-xl font-bold text-teal-400">{fmt(dashboard.totalExpensesPaidMonth)}</p>
                 </Card>
-                <Card className="p-4 bg-card border-border col-span-2 md:col-span-1">
+                <Card className="p-4 bg-card border-border col-span-2 md:col-span-1 cursor-pointer hover:border-primary/40 transition-colors" onClick={() => setKpiSheet('saldo')}>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
                     <Scale className="h-3.5 w-3.5 text-primary" /> Saldo
                   </div>
@@ -1077,6 +1078,144 @@ export default function Financeiro() {
         accounts={bankAccounts.activeAccounts}
         onSuccess={() => { bankAccounts.refresh(); dashboard.refresh(); }}
       />
+      {/* KPI Detail Sheet */}
+      <Sheet open={!!kpiSheet} onOpenChange={(open) => !open && setKpiSheet(null)}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>
+              {kpiSheet === 'recebido' && '✅ Recebido no Período'}
+              {kpiSheet === 'a_receber' && '📅 A Receber no Período'}
+              {kpiSheet === 'atraso' && '⚠️ Em Atraso'}
+              {kpiSheet === 'despesas' && '📋 Despesas Lançadas no Período'}
+              {kpiSheet === 'despesas_pagas' && '✅ Despesas Pagas no Período'}
+              {kpiSheet === 'saldo' && '📊 Resumo do Saldo'}
+            </SheetTitle>
+            <SheetDescription>
+              {kpiSheet === 'saldo'
+                ? 'Visão consolidada de receitas e despesas do período'
+                : `${(() => {
+                    if (kpiSheet === 'recebido') return dashboard.paidThisMonth.length;
+                    if (kpiSheet === 'a_receber') return dashboard.pendingThisMonth.length;
+                    if (kpiSheet === 'atraso') return dashboard.latePayments.length;
+                    if (kpiSheet === 'despesas') return dashboard.expensesThisMonth.filter(e => e.expense_type !== 'ajuste').length;
+                    if (kpiSheet === 'despesas_pagas') return dashboard.expensesThisMonth.filter(e => e.expense_type !== 'ajuste' && e.status === 'pago').length;
+                    return 0;
+                  })()} itens`}
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="mt-4 space-y-2">
+            {/* Recebido */}
+            {kpiSheet === 'recebido' && dashboard.paidThisMonth.map(p => (
+              <Card key={p.id} className="p-3 bg-card border-border">
+                <div className="flex justify-between items-start">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground truncate">{p.lead_name || p.event_title}</p>
+                    <p className="text-xs text-muted-foreground">{p.type === 'entrada' ? 'Entrada' : 'Parcela'} · {p.paid_at ? format(new Date(p.paid_at), 'dd/MM/yyyy') : ''}</p>
+                    {p.unit && <Badge variant="outline" className="mt-1 text-[10px]">{p.unit}</Badge>}
+                  </div>
+                  <p className="text-sm font-bold text-emerald-400 whitespace-nowrap ml-2">{fmt(p.amount)}</p>
+                </div>
+              </Card>
+            ))}
+
+            {/* A receber */}
+            {kpiSheet === 'a_receber' && dashboard.pendingThisMonth.map(p => (
+              <Card key={p.id} className="p-3 bg-card border-border">
+                <div className="flex justify-between items-start">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground truncate">{p.lead_name || p.event_title}</p>
+                    <p className="text-xs text-muted-foreground">{p.type === 'entrada' ? 'Entrada' : 'Parcela'} · Vence {format(new Date(p.due_date + 'T12:00:00'), 'dd/MM/yyyy')}</p>
+                    {p.unit && <Badge variant="outline" className="mt-1 text-[10px]">{p.unit}</Badge>}
+                  </div>
+                  <p className="text-sm font-bold text-amber-400 whitespace-nowrap ml-2">{fmt(p.amount)}</p>
+                </div>
+              </Card>
+            ))}
+
+            {/* Em atraso */}
+            {kpiSheet === 'atraso' && dashboard.latePayments.map(p => (
+              <Card key={p.id} className="p-3 bg-card border-border">
+                <div className="flex justify-between items-start">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground truncate">{p.lead_name || p.event_title}</p>
+                    <p className="text-xs text-red-400">{p.type === 'entrada' ? 'Entrada' : 'Parcela'} · Venceu {format(new Date(p.due_date + 'T12:00:00'), 'dd/MM/yyyy')}</p>
+                    {p.unit && <Badge variant="outline" className="mt-1 text-[10px]">{p.unit}</Badge>}
+                  </div>
+                  <p className="text-sm font-bold text-red-400 whitespace-nowrap ml-2">{fmt(p.amount)}</p>
+                </div>
+              </Card>
+            ))}
+
+            {/* Despesas lançadas */}
+            {kpiSheet === 'despesas' && dashboard.expensesThisMonth.filter(e => e.expense_type !== 'ajuste').map(e => (
+              <Card key={e.id} className="p-3 bg-card border-border">
+                <div className="flex justify-between items-start">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground truncate">{e.description}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {CATEGORY_LABELS[e.category] || e.category} · {format(new Date(e.expense_date + 'T12:00:00'), 'dd/MM/yyyy')}
+                    </p>
+                    <Badge variant={e.status === 'pago' ? 'default' : 'outline'} className="mt-1 text-[10px]">
+                      {e.status === 'pago' ? 'Pago' : 'Pendente'}
+                    </Badge>
+                  </div>
+                  <p className="text-sm font-bold text-blue-400 whitespace-nowrap ml-2">{fmt(e.amount)}</p>
+                </div>
+              </Card>
+            ))}
+
+            {/* Despesas pagas */}
+            {kpiSheet === 'despesas_pagas' && dashboard.expensesThisMonth.filter(e => e.expense_type !== 'ajuste' && e.status === 'pago').map(e => (
+              <Card key={e.id} className="p-3 bg-card border-border">
+                <div className="flex justify-between items-start">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground truncate">{e.description}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {CATEGORY_LABELS[e.category] || e.category} · {format(new Date(e.expense_date + 'T12:00:00'), 'dd/MM/yyyy')}
+                    </p>
+                  </div>
+                  <p className="text-sm font-bold text-teal-400 whitespace-nowrap ml-2">{fmt(e.amount)}</p>
+                </div>
+              </Card>
+            ))}
+
+            {/* Saldo - resumo */}
+            {kpiSheet === 'saldo' && (
+              <div className="space-y-3">
+                <Card className="p-4 bg-card border-border space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Receitas recebidas</span>
+                    <span className="text-emerald-400 font-medium">{fmt(dashboard.totalReceivedMonth)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Receitas pendentes</span>
+                    <span className="text-amber-400 font-medium">{fmt(dashboard.totalPendingMonth)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Em atraso</span>
+                    <span className="text-red-400 font-medium">{fmt(dashboard.totalLate)}</span>
+                  </div>
+                  <div className="border-t border-border my-1" />
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Despesas lançadas</span>
+                    <span className="text-blue-400 font-medium">{fmt(dashboard.totalExpensesMonth)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Despesas pagas</span>
+                    <span className="text-teal-400 font-medium">{fmt(dashboard.totalExpensesPaidMonth)}</span>
+                  </div>
+                  <div className="border-t border-border my-1" />
+                  <div className="flex justify-between text-sm font-bold">
+                    <span className="text-foreground">Saldo (Recebido - Despesas)</span>
+                    <span className={dashboard.saldoMonth >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmt(dashboard.saldoMonth)}</span>
+                  </div>
+                </Card>
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </SidebarProvider>
   );
 }
