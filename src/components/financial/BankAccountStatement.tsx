@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowUpCircle, ArrowDownCircle, Loader2, SlidersHorizontal } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Loader2, SlidersHorizontal, Calendar, Users, Clock, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -58,8 +58,9 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
   const [adjustDescription, setAdjustDescription] = useState('');
   const [adjustSaving, setAdjustSaving] = useState(false);
 
-  // Event financial sheet
   const [selectedEvent, setSelectedEvent] = useState<{ id: string; title: string } | null>(null);
+  const [eventDetails, setEventDetails] = useState<any>(null);
+  const [eventClientData, setEventClientData] = useState<any>(null);
 
   // Expense detail sheet
   const [selectedExpense, setSelectedExpense] = useState<Movement | null>(null);
