@@ -108,6 +108,7 @@ export function TransferBetweenAccountsDialog({ open, onOpenChange, accounts, on
       setToId('');
       setAmount('');
       setDescription('');
+      setResponsible('');
       onSuccess();
     } catch (err: any) {
       toast({ title: 'Erro na transferência', description: err.message, variant: 'destructive' });
