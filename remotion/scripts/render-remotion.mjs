@@ -47,7 +47,7 @@ console.log("Muxing audio...");
 
 import { execSync } from "child_process";
 execSync(
-  `ffmpeg -y -i /tmp/celebrei-video-only.mp4 -i "${audioPath}" -c:v copy -c:a aac -b:a 192k -shortest "${outputPath}"`,
+  `ffmpeg -y -i /tmp/celebrei-video-only.mp4 -stream_loop -1 -i "${audioPath}" -c:v copy -c:a aac -b:a 192k -shortest "${outputPath}"`,
   { stdio: "inherit" }
 );
 
