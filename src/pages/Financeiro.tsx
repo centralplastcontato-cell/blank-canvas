@@ -290,7 +290,7 @@ export default function Financeiro() {
                       onClick={() => handlePresetChange(p.value)}
                       className={`inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap ${
                         activePreset === p.value
-                          ? 'bg-foreground text-background border-foreground shadow-sm'
+                          ? 'bg-primary text-primary-foreground border-primary shadow-sm'
                           : 'bg-transparent text-muted-foreground border-border hover:bg-accent hover:text-foreground'
                       }`}
                     >
@@ -303,7 +303,7 @@ export default function Financeiro() {
                       <button
                         className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap ${
                           activePreset === 'custom'
-                            ? 'bg-foreground text-background border-foreground shadow-sm'
+                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
                             : 'bg-transparent text-muted-foreground border-border hover:bg-accent hover:text-foreground'
                         }`}
                       >
