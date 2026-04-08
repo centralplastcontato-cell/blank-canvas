@@ -318,7 +318,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
                         {adjustType === 'entry' ? '+' : '-'}{fmt(parsed)}
                       </span>
                     </div>
-                    <Separator className="my-2" />
+                    <div className="border-t border-border my-2" />
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium text-foreground">Saldo projetado</span>
                       <span className={`font-bold text-base ${projected >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
