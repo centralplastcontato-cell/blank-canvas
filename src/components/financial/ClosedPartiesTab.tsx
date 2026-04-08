@@ -45,7 +45,7 @@ export function ClosedPartiesTab({ from, to, unitFilter, onOpenEvent }: ClosedPa
   const [events, setEvents] = useState<ClosedEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<"fechamento" | "event_date">("fechamento");
-
+  const [page, setPage] = useState(1);
   const fetchClosed = useCallback(async () => {
     if (!currentCompany?.id) return;
     setLoading(true);
