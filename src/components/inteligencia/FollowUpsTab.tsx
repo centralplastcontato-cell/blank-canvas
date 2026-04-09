@@ -69,6 +69,8 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
   const [instanceDelaysMap, setInstanceDelaysMap] = useState<Map<string, InstanceDelays>>(new Map());
   const [visibleCounts, setVisibleCounts] = useState<Record<number, number>>({});
   const [expandedSummaries, setExpandedSummaries] = useState<Set<string>>(new Set());
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const selectedLead = selectedLeadId ? followUpLeads.find(l => l.leadId === selectedLeadId) : null;
 
   useEffect(() => {
     if (!currentCompany?.id) return;
