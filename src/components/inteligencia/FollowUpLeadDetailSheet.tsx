@@ -359,17 +359,18 @@ export function FollowUpLeadDetailSheet({
                   {QUICK_ACTIONS.map((action) => {
                     const Icon = action.icon;
                     const isLoading = actionLoading === action.label;
+                    const isClicked = clickedActions.has(action.label);
                     return (
                       <Button
                         key={action.label}
                         variant="outline"
                         size="sm"
-                        className={`justify-start gap-2 text-xs h-9 ${action.color}`}
+                        className={`justify-start gap-2 text-xs h-9 transition-all ${isClicked ? "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:border-emerald-600" : action.color}`}
                         disabled={!!actionLoading}
                         onClick={() => handleQuickAction(action.label, action.changeStatus)}
                       >
                         {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
-                        {action.label}
+                        {isClicked ? `✓ ${action.label}` : action.label}
                       </Button>
                     );
                   })}
@@ -385,17 +386,18 @@ export function FollowUpLeadDetailSheet({
                   {LOSS_REASONS.map((reason) => {
                     const Icon = reason.icon;
                     const isLoading = actionLoading === reason.label;
+                    const isClicked = clickedActions.has(reason.label);
                     return (
                       <Button
                         key={reason.label}
                         variant="outline"
                         size="sm"
-                        className="justify-start gap-2 text-xs h-9 text-rose-600 border-rose-200 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:border-rose-800 dark:hover:bg-rose-900/40"
+                        className={`justify-start gap-2 text-xs h-9 transition-all ${isClicked ? "bg-rose-600 text-white border-rose-600 hover:bg-rose-700 dark:bg-rose-600 dark:border-rose-600" : "text-rose-600 border-rose-200 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:border-rose-800 dark:hover:bg-rose-900/40"}`}
                         disabled={!!actionLoading}
                         onClick={() => handleLossReason(reason.label)}
                       >
                         {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
-                        {reason.label}
+                        {isClicked ? `✓ ${reason.label}` : reason.label}
                       </Button>
                     );
                   })}
