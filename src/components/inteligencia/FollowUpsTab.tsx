@@ -1,4 +1,5 @@
 import { useEffect, useState, lazy, Suspense } from "react";
+import { FollowUpLeadDetailSheet } from "./FollowUpLeadDetailSheet";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,8 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
   const [instanceDelaysMap, setInstanceDelaysMap] = useState<Map<string, InstanceDelays>>(new Map());
   const [visibleCounts, setVisibleCounts] = useState<Record<number, number>>({});
   const [expandedSummaries, setExpandedSummaries] = useState<Set<string>>(new Set());
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const selectedLead = selectedLeadId ? followUpLeads.find(l => l.leadId === selectedLeadId) : null;
 
   useEffect(() => {
     if (!currentCompany?.id) return;
@@ -359,7 +362,7 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
                   {visibleLeads.map(lead => {
                     const isSummaryOpen = expandedSummaries.has(lead.leadId);
                     return (
-                      <div key={lead.leadId} className="p-4 rounded-lg border border-border/50 bg-card/50 hover:bg-card transition-colors">
+                      <div key={lead.leadId} className="p-4 rounded-lg border border-border/50 bg-card/50 hover:bg-card transition-colors cursor-pointer" onClick={() => setSelectedLeadId(lead.leadId)}>
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm truncate">{lead.leadName}</p>
@@ -387,7 +390,10 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
                             size="icon"
                             variant="outline"
                             className="shrink-0 h-8 w-8"
-                            onClick={() => navigate(`/atendimento?phone=${lead.leadWhatsapp}`)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/atendimento?phone=${lead.leadWhatsapp}`);
+                            }}
                           >
                             <MessageCircle className="h-4 w-4" />
                           </Button>
@@ -434,6 +440,15 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
         );
       })}
     </div>
+
+      <FollowUpLeadDetailSheet
+        leadId={selectedLeadId}
+        isOpen={!!selectedLeadId}
+        onClose={() => setSelectedLeadId(null)}
+        score={selectedLead?.score}
+        temperature={selectedLead?.temperature}
+        leadWhatsapp={selectedLead?.leadWhatsapp}
+      />
     </div>
   );
 }
