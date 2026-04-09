@@ -637,10 +637,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Notifications hook - uses shared toggle state
   const { notificationsEnabled } = useChatNotificationToggle();
   
-  const { notify, requestPermission, hasPermission: hasBrowserPermission } = useNotifications({
+  const { notify: notifyFn, requestPermission, hasPermission: hasBrowserPermission } = useNotifications({
     soundEnabled: notificationsEnabled,
     browserNotificationsEnabled: notificationsEnabled,
   });
+  const notifyRef = useRef(notifyFn);
+  notifyRef.current = notifyFn;
 
   // Request notification permission on mount if enabled
   useEffect(() => {
@@ -1061,15 +1063,25 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
   }, [initialPhone]);
 
+  const prevInitialPhoneRef = useRef<string | null | undefined>(initialPhone);
+
   useEffect(() => {
     if (selectedInstance) {
-      setConversations([]);
-      // Pass initialPhone only on first load if not yet processed
-      if (initialPhone && !initialPhoneProcessed) {
-        fetchConversations(initialPhone);
-        setInitialPhoneProcessed(true);
+      // Skip full re-fetch when initialPhone was just cleared after being handled
+      const wasPhoneJustHandled = prevInitialPhoneRef.current && !initialPhone && initialPhoneProcessed;
+      prevInitialPhoneRef.current = initialPhone;
+
+      if (wasPhoneJustHandled) {
+        // Phone was handled successfully - don't clear conversations or re-fetch
       } else {
-        fetchConversations();
+        setConversations([]);
+        // Pass initialPhone only on first load if not yet processed
+        if (initialPhone && !initialPhoneProcessed) {
+          fetchConversations(initialPhone);
+          setInitialPhoneProcessed(true);
+        } else {
+          fetchConversations();
+        }
       }
 
       // Realtime channel for conversation updates
@@ -1097,7 +1109,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                 !newData.last_message_from_me &&
                 newData.id !== selectedConversationRef.current
               ) {
-                notify({
+                notifyRef.current({
                   title: newData.contact_name || newData.contact_phone,
                   body: newData.last_message_content || 'Nova mensagem',
                   tag: `whatsapp-${newData.id}`,
@@ -1182,7 +1194,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         supabase.removeChannel(conversationsChannel);
       };
     }
-  }, [selectedInstance, notify, initialPhone, initialPhoneProcessed]);
+  }, [selectedInstance, initialPhone, initialPhoneProcessed]);
 
   // Track if at bottom using ref for realtime callback access
   const isAtBottomRef = useRef(true);
