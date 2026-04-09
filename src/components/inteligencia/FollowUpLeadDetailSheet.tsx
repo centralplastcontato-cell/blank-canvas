@@ -203,7 +203,7 @@ export function FollowUpLeadDetailSheet({
 
       toast.success(`Ação registrada: ${label}`);
       setClickedActions(prev => new Set(prev).add(label));
-      onUpdate?.();
+      if (changeStatus) onUpdate?.();
     } catch {
       toast.error("Erro ao registrar ação");
     } finally {
@@ -234,7 +234,6 @@ export function FollowUpLeadDetailSheet({
 
       toast.success(`Motivo registrado: ${reason}`);
       setClickedActions(prev => new Set(prev).add(reason));
-      onUpdate?.();
     } catch {
       toast.error("Erro ao registrar motivo");
     } finally {
@@ -365,7 +364,9 @@ export function FollowUpLeadDetailSheet({
                         key={action.label}
                         variant="outline"
                         size="sm"
-                        className={`justify-start gap-2 text-xs h-9 transition-all ${isClicked ? "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:border-emerald-600" : action.color}`}
+                        className={isClicked
+                          ? "justify-start gap-2 text-xs h-9 transition-all border-emerald-600 bg-emerald-600 text-primary-foreground hover:bg-emerald-600 hover:text-primary-foreground"
+                          : `justify-start gap-2 text-xs h-9 transition-all ${action.color}`}
                         disabled={!!actionLoading}
                         onClick={() => handleQuickAction(action.label, action.changeStatus)}
                       >
@@ -392,7 +393,9 @@ export function FollowUpLeadDetailSheet({
                         key={reason.label}
                         variant="outline"
                         size="sm"
-                        className={`justify-start gap-2 text-xs h-9 transition-all ${isClicked ? "bg-rose-600 text-white border-rose-600 hover:bg-rose-700 dark:bg-rose-600 dark:border-rose-600" : "text-rose-600 border-rose-200 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:border-rose-800 dark:hover:bg-rose-900/40"}`}
+                        className={isClicked
+                          ? "justify-start gap-2 text-xs h-9 transition-all border-destructive bg-destructive text-destructive-foreground hover:bg-destructive hover:text-destructive-foreground"
+                          : "justify-start gap-2 text-xs h-9 transition-all text-rose-600 border-rose-200 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:border-rose-800 dark:hover:bg-rose-900/40"}
                         disabled={!!actionLoading}
                         onClick={() => handleLossReason(reason.label)}
                       >
