@@ -38,6 +38,15 @@ interface VisitData {
   visit_type?: string;
 }
 
+interface AutoLostHistoryEntry {
+  id: string;
+  lead_id: string;
+  action: string;
+  old_value?: string | null;
+  new_value?: string | null;
+  created_at: string;
+}
+
 export interface ComercialReportParams {
   type: string;
   companyName: string;
@@ -47,6 +56,7 @@ export interface ComercialReportParams {
   leads: LeadData[];
   events?: EventData[];
   visits?: VisitData[];
+  autoLostHistory?: AutoLostHistoryEntry[];
 }
 
 const fmtDate = (d: string) => { if (!d) return '—'; const [y, m, day] = d.slice(0, 10).split('-'); return `${day}/${m}/${y}`; };
