@@ -403,23 +403,26 @@ export function FollowUpLeadDetailSheet({
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                   Observações
                 </h3>
-                <Textarea
-                  value={observacoes}
-                  onChange={(e) => setObservacoes(e.target.value)}
-                  placeholder="Escreva observações sobre este lead..."
-                  className="text-xs min-h-[60px] resize-none"
-                  rows={3}
-                />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full mt-2 gap-2 text-xs"
-                  disabled={savingObs || observacoes === (lead.observacoes || "")}
-                  onClick={handleSaveObservacoes}
-                >
-                  {savingObs ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                  Salvar observações
-                </Button>
+                <div className="rounded-lg border border-border bg-background p-3 space-y-2">
+                  <Textarea
+                    value={observacoes}
+                    onChange={(e) => setObservacoes(e.target.value)}
+                    placeholder="Escreva suas observações aqui..."
+                    className="text-xs min-h-[80px] resize-none border-0 bg-transparent p-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50"
+                    rows={4}
+                  />
+                  <div className="flex justify-end pt-1 border-t border-border/40">
+                    <Button
+                      size="sm"
+                      className="gap-1.5 text-xs h-7 px-3"
+                      disabled={savingObs || observacoes === (lead.observacoes || "")}
+                      onClick={handleSaveObservacoes}
+                    >
+                      {savingObs ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                      Salvar
+                    </Button>
+                  </div>
+                </div>
               </div>
 
               {/* AI Summary */}
