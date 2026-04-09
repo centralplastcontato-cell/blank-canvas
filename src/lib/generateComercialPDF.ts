@@ -547,5 +547,39 @@ export function generateComercialXLSX(params: ComercialReportParams) {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), 'Resumo Vendas');
   }
 
+  if (params.type === 'auto_perdido') {
+    const history = params.autoLostHistory || [];
+    const periodHistory = history.filter(h => {
+      const dt = h.created_at.slice(0, 10);
+      return dt >= params.from && dt <= params.to;
+    });
+    const leadMap = new Map(params.leads.map(l => [l.id, l]));
+    const autoLostLeadIds = [...new Set(periodHistory.map(h => h.lead_id))];
+
+    const rows = periodHistory.sort((a, b) => a.created_at.localeCompare(b.created_at)).map(h => {
+      const lead = leadMap.get(h.lead_id);
+      return {
+        'Data Auto-Perda': fmtDate(h.created_at),
+        Lead: lead?.name || '—',
+        WhatsApp: lead?.whatsapp || '—',
+        Unidade: lead?.unit || '—',
+        'Mês Interesse': lead?.month || '—',
+        'Status Atual': lead ? (STATUS_LABELS[lead.status] || lead.status) : '—',
+      };
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Auto-Perdidos');
+
+    const stillLost = autoLostLeadIds.filter(id => { const l = leadMap.get(id); return l && l.status === 'perdido'; }).length;
+    const reactivated = autoLostLeadIds.length - stillLost;
+    const summaryRows = [
+      { Métrica: 'Período', Valor: params.periodLabel },
+      { Métrica: 'Total Auto-Perdidos', Valor: autoLostLeadIds.length },
+      { Métrica: 'Ainda Perdidos', Valor: stillLost },
+      { Métrica: 'Reativados', Valor: reactivated },
+      { Métrica: 'Taxa de Reativação', Valor: autoLostLeadIds.length > 0 ? `${((reactivated / autoLostLeadIds.length) * 100).toFixed(1)}%` : '0%' },
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), 'Resumo');
+  }
+
   XLSX.writeFile(wb, `relatorio-comercial-${params.type}-${params.from}-${params.to}.xlsx`);
 }
