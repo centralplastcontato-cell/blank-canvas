@@ -138,6 +138,7 @@ export function FollowUpLeadDetailSheet({
   const [observacoes, setObservacoes] = useState("");
   const [savingObs, setSavingObs] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [clickedActions, setClickedActions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!leadId || !isOpen) return;
@@ -163,6 +164,7 @@ export function FollowUpLeadDetailSheet({
         setObservacoes(leadRes.data.observacoes || "");
       }
       if (histRes.data) setHistory(histRes.data as unknown as HistoryEvent[]);
+      setClickedActions(new Set());
       setLoading(false);
     };
 
