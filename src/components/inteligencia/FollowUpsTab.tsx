@@ -362,7 +362,7 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
                   {visibleLeads.map(lead => {
                     const isSummaryOpen = expandedSummaries.has(lead.leadId);
                     return (
-                      <div key={lead.leadId} className="p-4 rounded-lg border border-border/50 bg-card/50 hover:bg-card transition-colors">
+                      <div key={lead.leadId} className="p-4 rounded-lg border border-border/50 bg-card/50 hover:bg-card transition-colors cursor-pointer" onClick={() => setSelectedLeadId(lead.leadId)}>
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm truncate">{lead.leadName}</p>
