@@ -168,7 +168,7 @@ export function FollowUpLeadDetailSheet({
               {/* Info Section */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2 flex-wrap">
-                  {score !== undefined && <ScoreBadge score={score} />}
+                  {score !== undefined && <ScoreBadge score={score} classificacao={score >= 70 ? 'alta' : score >= 40 ? 'media' : 'baixa'} compact />}
                   {temperature && <TemperatureBadge temperature={temperature} />}
                 </div>
 
@@ -246,7 +246,7 @@ export function FollowUpLeadDetailSheet({
                   <div className="relative">
                     <div className="absolute left-[0.9rem] top-2 bottom-2 w-px bg-border/60" />
                     <div className="space-y-3">
-                      {history.map((ev, idx) => {
+                      {history.map((ev) => {
                         const colorClass = getActionColor(ev.action);
                         return (
                           <div key={ev.id} className="relative flex gap-3 pl-1">
@@ -257,11 +257,6 @@ export function FollowUpLeadDetailSheet({
                               <p className="text-xs font-medium text-foreground leading-snug">
                                 {ev.action}
                               </p>
-                              {ev.details && (
-                                <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                                  {ev.details}
-                                </p>
-                              )}
                               <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
                                 <Clock className="h-2.5 w-2.5" />
                                 {format(new Date(ev.created_at), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}
