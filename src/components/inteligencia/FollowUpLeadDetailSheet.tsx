@@ -403,7 +403,7 @@ export function FollowUpLeadDetailSheet({
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                   Observações
                 </h3>
-                <div className="rounded-lg border border-border bg-background p-3 space-y-2">
+                <div className="rounded-lg border border-border bg-white dark:bg-card p-3 space-y-2">
                   <Textarea
                     value={observacoes}
                     onChange={(e) => setObservacoes(e.target.value)}
