@@ -637,10 +637,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Notifications hook - uses shared toggle state
   const { notificationsEnabled } = useChatNotificationToggle();
   
-  const { notify, requestPermission, hasPermission: hasBrowserPermission } = useNotifications({
+  const { notify: notifyFn, requestPermission, hasPermission: hasBrowserPermission } = useNotifications({
     soundEnabled: notificationsEnabled,
     browserNotificationsEnabled: notificationsEnabled,
   });
+  const notifyRef = useRef(notifyFn);
+  notifyRef.current = notifyFn;
 
   // Request notification permission on mount if enabled
   useEffect(() => {
