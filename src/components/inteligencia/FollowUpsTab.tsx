@@ -437,6 +437,15 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
         );
       })}
     </div>
+
+      <FollowUpLeadDetailSheet
+        leadId={selectedLeadId}
+        isOpen={!!selectedLeadId}
+        onClose={() => setSelectedLeadId(null)}
+        score={selectedLead?.score}
+        temperature={selectedLead?.temperature}
+        leadWhatsapp={selectedLead?.leadWhatsapp}
+      />
     </div>
   );
 }
