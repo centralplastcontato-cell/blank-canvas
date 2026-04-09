@@ -1063,15 +1063,25 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
   }, [initialPhone]);
 
+  const prevInitialPhoneRef = useRef<string | null | undefined>(initialPhone);
+
   useEffect(() => {
     if (selectedInstance) {
-      setConversations([]);
-      // Pass initialPhone only on first load if not yet processed
-      if (initialPhone && !initialPhoneProcessed) {
-        fetchConversations(initialPhone);
-        setInitialPhoneProcessed(true);
+      // Skip full re-fetch when initialPhone was just cleared after being handled
+      const wasPhoneJustHandled = prevInitialPhoneRef.current && !initialPhone && initialPhoneProcessed;
+      prevInitialPhoneRef.current = initialPhone;
+
+      if (wasPhoneJustHandled) {
+        // Phone was handled successfully - don't clear conversations or re-fetch
       } else {
-        fetchConversations();
+        setConversations([]);
+        // Pass initialPhone only on first load if not yet processed
+        if (initialPhone && !initialPhoneProcessed) {
+          fetchConversations(initialPhone);
+          setInitialPhoneProcessed(true);
+        } else {
+          fetchConversations();
+        }
       }
 
       // Realtime channel for conversation updates
