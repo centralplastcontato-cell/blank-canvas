@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import {
   MessageCircle,
   Clock,
@@ -22,6 +23,15 @@ import {
   AlertTriangle,
   Eye,
   Send,
+  RefreshCw,
+  PhoneCall,
+  DollarSign,
+  CalendarX,
+  Users,
+  XCircle,
+  PhoneOff,
+  Save,
+  Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { LEAD_STATUS_LABELS, LeadStatus } from "@/types/crm";
@@ -29,6 +39,7 @@ import { TemperatureBadge } from "./TemperatureBadge";
 import { ScoreBadge } from "./ScoreBadge";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 
 const InlineAISummary = lazy(() =>
   import("./InlineAISummary").then((m) => ({ default: m.InlineAISummary }))
@@ -41,6 +52,7 @@ interface FollowUpLeadDetailSheetProps {
   score?: number;
   temperature?: string;
   leadWhatsapp?: string;
+  onUpdate?: () => void;
 }
 
 interface LeadData {
@@ -54,6 +66,7 @@ interface LeadData {
   month: string | null;
   guests: string | null;
   day_preference: string | null;
+  company_id: string;
 }
 
 interface HistoryEvent {
@@ -63,6 +76,12 @@ interface HistoryEvent {
 }
 
 function getActionIcon(action: string) {
+  if (action.includes("Motivo perda"))
+    return <AlertTriangle className="h-3.5 w-3.5" />;
+  if (action.includes("Reativar") || action.includes("reativado"))
+    return <RefreshCw className="h-3.5 w-3.5" />;
+  if (action.includes("Tentei contato"))
+    return <PhoneCall className="h-3.5 w-3.5" />;
   if (action.includes("Follow-up") || action.includes("follow-up"))
     return <Send className="h-3.5 w-3.5" />;
   if (action.includes("perdido"))
@@ -77,6 +96,9 @@ function getActionIcon(action: string) {
 }
 
 function getActionColor(action: string) {
+  if (action.includes("Reativar") || action.includes("reativado")) return "text-emerald-500 bg-emerald-500/10";
+  if (action.includes("Tentei contato")) return "text-sky-500 bg-sky-500/10";
+  if (action.includes("Motivo perda")) return "text-rose-500 bg-rose-500/10";
   if (action.includes("perdido")) return "text-rose-500 bg-rose-500/10";
   if (action.includes("Follow-up #4")) return "text-red-500 bg-red-500/10";
   if (action.includes("Follow-up #3")) return "text-orange-500 bg-orange-500/10";
@@ -86,6 +108,20 @@ function getActionColor(action: string) {
   return "text-muted-foreground bg-muted";
 }
 
+const QUICK_ACTIONS = [
+  { label: "Reativar lead", icon: RefreshCw, color: "text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:border-emerald-800 dark:hover:bg-emerald-900/40", changeStatus: "em_contato" as const },
+  { label: "Tentei contato", icon: PhoneCall, color: "text-sky-600 border-sky-200 bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/30 dark:border-sky-800 dark:hover:bg-sky-900/40" },
+];
+
+const LOSS_REASONS = [
+  { label: "Achou caro", icon: DollarSign },
+  { label: "Não tinha a data", icon: CalendarX },
+  { label: "Fechou no concorrente", icon: Users },
+  { label: "Sem interesse", icon: XCircle },
+  { label: "Número errado", icon: PhoneOff },
+  { label: "Vai retornar depois", icon: Clock },
+];
+
 export function FollowUpLeadDetailSheet({
   leadId,
   isOpen,
@@ -93,11 +129,15 @@ export function FollowUpLeadDetailSheet({
   score,
   temperature,
   leadWhatsapp: propWhatsapp,
+  onUpdate,
 }: FollowUpLeadDetailSheetProps) {
   const navigate = useNavigate();
   const [lead, setLead] = useState<LeadData | null>(null);
   const [history, setHistory] = useState<HistoryEvent[]>([]);
   const [loading, setLoading] = useState(false);
+  const [observacoes, setObservacoes] = useState("");
+  const [savingObs, setSavingObs] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     if (!leadId || !isOpen) return;
@@ -107,7 +147,7 @@ export function FollowUpLeadDetailSheet({
       const [leadRes, histRes] = await Promise.all([
         supabase
           .from("campaign_leads")
-          .select("id, name, whatsapp, status, unit, created_at, observacoes, month, guests, day_preference")
+          .select("id, name, whatsapp, status, unit, created_at, observacoes, month, guests, day_preference, company_id")
           .eq("id", leadId)
           .single(),
         supabase
@@ -118,13 +158,105 @@ export function FollowUpLeadDetailSheet({
           .limit(50),
       ]);
 
-      if (leadRes.data) setLead(leadRes.data as LeadData);
+      if (leadRes.data) {
+        setLead(leadRes.data as LeadData);
+        setObservacoes(leadRes.data.observacoes || "");
+      }
       if (histRes.data) setHistory(histRes.data as unknown as HistoryEvent[]);
       setLoading(false);
     };
 
     fetchData();
   }, [leadId, isOpen]);
+
+  const handleQuickAction = async (label: string, changeStatus?: string) => {
+    if (!lead || !leadId) return;
+    setActionLoading(label);
+
+    try {
+      const actionText = label === "Reativar lead" ? "Lead reativado manualmente" : label;
+
+      const { error: histError } = await supabase.from("lead_history").insert({
+        lead_id: leadId,
+        company_id: lead.company_id,
+        action: actionText,
+      });
+
+      if (histError) throw histError;
+
+      if (changeStatus) {
+        const { error: statusError } = await supabase
+          .from("campaign_leads")
+          .update({ status: changeStatus as any })
+          .eq("id", leadId);
+        if (statusError) throw statusError;
+        setLead(prev => prev ? { ...prev, status: changeStatus } : null);
+      }
+
+      setHistory(prev => [{
+        id: crypto.randomUUID(),
+        action: actionText,
+        created_at: new Date().toISOString(),
+      }, ...prev]);
+
+      toast.success(`Ação registrada: ${label}`);
+      onUpdate?.();
+    } catch {
+      toast.error("Erro ao registrar ação");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleLossReason = async (reason: string) => {
+    if (!lead || !leadId) return;
+    setActionLoading(reason);
+
+    try {
+      const actionText = `Motivo perda: ${reason}`;
+
+      const { error } = await supabase.from("lead_history").insert({
+        lead_id: leadId,
+        company_id: lead.company_id,
+        action: actionText,
+      });
+
+      if (error) throw error;
+
+      setHistory(prev => [{
+        id: crypto.randomUUID(),
+        action: actionText,
+        created_at: new Date().toISOString(),
+      }, ...prev]);
+
+      toast.success(`Motivo registrado: ${reason}`);
+      onUpdate?.();
+    } catch {
+      toast.error("Erro ao registrar motivo");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleSaveObservacoes = async () => {
+    if (!leadId) return;
+    setSavingObs(true);
+
+    try {
+      const { error } = await supabase
+        .from("campaign_leads")
+        .update({ observacoes })
+        .eq("id", leadId);
+
+      if (error) throw error;
+      setLead(prev => prev ? { ...prev, observacoes } : null);
+      toast.success("Observações salvas");
+    } catch {
+      toast.error("Erro ao salvar observações");
+    } finally {
+      setSavingObs(false);
+    }
+  };
 
   const whatsapp = lead?.whatsapp || propWhatsapp;
 
@@ -198,12 +330,6 @@ export function FollowUpLeadDetailSheet({
                   )}
                 </div>
 
-                {lead.observacoes && (
-                  <div className="bg-muted/40 rounded-lg px-3 py-2 border border-border/30">
-                    <p className="text-xs text-muted-foreground whitespace-pre-wrap">{lead.observacoes}</p>
-                  </div>
-                )}
-
                 {/* WhatsApp Button */}
                 {whatsapp && (
                   <Button
@@ -218,6 +344,82 @@ export function FollowUpLeadDetailSheet({
                     Abrir conversa no WhatsApp
                   </Button>
                 )}
+              </div>
+
+              {/* Quick Actions */}
+              <div>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  Ações Rápidas
+                </h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {QUICK_ACTIONS.map((action) => {
+                    const Icon = action.icon;
+                    const isLoading = actionLoading === action.label;
+                    return (
+                      <Button
+                        key={action.label}
+                        variant="outline"
+                        size="sm"
+                        className={`justify-start gap-2 text-xs h-9 ${action.color}`}
+                        disabled={!!actionLoading}
+                        onClick={() => handleQuickAction(action.label, action.changeStatus)}
+                      >
+                        {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
+                        {action.label}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Loss Reasons */}
+              <div>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  Motivo da Perda
+                </h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {LOSS_REASONS.map((reason) => {
+                    const Icon = reason.icon;
+                    const isLoading = actionLoading === reason.label;
+                    return (
+                      <Button
+                        key={reason.label}
+                        variant="outline"
+                        size="sm"
+                        className="justify-start gap-2 text-xs h-9 text-rose-600 border-rose-200 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:border-rose-800 dark:hover:bg-rose-900/40"
+                        disabled={!!actionLoading}
+                        onClick={() => handleLossReason(reason.label)}
+                      >
+                        {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
+                        {reason.label}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Observações */}
+              <div>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  Observações
+                </h3>
+                <Textarea
+                  value={observacoes}
+                  onChange={(e) => setObservacoes(e.target.value)}
+                  placeholder="Escreva observações sobre este lead..."
+                  className="text-xs min-h-[60px] resize-none"
+                  rows={3}
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full mt-2 gap-2 text-xs"
+                  disabled={savingObs || observacoes === (lead.observacoes || "")}
+                  onClick={handleSaveObservacoes}
+                >
+                  {savingObs ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  Salvar observações
+                </Button>
               </div>
 
               {/* AI Summary */}
