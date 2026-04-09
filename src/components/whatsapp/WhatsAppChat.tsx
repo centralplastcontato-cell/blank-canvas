@@ -1070,9 +1070,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       if (initialPhone && !initialPhoneProcessed) {
         fetchConversations(initialPhone);
         setInitialPhoneProcessed(true);
-      } else if (!initialPhoneProcessed || selectedInstance) {
+      } else {
         fetchConversations();
-      }
       }
 
       // Realtime channel for conversation updates
@@ -1100,7 +1099,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                 !newData.last_message_from_me &&
                 newData.id !== selectedConversationRef.current
               ) {
-                notify({
+                notifyRef.current({
                   title: newData.contact_name || newData.contact_phone,
                   body: newData.last_message_content || 'Nova mensagem',
                   tag: `whatsapp-${newData.id}`,
@@ -1185,7 +1184,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         supabase.removeChannel(conversationsChannel);
       };
     }
-  }, [selectedInstance, notify, initialPhone, initialPhoneProcessed]);
+  }, [selectedInstance, initialPhone, initialPhoneProcessed]);
 
   // Track if at bottom using ref for realtime callback access
   const isAtBottomRef = useRef(true);
