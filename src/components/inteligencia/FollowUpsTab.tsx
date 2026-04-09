@@ -448,6 +448,7 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
         score={selectedLead?.score}
         temperature={selectedLead?.temperature}
         leadWhatsapp={selectedLead?.leadWhatsapp}
+        onUpdate={loadFollowUpData}
       />
     </div>
   );
