@@ -1,35 +1,77 @@
 
 
-## Modal de Detalhes do Lead nos Follow-ups
+## Acoes Rapidas + Motivos de Perda + Observacoes no Modal de Lead
 
-### Problema
-Atualmente, os cards de lead no kanban de Follow-ups nao abrem nenhum modal com detalhes — so tem o botao de chat e o resumo IA inline. O usuario quer clicar no card e ver informacoes do lead + timeline de historico.
+### O que sera adicionado ao `FollowUpLeadDetailSheet`
 
-### Plano
+Tres novas secoes entre o botao WhatsApp e o Resumo IA:
+
+**1. Acoes Rapidas (grid 2 colunas)**
+- **Reativar lead** (icone RefreshCw, verde) — muda status para `em_contato`, registra no historico
+- **Tentei contato** (icone PhoneCall, azul) — registra tentativa no historico
+
+**2. Motivo da Perda (grid 2 colunas, estilo rose/vermelho)**
+- **Achou caro** (icone DollarSign)
+- **Nao tinha a data** (icone CalendarX)
+- **Fechou no concorrente** (icone Users)
+- **Sem interesse** (icone XCircle)
+- **Numero errado** (icone PhoneOff)
+- **Vai retornar depois** (icone Clock)
+
+Cada botao registra a acao em `lead_history` (ex: `"Motivo perda: Achou caro"`) com `company_id` do lead, e aparece imediatamente na timeline.
+
+**3. Observacoes (textarea + botao Salvar)**
+- Campo editavel com valor inicial de `lead.observacoes`
+- Salva no `campaign_leads.observacoes` via update
+- Toast de confirmacao
+
+### Alteracoes tecnicas
+
+**Arquivo:** `src/components/inteligencia/FollowUpLeadDetailSheet.tsx`
+
+1. Adicionar `company_id` na query do lead (`campaign_leads`)
+2. Adicionar estados: `observacoes`, `savingObs`, `actionLoading`
+3. Funcao `handleQuickAction(label, changeStatus?)`:
+   - Insere em `lead_history` com `company_id`, `action: label`
+   - Se `changeStatus`, atualiza `campaign_leads.status`
+   - Prepend no array `history` local
+   - Toast
+4. Funcao `handleSaveObservacoes()`:
+   - Update `campaign_leads.observacoes`
+   - Toast
+5. Adicionar prop `onUpdate?: () => void` para notificar `FollowUpsTab` quando o lead for reativado (removido da lista)
 
 **Arquivo:** `src/components/inteligencia/FollowUpsTab.tsx`
 
-1. **Adicionar estado para o modal**: criar state `selectedLeadId` para controlar qual lead esta com o sheet aberto.
+6. Passar `onUpdate={loadFollowUpData}` ao `FollowUpLeadDetailSheet`
 
-2. **Tornar o card clicavel**: adicionar `onClick` no div do card que seta o `selectedLeadId`, com `cursor-pointer`.
+### Layout visual
 
-3. **Criar componente `FollowUpLeadDetailSheet`** (novo arquivo `src/components/inteligencia/FollowUpLeadDetailSheet.tsx`):
-   - Recebe `leadId`, `isOpen`, `onClose`
-   - Busca dados completos do lead em `campaign_leads` (name, whatsapp, status, unit, created_at, observacoes, etc.)
-   - Busca historico em `lead_history` ordenado por `created_at desc`
-   - Exibe em um `Sheet` (lateral direito) com:
-     - **Cabecalho**: nome, telefone, status badge, unidade, score/temperatura
-     - **Secao de info**: data de criacao, observacoes, data do follow-up enviado
-     - **Botao WhatsApp**: navega para `/atendimento?phone=...`
-     - **Resumo IA**: reutiliza `InlineAISummary`
-     - **Timeline de historico**: lista cronologica com icones por tipo de acao (follow-up, mudanca de status, etc.), data formatada em pt-BR, similar ao que ja existe no `LeadDetailSheet`
-
-4. **Renderizar o sheet no `FollowUpsTab`**: montar `<FollowUpLeadDetailSheet>` no final do JSX, passando o lead selecionado.
-
-### Detalhes tecnicos
-
-- Reutiliza o pattern de timeline do `LeadDetailSheet` existente (linhas ~460-560) mas simplificado, sem edicao
-- Query de historico: `supabase.from("lead_history").select("*").eq("lead_id", leadId).order("created_at", { ascending: false }).limit(50)`
-- O `onClick` do card nao deve conflitar com o botao de chat (ja tem `stopPropagation` implicito por ser um `Button`)
-- Componente read-only — sem edicao de status ou responsavel, apenas visualizacao e navegacao
+```text
+┌─────────────────────────────┐
+│  [Header: Nome + Status]    │
+├─────────────────────────────┤
+│  Score / Temperatura        │
+│  Phone / Data / Mes / etc   │
+│  [Abrir conversa WhatsApp]  │
+│                             │
+│  ── Acoes Rapidas ────────  │
+│  [Reativar]  [Tentei cont.] │
+│                             │
+│  ── Motivo da Perda ──────  │
+│  [Achou caro] [Sem data]   │
+│  [Concorrente][Sem interes.]│
+│  [Num. errado][Vai retornar]│
+│                             │
+│  ── Observacoes ──────────  │
+│  [textarea................] │
+│  [Salvar observacoes]       │
+│                             │
+│  ── Resumo IA ────────────  │
+│  ── Historico (N) ────────  │
+│  • Motivo perda: Achou caro │
+│  • Follow-up #3 enviado     │
+│  • ...                      │
+└─────────────────────────────┘
+```
 
