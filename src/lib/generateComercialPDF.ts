@@ -38,6 +38,15 @@ interface VisitData {
   visit_type?: string;
 }
 
+interface AutoLostHistoryEntry {
+  id: string;
+  lead_id: string;
+  action: string;
+  old_value?: string | null;
+  new_value?: string | null;
+  created_at: string;
+}
+
 export interface ComercialReportParams {
   type: string;
   companyName: string;
@@ -47,6 +56,7 @@ export interface ComercialReportParams {
   leads: LeadData[];
   events?: EventData[];
   visits?: VisitData[];
+  autoLostHistory?: AutoLostHistoryEntry[];
 }
 
 const fmtDate = (d: string) => { if (!d) return '—'; const [y, m, day] = d.slice(0, 10).split('-'); return `${day}/${m}/${y}`; };
@@ -345,12 +355,80 @@ function buildSalesSection(doc: jsPDF, y: number, params: ComercialReportParams)
   return y;
 }
 
+// ─── Auto-Lost section ───
+function buildAutoLostSection(doc: jsPDF, y: number, params: ComercialReportParams): number {
+  const history = params.autoLostHistory || [];
+  const periodHistory = history.filter(h => {
+    const dt = h.created_at.slice(0, 10);
+    return dt >= params.from && dt <= params.to;
+  });
+
+  // Map lead_id -> lead data
+  const leadMap = new Map(params.leads.map(l => [l.id, l]));
+
+  // Enrich with lead info
+  const enriched = periodHistory.map(h => {
+    const lead = leadMap.get(h.lead_id);
+    return { ...h, leadName: lead?.name || '—', leadWhatsapp: lead?.whatsapp || '—', leadUnit: lead?.unit || '—', leadMonth: lead?.month || '—' };
+  }).sort((a, b) => a.created_at.localeCompare(b.created_at));
+
+  // Count leads still lost vs reactivated
+  const autoLostLeadIds = new Set(periodHistory.map(h => h.lead_id));
+  const stillLost = [...autoLostLeadIds].filter(id => { const l = leadMap.get(id); return l && l.status === 'perdido'; }).length;
+  const reactivated = autoLostLeadIds.size - stillLost;
+
+  // By unit
+  const byUnit = new Map<string, number>();
+  enriched.forEach(e => { const u = e.leadUnit || 'Sem unidade'; byUnit.set(u, (byUnit.get(u) || 0) + 1); });
+
+  y = addKpiRow(doc, y, [
+    { label: 'Auto-Perdidos', value: String(autoLostLeadIds.size) },
+    { label: 'Ainda Perdidos', value: String(stillLost) },
+    { label: 'Reativados', value: String(reactivated) },
+    { label: 'Taxa Reativação', value: autoLostLeadIds.size > 0 ? `${((reactivated / autoLostLeadIds.size) * 100).toFixed(1)}%` : '0%' },
+  ]);
+
+  // Table
+  if (enriched.length > 0) {
+    autoTable(doc, {
+      startY: y,
+      head: [['Data Auto-Perda', 'Lead', 'WhatsApp', 'Unidade', 'Mês Int.', 'Status Atual']],
+      body: enriched.map(e => {
+        const lead = leadMap.get(e.lead_id);
+        const currentStatus = lead ? (STATUS_LABELS[lead.status] || lead.status) : '—';
+        return [fmtDate(e.created_at), e.leadName, e.leadWhatsapp, e.leadUnit, e.leadMonth, currentStatus];
+      }),
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [159, 18, 57], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+      alternateRowStyles: { fillColor: [254, 242, 242] },
+      margin: { left: 14, right: 14 },
+    });
+    y = (doc as any).lastAutoTable.finalY + 10;
+  } else {
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(120);
+    doc.text('Nenhum lead auto-perdido no período selecionado.', 14, y + 5);
+    doc.setTextColor(0); y += 15;
+  }
+
+  // Chart: by unit
+  if (byUnit.size > 1) {
+    y = checkPage(doc, y, 60);
+    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.text('Auto-Perdidos por Unidade', 14, y); y += 5;
+    const bars = [...byUnit.entries()].map(([label, value], i) => ({ label, value, color: CHART_COLORS[i % CHART_COLORS.length] }));
+    drawBarChart(doc, 14, y, doc.internal.pageSize.getWidth() - 28, 45, bars);
+    y += 55;
+  }
+
+  return y;
+}
+
 // ─── Public API ───
 
 const REPORT_TITLES: Record<string, string> = {
   funil: 'Relatório Comercial — Leads/CRM',
   visitas: 'Relatório de Visitas',
   vendas: 'Relatório de Vendas / Faturamento',
+  auto_perdido: 'Relatório de Leads Auto-Perdidos',
   completo: 'Relatório Comercial Completo',
 };
 
@@ -371,6 +449,10 @@ export function generateComercialPDF(params: ComercialReportParams) {
   if (params.type === 'vendas' || params.type === 'completo') {
     if (params.type === 'completo') { doc.addPage(); y = 20; y = addHeader(doc, params.companyName, 'Seção: Vendas / Faturamento', params.periodLabel); }
     y = buildSalesSection(doc, y, params);
+  }
+
+  if (params.type === 'auto_perdido') {
+    y = buildAutoLostSection(doc, y, params);
   }
 
   doc.save(`relatorio-comercial-${params.type}-${params.from}-${params.to}.pdf`);
@@ -463,6 +545,40 @@ export function generateComercialXLSX(params: ComercialReportParams) {
       { Métrica: 'Ticket Médio', Valor: fmtCurrency(ticketMedio) },
     ];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), 'Resumo Vendas');
+  }
+
+  if (params.type === 'auto_perdido') {
+    const history = params.autoLostHistory || [];
+    const periodHistory = history.filter(h => {
+      const dt = h.created_at.slice(0, 10);
+      return dt >= params.from && dt <= params.to;
+    });
+    const leadMap = new Map(params.leads.map(l => [l.id, l]));
+    const autoLostLeadIds = [...new Set(periodHistory.map(h => h.lead_id))];
+
+    const rows = periodHistory.sort((a, b) => a.created_at.localeCompare(b.created_at)).map(h => {
+      const lead = leadMap.get(h.lead_id);
+      return {
+        'Data Auto-Perda': fmtDate(h.created_at),
+        Lead: lead?.name || '—',
+        WhatsApp: lead?.whatsapp || '—',
+        Unidade: lead?.unit || '—',
+        'Mês Interesse': lead?.month || '—',
+        'Status Atual': lead ? (STATUS_LABELS[lead.status] || lead.status) : '—',
+      };
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Auto-Perdidos');
+
+    const stillLost = autoLostLeadIds.filter(id => { const l = leadMap.get(id); return l && l.status === 'perdido'; }).length;
+    const reactivated = autoLostLeadIds.length - stillLost;
+    const summaryRows = [
+      { Métrica: 'Período', Valor: params.periodLabel },
+      { Métrica: 'Total Auto-Perdidos', Valor: autoLostLeadIds.length },
+      { Métrica: 'Ainda Perdidos', Valor: stillLost },
+      { Métrica: 'Reativados', Valor: reactivated },
+      { Métrica: 'Taxa de Reativação', Valor: autoLostLeadIds.length > 0 ? `${((reactivated / autoLostLeadIds.length) * 100).toFixed(1)}%` : '0%' },
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), 'Resumo');
   }
 
   XLSX.writeFile(wb, `relatorio-comercial-${params.type}-${params.from}-${params.to}.xlsx`);
