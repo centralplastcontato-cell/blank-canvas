@@ -202,6 +202,7 @@ export function FollowUpLeadDetailSheet({
       }, ...prev]);
 
       toast.success(`Ação registrada: ${label}`);
+      setClickedActions(prev => new Set(prev).add(label));
       onUpdate?.();
     } catch {
       toast.error("Erro ao registrar ação");
@@ -232,6 +233,7 @@ export function FollowUpLeadDetailSheet({
       }, ...prev]);
 
       toast.success(`Motivo registrado: ${reason}`);
+      setClickedActions(prev => new Set(prev).add(reason));
       onUpdate?.();
     } catch {
       toast.error("Erro ao registrar motivo");
