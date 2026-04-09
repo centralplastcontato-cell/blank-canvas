@@ -354,7 +354,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
         throw new Error("Erro ao excluir configurações do bot: " + settingsError.message);
       }
 
-      // Step 4: Get all conversations for this instance to delete messages
+      // Step 4: Get all conversations for this instance to delete messages in batches
       const { data: conversations } = await supabase
         .from("wapi_conversations")
         .select("id")
@@ -363,14 +363,27 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
       if (conversations && conversations.length > 0) {
         const conversationIds = conversations.map(c => c.id);
         
-        // Step 5: Delete all messages from these conversations
-        const { error: messagesError } = await supabase
-          .from("wapi_messages")
-          .delete()
-          .in("conversation_id", conversationIds);
-        
-        if (messagesError) {
-          console.error("Error deleting messages:", messagesError);
+        // Step 5: Delete messages in batches of 50 conversations to avoid 1000-row limit
+        const BATCH_SIZE = 50;
+        for (let i = 0; i < conversationIds.length; i += BATCH_SIZE) {
+          const batch = conversationIds.slice(i, i + BATCH_SIZE);
+          // Loop delete until no more rows match for this batch
+          let hasMore = true;
+          while (hasMore) {
+            const { data: deleted, error: messagesError } = await supabase
+              .from("wapi_messages")
+              .delete()
+              .in("conversation_id", batch)
+              .select("id")
+              .limit(500);
+            
+            if (messagesError) {
+              console.error("Error deleting messages batch:", messagesError);
+              hasMore = false;
+            } else {
+              hasMore = (deleted?.length || 0) >= 500;
+            }
+          }
         }
       }
 
