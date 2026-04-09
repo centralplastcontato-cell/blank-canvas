@@ -390,7 +390,10 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
                             size="icon"
                             variant="outline"
                             className="shrink-0 h-8 w-8"
-                            onClick={() => navigate(`/atendimento?phone=${lead.leadWhatsapp}`)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/atendimento?phone=${lead.leadWhatsapp}`);
+                            }}
                           >
                             <MessageCircle className="h-4 w-4" />
                           </Button>
