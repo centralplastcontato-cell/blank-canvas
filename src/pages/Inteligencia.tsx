@@ -557,17 +557,21 @@ export default function Inteligencia() {
           { value: 'funil', label: 'Funil + Leads', desc: 'Funil de vendas atual + leads novos no período' },
           { value: 'visitas', label: 'Visitas', desc: 'Relatório de visitas agendadas, realizadas e no-show' },
           { value: 'vendas', label: 'Vendas / Faturamento', desc: 'Festas fechadas, faturamento e ticket médio' },
+          { value: 'auto_perdido', label: 'Auto-Perdidos', desc: 'Leads movidos para perdido automaticamente pelo sistema' },
           { value: 'completo', label: 'Relatório Completo', desc: 'Funil + Visitas + Vendas em um só documento' },
         ]}
         unitOptions={unitOptions}
         onGenerate={async (p) => {
           if (!currentCompany?.id) return;
-          const loadAll = async (table: string, select: string, companyId: string) => {
+          const loadAll = async (table: string, select: string, companyId: string, extraFilter?: (q: any) => any) => {
             const all: any[] = [];
             const batchSize = 1000;
             let from = 0;
             while (true) {
-              const { data } = await (supabase as any).from(table).select(select).eq('company_id', companyId).range(from, from + batchSize - 1) as { data: any[] | null };
+              let q = (supabase as any).from(table).select(select).eq('company_id', companyId);
+              if (extraFilter) q = extraFilter(q);
+              q = q.range(from, from + batchSize - 1);
+              const { data } = await q as { data: any[] | null };
               if (!data || data.length === 0) break;
               all.push(...data);
               if (data.length < batchSize) break;
@@ -575,17 +579,19 @@ export default function Inteligencia() {
             }
             return all;
           };
-          const needsLeads = ['funil', 'vendas', 'completo'].includes(p.type);
+          const needsLeads = ['funil', 'vendas', 'completo', 'auto_perdido'].includes(p.type);
           const needsVisits = ['visitas', 'completo'].includes(p.type);
           const needsEvents = ['funil', 'vendas', 'completo'].includes(p.type);
-          const [leads, events, visits] = await Promise.all([
+          const needsAutoHistory = p.type === 'auto_perdido';
+          const [leads, events, visits, autoHistory] = await Promise.all([
             needsLeads ? loadAll('campaign_leads', 'id, name, whatsapp, status, unit, created_at, month, guests', currentCompany.id) : Promise.resolve([]),
             needsEvents ? loadAll('company_events', 'id, lead_id, data_fechamento_venda, status, unit, total_value, event_date, title, package_name, guest_count', currentCompany.id) : Promise.resolve([]),
             needsVisits ? loadAll('lead_visits', 'id, lead_id, status_visita, data_visita, horario_visita, company_id, interest_level, como_conheceu, observacoes, visit_type', currentCompany.id) : Promise.resolve([]),
+            needsAutoHistory ? loadAll('lead_history', 'id, lead_id, action, old_value, new_value, created_at', currentCompany.id, (q: any) => q.eq('action', 'Lead movido para perdido automaticamente')) : Promise.resolve([]),
           ]);
           const filtered = p.unit === 'all' ? leads : leads.filter((l: any) => l.unit === p.unit || l.unit === 'As duas');
           const filteredEvents = p.unit === 'all' ? events : events.filter((e: any) => e.unit === p.unit || e.unit === 'As duas');
-          const reportParams = { type: p.type, companyName: currentCompany?.name || '', periodLabel: p.periodLabel, from: p.from, to: p.to, leads: filtered, events: filteredEvents, visits };
+          const reportParams = { type: p.type, companyName: currentCompany?.name || '', periodLabel: p.periodLabel, from: p.from, to: p.to, leads: filtered, events: filteredEvents, visits, autoLostHistory: autoHistory };
           if (p.format === 'xlsx') generateComercialXLSX(reportParams);
           else generateComercialPDF(reportParams);
         }}
