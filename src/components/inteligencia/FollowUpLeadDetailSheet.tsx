@@ -187,7 +187,7 @@ export function FollowUpLeadDetailSheet({
       if (changeStatus) {
         const { error: statusError } = await supabase
           .from("campaign_leads")
-          .update({ status: changeStatus })
+          .update({ status: changeStatus as any })
           .eq("id", leadId);
         if (statusError) throw statusError;
         setLead(prev => prev ? { ...prev, status: changeStatus } : null);
