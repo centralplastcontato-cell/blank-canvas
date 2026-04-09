@@ -112,14 +112,14 @@ export function FollowUpLeadDetailSheet({
           .single(),
         supabase
           .from("lead_history")
-          .select("id, action, created_at, details")
+          .select("id, action, created_at")
           .eq("lead_id", leadId)
           .order("created_at", { ascending: false })
           .limit(50),
       ]);
 
       if (leadRes.data) setLead(leadRes.data as LeadData);
-      if (histRes.data) setHistory(histRes.data as HistoryEvent[]);
+      if (histRes.data) setHistory(histRes.data as unknown as HistoryEvent[]);
       setLoading(false);
     };
 
