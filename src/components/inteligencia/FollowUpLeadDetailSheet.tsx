@@ -143,6 +143,7 @@ export function FollowUpLeadDetailSheet({
   useEffect(() => {
     if (!leadId || !isOpen) return;
     setLoading(true);
+    setClickedActions(new Set());
 
     const fetchData = async () => {
       const [leadRes, histRes] = await Promise.all([
@@ -164,12 +165,11 @@ export function FollowUpLeadDetailSheet({
         setObservacoes(leadRes.data.observacoes || "");
       }
       if (histRes.data) setHistory(histRes.data as unknown as HistoryEvent[]);
-      setClickedActions(new Set());
       setLoading(false);
     };
 
     fetchData();
-  }, [leadId, isOpen]);
+  }, [leadId]);
 
   const handleQuickAction = async (label: string, changeStatus?: string) => {
     if (!lead || !leadId) return;
