@@ -1070,8 +1070,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       if (initialPhone && !initialPhoneProcessed) {
         fetchConversations(initialPhone);
         setInitialPhoneProcessed(true);
-      } else {
+      } else if (!initialPhoneProcessed || selectedInstance) {
         fetchConversations();
+      }
       }
 
       // Realtime channel for conversation updates
