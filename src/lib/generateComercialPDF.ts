@@ -20,6 +20,22 @@ interface EventData {
   status: string;
   unit?: string | null;
   total_value?: number | null;
+  event_date?: string | null;
+  title?: string | null;
+  package_name?: string | null;
+  guest_count?: number | null;
+}
+
+interface VisitData {
+  id: string;
+  lead_id?: string | null;
+  status_visita: string;
+  data_visita: string;
+  horario_visita?: string | null;
+  interest_level?: string | null;
+  como_conheceu?: string | null;
+  observacoes?: string | null;
+  visit_type?: string;
 }
 
 export interface ComercialReportParams {
@@ -30,14 +46,25 @@ export interface ComercialReportParams {
   to: string;
   leads: LeadData[];
   events?: EventData[];
+  visits?: VisitData[];
 }
 
 const fmtDate = (d: string) => { if (!d) return '—'; const [y, m, day] = d.slice(0, 10).split('-'); return `${day}/${m}/${y}`; };
+const fmtCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 });
 
 const STATUS_LABELS: Record<string, string> = {
   novo: 'Novo', em_contato: 'Em Contato', orcamento_enviado: 'Orçamento Enviado',
   aguardando_resposta: 'Aguardando', negociacao: 'Negociação', fechado: 'Fechado',
   perdido: 'Perdido', sem_interesse: 'Sem Interesse',
+};
+
+const VISIT_STATUS_LABELS: Record<string, string> = {
+  agendada: 'Agendada', confirmada: 'Confirmada', realizada: 'Realizada',
+  nao_compareceu: 'Não compareceu', remarcada: 'Remarcada', cancelada: 'Cancelada',
+};
+
+const INTEREST_LABELS: Record<string, string> = {
+  muito_alto: 'Muito Alto', alto: 'Alto', medio: 'Médio', baixo: 'Baixo',
 };
 
 const FUNNEL_ORDER = ['novo', 'em_contato', 'orcamento_enviado', 'aguardando_resposta', 'negociacao', 'fechado', 'perdido'];
@@ -60,6 +87,10 @@ function addHeader(doc: jsPDF, companyName: string, reportTitle: string, periodL
 
 function filterByPeriod(leads: LeadData[], from: string, to: string): LeadData[] {
   return leads.filter(l => l.created_at.slice(0, 10) >= from && l.created_at.slice(0, 10) <= to);
+}
+
+function filterVisitsByPeriod(visits: VisitData[], from: string, to: string): VisitData[] {
+  return visits.filter(v => v.data_visita >= from && v.data_visita <= to);
 }
 
 function drawBarChart(doc: jsPDF, x: number, y: number, w: number, h: number, bars: { label: string; value: number; color: [number, number, number] }[]) {
@@ -99,48 +130,49 @@ function drawFunnel(doc: jsPDF, x: number, y: number, w: number, data: { label: 
   doc.setTextColor(0);
 }
 
-export function generateComercialPDF(params: ComercialReportParams) {
-  const periodLeads = filterByPeriod(params.leads, params.from, params.to);
-  const doc = new jsPDF('p', 'mm', 'a4');
-  let y = addHeader(doc, params.companyName, 'Relatório Comercial — Leads/CRM', params.periodLabel);
-
-  const novos = periodLeads.length;
-  // Count "fechados" using events with data_fechamento_venda in the period
-  const events = params.events || [];
-  const fechadosNoPeriodo = events.filter(e => {
-    const dt = e.data_fechamento_venda?.slice(0, 10);
-    return dt && dt >= params.from && dt <= params.to && e.status !== 'cancelado';
-  });
-  const fechados = fechadosNoPeriodo.length;
-  const perdidos = periodLeads.filter(l => l.status === 'perdido').length;
-  const taxaConversao = novos > 0 ? ((fechados / novos) * 100).toFixed(1) : '0';
-  const faturamentoFechado = fechadosNoPeriodo.reduce((sum, e) => sum + (e.total_value || 0), 0);
-
-  // Build comprehensive lead set: created in period + leads linked to closings in period
-  const closedLeadIds = new Set(fechadosNoPeriodo.map(e => e.lead_id).filter(Boolean));
-  const periodLeadIds = new Set(periodLeads.map(l => l.id));
-  const closedLeadsNotInPeriod = params.leads.filter(l => closedLeadIds.has(l.id) && !periodLeadIds.has(l.id));
-  const allRelevantLeads = [...periodLeads, ...closedLeadsNotInPeriod];
-
-  // KPI cards
-  const fmtCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 });
-  const kpis = [
-    { label: 'Novos Leads', value: String(novos) },
-    { label: 'Fechados', value: String(fechados) },
-    { label: 'Perdidos', value: String(perdidos) },
-    { label: 'Tx. Conversão', value: `${taxaConversao}%` },
-    { label: 'Faturamento', value: fmtCurrency(faturamentoFechado) },
-  ];
-  const kw = (doc.internal.pageSize.getWidth() - 28 - 16) / 5;
+function addKpiRow(doc: jsPDF, y: number, kpis: { label: string; value: string }[]) {
+  const kw = (doc.internal.pageSize.getWidth() - 28 - (kpis.length - 1) * 4) / kpis.length;
   kpis.forEach((k, i) => {
     const kx = 14 + i * (kw + 4);
     doc.setFillColor(245, 247, 250); doc.roundedRect(kx, y, kw, 16, 2, 2, 'F');
     doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(100); doc.text(k.label, kx + kw / 2, y + 5.5, { align: 'center' });
     doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(30); doc.text(k.value, kx + kw / 2, y + 12.5, { align: 'center' });
   });
-  y += 22;
+  return y + 22;
+}
 
-  // Funnel — all relevant leads (created in period + closed in period)
+function checkPage(doc: jsPDF, y: number, needed: number): number {
+  if (y + needed > doc.internal.pageSize.getHeight() - 20) { doc.addPage(); return 20; }
+  return y;
+}
+
+// ─── Funnel section ───
+function buildFunnelSection(doc: jsPDF, y: number, params: ComercialReportParams): number {
+  const periodLeads = filterByPeriod(params.leads, params.from, params.to);
+  const events = params.events || [];
+  const fechadosNoPeriodo = events.filter(e => {
+    const dt = e.data_fechamento_venda?.slice(0, 10);
+    return dt && dt >= params.from && dt <= params.to && e.status !== 'cancelado';
+  });
+  const novos = periodLeads.length;
+  const fechados = fechadosNoPeriodo.length;
+  const perdidos = periodLeads.filter(l => l.status === 'perdido').length;
+  const taxaConversao = novos > 0 ? ((fechados / novos) * 100).toFixed(1) : '0';
+  const faturamentoFechado = fechadosNoPeriodo.reduce((sum, e) => sum + (e.total_value || 0), 0);
+
+  const closedLeadIds = new Set(fechadosNoPeriodo.map(e => e.lead_id).filter(Boolean));
+  const periodLeadIds = new Set(periodLeads.map(l => l.id));
+  const closedLeadsNotInPeriod = params.leads.filter(l => closedLeadIds.has(l.id) && !periodLeadIds.has(l.id));
+  const allRelevantLeads = [...periodLeads, ...closedLeadsNotInPeriod];
+
+  y = addKpiRow(doc, y, [
+    { label: 'Novos Leads', value: String(novos) },
+    { label: 'Fechados', value: String(fechados) },
+    { label: 'Perdidos', value: String(perdidos) },
+    { label: 'Tx. Conversão', value: `${taxaConversao}%` },
+    { label: 'Faturamento', value: fmtCurrency(faturamentoFechado) },
+  ]);
+
   doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.text('Funil de Vendas (Leads do Período)', 14, y); y += 5;
   const funnelData = FUNNEL_ORDER
     .map((status, i) => ({ label: STATUS_LABELS[status] || status, value: allRelevantLeads.filter(l => l.status === status).length, color: CHART_COLORS[i % CHART_COLORS.length] }))
@@ -151,12 +183,11 @@ export function generateComercialPDF(params: ComercialReportParams) {
   } else {
     doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(120);
     doc.text('Nenhum lead no período selecionado.', 14, y + 5);
-    doc.setTextColor(0);
-    y += 15;
+    doc.setTextColor(0); y += 15;
   }
 
-  // Table: all relevant leads
-  if (y + 30 > doc.internal.pageSize.getHeight() - 20) { doc.addPage(); y = 20; }
+  // Table
+  y = checkPage(doc, y, 30);
   const sorted = [...allRelevantLeads].sort((a, b) => a.created_at.localeCompare(b.created_at));
   if (sorted.length > 0) {
     autoTable(doc, {
@@ -179,65 +210,260 @@ export function generateComercialPDF(params: ComercialReportParams) {
   const byUnit = new Map<string, number>();
   allRelevantLeads.forEach(l => { const u = l.unit || 'Sem unidade'; byUnit.set(u, (byUnit.get(u) || 0) + 1); });
   if (byUnit.size > 1) {
-    if (y + 60 > doc.internal.pageSize.getHeight() - 20) { doc.addPage(); y = 20; }
+    y = checkPage(doc, y, 60);
     doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.text('Leads por Unidade', 14, y); y += 5;
     const bars = [...byUnit.entries()].map(([label, value], i) => ({ label, value, color: CHART_COLORS[i % CHART_COLORS.length] }));
     drawBarChart(doc, 14, y, doc.internal.pageSize.getWidth() - 28, 45, bars);
+    y += 55;
   }
 
-  doc.save(`relatorio-comercial-${params.from}-${params.to}.pdf`);
+  return y;
 }
 
-export function generateComercialXLSX(params: ComercialReportParams) {
-  const periodLeads = filterByPeriod(params.leads, params.from, params.to);
+// ─── Visits section ───
+function buildVisitsSection(doc: jsPDF, y: number, params: ComercialReportParams): number {
+  const periodVisits = filterVisitsByPeriod(params.visits || [], params.from, params.to);
+
+  const total = periodVisits.filter(v => ['agendada', 'confirmada', 'realizada', 'nao_compareceu'].includes(v.status_visita)).length;
+  const realizadas = periodVisits.filter(v => v.status_visita === 'realizada').length;
+  const naoComp = periodVisits.filter(v => v.status_visita === 'nao_compareceu').length;
+  const canceladas = periodVisits.filter(v => v.status_visita === 'cancelada').length;
+  const remarcadas = periodVisits.filter(v => v.status_visita === 'remarcada').length;
+  const taxaComp = total > 0 ? ((realizadas / total) * 100).toFixed(1) : '0';
+
+  y = addKpiRow(doc, y, [
+    { label: 'Total Visitas', value: String(total) },
+    { label: 'Realizadas', value: String(realizadas) },
+    { label: 'Não compareceu', value: String(naoComp) },
+    { label: 'Taxa Comparec.', value: `${taxaComp}%` },
+  ]);
+
+  // Table
+  const sorted = [...periodVisits].sort((a, b) => a.data_visita.localeCompare(b.data_visita));
+  if (sorted.length > 0) {
+    autoTable(doc, {
+      startY: y,
+      head: [['Data', 'Horário', 'Tipo', 'Status', 'Interesse', 'Canal']],
+      body: sorted.map(v => [
+        fmtDate(v.data_visita), v.horario_visita || '—',
+        (v.visit_type || 'visita') === 'atendimento' ? 'Atendimento' : 'Visita',
+        VISIT_STATUS_LABELS[v.status_visita] || v.status_visita,
+        INTEREST_LABELS[v.interest_level || ''] || v.interest_level || '—',
+        v.como_conheceu || '—',
+      ]),
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [30, 30, 30], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+      alternateRowStyles: { fillColor: [248, 249, 252] },
+      margin: { left: 14, right: 14 },
+    });
+    y = (doc as any).lastAutoTable.finalY + 10;
+  }
+
+  // Chart: by status
+  const byStatus = new Map<string, number>();
+  periodVisits.forEach(v => {
+    const s = VISIT_STATUS_LABELS[v.status_visita] || v.status_visita;
+    byStatus.set(s, (byStatus.get(s) || 0) + 1);
+  });
+  if (byStatus.size > 0) {
+    y = checkPage(doc, y, 60);
+    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.text('Visitas por Status', 14, y); y += 5;
+    const bars = [...byStatus.entries()].map(([label, value], i) => ({ label, value, color: CHART_COLORS[i % CHART_COLORS.length] }));
+    drawBarChart(doc, 14, y, doc.internal.pageSize.getWidth() - 28, 45, bars);
+    y += 55;
+  }
+
+  // Chart: by canal
+  const byCanal = new Map<string, number>();
+  periodVisits.forEach(v => { const c = v.como_conheceu || 'Não informado'; byCanal.set(c, (byCanal.get(c) || 0) + 1); });
+  if (byCanal.size > 1) {
+    y = checkPage(doc, y, 60);
+    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.text('Como nos Conheceram', 14, y); y += 5;
+    const bars = [...byCanal.entries()].slice(0, 8).map(([label, value], i) => ({ label, value, color: CHART_COLORS[i % CHART_COLORS.length] }));
+    drawBarChart(doc, 14, y, doc.internal.pageSize.getWidth() - 28, 45, bars);
+    y += 55;
+  }
+
+  return y;
+}
+
+// ─── Sales section ───
+function buildSalesSection(doc: jsPDF, y: number, params: ComercialReportParams): number {
   const events = params.events || [];
-  const fechadosNoPeriodo = events.filter(e => {
+  const fechados = events.filter(e => {
     const dt = e.data_fechamento_venda?.slice(0, 10);
     return dt && dt >= params.from && dt <= params.to && e.status !== 'cancelado';
   });
+  const salesTotal = fechados.reduce((sum, e) => sum + (e.total_value || 0), 0);
+  const ticketMedio = fechados.length > 0 ? salesTotal / fechados.length : 0;
+  const totalConvid = fechados.reduce((sum, e) => sum + (e.guest_count || 0), 0);
 
-  // Build comprehensive lead set
-  const closedLeadIds = new Set(fechadosNoPeriodo.map(e => e.lead_id).filter(Boolean));
-  const periodLeadIds = new Set(periodLeads.map(l => l.id));
-  const closedLeadsNotInPeriod = params.leads.filter(l => closedLeadIds.has(l.id) && !periodLeadIds.has(l.id));
-  const allRelevantLeads = [...periodLeads, ...closedLeadsNotInPeriod].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  y = addKpiRow(doc, y, [
+    { label: 'Festas Fechadas', value: String(fechados.length) },
+    { label: 'Faturamento', value: fmtCurrency(salesTotal) },
+    { label: 'Ticket Médio', value: fmtCurrency(ticketMedio) },
+    { label: 'Total Convid.', value: String(totalConvid) },
+  ]);
 
-  const rows = allRelevantLeads.map(l => ({
-    Data: fmtDate(l.created_at),
-    Nome: l.name,
-    WhatsApp: l.whatsapp,
-    Status: STATUS_LABELS[l.status] || l.status,
-    Unidade: l.unit || '—',
-    'Mês Interesse': l.month || '—',
-    Convidados: l.guests || '—',
-  }));
+  // Table
+  if (fechados.length > 0) {
+    const sorted = [...fechados].sort((a, b) => (a.data_fechamento_venda || '').localeCompare(b.data_fechamento_venda || ''));
+    autoTable(doc, {
+      startY: y,
+      head: [['Dt. Fechamento', 'Evento', 'Pacote', 'Convid.', 'Unidade', 'Valor']],
+      body: sorted.map(e => [
+        fmtDate(e.data_fechamento_venda || ''),
+        e.title || '—',
+        e.package_name || '—',
+        e.guest_count ? String(e.guest_count) : '—',
+        e.unit || '—',
+        e.total_value ? fmtCurrency(e.total_value) : '—',
+      ]),
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [30, 30, 30], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+      alternateRowStyles: { fillColor: [248, 249, 252] },
+      margin: { left: 14, right: 14 },
+    });
+    y = (doc as any).lastAutoTable.finalY + 10;
+  } else {
+    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(120);
+    doc.text('Nenhuma venda no período selecionado.', 14, y + 5);
+    doc.setTextColor(0); y += 15;
+  }
 
-  const ws = XLSX.utils.json_to_sheet(rows);
+  // Chart: by unit
+  const byUnit = new Map<string, number>();
+  fechados.forEach(e => { const u = e.unit || 'Sem unidade'; byUnit.set(u, (byUnit.get(u) || 0) + 1); });
+  if (byUnit.size > 1) {
+    y = checkPage(doc, y, 60);
+    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.text('Vendas por Unidade', 14, y); y += 5;
+    const bars = [...byUnit.entries()].map(([label, value], i) => ({ label, value, color: CHART_COLORS[i % CHART_COLORS.length] }));
+    drawBarChart(doc, 14, y, doc.internal.pageSize.getWidth() - 28, 45, bars);
+    y += 55;
+  }
+
+  return y;
+}
+
+// ─── Public API ───
+
+const REPORT_TITLES: Record<string, string> = {
+  funil: 'Relatório Comercial — Leads/CRM',
+  visitas: 'Relatório de Visitas',
+  vendas: 'Relatório de Vendas / Faturamento',
+  completo: 'Relatório Comercial Completo',
+};
+
+export function generateComercialPDF(params: ComercialReportParams) {
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const title = REPORT_TITLES[params.type] || 'Relatório Comercial';
+  let y = addHeader(doc, params.companyName, title, params.periodLabel);
+
+  if (params.type === 'funil' || params.type === 'completo') {
+    y = buildFunnelSection(doc, y, params);
+  }
+
+  if (params.type === 'visitas' || params.type === 'completo') {
+    if (params.type === 'completo') { doc.addPage(); y = 20; y = addHeader(doc, params.companyName, 'Seção: Visitas', params.periodLabel); }
+    y = buildVisitsSection(doc, y, params);
+  }
+
+  if (params.type === 'vendas' || params.type === 'completo') {
+    if (params.type === 'completo') { doc.addPage(); y = 20; y = addHeader(doc, params.companyName, 'Seção: Vendas / Faturamento', params.periodLabel); }
+    y = buildSalesSection(doc, y, params);
+  }
+
+  doc.save(`relatorio-comercial-${params.type}-${params.from}-${params.to}.pdf`);
+}
+
+export function generateComercialXLSX(params: ComercialReportParams) {
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Leads');
 
-  // Funnel sheet
-  const funnelRows = FUNNEL_ORDER.map(status => ({
-    Etapa: STATUS_LABELS[status] || status,
-    Quantidade: allRelevantLeads.filter(l => l.status === status).length,
-  })).filter(r => r.Quantidade > 0);
-  const ws2 = XLSX.utils.json_to_sheet(funnelRows);
-  XLSX.utils.book_append_sheet(wb, ws2, 'Funil');
+  if (params.type === 'funil' || params.type === 'completo') {
+    const periodLeads = filterByPeriod(params.leads, params.from, params.to);
+    const events = params.events || [];
+    const fechadosNoPeriodo = events.filter(e => {
+      const dt = e.data_fechamento_venda?.slice(0, 10);
+      return dt && dt >= params.from && dt <= params.to && e.status !== 'cancelado';
+    });
+    const closedLeadIds = new Set(fechadosNoPeriodo.map(e => e.lead_id).filter(Boolean));
+    const periodLeadIds = new Set(periodLeads.map(l => l.id));
+    const closedLeadsNotInPeriod = params.leads.filter(l => closedLeadIds.has(l.id) && !periodLeadIds.has(l.id));
+    const allRelevantLeads = [...periodLeads, ...closedLeadsNotInPeriod].sort((a, b) => a.created_at.localeCompare(b.created_at));
 
-  // Summary
-  const novos = periodLeads.length;
-  const fechados = fechadosNoPeriodo.length;
-  const faturamento = fechadosNoPeriodo.reduce((sum, e) => sum + (e.total_value || 0), 0);
-  const summaryRows = [
-    { Métrica: 'Período', Valor: params.periodLabel },
-    { Métrica: 'Novos Leads', Valor: novos },
-    { Métrica: 'Fechados no Período', Valor: fechados },
-    { Métrica: 'Perdidos', Valor: periodLeads.filter(l => l.status === 'perdido').length },
-    { Métrica: 'Taxa de Conversão', Valor: novos > 0 ? `${((fechados / novos) * 100).toFixed(1)}%` : '0%' },
-    { Métrica: 'Faturamento Fechado', Valor: faturamento.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) },
-  ];
-  const ws3 = XLSX.utils.json_to_sheet(summaryRows);
-  XLSX.utils.book_append_sheet(wb, ws3, 'Resumo');
+    const rows = allRelevantLeads.map(l => ({
+      Data: fmtDate(l.created_at), Nome: l.name, WhatsApp: l.whatsapp,
+      Status: STATUS_LABELS[l.status] || l.status, Unidade: l.unit || '—',
+      'Mês Interesse': l.month || '—', Convidados: l.guests || '—',
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Leads');
 
-  XLSX.writeFile(wb, `relatorio-comercial-${params.from}-${params.to}.xlsx`);
+    const funnelRows = FUNNEL_ORDER.map(status => ({
+      Etapa: STATUS_LABELS[status] || status,
+      Quantidade: allRelevantLeads.filter(l => l.status === status).length,
+    })).filter(r => r.Quantidade > 0);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(funnelRows), 'Funil');
+
+    const novos = periodLeads.length;
+    const fechados = fechadosNoPeriodo.length;
+    const faturamento = fechadosNoPeriodo.reduce((sum, e) => sum + (e.total_value || 0), 0);
+    const summaryRows = [
+      { Métrica: 'Período', Valor: params.periodLabel },
+      { Métrica: 'Novos Leads', Valor: novos },
+      { Métrica: 'Fechados no Período', Valor: fechados },
+      { Métrica: 'Perdidos', Valor: periodLeads.filter(l => l.status === 'perdido').length },
+      { Métrica: 'Taxa de Conversão', Valor: novos > 0 ? `${((fechados / novos) * 100).toFixed(1)}%` : '0%' },
+      { Métrica: 'Faturamento Fechado', Valor: faturamento.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) },
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), 'Resumo Leads');
+  }
+
+  if (params.type === 'visitas' || params.type === 'completo') {
+    const periodVisits = filterVisitsByPeriod(params.visits || [], params.from, params.to).sort((a, b) => a.data_visita.localeCompare(b.data_visita));
+    const rows = periodVisits.map(v => ({
+      Data: fmtDate(v.data_visita), Horário: v.horario_visita || '—',
+      Tipo: (v.visit_type || 'visita') === 'atendimento' ? 'Atendimento' : 'Visita',
+      Status: VISIT_STATUS_LABELS[v.status_visita] || v.status_visita,
+      'Nível de Interesse': INTEREST_LABELS[v.interest_level || ''] || v.interest_level || '—',
+      'Como Conheceu': v.como_conheceu || '—', Observações: v.observacoes || '',
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Visitas');
+
+    const total = periodVisits.filter(v => ['agendada', 'confirmada', 'realizada', 'nao_compareceu'].includes(v.status_visita)).length;
+    const realizadas = periodVisits.filter(v => v.status_visita === 'realizada').length;
+    const naoComp = periodVisits.filter(v => v.status_visita === 'nao_compareceu').length;
+    const summaryRows = [
+      { Métrica: 'Total de Visitas', Valor: total },
+      { Métrica: 'Realizadas', Valor: realizadas },
+      { Métrica: 'Não Compareceu', Valor: naoComp },
+      { Métrica: 'Taxa de Comparecimento', Valor: total > 0 ? `${((realizadas / total) * 100).toFixed(1)}%` : '0%' },
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), 'Resumo Visitas');
+  }
+
+  if (params.type === 'vendas' || params.type === 'completo') {
+    const events = params.events || [];
+    const fechados = events.filter(e => {
+      const dt = e.data_fechamento_venda?.slice(0, 10);
+      return dt && dt >= params.from && dt <= params.to && e.status !== 'cancelado';
+    }).sort((a, b) => (a.data_fechamento_venda || '').localeCompare(b.data_fechamento_venda || ''));
+    const rows = fechados.map(e => ({
+      'Dt. Fechamento': fmtDate(e.data_fechamento_venda || ''),
+      Evento: e.title || '—', Pacote: e.package_name || '—',
+      Convidados: e.guest_count || '—', Unidade: e.unit || '—',
+      Valor: e.total_value ? fmtCurrency(e.total_value) : '—',
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Vendas');
+
+    const salesTotal = fechados.reduce((sum, e) => sum + (e.total_value || 0), 0);
+    const ticketMedio = fechados.length > 0 ? salesTotal / fechados.length : 0;
+    const summaryRows = [
+      { Métrica: 'Festas Fechadas', Valor: fechados.length },
+      { Métrica: 'Faturamento Total', Valor: fmtCurrency(salesTotal) },
+      { Métrica: 'Ticket Médio', Valor: fmtCurrency(ticketMedio) },
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), 'Resumo Vendas');
+  }
+
+  XLSX.writeFile(wb, `relatorio-comercial-${params.type}-${params.from}-${params.to}.xlsx`);
 }

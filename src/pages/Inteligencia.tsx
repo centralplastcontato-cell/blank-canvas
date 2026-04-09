@@ -555,17 +555,19 @@ export default function Inteligencia() {
         title="Relatório Comercial"
         reportTypes={[
           { value: 'funil', label: 'Funil + Leads', desc: 'Funil de vendas atual + leads novos no período' },
+          { value: 'visitas', label: 'Visitas', desc: 'Relatório de visitas agendadas, realizadas e no-show' },
+          { value: 'vendas', label: 'Vendas / Faturamento', desc: 'Festas fechadas, faturamento e ticket médio' },
+          { value: 'completo', label: 'Relatório Completo', desc: 'Funil + Visitas + Vendas em um só documento' },
         ]}
         unitOptions={unitOptions}
         onGenerate={async (p) => {
           if (!currentCompany?.id) return;
-          // Batch load all leads (bypass 1000-row default limit)
-          const loadAll = async (table: 'campaign_leads' | 'company_events', select: string, companyId: string) => {
+          const loadAll = async (table: string, select: string, companyId: string) => {
             const all: any[] = [];
             const batchSize = 1000;
             let from = 0;
             while (true) {
-              const { data } = await supabase.from(table).select(select).eq('company_id', companyId).range(from, from + batchSize - 1) as { data: any[] | null };
+              const { data } = await (supabase as any).from(table).select(select).eq('company_id', companyId).range(from, from + batchSize - 1) as { data: any[] | null };
               if (!data || data.length === 0) break;
               all.push(...data);
               if (data.length < batchSize) break;
@@ -573,13 +575,17 @@ export default function Inteligencia() {
             }
             return all;
           };
-          const [leads, events] = await Promise.all([
-            loadAll('campaign_leads', 'id, name, whatsapp, status, unit, created_at, month, guests', currentCompany.id),
-            loadAll('company_events', 'id, lead_id, data_fechamento_venda, status, unit, total_value', currentCompany.id),
+          const needsLeads = ['funil', 'vendas', 'completo'].includes(p.type);
+          const needsVisits = ['visitas', 'completo'].includes(p.type);
+          const needsEvents = ['funil', 'vendas', 'completo'].includes(p.type);
+          const [leads, events, visits] = await Promise.all([
+            needsLeads ? loadAll('campaign_leads', 'id, name, whatsapp, status, unit, created_at, month, guests', currentCompany.id) : Promise.resolve([]),
+            needsEvents ? loadAll('company_events', 'id, lead_id, data_fechamento_venda, status, unit, total_value, event_date, title, package_name, guest_count', currentCompany.id) : Promise.resolve([]),
+            needsVisits ? loadAll('lead_visits', 'id, lead_id, status_visita, data_visita, horario_visita, company_id, interest_level, como_conheceu, observacoes, visit_type', currentCompany.id) : Promise.resolve([]),
           ]);
-          const filtered = p.unit === 'all' ? leads : leads.filter((l: any) => l.unit === p.unit);
-          const filteredEvents = p.unit === 'all' ? events : events.filter((e: any) => e.unit === p.unit);
-          const reportParams = { type: p.type, companyName: currentCompany?.name || '', periodLabel: p.periodLabel, from: p.from, to: p.to, leads: filtered, events: filteredEvents };
+          const filtered = p.unit === 'all' ? leads : leads.filter((l: any) => l.unit === p.unit || l.unit === 'As duas');
+          const filteredEvents = p.unit === 'all' ? events : events.filter((e: any) => e.unit === p.unit || e.unit === 'As duas');
+          const reportParams = { type: p.type, companyName: currentCompany?.name || '', periodLabel: p.periodLabel, from: p.from, to: p.to, leads: filtered, events: filteredEvents, visits };
           if (p.format === 'xlsx') generateComercialXLSX(reportParams);
           else generateComercialPDF(reportParams);
         }}
