@@ -284,7 +284,7 @@ function buildParcelasDetails(parcelas: number | null, saldo: number | null, exi
   }));
 }
 
-export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, units, userId }: EventFormDialogProps) {
+export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, units, userId, draftStorageKey }: EventFormDialogProps) {
   const [form, setForm] = useState<EventFormData>(EMPTY);
   const [payment, setPayment] = useState<PaymentDetails>(EMPTY_PAYMENT);
   const [saving, setSaving] = useState(false);
@@ -343,6 +343,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [conflictEvent, setConflictEvent] = useState<{ title: string; start_time: string; end_time: string; unit: string } | null>(null);
   const [_checkingConflict, setCheckingConflict] = useState(false);
   const conflictTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftHydratedRef = useRef(false);
 
   // Conflict detection effect
   const inferEndTime = useCallback((start: string): string => {
@@ -432,67 +433,150 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   }, [open, currentCompany?.id, form.event_date, form.start_time, form.end_time, form.unit, form.id, initialData?.id, inferEndTime]);
 
   useEffect(() => {
-    if (open) {
-      const data = initialData || EMPTY;
-      // Build birthday_children from new field or legacy fields
-      let children: BirthdayChild[] = [];
-      if (data.birthday_children && Array.isArray(data.birthday_children) && data.birthday_children.length > 0) {
-        children = data.birthday_children;
-      } else if (data.child_name) {
-        children = [{ name: data.child_name || "", age: data.child_age || "", birthdate: data.child_birthdate || "" }];
-      } else {
-        children = [{ name: "", age: "", birthdate: "" }];
-      }
-      const pd = (data.payment_details || {}) as any;
-      setForm({
-        ...data,
-        start_time: normalizeTimeValue(data.start_time),
-        end_time: normalizeTimeValue(data.end_time),
-        birthday_children: children,
-        event_optionals: Array.isArray(data.event_optionals) ? data.event_optionals : [],
-        discount_type: pd.discount_type || data.discount_type || null,
-        discount_value: pd.discount_value ?? data.discount_value ?? null,
-        discount_base: pd.discount_base || data.discount_base || 'total',
-        discount_reason: pd.discount_reason || data.discount_reason || null,
-      });
-      const loadedPayment = (data.payment_details as PaymentDetails) || EMPTY_PAYMENT;
-      // Auto-fill parcelas details if saldo and parcelas are set but details have null values
-      if (loadedPayment.parcelas && loadedPayment.parcelas >= 1 && loadedPayment.saldo_valor && loadedPayment.saldo_valor > 0) {
-        const hasEmptyValues = (loadedPayment.parcelas_details || []).some(d => d.valor == null);
-        if (hasEmptyValues || !loadedPayment.parcelas_details?.length) {
-          const perParcela = Math.round((loadedPayment.saldo_valor / loadedPayment.parcelas) * 100) / 100;
-          loadedPayment.parcelas_details = Array.from({ length: loadedPayment.parcelas }, (_, i) => ({
-            valor: perParcela,
-            vencimento: loadedPayment.parcelas_details?.[i]?.vencimento || "",
-          }));
-        }
-      }
-      setPayment(loadedPayment);
-      // Restore per-person pricing state from payment_details
-      setPricingMode(pd.pricing_mode === 'per_person' ? 'per_person' : 'fixed');
-      setAdultCount(pd.adult_count ?? null);
-      setChildCount(pd.child_count ?? null);
-      setPricePerAdult(pd.price_per_adult ?? null);
-      setPricePerChild(pd.price_per_child ?? null);
-      if (data.event_date) {
-        const [y, m, d] = data.event_date.split("-");
-        setDateYear(y || "");
-        setDateMonth(m || "");
-        setDateDay(d || "");
-      } else {
-        setDateDay("");
-        setDateMonth("");
-        setDateYear("");
-      }
-      setLeadSearch("");
-      setShowLeadDropdown(false);
-      setSelectedTemplate("");
-      setFechamentoDate(data.data_fechamento_venda ? new Date(data.data_fechamento_venda + "T12:00:00") : undefined);
-      setClientRequest(null);
-      setShowManualForm(false);
-      setEditingClientData(false);
+    if (!open) {
+      draftHydratedRef.current = false;
+      return;
     }
-  }, [open, initialData]);
+
+    const data = initialData || EMPTY;
+    let children: BirthdayChild[] = [];
+    if (data.birthday_children && Array.isArray(data.birthday_children) && data.birthday_children.length > 0) {
+      children = data.birthday_children;
+    } else if (data.child_name) {
+      children = [{ name: data.child_name || "", age: data.child_age || "", birthdate: data.child_birthdate || "" }];
+    } else {
+      children = [{ name: "", age: "", birthdate: "" }];
+    }
+
+    const pd = (data.payment_details || {}) as any;
+    const normalizedForm: EventFormData = {
+      ...data,
+      start_time: normalizeTimeValue(data.start_time),
+      end_time: normalizeTimeValue(data.end_time),
+      birthday_children: children,
+      event_optionals: Array.isArray(data.event_optionals) ? data.event_optionals : [],
+      discount_type: pd.discount_type || data.discount_type || null,
+      discount_value: pd.discount_value ?? data.discount_value ?? null,
+      discount_base: pd.discount_base || data.discount_base || 'total',
+      discount_reason: pd.discount_reason || data.discount_reason || null,
+    };
+
+    const normalizedPayment = {
+      ...EMPTY_PAYMENT,
+      ...((data.payment_details as PaymentDetails) || EMPTY_PAYMENT),
+    };
+
+    if (normalizedPayment.parcelas && normalizedPayment.parcelas >= 1 && normalizedPayment.saldo_valor && normalizedPayment.saldo_valor > 0) {
+      const hasEmptyValues = (normalizedPayment.parcelas_details || []).some(d => d.valor == null);
+      if (hasEmptyValues || !normalizedPayment.parcelas_details?.length) {
+        const perParcela = Math.round((normalizedPayment.saldo_valor / normalizedPayment.parcelas) * 100) / 100;
+        normalizedPayment.parcelas_details = Array.from({ length: normalizedPayment.parcelas }, (_, i) => ({
+          valor: perParcela,
+          vencimento: normalizedPayment.parcelas_details?.[i]?.vencimento || "",
+        }));
+      }
+    }
+
+    let nextForm = normalizedForm;
+    let nextPayment = normalizedPayment;
+    let nextPricingMode: 'fixed' | 'per_person' = pd.pricing_mode === 'per_person' ? 'per_person' : 'fixed';
+    let nextAdultCount = pd.adult_count ?? null;
+    let nextChildCount = pd.child_count ?? null;
+    let nextPricePerAdult = pd.price_per_adult ?? null;
+    let nextPricePerChild = pd.price_per_child ?? null;
+    let nextDateDay = "";
+    let nextDateMonth = "";
+    let nextDateYear = "";
+
+    if (normalizedForm.event_date) {
+      const [y, m, d] = normalizedForm.event_date.split("-");
+      nextDateYear = y || "";
+      nextDateMonth = m || "";
+      nextDateDay = d || "";
+    }
+
+    if (draftStorageKey) {
+      try {
+        const rawDraft = sessionStorage.getItem(draftStorageKey);
+        if (rawDraft) {
+          const draft = JSON.parse(rawDraft) as Partial<EventFormDraftSnapshot>;
+          if (draft.form) {
+            nextForm = {
+              ...EMPTY,
+              ...draft.form,
+              birthday_children: Array.isArray(draft.form.birthday_children) && draft.form.birthday_children.length > 0
+                ? draft.form.birthday_children
+                : [{ name: "", age: "", birthdate: "" }],
+              event_optionals: Array.isArray(draft.form.event_optionals) ? draft.form.event_optionals : [],
+            };
+            nextPayment = {
+              ...EMPTY_PAYMENT,
+              ...(draft.payment || {}),
+            };
+            nextPricingMode = draft.pricingMode === 'per_person' ? 'per_person' : 'fixed';
+            nextAdultCount = draft.adultCount ?? null;
+            nextChildCount = draft.childCount ?? null;
+            nextPricePerAdult = draft.pricePerAdult ?? null;
+            nextPricePerChild = draft.pricePerChild ?? null;
+
+            if (draft.dateDay || draft.dateMonth || draft.dateYear) {
+              nextDateDay = draft.dateDay || "";
+              nextDateMonth = draft.dateMonth || "";
+              nextDateYear = draft.dateYear || "";
+            } else if (nextForm.event_date) {
+              const [y, m, d] = nextForm.event_date.split("-");
+              nextDateYear = y || "";
+              nextDateMonth = m || "";
+              nextDateDay = d || "";
+            }
+          }
+        }
+      } catch {
+        // Ignore invalid persisted draft and continue with server/base data.
+      }
+    }
+
+    setForm(nextForm);
+    setPayment(nextPayment);
+    setPricingMode(nextPricingMode);
+    setAdultCount(nextAdultCount);
+    setChildCount(nextChildCount);
+    setPricePerAdult(nextPricePerAdult);
+    setPricePerChild(nextPricePerChild);
+    setDateDay(nextDateDay);
+    setDateMonth(nextDateMonth);
+    setDateYear(nextDateYear);
+    setLeadSearch("");
+    setShowLeadDropdown(false);
+    setSelectedTemplate("");
+    setFechamentoDate(nextForm.data_fechamento_venda ? new Date(nextForm.data_fechamento_venda + "T12:00:00") : undefined);
+    setClientRequest(null);
+    setShowManualForm(false);
+    setEditingClientData(false);
+    draftHydratedRef.current = true;
+  }, [open, initialData, draftStorageKey]);
+
+  useEffect(() => {
+    if (!open || !draftStorageKey || !draftHydratedRef.current) return;
+
+    try {
+      const snapshot: EventFormDraftSnapshot = {
+        form,
+        payment,
+        dateDay,
+        dateMonth,
+        dateYear,
+        pricingMode,
+        adultCount,
+        childCount,
+        pricePerAdult,
+        pricePerChild,
+      };
+      sessionStorage.setItem(draftStorageKey, JSON.stringify(snapshot));
+    } catch {
+      // Ignore storage failures.
+    }
+  }, [open, draftStorageKey, form, payment, dateDay, dateMonth, dateYear, pricingMode, adultCount, childCount, pricePerAdult, pricePerChild]);
 
   // Fetch client data request for existing events
   const eventId = form.id || initialData?.id;
@@ -774,6 +858,13 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         setForm(prev => ({ ...prev, id: resultId }));
       }
       if (!keepOpen) {
+        if (draftStorageKey) {
+          try {
+            sessionStorage.removeItem(draftStorageKey);
+          } catch {
+            // Ignore storage failures.
+          }
+        }
         onOpenChange(false);
       }
     } finally {
