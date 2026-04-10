@@ -554,6 +554,22 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                 <FileSignature className="h-3.5 w-3.5 text-primary" />
                 <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Contratos Gerados</p>
               </div>
+              {wapiInstances.length > 1 && (
+                <div className="px-3 py-2 border-b border-border/30">
+                  <Select value={selectedInstanceId} onValueChange={setSelectedInstanceId}>
+                    <SelectTrigger className="h-7 text-[11px]">
+                      <SelectValue placeholder="Enviar via..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {wapiInstances.map((inst) => (
+                        <SelectItem key={inst.id} value={inst.id} className="text-xs">
+                          {inst.unit || inst.instance_id}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="p-3 space-y-2">
                 {generatedContracts.map((gc) => {
                   const STATUS_COLORS: Record<string, string> = {
