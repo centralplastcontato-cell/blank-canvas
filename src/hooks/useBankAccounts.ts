@@ -72,16 +72,20 @@ export function useBankAccounts() {
             return all;
           };
 
-          const [entriesData, exitsData] = await Promise.all([
+          const [entriesData, exitsData, revenuesData] = await Promise.all([
             fetchAllAmounts((from, to) =>
               supabase.from('event_payments').select('amount').eq('bank_account_id', acc.id).eq('status', 'paid').range(from, to)
             ),
             fetchAllAmounts((from, to) =>
               supabase.from('company_expenses').select('amount').eq('bank_account_id', acc.id).eq('status', 'pago').range(from, to)
             ),
+            fetchAllAmounts((from, to) =>
+              (supabase as any).from('company_revenues').select('amount').eq('bank_account_id', acc.id).eq('status', 'recebido').range(from, to)
+            ),
           ]);
 
-          const total_entries = entriesData.reduce((s: number, p: any) => s + Number(p.amount), 0);
+          const total_entries = entriesData.reduce((s: number, p: any) => s + Number(p.amount), 0)
+            + revenuesData.reduce((s: number, r: any) => s + Number(r.amount), 0);
           const total_exits = exitsData.reduce((s: number, e: any) => s + Number(e.amount), 0);
           const current_balance = Number(acc.initial_balance) + total_entries - total_exits;
 
