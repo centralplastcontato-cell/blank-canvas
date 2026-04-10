@@ -964,11 +964,13 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       .replace(/\{\{link_formulario_contrato\}\}/gi, link);
   };
 
-  const generateClientLink = async (forcedEventId?: string) => {
+  const buildClientLink = (token: string) => `${window.location.origin}/dados-contratante/${token}`;
+
+  const generateClientLink = async (forcedEventId?: string, options?: { skipClipboard?: boolean }): Promise<ClientDataRequest | null> => {
     const resolvedEventId = forcedEventId || eventId;
     if (!resolvedEventId || !currentCompany?.id) {
       toast({ title: "Salve a festa primeiro antes de solicitar dados do contratante", variant: "destructive" });
-      return;
+      return null;
     }
     setGeneratingLink(true);
     try {
@@ -989,7 +991,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       setClientRequest(data as ClientDataRequest);
 
       // Load contract message settings and resolve
-      const link = `${window.location.origin}/dados-contratante/${token}`;
+      const link = buildClientLink(token);
       const { data: msgSettings } = await (supabase as any)
         .from("contract_message_settings")
         .select("is_enabled, message_template")
@@ -999,14 +1001,21 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       if (msgSettings?.is_enabled && msgSettings?.message_template) {
         const resolved = resolveContractMessage(msgSettings.message_template, link);
         setResolvedMessage(resolved);
-        navigator.clipboard.writeText(resolved);
-        toast({ title: "Link gerado e mensagem copiada!", description: "A mensagem personalizada foi copiada para a área de transferência." });
+        if (!options?.skipClipboard) {
+          navigator.clipboard.writeText(resolved);
+          toast({ title: "Link gerado e mensagem copiada!", description: "A mensagem personalizada foi copiada para a área de transferência." });
+        }
       } else {
-        navigator.clipboard.writeText(link);
-        toast({ title: "Link gerado e copiado!" });
+        if (!options?.skipClipboard) {
+          navigator.clipboard.writeText(link);
+          toast({ title: "Link gerado e copiado!" });
+        }
       }
+
+      return data as ClientDataRequest;
     } catch (err: any) {
       toast({ title: "Erro ao gerar link", description: err.message, variant: "destructive" });
+      return null;
     } finally {
       setGeneratingLink(false);
     }
@@ -1014,7 +1023,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
   const getClientLink = () => {
     if (!clientRequest?.token) return "";
-    return `${window.location.origin}/dados-contratante/${clientRequest.token}`;
+    return buildClientLink(clientRequest.token);
   };
 
   const copyLink = () => {
@@ -1029,19 +1038,22 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
   };
 
-  const sendClientLinkToLead = async () => {
-    if (!form.lead_id || !clientRequest?.token) return;
+  const sendClientLinkToLead = async (tokenOverride?: string, leadIdOverride?: string | null) => {
+    const effectiveLeadId = leadIdOverride ?? form.lead_id;
+    const effectiveToken = tokenOverride ?? clientRequest?.token;
+    if (!effectiveLeadId || !effectiveToken) return false;
+
     setSendingClientLink(true);
     try {
       // Get lead phone
       const { data: lead } = await supabase
         .from("campaign_leads")
         .select("whatsapp")
-        .eq("id", form.lead_id)
+        .eq("id", effectiveLeadId)
         .single();
       if (!lead?.whatsapp) {
         toast({ title: "Lead sem WhatsApp cadastrado", variant: "destructive" });
-        return;
+        return false;
       }
 
       // Get active instance for company
@@ -1054,10 +1066,10 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         .single();
       if (!instance?.instance_id) {
         toast({ title: "Nenhuma instância WhatsApp ativa", variant: "destructive" });
-        return;
+        return false;
       }
 
-      const link = getClientLink();
+      const link = buildClientLink(effectiveToken);
 
       // Always re-fetch the saved template so edited text is respected
       let message = "";
@@ -1084,10 +1096,24 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       });
       if (error) throw error;
       toast({ title: "Link enviado com sucesso via WhatsApp!" });
+      return true;
     } catch (err: any) {
       toast({ title: "Erro ao enviar link", description: err.message, variant: "destructive" });
+      return false;
     } finally {
       setSendingClientLink(false);
+    }
+  };
+
+  const handleInitialClientLinkRequest = async () => {
+    const savedId = !isEdit ? await autoSaveForClientData() : eventId;
+    if (!savedId) return;
+
+    const createdRequest = await generateClientLink(savedId, { skipClipboard: !!form.lead_id });
+    if (!createdRequest) return;
+
+    if (form.lead_id) {
+      await sendClientLinkToLead(createdRequest.token, form.lead_id);
     }
   };
 
