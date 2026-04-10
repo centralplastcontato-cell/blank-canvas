@@ -1564,6 +1564,66 @@ export type Database = {
           },
         ]
       }
+      company_revenues: {
+        Row: {
+          amount: number
+          bank_account_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          notes: string | null
+          receipt_url: string | null
+          revenue_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          bank_account_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          notes?: string | null
+          receipt_url?: string | null
+          revenue_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          bank_account_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          notes?: string | null
+          receipt_url?: string | null
+          revenue_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_revenues_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "company_bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_revenues_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_sellers: {
         Row: {
           company_id: string
