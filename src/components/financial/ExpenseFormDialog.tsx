@@ -9,6 +9,9 @@ import { Camera, X, Loader2, ImageIcon, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatCurrencyInput, parseCurrencyInput, numberToCurrencyDisplay } from '@/lib/currency-input';
+import { BankAccountSelect } from './BankAccountSelect';
+import { toast } from 'sonner';
+import { formatCurrencyInput, parseCurrencyInput, numberToCurrencyDisplay } from '@/lib/currency-input';
 
 const CATEGORIES = [
   { value: 'fornecedor', label: 'Fornecedor' },
@@ -42,8 +45,8 @@ const EXPENSE_TYPES = [
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { description: string; amount: number; expense_date: string; category: string; expense_type?: string; status: string; notes?: string; receipt_url?: string; boleto_url?: string }) => void;
-  defaultValues?: { description?: string; amount?: number; expense_date?: string; category?: string; expense_type?: string; status?: string; notes?: string; receipt_url?: string; boleto_url?: string };
+  onSubmit: (data: { description: string; amount: number; expense_date: string; category: string; expense_type?: string; status: string; notes?: string; receipt_url?: string; boleto_url?: string; bank_account_id?: string }) => void;
+  defaultValues?: { description?: string; amount?: number; expense_date?: string; category?: string; expense_type?: string; status?: string; notes?: string; receipt_url?: string; boleto_url?: string; bank_account_id?: string };
   defaultExpenseType?: string;
 }
 
@@ -54,6 +57,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
   const [category, setCategory] = useState('outros');
   const [expenseType, setExpenseType] = useState('fixa');
   const [status, setStatus] = useState('pendente');
+  const [bankAccountId, setBankAccountId] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [receiptUrl, setReceiptUrl] = useState('');
   const [receiptPreview, setReceiptPreview] = useState('');
