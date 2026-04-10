@@ -24,10 +24,13 @@ import { numberToWordsBRL, parseBRLToNumber } from '@/lib/number-to-words-pt';
  */
 export function appendExtensoToValues(text: string): string {
   if (!text) return text;
-  // Match R$ followed by a Brazilian-formatted number, but NOT already followed by " ("
+  // Match R$ followed by a Brazilian-formatted number, but NOT already followed by " (..." (extenso already present)
   return text.replace(
-    /R\$\s?([\d.,]+)(?!\s*\()/g,
-    (match, numStr) => {
+    /R\$\s?([\d.,]+)/g,
+    (match, numStr, offset) => {
+      // Check if there's already an extenso in parentheses right after this match
+      const afterMatch = text.slice(offset + match.length);
+      if (/^\s*\(/.test(afterMatch)) return match;
       const extenso = numberToWordsBRL(`R$ ${numStr}`);
       if (!extenso) return match;
       return `${match} (${extenso})`;
