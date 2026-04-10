@@ -49,8 +49,8 @@ function ConnectionProgress({ stage, retryCount, isRetrying }: { stage: string; 
     connecting: "Conectando ao servidor...",
     generating: "Gerando QR Code...",
     retrying: isRetrying
-      ? `Aguardando para tentar novamente (${retryCount + 1}/3)...`
-      : `Tentativa ${retryCount + 2} de 3...`,
+      ? `Aguardando para tentar novamente (${retryCount + 1}/5)...`
+      : `Tentativa ${retryCount + 2} de 5...`,
     idle: "",
     failed: "",
   };
