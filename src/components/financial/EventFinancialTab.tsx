@@ -244,6 +244,16 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
 
   const fmt = (v: number) => showValues ? v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "••••";
 
+  const resetOptionalDialog = () => {
+    setOptionalDialogOpen(false);
+    setSelectedOptionalId("");
+    setOptionalQty(1);
+    setOptionalDueDate("");
+    setOptionalManualMode(false);
+    setOptionalManualName("");
+    setOptionalManualValue(null);
+  };
+
   // Add optional directly from sidebar
   const handleAddOptionalInline = async (catalogOpt: CatalogOptional) => {
     if (!eventId || !companyId) return;
