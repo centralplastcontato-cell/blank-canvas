@@ -147,14 +147,18 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
           video: row.video as unknown as LPVideo,
           gallery: (() => {
             const g = row.gallery as unknown as LPGallery;
+            // Normalize legacy images format to photos
+            const basePhotos: string[] = (g.photos && g.photos.length > 0)
+              ? g.photos
+              : (Array.isArray(g.images)
+                ? g.images.map((img: any) => typeof img === 'string' ? img : img?.url).filter(Boolean)
+                : []);
             const extra = getExtraGalleryPhotos(companySlug);
-            if (extra.length === 0) return g;
-            // Append extra photos to both flat photos and each unit
-            const newPhotos = [...(g.photos || []), ...extra];
+            const allPhotos = [...basePhotos, ...extra];
             const newUnits = Array.isArray(g.units) && g.units.length > 0
               ? g.units.map((u, i) => i === 0 ? { ...u, photos: [...(u.photos || []), ...extra] } : u)
               : undefined;
-            return { ...g, photos: newPhotos, ...(newUnits ? { units: newUnits } : {}) };
+            return { ...g, photos: allPhotos, ...(newUnits ? { units: newUnits } : {}) };
           })(),
           testimonials: row.testimonials as unknown as LPTestimonials,
           offer: row.offer as unknown as LPOffer,
