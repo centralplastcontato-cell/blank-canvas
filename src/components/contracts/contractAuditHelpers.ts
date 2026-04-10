@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import jsPDF from "jspdf";
 
 /**
  * Log a contract-related action to the audit trail.
@@ -90,19 +91,63 @@ export async function sendContractViaWhatsApp(
 
     const conv = convs?.[0];
 
-    // 4. Format contract text
+    // 4. Generate PDF from contract HTML content
     const plainText = stripHtmlForWhatsApp(contractContent);
-    const header = `📄 *${contractName}*\n\n`;
-    const message = header + plainText;
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    const maxWidth = pageWidth - margin * 2;
+    let y = 25;
 
-    // 5. Send via wapi-send
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text(contractName, pageWidth / 2, y, { align: "center" });
+    y += 12;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    const lines = doc.splitTextToSize(plainText, maxWidth);
+
+    for (const line of lines) {
+      if (y > 280) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.text(line, margin, y);
+      y += 5;
+    }
+
+    const pdfBlob = doc.output("blob");
+    const safeFileName = contractName.replace(/[^a-zA-Z0-9_-]/g, "_").substring(0, 60);
+    const storagePath = `contracts/${companyId}/${safeFileName}_${Date.now()}.pdf`;
+
+    // 5. Upload PDF to storage
+    const { error: uploadErr } = await supabase.storage
+      .from("whatsapp-media")
+      .upload(storagePath, pdfBlob, { contentType: "application/pdf", upsert: true });
+
+    if (uploadErr) {
+      return { success: false, error: "Erro ao gerar PDF do contrato: " + uploadErr.message };
+    }
+
+    // Get signed URL (1 hour)
+    const { data: urlData, error: urlErr } = await supabase.storage
+      .from("whatsapp-media")
+      .createSignedUrl(storagePath, 3600);
+
+    if (urlErr || !urlData?.signedUrl) {
+      return { success: false, error: "Erro ao gerar URL do PDF." };
+    }
+
+    // 6. Send via wapi-send as document
     const { data: sendResult, error: sendErr } = await supabase.functions.invoke("wapi-send", {
       body: {
-        action: "send-text",
+        action: "send-document",
         instanceId: instance.instance_id,
         instanceToken: instance.instance_token,
         phone: phone,
-        message: message,
+        mediaUrl: urlData.signedUrl,
+        fileName: `${safeFileName}.pdf`,
         conversationId: conv?.id || undefined,
       },
     });
@@ -110,7 +155,7 @@ export async function sendContractViaWhatsApp(
     const sendPayload = sendResult as { success?: boolean; error?: string } | null;
 
     if (sendErr) {
-      return { success: false, error: sendErr.message || "Erro ao enviar mensagem." };
+      return { success: false, error: sendErr.message || "Erro ao enviar documento." };
     }
 
     if (sendPayload?.success === false) {
