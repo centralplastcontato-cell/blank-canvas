@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Plus, Loader2, FileText, Eye, Ban, History, MessageCircle } from "lucide-react";
+import { Plus, Loader2, FileText, Eye, Ban, History, MessageCircle, FileSignature, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ContractGenerator } from "./ContractGenerator";
@@ -34,10 +34,12 @@ const STATUS_COLORS: Record<string, string> = {
   enviado: "bg-amber-500/15 text-amber-700 border-amber-300",
   assinado: "bg-emerald-500/15 text-emerald-700 border-emerald-300",
   cancelado: "bg-red-500/15 text-red-700 border-red-300",
+  aguardando_assinatura: "bg-purple-500/15 text-purple-700 border-purple-300",
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  rascunho: "Rascunho", gerado: "Gerado", enviado: "Enviado", assinado: "Assinado", cancelado: "Cancelado",
+  rascunho: "Rascunho", gerado: "Gerado", enviado: "Enviado", assinado: "Assinado ✅", cancelado: "Cancelado",
+  aguardando_assinatura: "Aguardando Assinatura",
 };
 
 interface Props { userId: string; }
