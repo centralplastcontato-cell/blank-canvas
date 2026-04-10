@@ -90,7 +90,29 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
     setGeneratedContracts(data || []);
   }, [event?.id, event?.company_id]);
 
-  useEffect(() => { if (open && event?.id) fetchGeneratedContracts(); }, [open, event?.id, fetchGeneratedContracts]);
+  const fetchInstances = useCallback(async () => {
+    if (!event?.company_id) return;
+    const { data } = await (supabase as any)
+      .from("wapi_instances")
+      .select("id, instance_id, instance_token, unit, status")
+      .eq("company_id", event.company_id)
+      .eq("status", "connected")
+      .order("unit");
+    const list = data || [];
+    setWapiInstances(list);
+    // Auto-select instance matching event unit, or first available
+    if (list.length > 0) {
+      const matching = event?.unit ? list.find((i: any) => i.unit === event.unit) : null;
+      setSelectedInstanceId(matching?.id || list[0].id);
+    }
+  }, [event?.company_id, event?.unit]);
+
+  useEffect(() => {
+    if (open && event?.id) {
+      fetchGeneratedContracts();
+      fetchInstances();
+    }
+  }, [open, event?.id, fetchGeneratedContracts, fetchInstances]);
 
   const handleContractSendWA = async (contract: typeof generatedContracts[0]) => {
     if (!event?.company_id || !userId) return;
