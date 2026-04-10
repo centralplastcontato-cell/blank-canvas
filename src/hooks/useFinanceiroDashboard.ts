@@ -53,6 +53,7 @@ export function useFinanceiroDashboard() {
 
   const [payments, setPayments] = useState<EnrichedPayment[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [revenues, setRevenues] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState<FinanceiroDashboardFilters>({
     from: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
@@ -68,11 +69,12 @@ export function useFinanceiroDashboard() {
     setIsLoading(true);
 
     try {
-      const [paymentsRes, expensesRes, eventsWithDetailsRes, cardFeesRes] = await Promise.all([
+      const [paymentsRes, expensesRes, eventsWithDetailsRes, cardFeesRes, revenuesRes] = await Promise.all([
         supabase.from('event_payments').select('*').eq('company_id', companyId).order('due_date'),
         supabase.from('company_expenses').select('*').eq('company_id', companyId).order('expense_date', { ascending: false }),
         supabase.from('company_events').select('id, payment_details').eq('company_id', companyId).not('payment_details', 'is', null),
         supabase.from('company_card_fees' as any).select('*').eq('company_id', companyId).eq('is_active', true),
+        supabase.from('company_revenues' as any).select('*').eq('company_id', companyId).order('revenue_date', { ascending: false }),
       ]);
 
       const cardFeesList = (cardFeesRes.data || []) as any[];
@@ -283,6 +285,7 @@ export function useFinanceiroDashboard() {
       const expenseData = (expensesRes.data || []).map(e => ({ ...e, amount: Number(e.amount) })) as Expense[];
       console.log('[Financeiro] expenses fetched:', expenseData.length, 'raw:', expensesRes.data?.length, 'error:', expensesRes.error);
       setExpenses(expenseData);
+      setRevenues((revenuesRes.data || []).map((r: any) => ({ ...r, amount: Number(r.amount) })));
     } catch (err) {
       console.error('[useFinanceiroDashboard] fetch error:', err);
     } finally {
@@ -324,10 +327,12 @@ export function useFinanceiroDashboard() {
   const nonPermutaPayments = filteredPayments.filter(p => !p.is_permuta);
 
   const paidThisMonth = nonPermutaPayments.filter(p => p.status === 'paid' && p.paid_at && p.paid_at.slice(0, 10) >= periodFrom && p.paid_at.slice(0, 10) <= periodTo);
-  const totalReceivedMonth = paidThisMonth.reduce((s, p) => s + p.amount, 0);
+  const revenuesReceivedInPeriod = revenues.filter(r => r.status === 'recebido' && r.revenue_date >= periodFrom && r.revenue_date <= periodTo);
+  const totalReceivedMonth = paidThisMonth.reduce((s, p) => s + p.amount, 0) + revenuesReceivedInPeriod.reduce((s: number, r: any) => s + r.amount, 0);
 
   const pendingThisMonth = nonPermutaPayments.filter(p => p.status === 'pending' && p.due_date >= periodFrom && p.due_date <= periodTo);
-  const totalPendingMonth = pendingThisMonth.reduce((s, p) => s + p.amount, 0);
+  const revenuesPendingInPeriod = revenues.filter(r => r.status === 'pendente' && r.revenue_date >= periodFrom && r.revenue_date <= periodTo);
+  const totalPendingMonth = pendingThisMonth.reduce((s, p) => s + p.amount, 0) + revenuesPendingInPeriod.reduce((s: number, r: any) => s + r.amount, 0);
 
   const latePayments = nonPermutaPayments.filter(p => p.status === 'late').sort((a, b) => a.due_date.localeCompare(b.due_date));
   const totalLate = latePayments.reduce((s, p) => s + p.amount, 0);
@@ -371,9 +376,34 @@ export function useFinanceiroDashboard() {
     fetchData();
   };
 
+  // CRUD revenues
+  const addRevenue = async (data: { description: string; amount: number; revenue_date: string; bank_account_id?: string; receipt_url?: string; notes?: string; status: string }) => {
+    if (!companyId) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await (supabase as any).from('company_revenues').insert({ ...data, company_id: companyId, created_by: user?.id || null });
+    if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Receita adicionada' });
+    fetchData();
+  };
+
+  const updateRevenue = async (id: string, data: Record<string, any>) => {
+    const { error } = await (supabase as any).from('company_revenues').update(data).eq('id', id);
+    if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Receita atualizada' });
+    fetchData();
+  };
+
+  const deleteRevenue = async (id: string) => {
+    const { error } = await (supabase as any).from('company_revenues').delete().eq('id', id);
+    if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Receita removida' });
+    fetchData();
+  };
+
   return {
     payments: filteredPayments,
     expenses: filteredExpenses,
+    revenues,
     isLoading,
     filters,
     setFilters,
@@ -394,6 +424,9 @@ export function useFinanceiroDashboard() {
     updateExpense,
     deleteExpense,
     markPaymentAsPaid,
+    addRevenue,
+    updateRevenue,
+    deleteRevenue,
     refresh: fetchData,
   };
 }

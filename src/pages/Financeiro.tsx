@@ -7,6 +7,7 @@ import { useCompany } from '@/contexts/CompanyContext';
 import { FinancialPaymentCard } from '@/components/financial/FinancialPaymentCard';
 import { PaymentsByClientView } from '@/components/financial/PaymentsByClientView';
 import { ExpenseFormDialog } from '@/components/financial/ExpenseFormDialog';
+import { RevenueFormDialog } from '@/components/financial/RevenueFormDialog';
 import { EventFinancialTab } from '@/components/financial/EventFinancialTab';
 import { FinancialReportDialog } from '@/components/financial/FinancialReportDialog';
 import { MarkExpensePaidDialog } from '@/components/financial/MarkExpensePaidDialog';
@@ -100,6 +101,8 @@ export default function Financeiro() {
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [expenseDialogType, setExpenseDialogType] = useState<string>('fixa');
   const [editingExpense, setEditingExpense] = useState<any>(null);
+  const [revenueDialogOpen, setRevenueDialogOpen] = useState(false);
+  const [editingRevenue, setEditingRevenue] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'list' | 'client'>('list');
   const [receitasSubTab, setReceitasSubTab] = useState('atraso');
   const [despesasSubTab, setDespesasSubTab] = useState('fixa');
@@ -507,23 +510,32 @@ export default function Financeiro() {
                           </button>
                         ))}
                       </div>
-                      <div className="flex items-center bg-muted/50 rounded-lg p-0.5 border border-border/50">
-                        <button
-                          onClick={() => setViewMode('list')}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                            viewMode === 'list' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                          }`}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => { setEditingRevenue(null); setRevenueDialogOpen(true); }}
+                          className="gap-1.5"
                         >
-                          <List className="h-3.5 w-3.5" /> Lista
-                        </button>
-                        <button
-                          onClick={() => setViewMode('client')}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                            viewMode === 'client' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                          }`}
-                        >
-                          <Users className="h-3.5 w-3.5" /> Por cliente
-                        </button>
+                          <Plus className="h-3.5 w-3.5" /> Nova Receita
+                        </Button>
+                        <div className="flex items-center bg-muted/50 rounded-lg p-0.5 border border-border/50">
+                          <button
+                            onClick={() => setViewMode('list')}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                              viewMode === 'list' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            <List className="h-3.5 w-3.5" /> Lista
+                          </button>
+                          <button
+                            onClick={() => setViewMode('client')}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                              viewMode === 'client' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            <Users className="h-3.5 w-3.5" /> Por cliente
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -580,8 +592,8 @@ export default function Financeiro() {
                     <TabsContent value="recebidos" className="space-y-3 mt-3">
                       <div className="flex items-center justify-between">
                         <h2 className="text-sm font-semibold text-foreground">
-                          Recebidos ({allPaid.length})
-                          {allPaid.length > 0 && <span className="ml-2 text-emerald-400 font-bold">{fmt(allPaid.reduce((s, p) => s + p.amount, 0))}</span>}
+                          Recebidos ({allPaid.length + dashboard.revenues.filter(r => r.status === 'recebido' && r.revenue_date >= dashboard.filters.from && r.revenue_date <= dashboard.filters.to).length})
+                          {(allPaid.length > 0 || dashboard.revenues.filter(r => r.status === 'recebido').length > 0) && <span className="ml-2 text-emerald-400 font-bold">{fmt(allPaid.reduce((s, p) => s + p.amount, 0) + dashboard.revenues.filter(r => r.status === 'recebido' && r.revenue_date >= dashboard.filters.from && r.revenue_date <= dashboard.filters.to).reduce((s: number, r: any) => s + r.amount, 0))}</span>}
                         </h2>
                         <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-muted-foreground" onClick={() => setSortOrder(s => s === 'asc' ? 'desc' : 'asc')}>
                           <ArrowUpDown className="h-3.5 w-3.5" />
@@ -590,14 +602,44 @@ export default function Financeiro() {
                       </div>
                       {viewMode === 'client' ? (
                         <PaymentsByClientView payments={allPaid} onMarkAsPaid={handleMarkPaymentAsPaid} onOpenEvent={handleOpenEvent} />
-                      ) : allPaid.length === 0 ? (
-                        <Card className="p-6 text-center text-muted-foreground text-sm">Nenhum pagamento recebido</Card>
                       ) : (
                         <>
-                          <div className="space-y-2">
-                            {allPaid.slice((pageRecebidos - 1) * PAGE_SIZE, pageRecebidos * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onOpenEvent={handleOpenEvent} bankAccountName={p.bank_account_id ? bankAccountMap[p.bank_account_id] : undefined} />)}
-                          </div>
-                          <PaginationControls page={pageRecebidos} totalPages={Math.ceil(allPaid.length / PAGE_SIZE)} onPageChange={setPageRecebidos} />
+                          {/* Standalone revenues */}
+                          {dashboard.revenues.filter(r => r.status === 'recebido' && r.revenue_date >= dashboard.filters.from && r.revenue_date <= dashboard.filters.to).map((r: any) => (
+                            <Card key={r.id} className="p-4 flex items-center justify-between gap-3 border-l-4 border-l-emerald-500">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm truncate">{r.description}</span>
+                                  <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Receita avulsa</Badge>
+                                </div>
+                                <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                                  <span>📅 {format(new Date(r.revenue_date + 'T12:00:00'), 'dd/MM/yyyy')}</span>
+                                  {r.bank_account_id && bankAccountMap[r.bank_account_id] && <span>🏦 {bankAccountMap[r.bank_account_id]}</span>}
+                                  {r.notes && <span className="truncate max-w-[200px]">📝 {r.notes}</span>}
+                                </div>
+                              </div>
+                              <div className="text-right flex items-center gap-2">
+                                <span className="text-emerald-600 font-bold text-sm">{fmt(r.amount)}</span>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingRevenue(r); setRevenueDialogOpen(true); }}>
+                                  <FileText className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => dashboard.deleteRevenue(r.id)}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </Card>
+                          ))}
+                          {/* Event payments */}
+                          {allPaid.length === 0 && dashboard.revenues.filter(r => r.status === 'recebido' && r.revenue_date >= dashboard.filters.from && r.revenue_date <= dashboard.filters.to).length === 0 ? (
+                            <Card className="p-6 text-center text-muted-foreground text-sm">Nenhum pagamento recebido</Card>
+                          ) : (
+                            <>
+                              <div className="space-y-2">
+                                {allPaid.slice((pageRecebidos - 1) * PAGE_SIZE, pageRecebidos * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onOpenEvent={handleOpenEvent} bankAccountName={p.bank_account_id ? bankAccountMap[p.bank_account_id] : undefined} />)}
+                              </div>
+                              <PaginationControls page={pageRecebidos} totalPages={Math.ceil(allPaid.length / PAGE_SIZE)} onPageChange={setPageRecebidos} />
+                            </>
+                          )}
                         </>
                       )}
                     </TabsContent>
@@ -979,6 +1021,28 @@ export default function Financeiro() {
           bank_account_id: (editingExpense as any).bank_account_id,
         } : undefined}
         defaultExpenseType={expenseDialogType}
+      />
+
+      <RevenueFormDialog
+        open={revenueDialogOpen}
+        onOpenChange={(open) => { setRevenueDialogOpen(open); if (!open) setEditingRevenue(null); }}
+        onSubmit={(data) => {
+          if (editingRevenue) {
+            dashboard.updateRevenue(editingRevenue.id, data);
+            setEditingRevenue(null);
+          } else {
+            dashboard.addRevenue(data);
+          }
+        }}
+        defaultValues={editingRevenue ? {
+          description: editingRevenue.description,
+          amount: editingRevenue.amount,
+          revenue_date: editingRevenue.revenue_date,
+          bank_account_id: editingRevenue.bank_account_id,
+          receipt_url: editingRevenue.receipt_url,
+          notes: editingRevenue.notes,
+          status: editingRevenue.status,
+        } : undefined}
       />
 
       <Sheet open={!!selectedEventId} onOpenChange={(open) => { if (!open) handleCloseEventSheet(); }}>
