@@ -243,6 +243,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   const [cardFees, setCardFees] = useState<any[]>([]);
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
   const [eventOptionals, setEventOptionals] = useState<any[]>([]);
+  const [eventGuestCount, setEventGuestCount] = useState(0);
   
   useEffect(() => {
     if (!companyId) return;
