@@ -75,6 +75,9 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   const [selectedOptionalId, setSelectedOptionalId] = useState<string>("");
   const [optionalQty, setOptionalQty] = useState(1);
   const [optionalDueDate, setOptionalDueDate] = useState<string>("");
+  const [optionalManualMode, setOptionalManualMode] = useState(false);
+  const [optionalManualName, setOptionalManualName] = useState("");
+  const [optionalManualValue, setOptionalManualValue] = useState<number | null>(null);
   const [addingOptional, setAddingOptional] = useState(false);
   const syncAttempted = useRef(false);
 
@@ -241,6 +244,16 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
 
   const fmt = (v: number) => showValues ? v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "••••";
 
+  const resetOptionalDialog = () => {
+    setOptionalDialogOpen(false);
+    setSelectedOptionalId("");
+    setOptionalQty(1);
+    setOptionalDueDate("");
+    setOptionalManualMode(false);
+    setOptionalManualName("");
+    setOptionalManualValue(null);
+  };
+
   // Add optional directly from sidebar
   const handleAddOptionalInline = async (catalogOpt: CatalogOptional) => {
     if (!eventId || !companyId) return;
@@ -309,12 +322,73 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       }
 
       setEventOptionals(updatedOptionals);
-      setOptionalDialogOpen(false);
-      setSelectedOptionalId("");
-      setOptionalDueDate("");
+      resetOptionalDialog();
       financial.refresh();
 
       toast({ title: "Opcional adicionado", description: `${catalogOpt.name} incluído com parcela pendente.` });
+    } finally {
+      setAddingOptional(false);
+    }
+  };
+
+  // Add manual (non-catalog) optional
+  const handleAddManualOptional = async () => {
+    if (!eventId || !companyId || !optionalManualName.trim() || !optionalManualValue) return;
+    setAddingOptional(true);
+    try {
+      const totalValue = optionalManualValue * optionalQty;
+      const newOpt = {
+        name: optionalManualName.trim(),
+        value: optionalManualValue,
+        valor_por_pessoa: 0,
+        quantity: optionalQty,
+        unit_price: optionalManualValue,
+      };
+
+      const updatedOptionals = [...eventOptionals, newOpt];
+
+      const { data: eventData } = await supabase
+        .from("company_events")
+        .select("total_value")
+        .eq("id", eventId)
+        .single();
+
+      const currentTotal = Number(eventData?.total_value) || 0;
+      const newGrandTotal = currentTotal + totalValue;
+
+      await supabase
+        .from("company_events")
+        .update({ event_optionals: updatedOptionals, total_value: newGrandTotal })
+        .eq("id", eventId);
+
+      if (totalValue > 0.01) {
+        const dueDate = optionalDueDate || (() => {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          return tomorrow.toISOString().split("T")[0];
+        })();
+        await supabase.from("event_payments").insert({
+          event_id: eventId,
+          company_id: companyId,
+          type: "parcela",
+          amount: Math.round(totalValue * 100) / 100,
+          due_date: dueDate,
+          payment_method: null,
+          status: "pending",
+          notes: `Opcional: ${optionalManualName.trim()}`,
+        });
+        await supabase.from("event_financial_timeline").insert({
+          event_id: eventId,
+          company_id: companyId,
+          type: "optional_added",
+          description: `Opcional "${optionalManualName.trim()}" adicionado — parcela de R$ ${totalValue.toFixed(2)} criada`,
+        });
+      }
+
+      setEventOptionals(updatedOptionals);
+      resetOptionalDialog();
+      financial.refresh();
+      toast({ title: "Opcional adicionado", description: `${optionalManualName.trim()} incluído com parcela pendente.` });
     } finally {
       setAddingOptional(false);
     }
@@ -924,68 +998,112 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       </Dialog>
 
       {/* Add Optional Dialog */}
-      <Dialog open={optionalDialogOpen} onOpenChange={(open) => { if (!open) { setOptionalDialogOpen(false); setSelectedOptionalId(""); setOptionalQty(1); setOptionalDueDate(""); } }}>
+      <Dialog open={optionalDialogOpen} onOpenChange={(open) => { if (!open) resetOptionalDialog(); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Package className="h-5 w-5 text-violet-500" /> Adicionar Opcional</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            {catalogOptionals.length > 0 ? (
+            <div className="flex gap-2">
+              <Button type="button" variant={!optionalManualMode ? "default" : "outline"} size="sm" className="flex-1 text-xs" onClick={() => setOptionalManualMode(false)}>
+                Do catálogo
+              </Button>
+              <Button type="button" variant={optionalManualMode ? "default" : "outline"} size="sm" className="flex-1 text-xs" onClick={() => setOptionalManualMode(true)}>
+                Manual
+              </Button>
+            </div>
+
+            {!optionalManualMode ? (
+              <>
+                {catalogOptionals.length > 0 ? (
+                  <>
+                    <div>
+                      <Label>Opcional</Label>
+                      <Select value={selectedOptionalId} onValueChange={setSelectedOptionalId}>
+                        <SelectTrigger><SelectValue placeholder="Selecione um opcional..." /></SelectTrigger>
+                        <SelectContent>
+                          {catalogOptionals
+                            .filter(co => !eventOptionals.some((eo: any) => eo.name === co.name))
+                            .map(co => {
+                              const price = co.value || 0;
+                              const pp = co.valor_por_pessoa || 0;
+                              const label = price > 0 ? ` — R$ ${price.toFixed(2)}` : pp > 0 ? ` — R$ ${pp.toFixed(2)}/pessoa` : "";
+                              return <SelectItem key={co.id} value={co.id}>{co.name}{label}</SelectItem>;
+                            })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Quantidade</Label>
+                      <Input type="number" min={1} value={optionalQty} onChange={e => setOptionalQty(Math.max(1, Number(e.target.value) || 1))} />
+                    </div>
+                    <div>
+                      <Label>Data de vencimento</Label>
+                      <Input type="date" value={optionalDueDate} onChange={e => setOptionalDueDate(e.target.value)} />
+                    </div>
+                    {selectedOptionalId && (() => {
+                      const sel = catalogOptionals.find(c => c.id === selectedOptionalId);
+                      if (!sel) return null;
+                      const unitP = sel.value || 0;
+                      const ppP = sel.valor_por_pessoa || 0;
+                      const preview = (unitP * optionalQty) + (ppP > 0 ? ppP * eventGuestCount * optionalQty : 0);
+                      return (
+                        <div className="p-3 rounded-lg bg-muted/50 border border-border/40 text-sm">
+                          <p className="text-muted-foreground">Valor estimado:</p>
+                          <p className="text-lg font-bold text-foreground">{preview.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
+                          {ppP > 0 && <p className="text-[11px] text-muted-foreground">R$ {ppP.toFixed(2)}/pessoa × {eventGuestCount} convidados × {optionalQty}</p>}
+                        </div>
+                      );
+                    })()}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Nenhum opcional cadastrado. Use o modo "Manual" ou cadastre em Configurações.
+                  </p>
+                )}
+              </>
+            ) : (
               <>
                 <div>
-                  <Label>Opcional</Label>
-                  <Select value={selectedOptionalId} onValueChange={setSelectedOptionalId}>
-                    <SelectTrigger><SelectValue placeholder="Selecione um opcional..." /></SelectTrigger>
-                    <SelectContent>
-                      {catalogOptionals
-                        .filter(co => !eventOptionals.some((eo: any) => eo.name === co.name))
-                        .map(co => {
-                          const price = co.value || 0;
-                          const pp = co.valor_por_pessoa || 0;
-                          const label = price > 0 ? ` — R$ ${price.toFixed(2)}` : pp > 0 ? ` — R$ ${pp.toFixed(2)}/pessoa` : "";
-                          return (
-                            <SelectItem key={co.id} value={co.id}>
-                              {co.name}{label}
-                            </SelectItem>
-                          );
-                        })}
-                    </SelectContent>
-                  </Select>
+                  <Label>Nome do opcional</Label>
+                  <Input placeholder="Ex: Topo de bolo, Pipoca..." value={optionalManualName} onChange={e => setOptionalManualName(e.target.value)} />
                 </div>
-                <div>
-                  <Label>Quantidade</Label>
-                  <Input type="number" min={1} value={optionalQty} onChange={e => setOptionalQty(Math.max(1, Number(e.target.value) || 1))} />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Valor unitário (R$)</Label>
+                    <Input type="number" min={0} step={0.01} placeholder="0,00" value={optionalManualValue ?? ""} onChange={e => setOptionalManualValue(e.target.value ? Number(e.target.value) : null)} />
+                  </div>
+                  <div>
+                    <Label>Quantidade</Label>
+                    <Input type="number" min={1} value={optionalQty} onChange={e => setOptionalQty(Math.max(1, Number(e.target.value) || 1))} />
+                  </div>
                 </div>
                 <div>
                   <Label>Data de vencimento</Label>
                   <Input type="date" value={optionalDueDate} onChange={e => setOptionalDueDate(e.target.value)} />
                 </div>
-                {selectedOptionalId && (() => {
-                  const sel = catalogOptionals.find(c => c.id === selectedOptionalId);
-                  if (!sel) return null;
-                  const unitP = sel.value || 0;
-                  const ppP = sel.valor_por_pessoa || 0;
-                  const preview = (unitP * optionalQty) + (ppP > 0 ? ppP * eventGuestCount * optionalQty : 0);
-                  return (
-                    <div className="p-3 rounded-lg bg-muted/50 border border-border/40 text-sm">
-                      <p className="text-muted-foreground">Valor estimado:</p>
-                      <p className="text-lg font-bold text-foreground">{preview.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
-                      {ppP > 0 && <p className="text-[11px] text-muted-foreground">R$ {ppP.toFixed(2)}/pessoa × {eventGuestCount} convidados × {optionalQty}</p>}
-                    </div>
-                  );
-                })()}
+                {optionalManualValue && optionalManualValue > 0 && (
+                  <div className="p-3 rounded-lg bg-muted/50 border border-border/40 text-sm">
+                    <p className="text-muted-foreground">Valor total:</p>
+                    <p className="text-lg font-bold text-foreground">{(optionalManualValue * optionalQty).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
+                  </div>
+                )}
               </>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Nenhum opcional cadastrado. Cadastre opcionais em Configurações → Opcionais.
-              </p>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setOptionalDialogOpen(false); setSelectedOptionalId(""); setOptionalQty(1); setOptionalDueDate(""); }}>Cancelar</Button>
+            <Button variant="outline" onClick={resetOptionalDialog}>Cancelar</Button>
             <Button
-              disabled={!selectedOptionalId || addingOptional}
+              disabled={
+                addingOptional ||
+                (!optionalManualMode && !selectedOptionalId) ||
+                (optionalManualMode && (!optionalManualName.trim() || !optionalManualValue))
+              }
               onClick={() => {
-                const sel = catalogOptionals.find(c => c.id === selectedOptionalId);
-                if (sel) handleAddOptionalInline(sel);
+                if (optionalManualMode) {
+                  handleAddManualOptional();
+                } else {
+                  const sel = catalogOptionals.find(c => c.id === selectedOptionalId);
+                  if (sel) handleAddOptionalInline(sel);
+                }
               }}
             >
               {addingOptional ? "Adicionando..." : "Adicionar"}
