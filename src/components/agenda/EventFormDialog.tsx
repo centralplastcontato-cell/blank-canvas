@@ -2395,6 +2395,60 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                       Gerar Contrato
                     </Button>
                   )}
+
+                  {/* Generated contracts for this event */}
+                  {generatedContracts.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Contratos Gerados</span>
+                      {generatedContracts.map((gc) => {
+                        const STATUS_COLORS: Record<string, string> = {
+                          gerado: "bg-blue-500/15 text-blue-700 border-blue-300",
+                          enviado: "bg-amber-500/15 text-amber-700 border-amber-300",
+                          assinado: "bg-emerald-500/15 text-emerald-700 border-emerald-300",
+                          aguardando_assinatura: "bg-purple-500/15 text-purple-700 border-purple-300",
+                        };
+                        const STATUS_LABELS: Record<string, string> = {
+                          gerado: "Gerado", enviado: "Enviado", assinado: "Assinado ✅", aguardando_assinatura: "Aguardando Assinatura",
+                        };
+                        return (
+                          <div key={gc.id} className="rounded-lg border border-border/40 bg-muted/30 p-3 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-medium truncate flex-1">{gc.nome_documento}</span>
+                              <Badge variant="outline" className={cn("text-[10px] shrink-0", STATUS_COLORS[gc.status] || "")}>
+                                {STATUS_LABELS[gc.status] || gc.status}
+                              </Badge>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-[11px] gap-1.5"
+                                disabled={sendingContractWA === gc.id}
+                                onClick={() => handleContractSendWA(gc)}
+                              >
+                                {sendingContractWA === gc.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <MessageCircle className="h-3 w-3" />}
+                                WhatsApp
+                              </Button>
+                              {gc.status !== "assinado" && gc.status !== "aguardando_assinatura" && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-[11px] gap-1.5"
+                                  disabled={sendingContractSign === gc.id}
+                                  onClick={() => handleContractSendSign(gc)}
+                                >
+                                  {sendingContractSign === gc.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileSignature className="h-3 w-3" />}
+                                  Enviar p/ Assinatura
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </>
               ) : (
                 <p className="text-xs text-muted-foreground">Nenhum modelo de contrato cadastrado</p>
