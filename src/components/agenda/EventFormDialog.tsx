@@ -370,8 +370,9 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [generatingLink, setGeneratingLink] = useState(false);
   const [resolvedMessage, setResolvedMessage] = useState<string | null>(null);
   const [sendingClientLink, setSendingClientLink] = useState(false);
-   const [showManualForm, setShowManualForm] = useState(false);
-   const [editingClientData, setEditingClientData] = useState(false);
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [editingClientData, setEditingClientData] = useState(false);
+  const [persistedEventId, setPersistedEventId] = useState<string | null>(initialData?.id ?? null);
   const [contractModels, setContractModels] = useState<Array<{ id: string; nome_modelo: string; versao: number; tipo_evento: string }>>([]);
   const [selectedContractModelId, setSelectedContractModelId] = useState<string | null>(null);
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
@@ -381,6 +382,23 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [_checkingConflict, setCheckingConflict] = useState(false);
   const conflictTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftHydratedRef = useRef(false);
+
+  const syncClientDataIntoForm = useCallback((clientData: any) => {
+    setForm((prev) => ({
+      ...prev,
+      ...buildClientDataEventFields(clientData, prev),
+    }));
+  }, []);
+
+  const handleClientDataSaved = useCallback((req: ClientDataRequest, mode: "manual" | "editing" = "manual") => {
+    setClientRequest(req);
+    if (mode === "editing") {
+      setEditingClientData(false);
+    } else {
+      setShowManualForm(false);
+    }
+    syncClientDataIntoForm(req.client_data);
+  }, [syncClientDataIntoForm]);
 
   // Conflict detection effect
   const inferEndTime = useCallback((start: string): string => {
@@ -588,6 +606,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     setSelectedTemplate("");
     setFechamentoDate(nextForm.data_fechamento_venda ? new Date(nextForm.data_fechamento_venda + "T12:00:00") : undefined);
     setClientRequest(null);
+    setPersistedEventId(nextForm.id ?? null);
     setShowManualForm(false);
     setEditingClientData(false);
     draftHydratedRef.current = true;
@@ -616,7 +635,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   }, [open, draftStorageKey, form, payment, dateDay, dateMonth, dateYear, pricingMode, adultCount, childCount, pricePerAdult, pricePerChild]);
 
   // Fetch client data request for existing events
-  const eventId = form.id || initialData?.id;
+  const eventId = persistedEventId || form.id || initialData?.id;
   useEffect(() => {
     if (!open || !eventId || !currentCompany?.id) return;
     setLoadingClientRequest(true);
@@ -629,22 +648,12 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       .then(({ data }) => {
         const req = (data && data.length > 0) ? data[0] as ClientDataRequest : null;
         setClientRequest(req);
-        // Hydrate form with birthday_children from completed client data
         if (req?.status === "completed" || req?.status === "reviewed") {
-          const cd = req.client_data as any;
-          if (cd?.birthday_children?.length) {
-            setForm(prev => ({
-              ...prev,
-              birthday_children: cd.birthday_children,
-              child_name: cd.birthday_children[0]?.name || prev.child_name,
-              child_age: cd.birthday_children[0]?.age || prev.child_age,
-              child_birthdate: cd.birthday_children[0]?.birthdate || prev.child_birthdate,
-            }));
-          }
+          syncClientDataIntoForm(req.client_data);
         }
         setLoadingClientRequest(false);
       });
-  }, [open, eventId, currentCompany?.id]);
+  }, [open, eventId, currentCompany?.id, syncClientDataIntoForm]);
 
   useEffect(() => {
     if (dateDay && dateMonth && dateYear) {
@@ -903,27 +912,20 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         price_per_child: pricingMode === 'per_person' ? pricePerChild : null,
       };
       // Protect against overwriting valid contractor data with empty local state
-      let finalForm = { ...form };
+      let finalForm = { ...form, id: eventId || form.id };
       if (clientRequest && (clientRequest.status === "completed" || clientRequest.status === "reviewed")) {
-        const cd = clientRequest.client_data as any;
-        if (cd?.birthday_children?.length) {
-          const hasLocalChildren = (finalForm.birthday_children || []).some((c: any) => c.name || c.age || c.birthdate);
-          if (!hasLocalChildren) {
-            finalForm = {
-              ...finalForm,
-              birthday_children: cd.birthday_children,
-              child_name: cd.birthday_children[0]?.name || finalForm.child_name,
-              child_age: cd.birthday_children[0]?.age || finalForm.child_age,
-              child_birthdate: cd.birthday_children[0]?.birthdate || finalForm.child_birthdate,
-            };
-          }
+        if (getMeaningfulBirthdayChildren(finalForm.birthday_children).length === 0) {
+          finalForm = {
+            ...finalForm,
+            ...buildClientDataEventFields(clientRequest.client_data, finalForm),
+          };
         }
       }
       const submitData = { ...finalForm, total_value: grandTotal || null, payment_details: paymentWithDiscount };
       const resultId = await onSubmit(submitData);
-      if (!isEdit && resultId) {
-        // Transition to edit mode: set the ID so contractor data section appears
-        setForm(prev => ({ ...prev, id: resultId }));
+      if (resultId) {
+        setPersistedEventId(resultId);
+        setForm(prev => ({ ...prev, id: prev.id || resultId }));
       }
       if (!keepOpen) {
         if (draftStorageKey) {
@@ -962,9 +964,9 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       .replace(/\{\{link_formulario_contrato\}\}/gi, link);
   };
 
-  const generateClientLink = async () => {
-    const eventId = form.id || initialData?.id;
-    if (!eventId || !currentCompany?.id) {
+  const generateClientLink = async (forcedEventId?: string) => {
+    const resolvedEventId = forcedEventId || eventId;
+    if (!resolvedEventId || !currentCompany?.id) {
       toast({ title: "Salve a festa primeiro antes de solicitar dados do contratante", variant: "destructive" });
       return;
     }
@@ -975,7 +977,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         .from("client_data_requests")
         .insert({
           company_id: currentCompany.id,
-          event_id: eventId,
+          event_id: resolvedEventId,
           lead_id: form.lead_id || null,
           token,
           status: "sent",
@@ -1089,7 +1091,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
   };
 
-  const isEdit = !!initialData?.id || !!form.id;
+  const isEdit = !!eventId;
 
   // Auto-save helper for contractor data section (avoids requiring manual save first)
   const autoSaveForClientData = async (): Promise<string | null> => {
@@ -1115,10 +1117,18 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         price_per_adult: pricingMode === 'per_person' ? pricePerAdult : null,
         price_per_child: pricingMode === 'per_person' ? pricePerChild : null,
       };
-      const submitData = { ...form, total_value: grandTotal || null, payment_details: paymentWithDiscount };
+      let finalForm = { ...form, id: eventId || form.id };
+      if (clientRequest && (clientRequest.status === "completed" || clientRequest.status === "reviewed")) {
+        finalForm = {
+          ...finalForm,
+          ...buildClientDataEventFields(clientRequest.client_data, finalForm),
+        };
+      }
+      const submitData = { ...finalForm, total_value: grandTotal || null, payment_details: paymentWithDiscount };
       const resultId = await onSubmit(submitData);
       if (resultId) {
-        setForm(prev => ({ ...prev, id: resultId }));
+        setPersistedEventId(resultId);
+        setForm(prev => ({ ...prev, id: prev.id || resultId }));
         toast({ title: "Festa salva automaticamente!" });
         return resultId;
       }
@@ -2246,11 +2256,9 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2">
                       <Button type="button" variant="outline" disabled={generatingLink || saving} className="gap-2" onClick={async () => {
-                        if (!isEdit) {
-                          const savedId = await autoSaveForClientData();
-                          if (!savedId) return;
-                        }
-                        generateClientLink();
+                        const savedId = !isEdit ? await autoSaveForClientData() : eventId;
+                        if (!savedId) return;
+                        generateClientLink(savedId);
                       }}>
                         {generatingLink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                         Enviar link ao cliente
@@ -2272,21 +2280,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     eventId={eventId!}
                     companyId={currentCompany!.id}
                     leadId={form.lead_id}
-                    onSaved={(req) => {
-                      setClientRequest(req as ClientDataRequest);
-                      setShowManualForm(false);
-                      // Sync birthday_children back to form state so main save won't overwrite
-                      const cd = req.client_data as any;
-                      if (cd?.birthday_children?.length) {
-                        setForm(prev => ({
-                          ...prev,
-                          birthday_children: cd.birthday_children,
-                          child_name: cd.birthday_children[0]?.name || prev.child_name,
-                          child_age: cd.birthday_children[0]?.age || prev.child_age,
-                          child_birthdate: cd.birthday_children[0]?.birthdate || prev.child_birthdate,
-                        }));
-                      }
-                    }}
+                    onSaved={(req) => handleClientDataSaved(req as ClientDataRequest, "manual")}
                     onCancel={() => setShowManualForm(false)}
                   />
                 )}
@@ -2300,21 +2294,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     leadId={form.lead_id}
                     initialClientData={clientData}
                     requestId={clientRequest.id}
-                    onSaved={(req) => {
-                      setClientRequest(req as ClientDataRequest);
-                      setEditingClientData(false);
-                      // Sync birthday_children back to form state so main save won't overwrite
-                      const cd = req.client_data as any;
-                      if (cd?.birthday_children?.length) {
-                        setForm(prev => ({
-                          ...prev,
-                          birthday_children: cd.birthday_children,
-                          child_name: cd.birthday_children[0]?.name || prev.child_name,
-                          child_age: cd.birthday_children[0]?.age || prev.child_age,
-                          child_birthdate: cd.birthday_children[0]?.birthdate || prev.child_birthdate,
-                        }));
-                      }
-                    }}
+                    onSaved={(req) => handleClientDataSaved(req as ClientDataRequest, "editing")}
                     onCancel={() => setEditingClientData(false)}
                   />
                 ) : (
@@ -2471,34 +2451,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               leadPhone={leadPhone}
               form={form}
               setForm={setForm}
-              onSaveFirst={async () => {
-                const missing: string[] = [];
-                if (!form.title) missing.push("Nome do cliente");
-                if (!form.event_date) missing.push("Data da festa");
-                if (missing.length > 0) {
-                  toast({
-                    title: "⚠️ Campos obrigatórios na aba Evento",
-                    description: `Preencha: ${missing.join(" e ")} antes de abrir o formulário.`,
-                  });
-                  return null;
-                }
-                setSaving(true);
-                try {
-                  const paymentWithDiscount = { ...payment, discount_type: form.discount_type, discount_value: form.discount_value, discount_base: form.discount_base, discount_reason: form.discount_reason };
-                  const submitData = { ...form, total_value: grandTotal || null, payment_details: paymentWithDiscount };
-                  const resultId = await onSubmit(submitData);
-                  if (resultId) {
-                    setForm(prev => ({ ...prev, id: resultId }));
-                    toast({ title: "Festa salva automaticamente!" });
-                    return resultId;
-                  }
-                  return null;
-                } catch {
-                  return null;
-                } finally {
-                  setSaving(false);
-                }
-              }}
+              onSaveFirst={autoSaveForClientData}
             />
           </div>
         </TabsContent>
