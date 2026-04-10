@@ -204,6 +204,7 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
         qtd_criancas: pd?.child_count?.toString() || "",
         valor_por_adulto: pd?.price_per_adult ? `R$ ${Number(pd.price_per_adult).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "",
         valor_por_crianca: pd?.price_per_child ? `R$ ${Number(pd.price_per_child).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "",
+        observacoes_evento: eventData?.notes || "",
         date: new Date().toLocaleDateString("pt-BR"),
       },
     };

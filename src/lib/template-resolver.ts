@@ -455,6 +455,9 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
   observacoes: {
     resolver: (ctx) => ctx.schedule?.notes || '',
   },
+  observacoes_evento: {
+    resolver: (ctx) => ctx.contract?.observacoes_evento || '',
+  },
   lista_escalados: {
     resolver: (ctx) => ctx.schedule?.assigned_list || '',
   },
@@ -647,7 +650,7 @@ export function getAvailableVariables(): {
     estado: 'contract', duracao_festa: 'contract', cardapio: 'contract', valor_total_extenso: 'contract',
     valor_sinal_extenso: 'contract', valor_restante_extenso: 'contract', valor_convidado_adicional_extenso: 'contract',
     data_entrada: 'contract', data_saldo: 'contract', aniversariantes: 'contract', opcionais: 'contract',
-    qtd_adultos: 'contract', qtd_criancas: 'contract', valor_por_adulto: 'contract', valor_por_crianca: 'contract',
+    qtd_adultos: 'contract', qtd_criancas: 'contract', valor_por_adulto: 'contract', valor_por_crianca: 'contract', observacoes_evento: 'contract',
     titulo: 'schedule', periodo: 'schedule', qtd_festas: 'schedule',
     link: 'schedule', observacoes: 'schedule', lista_escalados: 'schedule',
   };
