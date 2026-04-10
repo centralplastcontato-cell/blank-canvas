@@ -103,7 +103,10 @@ export function ManualClientDataForm({ eventId, companyId, leadId, initialClient
     return EMPTY_FORM;
   });
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [loadingCep, setLoadingCep] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFirstRender = useRef(true);
 
   const updateField = (field: keyof ClientFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -151,18 +154,16 @@ export function ManualClientDataForm({ eventId, companyId, leadId, initialClient
     setLoadingCep(false);
   };
 
-  const handleSave = async () => {
-    if (!formData.nome.trim()) {
-      toast({ title: "Preencha ao menos o nome do contratante", variant: "destructive" });
-      return;
-    }
+  const performSave = useCallback(async (data: ClientFormData) => {
+    if (!data.nome.trim()) return;
     setSaving(true);
+    setSaved(false);
     try {
       if (requestId) {
         const { error } = await (supabase as any)
           .from("client_data_requests")
           .update({
-            client_data: formData,
+            client_data: data,
             status: "completed",
             completed_at: new Date().toISOString(),
           })
@@ -173,12 +174,12 @@ export function ManualClientDataForm({ eventId, companyId, leadId, initialClient
           id: requestId,
           token: "",
           status: "completed",
-          client_data: formData,
+          client_data: data,
           completed_at: new Date().toISOString(),
         });
       } else {
         const token = crypto.randomUUID().replace(/-/g, "").slice(0, 24);
-        const { data, error } = await (supabase as any)
+        const { data: inserted, error } = await (supabase as any)
           .from("client_data_requests")
           .insert([{
             company_id: companyId,
@@ -188,15 +189,14 @@ export function ManualClientDataForm({ eventId, companyId, leadId, initialClient
             status: "completed",
             sent_at: new Date().toISOString(),
             completed_at: new Date().toISOString(),
-            client_data: formData,
+            client_data: data,
           }])
           .select("id, token, status, client_data, completed_at")
           .single();
         if (error) throw error;
-        onSaved(data as any);
+        onSaved(inserted as any);
       }
-      // Sync birthday_children back to company_events so Agenda shows updated data
-      const childrenWithData = formData.birthday_children.filter(c => c.name);
+      const childrenWithData = data.birthday_children.filter(c => c.name);
       if (childrenWithData.length > 0) {
         await (supabase as any)
           .from("company_events")
@@ -208,13 +208,28 @@ export function ManualClientDataForm({ eventId, companyId, leadId, initialClient
           })
           .eq("id", eventId);
       }
-
-      toast({ title: "Dados do contratante salvos!" });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
     } catch (err: any) {
       toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
     }
     setSaving(false);
-  };
+  }, [requestId, companyId, eventId, leadId, onSaved]);
+
+  // Auto-save with debounce
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      performSave(formData);
+    }, 1500);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [formData, performSave]);
 
   return (
     <div className="space-y-4">
