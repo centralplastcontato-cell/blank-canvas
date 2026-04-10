@@ -85,7 +85,7 @@ interface ManualClientDataFormProps {
   onCancel: () => void;
 }
 
-export function ManualClientDataForm({ eventId, companyId, leadId, initialClientData, requestId, onSaved, onCancel }: ManualClientDataFormProps) {
+export function ManualClientDataForm({ eventId, companyId, leadId, initialClientData, requestId, onSaved, onCancel: _onCancel }: ManualClientDataFormProps) {
   const [formData, setFormData] = useState<ClientFormData>(() => {
     if (initialClientData) {
       return {
