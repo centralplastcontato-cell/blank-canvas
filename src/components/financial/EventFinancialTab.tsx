@@ -673,10 +673,10 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <Package className="h-4 w-4 text-violet-400" /> Opcionais
           </h3>
-          {canEdit && onAddOptional && (
+          {canEdit && (
             <Button
               size="sm"
-              onClick={onAddOptional}
+              onClick={() => setOptionalDialogOpen(true)}
               className="h-8 text-xs gap-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 border-0 shadow-none"
             >
               <Plus className="h-3.5 w-3.5" /> Incluir
