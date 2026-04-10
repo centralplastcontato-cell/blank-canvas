@@ -383,7 +383,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [viewingContractContent, setViewingContractContent] = useState<{ content: string; name: string } | null>(null);
 
   const fetchGeneratedContracts = useCallback(async () => {
-    if (!isEdit || !form.id || !currentCompany?.id) return;
+    if (!eventId || !form.id || !currentCompany?.id) return;
     const { data } = await (supabase as any)
       .from("generated_contracts")
       .select("id, nome_documento, status, conteudo_renderizado, lead_id, event_id, template_id, created_at")
@@ -393,7 +393,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       .order("created_at", { ascending: false })
       .limit(5);
     setGeneratedContracts(data || []);
-  }, [isEdit, form.id, currentCompany?.id]);
+  }, [eventId, form.id, currentCompany?.id]);
 
   useEffect(() => { fetchGeneratedContracts(); }, [fetchGeneratedContracts]);
 
