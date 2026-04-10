@@ -11,9 +11,9 @@ export interface ConnectableInstance {
   unit: string | null;
 }
 
-const RETRY_DELAYS = [3000, 6000, 12000];
-const TIMEOUTS = [12000, 18000, 25000];
-const MAX_RETRIES = 3;
+const RETRY_DELAYS = [2000, 4000, 6000, 8000, 10000];
+const TIMEOUTS = [18000, 22000, 28000, 32000, 35000];
+const MAX_RETRIES = 5;
 
 export function useWhatsAppConnection(onConnected?: () => void) {
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
