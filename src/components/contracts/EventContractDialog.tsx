@@ -184,6 +184,13 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
         })(),
         estado: clientData.estado || "",
         duracao_festa: (() => {
+          const numWords = ["zero","uma","duas","três","quatro","cinco","seis","sete","oito","nove","dez","onze","doze"];
+          const minWords = (n: number) => { const w = ["","um","dois","três","quatro","cinco","seis","sete","oito","nove","dez",
+            "onze","doze","treze","quatorze","quinze","dezesseis","dezessete","dezoito","dezenove","vinte",
+            "vinte e um","vinte e dois","vinte e três","vinte e quatro","vinte e cinco","vinte e seis","vinte e sete","vinte e oito","vinte e nove","trinta",
+            "trinta e um","trinta e dois","trinta e três","trinta e quatro","trinta e cinco","trinta e seis","trinta e sete","trinta e oito","trinta e nove","quarenta",
+            "quarenta e um","quarenta e dois","quarenta e três","quarenta e quatro","quarenta e cinco","quarenta e seis","quarenta e sete","quarenta e oito","quarenta e nove","cinquenta",
+            "cinquenta e um","cinquenta e dois","cinquenta e três","cinquenta e quatro","cinquenta e cinco","cinquenta e seis","cinquenta e sete","cinquenta e oito","cinquenta e nove"]; return w[n] || String(n); };
           if (eventData?.start_time && eventData?.end_time) {
             const [sh, sm] = eventData.start_time.split(":").map(Number);
             const [eh, em] = eventData.end_time.split(":").map(Number);
@@ -192,10 +199,10 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
               const hours = Math.floor(diffMin / 60);
               const mins = diffMin % 60;
               const timePart = mins > 0 ? `${hours}:${String(mins).padStart(2, "0")}h` : `${hours}:00h`;
-              // Build extenso
-              const hoursWord = hours === 1 ? "uma hora" : `${numberToWordsBRL(hours).replace(/ reais?$/, "")} horas`;
-              const minsWord = mins > 0 ? ` e ${numberToWordsBRL(mins).replace(/ reais?$/, "")} minutos` : "";
-              return `${timePart} (${hoursWord}${minsWord})`;
+              const hWord = numWords[hours] || String(hours);
+              const hLabel = hours === 1 ? "hora" : "horas";
+              const mExt = mins > 0 ? ` e ${minWords(mins)} minutos` : "";
+              return `${timePart} (${hWord} ${hLabel}${mExt})`;
             }
           }
           return "";
