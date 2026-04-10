@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
+import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -226,7 +227,7 @@ export function ContractModelEditor({ model, userId, onClose }: Props) {
 
           <TabsContent value="editor" className="mt-3">
             <div className="flex items-center gap-2 mb-2 p-2.5 rounded-lg bg-muted/50 border border-border/30">
-              {currentCompany?.logo_url && <img src={currentCompany.logo_url} alt="" className="h-6 rounded" />}
+              {getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url) && <img src={getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url)!} alt="" className="h-6 rounded" />}
               <p className="text-xs text-muted-foreground">
                 🏷️ O logotipo e nome de <strong>{currentCompany?.name || "sua empresa"}</strong> serão adicionados automaticamente no topo de todo contrato gerado.
               </p>
@@ -251,8 +252,8 @@ export function ContractModelEditor({ model, userId, onClose }: Props) {
               <div className="max-w-[680px] mx-auto bg-white dark:bg-card rounded-xl shadow-sm border border-border/30 p-8 md:p-10">
                 {/* Document header — matches print */}
                 <div className="text-center mb-6 pb-3 border-b-2 border-foreground/15">
-                  {currentCompany?.logo_url && (
-                    <img src={currentCompany.logo_url} alt="" className="h-28 mx-auto mb-2" />
+                  {getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url) && (
+                    <img src={getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url)!} alt="" className="h-28 mx-auto mb-2" />
                   )}
                   <h2 className="text-sm md:text-base font-bold text-foreground tracking-wide uppercase">
                     Contrato de festa {currentCompany?.name || "Buffet"}

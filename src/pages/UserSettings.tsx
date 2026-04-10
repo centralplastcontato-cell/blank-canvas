@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
@@ -89,7 +90,7 @@ export default function UserSettings() {
                 onLogout={handleLogout}
               />
               <div className="flex items-center gap-2 min-w-0">
-                <img src={currentCompany?.logo_url || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
+                <img src={getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url) || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
                 <h1 className="font-display font-bold text-foreground text-sm truncate">Perfil</h1>
               </div>
             </div>

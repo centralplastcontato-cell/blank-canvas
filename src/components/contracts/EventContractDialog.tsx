@@ -6,6 +6,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
+import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { toast } from "@/hooks/use-toast";
 import { resolveSystemVariables, findUnresolvedVariables, appendExtensoToValues, type VariableContext } from "@/lib/template-resolver";
 import { ContractDocumentViewer } from "./ContractDocumentViewer";
@@ -326,7 +327,7 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
       onOpenChange={onOpenChange}
       content={renderedContent}
       companyName={currentCompany?.name || ""}
-      companyLogo={currentCompany?.logo_url || undefined}
+      companyLogo={getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url) || undefined}
       mode="preview"
       meta={{
         modelName: model?.nome_modelo,

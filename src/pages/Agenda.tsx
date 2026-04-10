@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -931,7 +932,7 @@ export default function Agenda() {
                     onLogout={handleLogout}
                   />
                   <div className="flex items-center gap-2 min-w-0">
-                    <img src={currentCompany?.logo_url || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
+                    <img src={getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url) || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
                     <h1 className="font-display font-bold text-foreground text-sm truncate">Agenda</h1>
                   </div>
                 </div>

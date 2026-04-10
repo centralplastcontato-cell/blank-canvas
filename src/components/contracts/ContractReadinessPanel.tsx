@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
+import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -360,7 +361,7 @@ export function ContractReadinessPanel({ eventId, eventData, onGenerateContract 
           onOpenChange={(open) => { if (!open) setViewContract(null); }}
           content={viewContract.conteudo_renderizado || ""}
           companyName={currentCompany?.name || ""}
-          companyLogo={currentCompany?.logo_url || undefined}
+          companyLogo={getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url) || undefined}
           mode="generated"
           meta={{
             modelName: viewContract.nome_documento,

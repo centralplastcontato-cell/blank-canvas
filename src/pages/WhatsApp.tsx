@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -127,7 +128,7 @@ export default function WhatsApp() {
                   onLogout={handleLogout}
                 />
                 <div className="flex items-center gap-2 min-w-0">
-                  <img src={currentCompany?.logo_url || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
+                  <img src={getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url) || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
                   <h1 className="font-display font-bold text-foreground text-sm truncate">WhatsApp</h1>
               </div>
               <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/inteligencia")}>
