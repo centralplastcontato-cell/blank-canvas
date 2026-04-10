@@ -132,30 +132,14 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
       toast({ title: "Lead não vinculado", description: "Este contrato não possui um lead associado.", variant: "destructive" });
       return;
     }
-    const { data: lead } = await supabase.from("campaign_leads").select("whatsapp, name").eq("id", leadId).single();
-    if (!lead?.whatsapp) {
-      toast({ title: "Lead sem WhatsApp cadastrado", variant: "destructive" });
-      return;
-    }
     setSendingContractWA(contract.id);
     try {
-      const phone = lead.whatsapp.replace(/\D/g, "");
-      let text = contract.conteudo_renderizado;
-      text = text.replace(/<strong>(.*?)<\/strong>/gi, "*$1*");
-      text = text.replace(/<[^>]+>/g, "");
-      text = text.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ");
-      text = text.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
-      const message = `📄 *${contract.nome_documento}*\n\n${text}`;
+      const result = await sendContractViaWhatsApp(event.company_id, leadId, contract.conteudo_renderizado, contract.nome_documento);
 
-      const { data: sendResult, error: sendErr } = await supabase.functions.invoke("wapi-send", {
-        body: { action: "send-text", instanceId: inst.instance_id, instanceToken: inst.instance_token, phone, message },
-      });
-      const sendPayload = sendResult as { success?: boolean; error?: string } | null;
-
-      if (sendErr || sendPayload?.success === false) {
+      if (!result.success) {
         toast({
           title: "Erro ao enviar",
-          description: sendErr?.message || sendPayload?.error || "Falha no envio pelo WhatsApp.",
+          description: result.error,
           variant: "destructive",
         });
         return;
