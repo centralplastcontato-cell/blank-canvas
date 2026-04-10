@@ -2743,11 +2743,14 @@ async function processInstanceHealthCheck(
         continue;
       }
 
-      // For instances already considered connected in our DB, do not auto-restart on a single
-      // disconnected signal from W-API. This provider is known to oscillate and can falsely
-      // return QR/disconnected while the session is still usable.
+      // If the provider reports disconnected, update our DB to reflect reality
+      // so users see the real status and can reconnect.
       if (inst.status === "connected" && detectedStatus === "disconnected") {
-        console.log(`[health-check] Instance ${inst.instance_id} returned disconnected once, but DB is connected — preserving connected status and skipping auto-restart`);
+        console.log(`[health-check] Instance ${inst.instance_id} confirmed disconnected — updating DB status to disconnected`);
+        await supabase
+          .from("wapi_instances")
+          .update({ status: "disconnected" })
+          .eq("id", inst.id);
         continue;
       }
 

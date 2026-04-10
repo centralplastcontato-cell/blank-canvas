@@ -1500,41 +1500,10 @@ Deno.serve(async (req) => {
           const hasQrCode = data.qrcode || data.qrCode || data.qr || data.base64;
           
           if (hasQrCode) {
-            // ACTIVITY-BASED FALLBACK: before concluding disconnected,
-            // check if this instance has recent message activity (last 30 min).
-            // This prevents false disconnected for instances like Manchester
-            // where W-API LITE QR endpoint is inconsistent but session is functional.
-            try {
-              const { data: instRecord } = await supabase
-                .from('wapi_instances')
-                .select('id, phone_number')
-                .eq('instance_id', instance_id)
-                .single();
-
-              if (instRecord?.phone_number) {
-                const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-                const { data: recentActivity } = await supabase
-                  .from('wapi_conversations')
-                  .select('id')
-                  .eq('instance_id', instRecord.id)
-                  .gte('last_message_at', thirtyMinAgo)
-                  .limit(1);
-
-                if (recentActivity && recentActivity.length > 0) {
-                  console.log(`get-status: QR detected but instance ${instance_id} has recent activity — returning connected (evidence-based)`);
-                  return new Response(JSON.stringify({ 
-                    status: 'connected',
-                    phoneNumber: instRecord.phone_number,
-                    connected: true,
-                    evidenceBased: true,
-                  }), {
-                    status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                  });
-                }
-              }
-            } catch (activityErr) {
-              console.warn('get-status: activity fallback check failed:', activityErr);
-            }
+            // QR code present means the session is genuinely disconnected.
+            // Do NOT mask this with activity-based fallback — it prevents
+            // users from seeing the real disconnected state and reconnecting.
+            console.log(`get-status: QR detected for instance ${instance_id} — reporting disconnected`);
 
             return new Response(JSON.stringify({ 
               status: 'disconnected',
