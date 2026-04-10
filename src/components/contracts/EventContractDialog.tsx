@@ -200,6 +200,10 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
         forma_pagamento: paymentDesc || eventData?.payment_method || "",
         data_entrada: pd?.entrada_data || "",
         data_saldo: pd?.saldo_data || "",
+        qtd_adultos: pd?.adult_count?.toString() || "",
+        qtd_criancas: pd?.child_count?.toString() || "",
+        valor_por_adulto: pd?.price_per_adult ? `R$ ${Number(pd.price_per_adult).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "",
+        valor_por_crianca: pd?.price_per_child ? `R$ ${Number(pd.price_per_child).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "",
         date: new Date().toLocaleDateString("pt-BR"),
       },
     };
