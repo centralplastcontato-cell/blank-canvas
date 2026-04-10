@@ -195,6 +195,20 @@ export function ManualClientDataForm({ eventId, companyId, leadId, initialClient
         if (error) throw error;
         onSaved(data as any);
       }
+      // Sync birthday_children back to company_events so Agenda shows updated data
+      const childrenWithData = formData.birthday_children.filter(c => c.name);
+      if (childrenWithData.length > 0) {
+        await (supabase as any)
+          .from("company_events")
+          .update({
+            birthday_children: childrenWithData,
+            child_name: childrenWithData[0]?.name || null,
+            child_age: childrenWithData[0]?.age || null,
+            child_birthdate: childrenWithData[0]?.birthdate || null,
+          })
+          .eq("id", eventId);
+      }
+
       toast({ title: "Dados do contratante salvos!" });
     } catch (err: any) {
       toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
