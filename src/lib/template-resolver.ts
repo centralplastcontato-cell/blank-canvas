@@ -348,7 +348,29 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
     resolver: (ctx) => ctx.contract?.cardapio || '',
   },
   valor_total_extenso: {
-    resolver: (ctx) => ctx.contract?.valor_total_extenso || '',
+    resolver: (ctx) => {
+      if (ctx.contract?.valor_total_extenso) return ctx.contract.valor_total_extenso;
+      const numVal = parseBRLToNumber(ctx.contract?.value) ?? ctx.event?.value;
+      return numVal != null ? numberToWordsBRL(numVal) : '';
+    },
+  },
+  valor_sinal_extenso: {
+    resolver: (ctx) => {
+      if (!ctx.contract?.valor_sinal) return '';
+      return numberToWordsBRL(ctx.contract.valor_sinal);
+    },
+  },
+  valor_restante_extenso: {
+    resolver: (ctx) => {
+      if (!ctx.contract?.valor_restante) return '';
+      return numberToWordsBRL(ctx.contract.valor_restante);
+    },
+  },
+  valor_convidado_adicional_extenso: {
+    resolver: (ctx) => {
+      if (!ctx.contract?.valor_convidado_adicional) return '';
+      return numberToWordsBRL(ctx.contract.valor_convidado_adicional);
+    },
   },
   telefone_pais: {
     resolver: (ctx) => formatPhoneDisplay(ctx.contract?.telefone_pais),
