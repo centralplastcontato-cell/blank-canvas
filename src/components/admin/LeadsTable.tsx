@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,7 +50,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  ExternalLink,
   Phone,
   Users,
   Calendar,
@@ -98,6 +98,7 @@ export function LeadsTable({
   onPageChange,
   canViewContact = true,
 }: LeadsTableProps) {
+  const navigate = useNavigate();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -479,14 +480,17 @@ export function LeadsTable({
                         <Eye className="w-4 h-4" />
                       </Button>
                       {canViewContact && (
-                        <Button variant="outline" size="sm" asChild>
-                          <a
-                            href={formatWhatsAppLink(lead.whatsapp)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </a>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const cleanPhone = lead.whatsapp.replace(/\D/g, '');
+                            const phoneWithCountry = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+                            navigate(`/atendimento?phone=${phoneWithCountry}`);
+                          }}
+                          title="Abrir conversa na Central de Atendimento"
+                        >
+                          <MessageSquare className="w-4 h-4" />
                         </Button>
                       )}
 
