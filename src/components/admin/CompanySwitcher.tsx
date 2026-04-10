@@ -1,4 +1,5 @@
 import { useCompany } from "@/contexts/CompanyContext";
+import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { Building2, ChevronsUpDown, Check } from "lucide-react";
 import {
   DropdownMenu,
