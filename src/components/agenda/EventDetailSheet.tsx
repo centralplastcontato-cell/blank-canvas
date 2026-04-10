@@ -504,7 +504,63 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
             />
           )}
 
-          {/* Controle da Festa link */}
+          {/* Generated Contracts Shortcuts */}
+          {generatedContracts.length > 0 && (
+            <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden">
+              <div className="px-4 py-2.5 bg-muted/30 border-b border-border/30 flex items-center gap-2">
+                <FileSignature className="h-3.5 w-3.5 text-primary" />
+                <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Contratos Gerados</p>
+              </div>
+              <div className="p-3 space-y-2">
+                {generatedContracts.map((gc) => {
+                  const STATUS_COLORS: Record<string, string> = {
+                    gerado: "bg-blue-500/15 text-blue-700 border-blue-300",
+                    enviado: "bg-amber-500/15 text-amber-700 border-amber-300",
+                    assinado: "bg-emerald-500/15 text-emerald-700 border-emerald-300",
+                    aguardando_assinatura: "bg-purple-500/15 text-purple-700 border-purple-300",
+                  };
+                  const STATUS_LABELS: Record<string, string> = {
+                    gerado: "Gerado", enviado: "Enviado", assinado: "Assinado ✅", aguardando_assinatura: "Aguardando",
+                  };
+                  return (
+                    <div key={gc.id} className="rounded-lg border border-border/40 bg-muted/30 p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium truncate flex-1">{gc.nome_documento}</span>
+                        <Badge variant="outline" className={cn("text-[10px] shrink-0", STATUS_COLORS[gc.status] || "")}>
+                          {STATUS_LABELS[gc.status] || gc.status}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-[11px] gap-1.5"
+                          disabled={sendingContractWA === gc.id}
+                          onClick={() => handleContractSendWA(gc)}
+                        >
+                          {sendingContractWA === gc.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <MessageCircle className="h-3 w-3" />}
+                          WhatsApp
+                        </Button>
+                        {gc.status !== "assinado" && gc.status !== "aguardando_assinatura" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-[11px] gap-1.5"
+                            disabled={sendingContractSign === gc.id}
+                            onClick={() => handleContractSendSign(gc)}
+                          >
+                            {sendingContractSign === gc.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileSignature className="h-3 w-3" />}
+                            Enviar p/ Assinatura
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div
             className="rounded-xl p-3.5 flex items-center gap-3"
             style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)", border: "1px solid rgba(96,165,250,0.2)" }}
