@@ -184,15 +184,27 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
         };
       });
 
-      const periodEntries = entries.reduce((sum, movement) => sum + movement.amount, 0);
+      // Revenue movements (receitas avulsas)
+      const revenueMovements: Movement[] = (revenuesRes.data || []).map((r: any) => ({
+        id: r.id,
+        date: r.revenue_date,
+        description: r.description || 'Receita avulsa',
+        amount: Number(r.amount),
+        type: 'entry' as const,
+        source: 'Receita avulsa',
+      }));
+
+      const allEntries = [...entries, ...revenueMovements];
+      const periodEntries = allEntries.reduce((sum, movement) => sum + movement.amount, 0);
       const periodExits = exits.reduce((sum, movement) => sum + (movement.type === 'exit' ? movement.amount : 0), 0);
-      const futureEntries = (postEntriesRes.data || []).reduce((sum: number, payment: any) => sum + Number(payment.amount), 0);
+      const futureEntries = (postEntriesRes.data || []).reduce((sum: number, payment: any) => sum + Number(payment.amount), 0)
+        + (postRevenuesRes.data || []).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
       const futureExitsNet = (postExitsRes.data || []).reduce((sum: number, expense: any) => sum + Number(expense.amount), 0);
       const balanceAtPeriodEnd = account.current_balance - futureEntries + futureExitsNet;
 
       setBalanceBefore(balanceAtPeriodEnd - periodEntries + periodExits);
 
-      setMovements([...entries, ...exits].sort((a, b) => b.date.localeCompare(a.date)));
+      setMovements([...allEntries, ...exits].sort((a, b) => b.date.localeCompare(a.date)));
     } finally {
       setIsLoading(false);
     }
