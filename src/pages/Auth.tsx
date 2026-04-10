@@ -70,7 +70,7 @@ export default function Auth() {
             if (fallback) {
               setCompanyName(fallback.name);
               setCompanyLogo(fallback.logo_url);
-              if (fallback.slug) setCompanySlug(fallback.slug);
+              
             }
           }
         } else {
