@@ -1101,7 +1101,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         },
       });
       if (error) throw error;
-      toast({ title: "Link enviado com sucesso via WhatsApp!" });
+      toast({ title: `✅ Link enviado com sucesso via ${instanceUnitLabel}!` });
       return true;
     } catch (err: any) {
       toast({ title: "Erro ao enviar link", description: err.message, variant: "destructive" });
