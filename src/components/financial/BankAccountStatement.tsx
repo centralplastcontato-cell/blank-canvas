@@ -85,17 +85,25 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
         .eq('status', 'pago')
         .order('expense_date', { ascending: false });
 
+      let revenuesQuery = (supabase as any)
+        .from('company_revenues')
+        .select('id, amount, revenue_date, description, notes, receipt_url')
+        .eq('bank_account_id', account.id)
+        .eq('status', 'recebido')
+        .order('revenue_date', { ascending: false });
+
       if (dateFrom) {
         entriesQuery = entriesQuery.gte('paid_at', dateFrom);
         exitsQuery = exitsQuery.gte('expense_date', dateFrom);
+        revenuesQuery = revenuesQuery.gte('revenue_date', dateFrom);
       }
       if (dateTo) {
         entriesQuery = entriesQuery.lte('paid_at', dateTo);
         exitsQuery = exitsQuery.lte('expense_date', dateTo);
+        revenuesQuery = revenuesQuery.lte('revenue_date', dateTo);
       }
 
       // Only fetch movements after the selected end date when needed.
-      // This keeps the default statement open fast even for high-volume accounts.
       let postEntriesQuery = supabase
         .from('event_payments')
         .select('amount')
@@ -108,16 +116,25 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
         .eq('bank_account_id', account.id)
         .eq('status', 'pago');
 
+      let postRevenuesQuery = (supabase as any)
+        .from('company_revenues')
+        .select('amount')
+        .eq('bank_account_id', account.id)
+        .eq('status', 'recebido');
+
       if (dateTo) {
         postEntriesQuery = postEntriesQuery.gt('paid_at', dateTo);
         postExitsQuery = postExitsQuery.gt('expense_date', dateTo);
+        postRevenuesQuery = postRevenuesQuery.gt('revenue_date', dateTo);
       }
 
-      const [entriesRes, exitsRes, postEntriesRes, postExitsRes] = await Promise.all([
+      const [entriesRes, exitsRes, revenuesRes, postEntriesRes, postExitsRes, postRevenuesRes] = await Promise.all([
         entriesQuery,
         exitsQuery,
+        revenuesQuery,
         dateTo ? postEntriesQuery : Promise.resolve({ data: [] }),
         dateTo ? postExitsQuery : Promise.resolve({ data: [] }),
+        dateTo ? postRevenuesQuery : Promise.resolve({ data: [] }),
       ]);
 
       const entries: Movement[] = (entriesRes.data || []).map((p: any) => {
