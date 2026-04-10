@@ -4743,6 +4743,7 @@ export type Database = {
           is_active: boolean
           name: string
           photo_urls: string[] | null
+          send_without_caption: boolean
           sort_order: number
           type: string
           unit: string
@@ -4758,6 +4759,7 @@ export type Database = {
           is_active?: boolean
           name: string
           photo_urls?: string[] | null
+          send_without_caption?: boolean
           sort_order?: number
           type: string
           unit: string
@@ -4773,6 +4775,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           photo_urls?: string[] | null
+          send_without_caption?: boolean
           sort_order?: number
           type?: string
           unit?: string
