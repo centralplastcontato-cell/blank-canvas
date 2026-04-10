@@ -144,6 +144,30 @@ const normalizeTimeValue = (value?: string | null) => {
   return value.slice(0, 5);
 };
 
+const EMPTY_BIRTHDAY_CHILD: BirthdayChild = { name: "", age: "", birthdate: "" };
+
+const getMeaningfulBirthdayChildren = (children?: BirthdayChild[] | null): BirthdayChild[] => {
+  if (!Array.isArray(children)) return [];
+  return children.filter((child) => [child.name, child.age, child.birthdate].some((value) => value?.trim()));
+};
+
+const buildClientDataEventFields = (
+  clientData: any,
+  fallback?: Partial<EventFormData>,
+): Pick<EventFormData, "birthday_children" | "child_name" | "child_age" | "child_birthdate"> => {
+  const clientChildren = getMeaningfulBirthdayChildren(clientData?.birthday_children);
+  const fallbackChildren = getMeaningfulBirthdayChildren(fallback?.birthday_children);
+  const effectiveChildren = clientChildren.length > 0 ? clientChildren : fallbackChildren;
+  const firstChild = effectiveChildren[0];
+
+  return {
+    birthday_children: effectiveChildren.length > 0 ? effectiveChildren : [EMPTY_BIRTHDAY_CHILD],
+    child_name: firstChild?.name || fallback?.child_name || null,
+    child_age: firstChild?.age || fallback?.child_age || null,
+    child_birthdate: firstChild?.birthdate || fallback?.child_birthdate || null,
+  };
+};
+
 const STATUS_OPTIONS = [
   { value: "pendente", label: "Pendente" },
   { value: "confirmado", label: "Confirmado" },
