@@ -39,6 +39,7 @@ interface Props {
   canEdit?: boolean;
   canPay?: boolean;
   showValues?: boolean;
+  onAddOptional?: () => void;
 }
 
 export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = true, canPay = true, showValues = true }: Props) {
