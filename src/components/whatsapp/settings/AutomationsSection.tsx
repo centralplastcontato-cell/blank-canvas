@@ -508,10 +508,13 @@ export function AutomationsSection() {
           description: "A alteração foi enviada, mas não foi possível confirmar a persistência. Recarregue a página para verificar.",
           variant: "destructive",
         });
-        setBotSettings({ ...botSettings, ...updates });
+        setBotSettings(prev => prev ? { ...prev, ...updates } : prev);
       } else {
-        // Use the verified data from DB, not the optimistic update
-        setBotSettings(verified);
+        // Only update the fields we actually saved, keeping user's unsaved edits for other fields
+        const verifiedUpdates = Object.fromEntries(
+          Object.keys(updates).map(k => [k, (verified as any)[k]])
+        );
+        setBotSettings(prev => prev ? { ...prev, ...verifiedUpdates } : verified);
         
         // Check if the critical fields actually match what we sent
         const criticalKeys = ['bot_enabled', 'test_mode_enabled', 'test_mode_number'] as const;
