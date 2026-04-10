@@ -61,6 +61,7 @@ export default function Auth() {
           if (data) {
             setCompanyName(data.name);
             setCompanyLogo(data.logo_url);
+            if (data.slug) setCompanySlug(data.slug);
           } else {
             const baseName = domain.replace(/\.\w+$/, "");
             const { data: fallback } = await supabase
@@ -69,6 +70,7 @@ export default function Auth() {
             if (fallback) {
               setCompanyName(fallback.name);
               setCompanyLogo(fallback.logo_url);
+              if (fallback.slug) setCompanySlug(fallback.slug);
             }
           }
         } else {
@@ -82,6 +84,7 @@ export default function Auth() {
             if (data) {
               setCompanyName(data.name);
               setCompanyLogo(data.logo_url);
+              if (data.slug) setCompanySlug(data.slug);
               found = true;
             }
           }
@@ -189,7 +192,8 @@ export default function Auth() {
   };
 
   const isCastelo = companyName?.toLowerCase().includes("castelo") || slug === "castelo-da-diversao";
-  const displayLogo = isCastelo ? logoCasteloTransparent : (companyLogo || '/placeholder.svg');
+  const overrideLogo = getCompanyLogoOverride(companySlug, companyLogo);
+  const displayLogo = isCastelo ? logoCasteloTransparent : (overrideLogo || '/placeholder.svg');
   const displayName = companyName || "Entrar";
 
   if (isLoadingCompany) {
