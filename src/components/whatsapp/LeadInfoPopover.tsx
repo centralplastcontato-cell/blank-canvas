@@ -969,6 +969,7 @@ export function LeadInfoPopover({
                 child_name: data.child_name || null,
                 child_age: data.child_age || null,
                 child_birthdate: data.child_birthdate || null,
+                birthday_children: data.birthday_children || null,
                 parent_names: data.parent_names || null,
                 gifts: data.gifts || null,
                 extra_guest_value: data.extra_guest_value || null,
@@ -976,6 +977,9 @@ export function LeadInfoPopover({
                 payment_details: data.payment_details || null,
                 data_fechamento_venda: data.data_fechamento_venda || null,
                 vendedor_responsavel_id: data.vendedor_responsavel_id || null,
+                event_optionals: data.event_optionals || null,
+                is_permuta: data.is_permuta ?? false,
+                internal_notes: data.internal_notes || null,
               };
             const { error } = await (supabase as any)
               .from("company_events")
@@ -1004,6 +1008,7 @@ export function LeadInfoPopover({
                 child_name: data.child_name || null,
                 child_age: data.child_age || null,
                 child_birthdate: data.child_birthdate || null,
+                birthday_children: data.birthday_children || null,
                 parent_names: data.parent_names || null,
                 gifts: data.gifts || null,
                 extra_guest_value: data.extra_guest_value || null,
@@ -1011,6 +1016,9 @@ export function LeadInfoPopover({
                 payment_details: data.payment_details || null,
                 data_fechamento_venda: data.data_fechamento_venda || null,
                 vendedor_responsavel_id: data.vendedor_responsavel_id || null,
+                event_optionals: data.event_optionals || null,
+                is_permuta: data.is_permuta ?? false,
+                internal_notes: data.internal_notes || null,
               };
             const { error } = await (supabase as any)
               .from("company_events")
