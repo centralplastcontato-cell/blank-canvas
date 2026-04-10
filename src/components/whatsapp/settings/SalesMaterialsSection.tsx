@@ -486,14 +486,14 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
   }, [draggedIndex, dragOverIndex, formData]);
 
   const handleSaveMaterial = async () => {
-    if (!formData.name) {
-      toast({
-        title: "Erro",
-        description: "Preencha o nome do material.",
-        variant: "destructive",
-      });
-      return;
-    }
+    const materialName = formData.name?.trim() || (() => {
+      const typeLabels: Record<string, string> = {
+        pdf_package: "Pacote de Preços",
+        photo_collection: "Coleção de Fotos",
+        video: "Vídeo",
+      };
+      return typeLabels[formData.type] || "Material";
+    })();
 
     if (formData.type === "photo_collection") {
       if (formData.photo_urls.length === 0) {
