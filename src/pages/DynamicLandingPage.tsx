@@ -149,7 +149,12 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
             const g = row.gallery as unknown as LPGallery;
             const extra = getExtraGalleryPhotos(companySlug);
             if (extra.length === 0) return g;
-            return { ...g, photos: [...(g.photos || []), ...extra] };
+            // Append extra photos to both flat photos and each unit
+            const newPhotos = [...(g.photos || []), ...extra];
+            const newUnits = Array.isArray(g.units) && g.units.length > 0
+              ? g.units.map((u, i) => i === 0 ? { ...u, photos: [...(u.photos || []), ...extra] } : u)
+              : undefined;
+            return { ...g, photos: newPhotos, ...(newUnits ? { units: newUnits } : {}) };
           })(),
           testimonials: row.testimonials as unknown as LPTestimonials,
           offer: row.offer as unknown as LPOffer,
