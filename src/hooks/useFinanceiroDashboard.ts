@@ -327,10 +327,12 @@ export function useFinanceiroDashboard() {
   const nonPermutaPayments = filteredPayments.filter(p => !p.is_permuta);
 
   const paidThisMonth = nonPermutaPayments.filter(p => p.status === 'paid' && p.paid_at && p.paid_at.slice(0, 10) >= periodFrom && p.paid_at.slice(0, 10) <= periodTo);
-  const totalReceivedMonth = paidThisMonth.reduce((s, p) => s + p.amount, 0);
+  const revenuesReceivedInPeriod = revenues.filter(r => r.status === 'recebido' && r.revenue_date >= periodFrom && r.revenue_date <= periodTo);
+  const totalReceivedMonth = paidThisMonth.reduce((s, p) => s + p.amount, 0) + revenuesReceivedInPeriod.reduce((s: number, r: any) => s + r.amount, 0);
 
   const pendingThisMonth = nonPermutaPayments.filter(p => p.status === 'pending' && p.due_date >= periodFrom && p.due_date <= periodTo);
-  const totalPendingMonth = pendingThisMonth.reduce((s, p) => s + p.amount, 0);
+  const revenuesPendingInPeriod = revenues.filter(r => r.status === 'pendente' && r.revenue_date >= periodFrom && r.revenue_date <= periodTo);
+  const totalPendingMonth = pendingThisMonth.reduce((s, p) => s + p.amount, 0) + revenuesPendingInPeriod.reduce((s: number, r: any) => s + r.amount, 0);
 
   const latePayments = nonPermutaPayments.filter(p => p.status === 'late').sort((a, b) => a.due_date.localeCompare(b.due_date));
   const totalLate = latePayments.reduce((s, p) => s + p.amount, 0);
