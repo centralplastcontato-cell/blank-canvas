@@ -74,6 +74,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   const [catalogOptionals, setCatalogOptionals] = useState<CatalogOptional[]>([]);
   const [selectedOptionalId, setSelectedOptionalId] = useState<string>("");
   const [optionalQty, setOptionalQty] = useState(1);
+  const [optionalDueDate, setOptionalDueDate] = useState<string>("");
   const [addingOptional, setAddingOptional] = useState(false);
   const syncAttempted = useRef(false);
 
@@ -282,14 +283,17 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
 
       // Create differential payment if needed
       if (totalValue > 0.01) {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        const dueDate = optionalDueDate || (() => {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          return tomorrow.toISOString().split("T")[0];
+        })();
         await supabase.from("event_payments").insert({
           event_id: eventId,
           company_id: companyId,
           type: "parcela",
           amount: Math.round(totalValue * 100) / 100,
-          due_date: tomorrow.toISOString().split("T")[0],
+          due_date: dueDate,
           payment_method: null,
           status: "pending",
           notes: `Opcional: ${catalogOpt.name}`,
@@ -307,7 +311,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       setEventOptionals(updatedOptionals);
       setOptionalDialogOpen(false);
       setSelectedOptionalId("");
-      setOptionalQty(1);
+      setOptionalDueDate("");
       financial.refresh();
 
       toast({ title: "Opcional adicionado", description: `${catalogOpt.name} incluído com parcela pendente.` });
@@ -920,7 +924,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       </Dialog>
 
       {/* Add Optional Dialog */}
-      <Dialog open={optionalDialogOpen} onOpenChange={(open) => { if (!open) { setOptionalDialogOpen(false); setSelectedOptionalId(""); setOptionalQty(1); } }}>
+      <Dialog open={optionalDialogOpen} onOpenChange={(open) => { if (!open) { setOptionalDialogOpen(false); setSelectedOptionalId(""); setOptionalQty(1); setOptionalDueDate(""); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Package className="h-5 w-5 text-violet-500" /> Adicionar Opcional</DialogTitle></DialogHeader>
           <div className="space-y-4">
@@ -950,6 +954,10 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                   <Label>Quantidade</Label>
                   <Input type="number" min={1} value={optionalQty} onChange={e => setOptionalQty(Math.max(1, Number(e.target.value) || 1))} />
                 </div>
+                <div>
+                  <Label>Data de vencimento</Label>
+                  <Input type="date" value={optionalDueDate} onChange={e => setOptionalDueDate(e.target.value)} />
+                </div>
                 {selectedOptionalId && (() => {
                   const sel = catalogOptionals.find(c => c.id === selectedOptionalId);
                   if (!sel) return null;
@@ -972,7 +980,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setOptionalDialogOpen(false); setSelectedOptionalId(""); setOptionalQty(1); }}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setOptionalDialogOpen(false); setSelectedOptionalId(""); setOptionalQty(1); setOptionalDueDate(""); }}>Cancelar</Button>
             <Button
               disabled={!selectedOptionalId || addingOptional}
               onClick={() => {
