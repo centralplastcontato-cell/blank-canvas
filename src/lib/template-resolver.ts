@@ -611,6 +611,7 @@ export function getAvailableVariables(): {
     descricao: 'contract', telefone_pais: 'contract', cliente_celular: 'contract',
     tema: 'contract', valor_convidado_adicional: 'contract', quantidade_pessoas: 'contract',
     estado: 'contract', duracao_festa: 'contract', cardapio: 'contract', valor_total_extenso: 'contract',
+    valor_sinal_extenso: 'contract', valor_restante_extenso: 'contract', valor_convidado_adicional_extenso: 'contract',
     data_entrada: 'contract', data_saldo: 'contract', aniversariantes: 'contract', opcionais: 'contract',
     titulo: 'schedule', periodo: 'schedule', qtd_festas: 'schedule',
     link: 'schedule', observacoes: 'schedule', lista_escalados: 'schedule',
