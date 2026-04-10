@@ -460,18 +460,31 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         .eq("status", "connected")
         .limit(1);
       const instance = instances?.[0];
+      let signatureSent = false;
       if (instance) {
         const phone = lead.whatsapp.replace(/\D/g, "");
         const msg = `📄 *${contract.nome_documento}*\n\nOlá ${lead.name}! Seu contrato está pronto para assinatura digital.\n\nAcesse o link abaixo para ler e assinar:\n${signUrl}\n\n_${currentCompany.name}_`;
-        await supabase.functions.invoke("wapi-send", {
-          body: { instanceId: instance.instance_id, instanceToken: instance.instance_token, phone, message: msg },
+        const { data: sendResult, error: sendErr } = await supabase.functions.invoke("wapi-send", {
+          body: { action: "send-text", instanceId: instance.instance_id, instanceToken: instance.instance_token, phone, message: msg },
         });
-        toast({ title: "Link de assinatura enviado via WhatsApp ✅" });
+        const sendPayload = sendResult as { success?: boolean; error?: string } | null;
+        if (sendErr || sendPayload?.success === false) {
+          toast({
+            title: "Erro ao enviar link",
+            description: sendErr?.message || sendPayload?.error || "Falha no envio pelo WhatsApp.",
+            variant: "destructive",
+          });
+        } else {
+          signatureSent = true;
+          toast({ title: "Link de assinatura enviado via WhatsApp ✅" });
+        }
       } else {
         await navigator.clipboard.writeText(signUrl);
         toast({ title: "Link copiado!", description: "Nenhuma instância WhatsApp conectada. O link foi copiado." });
       }
-      await logContractAction(currentCompany.id, contract.id, contract.template_id, "contract_sent_for_signature", userId, { lead_id: leadId });
+      if (signatureSent) {
+        await logContractAction(currentCompany.id, contract.id, contract.template_id, "contract_sent_for_signature", userId, { lead_id: leadId });
+      }
       fetchGeneratedContracts();
     } finally {
       setSendingContractSign(null);
