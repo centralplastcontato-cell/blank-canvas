@@ -1116,7 +1116,83 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
               <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
                 <Label className="text-sm font-medium text-foreground/70">Convidados</Label>
-                <Input type="number" value={form.guest_count ?? ""} onChange={(e) => setForm({ ...form, guest_count: e.target.value ? Number(e.target.value) : null })} />
+                <Input
+                  type="number"
+                  value={form.guest_count ?? ""}
+                  onChange={(e) => setForm({ ...form, guest_count: e.target.value ? Number(e.target.value) : null })}
+                  disabled={pricingMode === 'per_person'}
+                  className={pricingMode === 'per_person' ? 'opacity-60' : ''}
+                />
+                {pricingMode === 'per_person' && (
+                  <p className="text-[10px] text-muted-foreground">Auto-calculado: {(adultCount || 0)} adultos + {(childCount || 0)} crianças</p>
+                )}
+              </div>
+
+              {/* Per-person pricing toggle */}
+              <div className="md:col-span-2 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={pricingMode === 'per_person'}
+                    onCheckedChange={(checked) => {
+                      const mode = checked ? 'per_person' : 'fixed';
+                      setPricingMode(mode);
+                      if (checked) {
+                        const pkg = packages.find(p => p.name === form.package_name);
+                        if (pkg?.preco_separado) {
+                          if (pkg.valor_pessoa_adicional_adulto != null && pricePerAdult == null) setPricePerAdult(pkg.valor_pessoa_adicional_adulto);
+                          if (pkg.valor_pessoa_adicional_crianca != null && pricePerChild == null) setPricePerChild(pkg.valor_pessoa_adicional_crianca);
+                        }
+                      }
+                    }}
+                  />
+                  <Label className="text-sm font-medium text-foreground/70 cursor-pointer">
+                    Preço por pessoa (adulto/criança)
+                  </Label>
+                </div>
+
+                {pricingMode === 'per_person' && (
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-3">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Qtd Adultos</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={adultCount ?? ""}
+                          onChange={(e) => setAdultCount(e.target.value ? Number(e.target.value) : null)}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Valor/Adulto</Label>
+                        <MoneyInput value={pricePerAdult} onChange={setPricePerAdult} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Qtd Crianças</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={childCount ?? ""}
+                          onChange={(e) => setChildCount(e.target.value ? Number(e.target.value) : null)}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Valor/Criança</Label>
+                        <MoneyInput value={pricePerChild} onChange={setPricePerChild} />
+                      </div>
+                    </div>
+                    {((adultCount || 0) > 0 || (childCount || 0) > 0) && (
+                      <p className="text-xs text-muted-foreground">
+                        {(adultCount || 0) > 0 && `${adultCount} adultos × R$ ${(pricePerAdult || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                        {(adultCount || 0) > 0 && (childCount || 0) > 0 && " + "}
+                        {(childCount || 0) > 0 && `${childCount} crianças × R$ ${(pricePerChild || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                        {" = "}
+                        <span className="font-semibold text-foreground">
+                          R$ {(((adultCount || 0) * (pricePerAdult || 0)) + ((childCount || 0) * (pricePerChild || 0))).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2.5 md:pr-6">
