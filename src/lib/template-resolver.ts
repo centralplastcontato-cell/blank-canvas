@@ -15,6 +15,8 @@
  * Case-insensitive by default.
  */
 
+import { numberToWordsBRL, parseBRLToNumber } from '@/lib/number-to-words-pt';
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -348,7 +350,29 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
     resolver: (ctx) => ctx.contract?.cardapio || '',
   },
   valor_total_extenso: {
-    resolver: (ctx) => ctx.contract?.valor_total_extenso || '',
+    resolver: (ctx) => {
+      if (ctx.contract?.valor_total_extenso) return ctx.contract.valor_total_extenso;
+      const numVal = parseBRLToNumber(ctx.contract?.value) ?? ctx.event?.value;
+      return numVal != null ? numberToWordsBRL(numVal) : '';
+    },
+  },
+  valor_sinal_extenso: {
+    resolver: (ctx) => {
+      if (!ctx.contract?.valor_sinal) return '';
+      return numberToWordsBRL(ctx.contract.valor_sinal);
+    },
+  },
+  valor_restante_extenso: {
+    resolver: (ctx) => {
+      if (!ctx.contract?.valor_restante) return '';
+      return numberToWordsBRL(ctx.contract.valor_restante);
+    },
+  },
+  valor_convidado_adicional_extenso: {
+    resolver: (ctx) => {
+      if (!ctx.contract?.valor_convidado_adicional) return '';
+      return numberToWordsBRL(ctx.contract.valor_convidado_adicional);
+    },
   },
   telefone_pais: {
     resolver: (ctx) => formatPhoneDisplay(ctx.contract?.telefone_pais),
@@ -587,6 +611,7 @@ export function getAvailableVariables(): {
     descricao: 'contract', telefone_pais: 'contract', cliente_celular: 'contract',
     tema: 'contract', valor_convidado_adicional: 'contract', quantidade_pessoas: 'contract',
     estado: 'contract', duracao_festa: 'contract', cardapio: 'contract', valor_total_extenso: 'contract',
+    valor_sinal_extenso: 'contract', valor_restante_extenso: 'contract', valor_convidado_adicional_extenso: 'contract',
     data_entrada: 'contract', data_saldo: 'contract', aniversariantes: 'contract', opcionais: 'contract',
     titulo: 'schedule', periodo: 'schedule', qtd_festas: 'schedule',
     link: 'schedule', observacoes: 'schedule', lista_escalados: 'schedule',
