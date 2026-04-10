@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, Loader2, Save } from "lucide-react";
+import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 
 export function CompanyDataSection() {
   const { currentCompany, refreshCompanies } = useCompany();
@@ -96,6 +97,8 @@ export function CompanyDataSection() {
     .toUpperCase()
     .slice(0, 2);
 
+  const displayLogoUrl = getCompanyLogoOverride(currentCompany.slug, logoUrl || currentCompany.logo_url);
+
   return (
     <div className="space-y-6 max-w-lg">
       {/* Logo */}
@@ -105,7 +108,7 @@ export function CompanyDataSection() {
           <div className="flex items-center gap-4">
             <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
               <Avatar className="h-20 w-20 border-2 border-border">
-                <AvatarImage src={logoUrl || undefined} />
+                <AvatarImage src={displayLogoUrl || undefined} />
                 <AvatarFallback className="bg-primary/10 text-primary text-xl font-bold">
                   {initials}
                 </AvatarFallback>
