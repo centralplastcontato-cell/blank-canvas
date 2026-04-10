@@ -159,7 +159,7 @@ export function RevenueFormDialog({ open, onOpenChange, onSubmit, defaultValues 
           <BankAccountSelect
             value={bankAccountId}
             onValueChange={setBankAccountId}
-            label="Conta bancária"
+            label="Conta bancária *"
             placeholder="Selecione a conta de entrada"
           />
 
