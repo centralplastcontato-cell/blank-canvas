@@ -6,9 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   FileSignature, CheckCircle2, AlertTriangle, Loader2, ChevronRight,
-  User, CalendarDays, CreditCard, Package, FileText, XCircle
+  User, CalendarDays, CreditCard, Package, FileText, XCircle, Eye, Printer
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { ContractDocumentViewer } from "./ContractDocumentViewer";
 
 interface ContractReadinessPanelProps {
   eventId: string;
@@ -68,6 +71,7 @@ export function ContractReadinessPanel({ eventId, eventData, onGenerateContract 
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
   const [existingContracts, setExistingContracts] = useState<any[]>([]);
+  const [viewContract, setViewContract] = useState<any>(null);
 
   useEffect(() => {
     if (!currentCompany?.id || !eventId) return;
@@ -96,7 +100,7 @@ export function ContractReadinessPanel({ eventId, eventData, onGenerateContract 
           .single(),
         (supabase as any)
           .from("generated_contracts")
-          .select("id, nome_documento, status, created_at")
+          .select("id, nome_documento, status, created_at, conteudo_renderizado, dados_utilizados, tipo_evento")
           .eq("event_id", eventId)
           .neq("status", "cancelado"),
       ]);
