@@ -98,6 +98,7 @@ export async function sendContractViaWhatsApp(
     // 5. Send via wapi-send
     const { data: sendResult, error: sendErr } = await supabase.functions.invoke("wapi-send", {
       body: {
+        action: "send-text",
         instanceId: instance.instance_id,
         instanceToken: instance.instance_token,
         phone: phone,
@@ -106,12 +107,14 @@ export async function sendContractViaWhatsApp(
       },
     });
 
+    const sendPayload = sendResult as { success?: boolean; error?: string } | null;
+
     if (sendErr) {
       return { success: false, error: sendErr.message || "Erro ao enviar mensagem." };
     }
 
-    if (sendResult && sendResult.success === false) {
-      return { success: false, error: sendResult.error || "Falha no envio pelo WhatsApp." };
+    if (sendPayload?.success === false) {
+      return { success: false, error: sendPayload.error || "Falha no envio pelo WhatsApp." };
     }
 
     return { success: true };
