@@ -263,7 +263,7 @@ export function GeneratedContractsList({ userId }: Props) {
                           WhatsApp
                         </Button>
                       )}
-                      {!isCancelled && c.status !== "assinado" && c.status !== "aguardando_assinatura" && (
+                      {!isCancelled && c.status !== "assinado" && (
                         <Button
                           variant="outline"
                           size="sm"
