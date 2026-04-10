@@ -15,6 +15,8 @@
  * Case-insensitive by default.
  */
 
+import { numberToWordsBRL, parseBRLToNumber } from '@/lib/number-to-words-pt';
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
