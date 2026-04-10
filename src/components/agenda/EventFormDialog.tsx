@@ -158,6 +158,19 @@ interface ClientDataRequest {
   completed_at: string | null;
 }
 
+type EventFormDraftSnapshot = {
+  form: EventFormData;
+  payment: PaymentDetails;
+  dateDay: string;
+  dateMonth: string;
+  dateYear: string;
+  pricingMode: 'fixed' | 'per_person';
+  adultCount: number | null;
+  childCount: number | null;
+  pricePerAdult: number | null;
+  pricePerChild: number | null;
+};
+
 interface EventFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;

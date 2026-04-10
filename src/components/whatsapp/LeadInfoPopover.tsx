@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -186,8 +186,8 @@ export function LeadInfoPopover({
   const [latestVisit, setLatestVisit] = useState<{ data_visita: string; horario_visita: string | null; status_visita: string } | null>(null);
   const { currentCompany } = useCompany();
   const { units } = useCompanyUnits(currentCompany?.id);
-  const eventDraftStorageKey = useMemo(() => linkedLead && currentCompany?.id ? `whatsapp-event-form-draft:${currentCompany.id}:${linkedLead.id}` : null, [currentCompany?.id, linkedLead?.id]);
-  const eventOpenStorageKey = useMemo(() => linkedLead && currentCompany?.id ? `whatsapp-event-form-open:${currentCompany.id}:${linkedLead.id}` : null, [currentCompany?.id, linkedLead?.id]);
+  const eventDraftStorageKey = linkedLead && currentCompany?.id ? `whatsapp-event-form-draft:${currentCompany.id}:${linkedLead.id}` : null;
+  const eventOpenStorageKey = linkedLead && currentCompany?.id ? `whatsapp-event-form-open:${currentCompany.id}:${linkedLead.id}` : null;
 
   const handleEventFormOpenChange = (nextOpen: boolean) => {
     setEventFormOpen(nextOpen);
