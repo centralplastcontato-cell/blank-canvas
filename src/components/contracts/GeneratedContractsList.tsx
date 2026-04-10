@@ -190,6 +190,8 @@ export function GeneratedContractsList({ userId }: Props) {
     contract_downloaded: "Contrato baixado",
     generation_failed: "Falha na geração",
     contract_sent_whatsapp: "Enviado via WhatsApp",
+    contract_sent_for_signature: "Enviado para assinatura",
+    contract_signed: "Assinado digitalmente",
   };
 
   return (
