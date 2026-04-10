@@ -38,3 +38,7 @@ export function applyHeroAssetOverrides(hero: LPHero, slug?: string | null): LPH
     mascot_image_url: override.mascot,
   };
 }
+
+export function getExtraGalleryPhotos(slug?: string | null): string[] {
+  return getCompanyAssetOverride(slug)?.extraGalleryPhotos ?? [];
+}
