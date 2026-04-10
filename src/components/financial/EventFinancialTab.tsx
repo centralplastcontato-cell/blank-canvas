@@ -311,7 +311,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       setEventOptionals(updatedOptionals);
       setOptionalDialogOpen(false);
       setSelectedOptionalId("");
-      setOptionalQty(1);
+      setOptionalDueDate("");
       financial.refresh();
 
       toast({ title: "Opcional adicionado", description: `${catalogOpt.name} incluído com parcela pendente.` });
@@ -924,7 +924,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       </Dialog>
 
       {/* Add Optional Dialog */}
-      <Dialog open={optionalDialogOpen} onOpenChange={(open) => { if (!open) { setOptionalDialogOpen(false); setSelectedOptionalId(""); setOptionalQty(1); } }}>
+      <Dialog open={optionalDialogOpen} onOpenChange={(open) => { if (!open) { setOptionalDialogOpen(false); setSelectedOptionalId(""); setOptionalQty(1); setOptionalDueDate(""); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Package className="h-5 w-5 text-violet-500" /> Adicionar Opcional</DialogTitle></DialogHeader>
           <div className="space-y-4">
