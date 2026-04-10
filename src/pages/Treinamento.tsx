@@ -150,8 +150,8 @@ export default function Treinamento() {
                     onLogout={handleLogout}
                   />
                   <div className="flex items-center gap-2 min-w-0">
-                    {currentCompany?.logo_url && (
-                      <img src={currentCompany.logo_url} alt={currentCompany.name || 'Logo'} className="h-8 w-auto shrink-0" />
+                    {getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url) && (
+                      <img src={getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url)!} alt={currentCompany.name || 'Logo'} className="h-8 w-auto shrink-0" />
                     )}
                     <h1 className="font-bold text-foreground text-sm truncate">Treinamento</h1>
                   </div>
