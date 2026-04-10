@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,14 @@ const STATUS_BADGE: Record<string, { label: string; className: string; bgRow: st
   late: { label: "Atrasado", className: "bg-red-500/20 text-red-400 border-red-500/30", bgRow: "bg-red-500/[0.04] border-red-500/20" },
 };
 
+interface CatalogOptional {
+  id: string;
+  name: string;
+  description: string | null;
+  value: number | null;
+  valor_por_pessoa: number | null;
+}
+
 interface Props {
   eventId: string;
   companyId: string;
@@ -42,7 +51,7 @@ interface Props {
   onAddOptional?: () => void;
 }
 
-export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = true, canPay = true, showValues = true, onAddOptional }: Props) {
+export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = true, canPay = true, showValues = true, onAddOptional: _onAddOptional }: Props) {
   const financial = useEventFinancial(eventId, companyId, baseValue);
   const { activeAccounts } = useBankAccounts();
   const bankAccountMap = useMemo(() => {
@@ -61,6 +70,11 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   const [recentlyPaidIds, setRecentlyPaidIds] = useState<Set<string>>(new Set());
   const [markPaidPayment, setMarkPaidPayment] = useState<any>(null);
   const [markPaidBankId, setMarkPaidBankId] = useState<string | null>(null);
+  const [optionalDialogOpen, setOptionalDialogOpen] = useState(false);
+  const [catalogOptionals, setCatalogOptionals] = useState<CatalogOptional[]>([]);
+  const [selectedOptionalId, setSelectedOptionalId] = useState<string>("");
+  const [optionalQty, setOptionalQty] = useState(1);
+  const [addingOptional, setAddingOptional] = useState(false);
   const syncAttempted = useRef(false);
 
   // Auto-sync: if no payments exist but event has payment_details, sync them
@@ -226,10 +240,87 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
 
   const fmt = (v: number) => showValues ? v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "••••";
 
+  // Add optional directly from sidebar
+  const handleAddOptionalInline = async (catalogOpt: CatalogOptional) => {
+    if (!eventId || !companyId) return;
+    setAddingOptional(true);
+    try {
+      const guests = eventGuestCount;
+      const unitPrice = catalogOpt.value || 0;
+      const ppVal = catalogOpt.valor_por_pessoa || 0;
+      const qty = optionalQty;
+      const totalValue = (unitPrice * qty) + (ppVal > 0 ? ppVal * guests * qty : 0);
+
+      const newOpt = {
+        name: catalogOpt.name,
+        value: unitPrice,
+        valor_por_pessoa: ppVal,
+        quantity: qty,
+        unit_price: unitPrice,
+      };
+
+      const updatedOptionals = [...eventOptionals, newOpt];
+
+      // Update event_optionals on company_events
+      // We need to recalc: baseValue from package + all optionals
+      const { data: eventData } = await supabase
+        .from("company_events")
+        .select("total_value")
+        .eq("id", eventId)
+        .single();
+
+      const currentTotal = Number(eventData?.total_value) || 0;
+      const newGrandTotal = currentTotal + totalValue;
+
+      await supabase
+        .from("company_events")
+        .update({
+          event_optionals: updatedOptionals,
+          total_value: newGrandTotal,
+        })
+        .eq("id", eventId);
+
+      // Create differential payment if needed
+      if (totalValue > 0.01) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        await supabase.from("event_payments").insert({
+          event_id: eventId,
+          company_id: companyId,
+          type: "parcela",
+          amount: Math.round(totalValue * 100) / 100,
+          due_date: tomorrow.toISOString().split("T")[0],
+          payment_method: null,
+          status: "pending",
+          notes: `Opcional: ${catalogOpt.name}`,
+        });
+
+        // Timeline
+        await supabase.from("event_financial_timeline").insert({
+          event_id: eventId,
+          company_id: companyId,
+          type: "optional_added",
+          description: `Opcional "${catalogOpt.name}" adicionado — parcela de R$ ${totalValue.toFixed(2)} criada`,
+        });
+      }
+
+      setEventOptionals(updatedOptionals);
+      setOptionalDialogOpen(false);
+      setSelectedOptionalId("");
+      setOptionalQty(1);
+      financial.refresh();
+
+      toast({ title: "Opcional adicionado", description: `${catalogOpt.name} incluído com parcela pendente.` });
+    } finally {
+      setAddingOptional(false);
+    }
+  };
+
   // Card fee data + payment_details + optionals from event
   const [cardFees, setCardFees] = useState<any[]>([]);
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
   const [eventOptionals, setEventOptionals] = useState<any[]>([]);
+  const [eventGuestCount, setEventGuestCount] = useState(0);
   
   useEffect(() => {
     if (!companyId) return;
@@ -239,16 +330,31 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       .eq("company_id", companyId)
       .eq("is_active", true)
       .then(({ data }: any) => setCardFees((data || []) as any[]));
+    // Fetch catalog optionals
+    supabase
+      .from("company_optionals")
+      .select("id, name, description, value, valor_por_pessoa")
+      .eq("company_id", companyId)
+      .eq("is_active", true)
+      .order("sort_order")
+      .then(({ data }) => {
+        setCatalogOptionals((data || []).map((o: any) => ({
+          id: o.id, name: o.name, description: o.description,
+          value: o.value != null ? Number(o.value) : null,
+          valor_por_pessoa: o.valor_por_pessoa != null ? Number(o.valor_por_pessoa) : null,
+        })));
+      });
     if (eventId) {
       supabase
         .from("company_events")
-        .select("payment_details, event_optionals")
+        .select("payment_details, event_optionals, guest_count")
         .eq("id", eventId)
         .single()
         .then(({ data }: any) => {
           setPaymentDetails(data?.payment_details || null);
           const opts = data?.event_optionals;
           setEventOptionals(Array.isArray(opts) ? opts.filter((o: any) => o.name) : []);
+          setEventGuestCount(Number(data?.guest_count) || 0);
         });
     }
   }, [companyId, eventId]);
@@ -558,10 +664,10 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <Package className="h-4 w-4 text-violet-400" /> Opcionais
           </h3>
-          {canEdit && onAddOptional && (
+          {canEdit && (
             <Button
               size="sm"
-              onClick={onAddOptional}
+              onClick={() => setOptionalDialogOpen(true)}
               className="h-8 text-xs gap-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 border-0 shadow-none"
             >
               <Plus className="h-3.5 w-3.5" /> Incluir
@@ -691,6 +797,73 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
           <DialogFooter>
             <Button variant="outline" onClick={() => { setMarkPaidPayment(null); setMarkPaidBankId(null); }}>Cancelar</Button>
             <Button onClick={confirmMarkAsPaid} className="bg-emerald-600 hover:bg-emerald-700 text-white">Confirmar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Optional Dialog */}
+      <Dialog open={optionalDialogOpen} onOpenChange={(open) => { if (!open) { setOptionalDialogOpen(false); setSelectedOptionalId(""); setOptionalQty(1); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Package className="h-5 w-5 text-violet-500" /> Adicionar Opcional</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            {catalogOptionals.length > 0 ? (
+              <>
+                <div>
+                  <Label>Opcional</Label>
+                  <Select value={selectedOptionalId} onValueChange={setSelectedOptionalId}>
+                    <SelectTrigger><SelectValue placeholder="Selecione um opcional..." /></SelectTrigger>
+                    <SelectContent>
+                      {catalogOptionals
+                        .filter(co => !eventOptionals.some((eo: any) => eo.name === co.name))
+                        .map(co => {
+                          const price = co.value || 0;
+                          const pp = co.valor_por_pessoa || 0;
+                          const label = price > 0 ? ` — R$ ${price.toFixed(2)}` : pp > 0 ? ` — R$ ${pp.toFixed(2)}/pessoa` : "";
+                          return (
+                            <SelectItem key={co.id} value={co.id}>
+                              {co.name}{label}
+                            </SelectItem>
+                          );
+                        })}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Quantidade</Label>
+                  <Input type="number" min={1} value={optionalQty} onChange={e => setOptionalQty(Math.max(1, Number(e.target.value) || 1))} />
+                </div>
+                {selectedOptionalId && (() => {
+                  const sel = catalogOptionals.find(c => c.id === selectedOptionalId);
+                  if (!sel) return null;
+                  const unitP = sel.value || 0;
+                  const ppP = sel.valor_por_pessoa || 0;
+                  const preview = (unitP * optionalQty) + (ppP > 0 ? ppP * eventGuestCount * optionalQty : 0);
+                  return (
+                    <div className="p-3 rounded-lg bg-muted/50 border border-border/40 text-sm">
+                      <p className="text-muted-foreground">Valor estimado:</p>
+                      <p className="text-lg font-bold text-foreground">{preview.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
+                      {ppP > 0 && <p className="text-[11px] text-muted-foreground">R$ {ppP.toFixed(2)}/pessoa × {eventGuestCount} convidados × {optionalQty}</p>}
+                    </div>
+                  );
+                })()}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Nenhum opcional cadastrado. Cadastre opcionais em Configurações → Opcionais.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setOptionalDialogOpen(false); setSelectedOptionalId(""); setOptionalQty(1); }}>Cancelar</Button>
+            <Button
+              disabled={!selectedOptionalId || addingOptional}
+              onClick={() => {
+                const sel = catalogOptionals.find(c => c.id === selectedOptionalId);
+                if (sel) handleAddOptionalInline(sel);
+              }}
+            >
+              {addingOptional ? "Adicionando..." : "Adicionar"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
