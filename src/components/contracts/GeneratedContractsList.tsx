@@ -121,6 +121,7 @@ export function GeneratedContractsList({ userId }: Props) {
     contract_cancelled: "Contrato cancelado",
     contract_downloaded: "Contrato baixado",
     generation_failed: "Falha na geração",
+    contract_sent_whatsapp: "Enviado via WhatsApp",
   };
 
   return (
