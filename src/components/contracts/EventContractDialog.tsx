@@ -187,8 +187,16 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
           if (eventData?.start_time && eventData?.end_time) {
             const [sh, sm] = eventData.start_time.split(":").map(Number);
             const [eh, em] = eventData.end_time.split(":").map(Number);
-            const diff = (eh * 60 + em) - (sh * 60 + sm);
-            if (diff > 0) return (diff / 60).toFixed(2).replace(".", ",");
+            const diffMin = (eh * 60 + em) - (sh * 60 + sm);
+            if (diffMin > 0) {
+              const hours = Math.floor(diffMin / 60);
+              const mins = diffMin % 60;
+              const timePart = mins > 0 ? `${hours}:${String(mins).padStart(2, "0")}h` : `${hours}:00h`;
+              // Build extenso
+              const hoursWord = hours === 1 ? "uma hora" : `${numberToWordsBRL(hours).replace(/ reais?$/, "")} horas`;
+              const minsWord = mins > 0 ? ` e ${numberToWordsBRL(mins).replace(/ reais?$/, "")} minutos` : "";
+              return `${timePart} (${hoursWord}${minsWord})`;
+            }
           }
           return "";
         })(),
