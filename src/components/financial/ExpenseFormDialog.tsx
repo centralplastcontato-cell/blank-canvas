@@ -75,6 +75,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       setExpenseType(defaultValues.expense_type || defaultExpenseType || 'fixa');
       setStatus(defaultValues.status || 'pendente');
       setNotes(defaultValues.notes || '');
+      setBankAccountId(defaultValues.bank_account_id || '');
       setReceiptUrl(defaultValues.receipt_url || '');
       setReceiptPreview(defaultValues.receipt_url || '');
       setBoletoUrl(defaultValues.boleto_url || '');
@@ -86,6 +87,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       setCategory('outros');
       setExpenseType(defaultExpenseType || 'fixa');
       setStatus('pendente');
+      setBankAccountId('');
       setNotes('');
       setReceiptUrl('');
       setReceiptPreview('');
@@ -178,6 +180,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       notes: notes.trim() || undefined,
       receipt_url: receiptUrl || undefined,
       boleto_url: boletoUrl || undefined,
+      bank_account_id: bankAccountId || undefined,
     });
     onOpenChange(false);
   };
