@@ -980,7 +980,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setOptionalDialogOpen(false); setSelectedOptionalId(""); setOptionalQty(1); }}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setOptionalDialogOpen(false); setSelectedOptionalId(""); setOptionalQty(1); setOptionalDueDate(""); }}>Cancelar</Button>
             <Button
               disabled={!selectedOptionalId || addingOptional}
               onClick={() => {
