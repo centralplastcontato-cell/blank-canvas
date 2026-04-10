@@ -471,7 +471,7 @@ export default function Visitas() {
 
   // ─── Main content ───
   const mainContent = (
-    <div className="p-4 md:p-6 max-w-6xl mx-auto">
+    <div className="p-4 md:p-6 max-w-7xl mx-auto">
       {/* Alert */}
       {unconfirmedSoon.length > 0 && (
         <div className="mb-5 rounded-2xl border border-amber-300/50 bg-gradient-to-r from-amber-50/80 to-amber-50/30 dark:from-amber-950/30 dark:to-transparent p-4 flex items-start gap-3">
