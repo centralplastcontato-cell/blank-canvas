@@ -571,6 +571,22 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
   }, [packages, form.package_name]);
 
+  // Auto-calculate total_value and guest_count in per_person mode
+  useEffect(() => {
+    if (pricingMode !== 'per_person') return;
+    const adults = adultCount || 0;
+    const children = childCount || 0;
+    const adultVal = pricePerAdult || 0;
+    const childVal = pricePerChild || 0;
+    const calculated = (adults * adultVal) + (children * childVal);
+    const totalGuests = adults + children;
+    setForm(prev => ({
+      ...prev,
+      total_value: calculated > 0 ? calculated : null,
+      guest_count: totalGuests > 0 ? totalGuests : prev.guest_count,
+    }));
+  }, [pricingMode, adultCount, childCount, pricePerAdult, pricePerChild]);
+
   // Computed optionals subtotal and grand total
   const optionalsSubtotal = useMemo(() => 
     (form.event_optionals || []).reduce((sum, o) => sum + (o.value || 0), 0),
