@@ -165,6 +165,7 @@ interface EventFormDialogProps {
   initialData?: EventFormData | null;
   units: Array<{ name: string }>;
   userId?: string;
+  draftStorageKey?: string;
 }
 
 const EMPTY_PAYMENT: PaymentDetails = {
