@@ -376,9 +376,34 @@ export function useFinanceiroDashboard() {
     fetchData();
   };
 
+  // CRUD revenues
+  const addRevenue = async (data: { description: string; amount: number; revenue_date: string; bank_account_id?: string; receipt_url?: string; notes?: string; status: string }) => {
+    if (!companyId) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await (supabase as any).from('company_revenues').insert({ ...data, company_id: companyId, created_by: user?.id || null });
+    if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Receita adicionada' });
+    fetchData();
+  };
+
+  const updateRevenue = async (id: string, data: Record<string, any>) => {
+    const { error } = await (supabase as any).from('company_revenues').update(data).eq('id', id);
+    if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Receita atualizada' });
+    fetchData();
+  };
+
+  const deleteRevenue = async (id: string) => {
+    const { error } = await (supabase as any).from('company_revenues').delete().eq('id', id);
+    if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Receita removida' });
+    fetchData();
+  };
+
   return {
     payments: filteredPayments,
     expenses: filteredExpenses,
+    revenues,
     isLoading,
     filters,
     setFilters,
@@ -399,6 +424,9 @@ export function useFinanceiroDashboard() {
     updateExpense,
     deleteExpense,
     markPaymentAsPaid,
+    addRevenue,
+    updateRevenue,
+    deleteRevenue,
     refresh: fetchData,
   };
 }
