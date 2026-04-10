@@ -1283,7 +1283,16 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
               <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Valor do pacote</Label>
-                <MoneyInput value={form.total_value} onChange={(v) => setForm({ ...form, total_value: v })} />
+                {pricingMode === 'per_person' ? (
+                  <div className="flex items-center h-10 px-3 rounded-xl border border-border/50 bg-muted/50">
+                    <span className="text-sm text-muted-foreground mr-1">R$</span>
+                    <span className="text-sm font-semibold text-foreground">
+                      {(form.total_value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                ) : (
+                  <MoneyInput value={form.total_value} onChange={(v) => setForm({ ...form, total_value: v })} />
+                )}
                 {suggestedPrice && (
                   <button
                     type="button"
