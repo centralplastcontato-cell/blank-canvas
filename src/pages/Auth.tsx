@@ -25,6 +25,7 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string | null>(null);
+  const [companySlug, setCompanySlug] = useState<string | null>(slug ?? null);
   const [isLoadingCompany, setIsLoadingCompany] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
 
