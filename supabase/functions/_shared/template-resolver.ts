@@ -10,6 +10,73 @@
  */
 
 // ---------------------------------------------------------------------------
+// Number to Words (BRL) — inlined for edge function compatibility
+// ---------------------------------------------------------------------------
+
+const _UNITS = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove'];
+const _TEENS = ['dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove'];
+const _TENS = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];
+const _HUNDREDS = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos', 'seiscentos', 'setecentos', 'oitocentos', 'novecentos'];
+
+function _groupToWords(n: number): string {
+  if (n === 0) return '';
+  if (n === 100) return 'cem';
+  const parts: string[] = [];
+  const h = Math.floor(n / 100);
+  const remainder = n % 100;
+  const t = Math.floor(remainder / 10);
+  const u = remainder % 10;
+  if (h > 0) parts.push(_HUNDREDS[h]);
+  if (remainder >= 10 && remainder <= 19) { parts.push(_TEENS[remainder - 10]); }
+  else { if (t > 0) parts.push(_TENS[t]); if (u > 0) parts.push(_UNITS[u]); }
+  return parts.join(' e ');
+}
+
+function _intToWords(n: number): string {
+  if (n === 0) return 'zero';
+  const groups = [
+    { value: 1_000_000_000, singular: 'um bilhão', plural: 'bilhões' },
+    { value: 1_000_000, singular: 'um milhão', plural: 'milhões' },
+    { value: 1_000, singular: 'mil', plural: 'mil' },
+  ];
+  const parts: string[] = [];
+  let rem = n;
+  for (const g of groups) {
+    const count = Math.floor(rem / g.value);
+    if (count > 0) {
+      parts.push(g.value === 1_000 ? (count === 1 ? 'um mil' : `${_groupToWords(count)} mil`) : (count === 1 ? g.singular : `${_groupToWords(count)} ${g.plural}`));
+      rem %= g.value;
+    }
+  }
+  if (rem > 0) parts.push(_groupToWords(rem));
+  if (parts.length <= 1) return parts[0] || 'zero';
+  const last = parts.pop()!;
+  return parts.join(', ') + ' e ' + last;
+}
+
+function parseBRLToNumber(value: string | number | null | undefined): number | null {
+  if (value == null) return null;
+  if (typeof value === 'number') return value;
+  const cleaned = value.replace(/R\$\s*/g, '').trim();
+  if (!cleaned) return null;
+  const normalized = cleaned.replace(/\./g, '').replace(',', '.');
+  const num = parseFloat(normalized);
+  return isNaN(num) ? null : num;
+}
+
+function numberToWordsBRL(value: number | string | null | undefined): string {
+  const num = typeof value === 'number' ? value : parseBRLToNumber(value);
+  if (num == null || num < 0) return '';
+  const intPart = Math.floor(num);
+  const centsPart = Math.round((num - intPart) * 100);
+  const parts: string[] = [];
+  if (intPart > 0) parts.push(_intToWords(intPart) + (intPart === 1 ? ' real' : ' reais'));
+  if (centsPart > 0) parts.push(_intToWords(centsPart) + (centsPart === 1 ? ' centavo' : ' centavos'));
+  if (parts.length === 0) return 'zero reais';
+  return parts.join(' e ');
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -217,7 +284,14 @@ const VARIABLE_CATALOG: Record<string, { resolver: VariableResolver }> = {
   estado: { resolver: (ctx) => ctx.contract?.estado || '' },
   duracao_festa: { resolver: (ctx) => ctx.contract?.duracao_festa || '' },
   cardapio: { resolver: (ctx) => ctx.contract?.cardapio || '' },
-  valor_total_extenso: { resolver: (ctx) => ctx.contract?.valor_total_extenso || '' },
+  valor_total_extenso: { resolver: (ctx) => {
+    if (ctx.contract?.valor_total_extenso) return ctx.contract.valor_total_extenso;
+    const numVal = parseBRLToNumber(ctx.contract?.value) ?? ctx.event?.value;
+    return numVal != null ? numberToWordsBRL(numVal) : '';
+  }},
+  valor_sinal_extenso: { resolver: (ctx) => ctx.contract?.valor_sinal ? numberToWordsBRL(ctx.contract.valor_sinal) : '' },
+  valor_restante_extenso: { resolver: (ctx) => ctx.contract?.valor_restante ? numberToWordsBRL(ctx.contract.valor_restante) : '' },
+  valor_convidado_adicional_extenso: { resolver: (ctx) => ctx.contract?.valor_convidado_adicional ? numberToWordsBRL(ctx.contract.valor_convidado_adicional) : '' },
   opcionais: { resolver: (ctx) => ctx.contract?.opcionais || 'Nenhum opcional contratado' },
   titulo: { resolver: (ctx) => ctx.schedule?.title || '' },
   periodo: { resolver: (ctx) => ctx.schedule?.period || '' },
