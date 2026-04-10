@@ -317,7 +317,103 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
     }
   };
 
-  // Card fee data + payment_details + optionals from event
+  // Remove optional from sidebar — also deletes associated payment
+  const handleRemoveOptional = async (optName: string, idx: number) => {
+    if (!eventId || !companyId) return;
+    try {
+      const updatedOptionals = eventOptionals.filter((_: any, i: number) => i !== idx);
+      const opt = eventOptionals[idx];
+      const qty = Number(opt.quantity) || 1;
+      const unitVal = Number(opt.value) || 0;
+      const ppVal = Number(opt.valor_por_pessoa) || 0;
+      const optTotal = (unitVal * qty) + (ppVal > 0 ? ppVal * eventGuestCount * qty : 0);
+
+      const { data: eventData } = await supabase
+        .from("company_events")
+        .select("total_value")
+        .eq("id", eventId)
+        .single();
+
+      const currentTotal = Number(eventData?.total_value) || 0;
+      const newTotal = Math.max(0, currentTotal - optTotal);
+
+      await supabase
+        .from("company_events")
+        .update({ event_optionals: updatedOptionals, total_value: newTotal })
+        .eq("id", eventId);
+
+      // Delete associated payment (match by notes containing the optional name)
+      const matchNote = `Opcional: ${optName}`;
+      const { data: matchedPayments } = await supabase
+        .from("event_payments")
+        .select("id")
+        .eq("event_id", eventId)
+        .eq("status", "pending")
+        .ilike("notes", `%${matchNote}%`);
+
+      if (matchedPayments && matchedPayments.length > 0) {
+        await supabase
+          .from("event_payments")
+          .delete()
+          .in("id", matchedPayments.map((p: any) => p.id));
+      }
+
+      await supabase.from("event_financial_timeline").insert({
+        event_id: eventId,
+        company_id: companyId,
+        type: "optional_removed",
+        description: `Opcional "${optName}" removido — parcela associada excluída`,
+      });
+
+      setEventOptionals(updatedOptionals);
+      financial.refresh();
+      toast({ title: "Opcional removido", description: `${optName} e sua parcela foram excluídos.` });
+    } catch (err) {
+      console.error("[handleRemoveOptional]", err);
+      toast({ title: "Erro ao remover opcional", variant: "destructive" });
+    }
+  };
+
+  // Edit optional quantity
+  const [editingOptionalIdx, setEditingOptionalIdx] = useState<number | null>(null);
+  const [editOptionalQty, setEditOptionalQty] = useState(1);
+
+  const handleEditOptional = async () => {
+    if (editingOptionalIdx === null || !eventId) return;
+    const opt = eventOptionals[editingOptionalIdx];
+    const oldQty = Number(opt.quantity) || 1;
+    const newQty = editOptionalQty;
+    if (newQty === oldQty) { setEditingOptionalIdx(null); return; }
+
+    const unitVal = Number(opt.value) || 0;
+    const ppVal = Number(opt.valor_por_pessoa) || 0;
+    const oldTotal = (unitVal * oldQty) + (ppVal > 0 ? ppVal * eventGuestCount * oldQty : 0);
+    const newTotal = (unitVal * newQty) + (ppVal > 0 ? ppVal * eventGuestCount * newQty : 0);
+    const diff = newTotal - oldTotal;
+
+    const updated = [...eventOptionals];
+    updated[editingOptionalIdx] = { ...opt, quantity: newQty };
+
+    const { data: evData } = await supabase.from("company_events").select("total_value").eq("id", eventId).single();
+    const curTotal = Number(evData?.total_value) || 0;
+
+    await supabase.from("company_events").update({ event_optionals: updated, total_value: Math.max(0, curTotal + diff) }).eq("id", eventId);
+
+    // Update matching pending payment amount
+    const matchNote = `Opcional: ${opt.name}`;
+    const { data: matchedPayments } = await supabase.from("event_payments").select("id").eq("event_id", eventId).eq("status", "pending").ilike("notes", `%${matchNote}%`);
+    if (matchedPayments && matchedPayments.length > 0) {
+      await supabase.from("event_payments").update({ amount: Math.round(newTotal * 100) / 100 }).eq("id", matchedPayments[0].id);
+    }
+
+    await supabase.from("event_financial_timeline").insert({ event_id: eventId, company_id: companyId, type: "optional_edited", description: `Opcional "${opt.name}" alterado de ${oldQty}× para ${newQty}×` });
+
+    setEventOptionals(updated);
+    setEditingOptionalIdx(null);
+    financial.refresh();
+    toast({ title: "Opcional atualizado" });
+  };
+
   const [cardFees, setCardFees] = useState<any[]>([]);
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
   const [eventOptionals, setEventOptionals] = useState<any[]>([]);
