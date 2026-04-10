@@ -252,16 +252,31 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       .eq("company_id", companyId)
       .eq("is_active", true)
       .then(({ data }: any) => setCardFees((data || []) as any[]));
+    // Fetch catalog optionals
+    supabase
+      .from("company_optionals")
+      .select("id, name, description, value, valor_por_pessoa")
+      .eq("company_id", companyId)
+      .eq("is_active", true)
+      .order("sort_order")
+      .then(({ data }) => {
+        setCatalogOptionals((data || []).map((o: any) => ({
+          id: o.id, name: o.name, description: o.description,
+          value: o.value != null ? Number(o.value) : null,
+          valor_por_pessoa: o.valor_por_pessoa != null ? Number(o.valor_por_pessoa) : null,
+        })));
+      });
     if (eventId) {
       supabase
         .from("company_events")
-        .select("payment_details, event_optionals")
+        .select("payment_details, event_optionals, guest_count")
         .eq("id", eventId)
         .single()
         .then(({ data }: any) => {
           setPaymentDetails(data?.payment_details || null);
           const opts = data?.event_optionals;
           setEventOptionals(Array.isArray(opts) ? opts.filter((o: any) => o.name) : []);
+          setEventGuestCount(Number(data?.guest_count) || 0);
         });
     }
   }, [companyId, eventId]);
