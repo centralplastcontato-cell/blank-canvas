@@ -227,6 +227,18 @@ export function ContractDocumentViewer({
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            {showWhatsAppButton && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSendWhatsApp}
+                disabled={sendingWhatsApp || isLoading}
+                className="gap-1.5 text-xs rounded-full text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+              >
+                {sendingWhatsApp ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5" />}
+                WhatsApp
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={handlePrint} disabled={isLoading} className="gap-1.5 text-xs rounded-full">
               <Printer className="h-3.5 w-3.5" /> Imprimir
             </Button>
