@@ -225,9 +225,10 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
 
   const fmt = (v: number) => showValues ? v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "••••";
 
-  // Card fee data + payment_details from event
+  // Card fee data + payment_details + optionals from event
   const [cardFees, setCardFees] = useState<any[]>([]);
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
+  const [eventOptionals, setEventOptionals] = useState<any[]>([]);
   
   useEffect(() => {
     if (!companyId) return;
@@ -240,10 +241,14 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
     if (eventId) {
       supabase
         .from("company_events")
-        .select("payment_details")
+        .select("payment_details, event_optionals")
         .eq("id", eventId)
         .single()
-        .then(({ data }: any) => setPaymentDetails(data?.payment_details || null));
+        .then(({ data }: any) => {
+          setPaymentDetails(data?.payment_details || null);
+          const opts = data?.event_optionals;
+          setEventOptionals(Array.isArray(opts) ? opts.filter((o: any) => o.name) : []);
+        });
     }
   }, [companyId, eventId]);
 
