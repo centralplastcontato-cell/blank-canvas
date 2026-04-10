@@ -150,6 +150,7 @@ export interface VariableContext {
     brindes?: string | null;
     descricao?: string | null;
     observacoes_comerciais?: string | null;
+    observacoes_evento?: string | null;
     tema?: string | null;
     valor_convidado_adicional?: string | null;
     quantidade_pessoas?: string | null;
