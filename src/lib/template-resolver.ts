@@ -17,6 +17,24 @@
 
 import { numberToWordsBRL, parseBRLToNumber } from '@/lib/number-to-words-pt';
 
+/**
+ * Post-processes rendered contract text to auto-append "por extenso"
+ * after every R$ value that doesn't already have extenso next to it.
+ * Pattern: "R$ 6.764,00" → "R$ 6.764,00 (seis mil setecentos e sessenta e quatro reais)"
+ */
+export function appendExtensoToValues(text: string): string {
+  if (!text) return text;
+  // Match R$ followed by a Brazilian-formatted number, but NOT already followed by " ("
+  return text.replace(
+    /R\$\s?([\d.,]+)(?!\s*\()/g,
+    (match, numStr) => {
+      const extenso = numberToWordsBRL(`R$ ${numStr}`);
+      if (!extenso) return match;
+      return `${match} (${extenso})`;
+    }
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------

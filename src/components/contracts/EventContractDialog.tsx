@@ -7,7 +7,7 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "@/hooks/use-toast";
-import { resolveSystemVariables, findUnresolvedVariables, type VariableContext } from "@/lib/template-resolver";
+import { resolveSystemVariables, findUnresolvedVariables, appendExtensoToValues, type VariableContext } from "@/lib/template-resolver";
 import { ContractDocumentViewer } from "./ContractDocumentViewer";
 import { logContractAction } from "./contractAuditHelpers";
 import { format } from "date-fns";
@@ -207,7 +207,8 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
 
   const renderedContent = useMemo(() => {
     if (!model) return "";
-    return resolveSystemVariables(model.conteudo_template, variableContext);
+    const resolved = resolveSystemVariables(model.conteudo_template, variableContext);
+    return appendExtensoToValues(resolved);
   }, [model, variableContext]);
 
   const unresolvedVars = useMemo(() => {
