@@ -81,3 +81,6 @@ verify_jwt = false
 [functions.pwa-manifest]
 verify_jwt = false
 
+[functions.contract-otp]
+verify_jwt = false
+
