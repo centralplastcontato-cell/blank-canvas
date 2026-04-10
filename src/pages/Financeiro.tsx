@@ -7,6 +7,7 @@ import { useCompany } from '@/contexts/CompanyContext';
 import { FinancialPaymentCard } from '@/components/financial/FinancialPaymentCard';
 import { PaymentsByClientView } from '@/components/financial/PaymentsByClientView';
 import { ExpenseFormDialog } from '@/components/financial/ExpenseFormDialog';
+import { RevenueFormDialog } from '@/components/financial/RevenueFormDialog';
 import { EventFinancialTab } from '@/components/financial/EventFinancialTab';
 import { FinancialReportDialog } from '@/components/financial/FinancialReportDialog';
 import { MarkExpensePaidDialog } from '@/components/financial/MarkExpensePaidDialog';
@@ -100,6 +101,8 @@ export default function Financeiro() {
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [expenseDialogType, setExpenseDialogType] = useState<string>('fixa');
   const [editingExpense, setEditingExpense] = useState<any>(null);
+  const [revenueDialogOpen, setRevenueDialogOpen] = useState(false);
+  const [editingRevenue, setEditingRevenue] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'list' | 'client'>('list');
   const [receitasSubTab, setReceitasSubTab] = useState('atraso');
   const [despesasSubTab, setDespesasSubTab] = useState('fixa');
