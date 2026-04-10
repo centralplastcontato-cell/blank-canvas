@@ -150,8 +150,6 @@ export function GeneratedContractsList({ userId }: Props) {
         toast({ title: "Erro ao criar assinatura", description: sigErr.message, variant: "destructive" });
         return;
       }
-      // Update contract status
-      await (supabase as any).from("generated_contracts").update({ status: "aguardando_assinatura", signature_token: token }).eq("id", contract.id);
 
       // Build sign URL
       const baseUrl = window.location.origin;
@@ -179,14 +177,20 @@ export function GeneratedContractsList({ userId }: Props) {
             description: sendErr?.message || sendPayload?.error || "Falha no envio pelo WhatsApp.",
             variant: "destructive",
           });
+          // Rollback: remove signature record since send failed
+          await (supabase as any).from("contract_signatures").delete().eq("token", token);
         } else {
           signatureSent = true;
+          // Only update status AFTER confirmed send success
+          await (supabase as any).from("generated_contracts").update({ status: "aguardando_assinatura", signature_token: token }).eq("id", contract.id);
           toast({ title: "Link de assinatura enviado via WhatsApp ✅" });
         }
       } else {
-        // Copy to clipboard as fallback
+        // No instance — update status and copy link as fallback
+        await (supabase as any).from("generated_contracts").update({ status: "aguardando_assinatura", signature_token: token }).eq("id", contract.id);
         await navigator.clipboard.writeText(signUrl);
         toast({ title: "Link copiado!", description: "Nenhuma instância WhatsApp conectada. O link foi copiado para a área de transferência." });
+        signatureSent = true;
       }
       if (signatureSent) {
         await logContractAction(currentCompany.id, contract.id, contract.template_id, "contract_sent_for_signature", userId, { lead_id: leadId });
