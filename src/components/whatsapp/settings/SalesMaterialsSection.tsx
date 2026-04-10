@@ -544,7 +544,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
         const { error } = await supabase
           .from("sales_materials")
           .update({
-            name: formData.name,
+            name: materialName,
             type: formData.type,
             guest_count: formData.type === "pdf_package" ? formData.guest_count : null,
             file_url: formData.type === "photo_collection" 
