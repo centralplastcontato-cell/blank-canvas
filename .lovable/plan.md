@@ -1,26 +1,34 @@
 
 
-## Plano: Remover instância duplicada e corrigir RLS
+## Diagnóstico do Bug
 
-### Diagnóstico confirmado
-- **Instância original** (`ba0a2a17`): 152 conversas, 5.278 mensagens — todos os dados intactos
-- **Instância duplicada** (`2921d889`): 0 conversas, 0 mensagens — vazia, criada por engano
+O problema está na função `syncPaymentDetails` em `src/pages/Agenda.tsx` (linhas 718-781). Quando um evento é salvo/criado, essa função cria os registros de pagamento (`event_payments`) com os **valores BRUTOS** (sem descontar as taxas de cartão).
 
-As conversas não sumiram — estão todas na instância original. O chat mostra vazio porque está carregando a duplicata.
+Enquanto isso, a lógica de "backfill" nos hooks `EventFinancialTab` e `useFinanceiroDashboard` aplica corretamente as taxas de cartão — mas essas funções só rodam quando **não existem** pagamentos prévios. Como `syncPaymentDetails` já cria os registros brutos primeiro, o backfill nunca é acionado.
 
-### Ações
+**Resultado**: O evento "Noah 5 anos" tem:
+- Entrada: R$ 1.900 armazenado (bruto) em vez de ~R$ 1.795,69 (líquido com 5,49%)
+- Parcelas: 5x R$ 800 (bruto) em vez de valor líquido
+- O extrato bancário mostra +R$ 1.900 quando deveria mostrar o valor líquido
+- Os cards financeiros do evento mostram valores brutos
 
-**1. Excluir a instância duplicada (via insert tool)**
-Deletar o registro `2921d889-8270-48c8-9a05-a263987b252d` da tabela `wapi_instances`. Como tem 0 dados vinculados, é 100% seguro.
+## Plano de Correção
 
-**2. Corrigir política RLS de DELETE (via migração)**
-Atualizar a policy de exclusão da tabela `wapi_instances` para permitir que usuários com role `admin` (não apenas `owner`) possam excluir instâncias, evitando esse bloqueio no futuro.
+### 1. Corrigir `syncPaymentDetails` em Agenda.tsx
+Adicionar a mesma lógica de dedução de taxas de cartão que já existe no backfill:
+- Buscar `company_card_fees` ativas para a empresa
+- Se `entrada_forma === "cartao"`, aplicar taxa baseada em `entrada_parcelas`
+- Se `saldo_forma === "cartao"`, aplicar taxa baseada em `parcelas` e criar linha única (sem splitar parcelas)
+- Parcelas de cartão não devem ser splitadas em múltiplas linhas
 
-### Resultado
-- Apenas 1 instância "Aventura Kids" no sistema
-- Todas as 152 conversas e 5.278 mensagens visíveis novamente
-- Admins poderão excluir instâncias pela UI normalmente
+### 2. Corrigir os dados existentes do "Noah 5 anos"
+Via migração SQL, recalcular os valores das parcelas pendentes aplicando a taxa de 5,49%:
+- Entrada paga (R$ 1.900): já está marcada como paga, o valor no banco precisa ser corrigido para ~R$ 1.795,69
+- 5 parcelas pendentes de R$ 800: devem ser consolidadas em 1 parcela de ~R$ 3.780,40 (R$ 4.000 - 5,49%)
 
-### Risco: ZERO
-A instância duplicada não possui nenhum dado. Nenhuma mensagem será perdida.
+### Resultado Esperado
+- Novos eventos com pagamento cartão terão valores líquidos corretos
+- O extrato bancário refletirá o valor que realmente cai na conta
+- Os cards financeiros mostrarão valores líquidos
+- O card de "Taxas de Cartão" continuará mostrando o valor bruto vs líquido para referência
 
