@@ -91,6 +91,31 @@ export function GeneratedContractsList({ userId }: Props) {
     setAuditLogs(data || []);
   };
 
+  const [sendingWA, setSendingWA] = useState<string | null>(null);
+
+  const handleSendWhatsApp = async (contract: GeneratedContract) => {
+    if (!currentCompany?.id) return;
+    // Resolve lead_id: direct or via event
+    let leadId = contract.lead_id;
+    if (!leadId && contract.event_id) {
+      const { data: ev } = await supabase.from("company_events").select("lead_id").eq("id", contract.event_id).single();
+      leadId = ev?.lead_id || null;
+    }
+    if (!leadId) {
+      toast({ title: "Lead não vinculado", description: "Este contrato não possui um lead associado para envio.", variant: "destructive" });
+      return;
+    }
+    setSendingWA(contract.id);
+    const result = await sendContractViaWhatsApp(currentCompany.id, leadId, contract.conteudo_renderizado, contract.nome_documento);
+    if (result.success) {
+      toast({ title: "Contrato enviado via WhatsApp ✅" });
+      await logContractAction(currentCompany.id, contract.id, contract.template_id, "contract_sent_whatsapp", userId, { lead_id: leadId });
+    } else {
+      toast({ title: "Erro ao enviar", description: result.error, variant: "destructive" });
+    }
+    setSendingWA(null);
+  };
+
   const ACTION_LABELS: Record<string, string> = {
     contract_generated: "Contrato gerado",
     contract_cancelled: "Contrato cancelado",
