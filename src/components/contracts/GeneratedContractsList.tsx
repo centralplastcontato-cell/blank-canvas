@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Plus, Loader2, FileText, Eye, Ban, History, MessageCircle } from "lucide-react";
+import { Plus, Loader2, FileText, Eye, Ban, History, MessageCircle, FileSignature } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ContractGenerator } from "./ContractGenerator";
@@ -34,10 +34,12 @@ const STATUS_COLORS: Record<string, string> = {
   enviado: "bg-amber-500/15 text-amber-700 border-amber-300",
   assinado: "bg-emerald-500/15 text-emerald-700 border-emerald-300",
   cancelado: "bg-red-500/15 text-red-700 border-red-300",
+  aguardando_assinatura: "bg-purple-500/15 text-purple-700 border-purple-300",
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  rascunho: "Rascunho", gerado: "Gerado", enviado: "Enviado", assinado: "Assinado", cancelado: "Cancelado",
+  rascunho: "Rascunho", gerado: "Gerado", enviado: "Enviado", assinado: "Assinado ✅", cancelado: "Cancelado",
+  aguardando_assinatura: "Aguardando Assinatura",
 };
 
 interface Props { userId: string; }
@@ -92,10 +94,10 @@ export function GeneratedContractsList({ userId }: Props) {
   };
 
   const [sendingWA, setSendingWA] = useState<string | null>(null);
+  const [sendingSign, setSendingSign] = useState<string | null>(null);
 
   const handleSendWhatsApp = async (contract: GeneratedContract) => {
     if (!currentCompany?.id) return;
-    // Resolve lead_id: direct or via event
     let leadId = contract.lead_id;
     if (!leadId && contract.event_id) {
       const { data: ev } = await supabase.from("company_events").select("lead_id").eq("id", contract.event_id).single();
@@ -116,12 +118,80 @@ export function GeneratedContractsList({ userId }: Props) {
     setSendingWA(null);
   };
 
+  const handleSendForSignature = async (contract: GeneratedContract) => {
+    if (!currentCompany?.id) return;
+    let leadId = contract.lead_id;
+    if (!leadId && contract.event_id) {
+      const { data: ev } = await supabase.from("company_events").select("lead_id").eq("id", contract.event_id).single();
+      leadId = ev?.lead_id || null;
+    }
+    if (!leadId) {
+      toast({ title: "Lead não vinculado", description: "Este contrato não possui um lead associado.", variant: "destructive" });
+      return;
+    }
+    // Get lead info
+    const { data: lead } = await supabase.from("campaign_leads").select("name, whatsapp").eq("id", leadId).single();
+    if (!lead?.whatsapp) {
+      toast({ title: "Lead sem WhatsApp cadastrado", variant: "destructive" });
+      return;
+    }
+    setSendingSign(contract.id);
+    try {
+      const token = crypto.randomUUID();
+      // Create signature record
+      const { error: sigErr } = await (supabase as any).from("contract_signatures").insert({
+        contract_id: contract.id,
+        company_id: currentCompany.id,
+        signer_name: lead.name,
+        signer_phone: lead.whatsapp,
+        token,
+      });
+      if (sigErr) {
+        toast({ title: "Erro ao criar assinatura", description: sigErr.message, variant: "destructive" });
+        return;
+      }
+      // Update contract status
+      await (supabase as any).from("generated_contracts").update({ status: "aguardando_assinatura", signature_token: token }).eq("id", contract.id);
+
+      // Build sign URL
+      const baseUrl = window.location.origin;
+      const signUrl = `${baseUrl}/assinar-contrato/${token}`;
+
+      // Send link via WhatsApp
+      const { data: instances } = await (supabase as any)
+        .from("wapi_instances")
+        .select("instance_id, instance_token")
+        .eq("company_id", currentCompany.id)
+        .eq("status", "connected")
+        .limit(1);
+      const instance = instances?.[0];
+      if (instance) {
+        const phone = lead.whatsapp.replace(/\D/g, "");
+        const msg = `📄 *${contract.nome_documento}*\n\nOlá ${lead.name}! Seu contrato está pronto para assinatura digital.\n\nAcesse o link abaixo para ler e assinar:\n${signUrl}\n\n_${currentCompany.name}_`;
+        await supabase.functions.invoke("wapi-send", {
+          body: { instanceId: instance.instance_id, instanceToken: instance.instance_token, phone, message: msg },
+        });
+        toast({ title: "Link de assinatura enviado via WhatsApp ✅" });
+      } else {
+        // Copy to clipboard as fallback
+        await navigator.clipboard.writeText(signUrl);
+        toast({ title: "Link copiado!", description: "Nenhuma instância WhatsApp conectada. O link foi copiado para a área de transferência." });
+      }
+      await logContractAction(currentCompany.id, contract.id, contract.template_id, "contract_sent_for_signature", userId, { lead_id: leadId });
+      fetchContracts();
+    } finally {
+      setSendingSign(null);
+    }
+  };
+
   const ACTION_LABELS: Record<string, string> = {
     contract_generated: "Contrato gerado",
     contract_cancelled: "Contrato cancelado",
     contract_downloaded: "Contrato baixado",
     generation_failed: "Falha na geração",
     contract_sent_whatsapp: "Enviado via WhatsApp",
+    contract_sent_for_signature: "Enviado para assinatura",
+    contract_signed: "Assinado digitalmente",
   };
 
   return (
@@ -176,6 +246,18 @@ export function GeneratedContractsList({ userId }: Props) {
                           WhatsApp
                         </Button>
                       )}
+                      {!isCancelled && c.status !== "assinado" && c.status !== "aguardando_assinatura" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs rounded-full px-3.5 gap-1.5 text-purple-700 border-purple-300 hover:bg-purple-50"
+                          onClick={() => handleSendForSignature(c)}
+                          disabled={sendingSign === c.id}
+                        >
+                          {sendingSign === c.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileSignature className="h-3.5 w-3.5" />}
+                          Enviar p/ Assinatura
+                        </Button>
+                      )}
                       <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5" onClick={() => handleShowAudit(c.id)}>
                         <History className="h-3.5 w-3.5" /> Histórico
                       </Button>
@@ -205,25 +287,13 @@ export function GeneratedContractsList({ userId }: Props) {
 
       {/* View Contract - Full Document Viewer */}
       {viewContract && (
-        <ContractDocumentViewer
-          open={!!viewContract}
-          onOpenChange={() => setViewContract(null)}
-          content={viewContract.conteudo_renderizado}
+        <ContractDocumentViewerWithSignature
+          contract={viewContract}
           companyName={currentCompany?.name || ""}
           companyLogo={currentCompany?.logo_url || undefined}
-          mode="generated"
-          meta={{
-            modelName: viewContract.nome_documento,
-            status: viewContract.status,
-            generatedAt: viewContract.created_at,
-            leadName: viewContract.dados_utilizados?.lead?.name,
-            eventDate: viewContract.dados_utilizados?.event?.date,
-            eventType: viewContract.tipo_evento || undefined,
-          }}
-          contractId={viewContract.id}
-          leadId={viewContract.lead_id || viewContract.dados_utilizados?.lead?.id || undefined}
           companyId={currentCompany?.id}
           userId={userId}
+          onClose={() => setViewContract(null)}
         />
       )}
 
@@ -255,5 +325,63 @@ export function GeneratedContractsList({ userId }: Props) {
         </Sheet>
       )}
     </>
+  );
+}
+
+/** Wrapper that fetches signature data before rendering the viewer */
+function ContractDocumentViewerWithSignature({
+  contract, companyName, companyLogo, companyId, userId, onClose,
+}: {
+  contract: GeneratedContract;
+  companyName: string;
+  companyLogo?: string;
+  companyId?: string;
+  userId: string;
+  onClose: () => void;
+}) {
+  const [sigInfo, setSigInfo] = useState<any>(null);
+
+  useEffect(() => {
+    if (contract.status === "assinado" && companyId) {
+      (supabase as any)
+        .from("contract_signatures")
+        .select("signature_image_url, signed_at, document_hash, ip_address, signer_name")
+        .eq("contract_id", contract.id)
+        .eq("status", "signed")
+        .limit(1)
+        .then(({ data }: any) => {
+          if (data?.[0]) setSigInfo(data[0]);
+        });
+    }
+  }, [contract.id, contract.status, companyId]);
+
+  return (
+    <ContractDocumentViewer
+      open={true}
+      onOpenChange={() => onClose()}
+      content={contract.conteudo_renderizado}
+      companyName={companyName}
+      companyLogo={companyLogo}
+      mode="generated"
+      meta={{
+        modelName: contract.nome_documento,
+        status: contract.status,
+        generatedAt: contract.created_at,
+        leadName: contract.dados_utilizados?.lead?.name,
+        eventDate: contract.dados_utilizados?.event?.date,
+        eventType: contract.tipo_evento || undefined,
+      }}
+      contractId={contract.id}
+      leadId={contract.lead_id || contract.dados_utilizados?.lead?.id || undefined}
+      companyId={companyId}
+      userId={userId}
+      signatureInfo={sigInfo ? {
+        signatureImageUrl: sigInfo.signature_image_url,
+        signedAt: sigInfo.signed_at,
+        documentHash: sigInfo.document_hash,
+        ipAddress: sigInfo.ip_address,
+        signerName: sigInfo.signer_name,
+      } : undefined}
+    />
   );
 }
