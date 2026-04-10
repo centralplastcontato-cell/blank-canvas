@@ -2220,6 +2220,17 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     onSaved={(req) => {
                       setClientRequest(req as ClientDataRequest);
                       setShowManualForm(false);
+                      // Sync birthday_children back to form state so main save won't overwrite
+                      const cd = req.client_data as any;
+                      if (cd?.birthday_children?.length) {
+                        setForm(prev => ({
+                          ...prev,
+                          birthday_children: cd.birthday_children,
+                          child_name: cd.birthday_children[0]?.name || prev.child_name,
+                          child_age: cd.birthday_children[0]?.age || prev.child_age,
+                          child_birthdate: cd.birthday_children[0]?.birthdate || prev.child_birthdate,
+                        }));
+                      }
                     }}
                     onCancel={() => setShowManualForm(false)}
                   />
@@ -2237,6 +2248,17 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     onSaved={(req) => {
                       setClientRequest(req as ClientDataRequest);
                       setEditingClientData(false);
+                      // Sync birthday_children back to form state so main save won't overwrite
+                      const cd = req.client_data as any;
+                      if (cd?.birthday_children?.length) {
+                        setForm(prev => ({
+                          ...prev,
+                          birthday_children: cd.birthday_children,
+                          child_name: cd.birthday_children[0]?.name || prev.child_name,
+                          child_age: cd.birthday_children[0]?.age || prev.child_age,
+                          child_birthdate: cd.birthday_children[0]?.birthdate || prev.child_birthdate,
+                        }));
+                      }
                     }}
                     onCancel={() => setEditingClientData(false)}
                   />
