@@ -145,7 +145,12 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
           company_instagram: onbRow?.instagram || null,
           hero: applyHeroAssetOverrides(normalizedHero, companySlug),
           video: row.video as unknown as LPVideo,
-          gallery: row.gallery as unknown as LPGallery,
+          gallery: (() => {
+            const g = row.gallery as unknown as LPGallery;
+            const extra = getExtraGalleryPhotos(companySlug);
+            if (extra.length === 0) return g;
+            return { ...g, photos: [...(g.photos || []), ...extra] };
+          })(),
           testimonials: row.testimonials as unknown as LPTestimonials,
           offer: row.offer as unknown as LPOffer,
           benefits: row.benefits as unknown as LPBenefits || { enabled: true, title: "", subtitle: "", items: [], trust_badges: [] },
