@@ -278,7 +278,7 @@ export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick, mul
           src={hero.mascot_image_url}
           alt="Mascote"
           className="absolute z-20 w-32 md:w-48 lg:w-56 drop-shadow-2xl pointer-events-none"
-          style={{ bottom: "8%", right: "5%" }}
+          style={{ bottom: "25%", left: "3%" }}
           initial={{ opacity: 0, x: 100, y: 50 }}
           animate={{
             opacity: 1,
