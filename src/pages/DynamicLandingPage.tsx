@@ -14,7 +14,7 @@ import { DLPHowItWorks } from "@/components/dynamic-lp/DLPHowItWorks";
 import { DLPFooter } from "@/components/dynamic-lp/DLPFooter";
 import { DLPFloatingCTA } from "@/components/dynamic-lp/DLPFloatingCTA";
 import { LeadChatbot } from "@/components/landing/LeadChatbot";
-import { applyHeroAssetOverrides, getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
+import { applyHeroAssetOverrides, getCompanyLogoOverride, getExtraGalleryPhotos } from "@/lib/companyAssetOverrides";
 import type { LPHero, LPVideo, LPGallery, LPTestimonials, LPOffer, LPTheme, LPFooter, LPBenefits, LPSocialProof, LPHowItWorks } from "@/types/landing-page";
 
 interface LPBotConfig {
@@ -145,7 +145,12 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
           company_instagram: onbRow?.instagram || null,
           hero: applyHeroAssetOverrides(normalizedHero, companySlug),
           video: row.video as unknown as LPVideo,
-          gallery: row.gallery as unknown as LPGallery,
+          gallery: (() => {
+            const g = row.gallery as unknown as LPGallery;
+            const extra = getExtraGalleryPhotos(companySlug);
+            if (extra.length === 0) return g;
+            return { ...g, photos: [...(g.photos || []), ...extra] };
+          })(),
           testimonials: row.testimonials as unknown as LPTestimonials,
           offer: row.offer as unknown as LPOffer,
           benefits: row.benefits as unknown as LPBenefits || { enabled: true, title: "", subtitle: "", items: [], trust_badges: [] },

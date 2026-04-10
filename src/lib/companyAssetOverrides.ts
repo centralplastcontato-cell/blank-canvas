@@ -1,16 +1,19 @@
 import type { LPHero } from "@/types/landing-page";
 import megamagicLogo from "@/assets/megamagic-logo-transparent.png";
 import megamagicMascot from "@/assets/megamagic-mascot-transparent.png";
+import megamagicGalleryBaby from "@/assets/megamagic-gallery-baby.jpg";
 
 interface CompanyAssetOverride {
   logo?: string;
   mascot?: string;
+  extraGalleryPhotos?: string[];
 }
 
 const COMPANY_ASSET_OVERRIDES: Record<string, CompanyAssetOverride> = {
   megamegic: {
     logo: megamagicLogo,
     mascot: megamagicMascot,
+    extraGalleryPhotos: [megamagicGalleryBaby],
   },
 };
 
@@ -34,4 +37,8 @@ export function applyHeroAssetOverrides(hero: LPHero, slug?: string | null): LPH
     ...hero,
     mascot_image_url: override.mascot,
   };
+}
+
+export function getExtraGalleryPhotos(slug?: string | null): string[] {
+  return getCompanyAssetOverride(slug)?.extraGalleryPhotos ?? [];
 }
