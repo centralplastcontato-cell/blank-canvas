@@ -1339,7 +1339,7 @@ export function AutomationsSection() {
                     </div>
 
                     {/* Individual Material Toggles */}
-                    {botSettings?.auto_send_materials && (
+                    {(botSettings?.auto_send_materials ?? true) && (
                       <div className="space-y-3 pl-2 border-l-2 border-blue-500/30 ml-3">
                         {/* Photos */}
                         <div className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-background/50 transition-colors">
