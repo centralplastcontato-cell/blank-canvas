@@ -68,6 +68,14 @@ interface Props {
   leadId?: string;
   companyId?: string;
   userId?: string;
+  /** Signature data */
+  signatureInfo?: {
+    signatureImageUrl?: string;
+    signedAt?: string;
+    documentHash?: string;
+    ipAddress?: string;
+    signerName?: string;
+  };
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -86,7 +94,7 @@ export function ContractDocumentViewer({
   open, onOpenChange, content, companyName, companyLogo,
   mode, meta, unresolvedVars = [], missingRequired = [],
   onGenerate, generating, canGenerate,
-  contractId, leadId, companyId, userId,
+  contractId, leadId, companyId, userId, signatureInfo,
 }: Props) {
   const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
 
