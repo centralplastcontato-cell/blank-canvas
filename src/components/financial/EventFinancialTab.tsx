@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Trash2, CheckCircle, RotateCcw, Tag, Receipt, Clock, CreditCard, Building, Package } from "lucide-react";
+import { Plus, Trash2, CheckCircle, RotateCcw, Tag, Receipt, Clock, CreditCard, Building, Package, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
@@ -316,7 +316,103 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
     }
   };
 
-  // Card fee data + payment_details + optionals from event
+  // Remove optional from sidebar — also deletes associated payment
+  const handleRemoveOptional = async (optName: string, idx: number) => {
+    if (!eventId || !companyId) return;
+    try {
+      const updatedOptionals = eventOptionals.filter((_: any, i: number) => i !== idx);
+      const opt = eventOptionals[idx];
+      const qty = Number(opt.quantity) || 1;
+      const unitVal = Number(opt.value) || 0;
+      const ppVal = Number(opt.valor_por_pessoa) || 0;
+      const optTotal = (unitVal * qty) + (ppVal > 0 ? ppVal * eventGuestCount * qty : 0);
+
+      const { data: eventData } = await supabase
+        .from("company_events")
+        .select("total_value")
+        .eq("id", eventId)
+        .single();
+
+      const currentTotal = Number(eventData?.total_value) || 0;
+      const newTotal = Math.max(0, currentTotal - optTotal);
+
+      await supabase
+        .from("company_events")
+        .update({ event_optionals: updatedOptionals, total_value: newTotal })
+        .eq("id", eventId);
+
+      // Delete associated payment (match by notes containing the optional name)
+      const matchNote = `Opcional: ${optName}`;
+      const { data: matchedPayments } = await supabase
+        .from("event_payments")
+        .select("id")
+        .eq("event_id", eventId)
+        .eq("status", "pending")
+        .ilike("notes", `%${matchNote}%`);
+
+      if (matchedPayments && matchedPayments.length > 0) {
+        await supabase
+          .from("event_payments")
+          .delete()
+          .in("id", matchedPayments.map((p: any) => p.id));
+      }
+
+      await supabase.from("event_financial_timeline").insert({
+        event_id: eventId,
+        company_id: companyId,
+        type: "optional_removed",
+        description: `Opcional "${optName}" removido — parcela associada excluída`,
+      });
+
+      setEventOptionals(updatedOptionals);
+      financial.refresh();
+      toast({ title: "Opcional removido", description: `${optName} e sua parcela foram excluídos.` });
+    } catch (err) {
+      console.error("[handleRemoveOptional]", err);
+      toast({ title: "Erro ao remover opcional", variant: "destructive" });
+    }
+  };
+
+  // Edit optional quantity
+  const [editingOptionalIdx, setEditingOptionalIdx] = useState<number | null>(null);
+  const [editOptionalQty, setEditOptionalQty] = useState(1);
+
+  const handleEditOptional = async () => {
+    if (editingOptionalIdx === null || !eventId) return;
+    const opt = eventOptionals[editingOptionalIdx];
+    const oldQty = Number(opt.quantity) || 1;
+    const newQty = editOptionalQty;
+    if (newQty === oldQty) { setEditingOptionalIdx(null); return; }
+
+    const unitVal = Number(opt.value) || 0;
+    const ppVal = Number(opt.valor_por_pessoa) || 0;
+    const oldTotal = (unitVal * oldQty) + (ppVal > 0 ? ppVal * eventGuestCount * oldQty : 0);
+    const newTotal = (unitVal * newQty) + (ppVal > 0 ? ppVal * eventGuestCount * newQty : 0);
+    const diff = newTotal - oldTotal;
+
+    const updated = [...eventOptionals];
+    updated[editingOptionalIdx] = { ...opt, quantity: newQty };
+
+    const { data: evData } = await supabase.from("company_events").select("total_value").eq("id", eventId).single();
+    const curTotal = Number(evData?.total_value) || 0;
+
+    await supabase.from("company_events").update({ event_optionals: updated, total_value: Math.max(0, curTotal + diff) }).eq("id", eventId);
+
+    // Update matching pending payment amount
+    const matchNote = `Opcional: ${opt.name}`;
+    const { data: matchedPayments } = await supabase.from("event_payments").select("id").eq("event_id", eventId).eq("status", "pending").ilike("notes", `%${matchNote}%`);
+    if (matchedPayments && matchedPayments.length > 0) {
+      await supabase.from("event_payments").update({ amount: Math.round(newTotal * 100) / 100 }).eq("id", matchedPayments[0].id);
+    }
+
+    await supabase.from("event_financial_timeline").insert({ event_id: eventId, company_id: companyId, type: "optional_edited", description: `Opcional "${opt.name}" alterado de ${oldQty}× para ${newQty}×` });
+
+    setEventOptionals(updated);
+    setEditingOptionalIdx(null);
+    financial.refresh();
+    toast({ title: "Opcional atualizado" });
+  };
+
   const [cardFees, setCardFees] = useState<any[]>([]);
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
   const [eventOptionals, setEventOptionals] = useState<any[]>([]);
@@ -684,8 +780,8 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
               const ppVal = Number(opt.valor_por_pessoa) || 0;
               const total = (unitVal * qty) + (ppVal > 0 ? ppVal * qty : 0);
               return (
-                <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-card border border-border/40 shadow-sm">
-                  <div className="min-w-0">
+                <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-card border border-border/40 shadow-sm group">
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm text-foreground font-medium truncate">
                       {opt.name}{qty > 1 ? ` (×${qty})` : ""}
                     </p>
@@ -696,6 +792,28 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                   <span className="text-sm font-semibold text-violet-500 shrink-0 ml-2">
                     {showValues ? total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "••••"}
                   </span>
+                  {canEdit && (
+                    <div className="flex gap-1 shrink-0 ml-1.5">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 rounded-xl text-muted-foreground/40 hover:text-primary hover:bg-primary/10 transition-all duration-200"
+                        onClick={() => { setEditingOptionalIdx(idx); setEditOptionalQty(Number(opt.quantity) || 1); }}
+                        title="Editar quantidade"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 rounded-xl text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-all duration-200"
+                        onClick={() => handleRemoveOptional(opt.name, idx)}
+                        title="Excluir opcional e parcela"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -864,6 +982,40 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
             >
               {addingOptional ? "Adicionando..." : "Adicionar"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Optional Quantity Dialog */}
+      <Dialog open={editingOptionalIdx !== null} onOpenChange={open => { if (!open) setEditingOptionalIdx(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-primary" /> Editar Opcional
+            </DialogTitle>
+          </DialogHeader>
+          {editingOptionalIdx !== null && eventOptionals[editingOptionalIdx] && (() => {
+            const opt = eventOptionals[editingOptionalIdx];
+            const unitVal = Number(opt.value) || 0;
+            const ppVal = Number(opt.valor_por_pessoa) || 0;
+            const previewTotal = (unitVal * editOptionalQty) + (ppVal > 0 ? ppVal * eventGuestCount * editOptionalQty : 0);
+            return (
+              <div className="space-y-4">
+                <p className="text-sm font-medium text-foreground">{opt.name}</p>
+                <div>
+                  <Label>Quantidade</Label>
+                  <Input type="number" min={1} value={editOptionalQty} onChange={e => setEditOptionalQty(Math.max(1, Number(e.target.value) || 1))} />
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 border border-border/40 text-sm">
+                  <p className="text-muted-foreground">Novo valor:</p>
+                  <p className="text-lg font-bold text-foreground">{previewTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
+                </div>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingOptionalIdx(null)}>Cancelar</Button>
+            <Button onClick={handleEditOptional}>Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
