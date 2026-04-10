@@ -6,6 +6,7 @@ export interface LPHero {
   background_images?: string[];
   secondary_cta_text?: string;
   secondary_cta_url?: string;
+  mascot_image_url?: string;
 }
 
 export interface LPSocialProofItem {
