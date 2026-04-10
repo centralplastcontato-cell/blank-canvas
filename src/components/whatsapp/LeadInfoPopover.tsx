@@ -186,6 +186,23 @@ export function LeadInfoPopover({
   const [latestVisit, setLatestVisit] = useState<{ data_visita: string; horario_visita: string | null; status_visita: string } | null>(null);
   const { currentCompany } = useCompany();
   const { units } = useCompanyUnits(currentCompany?.id);
+  const eventDraftStorageKey = linkedLead && currentCompany?.id ? `whatsapp-event-form-draft:${currentCompany.id}:${linkedLead.id}` : null;
+  const eventOpenStorageKey = linkedLead && currentCompany?.id ? `whatsapp-event-form-open:${currentCompany.id}:${linkedLead.id}` : null;
+
+  const handleEventFormOpenChange = (nextOpen: boolean) => {
+    setEventFormOpen(nextOpen);
+    if (!eventOpenStorageKey) return;
+
+    try {
+      if (nextOpen) {
+        sessionStorage.setItem(eventOpenStorageKey, "1");
+      } else {
+        sessionStorage.removeItem(eventOpenStorageKey);
+      }
+    } catch {
+      // Ignore storage failures.
+    }
+  };
 
   // Check if closed lead has linked event
   useEffect(() => {
@@ -237,6 +254,19 @@ export function LeadInfoPopover({
       setLinkedEventData(null);
     }
   }, [linkedLead?.id, linkedLead?.status]);
+
+  useEffect(() => {
+    if (!eventOpenStorageKey || linkedLead?.status !== "fechado") {
+      setEventFormOpen(false);
+      return;
+    }
+
+    try {
+      setEventFormOpen(sessionStorage.getItem(eventOpenStorageKey) === "1");
+    } catch {
+      setEventFormOpen(false);
+    }
+  }, [eventOpenStorageKey, linkedLead?.status]);
 
   // Fetch latest visit for this lead
   useEffect(() => {
@@ -752,7 +782,7 @@ export function LeadInfoPopover({
                     )}
                     onClick={() => {
                       if (hasLinkedEvent && linkedEventData) {
-                        setEventFormOpen(true);
+                        handleEventFormOpenChange(true);
                       } else {
                         setLinkedEventData({
                           title: linkedLead.name,
@@ -769,7 +799,7 @@ export function LeadInfoPopover({
                           lead_id: linkedLead.id,
                           lead_name: linkedLead.name,
                         });
-                        setEventFormOpen(true);
+                        handleEventFormOpenChange(true);
                       }
                     }}
                   >
@@ -951,8 +981,9 @@ export function LeadInfoPopover({
     {linkedLead && (
       <EventFormDialog
         open={eventFormOpen}
-        onOpenChange={setEventFormOpen}
+        onOpenChange={handleEventFormOpenChange}
         initialData={linkedEventData}
+        draftStorageKey={eventDraftStorageKey || undefined}
         units={units.filter(u => u.slug !== "trabalhe-conosco")}
         onSubmit={async (data) => {
           const user = (await supabase.auth.getUser()).data.user;
@@ -1031,7 +1062,7 @@ export function LeadInfoPopover({
             toast({ title: "Festa criada!" });
             setHasLinkedEvent(true);
           }
-          setEventFormOpen(false);
+          handleEventFormOpenChange(false);
         }}
       />
     )}
