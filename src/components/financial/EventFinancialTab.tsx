@@ -42,7 +42,7 @@ interface Props {
   onAddOptional?: () => void;
 }
 
-export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = true, canPay = true, showValues = true }: Props) {
+export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = true, canPay = true, showValues = true, onAddOptional }: Props) {
   const financial = useEventFinancial(eventId, companyId, baseValue);
   const { activeAccounts } = useBankAccounts();
   const bankAccountMap = useMemo(() => {
