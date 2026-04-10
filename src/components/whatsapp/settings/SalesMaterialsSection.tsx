@@ -182,6 +182,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
     photo_urls: [] as string[],
     is_active: true,
     unit: null as string | null,
+    send_without_caption: false,
   });
   const [guestSelectionTouched, setGuestSelectionTouched] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -553,6 +554,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
             photo_urls: formData.type === "photo_collection" ? formData.photo_urls : [],
             is_active: formData.is_active,
             unit: formData.unit || editingMaterial.unit,
+            send_without_caption: formData.send_without_caption,
           })
           .eq("id", editingMaterial.id);
 
@@ -580,6 +582,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
           photo_urls: formData.type === "photo_collection" ? formData.photo_urls : [],
           is_active: formData.is_active,
           sort_order: maxOrder,
+          send_without_caption: formData.send_without_caption,
         }) as { error: any };
 
         if (error) throw error;
@@ -678,6 +681,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
         photo_urls: material.photo_urls || [],
         is_active: material.is_active,
         unit: material.unit,
+        send_without_caption: (material as any).send_without_caption || false,
       });
     } else {
       resetForm();
@@ -697,6 +701,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
       photo_urls: [],
       is_active: true,
       unit: null,
+      send_without_caption: false,
     });
   };
 
@@ -1203,6 +1208,20 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                   onChange={handleFileUpload}
                 />
               </div>
+            )}
+
+            <div className="flex items-center justify-between">
+              <Label htmlFor="send_without_caption">Enviar sem legenda/texto</Label>
+              <Switch
+                id="send_without_caption"
+                checked={formData.send_without_caption}
+                onCheckedChange={(checked) => setFormData({ ...formData, send_without_caption: checked })}
+              />
+            </div>
+            {formData.send_without_caption && (
+              <p className="text-xs text-muted-foreground -mt-1">
+                O arquivo será enviado sem mensagem de texto ou legenda no WhatsApp.
+              </p>
             )}
 
             <div className="flex items-center justify-between">
