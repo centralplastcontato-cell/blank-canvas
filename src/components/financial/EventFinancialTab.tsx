@@ -50,7 +50,7 @@ interface Props {
   onAddOptional?: () => void;
 }
 
-export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = true, canPay = true, showValues = true, onAddOptional }: Props) {
+export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = true, canPay = true, showValues = true, onAddOptional: _onAddOptional }: Props) {
   const financial = useEventFinancial(eventId, companyId, baseValue);
   const { activeAccounts } = useBankAccounts();
   const bankAccountMap = useMemo(() => {
