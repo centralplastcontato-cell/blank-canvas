@@ -57,6 +57,24 @@ function formatCEP(value: string): string {
   return `${digits.slice(0, 5)}-${digits.slice(5)}`;
 }
 
+// Normalize date from DD/MM/YYYY or raw digits to YYYY-MM-DD for input[type=date]
+function normalizeDateToISO(value: string | undefined | null): string {
+  if (!value) return "";
+  const v = value.trim();
+  // Already ISO
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  // DD/MM/YYYY
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(v)) {
+    const [d, m, y] = v.split("/");
+    return `${y}-${m}-${d}`;
+  }
+  // Raw digits DDMMYYYY
+  if (/^\d{8}$/.test(v)) {
+    return `${v.slice(4, 8)}-${v.slice(2, 4)}-${v.slice(0, 2)}`;
+  }
+  return v;
+}
+
 interface ManualClientDataFormProps {
   eventId: string;
   companyId: string;
@@ -73,6 +91,7 @@ export function ManualClientDataForm({ eventId, companyId, leadId, initialClient
       return {
         ...EMPTY_FORM,
         ...initialClientData,
+        nascimento: normalizeDateToISO(initialClientData.nascimento),
         birthday_children: initialClientData.birthday_children?.length
           ? initialClientData.birthday_children
           : EMPTY_FORM.birthday_children,
@@ -220,7 +239,7 @@ export function ManualClientDataForm({ eventId, companyId, leadId, initialClient
           </div>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Nascimento</Label>
-            <Input value={formData.nascimento} onChange={e => updateField("nascimento", e.target.value)} placeholder="DD/MM/AAAA" className="h-9 text-sm" />
+            <Input type="date" value={formData.nascimento} onChange={e => updateField("nascimento", e.target.value)} className="h-9 text-sm" />
           </div>
         </div>
       </div>
