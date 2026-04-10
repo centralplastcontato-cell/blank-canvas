@@ -75,6 +75,9 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   const [selectedOptionalId, setSelectedOptionalId] = useState<string>("");
   const [optionalQty, setOptionalQty] = useState(1);
   const [optionalDueDate, setOptionalDueDate] = useState<string>("");
+  const [optionalManualMode, setOptionalManualMode] = useState(false);
+  const [optionalManualName, setOptionalManualName] = useState("");
+  const [optionalManualValue, setOptionalManualValue] = useState<number | null>(null);
   const [addingOptional, setAddingOptional] = useState(false);
   const syncAttempted = useRef(false);
 
