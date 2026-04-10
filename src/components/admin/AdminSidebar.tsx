@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 
 import { CompanySwitcher } from "./CompanySwitcher";
 import { useCompany } from "@/contexts/CompanyContext";
+import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 
 interface AdminSidebarProps {
   canManageUsers: boolean;
@@ -166,7 +167,7 @@ export function AdminSidebar({
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
           <img 
-            src={currentCompany?.logo_url || '/placeholder.svg'} 
+            src={getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url) || '/placeholder.svg'} 
             alt={currentCompany?.name || "Logo"} 
             className="h-9 w-9 object-contain shrink-0 rounded-lg"
           />
