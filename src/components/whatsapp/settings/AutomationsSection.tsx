@@ -397,6 +397,7 @@ export function AutomationsSection() {
         .from("wapi_bot_settings")
         .insert({
           instance_id: selectedInstance.id,
+          company_id: currentCompanyId,
           bot_enabled: false,
           test_mode_enabled: false,
           test_mode_number: null,
