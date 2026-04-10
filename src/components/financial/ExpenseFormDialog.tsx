@@ -10,8 +10,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatCurrencyInput, parseCurrencyInput, numberToCurrencyDisplay } from '@/lib/currency-input';
 import { BankAccountSelect } from './BankAccountSelect';
-import { toast } from 'sonner';
-import { formatCurrencyInput, parseCurrencyInput, numberToCurrencyDisplay } from '@/lib/currency-input';
 
 const CATEGORIES = [
   { value: 'fornecedor', label: 'Fornecedor' },
