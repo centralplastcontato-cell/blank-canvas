@@ -287,25 +287,13 @@ export function GeneratedContractsList({ userId }: Props) {
 
       {/* View Contract - Full Document Viewer */}
       {viewContract && (
-        <ContractDocumentViewer
-          open={!!viewContract}
-          onOpenChange={() => setViewContract(null)}
-          content={viewContract.conteudo_renderizado}
+        <ContractDocumentViewerWithSignature
+          contract={viewContract}
           companyName={currentCompany?.name || ""}
           companyLogo={currentCompany?.logo_url || undefined}
-          mode="generated"
-          meta={{
-            modelName: viewContract.nome_documento,
-            status: viewContract.status,
-            generatedAt: viewContract.created_at,
-            leadName: viewContract.dados_utilizados?.lead?.name,
-            eventDate: viewContract.dados_utilizados?.event?.date,
-            eventType: viewContract.tipo_evento || undefined,
-          }}
-          contractId={viewContract.id}
-          leadId={viewContract.lead_id || viewContract.dados_utilizados?.lead?.id || undefined}
           companyId={currentCompany?.id}
           userId={userId}
+          onClose={() => setViewContract(null)}
         />
       )}
 
