@@ -2630,6 +2630,8 @@ async function processInstanceHealthCheck(
 
       // Call wapi-send edge function to get real status
       let detectedStatus = "disconnected";
+      let detectedErrorType: string | null = null;
+      let detectedPhone: string | null = null;
       try {
         const statusResponse = await fetch(
           `${SUPABASE_URL}/functions/v1/wapi-send`,
@@ -2650,7 +2652,9 @@ async function processInstanceHealthCheck(
         if (statusResponse.ok) {
           const statusData = await statusResponse.json();
           detectedStatus = statusData?.status || "disconnected";
-          console.log(`[health-check] wapi-send get-status for ${inst.instance_id} (DB: ${inst.status}): ${detectedStatus}`);
+          detectedErrorType = statusData?.errorType || null;
+          detectedPhone = statusData?.phoneNumber || statusData?.phone || null;
+          console.log(`[health-check] wapi-send get-status for ${inst.instance_id} (DB: ${inst.status}): ${detectedStatus}${detectedErrorType ? ` / ${detectedErrorType}` : ""}`);
         } else {
           const errText = await statusResponse.text();
           console.warn(`[health-check] wapi-send get-status failed for ${inst.instance_id} (${statusResponse.status}): ${errText}`);
@@ -2668,24 +2672,31 @@ async function processInstanceHealthCheck(
       // === Handle detected status ===
 
       if (detectedStatus === "connected") {
-        // Instance is healthy - auto-recover if DB said disconnected
+        const updateData: Record<string, unknown> = {
+          status: "connected",
+          connected_at: new Date().toISOString(),
+          auto_recovery_attempts: 0,
+        };
+        if (detectedPhone) updateData.phone_number = detectedPhone;
+
         if (inst.status !== "connected") {
           console.log(`[health-check] ✅ Instance ${inst.instance_id} auto-recovered! Was ${inst.status}, now connected.`);
-          await supabase.from("wapi_instances").update({ 
-            status: "connected",
-            connected_at: new Date().toISOString(),
-            auto_recovery_attempts: 0,
-          }).eq("id", inst.id);
+          await supabase.from("wapi_instances").update(updateData).eq("id", inst.id);
         } else {
           console.log(`[health-check] Instance ${inst.instance_id} is healthy (connected)`);
-        }
-        if ((inst.auto_recovery_attempts || 0) > 0) {
-          await supabase.from("wapi_instances").update({ auto_recovery_attempts: 0 }).eq("id", inst.id);
+          if (detectedPhone || (inst.auto_recovery_attempts || 0) > 0) {
+            await supabase.from("wapi_instances").update(updateData).eq("id", inst.id);
+          }
         }
         continue;
       }
 
       if (detectedStatus === "degraded") {
+        if (inst.status === "connected" && detectedErrorType === "AMBIGUOUS_QR_STATE") {
+          console.log(`[health-check] Instance ${inst.instance_id} returned ambiguous QR state — preserving connected status`);
+          continue;
+        }
+
         console.log(`[health-check] Instance ${inst.instance_id} is degraded — keeping status, no restart`);
         if (inst.status !== "degraded") {
           await supabase.from("wapi_instances").update({ status: "degraded" }).eq("id", inst.id);
@@ -2729,6 +2740,14 @@ async function processInstanceHealthCheck(
       // If the instance was already degraded in our DB, keep it as degraded — don't worsen it
       if (inst.status === "degraded") {
         console.log(`[health-check] Instance ${inst.instance_id} returned ${detectedStatus} but was degraded in DB — keeping degraded, no restart`);
+        continue;
+      }
+
+      // For instances already considered connected in our DB, do not auto-restart on a single
+      // disconnected signal from W-API. This provider is known to oscillate and can falsely
+      // return QR/disconnected while the session is still usable.
+      if (inst.status === "connected" && detectedStatus === "disconnected") {
+        console.log(`[health-check] Instance ${inst.instance_id} returned disconnected once, but DB is connected — preserving connected status and skipping auto-restart`);
         continue;
       }
 

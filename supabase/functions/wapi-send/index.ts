@@ -1442,16 +1442,42 @@ Deno.serve(async (req) => {
           }
 
           const ct = qrRes.headers.get('content-type');
-          
-          // If response is HTML, instance is likely disconnected
-          if (ct?.includes('text/html')) {
-            return new Response(JSON.stringify({ status: 'disconnected', connected: false }), {
-              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            });
-          }
 
-          // If response is an image, QR code is being shown = not connected yet
-          if (ct?.includes('image')) {
+          // W-API LITE can intermittently return HTML/image QR responses for sessions that are
+          // still working. When we already have a known connected session in DB, treat this as
+          // degraded/ambiguous instead of forcing a disconnect.
+          if (ct?.includes('text/html') || ct?.includes('image')) {
+            try {
+              const { data: instRecord } = await supabase
+                .from('wapi_instances')
+                .select('id, status, phone_number')
+                .eq('instance_id', instance_id)
+                .maybeSingle();
+
+              const hasKnownConnectedSession = Boolean(
+                instRecord?.status === 'connected' && instRecord?.phone_number
+              );
+              const hasVerifiedActivity = instRecord?.id
+                ? await hasRecentVerifiedActivity(supabase, instRecord.id, 24 * 60)
+                : false;
+
+              if (hasKnownConnectedSession || hasVerifiedActivity) {
+                console.log(`get-status: ambiguous QR response for ${instance_id} — returning degraded instead of disconnected`);
+                return new Response(JSON.stringify({
+                  status: 'degraded',
+                  connected: false,
+                  phoneNumber: instRecord?.phone_number || null,
+                  error: 'W-API retornou um estado ambíguo de QR para uma sessão já conectada.',
+                  errorType: 'AMBIGUOUS_QR_STATE',
+                  evidenceBased: hasVerifiedActivity,
+                }), {
+                  status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                });
+              }
+            } catch (ambiguityErr) {
+              console.warn('get-status: ambiguous QR fallback failed:', ambiguityErr);
+            }
+
             return new Response(JSON.stringify({ status: 'disconnected', connected: false }), {
               status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
