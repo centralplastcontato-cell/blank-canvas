@@ -1,49 +1,49 @@
 
 
-## Plan: Optional per-adult/per-child pricing mode for events
+## Plano: Enviar contrato gerado via WhatsApp
 
-### Problem
-Some buffets charge per person (e.g., R$ 90/adult + R$ 65/child) rather than a fixed package price. Currently the system only supports a fixed "Valor do pacote". We need an **optional** toggle so buffets can switch to per-person pricing with separate adult and child quantities and prices.
+### Problema
+Após gerar um contrato, não existe forma de enviá-lo ao lead diretamente pela plataforma via WhatsApp. O usuário precisa baixar e enviar manualmente.
 
-### How it works
-When the user selects a package that has `preco_separado = true` (already exists in `company_packages`), or manually toggles "Preço por pessoa", new fields appear:
-- **Qtd Adultos** and **Qtd Crianças** (number inputs)
-- **Valor por Adulto** and **Valor por Criança** (auto-filled from package, editable)
-- The **Valor do pacote** field becomes read-only and auto-calculates: `(qtdAdultos × valorAdulto) + (qtdCriancas × valorCrianca)`
+### Solução
+Adicionar um botão "Enviar via WhatsApp" em dois pontos:
+1. **ContractDocumentViewer** (visualizador do contrato) — botão no toolbar
+2. **GeneratedContractsList** (lista de contratos) — botão em cada card
 
-If the toggle is off (default), the form works exactly as today.
+O envio será feito como **mensagem de texto formatada** com o conteúdo do contrato (já renderizado), usando a Edge Function `wapi-send` existente. O sistema localizará automaticamente a conversa do lead e a instância conectada.
 
-### Changes
+### Fluxo
+1. Usuário clica "Enviar via WhatsApp"
+2. Sistema busca o lead vinculado ao contrato (via `lead_id` ou `event_id` → `campaign_leads`)
+3. Busca o telefone do lead e a instância/conversa ativa
+4. Envia o contrato como mensagem de texto formatada via `wapi-send`
+5. Registra no audit log como `contract_sent_whatsapp`
 
-**1. Add fields to `EventFormData` interface** (`EventFormDialog.tsx`)
-- `pricing_mode?: 'fixed' | 'per_person'`
-- `adult_count?: number | null`
-- `child_count?: number | null`
-- `price_per_adult?: number | null`
-- `price_per_child?: number | null`
+### Alterações
 
-These are stored inside `payment_details` JSON (no DB migration needed).
+**1. `ContractDocumentViewer.tsx`**
+- Adicionar prop opcional `contractId`, `leadId`, `companyId`
+- Adicionar botão "WhatsApp" no toolbar (ícone verde) ao lado de "Imprimir"
+- Handler que busca telefone do lead, instância conectada e envia via `wapi-send`
 
-**2. Update EventFormDialog UI** (Section "Informações da Festa")
-- When a `preco_separado` package is selected, auto-enable per-person mode
-- Add a small Switch "Preço por pessoa" below the package selector
-- When enabled, show a sub-section with 4 fields in a 2×2 grid: Qtd Adultos, Valor/Adulto, Qtd Crianças, Valor/Criança
-- Auto-calculate `total_value` = `(adult_count × price_per_adult) + (child_count × price_per_child)`
-- The "Valor do pacote" input becomes disabled/readonly showing the calculated value
-- `guest_count` auto-syncs to `adult_count + child_count`
+**2. `GeneratedContractsList.tsx`**
+- Adicionar botão "WhatsApp" em cada card de contrato (ao lado de Visualizar/Histórico)
+- Mesma lógica de envio
 
-**3. Auto-fill from package data**
-- When selecting a package with `preco_separado`, auto-fill `price_per_adult` from `valor_pessoa_adicional_adulto` and `price_per_child` from `valor_pessoa_adicional_crianca`
+**3. Lógica de envio (shared helper)**
+- Criar helper `sendContractViaWhatsApp(companyId, leadId, contractContent, contractName)` em `contractAuditHelpers.ts`
+- Busca telefone do lead em `campaign_leads`
+- Busca instância conectada em `wapi_instances`
+- Busca conversa existente em `wapi_conversations`
+- Formata o contrato como texto limpo (strip HTML/markdown)
+- Envia via `supabase.functions.invoke("wapi-send")`
+- Registra audit log
 
-**4. Persist in `payment_details` JSON**
-- On save, include `pricing_mode`, `adult_count`, `child_count`, `price_per_adult`, `price_per_child` in the `payment_details` object
-- On load (edit), restore these fields from `payment_details`
+**4. Atualizar `EventDetailSheet.tsx` / `EventContractDialog.tsx`**
+- Passar `leadId` e `companyId` para o `ContractDocumentViewer` quando aberto
 
-**5. Template variables** (`template-resolver.ts`)
-- Add `{{qtd_adultos}}`, `{{qtd_criancas}}`, `{{valor_por_adulto}}`, `{{valor_por_crianca}}` for contracts
-
-### What stays the same
-- Buffets that don't use this feature see zero changes — the toggle defaults to off
-- The existing fixed-price flow remains untouched
-- No database migration required (data stored in existing JSON column)
+### O que NÃO muda
+- Nenhuma alteração na infraestrutura do WhatsApp
+- Usa apenas `wapi-send` existente (leitura + envio)
+- Contratos sem lead vinculado simplesmente não mostram o botão
 
