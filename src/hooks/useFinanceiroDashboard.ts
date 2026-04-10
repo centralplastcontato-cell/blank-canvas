@@ -53,6 +53,7 @@ export function useFinanceiroDashboard() {
 
   const [payments, setPayments] = useState<EnrichedPayment[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [revenues, setRevenues] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState<FinanceiroDashboardFilters>({
     from: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
