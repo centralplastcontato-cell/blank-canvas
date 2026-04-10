@@ -1349,6 +1349,72 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 )}
               </div>
 
+              <div className="space-y-2.5 md:pr-6">
+                <Label className="text-sm font-medium text-foreground/70">Unidade{units.length > 1 ? " *" : ""}</Label>
+                {units.length > 0 ? (
+                  <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>{units.map((u) => <SelectItem key={u.name} value={u.name}>{u.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                ) : (
+                  <Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
+                )}
+              </div>
+
+              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
+                <Label className="text-sm font-medium text-foreground/70">Pacote</Label>
+                {packages.length > 0 ? (
+                  <Select value={form.package_name} onValueChange={(v) => {
+                    const pkgName = v === "none" ? "" : v;
+                    const selectedPkg = packages.find(p => p.name === pkgName);
+                    const autoExtraValue = selectedPkg?.valor_pessoa_adicional ?? null;
+                    setForm({ ...form, package_name: pkgName, extra_guest_value: autoExtraValue });
+                    if (selectedPkg?.preco_separado) {
+                      setPricingMode('per_person');
+                      if (selectedPkg.valor_pessoa_adicional_adulto != null) setPricePerAdult(selectedPkg.valor_pessoa_adicional_adulto);
+                      if (selectedPkg.valor_pessoa_adicional_crianca != null) setPricePerChild(selectedPkg.valor_pessoa_adicional_crianca);
+                    } else if (!pkgName) {
+                      setPricingMode('fixed');
+                    }
+                  }}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem pacote</SelectItem>
+                      {packages.map((p) => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input value={form.package_name} onChange={(e) => setForm({ ...form, package_name: e.target.value })} placeholder="Nenhum pacote cadastrado" />
+                )}
+                {(() => {
+                  const selectedPkg = packages.find(p => p.name === form.package_name);
+                  if (!selectedPkg) return null;
+                  if (selectedPkg.preco_separado) {
+                    const hasAdulto = selectedPkg.valor_pessoa_adicional_adulto != null;
+                    const hasCrianca = selectedPkg.valor_pessoa_adicional_crianca != null;
+                    if (!hasAdulto && !hasCrianca) return null;
+                    return (
+                      <div className="text-xs text-primary font-medium mt-1 space-y-0.5">
+                        {hasCrianca && (
+                          <p>Criança adicional: R$ {selectedPkg.valor_pessoa_adicional_crianca!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        )}
+                        {hasAdulto && (
+                          <p>Adulto adicional: R$ {selectedPkg.valor_pessoa_adicional_adulto!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        )}
+                      </div>
+                    );
+                  }
+                  if (selectedPkg.valor_pessoa_adicional != null) {
+                    return (
+                      <p className="text-xs text-primary font-medium mt-1">
+                        Pessoa adicional: R$ {selectedPkg.valor_pessoa_adicional.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+
               {/* Per-person pricing toggle */}
               <div className="md:col-span-2 space-y-3">
                 <div className="flex items-center gap-3">
@@ -1414,73 +1480,6 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     )}
                   </div>
                 )}
-              </div>
-
-              <div className="space-y-2.5 md:pr-6">
-                <Label className="text-sm font-medium text-foreground/70">Unidade{units.length > 1 ? " *" : ""}</Label>
-                {units.length > 0 ? (
-                  <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>{units.map((u) => <SelectItem key={u.name} value={u.name}>{u.name}</SelectItem>)}</SelectContent>
-                  </Select>
-                ) : (
-                  <Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
-                )}
-              </div>
-
-              <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
-                <Label className="text-sm font-medium text-foreground/70">Pacote</Label>
-                {packages.length > 0 ? (
-                  <Select value={form.package_name} onValueChange={(v) => {
-                    const pkgName = v === "none" ? "" : v;
-                    const selectedPkg = packages.find(p => p.name === pkgName);
-                    const autoExtraValue = selectedPkg?.valor_pessoa_adicional ?? null;
-                    setForm({ ...form, package_name: pkgName, extra_guest_value: autoExtraValue });
-                    // Auto-enable per-person pricing if package has preco_separado
-                    if (selectedPkg?.preco_separado) {
-                      setPricingMode('per_person');
-                      if (selectedPkg.valor_pessoa_adicional_adulto != null) setPricePerAdult(selectedPkg.valor_pessoa_adicional_adulto);
-                      if (selectedPkg.valor_pessoa_adicional_crianca != null) setPricePerChild(selectedPkg.valor_pessoa_adicional_crianca);
-                    } else if (!pkgName) {
-                      setPricingMode('fixed');
-                    }
-                  }}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sem pacote</SelectItem>
-                      {packages.map((p) => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Input value={form.package_name} onChange={(e) => setForm({ ...form, package_name: e.target.value })} placeholder="Nenhum pacote cadastrado" />
-                )}
-                {(() => {
-                  const selectedPkg = packages.find(p => p.name === form.package_name);
-                  if (!selectedPkg) return null;
-                  if (selectedPkg.preco_separado) {
-                    const hasAdulto = selectedPkg.valor_pessoa_adicional_adulto != null;
-                    const hasCrianca = selectedPkg.valor_pessoa_adicional_crianca != null;
-                    if (!hasAdulto && !hasCrianca) return null;
-                    return (
-                      <div className="text-xs text-primary font-medium mt-1 space-y-0.5">
-                        {hasCrianca && (
-                          <p>Criança adicional: R$ {selectedPkg.valor_pessoa_adicional_crianca!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                        )}
-                        {hasAdulto && (
-                          <p>Adulto adicional: R$ {selectedPkg.valor_pessoa_adicional_adulto!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                        )}
-                      </div>
-                    );
-                  }
-                  if (selectedPkg.valor_pessoa_adicional != null) {
-                    return (
-                      <p className="text-xs text-primary font-medium mt-1">
-                        Pessoa adicional: R$ {selectedPkg.valor_pessoa_adicional.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </p>
-                    );
-                  }
-                  return null;
-                })()}
               </div>
 
               <div className="space-y-2.5 md:pr-6">
