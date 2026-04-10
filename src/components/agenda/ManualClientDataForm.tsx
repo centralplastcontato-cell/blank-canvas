@@ -322,7 +322,10 @@ export function ManualClientDataForm({ eventId, companyId, leadId, initialClient
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Idade a comemorar</Label>
-                  <Input value={child.age} onChange={e => updateChild(idx, "age", e.target.value)} placeholder="Ex: 5 anos" className="h-9 text-sm" />
+                  <div className="relative">
+                    <Input value={child.age} onChange={e => updateChild(idx, "age", e.target.value.replace(/\D/g, ''))} placeholder="Ex: 5" className="h-9 text-sm pr-14" />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">anos</span>
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Data de nascimento</Label>
