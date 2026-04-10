@@ -1139,6 +1139,14 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     const selectedPkg = packages.find(p => p.name === pkgName);
                     const autoExtraValue = selectedPkg?.valor_pessoa_adicional ?? null;
                     setForm({ ...form, package_name: pkgName, extra_guest_value: autoExtraValue });
+                    // Auto-enable per-person pricing if package has preco_separado
+                    if (selectedPkg?.preco_separado) {
+                      setPricingMode('per_person');
+                      if (selectedPkg.valor_pessoa_adicional_adulto != null) setPricePerAdult(selectedPkg.valor_pessoa_adicional_adulto);
+                      if (selectedPkg.valor_pessoa_adicional_crianca != null) setPricePerChild(selectedPkg.valor_pessoa_adicional_crianca);
+                    } else if (!pkgName) {
+                      setPricingMode('fixed');
+                    }
                   }}>
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
