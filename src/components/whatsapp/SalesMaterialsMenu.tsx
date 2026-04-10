@@ -33,6 +33,7 @@ interface SalesMaterial {
   file_url: string;
   photo_urls: string[] | null;
   is_active: boolean;
+  send_without_caption?: boolean;
 }
 
 interface Caption {
@@ -236,7 +237,7 @@ export function SalesMaterialsMenu({
       // Detect if pdf_package file is actually an image
       const isPackageImage = material.type === "pdf_package" && isImageUrl(material.file_url);
       let mediaType: "document" | "image" | "video" = isPackageImage ? "image" : "document";
-      let caption = material.name;
+      let caption = material.send_without_caption ? "" : material.name;
       // Use material name as the file name for documents (adds .pdf extension)
       let fileName: string | undefined = undefined;
 
@@ -244,27 +245,27 @@ export function SalesMaterialsMenu({
         mediaType = "image";
       } else if (material.type === "video") {
         mediaType = "video";
-        // Check if it's a carnival/promotion video
-        const isCarnavalVideo = material.name.toLowerCase().includes("carnaval") || 
-                                material.name.toLowerCase().includes("promoção") ||
-                                material.name.toLowerCase().includes("promocao");
-        
-        if (isCarnavalVideo) {
-          // Get promo caption from database or use fallback
-          caption = getCaption("video_promo");
-        } else {
-          // Get regular video caption from database or use fallback
-          caption = getCaption("video");
+        if (!material.send_without_caption) {
+          // Check if it's a carnival/promotion video
+          const isCarnavalVideo = material.name.toLowerCase().includes("carnaval") || 
+                                  material.name.toLowerCase().includes("promoção") ||
+                                  material.name.toLowerCase().includes("promocao");
+          
+          if (isCarnavalVideo) {
+            caption = getCaption("video_promo");
+          } else {
+            caption = getCaption("video");
+          }
         }
       } else if (material.type === "pdf_package" && !isPackageImage) {
         // Create a descriptive file name for PDFs
         fileName = `${material.name.replace(/[^a-zA-Z0-9\s]/g, '').trim()}.pdf`;
-        if (material.guest_count) {
+        if (!material.send_without_caption && material.guest_count) {
           caption = `📋 ${material.name} - Pacote para ${material.guest_count} pessoas`;
         }
         
-        // Send a personalized intro message before the PDF
-        if (onSendTextMessage && material.guest_count) {
+        // Send a personalized intro message before the PDF (only if caption enabled)
+        if (!material.send_without_caption && onSendTextMessage && material.guest_count) {
           const leadName = lead?.name?.split(' ')[0] || ''; // First name only
           const guestCount = material.guest_count;
           
@@ -281,7 +282,7 @@ export function SalesMaterialsMenu({
         }
       }
 
-      await onSendMedia(material.file_url, mediaType, caption, fileName);
+      await onSendMedia(material.file_url, mediaType, caption || undefined, fileName);
       
       toast({
         title: "Material enviado",
