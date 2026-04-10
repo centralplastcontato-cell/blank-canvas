@@ -781,8 +781,8 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
               const ppVal = Number(opt.valor_por_pessoa) || 0;
               const total = (unitVal * qty) + (ppVal > 0 ? ppVal * qty : 0);
               return (
-                <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-card border border-border/40 shadow-sm">
-                  <div className="min-w-0">
+                <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-card border border-border/40 shadow-sm group">
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm text-foreground font-medium truncate">
                       {opt.name}{qty > 1 ? ` (×${qty})` : ""}
                     </p>
@@ -793,6 +793,28 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                   <span className="text-sm font-semibold text-violet-500 shrink-0 ml-2">
                     {showValues ? total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "••••"}
                   </span>
+                  {canEdit && (
+                    <div className="flex gap-1 shrink-0 ml-1.5">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 rounded-xl text-muted-foreground/40 hover:text-primary hover:bg-primary/10 transition-all duration-200"
+                        onClick={() => { setEditingOptionalIdx(idx); setEditOptionalQty(Number(opt.quantity) || 1); }}
+                        title="Editar quantidade"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 rounded-xl text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-all duration-200"
+                        onClick={() => handleRemoveOptional(opt.name, idx)}
+                        title="Excluir opcional e parcela"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               );
             })}
