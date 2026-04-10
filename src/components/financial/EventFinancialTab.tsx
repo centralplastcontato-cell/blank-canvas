@@ -261,15 +261,6 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       const updatedOptionals = [...eventOptionals, newOpt];
 
       // Update event_optionals on company_events
-      const oldTotal = baseValue;
-      const newOptionalsTotal = updatedOptionals.reduce((sum, o) => {
-        const oQty = Number(o.quantity) || 1;
-        const oUnit = Number(o.unit_price ?? o.value) || 0;
-        const oPP = Number(o.valor_por_pessoa) || 0;
-        return sum + (oUnit * oQty) + (oPP > 0 ? oPP * guests * oQty : 0);
-      }, 0);
-
-      // Compute new grand total (baseValue already includes old optionals from EventFormDialog)
       // We need to recalc: baseValue from package + all optionals
       const { data: eventData } = await supabase
         .from("company_events")
