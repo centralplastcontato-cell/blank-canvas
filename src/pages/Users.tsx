@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";

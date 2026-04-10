@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
