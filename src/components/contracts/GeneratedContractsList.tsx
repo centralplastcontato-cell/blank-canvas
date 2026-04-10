@@ -164,6 +164,18 @@ export function GeneratedContractsList({ userId }: Props) {
                       <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5" onClick={() => setViewContract(c)}>
                         <Eye className="h-3.5 w-3.5" /> Visualizar
                       </Button>
+                      {!isCancelled && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs rounded-full px-3.5 gap-1.5 text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                          onClick={() => handleSendWhatsApp(c)}
+                          disabled={sendingWA === c.id}
+                        >
+                          {sendingWA === c.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5" />}
+                          WhatsApp
+                        </Button>
+                      )}
                       <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5" onClick={() => handleShowAudit(c.id)}>
                         <History className="h-3.5 w-3.5" /> Histórico
                       </Button>
