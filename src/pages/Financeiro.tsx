@@ -510,23 +510,32 @@ export default function Financeiro() {
                           </button>
                         ))}
                       </div>
-                      <div className="flex items-center bg-muted/50 rounded-lg p-0.5 border border-border/50">
-                        <button
-                          onClick={() => setViewMode('list')}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                            viewMode === 'list' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                          }`}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => { setEditingRevenue(null); setRevenueDialogOpen(true); }}
+                          className="gap-1.5"
                         >
-                          <List className="h-3.5 w-3.5" /> Lista
-                        </button>
-                        <button
-                          onClick={() => setViewMode('client')}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                            viewMode === 'client' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                          }`}
-                        >
-                          <Users className="h-3.5 w-3.5" /> Por cliente
-                        </button>
+                          <Plus className="h-3.5 w-3.5" /> Nova Receita
+                        </Button>
+                        <div className="flex items-center bg-muted/50 rounded-lg p-0.5 border border-border/50">
+                          <button
+                            onClick={() => setViewMode('list')}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                              viewMode === 'list' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            <List className="h-3.5 w-3.5" /> Lista
+                          </button>
+                          <button
+                            onClick={() => setViewMode('client')}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                              viewMode === 'client' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            <Users className="h-3.5 w-3.5" /> Por cliente
+                          </button>
+                        </div>
                       </div>
                     </div>
 
