@@ -2,6 +2,30 @@ import { supabase } from "@/integrations/supabase/client";
 import jsPDF from "jspdf";
 
 /**
+ * Verify that a WhatsApp instance is actually connected (live check via W-API).
+ * Returns { healthy: true } or { healthy: false, error: string }.
+ */
+async function verifyInstanceHealth(
+  instanceId: string,
+  instanceToken: string,
+): Promise<{ healthy: boolean; error?: string }> {
+  try {
+    const { data, error } = await supabase.functions.invoke("wapi-send", {
+      body: { action: "get-status", instanceId, instanceToken },
+    });
+    if (error) return { healthy: false, error: "Erro ao verificar instância." };
+    const payload = data as { connected?: boolean; status?: string } | null;
+    if (payload?.connected === true) return { healthy: true };
+    return {
+      healthy: false,
+      error: `Instância WhatsApp está desconectada (${payload?.status || "offline"}). Reconecte antes de enviar.`,
+    };
+  } catch {
+    return { healthy: false, error: "Não foi possível verificar a instância WhatsApp." };
+  }
+}
+
+/**
  * Log a contract-related action to the audit trail.
  */
 export async function logContractAction(
@@ -77,6 +101,12 @@ export async function sendContractViaWhatsApp(
     const instance = instances?.[0];
     if (!instance) {
       return { success: false, error: "Nenhuma instância do WhatsApp conectada." };
+    }
+
+    // 2b. Verify instance is actually connected (live check)
+    const health = await verifyInstanceHealth(instance.instance_id, instance.instance_token);
+    if (!health.healthy) {
+      return { success: false, error: health.error || "Instância desconectada." };
     }
 
     // 3. Find existing conversation

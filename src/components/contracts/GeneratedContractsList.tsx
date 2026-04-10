@@ -166,6 +166,21 @@ export function GeneratedContractsList({ userId }: Props) {
       const instance = instances?.[0];
       let signatureSent = false;
       if (instance) {
+        // Verify instance is actually connected (live check)
+        const { data: statusData } = await supabase.functions.invoke("wapi-send", {
+          body: { action: "get-status", instanceId: instance.instance_id, instanceToken: instance.instance_token },
+        });
+        const statusPayload = statusData as { connected?: boolean; status?: string } | null;
+        if (statusPayload?.connected !== true) {
+          toast({
+            title: "Instância WhatsApp desconectada",
+            description: `A instância está ${statusPayload?.status || "offline"}. Reconecte antes de enviar.`,
+            variant: "destructive",
+          });
+          await (supabase as any).from("contract_signatures").delete().eq("token", token);
+          return;
+        }
+
         const phone = lead.whatsapp.replace(/\D/g, "");
         const msg = `📄 *${contract.nome_documento}*\n\nOlá ${lead.name}! Seu contrato está pronto para assinatura digital.\n\nAcesse o link abaixo para ler e assinar:\n${signUrl}\n\n_${currentCompany.name}_`;
         const { data: sendResult, error: sendErr } = await supabase.functions.invoke("wapi-send", {
