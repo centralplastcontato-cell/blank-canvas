@@ -1,34 +1,36 @@
 
 
-## Diagnóstico do Bug
+## Plan: Auto-generate "valor por extenso" for all monetary values in contracts
 
-O problema está na função `syncPaymentDetails` em `src/pages/Agenda.tsx` (linhas 718-781). Quando um evento é salvo/criado, essa função cria os registros de pagamento (`event_payments`) com os **valores BRUTOS** (sem descontar as taxas de cartão).
+### Problem
+Currently, contracts show monetary values only in numeric format (e.g., `R$ 6.764,00`). The user wants all monetary values to also display the written-out form in Portuguese (e.g., "seis mil setecentos e sessenta e quatro reais").
 
-Enquanto isso, a lógica de "backfill" nos hooks `EventFinancialTab` e `useFinanceiroDashboard` aplica corretamente as taxas de cartão — mas essas funções só rodam quando **não existem** pagamentos prévios. Como `syncPaymentDetails` já cria os registros brutos primeiro, o backfill nunca é acionado.
+### Approach
+Create a `numberToWordsPortuguese(value: number): string` utility function and use it to automatically populate `{{valor_total_extenso}}` and add new extenso variables for other monetary fields.
 
-**Resultado**: O evento "Noah 5 anos" tem:
-- Entrada: R$ 1.900 armazenado (bruto) em vez de ~R$ 1.795,69 (líquido com 5,49%)
-- Parcelas: 5x R$ 800 (bruto) em vez de valor líquido
-- O extrato bancário mostra +R$ 1.900 quando deveria mostrar o valor líquido
-- Os cards financeiros do evento mostram valores brutos
+### Changes
 
-## Plano de Correção
+**1. New utility: `src/lib/number-to-words-pt.ts`**
+- Pure function that converts any number to Brazilian Portuguese words
+- Handles units, tens, hundreds, thousands, millions
+- Appends "reais" and "centavos" correctly
+- Example: `6764.00` → `"seis mil setecentos e sessenta e quatro reais"`
+- Example: `270.00` → `"duzentos e setenta reais"`
+- Example: `1500.50` → `"um mil e quinhentos reais e cinquenta centavos"`
 
-### 1. Corrigir `syncPaymentDetails` em Agenda.tsx
-Adicionar a mesma lógica de dedução de taxas de cartão que já existe no backfill:
-- Buscar `company_card_fees` ativas para a empresa
-- Se `entrada_forma === "cartao"`, aplicar taxa baseada em `entrada_parcelas`
-- Se `saldo_forma === "cartao"`, aplicar taxa baseada em `parcelas` e criar linha única (sem splitar parcelas)
-- Parcelas de cartão não devem ser splitadas em múltiplas linhas
+**2. Update `src/lib/template-resolver.ts`**
+- Import the converter function
+- Auto-compute `valor_total_extenso` from `ctx.event?.value` when not manually set
+- Add new variables: `{{valor_sinal_extenso}}`, `{{valor_restante_extenso}}`, `{{valor_convidado_adicional_extenso}}`
+- Each resolves the numeric value and converts to words automatically
 
-### 2. Corrigir os dados existentes do "Noah 5 anos"
-Via migração SQL, recalcular os valores das parcelas pendentes aplicando a taxa de 5,49%:
-- Entrada paga (R$ 1.900): já está marcada como paga, o valor no banco precisa ser corrigido para ~R$ 1.795,69
-- 5 parcelas pendentes de R$ 800: devem ser consolidadas em 1 parcela de ~R$ 3.780,40 (R$ 4.000 - 5,49%)
+**3. Update `supabase/functions/_shared/template-resolver.ts`**
+- Mirror the same changes for edge functions (inline the converter or import)
 
-### Resultado Esperado
-- Novos eventos com pagamento cartão terão valores líquidos corretos
-- O extrato bancário refletirá o valor que realmente cai na conta
-- Os cards financeiros mostrarão valores líquidos
-- O card de "Taxas de Cartão" continuará mostrando o valor bruto vs líquido para referência
+**4. Update contract context builders** (`ContractGenerator.tsx` and `EventContractDialog.tsx`)
+- Auto-fill `valor_total_extenso` from `total_value` when the field is empty
+- No manual entry needed — the system generates it from the numeric value
+
+### Result
+All `R$` values in contracts will automatically have a corresponding `_extenso` variable available. Template authors can use `{{valor_total_extenso}}`, `{{valor_sinal_extenso}}`, etc. alongside the numeric versions.
 
