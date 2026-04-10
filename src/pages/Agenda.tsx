@@ -685,6 +685,8 @@ export default function Agenda() {
       }
       await syncPaymentDetails(data.id, currentCompany.id, data.payment_details);
       toast({ title: "Festa atualizada!" });
+      fetchEvents();
+      return data.id;
     } else {
       const { data: newEvent, error } = await supabase.from("company_events").insert(payload).select("id").single();
       if (error) { toast({ title: "Erro ao criar", description: error.message, variant: "destructive" }); return; }
