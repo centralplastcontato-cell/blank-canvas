@@ -603,7 +603,21 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       .order("created_at", { ascending: false })
       .limit(1)
       .then(({ data }) => {
-        setClientRequest((data && data.length > 0) ? data[0] as ClientDataRequest : null);
+        const req = (data && data.length > 0) ? data[0] as ClientDataRequest : null;
+        setClientRequest(req);
+        // Hydrate form with birthday_children from completed client data
+        if (req?.status === "completed" || req?.status === "reviewed") {
+          const cd = req.client_data as any;
+          if (cd?.birthday_children?.length) {
+            setForm(prev => ({
+              ...prev,
+              birthday_children: cd.birthday_children,
+              child_name: cd.birthday_children[0]?.name || prev.child_name,
+              child_age: cd.birthday_children[0]?.age || prev.child_age,
+              child_birthdate: cd.birthday_children[0]?.birthdate || prev.child_birthdate,
+            }));
+          }
+        }
         setLoadingClientRequest(false);
       });
   }, [open, eventId, currentCompany?.id]);
