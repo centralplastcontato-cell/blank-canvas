@@ -74,6 +74,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   const [catalogOptionals, setCatalogOptionals] = useState<CatalogOptional[]>([]);
   const [selectedOptionalId, setSelectedOptionalId] = useState<string>("");
   const [optionalQty, setOptionalQty] = useState(1);
+  const [optionalDueDate, setOptionalDueDate] = useState<string>("");
   const [addingOptional, setAddingOptional] = useState(false);
   const syncAttempted = useRef(false);
 
