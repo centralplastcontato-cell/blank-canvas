@@ -462,21 +462,40 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       const instance = instances?.[0];
       let signatureSent = false;
       if (instance) {
-        const phone = lead.whatsapp.replace(/\D/g, "");
-        const msg = `📄 *${contract.nome_documento}*\n\nOlá ${lead.name}! Seu contrato está pronto para assinatura digital.\n\nAcesse o link abaixo para ler e assinar:\n${signUrl}\n\n_${currentCompany.name}_`;
-        const { data: sendResult, error: sendErr } = await supabase.functions.invoke("wapi-send", {
-          body: { action: "send-text", instanceId: instance.instance_id, instanceToken: instance.instance_token, phone, message: msg },
-        });
-        const sendPayload = sendResult as { success?: boolean; error?: string } | null;
-        if (sendErr || sendPayload?.success === false) {
+        const pdfResult = await sendContractViaWhatsApp(
+          currentCompany.id,
+          leadId,
+          contract.conteudo_renderizado,
+          contract.nome_documento,
+          {
+            instanceId: instance.instance_id,
+            instanceToken: instance.instance_token,
+          },
+        );
+
+        if (!pdfResult.success) {
           toast({
-            title: "Erro ao enviar link",
-            description: sendErr?.message || sendPayload?.error || "Falha no envio pelo WhatsApp.",
+            title: "Erro ao enviar contrato",
+            description: pdfResult.error,
             variant: "destructive",
           });
         } else {
-          signatureSent = true;
-          toast({ title: "Link de assinatura enviado via WhatsApp ✅" });
+          const phone = lead.whatsapp.replace(/\D/g, "");
+          const msg = `Olá ${lead.name}! Seu contrato está pronto para assinatura digital.\n\nAcesse o link abaixo para ler e assinar:\n${signUrl}\n\n_${currentCompany.name}_`;
+          const { data: sendResult, error: sendErr } = await supabase.functions.invoke("wapi-send", {
+            body: { action: "send-text", instanceId: instance.instance_id, instanceToken: instance.instance_token, phone, message: msg },
+          });
+          const sendPayload = sendResult as { success?: boolean; error?: string } | null;
+          if (sendErr || sendPayload?.success === false) {
+            toast({
+              title: "Erro ao enviar link",
+              description: sendErr?.message || sendPayload?.error || "Falha no envio do link pelo WhatsApp.",
+              variant: "destructive",
+            });
+          } else {
+            signatureSent = true;
+            toast({ title: "Contrato em PDF + link de assinatura enviados via WhatsApp ✅" });
+          }
         }
       } else {
         await navigator.clipboard.writeText(signUrl);
