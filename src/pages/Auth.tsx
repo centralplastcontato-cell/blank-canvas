@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Lock, Mail, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { isHubDomain, getCanonicalHost, isPreviewDomain } from "@/hooks/useDomainDetection";
+import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { z } from "zod";
 import loginBg from "@/assets/login-bg-5.jpg";
 import logoCasteloTransparent from "@/assets/logo-castelo-transparent.png";
