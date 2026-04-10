@@ -409,15 +409,20 @@ export function ManualClientDataForm({ eventId, companyId, leadId, initialClient
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex gap-2 pt-1">
-        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button type="button" size="sm" onClick={handleSave} disabled={saving} className="gap-2">
-          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-          Salvar dados
-        </Button>
+      {/* Auto-save indicator */}
+      <div className="flex items-center gap-2 pt-1 text-xs text-muted-foreground">
+        {saving && (
+          <>
+            <Loader2 className="h-3 w-3 animate-spin" />
+            <span>Salvando...</span>
+          </>
+        )}
+        {saved && !saving && (
+          <>
+            <Check className="h-3 w-3 text-green-500" />
+            <span className="text-green-600">Salvo automaticamente</span>
+          </>
+        )}
       </div>
     </div>
   );
