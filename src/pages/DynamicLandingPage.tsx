@@ -14,6 +14,7 @@ import { DLPHowItWorks } from "@/components/dynamic-lp/DLPHowItWorks";
 import { DLPFooter } from "@/components/dynamic-lp/DLPFooter";
 import { DLPFloatingCTA } from "@/components/dynamic-lp/DLPFloatingCTA";
 import { LeadChatbot } from "@/components/landing/LeadChatbot";
+import { applyHeroAssetOverrides, getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import type { LPHero, LPVideo, LPGallery, LPTestimonials, LPOffer, LPTheme, LPFooter, LPBenefits, LPSocialProof, LPHowItWorks } from "@/types/landing-page";
 
 interface LPBotConfig {
@@ -85,6 +86,7 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
       } else {
         const row = Array.isArray(result.data) ? result.data[0] : result.data;
         const companyId = row.company_id;
+        const companySlug = row.company_slug as string;
         let whatsapp: string | null = null;
         const [{ data: onb }, { data: botSettingsArr }, { data: unitsData }] = await Promise.all([
           supabase.rpc('get_onboarding_public_fields', { _company_id: companyId }),
@@ -123,23 +125,25 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
         const defaultHowItWorks: LPHowItWorks = { enabled: false, title: "", steps: [] };
 
         const unitNames = (unitsData || []).map((u: any) => u.name as string);
+        const normalizedHero = (() => {
+          const h = row.hero as any;
+          return {
+            ...h,
+            background_image_url: h.background_image_url || h.background_image || null,
+          } as unknown as LPHero;
+        })();
+        const companyLogo = getCompanyLogoOverride(companySlug, row.company_logo);
 
         setData({
           company_id: companyId,
           multipleUnits: onbRow?.multiple_units === true,
           unitNames,
           company_name: row.company_name,
-          company_logo: row.company_logo,
-          company_slug: row.company_slug,
+          company_logo: companyLogo,
+          company_slug: companySlug,
           company_whatsapp: whatsapp,
           company_instagram: onbRow?.instagram || null,
-          hero: (() => {
-            const h = row.hero as any;
-            return {
-              ...h,
-              background_image_url: h.background_image_url || h.background_image || null,
-            } as unknown as LPHero;
-          })(),
+          hero: applyHeroAssetOverrides(normalizedHero, companySlug),
           video: row.video as unknown as LPVideo,
           gallery: row.gallery as unknown as LPGallery,
           testimonials: row.testimonials as unknown as LPTestimonials,
@@ -205,7 +209,6 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
         {data.company_logo && <meta name="twitter:image" content={data.company_logo} />}
       </Helmet>
 
-      {/* Section order: Hero → Social Proof → Benefits → Gallery → Video → How It Works → Testimonials → Offer → Footer */}
       <DLPHero
         hero={data.hero}
         theme={data.theme}
