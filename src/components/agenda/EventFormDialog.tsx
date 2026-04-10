@@ -377,6 +377,104 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [contractModels, setContractModels] = useState<Array<{ id: string; nome_modelo: string; versao: number; tipo_evento: string }>>([]);
   const [selectedContractModelId, setSelectedContractModelId] = useState<string | null>(null);
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
+  const [generatedContracts, setGeneratedContracts] = useState<Array<{ id: string; nome_documento: string; status: string; conteudo_renderizado: string; lead_id: string | null; event_id: string | null; template_id: string | null; created_at: string }>>([]);
+  const [sendingContractWA, setSendingContractWA] = useState<string | null>(null);
+  const [sendingContractSign, setSendingContractSign] = useState<string | null>(null);
+  const [viewingContractContent, setViewingContractContent] = useState<{ content: string; name: string } | null>(null);
+
+  const fetchGeneratedContracts = useCallback(async () => {
+    if (!isEdit || !form.id || !currentCompany?.id) return;
+    const { data } = await (supabase as any)
+      .from("generated_contracts")
+      .select("id, nome_documento, status, conteudo_renderizado, lead_id, event_id, template_id, created_at")
+      .eq("event_id", form.id)
+      .eq("company_id", currentCompany.id)
+      .neq("status", "cancelado")
+      .order("created_at", { ascending: false })
+      .limit(5);
+    setGeneratedContracts(data || []);
+  }, [isEdit, form.id, currentCompany?.id]);
+
+  useEffect(() => { fetchGeneratedContracts(); }, [fetchGeneratedContracts]);
+
+  const handleContractSendWA = async (contract: typeof generatedContracts[0]) => {
+    if (!currentCompany?.id || !userId) return;
+    let leadId = contract.lead_id;
+    if (!leadId && contract.event_id) {
+      const { data: ev } = await supabase.from("company_events").select("lead_id").eq("id", contract.event_id).single();
+      leadId = ev?.lead_id || null;
+    }
+    if (!leadId) {
+      toast({ title: "Lead não vinculado", description: "Este contrato não possui um lead associado.", variant: "destructive" });
+      return;
+    }
+    setSendingContractWA(contract.id);
+    const result = await sendContractViaWhatsApp(currentCompany.id, leadId, contract.conteudo_renderizado, contract.nome_documento);
+    if (result.success) {
+      toast({ title: "Contrato enviado via WhatsApp ✅" });
+      await logContractAction(currentCompany.id, contract.id, contract.template_id, "contract_sent_whatsapp", userId, { lead_id: leadId });
+    } else {
+      toast({ title: "Erro ao enviar", description: result.error, variant: "destructive" });
+    }
+    setSendingContractWA(null);
+  };
+
+  const handleContractSendSign = async (contract: typeof generatedContracts[0]) => {
+    if (!currentCompany?.id || !userId) return;
+    let leadId = contract.lead_id;
+    if (!leadId && contract.event_id) {
+      const { data: ev } = await supabase.from("company_events").select("lead_id").eq("id", contract.event_id).single();
+      leadId = ev?.lead_id || null;
+    }
+    if (!leadId) {
+      toast({ title: "Lead não vinculado", description: "Este contrato não possui um lead associado.", variant: "destructive" });
+      return;
+    }
+    const { data: lead } = await supabase.from("campaign_leads").select("name, whatsapp").eq("id", leadId).single();
+    if (!lead?.whatsapp) {
+      toast({ title: "Lead sem WhatsApp cadastrado", variant: "destructive" });
+      return;
+    }
+    setSendingContractSign(contract.id);
+    try {
+      const token = crypto.randomUUID();
+      const { error: sigErr } = await (supabase as any).from("contract_signatures").insert({
+        contract_id: contract.id,
+        company_id: currentCompany.id,
+        signer_name: lead.name,
+        signer_phone: lead.whatsapp,
+        token,
+      });
+      if (sigErr) {
+        toast({ title: "Erro ao criar assinatura", description: sigErr.message, variant: "destructive" });
+        return;
+      }
+      await (supabase as any).from("generated_contracts").update({ status: "aguardando_assinatura", signature_token: token }).eq("id", contract.id);
+      const signUrl = `${window.location.origin}/assinar-contrato/${token}`;
+      const { data: instances } = await (supabase as any)
+        .from("wapi_instances")
+        .select("instance_id, instance_token")
+        .eq("company_id", currentCompany.id)
+        .eq("status", "connected")
+        .limit(1);
+      const instance = instances?.[0];
+      if (instance) {
+        const phone = lead.whatsapp.replace(/\D/g, "");
+        const msg = `📄 *${contract.nome_documento}*\n\nOlá ${lead.name}! Seu contrato está pronto para assinatura digital.\n\nAcesse o link abaixo para ler e assinar:\n${signUrl}\n\n_${currentCompany.name}_`;
+        await supabase.functions.invoke("wapi-send", {
+          body: { instanceId: instance.instance_id, instanceToken: instance.instance_token, phone, message: msg },
+        });
+        toast({ title: "Link de assinatura enviado via WhatsApp ✅" });
+      } else {
+        await navigator.clipboard.writeText(signUrl);
+        toast({ title: "Link copiado!", description: "Nenhuma instância WhatsApp conectada. O link foi copiado." });
+      }
+      await logContractAction(currentCompany.id, contract.id, contract.template_id, "contract_sent_for_signature", userId, { lead_id: leadId });
+      fetchGeneratedContracts();
+    } finally {
+      setSendingContractSign(null);
+    }
+  };
 
   // Conflict detection state
   const [conflictEvent, setConflictEvent] = useState<{ title: string; start_time: string; end_time: string; unit: string } | null>(null);
