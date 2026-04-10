@@ -6,13 +6,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Plus, Loader2, FileText, Eye, Ban, History } from "lucide-react";
+import { Plus, Loader2, FileText, Eye, Ban, History, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ContractGenerator } from "./ContractGenerator";
 import { ContractDocumentViewer } from "./ContractDocumentViewer";
 import { toast } from "@/hooks/use-toast";
-import { logContractAction } from "./contractAuditHelpers";
+import { logContractAction, sendContractViaWhatsApp } from "./contractAuditHelpers";
 
 interface GeneratedContract {
   id: string;
