@@ -755,7 +755,17 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
     setSaving(true);
     try {
-      const paymentWithDiscount = { ...payment, discount_type: form.discount_type, discount_value: form.discount_value, discount_base: form.discount_base, discount_reason: form.discount_reason };
+      const paymentWithDiscount = {
+        ...payment,
+        discount_type: form.discount_type, discount_value: form.discount_value,
+        discount_base: form.discount_base, discount_reason: form.discount_reason,
+        // Per-person pricing data
+        pricing_mode: pricingMode,
+        adult_count: pricingMode === 'per_person' ? adultCount : null,
+        child_count: pricingMode === 'per_person' ? childCount : null,
+        price_per_adult: pricingMode === 'per_person' ? pricePerAdult : null,
+        price_per_child: pricingMode === 'per_person' ? pricePerChild : null,
+      };
       const submitData = { ...form, total_value: grandTotal || null, payment_details: paymentWithDiscount };
       const resultId = await onSubmit(submitData);
       if (!isEdit && resultId) {
