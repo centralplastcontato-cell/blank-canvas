@@ -725,10 +725,17 @@ export default function Agenda() {
         .select("id, status")
         .eq("event_id", eventId);
       const hasPaidPayments = (existing || []).some((p: any) => p.status === "paid");
-      if (hasPaidPayments) return; // Don't overwrite if user already marked payments as paid
 
-      // Delete existing pending payments to re-sync
-      await supabase.from("event_payments").delete().eq("event_id", eventId);
+      if (hasPaidPayments) {
+        // Only delete pending payments, keep paid ones intact
+        const pendingIds = (existing || []).filter((p: any) => p.status !== "paid").map((p: any) => p.id);
+        if (pendingIds.length > 0) {
+          await supabase.from("event_payments").delete().in("id", pendingIds);
+        }
+      } else {
+        // Delete all existing payments to re-sync
+        await supabase.from("event_payments").delete().eq("event_id", eventId);
+      }
 
       // Helper to get card fee rate from the already-loaded agendaCardFees
       const getCardFeeRate = (forma: string, parcelas: number): number => {
