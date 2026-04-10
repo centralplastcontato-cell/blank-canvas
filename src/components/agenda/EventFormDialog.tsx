@@ -926,6 +926,37 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       if (resultId) {
         setPersistedEventId(resultId);
         setForm(prev => ({ ...prev, id: prev.id || resultId }));
+        // Auto-create pending payment for additional value (e.g. optionals added post-contract)
+        if (isEdit && grandTotal > 0 && currentCompany?.id) {
+          try {
+            const { data: existingPayments } = await supabase
+              .from('event_payments')
+              .select('amount')
+              .eq('event_id', resultId);
+            const totalPayments = (existingPayments || []).reduce((s: number, p: any) => s + Number(p.amount), 0);
+            const diff = grandTotal - totalPayments;
+            if (diff > 0.01) {
+              await supabase.from('event_payments').insert({
+                event_id: resultId,
+                company_id: currentCompany.id,
+                type: 'parcela',
+                amount: diff,
+                due_date: new Date().toISOString().split('T')[0],
+                status: 'pending',
+                payment_method: null,
+                notes: `Adicional - Ajuste pós-contrato (R$ ${diff.toFixed(2)})`,
+              });
+              await supabase.from('event_financial_timeline').insert({
+                event_id: resultId,
+                company_id: currentCompany.id,
+                type: 'payment_created',
+                description: `Parcela de R$ ${diff.toFixed(2)} criada automaticamente (adicional)`,
+              });
+            }
+          } catch (err) {
+            console.error('[EventFormDialog] auto-payment delta error:', err);
+          }
+        }
       }
       if (!keepOpen) {
         if (draftStorageKey) {
