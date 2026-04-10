@@ -285,6 +285,7 @@ export function useFinanceiroDashboard() {
       const expenseData = (expensesRes.data || []).map(e => ({ ...e, amount: Number(e.amount) })) as Expense[];
       console.log('[Financeiro] expenses fetched:', expenseData.length, 'raw:', expensesRes.data?.length, 'error:', expensesRes.error);
       setExpenses(expenseData);
+      setRevenues((revenuesRes.data || []).map((r: any) => ({ ...r, amount: Number(r.amount) })));
     } catch (err) {
       console.error('[useFinanceiroDashboard] fetch error:', err);
     } finally {
