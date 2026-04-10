@@ -63,8 +63,9 @@ Deno.serve(async (req) => {
       const phone = sig.signer_phone.replace(/\D/g, "");
       const message = `🔐 *Código de verificação*\n\nSeu código para assinar o contrato é:\n\n*${otp}*\n\nEste código expira em 10 minutos.\n\n_Não compartilhe este código com ninguém._`;
 
-      const { error: sendErr } = await sb.functions.invoke("wapi-send", {
+      const { data: sendData, error: sendErr } = await sb.functions.invoke("wapi-send", {
         body: {
+          action: "send-text",
           instanceId: instance.instance_id,
           instanceToken: instance.instance_token,
           phone,
@@ -72,9 +73,11 @@ Deno.serve(async (req) => {
         },
       });
 
-      if (sendErr) {
+      const sendPayload = sendData as { success?: boolean; error?: string } | null;
+
+      if (sendErr || sendPayload?.success === false) {
         console.error("OTP send error:", sendErr);
-        return json({ success: false, error: "Erro ao enviar código via WhatsApp." });
+        return json({ success: false, error: sendPayload?.error || "Erro ao enviar código via WhatsApp." });
       }
 
       // Mask phone for response
