@@ -220,7 +220,7 @@ export function ManualClientDataForm({ eventId, companyId, leadId, initialClient
           </div>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Nascimento</Label>
-            <Input value={formData.nascimento} onChange={e => updateField("nascimento", e.target.value)} placeholder="DD/MM/AAAA" className="h-9 text-sm" />
+            <Input type="date" value={formData.nascimento} onChange={e => updateField("nascimento", e.target.value)} className="h-9 text-sm" />
           </div>
         </div>
       </div>
