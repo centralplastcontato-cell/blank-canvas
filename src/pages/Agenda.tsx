@@ -714,7 +714,6 @@ export default function Agenda() {
       fetchEvents();
       return newEvent.id;
     }
-    fetchEvents();
   };
 
   const syncPaymentDetails = async (eventId: string, companyId: string, pd: any) => {
