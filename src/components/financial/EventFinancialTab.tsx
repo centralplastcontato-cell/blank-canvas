@@ -239,6 +239,92 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
 
   const fmt = (v: number) => showValues ? v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "••••";
 
+  // Add optional directly from sidebar
+  const handleAddOptionalInline = async (catalogOpt: CatalogOptional) => {
+    if (!eventId || !companyId) return;
+    setAddingOptional(true);
+    try {
+      const guests = eventGuestCount;
+      const unitPrice = catalogOpt.value || 0;
+      const ppVal = catalogOpt.valor_por_pessoa || 0;
+      const qty = optionalQty;
+      const totalValue = (unitPrice * qty) + (ppVal > 0 ? ppVal * guests * qty : 0);
+
+      const newOpt = {
+        name: catalogOpt.name,
+        value: unitPrice,
+        valor_por_pessoa: ppVal,
+        quantity: qty,
+        unit_price: unitPrice,
+      };
+
+      const updatedOptionals = [...eventOptionals, newOpt];
+
+      // Update event_optionals on company_events
+      const oldTotal = baseValue;
+      const newOptionalsTotal = updatedOptionals.reduce((sum, o) => {
+        const oQty = Number(o.quantity) || 1;
+        const oUnit = Number(o.unit_price ?? o.value) || 0;
+        const oPP = Number(o.valor_por_pessoa) || 0;
+        return sum + (oUnit * oQty) + (oPP > 0 ? oPP * guests * oQty : 0);
+      }, 0);
+
+      // Compute new grand total (baseValue already includes old optionals from EventFormDialog)
+      // We need to recalc: baseValue from package + all optionals
+      const { data: eventData } = await supabase
+        .from("company_events")
+        .select("total_value")
+        .eq("id", eventId)
+        .single();
+
+      const currentTotal = Number(eventData?.total_value) || 0;
+      const newGrandTotal = currentTotal + totalValue;
+
+      await supabase
+        .from("company_events")
+        .update({
+          event_optionals: updatedOptionals,
+          total_value: newGrandTotal,
+        })
+        .eq("id", eventId);
+
+      // Create differential payment if needed
+      if (totalValue > 0.01) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        await supabase.from("event_payments").insert({
+          event_id: eventId,
+          company_id: companyId,
+          type: "parcela",
+          amount: Math.round(totalValue * 100) / 100,
+          due_date: tomorrow.toISOString().split("T")[0],
+          payment_method: null,
+          status: "pending",
+          notes: `Opcional: ${catalogOpt.name}`,
+        });
+
+        // Timeline
+        await supabase.from("event_financial_timeline").insert({
+          event_id: eventId,
+          company_id: companyId,
+          type: "optional_added",
+          description: `Opcional "${catalogOpt.name}" adicionado — parcela de R$ ${totalValue.toFixed(2)} criada`,
+        });
+      }
+
+      setEventOptionals(updatedOptionals);
+      setOptionalDialogOpen(false);
+      setSelectedOptionalId("");
+      setOptionalQty(1);
+      financial.refresh();
+
+      const { toast: showToast } = await import("@/hooks/use-toast");
+      showToast({ title: "Opcional adicionado", description: `${catalogOpt.name} incluído com parcela pendente.` });
+    } finally {
+      setAddingOptional(false);
+    }
+  };
+
   // Card fee data + payment_details + optionals from event
   const [cardFees, setCardFees] = useState<any[]>([]);
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
