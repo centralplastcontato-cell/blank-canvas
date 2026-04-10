@@ -310,8 +310,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       setOptionalQty(1);
       financial.refresh();
 
-      const { toast: showToast } = await import("@/hooks/use-toast");
-      showToast({ title: "Opcional adicionado", description: `${catalogOpt.name} incluído com parcela pendente.` });
+      toast({ title: "Opcional adicionado", description: `${catalogOpt.name} incluído com parcela pendente.` });
     } finally {
       setAddingOptional(false);
     }
