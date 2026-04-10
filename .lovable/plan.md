@@ -1,114 +1,126 @@
 
+Problema real
 
-## Plano: Assinatura Digital de Contratos (Desenho + OTP WhatsApp + Auditoria)
+Você está certa: o problema não foi resolvido antes. O bug não é “só visual”. O fluxo da Central de Atendimento está inconsistente e pode sobrescrever os dados do contratante/aniversariante depois que eles já foram preenchidos.
 
-### Visão Geral
+Reformulando o erro de forma exata
 
-O cliente do buffet receberá um link público para visualizar e assinar o contrato digitalmente, usando:
-1. **Desenho de assinatura** (Canvas — dedo no celular ou mouse)
-2. **Código OTP via WhatsApp** (validação de identidade pelo número do lead)
-3. **Registro de auditoria completo** (IP, hash SHA-256 do documento, user-agent, timestamp)
+Quando a festa é criada/editada pelo atalho da Central de Atendimento:
+1. os dados do contratante podem até ser gravados em `client_data_requests`;
+2. mas o estado local do formulário principal nem sempre é atualizado com esses dados;
+3. ao clicar no botão azul “Salvar” do rodapé, o fluxo do WhatsApp salva novamente a festa com campos vazios/placeholder;
+4. isso apaga ou mantém vazio em `company_events` o que deveria aparecer depois na Agenda.
 
-Base legal: MP 2.200-2 Art. 10 §2º — assinatura eletrônica válida quando aceita pelas partes.
+Do I know what the issue is?
 
-### Fluxo do Usuário
+Sim.
 
-```text
-Buffet gera contrato → Clica "Enviar p/ Assinatura"
-  → Sistema gera token único + salva no DB
-  → Envia link via WhatsApp (wapi-send)
+O que eu revisei
 
-Cliente abre link público → Lê contrato completo
-  → Clica "Assinar" → Desenha assinatura no canvas
-  → Sistema envia OTP (6 dígitos) via WhatsApp
-  → Cliente digita o código → Validado
-  → Assinatura + hash + IP + timestamp salvos
-  → Status do contrato muda para "assinado"
-  → Buffet recebe notificação
-```
+Arquivos principais isolados:
+- `src/components/agenda/EventFormDialog.tsx`
+- `src/components/agenda/ManualClientDataForm.tsx`
+- `src/components/whatsapp/LeadInfoPopover.tsx`
+- `src/pages/Agenda.tsx`
 
-### Alterações no Banco de Dados (1 migration)
+Evidência encontrada no banco:
+- existem eventos com `client_data_requests.status = completed` e `client_data` preenchido;
+- mas o mesmo `company_events` está com `child_name`, `child_age`, `child_birthdate` e `birthday_children` vazios.
 
-**Nova tabela: `contract_signatures`**
-- `id` uuid PK
-- `contract_id` uuid FK → generated_contracts (NOT NULL)
-- `company_id` uuid (NOT NULL)
-- `signer_name` text
-- `signer_phone` text
-- `signature_image_url` text (base64 ou storage URL)
-- `document_hash` text (SHA-256 do conteúdo no momento da assinatura)
-- `otp_code` text (código de 6 dígitos, temporário)
-- `otp_sent_at` timestamptz
-- `otp_verified_at` timestamptz
-- `ip_address` text
-- `user_agent` text
-- `signed_at` timestamptz
-- `token` text UNIQUE (token público para acesso sem login)
-- `status` text DEFAULT 'pending' (pending → otp_sent → signed → expired)
-- `created_at` timestamptz DEFAULT now()
+Isso prova que o dado do contratante foi salvo em um lugar e perdido/sobrescrito no outro.
 
-Adicionar coluna `signature_token` na `generated_contracts` para link rápido.
+O que está acontecendo tecnicamente
 
-RLS: anon SELECT via RPC `get_contract_for_signing(token)` (SECURITY DEFINER).
+1. O fluxo da Agenda e o fluxo da Central de Atendimento salvam a festa de formas diferentes.
+   - Em `Agenda.tsx`, o payload normaliza corretamente:
+     - deriva `child_name/child_age/child_birthdate` de `birthday_children[0]`
+     - filtra arrays vazios
+   - Em `LeadInfoPopover.tsx`, o payload é mais frágil:
+     - usa `data.child_name` direto
+     - envia `birthday_children: data.birthday_children || null`
+     - não aplica a mesma normalização da Agenda
 
-### Alterações nos Arquivos
+2. No `EventFormDialog.tsx`, há mais de um caminho de “preencher manualmente”.
+   - Em alguns caminhos, o `onSaved` sincroniza `birthday_children` de volta para o `form`.
+   - Em pelo menos um caminho, isso não acontece.
+   - Resultado: o formulário pai continua com estado vazio, mesmo após o formulário manual ter salvo.
 
-**1. Migration SQL**
-- Criar tabela `contract_signatures`
-- Criar RPC `get_contract_for_signing(_token text)` — retorna contrato + dados da empresa (sem dados sensíveis)
-- Criar RPC `submit_contract_signature(_token, _otp, _signature_base64, _ip, _user_agent)` — valida OTP, salva assinatura, atualiza status
-- RLS habilitada, acesso público apenas via RPCs
+3. Depois disso, o botão global “Salvar” persiste esse estado vazio no evento.
+   - Esse é o motivo mais forte para o comportamento “preenchi, salvei, mas depois sumiu”.
 
-**2. Nova página pública: `src/pages/PublicContractSign.tsx`**
-- Rota: `/assinar-contrato/:token`
-- Busca contrato via RPC `get_contract_for_signing`
-- Renderiza contrato completo (read-only, estilo `ContractDocumentViewer`)
-- Componente `SignatureCanvas` (canvas HTML5 para desenho)
-- Botão "Solicitar Código" → chama edge function → envia OTP via WhatsApp
-- Input OTP (6 dígitos) → valida e finaliza
+4. Há um segundo problema no fluxo do WhatsApp:
+   - ao criar festa via `LeadInfoPopover.tsx`, o insert não retorna o `id` do novo evento;
+   - isso deixa o fluxo de auto-save/contratante frágil para eventos criados por ali.
 
-**3. Novo componente: `src/components/contracts/SignatureCanvas.tsx`**
-- Canvas HTML5 com suporte a touch e mouse
-- Botões: Limpar, Cor (preto/azul)
-- Exporta como base64 PNG
-- Responsivo (funciona bem no celular)
+5. Há também diferença de status/hidratação:
+   - a seção “Dados do Contratante” depende de consulta em `client_data_requests`;
+   - se o evento/local state não é reidratado corretamente, a tela volta mostrando “Dados não solicitados”, mesmo com informação já preenchida.
 
-**4. Edge Function: `supabase/functions/contract-otp/index.ts`**
-- POST com `{ token, action }` onde action = "send-otp" ou "verify-otp"
-- **send-otp**: gera código 6 dígitos, salva na tabela, envia via `wapi-send` (reusa infraestrutura existente)
-- **verify-otp**: valida código (expira em 10min), calcula hash SHA-256 do conteúdo, salva assinatura com IP/user-agent
-- Atualiza `generated_contracts.status` para "assinado"
-- Registra no `contract_audit_logs`
-- Envia notificação ao buffet
+Plano de correção
 
-**5. Atualizar `GeneratedContractsList.tsx`**
-- Novo botão "Enviar p/ Assinatura" (ícone FileSignature)
-- Gera token, cria registro em `contract_signatures`, envia link via WhatsApp
-- Mostra badge "Aguardando Assinatura" / "Assinado ✅"
+1. Unificar o payload de salvamento do WhatsApp com o da Agenda
+- aplicar no `LeadInfoPopover.tsx` a mesma normalização usada em `Agenda.tsx`;
+- sempre derivar:
+  - `child_name`
+  - `child_age`
+  - `child_birthdate`
+  - `birthday_children` filtrado
+- impedir envio de arrays placeholder como `[{"name":"","age":"","birthdate":""}]`.
 
-**6. Atualizar `ContractDocumentViewer.tsx`**
-- Quando contrato está assinado, mostrar seção com:
-  - Imagem da assinatura
-  - Data/hora da assinatura
-  - Hash do documento
-  - IP do signatário
-  - Badge "Assinado digitalmente"
+2. Corrigir todos os caminhos de retorno do formulário manual
+- em `EventFormDialog.tsx`, padronizar TODOS os `onSaved` do `ManualClientDataForm`;
+- sempre sincronizar para o estado pai:
+  - `birthday_children`
+  - `child_name`
+  - `child_age`
+  - `child_birthdate`
+  - e, se necessário, sinalizar `clientRequest` como concluído no mesmo momento.
 
-**7. Rota no `App.tsx`**
-- Adicionar `/assinar-contrato/:token` → `PublicContractSign`
+3. Blindar o botão “Salvar” para não sobrescrever dados válidos com vazio
+- antes de submeter, se houver `clientRequest.completed/reviewed`, o dialog deve priorizar os dados já salvos do contratante;
+- se o estado local estiver vazio mas existir `client_data_requests.client_data`, reidratar antes do submit;
+- isso evita perder dado quando o usuário clica no “Salvar” do rodapé por hábito.
 
-### Segurança
+4. Corrigir a criação de festa via Central de Atendimento
+- no insert de `LeadInfoPopover.tsx`, usar retorno do evento criado (`select("id").single()` ou equivalente);
+- devolver o `id` ao `EventFormDialog`;
+- isso estabiliza os fluxos de auto-save, link e preenchimento manual para festas novas.
 
-- Token UUID v4 único e aleatório (impossível adivinhar)
-- OTP expira em 10 minutos, máximo 3 tentativas
-- Hash SHA-256 garante integridade do documento (qualquer alteração invalida)
-- IP e user-agent registrados para rastreabilidade
-- Acesso público apenas via RPCs SECURITY DEFINER (sem SELECT direto)
-- Contrato renderizado é congelado (já é imutável na tabela `generated_contracts`)
+5. Reforçar a hidratação ao abrir festa existente
+- ao abrir uma festa pela Agenda/WhatsApp, carregar:
+  - `company_events`
+  - último `client_data_requests` concluído
+- se `company_events` estiver vazio mas `client_data_requests` tiver aniversariante/contratante, usar isso para preencher a UI e evitar exibir “não solicitado” incorretamente.
 
-### O Que NÃO Muda
+6. Revisar a sincronização do formulário manual com `company_events`
+- hoje ele atualiza só os campos do aniversariante no evento;
+- vou manter a fonte principal do contratante em `client_data_requests`, mas garantir que os campos espelhados do evento nunca sejam apagados por um save posterior.
 
-- Infraestrutura WhatsApp intacta (usa apenas `wapi-send` para enviar OTP e link)
-- Fluxo de geração de contratos existente permanece igual
-- Nenhuma API externa necessária
+Validação que vou fazer depois da aprovação
 
+1. Criar/editar festa pelo atalho da Central de Atendimento.
+2. Preencher manualmente contratante + aniversariante.
+3. Clicar em “Salvar dados”.
+4. Clicar no botão azul “Salvar”.
+5. Fechar e reabrir pela própria Central.
+6. Abrir a mesma festa na Agenda.
+7. Confirmar:
+   - seção não mostra “Dados não solicitados”;
+   - aniversariante permanece;
+   - dados do contratante continuam acessíveis;
+   - `company_events` e `client_data_requests` ficam coerentes.
+
+Detalhe técnico importante
+
+O motivo de isso continuar acontecendo é que há dois fluxos diferentes para salvar a mesma entidade:
+- Agenda: mais completo
+- Central de Atendimento: incompleto/inconsistente
+
+Enquanto esses dois fluxos não forem alinhados, o problema vai reaparecer de forma intermitente.
+
+Implementação prevista
+- `src/components/whatsapp/LeadInfoPopover.tsx`
+- `src/components/agenda/EventFormDialog.tsx`
+- possivelmente pequeno ajuste em `src/components/agenda/ManualClientDataForm.tsx`
+
+Sem necessidade, neste momento, de nova migration para corrigir a causa principal do atalho da Central de Atendimento.
