@@ -69,6 +69,11 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   const [recentlyPaidIds, setRecentlyPaidIds] = useState<Set<string>>(new Set());
   const [markPaidPayment, setMarkPaidPayment] = useState<any>(null);
   const [markPaidBankId, setMarkPaidBankId] = useState<string | null>(null);
+  const [optionalDialogOpen, setOptionalDialogOpen] = useState(false);
+  const [catalogOptionals, setCatalogOptionals] = useState<CatalogOptional[]>([]);
+  const [selectedOptionalId, setSelectedOptionalId] = useState<string>("");
+  const [optionalQty, setOptionalQty] = useState(1);
+  const [addingOptional, setAddingOptional] = useState(false);
   const syncAttempted = useRef(false);
 
   // Auto-sync: if no payments exist but event has payment_details, sync them
