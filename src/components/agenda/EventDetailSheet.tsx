@@ -618,7 +618,7 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                           {sendingContractWA === gc.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <MessageCircle className="h-3 w-3" />}
                           WhatsApp
                         </Button>
-                        {gc.status !== "assinado" && gc.status !== "aguardando_assinatura" && (
+                        {gc.status !== "assinado" && (
                           <Button
                             variant="outline"
                             size="sm"
