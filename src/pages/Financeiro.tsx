@@ -592,8 +592,8 @@ export default function Financeiro() {
                     <TabsContent value="recebidos" className="space-y-3 mt-3">
                       <div className="flex items-center justify-between">
                         <h2 className="text-sm font-semibold text-foreground">
-                          Recebidos ({allPaid.length})
-                          {allPaid.length > 0 && <span className="ml-2 text-emerald-400 font-bold">{fmt(allPaid.reduce((s, p) => s + p.amount, 0))}</span>}
+                          Recebidos ({allPaid.length + dashboard.revenues.filter(r => r.status === 'recebido' && r.revenue_date >= dashboard.filters.from && r.revenue_date <= dashboard.filters.to).length})
+                          {(allPaid.length > 0 || dashboard.revenues.filter(r => r.status === 'recebido').length > 0) && <span className="ml-2 text-emerald-400 font-bold">{fmt(allPaid.reduce((s, p) => s + p.amount, 0) + dashboard.revenues.filter(r => r.status === 'recebido' && r.revenue_date >= dashboard.filters.from && r.revenue_date <= dashboard.filters.to).reduce((s: number, r: any) => s + r.amount, 0))}</span>}
                         </h2>
                         <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-muted-foreground" onClick={() => setSortOrder(s => s === 'asc' ? 'desc' : 'asc')}>
                           <ArrowUpDown className="h-3.5 w-3.5" />
@@ -602,14 +602,44 @@ export default function Financeiro() {
                       </div>
                       {viewMode === 'client' ? (
                         <PaymentsByClientView payments={allPaid} onMarkAsPaid={handleMarkPaymentAsPaid} onOpenEvent={handleOpenEvent} />
-                      ) : allPaid.length === 0 ? (
-                        <Card className="p-6 text-center text-muted-foreground text-sm">Nenhum pagamento recebido</Card>
                       ) : (
                         <>
-                          <div className="space-y-2">
-                            {allPaid.slice((pageRecebidos - 1) * PAGE_SIZE, pageRecebidos * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onOpenEvent={handleOpenEvent} bankAccountName={p.bank_account_id ? bankAccountMap[p.bank_account_id] : undefined} />)}
-                          </div>
-                          <PaginationControls page={pageRecebidos} totalPages={Math.ceil(allPaid.length / PAGE_SIZE)} onPageChange={setPageRecebidos} />
+                          {/* Standalone revenues */}
+                          {dashboard.revenues.filter(r => r.status === 'recebido' && r.revenue_date >= dashboard.filters.from && r.revenue_date <= dashboard.filters.to).map((r: any) => (
+                            <Card key={r.id} className="p-4 flex items-center justify-between gap-3 border-l-4 border-l-emerald-500">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm truncate">{r.description}</span>
+                                  <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Receita avulsa</Badge>
+                                </div>
+                                <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                                  <span>📅 {format(new Date(r.revenue_date + 'T12:00:00'), 'dd/MM/yyyy')}</span>
+                                  {r.bank_account_id && bankAccountMap[r.bank_account_id] && <span>🏦 {bankAccountMap[r.bank_account_id]}</span>}
+                                  {r.notes && <span className="truncate max-w-[200px]">📝 {r.notes}</span>}
+                                </div>
+                              </div>
+                              <div className="text-right flex items-center gap-2">
+                                <span className="text-emerald-600 font-bold text-sm">{fmt(r.amount)}</span>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingRevenue(r); setRevenueDialogOpen(true); }}>
+                                  <FileText className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => dashboard.deleteRevenue(r.id)}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </Card>
+                          ))}
+                          {/* Event payments */}
+                          {allPaid.length === 0 && dashboard.revenues.filter(r => r.status === 'recebido' && r.revenue_date >= dashboard.filters.from && r.revenue_date <= dashboard.filters.to).length === 0 ? (
+                            <Card className="p-6 text-center text-muted-foreground text-sm">Nenhum pagamento recebido</Card>
+                          ) : (
+                            <>
+                              <div className="space-y-2">
+                                {allPaid.slice((pageRecebidos - 1) * PAGE_SIZE, pageRecebidos * PAGE_SIZE).map(p => <FinancialPaymentCard key={p.id} payment={p} onOpenEvent={handleOpenEvent} bankAccountName={p.bank_account_id ? bankAccountMap[p.bank_account_id] : undefined} />)}
+                              </div>
+                              <PaginationControls page={pageRecebidos} totalPages={Math.ceil(allPaid.length / PAGE_SIZE)} onPageChange={setPageRecebidos} />
+                            </>
+                          )}
                         </>
                       )}
                     </TabsContent>
