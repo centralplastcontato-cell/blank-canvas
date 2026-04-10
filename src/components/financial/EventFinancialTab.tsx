@@ -347,6 +347,40 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
         </Card>
       )}
 
+      {/* Optionals Section (read-only shortcut) */}
+      {eventOptionals.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-2.5">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Package className="h-4 w-4 text-violet-400" /> Opcionais
+            </h3>
+          </div>
+          <div className="space-y-1.5">
+            {eventOptionals.map((opt: any, idx: number) => {
+              const qty = Number(opt.quantity) || 1;
+              const unitVal = Number(opt.value) || 0;
+              const ppVal = Number(opt.valor_por_pessoa) || 0;
+              const total = (unitVal * qty) + (ppVal > 0 ? ppVal * qty : 0);
+              return (
+                <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-card border border-border/40 shadow-sm">
+                  <div className="min-w-0">
+                    <p className="text-sm text-foreground font-medium truncate">
+                      {opt.name}{qty > 1 ? ` (×${qty})` : ""}
+                    </p>
+                    {opt.description && (
+                      <p className="text-[11px] text-muted-foreground truncate">{opt.description}</p>
+                    )}
+                  </div>
+                  <span className="text-sm font-semibold text-violet-500 shrink-0 ml-2">
+                    {showValues ? total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "••••"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Payments Section */}
       <div>
         <div className="flex items-center justify-between mb-2.5">
