@@ -39,9 +39,10 @@ interface Props {
   canEdit?: boolean;
   canPay?: boolean;
   showValues?: boolean;
+  onAddOptional?: () => void;
 }
 
-export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = true, canPay = true, showValues = true }: Props) {
+export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = true, canPay = true, showValues = true, onAddOptional }: Props) {
   const financial = useEventFinancial(eventId, companyId, baseValue);
   const { activeAccounts } = useBankAccounts();
   const bankAccountMap = useMemo(() => {
@@ -347,39 +348,6 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
         </Card>
       )}
 
-      {/* Optionals Section (read-only shortcut) */}
-      {eventOptionals.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-2.5">
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <Package className="h-4 w-4 text-violet-400" /> Opcionais
-            </h3>
-          </div>
-          <div className="space-y-1.5">
-            {eventOptionals.map((opt: any, idx: number) => {
-              const qty = Number(opt.quantity) || 1;
-              const unitVal = Number(opt.value) || 0;
-              const ppVal = Number(opt.valor_por_pessoa) || 0;
-              const total = (unitVal * qty) + (ppVal > 0 ? ppVal * qty : 0);
-              return (
-                <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-card border border-border/40 shadow-sm">
-                  <div className="min-w-0">
-                    <p className="text-sm text-foreground font-medium truncate">
-                      {opt.name}{qty > 1 ? ` (×${qty})` : ""}
-                    </p>
-                    {opt.description && (
-                      <p className="text-[11px] text-muted-foreground truncate">{opt.description}</p>
-                    )}
-                  </div>
-                  <span className="text-sm font-semibold text-violet-500 shrink-0 ml-2">
-                    {showValues ? total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "••••"}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* Payments Section */}
       <div>
@@ -508,7 +476,52 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
         )}
       </div>
 
-      {/* Extras Section */}
+      {/* Optionals Section */}
+      <div>
+        <div className="flex items-center justify-between mb-2.5">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Package className="h-4 w-4 text-violet-400" /> Opcionais
+          </h3>
+          {canEdit && onAddOptional && (
+            <Button
+              size="sm"
+              onClick={onAddOptional}
+              className="h-8 text-xs gap-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 border-0 shadow-none"
+            >
+              <Plus className="h-3.5 w-3.5" /> Incluir
+            </Button>
+          )}
+        </div>
+        {eventOptionals.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-2">Nenhum opcional</p>
+        ) : (
+          <div className="space-y-1.5">
+            {eventOptionals.map((opt: any, idx: number) => {
+              const qty = Number(opt.quantity) || 1;
+              const unitVal = Number(opt.value) || 0;
+              const ppVal = Number(opt.valor_por_pessoa) || 0;
+              const total = (unitVal * qty) + (ppVal > 0 ? ppVal * qty : 0);
+              return (
+                <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-card border border-border/40 shadow-sm">
+                  <div className="min-w-0">
+                    <p className="text-sm text-foreground font-medium truncate">
+                      {opt.name}{qty > 1 ? ` (×${qty})` : ""}
+                    </p>
+                    {opt.description && (
+                      <p className="text-[11px] text-muted-foreground truncate">{opt.description}</p>
+                    )}
+                  </div>
+                  <span className="text-sm font-semibold text-violet-500 shrink-0 ml-2">
+                    {showValues ? total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "••••"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+
       <div>
         <div className="flex items-center justify-between mb-2.5">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">

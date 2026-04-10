@@ -198,6 +198,7 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                   canEdit={financialPerms.canEdit}
                   canPay={financialPerms.canPay}
                   showValues={financialPerms.canViewValues}
+                  onAddOptional={() => onEdit(event)}
                 />
               </div>
             </div>
