@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Printer, AlertTriangle, FileSignature, Calendar, Package, Eye, ArrowLeft, Lock, Loader2 } from "lucide-react";
+import { Printer, AlertTriangle, FileSignature, Calendar, Package, Eye, ArrowLeft, Lock, Loader2, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { sendContractViaWhatsApp, logContractAction } from "./contractAuditHelpers";
+import { toast } from "@/hooks/use-toast";
 
 /** Convert **bold** markdown markers into <strong> tags.
  *  Handles bold blocks that span multiple lines by tracking open/close state. */
