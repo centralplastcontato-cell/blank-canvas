@@ -467,6 +467,12 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         }
       }
       setPayment(loadedPayment);
+      // Restore per-person pricing state from payment_details
+      setPricingMode(pd.pricing_mode === 'per_person' ? 'per_person' : 'fixed');
+      setAdultCount(pd.adult_count ?? null);
+      setChildCount(pd.child_count ?? null);
+      setPricePerAdult(pd.price_per_adult ?? null);
+      setPricePerChild(pd.price_per_child ?? null);
       if (data.event_date) {
         const [y, m, d] = data.event_date.split("-");
         setDateYear(y || "");
