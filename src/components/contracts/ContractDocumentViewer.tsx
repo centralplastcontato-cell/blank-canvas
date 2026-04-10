@@ -344,6 +344,29 @@ export function ContractDocumentViewer({
                 dangerouslySetInnerHTML={{ __html: parseBoldMarkdown(content) }}
               />
 
+              {/* Signature section */}
+              {signatureInfo?.signatureImageUrl && (
+                <div className="mt-12 pt-6 border-t-2 border-foreground/15">
+                  <div className="flex items-center gap-2 mb-4">
+                    <FileSignature className="h-4 w-4 text-emerald-600" />
+                    <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Assinado Digitalmente</span>
+                  </div>
+                  <div className="flex flex-col md:flex-row gap-6 items-start">
+                    <div className="border border-border/30 rounded-lg p-3 bg-muted/20">
+                      <img src={signatureInfo.signatureImageUrl} alt="Assinatura" className="h-20 object-contain" />
+                    </div>
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      {signatureInfo.signerName && <p><strong>Assinante:</strong> {signatureInfo.signerName}</p>}
+                      {signatureInfo.signedAt && <p><strong>Data:</strong> {new Date(signatureInfo.signedAt).toLocaleString("pt-BR")}</p>}
+                      {signatureInfo.ipAddress && <p><strong>IP:</strong> {signatureInfo.ipAddress}</p>}
+                      {signatureInfo.documentHash && (
+                        <p className="font-mono text-[10px] break-all"><strong>Hash SHA-256:</strong> {signatureInfo.documentHash}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Document footer */}
               <div className="mt-16 pt-4 border-t border-border/30 text-center">
                 <p className="text-[10px] text-muted-foreground">
