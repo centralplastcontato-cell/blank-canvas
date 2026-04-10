@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Loader2, AlertTriangle, Check, ChevronRight, ShieldAlert, AlertCircle, Eye } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { resolveSystemVariables, findUnresolvedVariables, type VariableContext } from "@/lib/template-resolver";
+import { resolveSystemVariables, findUnresolvedVariables, appendExtensoToValues, type VariableContext } from "@/lib/template-resolver";
 import { ContractPreviewPrint } from "./ContractPreviewPrint";
 import { ContractDocumentViewer } from "./ContractDocumentViewer";
 import { format } from "date-fns";
@@ -201,7 +201,8 @@ export function ContractGenerator({ userId, onClose }: Props) {
 
   const renderedContent = useMemo(() => {
     if (!selectedModel) return "";
-    return resolveSystemVariables(selectedModel.conteudo_template, variableContext);
+    const resolved = resolveSystemVariables(selectedModel.conteudo_template, variableContext);
+    return appendExtensoToValues(resolved);
   }, [selectedModel, variableContext]);
 
   // Detect unresolved variables in rendered content
