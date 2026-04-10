@@ -903,19 +903,21 @@ export default function Visitas() {
           <header className="shrink-0 z-10 px-4 md:px-6 pt-4 md:pt-6">
             <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
-              <div className="relative flex items-center gap-2 sm:gap-4 p-4 md:p-6 pr-16 md:pr-6">
-                <SidebarTrigger className="text-muted-foreground hover:text-foreground shrink-0" />
-                <div className="p-2 sm:p-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20 shrink-0">
-                  <MapPin className="h-5 w-5 sm:h-7 sm:w-7 text-primary-foreground" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h1 className="text-base sm:text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground truncate">Agenda de Visitas</h1>
-                  <p className="text-xs sm:text-sm text-muted-foreground/70 mt-0.5 hidden sm:block">Gerencie visitas e acompanhamentos</p>
+              <div className="relative flex items-center justify-between gap-4 p-5 md:p-6">
+                <div className="flex items-center gap-4">
+                  <SidebarTrigger className="text-muted-foreground hover:text-foreground shrink-0" />
+                  <div className="p-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20">
+                    <MapPin className="h-7 w-7 text-primary-foreground" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Agenda de Visitas</h1>
+                    <p className="text-sm text-muted-foreground/70 mt-0.5">Gerencie visitas e acompanhamentos</p>
+                  </div>
                 </div>
                 <Button
                   variant="outline"
                   size="icon"
-                  className="absolute right-4 top-1/2 h-9 w-9 shrink-0 -translate-y-1/2 md:static md:translate-y-0 border-blue-300 text-blue-600 hover:bg-blue-50"
+                  className="h-9 w-9 shrink-0 border-blue-300 text-blue-600 hover:bg-blue-50"
                   onClick={() => setReportOpen(true)}
                   title="Gerar Relatório"
                 >
