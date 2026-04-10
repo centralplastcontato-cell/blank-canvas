@@ -32,6 +32,14 @@ const STATUS_BADGE: Record<string, { label: string; className: string; bgRow: st
   late: { label: "Atrasado", className: "bg-red-500/20 text-red-400 border-red-500/30", bgRow: "bg-red-500/[0.04] border-red-500/20" },
 };
 
+interface CatalogOptional {
+  id: string;
+  name: string;
+  description: string | null;
+  value: number | null;
+  valor_por_pessoa: number | null;
+}
+
 interface Props {
   eventId: string;
   companyId: string;
