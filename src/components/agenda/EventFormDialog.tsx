@@ -2281,12 +2281,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                       <span className="text-sm text-muted-foreground">Dados do contratante não solicitados</span>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2">
-                      <Button type="button" variant="outline" disabled={generatingLink || saving} className="gap-2" onClick={async () => {
-                        const savedId = !isEdit ? await autoSaveForClientData() : eventId;
-                        if (!savedId) return;
-                        generateClientLink(savedId);
-                      }}>
-                        {generatingLink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      <Button type="button" variant="outline" disabled={generatingLink || sendingClientLink || saving} className="gap-2" onClick={() => void handleInitialClientLinkRequest()}>
+                        {generatingLink || sendingClientLink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                         Enviar link ao cliente
                       </Button>
                       <Button type="button" variant="outline" disabled={saving} className="gap-2" onClick={async () => {
@@ -2436,7 +2432,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                             size="sm"
                             className="w-full gap-2 rounded-xl shadow-sm"
                             disabled={sendingClientLink}
-                            onClick={sendClientLinkToLead}
+                            onClick={() => void sendClientLinkToLead()}
                           >
                             {sendingClientLink ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                             Enviar link via WhatsApp
