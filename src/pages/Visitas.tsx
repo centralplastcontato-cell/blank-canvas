@@ -471,7 +471,7 @@ export default function Visitas() {
 
   // ─── Main content ───
   const mainContent = (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* Alert */}
       {unconfirmedSoon.length > 0 && (
         <div className="mb-5 rounded-2xl border border-amber-300/50 bg-gradient-to-r from-amber-50/80 to-amber-50/30 dark:from-amber-950/30 dark:to-transparent p-4 flex items-start gap-3">
@@ -879,7 +879,9 @@ export default function Visitas() {
           </div>
         </header>
         <div className="flex-1 overflow-y-auto">
-          {mainContent}
+          <div className="p-4 md:p-6 max-w-7xl mx-auto">
+            {mainContent}
+          </div>
         </div>
         {detailSheet}
         {createDialog}
@@ -900,8 +902,8 @@ export default function Visitas() {
           onLogout={handleLogout}
         />
         <SidebarInset className="flex-1 flex flex-col overflow-hidden min-w-0 bg-background">
-          <header className="shrink-0 z-10 px-3 md:px-6 lg:px-8 pt-4 md:pt-6">
-            <div className="max-w-7xl mx-auto">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 md:p-6 lg:p-8">
+            <div className="max-w-7xl mx-auto space-y-6">
               <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
                 <div className="relative flex items-center justify-between gap-4 p-5 md:p-6">
@@ -926,10 +928,8 @@ export default function Visitas() {
                   </Button>
                 </div>
               </div>
+              {mainContent}
             </div>
-          </header>
-          <div className="flex-1 overflow-y-auto">
-            {mainContent}
           </div>
         </SidebarInset>
       </div>
