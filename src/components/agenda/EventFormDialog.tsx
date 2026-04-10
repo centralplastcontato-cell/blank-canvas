@@ -385,7 +385,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const fetchGeneratedContracts = useCallback(async () => {
     const eid = persistedEventId || form.id || initialData?.id;
     if (!eid || !currentCompany?.id) return;
-    const { data } = await (supabase as any)
+    const { data, error } = await (supabase as any)
       .from("generated_contracts")
       .select("id, nome_documento, status, conteudo_renderizado, lead_id, event_id, template_id, created_at")
       .eq("event_id", eid)
@@ -393,10 +393,11 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       .neq("status", "cancelado")
       .order("created_at", { ascending: false })
       .limit(5);
+    console.log("[contracts] fetch for event", eid, "found", data?.length ?? 0, error);
     setGeneratedContracts(data || []);
   }, [persistedEventId, form.id, initialData?.id, currentCompany?.id]);
 
-  useEffect(() => { fetchGeneratedContracts(); }, [fetchGeneratedContracts]);
+  useEffect(() => { if (open) fetchGeneratedContracts(); }, [open, fetchGeneratedContracts]);
 
   const handleContractSendWA = async (contract: typeof generatedContracts[0]) => {
     if (!currentCompany?.id || !userId) return;
