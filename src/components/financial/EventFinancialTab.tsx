@@ -809,6 +809,73 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Add Optional Dialog */}
+      <Dialog open={optionalDialogOpen} onOpenChange={(open) => { if (!open) { setOptionalDialogOpen(false); setSelectedOptionalId(""); setOptionalQty(1); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Package className="h-5 w-5 text-violet-500" /> Adicionar Opcional</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            {catalogOptionals.length > 0 ? (
+              <>
+                <div>
+                  <Label>Opcional</Label>
+                  <Select value={selectedOptionalId} onValueChange={setSelectedOptionalId}>
+                    <SelectTrigger><SelectValue placeholder="Selecione um opcional..." /></SelectTrigger>
+                    <SelectContent>
+                      {catalogOptionals
+                        .filter(co => !eventOptionals.some((eo: any) => eo.name === co.name))
+                        .map(co => {
+                          const price = co.value || 0;
+                          const pp = co.valor_por_pessoa || 0;
+                          const label = price > 0 ? ` — R$ ${price.toFixed(2)}` : pp > 0 ? ` — R$ ${pp.toFixed(2)}/pessoa` : "";
+                          return (
+                            <SelectItem key={co.id} value={co.id}>
+                              {co.name}{label}
+                            </SelectItem>
+                          );
+                        })}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Quantidade</Label>
+                  <Input type="number" min={1} value={optionalQty} onChange={e => setOptionalQty(Math.max(1, Number(e.target.value) || 1))} />
+                </div>
+                {selectedOptionalId && (() => {
+                  const sel = catalogOptionals.find(c => c.id === selectedOptionalId);
+                  if (!sel) return null;
+                  const unitP = sel.value || 0;
+                  const ppP = sel.valor_por_pessoa || 0;
+                  const preview = (unitP * optionalQty) + (ppP > 0 ? ppP * eventGuestCount * optionalQty : 0);
+                  return (
+                    <div className="p-3 rounded-lg bg-muted/50 border border-border/40 text-sm">
+                      <p className="text-muted-foreground">Valor estimado:</p>
+                      <p className="text-lg font-bold text-foreground">{preview.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
+                      {ppP > 0 && <p className="text-[11px] text-muted-foreground">R$ {ppP.toFixed(2)}/pessoa × {eventGuestCount} convidados × {optionalQty}</p>}
+                    </div>
+                  );
+                })()}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Nenhum opcional cadastrado. Cadastre opcionais em Configurações → Opcionais.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setOptionalDialogOpen(false); setSelectedOptionalId(""); setOptionalQty(1); }}>Cancelar</Button>
+            <Button
+              disabled={!selectedOptionalId || addingOptional}
+              onClick={() => {
+                const sel = catalogOptionals.find(c => c.id === selectedOptionalId);
+                if (sel) handleAddOptionalInline(sel);
+              }}
+            >
+              {addingOptional ? "Adicionando..." : "Adicionar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
