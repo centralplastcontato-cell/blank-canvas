@@ -1,42 +1,36 @@
 
 
-## Diagnóstico
+## Problema
 
-O código que envia o link do contratante (`sendClientLinkToLead` no `EventFormDialog.tsx`, linhas 1060-1066) seleciona a instância WhatsApp assim:
+Quando um opcional (ex: "Cobertura Fotográfica R$500") é adicionado a uma festa que já tinha parcelas criadas, o `total_value` do evento é atualizado e o resumo financeiro mostra o valor pendente correto (R$500). Porém, **não é criada uma parcela para esse valor adicional**, então o usuário não tem como dar baixa nesse pendente pelo card lateral.
 
-```typescript
-const { data: instance } = await supabase
-  .from("wapi_instances")
-  .select("instance_id")
-  .eq("company_id", currentCompany?.id)
-  .order("connected_at", { ascending: false })
-  .limit(1)
-  .single();
-```
+## Solução
 
-**Problemas encontrados:**
-1. **Não filtra por `status`** — pega a instância com `connected_at` mais recente, mesmo que esteja **desconectada**. Se "Vendas 1" foi a última conectada mas agora está offline, o envio falha.
-2. **Não usa a unidade da festa** — ignora completamente o campo `unit` do evento. Deveria priorizar a instância da mesma unidade.
-3. **Sem visibilidade** — o usuário não sabe por qual instância o link será enviado.
+Criar automaticamente uma parcela pendente quando o `EventFormDialog` salva um evento com valor total maior do que a soma das parcelas existentes.
 
-**Respondendo sua pergunta:** Tecnicamente o sistema *deveria* permitir enviar por qualquer instância conectada, mas hoje ele escolhe automaticamente (e mal). Não há restrição por unidade — o problema é que ele pode escolher uma instância desconectada.
+### 1. Detectar diferença ao salvar evento (EventFormDialog.tsx)
 
-## Plano de correção
+Após o `onSubmit` bem-sucedido (na edição, não na criação), verificar:
+- Buscar parcelas existentes em `event_payments` para o evento
+- Calcular: `diferença = novo grandTotal - soma das parcelas existentes`
+- Se `diferença > 0`, inserir automaticamente uma nova parcela do tipo `parcela` com:
+  - `amount = diferença`
+  - `status = 'pending'`
+  - `due_date = hoje`
+  - `payment_method = null`
+  - `notes = "Adicional - [nome do opcional adicionado]"` (quando possível identificar)
+- Registrar na timeline financeira: "Parcela de R$ X criada (adicional)"
 
-### 1. Corrigir a seleção da instância para envio do link
-No `EventFormDialog.tsx`, alterar a query para:
-- Filtrar apenas instâncias com `status = 'connected'`
-- Priorizar a instância da mesma unidade da festa (`form.unit`)
-- Se não houver instância conectada na mesma unidade, usar qualquer outra conectada da empresa
-- Se nenhuma estiver conectada, mostrar mensagem clara: "Nenhuma instância WhatsApp conectada"
+### 2. Lógica de detecção inteligente
 
-### 2. Mostrar por qual instância o link será enviado
-Após selecionar a instância, exibir um toast ou label indicando: "Link será enviado via Vendas X"
-
-### 3. Adicionar informação de origem da festa
-No `EventDetailSheet.tsx` e no cabeçalho do `EventFormDialog`, exibir a unidade da festa para o usuário saber de qual vendas ela veio.
+Para evitar criar parcelas duplicadas, a lógica só dispara quando:
+- O evento já existia (edição, não criação)
+- O novo `grandTotal` é maior que a soma de todas as parcelas (pagas + pendentes)
+- A diferença é > R$0,01
 
 ### Arquivos a editar
-- `src/components/agenda/EventFormDialog.tsx` — corrigir query de instância + mostrar qual unidade envia
-- `src/components/agenda/EventDetailSheet.tsx` — exibir unidade de origem (já tem o campo `unit`, só garantir visibilidade)
+- `src/components/agenda/EventFormDialog.tsx` — adicionar lógica pós-save para criar parcela do diferencial
+
+### Resultado esperado
+Ao adicionar "Cobertura Fotográfica R$500" e salvar, uma parcela pendente de R$500 aparecerá automaticamente no card lateral financeiro, pronta para o usuário dar baixa.
 
