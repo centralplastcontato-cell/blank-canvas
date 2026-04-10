@@ -392,12 +392,15 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
   const handleClientDataSaved = useCallback((req: ClientDataRequest, mode: "manual" | "editing" = "manual") => {
     setClientRequest(req);
-    if (mode === "editing") {
-      setEditingClientData(false);
-    } else {
-      setShowManualForm(false);
-    }
     syncClientDataIntoForm(req.client_data);
+
+    if (mode === "manual") {
+      setShowManualForm(false);
+      setEditingClientData(true);
+      return;
+    }
+
+    setEditingClientData(true);
   }, [syncClientDataIntoForm]);
 
   // Conflict detection effect
