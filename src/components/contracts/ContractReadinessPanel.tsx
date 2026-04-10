@@ -6,9 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   FileSignature, CheckCircle2, AlertTriangle, Loader2, ChevronRight,
-  User, CalendarDays, CreditCard, Package, FileText, XCircle
+  User, CalendarDays, CreditCard, Package, FileText, XCircle, Eye, Printer
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { ContractDocumentViewer } from "./ContractDocumentViewer";
 
 interface ContractReadinessPanelProps {
   eventId: string;
@@ -68,6 +71,7 @@ export function ContractReadinessPanel({ eventId, eventData, onGenerateContract 
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
   const [existingContracts, setExistingContracts] = useState<any[]>([]);
+  const [viewContract, setViewContract] = useState<any>(null);
 
   useEffect(() => {
     if (!currentCompany?.id || !eventId) return;
@@ -96,7 +100,7 @@ export function ContractReadinessPanel({ eventId, eventData, onGenerateContract 
           .single(),
         (supabase as any)
           .from("generated_contracts")
-          .select("id, nome_documento, status, created_at")
+          .select("id, nome_documento, status, created_at, conteudo_renderizado, dados_utilizados, tipo_evento")
           .eq("event_id", eventId)
           .neq("status", "cancelado"),
       ]);
@@ -227,11 +231,45 @@ export function ContractReadinessPanel({ eventId, eventData, onGenerateContract 
       <div className="p-4 space-y-3">
         {/* Existing contracts info */}
         {existingContracts.length > 0 && (
-          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-primary/5 border border-primary/15 text-xs">
-            <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
-            <span className="text-foreground/70">
-              {existingContracts.length} contrato(s) já gerado(s) para esta festa
-            </span>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-xs text-foreground/70">
+              <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
+              <span>{existingContracts.length} contrato(s) já gerado(s) para esta festa</span>
+            </div>
+            {existingContracts.map((c: any) => (
+              <div key={c.id} className="p-2.5 rounded-lg bg-primary/5 border border-primary/15 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-medium truncate flex-1">{c.nome_documento}</p>
+                  <Badge className="text-[10px] px-1.5 py-0 bg-blue-500/15 text-blue-700 border-blue-300 shrink-0">
+                    {c.status === "assinado" ? "Assinado ✅" : c.status === "aguardando_assinatura" ? "Aguardando Assinatura" : "Gerado"}
+                  </Badge>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Gerado em {format(new Date(c.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                </p>
+                <div className="flex items-center gap-1.5 pt-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 text-[10px] rounded-full px-2.5 gap-1"
+                    onClick={() => setViewContract(c)}
+                  >
+                    <Eye className="h-3 w-3" /> Visualizar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 text-[10px] rounded-full px-2.5 gap-1"
+                    onClick={() => {
+                      setViewContract(c);
+                      setTimeout(() => window.print(), 500);
+                    }}
+                  >
+                    <Printer className="h-3 w-3" /> Imprimir
+                  </Button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -314,6 +352,26 @@ export function ContractReadinessPanel({ eventId, eventData, onGenerateContract 
           </p>
         )}
       </div>
+
+      {/* Contract Viewer Dialog */}
+      {viewContract && (
+        <ContractDocumentViewer
+          open={!!viewContract}
+          onOpenChange={(open) => { if (!open) setViewContract(null); }}
+          content={viewContract.conteudo_renderizado || ""}
+          companyName={currentCompany?.name || ""}
+          companyLogo={currentCompany?.logo_url || undefined}
+          mode="generated"
+          meta={{
+            modelName: viewContract.nome_documento,
+            status: viewContract.status,
+            generatedAt: viewContract.created_at,
+            leadName: viewContract.dados_utilizados?.lead?.name,
+            eventDate: viewContract.dados_utilizados?.event?.date,
+            eventType: viewContract.tipo_evento || undefined,
+          }}
+        />
+      )}
     </div>
   );
 }
