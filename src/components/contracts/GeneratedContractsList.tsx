@@ -220,6 +220,10 @@ export function GeneratedContractsList({ userId }: Props) {
             eventDate: viewContract.dados_utilizados?.event?.date,
             eventType: viewContract.tipo_evento || undefined,
           }}
+          contractId={viewContract.id}
+          leadId={viewContract.lead_id || undefined}
+          companyId={currentCompany?.id}
+          userId={userId}
         />
       )}
 
