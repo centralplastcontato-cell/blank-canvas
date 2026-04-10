@@ -312,9 +312,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       }
 
       setEventOptionals(updatedOptionals);
-      setOptionalDialogOpen(false);
-      setSelectedOptionalId("");
-      setOptionalDueDate("");
+      resetOptionalDialog();
       financial.refresh();
 
       toast({ title: "Opcional adicionado", description: `${catalogOpt.name} incluído com parcela pendente.` });
