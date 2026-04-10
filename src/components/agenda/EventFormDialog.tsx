@@ -1056,18 +1056,24 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         return false;
       }
 
-      // Get active instance for company
-      const { data: instance } = await supabase
+      // Get connected instance — prioritize same unit as event
+      const { data: allInstances } = await supabase
         .from("wapi_instances")
-        .select("instance_id")
+        .select("instance_id, unit, status")
         .eq("company_id", currentCompany?.id)
-        .order("connected_at", { ascending: false })
-        .limit(1)
-        .single();
-      if (!instance?.instance_id) {
-        toast({ title: "Nenhuma instância WhatsApp ativa", variant: "destructive" });
+        .eq("status", "connected");
+
+      if (!allInstances || allInstances.length === 0) {
+        toast({ title: "Nenhuma instância WhatsApp conectada", description: "Verifique a conexão em Configurações > WhatsApp.", variant: "destructive" });
         return false;
       }
+
+      // Prefer instance matching event unit, fallback to any connected
+      const unitMatch = form.unit ? allInstances.find(i => i.unit === form.unit) : null;
+      const instance = unitMatch || allInstances[0];
+
+      const instanceUnitLabel = (instance as any).unit || "padrão";
+      toast({ title: `Enviando via ${instanceUnitLabel}...` });
 
       const link = buildClientLink(effectiveToken);
 
@@ -1095,7 +1101,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         },
       });
       if (error) throw error;
-      toast({ title: "Link enviado com sucesso via WhatsApp!" });
+      toast({ title: `✅ Link enviado com sucesso via ${instanceUnitLabel}!` });
       return true;
     } catch (err: any) {
       toast({ title: "Erro ao enviar link", description: err.message, variant: "destructive" });
