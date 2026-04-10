@@ -244,6 +244,17 @@ export function GeneratedContractsList({ userId }: Props) {
                           WhatsApp
                         </Button>
                       )}
+                      {!isCancelled && c.status !== "assinado" && c.status !== "aguardando_assinatura" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs rounded-full px-3.5 gap-1.5 text-purple-700 border-purple-300 hover:bg-purple-50"
+                          onClick={() => handleSendForSignature(c)}
+                          disabled={sendingSign === c.id}
+                        >
+                          {sendingSign === c.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileSignature className="h-3.5 w-3.5" />}
+                          Enviar p/ Assinatura
+                        </Button>
                       <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5" onClick={() => handleShowAudit(c.id)}>
                         <History className="h-3.5 w-3.5" /> Histórico
                       </Button>
