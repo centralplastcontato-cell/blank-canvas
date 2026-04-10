@@ -289,6 +289,13 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [saving, setSaving] = useState(false);
   const { currentCompany } = useCompany();
 
+  // Per-person pricing state
+  const [pricingMode, setPricingMode] = useState<'fixed' | 'per_person'>('fixed');
+  const [adultCount, setAdultCount] = useState<number | null>(null);
+  const [childCount, setChildCount] = useState<number | null>(null);
+  const [pricePerAdult, setPricePerAdult] = useState<number | null>(null);
+  const [pricePerChild, setPricePerChild] = useState<number | null>(null);
+
   // Dynamic event types from company settings, with fallback to defaults
   const EVENT_TYPES = useMemo(() => {
     const s = (currentCompany?.settings || {}) as Record<string, unknown>;
