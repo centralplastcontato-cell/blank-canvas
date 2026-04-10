@@ -298,10 +298,6 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
           status: "pending",
           notes: `Opcional: ${catalogOpt.name}`,
         });
-          payment_method: null,
-          status: "pending",
-          notes: `Opcional: ${catalogOpt.name}`,
-        });
 
         // Timeline
         await supabase.from("event_financial_timeline").insert({
