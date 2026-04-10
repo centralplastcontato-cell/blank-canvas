@@ -272,6 +272,27 @@ export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick, mul
         </motion.div>
       </div>
 
+      {/* Mascot character */}
+      {hero.mascot_image_url && (
+        <motion.img
+          src={hero.mascot_image_url}
+          alt="Mascote"
+          className="absolute z-20 w-32 md:w-48 lg:w-56 drop-shadow-2xl pointer-events-none"
+          style={{ bottom: "8%", right: "5%" }}
+          initial={{ opacity: 0, x: 100, y: 50 }}
+          animate={{
+            opacity: 1,
+            x: 0,
+            y: [0, -12, 0],
+          }}
+          transition={{
+            opacity: { delay: 1, duration: 0.8 },
+            x: { delay: 1, duration: 1, type: "spring" },
+            y: { delay: 1.8, duration: 3, repeat: Infinity, ease: "easeInOut" },
+          }}
+        />
+      )}
+
       {/* Scroll indicator */}
       <motion.div
         className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10"
