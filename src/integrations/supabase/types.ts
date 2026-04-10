@@ -1900,6 +1900,81 @@ export type Database = {
           },
         ]
       }
+      contract_signatures: {
+        Row: {
+          company_id: string
+          contract_id: string
+          created_at: string
+          document_hash: string | null
+          id: string
+          ip_address: string | null
+          otp_attempts: number | null
+          otp_code: string | null
+          otp_sent_at: string | null
+          otp_verified_at: string | null
+          signature_image_url: string | null
+          signed_at: string | null
+          signer_name: string | null
+          signer_phone: string | null
+          status: string
+          token: string
+          user_agent: string | null
+        }
+        Insert: {
+          company_id: string
+          contract_id: string
+          created_at?: string
+          document_hash?: string | null
+          id?: string
+          ip_address?: string | null
+          otp_attempts?: number | null
+          otp_code?: string | null
+          otp_sent_at?: string | null
+          otp_verified_at?: string | null
+          signature_image_url?: string | null
+          signed_at?: string | null
+          signer_name?: string | null
+          signer_phone?: string | null
+          status?: string
+          token: string
+          user_agent?: string | null
+        }
+        Update: {
+          company_id?: string
+          contract_id?: string
+          created_at?: string
+          document_hash?: string | null
+          id?: string
+          ip_address?: string | null
+          otp_attempts?: number | null
+          otp_code?: string | null
+          otp_sent_at?: string | null
+          otp_verified_at?: string | null
+          signature_image_url?: string | null
+          signed_at?: string | null
+          signer_name?: string | null
+          signer_phone?: string | null
+          status?: string
+          token?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_signatures_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_signatures_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "generated_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contrato_responses: {
         Row: {
           answers: Json
@@ -3141,6 +3216,7 @@ export type Database = {
           lead_id: string | null
           nome_documento: string
           pdf_url: string | null
+          signature_token: string | null
           status: string
           template_id: string | null
           template_version_id: string | null
@@ -3158,6 +3234,7 @@ export type Database = {
           lead_id?: string | null
           nome_documento: string
           pdf_url?: string | null
+          signature_token?: string | null
           status?: string
           template_id?: string | null
           template_version_id?: string | null
@@ -3175,6 +3252,7 @@ export type Database = {
           lead_id?: string | null
           nome_documento?: string
           pdf_url?: string | null
+          signature_token?: string | null
           status?: string
           template_id?: string | null
           template_version_id?: string | null
@@ -5739,6 +5817,25 @@ export type Database = {
           slug: string
         }[]
       }
+      get_contract_for_signing: {
+        Args: { _token: string }
+        Returns: {
+          company_id: string
+          company_logo: string
+          company_name: string
+          conteudo_renderizado: string
+          contract_id: string
+          document_hash: string
+          nome_documento: string
+          signature_image_url: string
+          signature_status: string
+          signed_at: string
+          signer_name: string
+          signer_phone: string
+          status: string
+          tipo_evento: string
+        }[]
+      }
       get_contrato_template_by_slugs: {
         Args: { _company_slug: string; _template_slug: string }
         Returns: {
@@ -6000,6 +6097,16 @@ export type Database = {
       submit_client_data_public: {
         Args: { _client_data: Json; _token: string }
         Returns: undefined
+      }
+      submit_contract_signature: {
+        Args: {
+          _ip: string
+          _otp: string
+          _signature_base64: string
+          _token: string
+          _user_agent: string
+        }
+        Returns: Json
       }
       update_attendance_entry_public: {
         Args: {
