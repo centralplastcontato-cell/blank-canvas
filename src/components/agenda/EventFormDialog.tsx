@@ -12,7 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Loader2, Search, X, UserCheck, ListChecks, User, CalendarDays, PartyPopper, Briefcase, CalendarIcon, AlertTriangle, CreditCard, Handshake, Copy, ExternalLink, Clock, CheckCircle2, Send, PenLine, FileSignature, Repeat, Plus, Trash2, Package } from "lucide-react";
+import { Loader2, Search, X, UserCheck, ListChecks, User, CalendarDays, PartyPopper, Briefcase, CalendarIcon, AlertTriangle, CreditCard, Handshake, Copy, ExternalLink, Clock, CheckCircle2, Send, PenLine, FileSignature, Repeat, Plus, Trash2, Package, MessageCircle } from "lucide-react";
+import { sendContractViaWhatsApp, logContractAction } from "@/components/contracts/contractAuditHelpers";
 import { ManualClientDataForm } from "./ManualClientDataForm";
 import { EventContractDialog } from "@/components/contracts/EventContractDialog";
 import { format } from "date-fns";
@@ -376,6 +377,105 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [contractModels, setContractModels] = useState<Array<{ id: string; nome_modelo: string; versao: number; tipo_evento: string }>>([]);
   const [selectedContractModelId, setSelectedContractModelId] = useState<string | null>(null);
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
+  const [generatedContracts, setGeneratedContracts] = useState<Array<{ id: string; nome_documento: string; status: string; conteudo_renderizado: string; lead_id: string | null; event_id: string | null; template_id: string | null; created_at: string }>>([]);
+  const [sendingContractWA, setSendingContractWA] = useState<string | null>(null);
+  const [sendingContractSign, setSendingContractSign] = useState<string | null>(null);
+  
+
+  const fetchGeneratedContracts = useCallback(async () => {
+    const eid = persistedEventId || form.id || initialData?.id;
+    if (!eid || !currentCompany?.id) return;
+    const { data } = await (supabase as any)
+      .from("generated_contracts")
+      .select("id, nome_documento, status, conteudo_renderizado, lead_id, event_id, template_id, created_at")
+      .eq("event_id", eid)
+      .eq("company_id", currentCompany.id)
+      .neq("status", "cancelado")
+      .order("created_at", { ascending: false })
+      .limit(5);
+    setGeneratedContracts(data || []);
+  }, [persistedEventId, form.id, initialData?.id, currentCompany?.id]);
+
+  useEffect(() => { fetchGeneratedContracts(); }, [fetchGeneratedContracts]);
+
+  const handleContractSendWA = async (contract: typeof generatedContracts[0]) => {
+    if (!currentCompany?.id || !userId) return;
+    let leadId = contract.lead_id;
+    if (!leadId && contract.event_id) {
+      const { data: ev } = await supabase.from("company_events").select("lead_id").eq("id", contract.event_id).single();
+      leadId = ev?.lead_id || null;
+    }
+    if (!leadId) {
+      toast({ title: "Lead não vinculado", description: "Este contrato não possui um lead associado.", variant: "destructive" });
+      return;
+    }
+    setSendingContractWA(contract.id);
+    const result = await sendContractViaWhatsApp(currentCompany.id, leadId, contract.conteudo_renderizado, contract.nome_documento);
+    if (result.success) {
+      toast({ title: "Contrato enviado via WhatsApp ✅" });
+      await logContractAction(currentCompany.id, contract.id, contract.template_id, "contract_sent_whatsapp", userId, { lead_id: leadId });
+    } else {
+      toast({ title: "Erro ao enviar", description: result.error, variant: "destructive" });
+    }
+    setSendingContractWA(null);
+  };
+
+  const handleContractSendSign = async (contract: typeof generatedContracts[0]) => {
+    if (!currentCompany?.id || !userId) return;
+    let leadId = contract.lead_id;
+    if (!leadId && contract.event_id) {
+      const { data: ev } = await supabase.from("company_events").select("lead_id").eq("id", contract.event_id).single();
+      leadId = ev?.lead_id || null;
+    }
+    if (!leadId) {
+      toast({ title: "Lead não vinculado", description: "Este contrato não possui um lead associado.", variant: "destructive" });
+      return;
+    }
+    const { data: lead } = await supabase.from("campaign_leads").select("name, whatsapp").eq("id", leadId).single();
+    if (!lead?.whatsapp) {
+      toast({ title: "Lead sem WhatsApp cadastrado", variant: "destructive" });
+      return;
+    }
+    setSendingContractSign(contract.id);
+    try {
+      const token = crypto.randomUUID();
+      const { error: sigErr } = await (supabase as any).from("contract_signatures").insert({
+        contract_id: contract.id,
+        company_id: currentCompany.id,
+        signer_name: lead.name,
+        signer_phone: lead.whatsapp,
+        token,
+      });
+      if (sigErr) {
+        toast({ title: "Erro ao criar assinatura", description: sigErr.message, variant: "destructive" });
+        return;
+      }
+      await (supabase as any).from("generated_contracts").update({ status: "aguardando_assinatura", signature_token: token }).eq("id", contract.id);
+      const signUrl = `${window.location.origin}/assinar-contrato/${token}`;
+      const { data: instances } = await (supabase as any)
+        .from("wapi_instances")
+        .select("instance_id, instance_token")
+        .eq("company_id", currentCompany.id)
+        .eq("status", "connected")
+        .limit(1);
+      const instance = instances?.[0];
+      if (instance) {
+        const phone = lead.whatsapp.replace(/\D/g, "");
+        const msg = `📄 *${contract.nome_documento}*\n\nOlá ${lead.name}! Seu contrato está pronto para assinatura digital.\n\nAcesse o link abaixo para ler e assinar:\n${signUrl}\n\n_${currentCompany.name}_`;
+        await supabase.functions.invoke("wapi-send", {
+          body: { instanceId: instance.instance_id, instanceToken: instance.instance_token, phone, message: msg },
+        });
+        toast({ title: "Link de assinatura enviado via WhatsApp ✅" });
+      } else {
+        await navigator.clipboard.writeText(signUrl);
+        toast({ title: "Link copiado!", description: "Nenhuma instância WhatsApp conectada. O link foi copiado." });
+      }
+      await logContractAction(currentCompany.id, contract.id, contract.template_id, "contract_sent_for_signature", userId, { lead_id: leadId });
+      fetchGeneratedContracts();
+    } finally {
+      setSendingContractSign(null);
+    }
+  };
 
   // Conflict detection state
   const [conflictEvent, setConflictEvent] = useState<{ title: string; start_time: string; end_time: string; unit: string } | null>(null);
@@ -2295,6 +2395,60 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                       Gerar Contrato
                     </Button>
                   )}
+
+                  {/* Generated contracts for this event */}
+                  {generatedContracts.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Contratos Gerados</span>
+                      {generatedContracts.map((gc) => {
+                        const STATUS_COLORS: Record<string, string> = {
+                          gerado: "bg-blue-500/15 text-blue-700 border-blue-300",
+                          enviado: "bg-amber-500/15 text-amber-700 border-amber-300",
+                          assinado: "bg-emerald-500/15 text-emerald-700 border-emerald-300",
+                          aguardando_assinatura: "bg-purple-500/15 text-purple-700 border-purple-300",
+                        };
+                        const STATUS_LABELS: Record<string, string> = {
+                          gerado: "Gerado", enviado: "Enviado", assinado: "Assinado ✅", aguardando_assinatura: "Aguardando Assinatura",
+                        };
+                        return (
+                          <div key={gc.id} className="rounded-lg border border-border/40 bg-muted/30 p-3 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-medium truncate flex-1">{gc.nome_documento}</span>
+                              <Badge variant="outline" className={cn("text-[10px] shrink-0", STATUS_COLORS[gc.status] || "")}>
+                                {STATUS_LABELS[gc.status] || gc.status}
+                              </Badge>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-[11px] gap-1.5"
+                                disabled={sendingContractWA === gc.id}
+                                onClick={() => handleContractSendWA(gc)}
+                              >
+                                {sendingContractWA === gc.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <MessageCircle className="h-3 w-3" />}
+                                WhatsApp
+                              </Button>
+                              {gc.status !== "assinado" && gc.status !== "aguardando_assinatura" && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-[11px] gap-1.5"
+                                  disabled={sendingContractSign === gc.id}
+                                  onClick={() => handleContractSendSign(gc)}
+                                >
+                                  {sendingContractSign === gc.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileSignature className="h-3 w-3" />}
+                                  Enviar p/ Assinatura
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </>
               ) : (
                 <p className="text-xs text-muted-foreground">Nenhum modelo de contrato cadastrado</p>
@@ -2546,6 +2700,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           open={contractDialogOpen}
           onOpenChange={(o) => {
             setContractDialogOpen(o);
+            if (!o) fetchGeneratedContracts();
           }}
           eventId={form.id!}
           modelId={selectedContractModelId}
