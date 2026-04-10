@@ -954,6 +954,10 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                   <Label>Quantidade</Label>
                   <Input type="number" min={1} value={optionalQty} onChange={e => setOptionalQty(Math.max(1, Number(e.target.value) || 1))} />
                 </div>
+                <div>
+                  <Label>Data de vencimento</Label>
+                  <Input type="date" value={optionalDueDate} onChange={e => setOptionalDueDate(e.target.value)} />
+                </div>
                 {selectedOptionalId && (() => {
                   const sel = catalogOptionals.find(c => c.id === selectedOptionalId);
                   if (!sel) return null;
