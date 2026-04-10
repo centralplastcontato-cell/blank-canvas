@@ -462,7 +462,10 @@ export default function PublicClientData() {
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs font-semibold text-foreground">Idade a comemorar</Label>
-                        <Input value={child.age} onChange={(e) => updateChild("age", e.target.value)} placeholder="Ex: 5 anos" className="bg-muted/30 border-border/50 focus:bg-background" />
+                        <div className="relative">
+                          <Input value={child.age} onChange={(e) => updateChild("age", e.target.value.replace(/\D/g, ''))} placeholder="Ex: 5" className="bg-muted/30 border-border/50 focus:bg-background pr-14" />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">anos</span>
+                        </div>
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs font-semibold text-foreground">Data de nascimento</Label>
