@@ -993,6 +993,28 @@ export default function Financeiro() {
         defaultExpenseType={expenseDialogType}
       />
 
+      <RevenueFormDialog
+        open={revenueDialogOpen}
+        onOpenChange={(open) => { setRevenueDialogOpen(open); if (!open) setEditingRevenue(null); }}
+        onSubmit={(data) => {
+          if (editingRevenue) {
+            dashboard.updateRevenue(editingRevenue.id, data);
+            setEditingRevenue(null);
+          } else {
+            dashboard.addRevenue(data);
+          }
+        }}
+        defaultValues={editingRevenue ? {
+          description: editingRevenue.description,
+          amount: editingRevenue.amount,
+          revenue_date: editingRevenue.revenue_date,
+          bank_account_id: editingRevenue.bank_account_id,
+          receipt_url: editingRevenue.receipt_url,
+          notes: editingRevenue.notes,
+          status: editingRevenue.status,
+        } : undefined}
+      />
+
       <Sheet open={!!selectedEventId} onOpenChange={(open) => { if (!open) handleCloseEventSheet(); }}>
         <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto p-0">
           <SheetHeader className="p-6 pb-2">
