@@ -380,7 +380,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [generatedContracts, setGeneratedContracts] = useState<Array<{ id: string; nome_documento: string; status: string; conteudo_renderizado: string; lead_id: string | null; event_id: string | null; template_id: string | null; created_at: string }>>([]);
   const [sendingContractWA, setSendingContractWA] = useState<string | null>(null);
   const [sendingContractSign, setSendingContractSign] = useState<string | null>(null);
-  const [viewingContractContent, setViewingContractContent] = useState<{ content: string; name: string } | null>(null);
+  
 
   const fetchGeneratedContracts = useCallback(async () => {
     const eid = persistedEventId || form.id || initialData?.id;
