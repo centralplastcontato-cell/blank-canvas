@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
+import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -307,7 +308,7 @@ export function GeneratedContractsList({ userId }: Props) {
         <ContractDocumentViewerWithSignature
           contract={viewContract}
           companyName={currentCompany?.name || ""}
-          companyLogo={currentCompany?.logo_url || undefined}
+          companyLogo={getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url) || undefined}
           companyId={currentCompany?.id}
           userId={userId}
           onClose={() => setViewContract(null)}
