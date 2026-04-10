@@ -2320,6 +2320,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       });
 
       if (response.error) throw new Error(response.error.message);
+      const responseData = response.data as { success?: boolean; error?: string } | undefined;
+      if (responseData && responseData.success === false) throw new Error(responseData.error || "Falha ao enviar contato");
 
       setMessages(prev => prev.map(m => 
         m.id === optimisticId ? { ...m, status: 'sent' } : m

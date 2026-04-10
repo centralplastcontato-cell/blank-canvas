@@ -1261,35 +1261,54 @@ Deno.serve(async (req) => {
         }
 
         const cleanContactPhone = contactPhone.replace(/\D/g, '');
+        const cleanDestPhone = String(phone || '').replace(/\D/g, '');
         
-        const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${contactName}\nTEL;type=CELL;waid=${cleanContactPhone}:+${cleanContactPhone}\nEND:VCARD`;
+        // Try multiple payload formats for W-API send-contact
+        const contactAttempts = [
+          // Format 1: contactName + contactPhone (simple)
+          { name: 'simple', body: { phone: cleanDestPhone, contactName, contactPhone: cleanContactPhone } },
+          // Format 2: Full contact object with vcard
+          { name: 'vcard', body: { 
+            phone: cleanDestPhone,
+            contact: {
+              fullName: contactName,
+              organization: '',
+              phoneNumber: `+${cleanContactPhone}`,
+              wuid: cleanContactPhone,
+              displayName: contactName,
+            },
+            name: { formatted_name: contactName, first_name: contactName },
+            vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:${contactName}\nTEL;type=CELL;waid=${cleanContactPhone}:+${cleanContactPhone}\nEND:VCARD`,
+          }},
+          // Format 3: contactsMessage array format
+          { name: 'contactsMessage', body: {
+            phone: cleanDestPhone,
+            contactsMessage: [{
+              displayName: contactName,
+              vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:${contactName}\nTEL;type=CELL;waid=${cleanContactPhone}:+${cleanContactPhone}\nEND:VCARD`,
+            }],
+          }},
+        ];
 
-        const contactPayload = {
-          contact: {
-            fullName: contactName,
-            organization: '',
-            phoneNumber: `+${cleanContactPhone}`,
-            wuid: cleanContactPhone,
-            displayName: contactName,
-          },
-          name: {
-            formatted_name: contactName,
-            first_name: contactName,
-          },
-          vcard,
-        };
+        let sendContactRes: { ok: boolean; data?: unknown; error?: string } = { ok: false, error: 'Falha ao enviar contato' };
+        const contactEndpoint = `${WAPI_BASE_URL}/message/send-contact?instanceId=${instance_id}`;
 
-        const res = await sendMediaWithGroupFallback(
-          `${WAPI_BASE_URL}/message/send-contact?instanceId=${instance_id}`,
-          instance_token,
-          phone,
-          contactPayload,
-          'send-contact'
-        );
+        for (const attempt of contactAttempts) {
+          const r = await wapiRequest(contactEndpoint, instance_token, 'POST', attempt.body);
+          if (r.ok) {
+            console.log(`[send-contact] Success [${attempt.name}]`);
+            sendContactRes = { ok: true, data: r.data };
+            break;
+          }
+          console.warn(`[send-contact] Failed [${attempt.name}]: ${r.error}`);
+          sendContactRes = { ok: false, error: r.error || 'Falha ao enviar contato' };
+        }
+
+        const res = sendContactRes;
         
         if (!res.ok) {
-          return new Response(JSON.stringify({ error: res.error }), {
-            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          return new Response(JSON.stringify({ success: false, error: res.error }), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
