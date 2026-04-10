@@ -327,3 +327,61 @@ export function GeneratedContractsList({ userId }: Props) {
     </>
   );
 }
+
+/** Wrapper that fetches signature data before rendering the viewer */
+function ContractDocumentViewerWithSignature({
+  contract, companyName, companyLogo, companyId, userId, onClose,
+}: {
+  contract: GeneratedContract;
+  companyName: string;
+  companyLogo?: string;
+  companyId?: string;
+  userId: string;
+  onClose: () => void;
+}) {
+  const [sigInfo, setSigInfo] = useState<any>(null);
+
+  useEffect(() => {
+    if (contract.status === "assinado" && companyId) {
+      (supabase as any)
+        .from("contract_signatures")
+        .select("signature_image_url, signed_at, document_hash, ip_address, signer_name")
+        .eq("contract_id", contract.id)
+        .eq("status", "signed")
+        .limit(1)
+        .then(({ data }: any) => {
+          if (data?.[0]) setSigInfo(data[0]);
+        });
+    }
+  }, [contract.id, contract.status, companyId]);
+
+  return (
+    <ContractDocumentViewer
+      open={true}
+      onOpenChange={() => onClose()}
+      content={contract.conteudo_renderizado}
+      companyName={companyName}
+      companyLogo={companyLogo}
+      mode="generated"
+      meta={{
+        modelName: contract.nome_documento,
+        status: contract.status,
+        generatedAt: contract.created_at,
+        leadName: contract.dados_utilizados?.lead?.name,
+        eventDate: contract.dados_utilizados?.event?.date,
+        eventType: contract.tipo_evento || undefined,
+      }}
+      contractId={contract.id}
+      leadId={contract.lead_id || contract.dados_utilizados?.lead?.id || undefined}
+      companyId={companyId}
+      userId={userId}
+      signatureInfo={sigInfo ? {
+        signatureImageUrl: sigInfo.signature_image_url,
+        signedAt: sigInfo.signed_at,
+        documentHash: sigInfo.document_hash,
+        ipAddress: sigInfo.ip_address,
+        signerName: sigInfo.signer_name,
+      } : undefined}
+    />
+  );
+}
