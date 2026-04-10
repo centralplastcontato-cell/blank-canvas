@@ -985,6 +985,40 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Optional Quantity Dialog */}
+      <Dialog open={editingOptionalIdx !== null} onOpenChange={open => { if (!open) setEditingOptionalIdx(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-primary" /> Editar Opcional
+            </DialogTitle>
+          </DialogHeader>
+          {editingOptionalIdx !== null && eventOptionals[editingOptionalIdx] && (() => {
+            const opt = eventOptionals[editingOptionalIdx];
+            const unitVal = Number(opt.value) || 0;
+            const ppVal = Number(opt.valor_por_pessoa) || 0;
+            const previewTotal = (unitVal * editOptionalQty) + (ppVal > 0 ? ppVal * eventGuestCount * editOptionalQty : 0);
+            return (
+              <div className="space-y-4">
+                <p className="text-sm font-medium text-foreground">{opt.name}</p>
+                <div>
+                  <Label>Quantidade</Label>
+                  <Input type="number" min={1} value={editOptionalQty} onChange={e => setEditOptionalQty(Math.max(1, Number(e.target.value) || 1))} />
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 border border-border/40 text-sm">
+                  <p className="text-muted-foreground">Novo valor:</p>
+                  <p className="text-lg font-bold text-foreground">{previewTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
+                </div>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingOptionalIdx(null)}>Cancelar</Button>
+            <Button onClick={handleEditOptional}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
