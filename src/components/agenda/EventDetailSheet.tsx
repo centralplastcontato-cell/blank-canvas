@@ -114,8 +114,15 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
     }
   }, [open, event?.id, fetchGeneratedContracts, fetchInstances]);
 
+  const getSelectedInstance = () => wapiInstances.find(i => i.id === selectedInstanceId) || null;
+
   const handleContractSendWA = async (contract: typeof generatedContracts[0]) => {
     if (!event?.company_id || !userId) return;
+    const inst = getSelectedInstance();
+    if (!inst) {
+      toast({ title: "Nenhuma instância selecionada", description: "Selecione uma instância do WhatsApp.", variant: "destructive" });
+      return;
+    }
     let leadId = contract.lead_id;
     if (!leadId && contract.event_id) {
       const { data: ev } = await supabase.from("company_events").select("lead_id").eq("id", contract.event_id).single();
@@ -125,15 +132,34 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
       toast({ title: "Lead não vinculado", description: "Este contrato não possui um lead associado.", variant: "destructive" });
       return;
     }
-    setSendingContractWA(contract.id);
-    const result = await sendContractViaWhatsApp(event.company_id, leadId, contract.conteudo_renderizado, contract.nome_documento);
-    if (result.success) {
-      toast({ title: "Contrato enviado via WhatsApp ✅" });
-      await logContractAction(event.company_id, contract.id, contract.template_id, "contract_sent_whatsapp", userId, { lead_id: leadId });
-    } else {
-      toast({ title: "Erro ao enviar", description: result.error, variant: "destructive" });
+    const { data: lead } = await supabase.from("campaign_leads").select("whatsapp, name").eq("id", leadId).single();
+    if (!lead?.whatsapp) {
+      toast({ title: "Lead sem WhatsApp cadastrado", variant: "destructive" });
+      return;
     }
-    setSendingContractWA(null);
+    setSendingContractWA(contract.id);
+    try {
+      const phone = lead.whatsapp.replace(/\D/g, "");
+      // Strip HTML for WhatsApp
+      let text = contract.conteudo_renderizado;
+      text = text.replace(/<strong>(.*?)<\/strong>/gi, "*$1*");
+      text = text.replace(/<[^>]+>/g, "");
+      text = text.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ");
+      text = text.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+      const message = `📄 *${contract.nome_documento}*\n\n${text}`;
+
+      const { error: sendErr } = await supabase.functions.invoke("wapi-send", {
+        body: { instanceId: inst.instance_id, instanceToken: inst.instance_token, phone, message },
+      });
+      if (sendErr) {
+        toast({ title: "Erro ao enviar", description: sendErr.message, variant: "destructive" });
+      } else {
+        toast({ title: `Contrato enviado via ${inst.unit || 'WhatsApp'} ✅` });
+        await logContractAction(event.company_id, contract.id, contract.template_id, "contract_sent_whatsapp", userId, { lead_id: leadId, instance_unit: inst.unit });
+      }
+    } finally {
+      setSendingContractWA(null);
+    }
   };
 
   const handleContractSendSign = async (contract: typeof generatedContracts[0]) => {
