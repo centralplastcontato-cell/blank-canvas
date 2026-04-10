@@ -580,7 +580,7 @@ export default function Admin() {
                   <SheetContent side="left" className="w-72 p-0">
                     <SheetHeader className="p-4 border-b border-border">
                       <div className="flex items-center gap-3">
-                        <img src={currentCompany?.logo_url || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-10 w-auto" />
+                        <img src={getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url) || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-10 w-auto" />
                         <div>
                           <SheetTitle className="text-left text-base">{currentCompany?.name || 'Menu'}</SheetTitle>
                           <p className="text-xs text-muted-foreground">
@@ -624,7 +624,7 @@ export default function Admin() {
                 </Sheet>
 
                 <div className="flex items-center gap-2 min-w-0">
-                  <img src={currentCompany?.logo_url || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
+                  <img src={getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url) || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
                   <h1 className="font-display font-bold text-foreground text-sm truncate">Gestão de Leads</h1>
                 </div>
               </div>

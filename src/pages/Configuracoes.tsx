@@ -153,7 +153,7 @@ export default function Configuracoes() {
                 />
 
                 <div className="flex items-center gap-2 min-w-0">
-                  <img src={currentCompany?.logo_url || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
+                  <img src={getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url) || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
                   <h1 className="font-display font-bold text-foreground text-sm truncate">Configurações</h1>
                 </div>
               </div>
