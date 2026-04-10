@@ -352,6 +352,26 @@ export function ContractReadinessPanel({ eventId, eventData, onGenerateContract 
           </p>
         )}
       </div>
+
+      {/* Contract Viewer Dialog */}
+      {viewContract && (
+        <ContractDocumentViewer
+          open={!!viewContract}
+          onOpenChange={(open) => { if (!open) setViewContract(null); }}
+          content={viewContract.conteudo_renderizado || ""}
+          companyName={currentCompany?.name || ""}
+          companyLogo={currentCompany?.logo_url || undefined}
+          mode="generated"
+          meta={{
+            modelName: viewContract.nome_documento,
+            status: viewContract.status,
+            generatedAt: viewContract.created_at,
+            leadName: viewContract.dados_utilizados?.lead?.name,
+            eventDate: viewContract.dados_utilizados?.event?.date,
+            eventType: viewContract.tipo_evento || undefined,
+          }}
+        />
+      )}
     </div>
   );
 }
