@@ -6,13 +6,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Plus, Loader2, FileText, Eye, Ban, History } from "lucide-react";
+import { Plus, Loader2, FileText, Eye, Ban, History, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ContractGenerator } from "./ContractGenerator";
 import { ContractDocumentViewer } from "./ContractDocumentViewer";
 import { toast } from "@/hooks/use-toast";
-import { logContractAction } from "./contractAuditHelpers";
+import { logContractAction, sendContractViaWhatsApp } from "./contractAuditHelpers";
 
 interface GeneratedContract {
   id: string;
@@ -91,11 +91,37 @@ export function GeneratedContractsList({ userId }: Props) {
     setAuditLogs(data || []);
   };
 
+  const [sendingWA, setSendingWA] = useState<string | null>(null);
+
+  const handleSendWhatsApp = async (contract: GeneratedContract) => {
+    if (!currentCompany?.id) return;
+    // Resolve lead_id: direct or via event
+    let leadId = contract.lead_id;
+    if (!leadId && contract.event_id) {
+      const { data: ev } = await supabase.from("company_events").select("lead_id").eq("id", contract.event_id).single();
+      leadId = ev?.lead_id || null;
+    }
+    if (!leadId) {
+      toast({ title: "Lead não vinculado", description: "Este contrato não possui um lead associado para envio.", variant: "destructive" });
+      return;
+    }
+    setSendingWA(contract.id);
+    const result = await sendContractViaWhatsApp(currentCompany.id, leadId, contract.conteudo_renderizado, contract.nome_documento);
+    if (result.success) {
+      toast({ title: "Contrato enviado via WhatsApp ✅" });
+      await logContractAction(currentCompany.id, contract.id, contract.template_id, "contract_sent_whatsapp", userId, { lead_id: leadId });
+    } else {
+      toast({ title: "Erro ao enviar", description: result.error, variant: "destructive" });
+    }
+    setSendingWA(null);
+  };
+
   const ACTION_LABELS: Record<string, string> = {
     contract_generated: "Contrato gerado",
     contract_cancelled: "Contrato cancelado",
     contract_downloaded: "Contrato baixado",
     generation_failed: "Falha na geração",
+    contract_sent_whatsapp: "Enviado via WhatsApp",
   };
 
   return (
@@ -138,6 +164,18 @@ export function GeneratedContractsList({ userId }: Props) {
                       <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5" onClick={() => setViewContract(c)}>
                         <Eye className="h-3.5 w-3.5" /> Visualizar
                       </Button>
+                      {!isCancelled && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs rounded-full px-3.5 gap-1.5 text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                          onClick={() => handleSendWhatsApp(c)}
+                          disabled={sendingWA === c.id}
+                        >
+                          {sendingWA === c.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5" />}
+                          WhatsApp
+                        </Button>
+                      )}
                       <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5" onClick={() => handleShowAudit(c.id)}>
                         <History className="h-3.5 w-3.5" /> Histórico
                       </Button>
@@ -182,6 +220,10 @@ export function GeneratedContractsList({ userId }: Props) {
             eventDate: viewContract.dados_utilizados?.event?.date,
             eventType: viewContract.tipo_evento || undefined,
           }}
+          contractId={viewContract.id}
+          leadId={viewContract.lead_id || viewContract.dados_utilizados?.lead?.id || undefined}
+          companyId={currentCompany?.id}
+          userId={userId}
         />
       )}
 

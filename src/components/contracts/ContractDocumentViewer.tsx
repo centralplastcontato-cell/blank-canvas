@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Printer, AlertTriangle, FileSignature, Calendar, Package, Eye, ArrowLeft, Lock, Loader2 } from "lucide-react";
+import { Printer, AlertTriangle, FileSignature, Calendar, Package, Eye, ArrowLeft, Lock, Loader2, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { sendContractViaWhatsApp, logContractAction } from "./contractAuditHelpers";
+import { toast } from "@/hooks/use-toast";
 
 /** Convert **bold** markdown markers into <strong> tags.
  *  Handles bold blocks that span multiple lines by tracking open/close state. */
@@ -53,15 +56,18 @@ interface Props {
   content: string;
   companyName: string;
   companyLogo?: string;
-  /** Pre-generation mode: shows "generate" button */
   mode: "preview" | "generated";
   meta?: ContractMeta;
   unresolvedVars?: string[];
   missingRequired?: string[];
-  /** Only in preview mode */
   onGenerate?: () => void;
   generating?: boolean;
   canGenerate?: boolean;
+  /** WhatsApp send support */
+  contractId?: string;
+  leadId?: string;
+  companyId?: string;
+  userId?: string;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -80,7 +86,29 @@ export function ContractDocumentViewer({
   open, onOpenChange, content, companyName, companyLogo,
   mode, meta, unresolvedVars = [], missingRequired = [],
   onGenerate, generating, canGenerate,
+  contractId, leadId, companyId, userId,
 }: Props) {
+  const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
+
+  const handleSendWhatsApp = async () => {
+    if (!companyId || !leadId || !content) return;
+    setSendingWhatsApp(true);
+    try {
+      const result = await sendContractViaWhatsApp(companyId, leadId, content, meta?.modelName || "Contrato");
+      if (result.success) {
+        toast({ title: "Contrato enviado via WhatsApp ✅" });
+        if (contractId && userId) {
+          await logContractAction(companyId, contractId, undefined, "contract_sent_whatsapp", userId, { lead_id: leadId });
+        }
+      } else {
+        toast({ title: "Erro ao enviar", description: result.error, variant: "destructive" });
+      }
+    } finally {
+      setSendingWhatsApp(false);
+    }
+  };
+
+  const showWhatsAppButton = !!leadId && !!companyId && mode === "generated";
 
   const handlePrint = () => {
     const printWindow = window.open("", "_blank");
@@ -199,6 +227,18 @@ export function ContractDocumentViewer({
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            {showWhatsAppButton && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSendWhatsApp}
+                disabled={sendingWhatsApp || isLoading}
+                className="gap-1.5 text-xs rounded-full text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+              >
+                {sendingWhatsApp ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5" />}
+                WhatsApp
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={handlePrint} disabled={isLoading} className="gap-1.5 text-xs rounded-full">
               <Printer className="h-3.5 w-3.5" /> Imprimir
             </Button>
