@@ -331,6 +331,69 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
     }
   };
 
+  // Add manual (non-catalog) optional
+  const handleAddManualOptional = async () => {
+    if (!eventId || !companyId || !optionalManualName.trim() || !optionalManualValue) return;
+    setAddingOptional(true);
+    try {
+      const totalValue = optionalManualValue * optionalQty;
+      const newOpt = {
+        name: optionalManualName.trim(),
+        value: optionalManualValue,
+        valor_por_pessoa: 0,
+        quantity: optionalQty,
+        unit_price: optionalManualValue,
+      };
+
+      const updatedOptionals = [...eventOptionals, newOpt];
+
+      const { data: eventData } = await supabase
+        .from("company_events")
+        .select("total_value")
+        .eq("id", eventId)
+        .single();
+
+      const currentTotal = Number(eventData?.total_value) || 0;
+      const newGrandTotal = currentTotal + totalValue;
+
+      await supabase
+        .from("company_events")
+        .update({ event_optionals: updatedOptionals, total_value: newGrandTotal })
+        .eq("id", eventId);
+
+      if (totalValue > 0.01) {
+        const dueDate = optionalDueDate || (() => {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          return tomorrow.toISOString().split("T")[0];
+        })();
+        await supabase.from("event_payments").insert({
+          event_id: eventId,
+          company_id: companyId,
+          type: "parcela",
+          amount: Math.round(totalValue * 100) / 100,
+          due_date: dueDate,
+          payment_method: null,
+          status: "pending",
+          notes: `Opcional: ${optionalManualName.trim()}`,
+        });
+        await supabase.from("event_financial_timeline").insert({
+          event_id: eventId,
+          company_id: companyId,
+          type: "optional_added",
+          description: `Opcional "${optionalManualName.trim()}" adicionado — parcela de R$ ${totalValue.toFixed(2)} criada`,
+        });
+      }
+
+      setEventOptionals(updatedOptionals);
+      resetOptionalDialog();
+      financial.refresh();
+      toast({ title: "Opcional adicionado", description: `${optionalManualName.trim()} incluído com parcela pendente.` });
+    } finally {
+      setAddingOptional(false);
+    }
+  };
+
   // Remove optional from sidebar — also deletes associated payment
   const handleRemoveOptional = async (optName: string, idx: number) => {
     if (!eventId || !companyId) return;
