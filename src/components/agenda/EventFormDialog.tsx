@@ -2700,6 +2700,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           open={contractDialogOpen}
           onOpenChange={(o) => {
             setContractDialogOpen(o);
+            if (!o) fetchGeneratedContracts();
           }}
           eventId={form.id!}
           modelId={selectedContractModelId}
