@@ -128,8 +128,11 @@ export function useFinanceiroDashboard() {
           if (!pd) return;
 
           const existing = paymentsByEvent.get(ev.id) || [];
-          const hasEntrada = existing.some((p: any) => p.type === 'entrada');
-          const parcelaCount = existing.filter((p: any) => p.type === 'parcela').length;
+          // If any payments already exist (paid or pending), skip backfill entirely
+          // This prevents re-creating manually deleted parcelas
+          if (existing.length > 0) return;
+          const hasEntrada = false;
+          const parcelaCount = 0;
 
           const entradaAmount = parseAmount(pd.entrada_valor);
           if (!hasEntrada && entradaAmount && entradaAmount > 0) {
