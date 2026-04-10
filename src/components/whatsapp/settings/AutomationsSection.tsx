@@ -510,8 +510,11 @@ export function AutomationsSection() {
         });
         setBotSettings(prev => prev ? { ...prev, ...updates } : prev);
       } else {
-        // Merge verified data with current local state to avoid overwriting user's unsaved edits
-        setBotSettings(prev => prev ? { ...prev, ...verified, ...Object.fromEntries(Object.keys(updates).map(k => [k, (verified as any)[k]])) } : verified);
+        // Only update the fields we actually saved, keeping user's unsaved edits for other fields
+        const verifiedUpdates = Object.fromEntries(
+          Object.keys(updates).map(k => [k, (verified as any)[k]])
+        );
+        setBotSettings(prev => prev ? { ...prev, ...verifiedUpdates } : verified);
         
         // Check if the critical fields actually match what we sent
         const criticalKeys = ['bot_enabled', 'test_mode_enabled', 'test_mode_number'] as const;
