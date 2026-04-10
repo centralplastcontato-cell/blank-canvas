@@ -118,6 +118,10 @@ export interface VariableContext {
     tema?: string | null;
     valor_convidado_adicional?: string | null;
     quantidade_pessoas?: string | null;
+    qtd_adultos?: string | null;
+    qtd_criancas?: string | null;
+    valor_por_adulto?: string | null;
+    valor_por_crianca?: string | null;
     estado?: string | null;
     duracao_festa?: string | null;
     cardapio?: string | null;
