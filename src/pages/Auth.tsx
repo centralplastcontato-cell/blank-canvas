@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Lock, Mail, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { isHubDomain, getCanonicalHost, isPreviewDomain } from "@/hooks/useDomainDetection";
+import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { z } from "zod";
 import loginBg from "@/assets/login-bg-5.jpg";
 import logoCasteloTransparent from "@/assets/logo-castelo-transparent.png";
@@ -24,6 +25,7 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string | null>(null);
+  const [companySlug, setCompanySlug] = useState<string | null>(slug ?? null);
   const [isLoadingCompany, setIsLoadingCompany] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -59,6 +61,7 @@ export default function Auth() {
           if (data) {
             setCompanyName(data.name);
             setCompanyLogo(data.logo_url);
+            if (data.slug) setCompanySlug(data.slug);
           } else {
             const baseName = domain.replace(/\.\w+$/, "");
             const { data: fallback } = await supabase
@@ -67,6 +70,7 @@ export default function Auth() {
             if (fallback) {
               setCompanyName(fallback.name);
               setCompanyLogo(fallback.logo_url);
+              
             }
           }
         } else {
@@ -80,6 +84,7 @@ export default function Auth() {
             if (data) {
               setCompanyName(data.name);
               setCompanyLogo(data.logo_url);
+              if (data.slug) setCompanySlug(data.slug);
               found = true;
             }
           }
@@ -187,7 +192,8 @@ export default function Auth() {
   };
 
   const isCastelo = companyName?.toLowerCase().includes("castelo") || slug === "castelo-da-diversao";
-  const displayLogo = isCastelo ? logoCasteloTransparent : (companyLogo || '/placeholder.svg');
+  const overrideLogo = getCompanyLogoOverride(companySlug, companyLogo);
+  const displayLogo = isCastelo ? logoCasteloTransparent : (overrideLogo || '/placeholder.svg');
   const displayName = companyName || "Entrar";
 
   if (isLoadingCompany) {
