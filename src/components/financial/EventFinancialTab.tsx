@@ -283,14 +283,21 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
 
       // Create differential payment if needed
       if (totalValue > 0.01) {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        const dueDate = optionalDueDate || (() => {
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          return tomorrow.toISOString().split("T")[0];
+        })();
         await supabase.from("event_payments").insert({
           event_id: eventId,
           company_id: companyId,
           type: "parcela",
           amount: Math.round(totalValue * 100) / 100,
-          due_date: tomorrow.toISOString().split("T")[0],
+          due_date: dueDate,
+          payment_method: null,
+          status: "pending",
+          notes: `Opcional: ${catalogOpt.name}`,
+        });
           payment_method: null,
           status: "pending",
           notes: `Opcional: ${catalogOpt.name}`,
