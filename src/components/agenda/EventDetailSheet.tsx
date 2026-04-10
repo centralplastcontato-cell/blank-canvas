@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { X, Clock, Users, MapPin, Package, DollarSign, Pencil, Trash2, AlertTriangle, UserCheck, Gamepad2, Copy, Check, ExternalLink, Briefcase, CalendarIcon, Loader2, CreditCard, MessageCircle, FileSignature } from "lucide-react";
 import { ContractReadinessPanel } from "@/components/contracts/ContractReadinessPanel";
 import { EventContractDialog } from "@/components/contracts/EventContractDialog";
-import { logContractAction } from "@/components/contracts/contractAuditHelpers";
+import { logContractAction, sendContractViaWhatsApp } from "@/components/contracts/contractAuditHelpers";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useEffect, useState, useCallback } from "react";
