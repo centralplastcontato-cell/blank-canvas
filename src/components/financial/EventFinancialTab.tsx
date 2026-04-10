@@ -65,6 +65,8 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   // Auto-sync: if no payments exist but event has payment_details, sync them
   useEffect(() => {
     if (financial.isLoading || syncAttempted.current) return;
+    // If ANY payments exist (even just a paid entrada), skip backfill
+    // This prevents re-creating manually deleted parcelas
     if (financial.payments.length > 0) return;
     syncAttempted.current = true;
 
