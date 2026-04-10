@@ -75,6 +75,8 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
   const [generatedContracts, setGeneratedContracts] = useState<Array<{ id: string; nome_documento: string; status: string; conteudo_renderizado: string; lead_id: string | null; event_id: string | null; template_id: string | null; created_at: string }>>([]);
   const [sendingContractWA, setSendingContractWA] = useState<string | null>(null);
   const [sendingContractSign, setSendingContractSign] = useState<string | null>(null);
+  const [wapiInstances, setWapiInstances] = useState<Array<{ id: string; instance_id: string; instance_token: string; unit: string | null; status: string }>>([]);
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string>("");
 
   const fetchGeneratedContracts = useCallback(async () => {
     if (!event?.id || !event?.company_id) return;
