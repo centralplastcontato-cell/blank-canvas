@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Trash2, CheckCircle, RotateCcw, Tag, Receipt, Clock, CreditCard, Building } from "lucide-react";
+import { Plus, Trash2, CheckCircle, RotateCcw, Tag, Receipt, Clock, CreditCard, Building, Package } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
@@ -225,9 +225,10 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
 
   const fmt = (v: number) => showValues ? v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "••••";
 
-  // Card fee data + payment_details from event
+  // Card fee data + payment_details + optionals from event
   const [cardFees, setCardFees] = useState<any[]>([]);
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
+  const [eventOptionals, setEventOptionals] = useState<any[]>([]);
   
   useEffect(() => {
     if (!companyId) return;
@@ -240,10 +241,14 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
     if (eventId) {
       supabase
         .from("company_events")
-        .select("payment_details")
+        .select("payment_details, event_optionals")
         .eq("id", eventId)
         .single()
-        .then(({ data }: any) => setPaymentDetails(data?.payment_details || null));
+        .then(({ data }: any) => {
+          setPaymentDetails(data?.payment_details || null);
+          const opts = data?.event_optionals;
+          setEventOptionals(Array.isArray(opts) ? opts.filter((o: any) => o.name) : []);
+        });
     }
   }, [companyId, eventId]);
 
@@ -340,6 +345,40 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
             ))}
           </div>
         </Card>
+      )}
+
+      {/* Optionals Section (read-only shortcut) */}
+      {eventOptionals.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-2.5">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Package className="h-4 w-4 text-violet-400" /> Opcionais
+            </h3>
+          </div>
+          <div className="space-y-1.5">
+            {eventOptionals.map((opt: any, idx: number) => {
+              const qty = Number(opt.quantity) || 1;
+              const unitVal = Number(opt.value) || 0;
+              const ppVal = Number(opt.valor_por_pessoa) || 0;
+              const total = (unitVal * qty) + (ppVal > 0 ? ppVal * qty : 0);
+              return (
+                <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-card border border-border/40 shadow-sm">
+                  <div className="min-w-0">
+                    <p className="text-sm text-foreground font-medium truncate">
+                      {opt.name}{qty > 1 ? ` (×${qty})` : ""}
+                    </p>
+                    {opt.description && (
+                      <p className="text-[11px] text-muted-foreground truncate">{opt.description}</p>
+                    )}
+                  </div>
+                  <span className="text-sm font-semibold text-violet-500 shrink-0 ml-2">
+                    {showValues ? total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "••••"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       {/* Payments Section */}
