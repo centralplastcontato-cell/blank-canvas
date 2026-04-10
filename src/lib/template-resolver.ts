@@ -362,6 +362,18 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
   quantidade_pessoas: {
     resolver: (ctx) => ctx.contract?.quantidade_pessoas || ctx.lead?.guests || ctx.event?.guest_count?.toString() || '',
   },
+  qtd_adultos: {
+    resolver: (ctx) => ctx.contract?.qtd_adultos || '',
+  },
+  qtd_criancas: {
+    resolver: (ctx) => ctx.contract?.qtd_criancas || '',
+  },
+  valor_por_adulto: {
+    resolver: (ctx) => ctx.contract?.valor_por_adulto || '',
+  },
+  valor_por_crianca: {
+    resolver: (ctx) => ctx.contract?.valor_por_crianca || '',
+  },
   estado: {
     resolver: (ctx) => ctx.contract?.estado || '',
   },
@@ -635,6 +647,7 @@ export function getAvailableVariables(): {
     estado: 'contract', duracao_festa: 'contract', cardapio: 'contract', valor_total_extenso: 'contract',
     valor_sinal_extenso: 'contract', valor_restante_extenso: 'contract', valor_convidado_adicional_extenso: 'contract',
     data_entrada: 'contract', data_saldo: 'contract', aniversariantes: 'contract', opcionais: 'contract',
+    qtd_adultos: 'contract', qtd_criancas: 'contract', valor_por_adulto: 'contract', valor_por_crianca: 'contract',
     titulo: 'schedule', periodo: 'schedule', qtd_festas: 'schedule',
     link: 'schedule', observacoes: 'schedule', lista_escalados: 'schedule',
   };
