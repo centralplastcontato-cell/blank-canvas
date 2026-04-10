@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { X, Clock, Users, MapPin, Package, DollarSign, Pencil, Trash2, AlertTriangle, UserCheck, Gamepad2, Copy, Check, ExternalLink, Briefcase, CalendarIcon, Loader2, CreditCard, MessageCircle, FileSignature } from "lucide-react";
 import { ContractReadinessPanel } from "@/components/contracts/ContractReadinessPanel";
 import { EventContractDialog } from "@/components/contracts/EventContractDialog";
-import { sendContractViaWhatsApp, logContractAction } from "@/components/contracts/contractAuditHelpers";
+import { logContractAction } from "@/components/contracts/contractAuditHelpers";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useEffect, useState, useCallback } from "react";
@@ -164,6 +164,11 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
 
   const handleContractSendSign = async (contract: typeof generatedContracts[0]) => {
     if (!event?.company_id || !userId) return;
+    const inst = getSelectedInstance();
+    if (!inst) {
+      toast({ title: "Nenhuma instância selecionada", description: "Selecione uma instância do WhatsApp.", variant: "destructive" });
+      return;
+    }
     let leadId = contract.lead_id;
     if (!leadId && contract.event_id) {
       const { data: ev } = await supabase.from("company_events").select("lead_id").eq("id", contract.event_id).single();
@@ -194,25 +199,13 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
       }
       await (supabase as any).from("generated_contracts").update({ status: "aguardando_assinatura", signature_token: token }).eq("id", contract.id);
       const signUrl = `${window.location.origin}/assinar-contrato/${token}`;
-      const { data: instances } = await (supabase as any)
-        .from("wapi_instances")
-        .select("instance_id, instance_token")
-        .eq("company_id", event.company_id)
-        .eq("status", "connected")
-        .limit(1);
-      const inst = instances?.[0];
-      if (inst) {
-        const phone = lead.whatsapp.replace(/\D/g, "");
-        const msg = `📄 *${contract.nome_documento}*\n\nOlá ${lead.name}! Seu contrato está pronto para assinatura digital.\n\nAcesse o link abaixo para ler e assinar:\n${signUrl}`;
-        await supabase.functions.invoke("wapi-send", {
-          body: { instanceId: inst.instance_id, instanceToken: inst.instance_token, phone, message: msg },
-        });
-        toast({ title: "Link de assinatura enviado via WhatsApp ✅" });
-      } else {
-        await navigator.clipboard.writeText(signUrl);
-        toast({ title: "Link copiado!", description: "Nenhuma instância WhatsApp conectada. O link foi copiado." });
-      }
-      await logContractAction(event.company_id, contract.id, contract.template_id, "contract_sent_for_signature", userId, { lead_id: leadId });
+      const phone = lead.whatsapp.replace(/\D/g, "");
+      const msg = `📄 *${contract.nome_documento}*\n\nOlá ${lead.name}! Seu contrato está pronto para assinatura digital.\n\nAcesse o link abaixo para ler e assinar:\n${signUrl}`;
+      await supabase.functions.invoke("wapi-send", {
+        body: { instanceId: inst.instance_id, instanceToken: inst.instance_token, phone, message: msg },
+      });
+      toast({ title: `Link de assinatura enviado via ${inst.unit || 'WhatsApp'} ✅` });
+      await logContractAction(event.company_id, contract.id, contract.template_id, "contract_sent_for_signature", userId, { lead_id: leadId, instance_unit: inst.unit });
       fetchGeneratedContracts();
     } finally {
       setSendingContractSign(null);
