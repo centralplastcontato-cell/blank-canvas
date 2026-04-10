@@ -988,6 +988,13 @@ export function LeadInfoPopover({
         onSubmit={async (data) => {
           const user = (await supabase.auth.getUser()).data.user;
           if (!user || !currentCompany) return;
+          // Normalize birthday_children like Agenda.tsx does
+          const filteredChildren = (data.birthday_children || []).filter((c: any) => c.name || c.age || c.birthdate);
+          const normalizedChildName = filteredChildren[0]?.name || data.child_name || null;
+          const normalizedChildAge = filteredChildren[0]?.age || data.child_age || null;
+          const normalizedChildBirthdate = filteredChildren[0]?.birthdate || data.child_birthdate || null;
+          const normalizedOptionals = (data.event_optionals || []).filter((o: any) => o.name || (o.value != null && o.value > 0));
+
           if (linkedEventData?.id) {
             const updatePayload: Record<string, any> = {
                 title: data.title,
@@ -1001,10 +1008,10 @@ export function LeadInfoPopover({
                 package_name: data.package_name || null,
                 total_value: data.total_value,
                 notes: data.notes || null,
-                child_name: data.child_name || null,
-                child_age: data.child_age || null,
-                child_birthdate: data.child_birthdate || null,
-                birthday_children: data.birthday_children || null,
+                child_name: normalizedChildName,
+                child_age: normalizedChildAge,
+                child_birthdate: normalizedChildBirthdate,
+                birthday_children: filteredChildren.length > 0 ? filteredChildren : null,
                 parent_names: data.parent_names || null,
                 gifts: data.gifts || null,
                 extra_guest_value: data.extra_guest_value || null,
@@ -1012,7 +1019,7 @@ export function LeadInfoPopover({
                 payment_details: data.payment_details || null,
                 data_fechamento_venda: data.data_fechamento_venda || null,
                 vendedor_responsavel_id: data.vendedor_responsavel_id || null,
-                event_optionals: data.event_optionals || null,
+                event_optionals: normalizedOptionals,
                 is_permuta: data.is_permuta ?? false,
                 internal_notes: data.internal_notes || null,
               };
@@ -1040,10 +1047,10 @@ export function LeadInfoPopover({
                 total_value: data.total_value,
                 notes: data.notes || null,
                 lead_id: linkedLead.id,
-                child_name: data.child_name || null,
-                child_age: data.child_age || null,
-                child_birthdate: data.child_birthdate || null,
-                birthday_children: data.birthday_children || null,
+                child_name: normalizedChildName,
+                child_age: normalizedChildAge,
+                child_birthdate: normalizedChildBirthdate,
+                birthday_children: filteredChildren.length > 0 ? filteredChildren : null,
                 parent_names: data.parent_names || null,
                 gifts: data.gifts || null,
                 extra_guest_value: data.extra_guest_value || null,
@@ -1051,16 +1058,23 @@ export function LeadInfoPopover({
                 payment_details: data.payment_details || null,
                 data_fechamento_venda: data.data_fechamento_venda || null,
                 vendedor_responsavel_id: data.vendedor_responsavel_id || null,
-                event_optionals: data.event_optionals || null,
+                event_optionals: normalizedOptionals,
                 is_permuta: data.is_permuta ?? false,
                 internal_notes: data.internal_notes || null,
               };
-            const { error } = await (supabase as any)
+            const { data: newEvent, error } = await (supabase as any)
               .from("company_events")
-              .insert(insertPayload);
+              .insert(insertPayload)
+              .select("id")
+              .single();
             if (error) { toast({ title: "Erro ao criar", description: error.message, variant: "destructive" }); return; }
             toast({ title: "Festa criada!" });
             setHasLinkedEvent(true);
+            // Update linkedEventData with the new ID so EventFormDialog can link contractor data
+            if (newEvent) {
+              setLinkedEventData(prev => prev ? { ...prev, ...data, id: newEvent.id } : prev);
+              return newEvent.id;
+            }
           }
           handleEventFormOpenChange(false);
         }}

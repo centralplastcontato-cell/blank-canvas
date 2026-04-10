@@ -878,7 +878,24 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         price_per_adult: pricingMode === 'per_person' ? pricePerAdult : null,
         price_per_child: pricingMode === 'per_person' ? pricePerChild : null,
       };
-      const submitData = { ...form, total_value: grandTotal || null, payment_details: paymentWithDiscount };
+      // Protect against overwriting valid contractor data with empty local state
+      let finalForm = { ...form };
+      if (clientRequest && (clientRequest.status === "completed" || clientRequest.status === "reviewed")) {
+        const cd = clientRequest.client_data as any;
+        if (cd?.birthday_children?.length) {
+          const hasLocalChildren = (finalForm.birthday_children || []).some((c: any) => c.name || c.age || c.birthdate);
+          if (!hasLocalChildren) {
+            finalForm = {
+              ...finalForm,
+              birthday_children: cd.birthday_children,
+              child_name: cd.birthday_children[0]?.name || finalForm.child_name,
+              child_age: cd.birthday_children[0]?.age || finalForm.child_age,
+              child_birthdate: cd.birthday_children[0]?.birthdate || finalForm.child_birthdate,
+            };
+          }
+        }
+      }
+      const submitData = { ...finalForm, total_value: grandTotal || null, payment_details: paymentWithDiscount };
       const resultId = await onSubmit(submitData);
       if (!isEdit && resultId) {
         // Transition to edit mode: set the ID so contractor data section appears
@@ -2345,6 +2362,17 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     onSaved={(req) => {
                       setClientRequest(req as ClientDataRequest);
                       setShowManualForm(false);
+                      // Sync birthday_children back to form state so main save won't overwrite
+                      const cd = req.client_data as any;
+                      if (cd?.birthday_children?.length) {
+                        setForm(prev => ({
+                          ...prev,
+                          birthday_children: cd.birthday_children,
+                          child_name: cd.birthday_children[0]?.name || prev.child_name,
+                          child_age: cd.birthday_children[0]?.age || prev.child_age,
+                          child_birthdate: cd.birthday_children[0]?.birthdate || prev.child_birthdate,
+                        }));
+                      }
                     }}
                     onCancel={() => setShowManualForm(false)}
                   />
