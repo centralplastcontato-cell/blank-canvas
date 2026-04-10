@@ -295,6 +295,13 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
             </Select>
           </div>
 
+          <BankAccountSelect
+            value={bankAccountId}
+            onValueChange={setBankAccountId}
+            label="Conta bancária"
+            placeholder="Selecione a conta de saída"
+          />
+
           {renderUploadField(
             'Boleto / Conta (opcional)',
             boletoPreview,
