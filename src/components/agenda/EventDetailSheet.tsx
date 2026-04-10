@@ -5,12 +5,13 @@ import { Separator } from "@/components/ui/separator";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { X, Clock, Users, MapPin, Package, DollarSign, Pencil, Trash2, AlertTriangle, UserCheck, Gamepad2, Copy, Check, ExternalLink, Briefcase, CalendarIcon, Loader2, CreditCard } from "lucide-react";
+import { X, Clock, Users, MapPin, Package, DollarSign, Pencil, Trash2, AlertTriangle, UserCheck, Gamepad2, Copy, Check, ExternalLink, Briefcase, CalendarIcon, Loader2, CreditCard, MessageCircle, FileSignature } from "lucide-react";
 import { ContractReadinessPanel } from "@/components/contracts/ContractReadinessPanel";
 import { EventContractDialog } from "@/components/contracts/EventContractDialog";
+import { sendContractViaWhatsApp, logContractAction } from "@/components/contracts/contractAuditHelpers";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { EventChecklist } from "./EventChecklist";
 import { EventFinancialTab } from "@/components/financial/EventFinancialTab";
@@ -71,6 +72,102 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
   const [localVendedor, setLocalVendedor] = useState<string | null>(null);
   const [contractDialogOpen, setContractDialogOpen] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState("");
+  const [generatedContracts, setGeneratedContracts] = useState<Array<{ id: string; nome_documento: string; status: string; conteudo_renderizado: string; lead_id: string | null; event_id: string | null; template_id: string | null; created_at: string }>>([]);
+  const [sendingContractWA, setSendingContractWA] = useState<string | null>(null);
+  const [sendingContractSign, setSendingContractSign] = useState<string | null>(null);
+
+  const fetchGeneratedContracts = useCallback(async () => {
+    if (!event?.id || !event?.company_id) return;
+    const { data } = await (supabase as any)
+      .from("generated_contracts")
+      .select("id, nome_documento, status, conteudo_renderizado, lead_id, event_id, template_id, created_at")
+      .eq("event_id", event.id)
+      .neq("status", "cancelado")
+      .order("created_at", { ascending: false })
+      .limit(5);
+    setGeneratedContracts(data || []);
+  }, [event?.id, event?.company_id]);
+
+  useEffect(() => { if (open && event?.id) fetchGeneratedContracts(); }, [open, event?.id, fetchGeneratedContracts]);
+
+  const handleContractSendWA = async (contract: typeof generatedContracts[0]) => {
+    if (!event?.company_id || !userId) return;
+    let leadId = contract.lead_id;
+    if (!leadId && contract.event_id) {
+      const { data: ev } = await supabase.from("company_events").select("lead_id").eq("id", contract.event_id).single();
+      leadId = ev?.lead_id || null;
+    }
+    if (!leadId) {
+      toast({ title: "Lead não vinculado", description: "Este contrato não possui um lead associado.", variant: "destructive" });
+      return;
+    }
+    setSendingContractWA(contract.id);
+    const result = await sendContractViaWhatsApp(event.company_id, leadId, contract.conteudo_renderizado, contract.nome_documento);
+    if (result.success) {
+      toast({ title: "Contrato enviado via WhatsApp ✅" });
+      await logContractAction(event.company_id, contract.id, contract.template_id, "contract_sent_whatsapp", userId, { lead_id: leadId });
+    } else {
+      toast({ title: "Erro ao enviar", description: result.error, variant: "destructive" });
+    }
+    setSendingContractWA(null);
+  };
+
+  const handleContractSendSign = async (contract: typeof generatedContracts[0]) => {
+    if (!event?.company_id || !userId) return;
+    let leadId = contract.lead_id;
+    if (!leadId && contract.event_id) {
+      const { data: ev } = await supabase.from("company_events").select("lead_id").eq("id", contract.event_id).single();
+      leadId = ev?.lead_id || null;
+    }
+    if (!leadId) {
+      toast({ title: "Lead não vinculado", description: "Este contrato não possui um lead associado.", variant: "destructive" });
+      return;
+    }
+    const { data: lead } = await supabase.from("campaign_leads").select("name, whatsapp").eq("id", leadId).single();
+    if (!lead?.whatsapp) {
+      toast({ title: "Lead sem WhatsApp cadastrado", variant: "destructive" });
+      return;
+    }
+    setSendingContractSign(contract.id);
+    try {
+      const token = crypto.randomUUID();
+      const { error: sigErr } = await (supabase as any).from("contract_signatures").insert({
+        contract_id: contract.id,
+        company_id: event.company_id,
+        signer_name: lead.name,
+        signer_phone: lead.whatsapp,
+        token,
+      });
+      if (sigErr) {
+        toast({ title: "Erro ao criar assinatura", description: sigErr.message, variant: "destructive" });
+        return;
+      }
+      await (supabase as any).from("generated_contracts").update({ status: "aguardando_assinatura", signature_token: token }).eq("id", contract.id);
+      const signUrl = `${window.location.origin}/assinar-contrato/${token}`;
+      const { data: instances } = await (supabase as any)
+        .from("wapi_instances")
+        .select("instance_id, instance_token")
+        .eq("company_id", event.company_id)
+        .eq("status", "connected")
+        .limit(1);
+      const inst = instances?.[0];
+      if (inst) {
+        const phone = lead.whatsapp.replace(/\D/g, "");
+        const msg = `📄 *${contract.nome_documento}*\n\nOlá ${lead.name}! Seu contrato está pronto para assinatura digital.\n\nAcesse o link abaixo para ler e assinar:\n${signUrl}`;
+        await supabase.functions.invoke("wapi-send", {
+          body: { instanceId: inst.instance_id, instanceToken: inst.instance_token, phone, message: msg },
+        });
+        toast({ title: "Link de assinatura enviado via WhatsApp ✅" });
+      } else {
+        await navigator.clipboard.writeText(signUrl);
+        toast({ title: "Link copiado!", description: "Nenhuma instância WhatsApp conectada. O link foi copiado." });
+      }
+      await logContractAction(event.company_id, contract.id, contract.template_id, "contract_sent_for_signature", userId, { lead_id: leadId });
+      fetchGeneratedContracts();
+    } finally {
+      setSendingContractSign(null);
+    }
+  };
 
   // Sync local state with event prop
   useEffect(() => {
@@ -407,7 +504,63 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
             />
           )}
 
-          {/* Controle da Festa link */}
+          {/* Generated Contracts Shortcuts */}
+          {generatedContracts.length > 0 && (
+            <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden">
+              <div className="px-4 py-2.5 bg-muted/30 border-b border-border/30 flex items-center gap-2">
+                <FileSignature className="h-3.5 w-3.5 text-primary" />
+                <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Contratos Gerados</p>
+              </div>
+              <div className="p-3 space-y-2">
+                {generatedContracts.map((gc) => {
+                  const STATUS_COLORS: Record<string, string> = {
+                    gerado: "bg-blue-500/15 text-blue-700 border-blue-300",
+                    enviado: "bg-amber-500/15 text-amber-700 border-amber-300",
+                    assinado: "bg-emerald-500/15 text-emerald-700 border-emerald-300",
+                    aguardando_assinatura: "bg-purple-500/15 text-purple-700 border-purple-300",
+                  };
+                  const STATUS_LABELS: Record<string, string> = {
+                    gerado: "Gerado", enviado: "Enviado", assinado: "Assinado ✅", aguardando_assinatura: "Aguardando",
+                  };
+                  return (
+                    <div key={gc.id} className="rounded-lg border border-border/40 bg-muted/30 p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium truncate flex-1">{gc.nome_documento}</span>
+                        <Badge variant="outline" className={cn("text-[10px] shrink-0", STATUS_COLORS[gc.status] || "")}>
+                          {STATUS_LABELS[gc.status] || gc.status}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-[11px] gap-1.5"
+                          disabled={sendingContractWA === gc.id}
+                          onClick={() => handleContractSendWA(gc)}
+                        >
+                          {sendingContractWA === gc.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <MessageCircle className="h-3 w-3" />}
+                          WhatsApp
+                        </Button>
+                        {gc.status !== "assinado" && gc.status !== "aguardando_assinatura" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-[11px] gap-1.5"
+                            disabled={sendingContractSign === gc.id}
+                            onClick={() => handleContractSendSign(gc)}
+                          >
+                            {sendingContractSign === gc.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileSignature className="h-3 w-3" />}
+                            Enviar p/ Assinatura
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div
             className="rounded-xl p-3.5 flex items-center gap-3"
             style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)", border: "1px solid rgba(96,165,250,0.2)" }}
@@ -473,9 +626,12 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
         {userId && selectedModelId && (
           <EventContractDialog
             open={contractDialogOpen}
-            onOpenChange={(open) => {
-              setContractDialogOpen(open);
-              if (!open) setSelectedModelId("");
+            onOpenChange={(o) => {
+              setContractDialogOpen(o);
+              if (!o) {
+                setSelectedModelId("");
+                fetchGeneratedContracts();
+              }
             }}
             eventId={event.id}
             modelId={selectedModelId}
