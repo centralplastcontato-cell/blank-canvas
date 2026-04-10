@@ -289,6 +289,13 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [saving, setSaving] = useState(false);
   const { currentCompany } = useCompany();
 
+  // Per-person pricing state
+  const [pricingMode, setPricingMode] = useState<'fixed' | 'per_person'>('fixed');
+  const [adultCount, setAdultCount] = useState<number | null>(null);
+  const [childCount, setChildCount] = useState<number | null>(null);
+  const [pricePerAdult, setPricePerAdult] = useState<number | null>(null);
+  const [pricePerChild, setPricePerChild] = useState<number | null>(null);
+
   // Dynamic event types from company settings, with fallback to defaults
   const EVENT_TYPES = useMemo(() => {
     const s = (currentCompany?.settings || {}) as Record<string, unknown>;
@@ -460,6 +467,12 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         }
       }
       setPayment(loadedPayment);
+      // Restore per-person pricing state from payment_details
+      setPricingMode(pd.pricing_mode === 'per_person' ? 'per_person' : 'fixed');
+      setAdultCount(pd.adult_count ?? null);
+      setChildCount(pd.child_count ?? null);
+      setPricePerAdult(pd.price_per_adult ?? null);
+      setPricePerChild(pd.price_per_child ?? null);
       if (data.event_date) {
         const [y, m, d] = data.event_date.split("-");
         setDateYear(y || "");
@@ -557,6 +570,22 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       setForm(prev => ({ ...prev, extra_guest_value: pkg.valor_pessoa_adicional }));
     }
   }, [packages, form.package_name]);
+
+  // Auto-calculate total_value and guest_count in per_person mode
+  useEffect(() => {
+    if (pricingMode !== 'per_person') return;
+    const adults = adultCount || 0;
+    const children = childCount || 0;
+    const adultVal = pricePerAdult || 0;
+    const childVal = pricePerChild || 0;
+    const calculated = (adults * adultVal) + (children * childVal);
+    const totalGuests = adults + children;
+    setForm(prev => ({
+      ...prev,
+      total_value: calculated > 0 ? calculated : null,
+      guest_count: totalGuests > 0 ? totalGuests : prev.guest_count,
+    }));
+  }, [pricingMode, adultCount, childCount, pricePerAdult, pricePerChild]);
 
   // Computed optionals subtotal and grand total
   const optionalsSubtotal = useMemo(() => 
@@ -726,7 +755,17 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
     setSaving(true);
     try {
-      const paymentWithDiscount = { ...payment, discount_type: form.discount_type, discount_value: form.discount_value, discount_base: form.discount_base, discount_reason: form.discount_reason };
+      const paymentWithDiscount = {
+        ...payment,
+        discount_type: form.discount_type, discount_value: form.discount_value,
+        discount_base: form.discount_base, discount_reason: form.discount_reason,
+        // Per-person pricing data
+        pricing_mode: pricingMode,
+        adult_count: pricingMode === 'per_person' ? adultCount : null,
+        child_count: pricingMode === 'per_person' ? childCount : null,
+        price_per_adult: pricingMode === 'per_person' ? pricePerAdult : null,
+        price_per_child: pricingMode === 'per_person' ? pricePerChild : null,
+      };
       const submitData = { ...form, total_value: grandTotal || null, payment_details: paymentWithDiscount };
       const resultId = await onSubmit(submitData);
       if (!isEdit && resultId) {
@@ -906,7 +945,16 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
     setSaving(true);
     try {
-      const paymentWithDiscount = { ...payment, discount_type: form.discount_type, discount_value: form.discount_value, discount_base: form.discount_base, discount_reason: form.discount_reason };
+      const paymentWithDiscount = {
+        ...payment,
+        discount_type: form.discount_type, discount_value: form.discount_value,
+        discount_base: form.discount_base, discount_reason: form.discount_reason,
+        pricing_mode: pricingMode,
+        adult_count: pricingMode === 'per_person' ? adultCount : null,
+        child_count: pricingMode === 'per_person' ? childCount : null,
+        price_per_adult: pricingMode === 'per_person' ? pricePerAdult : null,
+        price_per_child: pricingMode === 'per_person' ? pricePerChild : null,
+      };
       const submitData = { ...form, total_value: grandTotal || null, payment_details: paymentWithDiscount };
       const resultId = await onSubmit(submitData);
       if (resultId) {
@@ -1087,7 +1135,83 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
               <div className="space-y-2.5 md:pl-6 md:border-l md:border-border/50">
                 <Label className="text-sm font-medium text-foreground/70">Convidados</Label>
-                <Input type="number" value={form.guest_count ?? ""} onChange={(e) => setForm({ ...form, guest_count: e.target.value ? Number(e.target.value) : null })} />
+                <Input
+                  type="number"
+                  value={form.guest_count ?? ""}
+                  onChange={(e) => setForm({ ...form, guest_count: e.target.value ? Number(e.target.value) : null })}
+                  disabled={pricingMode === 'per_person'}
+                  className={pricingMode === 'per_person' ? 'opacity-60' : ''}
+                />
+                {pricingMode === 'per_person' && (
+                  <p className="text-[10px] text-muted-foreground">Auto-calculado: {(adultCount || 0)} adultos + {(childCount || 0)} crianças</p>
+                )}
+              </div>
+
+              {/* Per-person pricing toggle */}
+              <div className="md:col-span-2 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={pricingMode === 'per_person'}
+                    onCheckedChange={(checked) => {
+                      const mode = checked ? 'per_person' : 'fixed';
+                      setPricingMode(mode);
+                      if (checked) {
+                        const pkg = packages.find(p => p.name === form.package_name);
+                        if (pkg?.preco_separado) {
+                          if (pkg.valor_pessoa_adicional_adulto != null && pricePerAdult == null) setPricePerAdult(pkg.valor_pessoa_adicional_adulto);
+                          if (pkg.valor_pessoa_adicional_crianca != null && pricePerChild == null) setPricePerChild(pkg.valor_pessoa_adicional_crianca);
+                        }
+                      }
+                    }}
+                  />
+                  <Label className="text-sm font-medium text-foreground/70 cursor-pointer">
+                    Preço por pessoa (adulto/criança)
+                  </Label>
+                </div>
+
+                {pricingMode === 'per_person' && (
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-3">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Qtd Adultos</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={adultCount ?? ""}
+                          onChange={(e) => setAdultCount(e.target.value ? Number(e.target.value) : null)}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Valor/Adulto</Label>
+                        <MoneyInput value={pricePerAdult} onChange={setPricePerAdult} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Qtd Crianças</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={childCount ?? ""}
+                          onChange={(e) => setChildCount(e.target.value ? Number(e.target.value) : null)}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Valor/Criança</Label>
+                        <MoneyInput value={pricePerChild} onChange={setPricePerChild} />
+                      </div>
+                    </div>
+                    {((adultCount || 0) > 0 || (childCount || 0) > 0) && (
+                      <p className="text-xs text-muted-foreground">
+                        {(adultCount || 0) > 0 && `${adultCount} adultos × R$ ${(pricePerAdult || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                        {(adultCount || 0) > 0 && (childCount || 0) > 0 && " + "}
+                        {(childCount || 0) > 0 && `${childCount} crianças × R$ ${(pricePerChild || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                        {" = "}
+                        <span className="font-semibold text-foreground">
+                          R$ {(((adultCount || 0) * (pricePerAdult || 0)) + ((childCount || 0) * (pricePerChild || 0))).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2.5 md:pr-6">
@@ -1110,6 +1234,14 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     const selectedPkg = packages.find(p => p.name === pkgName);
                     const autoExtraValue = selectedPkg?.valor_pessoa_adicional ?? null;
                     setForm({ ...form, package_name: pkgName, extra_guest_value: autoExtraValue });
+                    // Auto-enable per-person pricing if package has preco_separado
+                    if (selectedPkg?.preco_separado) {
+                      setPricingMode('per_person');
+                      if (selectedPkg.valor_pessoa_adicional_adulto != null) setPricePerAdult(selectedPkg.valor_pessoa_adicional_adulto);
+                      if (selectedPkg.valor_pessoa_adicional_crianca != null) setPricePerChild(selectedPkg.valor_pessoa_adicional_crianca);
+                    } else if (!pkgName) {
+                      setPricingMode('fixed');
+                    }
                   }}>
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
@@ -1151,7 +1283,16 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
               <div className="space-y-2.5 md:pr-6">
                 <Label className="text-sm font-medium text-foreground/70">Valor do pacote</Label>
-                <MoneyInput value={form.total_value} onChange={(v) => setForm({ ...form, total_value: v })} />
+                {pricingMode === 'per_person' ? (
+                  <div className="flex items-center h-10 px-3 rounded-xl border border-border/50 bg-muted/50">
+                    <span className="text-sm text-muted-foreground mr-1">R$</span>
+                    <span className="text-sm font-semibold text-foreground">
+                      {(form.total_value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                ) : (
+                  <MoneyInput value={form.total_value} onChange={(v) => setForm({ ...form, total_value: v })} />
+                )}
                 {suggestedPrice && (
                   <button
                     type="button"
