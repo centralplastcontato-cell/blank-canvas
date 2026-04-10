@@ -110,6 +110,10 @@ export function RevenueFormDialog({ open, onOpenChange, onSubmit, defaultValues 
   const handleSubmit = () => {
     const val = parseCurrencyInput(amount);
     if (!val || !description.trim() || !revenueDate) return;
+    if (!bankAccountId) {
+      toast.error('Selecione a conta bancária de destino');
+      return;
+    }
     onSubmit({
       description: description.trim(),
       amount: val,
