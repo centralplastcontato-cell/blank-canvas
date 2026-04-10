@@ -3,6 +3,7 @@ import { Helmet } from "react-helmet-async";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { isHubDomain } from "@/hooks/useDomainDetection";
+import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { User, Session } from "@supabase/supabase-js";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
@@ -840,7 +841,7 @@ export default function CentralAtendimento() {
                 />
 
                 <div className="flex items-center gap-2 min-w-0">
-                  <img src={currentCompany?.logo_url || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
+                  <img src={getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url) || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
                   <h1 className="font-display font-bold text-foreground text-sm truncate">Central de Atendimento</h1>
                 </div>
               </div>
