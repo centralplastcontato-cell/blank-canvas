@@ -221,7 +221,7 @@ export function GeneratedContractsList({ userId }: Props) {
             eventType: viewContract.tipo_evento || undefined,
           }}
           contractId={viewContract.id}
-          leadId={viewContract.lead_id || undefined}
+          leadId={viewContract.lead_id || viewContract.dados_utilizados?.lead?.id || undefined}
           companyId={currentCompany?.id}
           userId={userId}
         />
