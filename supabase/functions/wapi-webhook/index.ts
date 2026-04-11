@@ -576,6 +576,7 @@ async function sendBotMessage(instanceId: string, instanceToken: string, remoteJ
   } catch (e) {
     console.error(`[Bot] send-text exception:`, e);
     return null;
+  }
 }
 
 // ============= INTERACTIVE MESSAGING (Mega Magic pilot) =============
@@ -694,7 +695,6 @@ async function sendInteractiveOrText(
   
   // Fallback: send as plain text
   return sendBotMessage(instanceId, instanceToken, remoteJid, message);
-}
 }
 
 async function sendBotImage(instanceId: string, instanceToken: string, remoteJid: string, imageUrl: string, caption: string): Promise<string | null> {
