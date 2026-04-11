@@ -82,37 +82,9 @@ function formatContractHtmlForPdf(content: string): string {
     .replace(/\n/g, "<br />");
 }
 
-function buildContractPdfSections(content: string): string[] {
-  const normalized = content.replace(/\r\n/g, "\n").trim();
-  const blocks = normalized
-    .split(/\n{2,}/)
-    .map((block) => block.trim())
-    .filter(Boolean);
-
-  return (blocks.length > 0 ? blocks : [normalized]).map(
-    (block) => `
-      <div
-        data-pdf-section
-        style="
-          margin: 0 0 18px;
-          text-align: justify;
-          line-height: 1.85;
-          font-family: Georgia, 'Times New Roman', serif;
-          font-size: 13px;
-          color: #1f2937;
-          word-break: break-word;
-          overflow-wrap: anywhere;
-        "
-      >
-        ${formatContractHtmlForPdf(block)}
-      </div>
-    `,
-  );
-}
-
 /**
- * Render contract HTML to a multi-page PDF using html2canvas,
- * preserving all formatting, images, and logos exactly as displayed.
+ * Render contract HTML to a multi-page PDF using a single html2canvas call,
+ * then slicing the resulting canvas into A4 pages with margins and footer.
  */
 async function renderContractHtmlToPdf(
   htmlContent: string,
@@ -133,37 +105,33 @@ async function renderContractHtmlToPdf(
       } catch { /* ignore */ }
     }
 
-    // Build styled wrapper matching the signature page layout
-    const headerHtml = `
-      <div
-        data-pdf-section
-        style="
-          text-align:center;
-          margin-bottom:24px;
-          padding-bottom:16px;
-          border-bottom:2px solid #e5e7eb;
-        "
-      >
+    // Format content: convert markdown bold and newlines
+    const formattedContent = formatContractHtmlForPdf(htmlContent);
+
+    // Build full HTML with header
+    const fullHtml = `
+      <div style="text-align:center; margin-bottom:24px; padding-bottom:16px; border-bottom:2px solid #e5e7eb;">
         ${logoUrl ? `<img src="${logoUrl}" style="height:112px; max-width:280px; object-fit:contain; margin:0 auto 8px; display:block;" crossorigin="anonymous" />` : ""}
         <h1 style="font-size:16px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; margin:0; color:#1f2937; font-family:Georgia,'Times New Roman',serif;">
           ${contractName || "Contrato"}
         </h1>
       </div>
+      <div style="white-space:pre-wrap; word-break:break-word; text-align:justify; line-height:1.85; font-family:Georgia,'Times New Roman',serif; font-size:13px; color:#1f2937;">
+        ${formattedContent}
+      </div>
     `;
 
-    const wrappedContent = [headerHtml, ...buildContractPdfSections(htmlContent)].join("");
-
-    // Create an off-screen container with A4-like width
+    // Create off-screen container with A4-like width
     const container = document.createElement("div");
     container.style.cssText = `
       position: fixed; left: -9999px; top: 0;
-      width: 794px; /* A4 at 96dpi */
+      width: 794px;
       background: white; color: black;
       font-family: Georgia, 'Times New Roman', serif;
       font-size: 13px; line-height: 1.85;
       padding: 40px 50px 48px;
     `;
-    container.innerHTML = wrappedContent;
+    container.innerHTML = fullHtml;
     document.body.appendChild(container);
 
     // Wait for images to load
@@ -179,121 +147,75 @@ async function renderContractHtmlToPdf(
       ),
     );
 
-    // Small delay to ensure rendering is complete
     await new Promise((r) => setTimeout(r, 200));
 
-    const sections = Array.from(
-      container.querySelectorAll("[data-pdf-section]"),
-    ) as HTMLElement[];
-
-    const renderedSections = await Promise.all(
-      sections.map(async (section) => {
-        const canvas = await html2canvas(section, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: "#ffffff",
-          logging: false,
-        });
-
-        return canvas;
-      }),
-    );
+    // Single html2canvas call for the entire content
+    const fullCanvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: "#ffffff",
+      logging: false,
+    });
 
     document.body.removeChild(container);
 
-    // Convert section canvases to multi-page A4 PDF with smart page breaks and footer
+    // Slice the single canvas into A4 pages
     const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
-    const marginX = 15;
-    const marginTop = 14;
-    const marginBottom = 10;
-    const footerHeight = 10;
-    const sectionGap = 4;
+    const marginX = 10;
+    const marginTop = 10;
+    const footerReserve = 12;
     const contentWidth = pdfWidth - marginX * 2;
-    const pageStartY = marginTop;
-    const pageEndY = pdfHeight - marginBottom - footerHeight;
-    const usableHeight = pageEndY - pageStartY;
-    let currentY = pageStartY;
+    const usableHeight = pdfHeight - marginTop - footerReserve;
 
-    const addSectionSlice = (
-      canvas: HTMLCanvasElement,
-      srcY: number,
-      srcHeight: number,
-      targetY: number,
-    ) => {
+    const scale = contentWidth / fullCanvas.width;
+    const totalHeightMm = fullCanvas.height * scale;
+    const totalPages = Math.ceil(totalHeightMm / usableHeight);
+
+    for (let page = 0; page < totalPages; page++) {
+      if (page > 0) pdf.addPage();
+
+      const srcY = Math.round((page * usableHeight) / scale);
+      const remainingPx = fullCanvas.height - srcY;
+      const sliceHeightPx = Math.min(Math.round(usableHeight / scale), remainingPx);
+
+      if (sliceHeightPx <= 0) break;
+
       const sliceCanvas = document.createElement("canvas");
-      sliceCanvas.width = canvas.width;
-      sliceCanvas.height = srcHeight;
+      sliceCanvas.width = fullCanvas.width;
+      sliceCanvas.height = sliceHeightPx;
 
       const ctx = sliceCanvas.getContext("2d");
-      if (!ctx) return;
+      if (!ctx) continue;
 
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-      ctx.drawImage(canvas, 0, srcY, canvas.width, srcHeight, 0, 0, canvas.width, srcHeight);
+      ctx.drawImage(
+        fullCanvas,
+        0, srcY, fullCanvas.width, sliceHeightPx,
+        0, 0, fullCanvas.width, sliceHeightPx,
+      );
 
-      const pxToMm = contentWidth / canvas.width;
-      const targetHeight = srcHeight * pxToMm;
+      const sliceHeightMm = sliceHeightPx * scale;
       pdf.addImage(
-        sliceCanvas.toDataURL("image/jpeg", 0.96),
+        sliceCanvas.toDataURL("image/jpeg", 0.95),
         "JPEG",
         marginX,
-        targetY,
+        marginTop,
         contentWidth,
-        targetHeight,
+        sliceHeightMm,
       );
-    };
-
-    for (const canvas of renderedSections) {
-      const pxToMm = contentWidth / canvas.width;
-      const sectionHeightMm = canvas.height * pxToMm;
-
-      if (sectionHeightMm <= usableHeight) {
-        if (currentY + sectionHeightMm > pageEndY && currentY > pageStartY) {
-          pdf.addPage();
-          currentY = pageStartY;
-        }
-
-        addSectionSlice(canvas, 0, canvas.height, currentY);
-        currentY += sectionHeightMm + sectionGap;
-        continue;
-      }
-
-      if (currentY > pageStartY) {
-        pdf.addPage();
-        currentY = pageStartY;
-      }
-
-      let consumedPx = 0;
-      while (consumedPx < canvas.height) {
-        const remainingPx = canvas.height - consumedPx;
-        const availableHeightMm = pageEndY - currentY;
-        const maxSlicePx = Math.max(1, Math.floor(availableHeightMm / pxToMm));
-        const slicePx = Math.min(remainingPx, maxSlicePx);
-
-        addSectionSlice(canvas, consumedPx, slicePx, currentY);
-        consumedPx += slicePx;
-        currentY += slicePx * pxToMm;
-
-        if (consumedPx < canvas.height) {
-          pdf.addPage();
-          currentY = pageStartY;
-        } else {
-          currentY += sectionGap;
-        }
-      }
     }
 
-    const totalPages = pdf.getNumberOfPages();
-    for (let page = 1; page <= totalPages; page++) {
-      pdf.setPage(page);
+    // Add page numbers
+    const pageCount = pdf.getNumberOfPages();
+    for (let p = 1; p <= pageCount; p++) {
+      pdf.setPage(p);
       pdf.setFontSize(8);
       pdf.setTextColor(150, 150, 150);
-      pdf.text(`Página ${page} de ${totalPages}`, pdfWidth / 2, pdfHeight - 6, {
-        align: "center",
-      });
+      pdf.text(`Página ${p} de ${pageCount}`, pdfWidth / 2, pdfHeight - 5, { align: "center" });
     }
 
     return pdf.output("blob");
