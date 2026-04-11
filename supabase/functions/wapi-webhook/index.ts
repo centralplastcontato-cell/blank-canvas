@@ -154,6 +154,134 @@ function normalizeChoiceText(text: string): string {
     .trim();
 }
 
+function getFirstString(values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return '';
+}
+
+function extractZapiInteractiveText(value: unknown): string {
+  if (!value) return '';
+
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const text = extractZapiInteractiveText(item);
+      if (text) return text;
+    }
+    return '';
+  }
+
+  if (typeof value !== 'object') {
+    return '';
+  }
+
+  const record = value as Record<string, unknown>;
+
+  const directText = getFirstString([
+    record.selectedDisplayText,
+    record.selectedButtonText,
+    record.displayText,
+    record.buttonText,
+    record.selectedText,
+    record.title,
+    record.description,
+    record.text,
+    record.label,
+    record.name,
+    record.rowTitle,
+    record.optionTitle,
+    record.selectedRowTitle,
+    record.selectedOptionTitle,
+    record.replyTitle,
+    record.replyText,
+  ]);
+
+  if (directText) return directText;
+
+  const nestedCandidates = [
+    record.buttonReply,
+    record.selectedButton,
+    record.selectedOption,
+    record.singleSelectReply,
+    record.listResponse,
+    record.listReply,
+    record.option,
+    record.reply,
+    record.response,
+    record.nativeFlowResponseMessage,
+  ];
+
+  for (const candidate of nestedCandidates) {
+    const text = extractZapiInteractiveText(candidate);
+    if (text) return text;
+  }
+
+  return '';
+}
+
+function extractZapiInteractiveId(value: unknown): string {
+  if (!value) return '';
+
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const id = extractZapiInteractiveId(item);
+      if (id) return id;
+    }
+    return '';
+  }
+
+  if (typeof value !== 'object') {
+    return '';
+  }
+
+  const record = value as Record<string, unknown>;
+
+  const directId = getFirstString([
+    record.selectedButtonId,
+    record.selectedId,
+    record.buttonId,
+    record.id,
+    record.selectedRowId,
+    record.rowId,
+    record.optionId,
+    record.replyId,
+  ]);
+
+  if (directId) return directId;
+
+  const nestedCandidates = [
+    record.buttonReply,
+    record.selectedButton,
+    record.selectedOption,
+    record.singleSelectReply,
+    record.listResponse,
+    record.listReply,
+    record.option,
+    record.reply,
+    record.response,
+    record.nativeFlowResponseMessage,
+  ];
+
+  for (const candidate of nestedCandidates) {
+    const id = extractZapiInteractiveId(candidate);
+    if (id) return id;
+  }
+
+  return '';
+}
+
 function matchFlowOptionByReply<T extends { label?: string | null; value?: string | null }>(
   input: string,
   options: T[],
@@ -3728,19 +3856,17 @@ function extractMsgContent(mc: Record<string, unknown>, msg: Record<string, unkn
   // Z-API interactive response: button click
   else if (mc.buttonsResponseMessage) {
     const br = mc.buttonsResponseMessage as Record<string, unknown>;
-    content = (br.selectedButtonId as string) || (br.selectedDisplayText as string) || (br.selectedButtonText as string) || '';
-    console.log(`[Interactive] Button response received: id=${br.selectedButtonId}, displayText=${br.selectedDisplayText}, content="${content}"`);
+    const replyText = extractZapiInteractiveText(br);
+    const replyId = extractZapiInteractiveId(br);
+    content = replyText || replyId;
+    console.log(`[Interactive] Button response received: id=${replyId}, text="${replyText}", content="${content}"`);
   }
   // Z-API interactive response: list selection
   else if (mc.listResponseMessage) {
     const lr = mc.listResponseMessage as Record<string, unknown>;
-    const singleSelect = lr.singleSelectReply as Record<string, unknown> | string | undefined;
-    if (typeof singleSelect === 'object' && singleSelect) {
-      content = (singleSelect.selectedRowId as string) || (singleSelect.title as string) || '';
-    } else if (typeof singleSelect === 'string') {
-      content = singleSelect;
-    }
-    if (!content) content = (lr.title as string) || (lr.selectedRowId as string) || '';
+    const replyText = extractZapiInteractiveText(lr);
+    const replyId = extractZapiInteractiveId(lr);
+    content = replyText || replyId;
     console.log(`[Interactive] List response received: content="${content}", raw=${JSON.stringify(lr).substring(0, 200)}`);
   }
   else if (mc.reactionMessage) return null;
@@ -4834,33 +4960,28 @@ async function processWebhookEvent(body: Record<string, unknown>) {
 }
 
 // Extract Z-API interactive response from any known field name
-function extractZapiInteractiveResponse(body: Record<string, unknown>): { type: 'button' | 'list'; data: Record<string, unknown>; text: string } | null {
+function extractZapiInteractiveResponse(body: Record<string, unknown>): { type: 'button' | 'list'; data: Record<string, unknown>; text: string; replyId: string } | null {
   // Z-API button response - try all known field names
-  const btnFields = ['buttonsResponseMessage', 'buttonResponseMessage', 'interactiveResponseMessage'];
+  const btnFields = ['buttonsResponseMessage', 'buttonResponseMessage', 'interactiveResponseMessage', 'buttonReply'];
   for (const field of btnFields) {
     const obj = body[field] as Record<string, unknown> | undefined;
     if (obj) {
-      const text = (obj.selectedButtonId as string) || (obj.selectedDisplayText as string) || (obj.selectedButtonText as string) || (obj.id as string) || (obj.title as string) || '';
-      console.log(`[normalizeZapi] Interactive response found in field "${field}": ${JSON.stringify(obj)} → text="${text}"`);
-      return { type: 'button', data: obj, text };
+      const text = extractZapiInteractiveText(obj);
+      const replyId = extractZapiInteractiveId(obj);
+      console.log(`[normalizeZapi] Interactive response found in field "${field}": ${JSON.stringify(obj)} → text="${text}", id="${replyId}"`);
+      return { type: 'button', data: obj, text, replyId };
     }
   }
   
   // Z-API list response
-  const listFields = ['listResponseMessage', 'listMessage'];
+  const listFields = ['listResponseMessage', 'listMessage', 'listReply'];
   for (const field of listFields) {
     const obj = body[field] as Record<string, unknown> | undefined;
     if (obj) {
-      const singleSelect = obj.singleSelectReply as Record<string, unknown> | string | undefined;
-      let text = '';
-      if (typeof singleSelect === 'object' && singleSelect) {
-        text = (singleSelect.selectedRowId as string) || (singleSelect.title as string) || '';
-      } else if (typeof singleSelect === 'string') {
-        text = singleSelect;
-      }
-      if (!text) text = (obj.title as string) || (obj.description as string) || (obj.selectedRowId as string) || '';
-      console.log(`[normalizeZapi] List response found in field "${field}": ${JSON.stringify(obj)} → text="${text}"`);
-      return { type: 'list', data: obj, text };
+      const text = extractZapiInteractiveText(obj);
+      const replyId = extractZapiInteractiveId(obj);
+      console.log(`[normalizeZapi] List response found in field "${field}": ${JSON.stringify(obj)} → text="${text}", id="${replyId}"`);
+      return { type: 'list', data: obj, text, replyId };
     }
   }
   
@@ -4887,13 +5008,14 @@ function normalizeZapiPayload(body: Record<string, unknown>): Record<string, unk
 
   let message: Record<string, unknown> = {};
   if (interactive) {
+    const normalizedText = interactive.text || interactive.replyId;
     // Put interactive response AND set conversation to the extracted text
     if (interactive.type === 'button') {
-      message = { buttonsResponseMessage: interactive.data, conversation: interactive.text };
+      message = { buttonsResponseMessage: interactive.data, conversation: normalizedText };
     } else {
-      message = { listResponseMessage: interactive.data, conversation: interactive.text };
+      message = { listResponseMessage: interactive.data, conversation: normalizedText };
     }
-    console.log(`[normalizeZapi] Interactive ${interactive.type} → conversation="${interactive.text}"`);
+    console.log(`[normalizeZapi] Interactive ${interactive.type} → conversation="${normalizedText}"`);
   } else if (textObj?.message) {
     message = { conversation: textObj.message };
   } else if (imageObj?.imageUrl) {
