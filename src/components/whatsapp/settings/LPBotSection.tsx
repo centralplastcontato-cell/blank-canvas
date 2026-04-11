@@ -71,6 +71,7 @@ export function LPBotSection() {
       .from('wapi_instances')
       .select('id, unit')
       .eq('company_id', currentCompany.id)
+      .eq('is_active', true)
       .order('created_at', { ascending: true });
     setInstances((data || []).filter((i: any) => i.unit));
   };
