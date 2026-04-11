@@ -4793,8 +4793,22 @@ function normalizeZapiPayload(body: Record<string, unknown>): Record<string, unk
   const videoObj = body.video as Record<string, unknown> | undefined;
   const documentObj = body.document as Record<string, unknown> | undefined;
 
+  // Z-API interactive responses (button clicks / list selections)
+  const btnResponse = body.buttonsResponseMessage as Record<string, unknown> | undefined;
+  const listResponse = body.listResponseMessage as Record<string, unknown> | undefined;
+
   let message: Record<string, unknown> = {};
-  if (textObj?.message) {
+  if (btnResponse) {
+    // Z-API button click: pass through so extractMsgContent can handle it
+    const selectedText = (btnResponse.selectedButtonId as string) || (btnResponse.selectedDisplayText as string) || '';
+    console.log(`[normalizeZapi] Button response detected: ${JSON.stringify(btnResponse)}`);
+    message = { buttonsResponseMessage: btnResponse, conversation: selectedText };
+  } else if (listResponse) {
+    // Z-API list selection: pass through
+    const selectedText = (listResponse.title as string) || (listResponse.description as string) || '';
+    console.log(`[normalizeZapi] List response detected: ${JSON.stringify(listResponse)}`);
+    message = { listResponseMessage: listResponse, conversation: selectedText };
+  } else if (textObj?.message) {
     message = { conversation: textObj.message };
   } else if (imageObj?.imageUrl) {
     message = { imageMessage: { url: imageObj.imageUrl, caption: imageObj.caption || '' } };
