@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { HubLayout } from "@/components/hub/HubLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,6 +55,7 @@ interface HubInstance {
   credits_available: number | null;
   provider?: string;
   client_token?: string | null;
+  is_active?: boolean;
 }
 
 interface ChildCompany {
@@ -529,6 +531,18 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
                               )}
                             </Button>
                           )}
+                        </div>
+
+                        <div className="flex items-center justify-between border-t pt-2 mt-1">
+                          <span className="text-xs text-muted-foreground">Visível para o buffet</span>
+                          <Switch
+                            checked={inst.is_active !== false}
+                            onCheckedChange={async (checked) => {
+                              await supabase.from("wapi_instances").update({ is_active: checked } as any).eq("id", inst.id);
+                              setInstances(prev => prev.map(i => i.id === inst.id ? { ...i, is_active: checked } : i));
+                              toast({ title: checked ? "Instância ativada" : "Instância desativada", description: checked ? "Agora visível para o buffet." : "Oculta do painel do buffet." });
+                            }}
+                          />
                         </div>
                       </CardContent>
                     </Card>

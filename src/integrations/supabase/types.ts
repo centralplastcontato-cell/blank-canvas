@@ -5520,6 +5520,7 @@ export type Database = {
           id: string
           instance_id: string
           instance_token: string
+          is_active: boolean
           last_health_check: string | null
           last_restart_attempt: string | null
           messages_count: number | null
@@ -5541,6 +5542,7 @@ export type Database = {
           id?: string
           instance_id: string
           instance_token: string
+          is_active?: boolean
           last_health_check?: string | null
           last_restart_attempt?: string | null
           messages_count?: number | null
@@ -5562,6 +5564,7 @@ export type Database = {
           id?: string
           instance_id?: string
           instance_token?: string
+          is_active?: boolean
           last_health_check?: string | null
           last_restart_attempt?: string | null
           messages_count?: number | null

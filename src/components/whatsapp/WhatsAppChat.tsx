@@ -1518,7 +1518,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const companyId = localStorage.getItem('selected_company_id') || 'a0000000-0000-0000-0000-000000000001';
     let query = supabase
       .from("wapi_instances")
-      .select("id, instance_id, status, unit")
+      .select("id, instance_id, status, unit, is_active")
       .eq("company_id", companyId);
 
     // Filter by allowed units - if empty, show nothing (user has no unit access)
@@ -1545,25 +1545,28 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       }
     }
 
-    if (data && data.length > 0) {
-      setInstances(data as WapiInstance[]);
-      onInstancesLoaded?.(data.map(d => ({ id: d.id, unit: d.unit, status: d.status })));
+    // Filter out inactive instances (is_active = false)
+    const activeData = data ? data.filter((d: any) => d.is_active !== false) : [];
+
+    if (activeData.length > 0) {
+      setInstances(activeData as WapiInstance[]);
+      onInstancesLoaded?.(activeData.map((d: any) => ({ id: d.id, unit: d.unit, status: d.status })));
       setSelectedInstance(prev => {
         if (prev) {
-          const stillExists = data.some(inst => inst.id === prev.id);
+          const stillExists = activeData.some((inst: any) => inst.id === prev.id);
           if (stillExists) return prev;
         }
         // Prefer the instance matching externalSelectedUnit (from localStorage persistence)
         const extUnit = externalSelectedUnitRef.current;
         if (extUnit) {
-          const extMatch = data.find(inst => inst.unit === extUnit);
+          const extMatch = activeData.find((inst: any) => inst.unit === extUnit);
           if (extMatch) return extMatch as WapiInstance;
         }
-        return data[0] as WapiInstance;
+        return activeData[0] as WapiInstance;
       });
 
       // Background sync: check real status for instances that appear disconnected
-      const disconnected = data.filter(i => i.status !== 'connected');
+      const disconnected = activeData.filter((i: any) => i.status !== 'connected');
       if (disconnected.length > 0) {
         syncInstanceStatuses(disconnected as WapiInstance[]);
       }
