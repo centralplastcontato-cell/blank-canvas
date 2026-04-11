@@ -1545,8 +1545,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       }
     }
 
-    if (data && data.length > 0) {
-      setInstances(data as WapiInstance[]);
+    // Filter out inactive instances (is_active = false)
+    const activeData = data ? data.filter((d: any) => d.is_active !== false) : [];
+
+    if (activeData.length > 0) {
+      setInstances(activeData as WapiInstance[]);
       onInstancesLoaded?.(data.map(d => ({ id: d.id, unit: d.unit, status: d.status })));
       setSelectedInstance(prev => {
         if (prev) {
