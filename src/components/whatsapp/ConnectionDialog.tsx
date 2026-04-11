@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, memo, useEffect } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -97,7 +98,6 @@ function FailedState({
   );
 }
 
-// Elapsed time counter
 function ElapsedTimer() {
   const [seconds, setSeconds] = useState(0);
   useEffect(() => {
@@ -111,6 +111,23 @@ function ElapsedTimer() {
       {m > 0 ? `${m}m ${s.toString().padStart(2, '0')}s` : `${s}s`}
     </span>
   );
+}
+
+function normalizeQrValue(qrCode: string) {
+  const trimmed = qrCode.trim();
+  const isImageDataUri = trimmed.startsWith("data:image");
+  const isAnyDataUri = trimmed.startsWith("data:");
+  const looksLikeBase64 = /^[A-Za-z0-9+/=\s]+$/.test(trimmed) && !trimmed.includes("https://") && trimmed.length > 100;
+  const isLikelyRawQrPayload = trimmed.includes("@") || trimmed.includes(",") || trimmed.startsWith("2@");
+
+  return {
+    isImageDataUri,
+    isAnyDataUri,
+    looksLikeBase64,
+    isLikelyRawQrPayload,
+    imageSrc: isImageDataUri ? trimmed : isAnyDataUri ? trimmed : looksLikeBase64 ? `data:image/png;base64,${trimmed}` : null,
+    rawValue: trimmed,
+  };
 }
 
 const PhoneSection = memo(function PhoneSection({
@@ -209,6 +226,7 @@ export function ConnectionDialog({
   const isLoadingQr = (qrLoading || connectionStage === "connecting" || connectionStage === "generating" || connectionStage === "retrying") && !qrCode;
   const isFailed = connectionStage === "failed" && !qrCode;
   const providerLabel = instance?.provider === "zapi" ? "Z-API" : "W-API";
+  const normalizedQr = qrCode ? normalizeQrValue(qrCode) : null;
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); else onOpenChange(o); }}>
@@ -278,14 +296,24 @@ export function ConnectionDialog({
                   </Button>
                 )}
               </div>
-            ) : qrCode ? (
+            ) : normalizedQr ? (
               <div className="flex flex-col items-center gap-4">
                 <div className="bg-white p-4 rounded-lg">
-                  <img
-                    src={qrCode.startsWith("data:image") ? qrCode : qrCode.startsWith("data:") ? qrCode : `data:image/png;base64,${qrCode}`}
-                    alt="QR Code"
-                    className="w-64 h-64"
-                  />
+                  {normalizedQr.imageSrc ? (
+                    <img
+                      src={normalizedQr.imageSrc}
+                      alt="QR Code"
+                      className="w-64 h-64"
+                    />
+                  ) : (
+                    <QRCodeSVG
+                      value={normalizedQr.rawValue}
+                      size={256}
+                      bgColor="#FFFFFF"
+                      fgColor="#000000"
+                      includeMargin
+                    />
+                  )}
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <RefreshCw className={`w-4 h-4 ${qrLoading ? "animate-spin" : ""}`} />
