@@ -8,6 +8,9 @@ const corsHeaders = {
 const WAPI_BASE_URL = 'https://api.w-api.app/v1';
 const ZAPI_BASE_URL = 'https://api.z-api.io/instances';
 
+// Mega Magic instance ID for interactive messaging pilot test
+const MEGA_MAGIC_INSTANCE_ID = 'fff981eb-ebdd-49b6-9643-0251e252b586';
+
 type Provider = 'wapi' | 'zapi';
 
 function zapiUrl(instanceId: string, token: string, path: string): string {
