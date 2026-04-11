@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
+import { useWhatsAppConnection } from "@/hooks/useWhatsAppConnection";
 import { insertWithCompany } from "@/lib/supabase-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ConnectionDialog } from "@/components/whatsapp/ConnectionDialog";
 import {
   Dialog,
   DialogContent,
@@ -111,26 +113,27 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
 
   const fetchInstances = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("wapi_instances")
       .select("*")
+      .eq("is_active", true)
       .order("unit", { ascending: true });
 
     if (data) {
-      // Filter out inactive instances (hidden by hub admin)
-      const activeInstances = data.filter((d: any) => d.is_active !== false);
-      // Load instances immediately from DB without waiting for status sync
-      setInstances(activeInstances as WapiInstance[]);
+      setInstances(data as WapiInstance[]);
       setIsLoading(false);
       
-      // Sync status in background (non-blocking) — only active instances
-      if (activeInstances.length > 0) {
-        syncInstancesInBackground(activeInstances as WapiInstance[]);
+      if (data.length > 0) {
+        syncInstancesInBackground(data as WapiInstance[]);
       }
     } else {
       setIsLoading(false);
     }
   };
+
+  const connection = useWhatsAppConnection(() => {
+    void fetchInstances();
+  });
 
   // Background sync without blocking the UI
   const syncInstancesInBackground = async (instancesList: WapiInstance[]) => {
@@ -1427,7 +1430,26 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   if (!isAdmin) {
     return (
       <div className="space-y-4">
-        {connectionDialogJsx}
+        <ConnectionDialog
+          open={connection.qrDialogOpen}
+          onOpenChange={() => {}}
+          instance={connection.qrInstance}
+          qrCode={connection.qrCode}
+          qrLoading={connection.qrLoading}
+          connectionMode={connection.connectionMode}
+          phoneNumber={connection.phoneNumber}
+          pairingCode={connection.pairingCode}
+          isPairingLoading={connection.isPairingLoading}
+          retryCount={connection.retryCount}
+          isRetrying={connection.isRetrying}
+          isWapiUnstable={connection.isWapiUnstable}
+          connectionStage={connection.connectionStage}
+          onClose={connection.closeDialog}
+          onSetConnectionMode={connection.setConnectionMode}
+          onSetPhoneNumber={connection.setPhoneNumber}
+          onRequestPairingCode={connection.requestPairingCode}
+          onRetryQr={() => connection.qrInstance && connection.fetchQrCode(connection.qrInstance)}
+        />
         {numberChangeDialogJsx}
         {repairPhoneDialogJsx}
         <Card>
@@ -1484,7 +1506,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                     {instance.status !== 'connected' && (
                       <Button 
                         size="sm" 
-                        onClick={() => handleOpenQrDialog(instance)}
+                        onClick={() => connection.openDialog(instance)}
                       >
                         <QrCode className="w-4 h-4 mr-2" />
                         Conectar
@@ -1506,7 +1528,26 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   // Admin view
   return (
     <div className="space-y-6">
-      {connectionDialogJsx}
+      <ConnectionDialog
+        open={connection.qrDialogOpen}
+        onOpenChange={() => {}}
+        instance={connection.qrInstance}
+        qrCode={connection.qrCode}
+        qrLoading={connection.qrLoading}
+        connectionMode={connection.connectionMode}
+        phoneNumber={connection.phoneNumber}
+        pairingCode={connection.pairingCode}
+        isPairingLoading={connection.isPairingLoading}
+        retryCount={connection.retryCount}
+        isRetrying={connection.isRetrying}
+        isWapiUnstable={connection.isWapiUnstable}
+        connectionStage={connection.connectionStage}
+        onClose={connection.closeDialog}
+        onSetConnectionMode={connection.setConnectionMode}
+        onSetPhoneNumber={connection.setPhoneNumber}
+        onRequestPairingCode={connection.requestPairingCode}
+        onRetryQr={() => connection.qrInstance && connection.fetchQrCode(connection.qrInstance)}
+      />
       {numberChangeDialogJsx}
       {repairPhoneDialogJsx}
       
@@ -1640,7 +1681,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                         {instance.status !== 'connected' && (
                           <Button 
                             size="sm" 
-                            onClick={() => handleOpenQrDialog(instance)}
+                            onClick={() => connection.openDialog(instance)}
                           >
                             <QrCode className="w-4 h-4 mr-2" />
                             Conectar
