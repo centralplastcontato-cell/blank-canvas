@@ -117,8 +117,10 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
       .order("unit", { ascending: true });
 
     if (data) {
+      // Filter out inactive instances (hidden by hub admin)
+      const activeInstances = data.filter((d: any) => d.is_active !== false);
       // Load instances immediately from DB without waiting for status sync
-      setInstances(data as WapiInstance[]);
+      setInstances(activeInstances as WapiInstance[]);
       setIsLoading(false);
       
       // Sync status in background (non-blocking) if there are instances
