@@ -189,6 +189,34 @@ function zapiUrl(instanceId: string, token: string, path: string): string {
   return `${ZAPI_BASE_URL}/${instanceId}/token/${token}/${path}`;
 }
 
+function normalizeZapiQrValue(qr: unknown): string | null {
+  if (typeof qr !== 'string') return null;
+
+  const trimmed = qr.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith('data:')) {
+    return trimmed;
+  }
+
+  const looksLikeRawQrPayload =
+    trimmed.includes('https://wa.me/') ||
+    trimmed.includes('@') ||
+    trimmed.includes(',') ||
+    trimmed.startsWith('2@');
+
+  if (looksLikeRawQrPayload) {
+    return trimmed;
+  }
+
+  const looksLikeBase64 = /^[A-Za-z0-9+/=\s]+$/.test(trimmed);
+  if (looksLikeBase64) {
+    return `data:image/png;base64,${trimmed}`;
+  }
+
+  return trimmed;
+}
+
 async function zapiRequest(instanceId: string, token: string, clientToken: string | null, path: string, method: string, body?: unknown): Promise<{ ok: boolean; data?: unknown; error?: string }> {
   try {
     const headers: Record<string, string> = {
