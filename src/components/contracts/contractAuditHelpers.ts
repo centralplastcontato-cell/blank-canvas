@@ -237,7 +237,7 @@ export async function sendContractViaWhatsApp(
     const conv = convs?.[0];
 
     // 4. Generate PDF from contract HTML content (preserving full formatting & logo)
-    const pdfBlob = await renderContractHtmlToPdf(contractContent, contractName);
+    const pdfBlob = await renderContractHtmlToPdf(contractContent, contractName, companyId);
     if (!pdfBlob) {
       return { success: false, error: "Erro ao gerar PDF do contrato." };
     }
