@@ -69,13 +69,45 @@ function stripHtmlForWhatsApp(html: string): string {
   return text.trim();
 }
 
-function formatContractHtmlForPdf(content: string): string {
+function escapeHtml(content: string): string {
   return content
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\*\*([^\n]+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/>/g, "&gt;");
+}
+
+function formatContractHtmlForPdf(content: string): string {
+  return escapeHtml(content)
+    .replace(/\*\*([\s\S]+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\n/g, "<br />");
+}
+
+function buildContractPdfSections(content: string): string[] {
+  const normalized = content.replace(/\r\n/g, "\n").trim();
+  const blocks = normalized
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  return (blocks.length > 0 ? blocks : [normalized]).map(
+    (block) => `
+      <div
+        data-pdf-section
+        style="
+          margin: 0 0 18px;
+          text-align: justify;
+          line-height: 1.85;
+          font-family: Georgia, 'Times New Roman', serif;
+          font-size: 13px;
+          color: #1f2937;
+          word-break: break-word;
+          overflow-wrap: anywhere;
+        "
+      >
+        ${formatContractHtmlForPdf(block)}
+      </div>
+    `,
+  );
 }
 
 /**
@@ -90,24 +122,28 @@ async function renderContractHtmlToPdf(
   try {
     // Fetch company logo if companyId provided
     let logoUrl: string | null = null;
-    let companyName: string | null = null;
     if (companyId) {
       try {
         const { data } = await supabase
           .from("companies")
-          .select("logo_url, name")
+          .select("logo_url")
           .eq("id", companyId)
           .single();
         logoUrl = data?.logo_url || null;
-        companyName = data?.name || null;
       } catch { /* ignore */ }
     }
 
-    const formattedContent = formatContractHtmlForPdf(htmlContent);
-
     // Build styled wrapper matching the signature page layout
     const headerHtml = `
-      <div style="text-align:center; margin-bottom:24px; padding-bottom:16px; border-bottom:2px solid #e5e7eb;">
+      <div
+        data-pdf-section
+        style="
+          text-align:center;
+          margin-bottom:24px;
+          padding-bottom:16px;
+          border-bottom:2px solid #e5e7eb;
+        "
+      >
         ${logoUrl ? `<img src="${logoUrl}" style="height:112px; max-width:280px; object-fit:contain; margin:0 auto 8px; display:block;" crossorigin="anonymous" />` : ""}
         <h1 style="font-size:16px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; margin:0; color:#1f2937; font-family:Georgia,'Times New Roman',serif;">
           ${contractName || "Contrato"}
@@ -115,7 +151,7 @@ async function renderContractHtmlToPdf(
       </div>
     `;
 
-    const wrappedContent = headerHtml + `<div style="white-space:pre-wrap; word-break:break-word; text-align:justify; line-height:1.85; font-family:Georgia,'Times New Roman',serif; font-size:13px; color:#1f2937;">${formattedContent}</div>`;
+    const wrappedContent = [headerHtml, ...buildContractPdfSections(htmlContent)].join("");
 
     // Create an off-screen container with A4-like width
     const container = document.createElement("div");
@@ -125,7 +161,7 @@ async function renderContractHtmlToPdf(
       background: white; color: black;
       font-family: Georgia, 'Times New Roman', serif;
       font-size: 13px; line-height: 1.85;
-      padding: 40px 50px;
+      padding: 40px 50px 48px;
     `;
     container.innerHTML = wrappedContent;
     document.body.appendChild(container);
@@ -146,71 +182,118 @@ async function renderContractHtmlToPdf(
     // Small delay to ensure rendering is complete
     await new Promise((r) => setTimeout(r, 200));
 
-    const canvas = await html2canvas(container, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: "#ffffff",
-      logging: false,
-    });
+    const sections = Array.from(
+      container.querySelectorAll("[data-pdf-section]"),
+    ) as HTMLElement[];
+
+    const renderedSections = await Promise.all(
+      sections.map(async (section) => {
+        const canvas = await html2canvas(section, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+        });
+
+        return canvas;
+      }),
+    );
 
     document.body.removeChild(container);
 
-    // Convert canvas to multi-page A4 PDF with proper margins and footer
+    // Convert section canvases to multi-page A4 PDF with smart page breaks and footer
     const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
-    const marginTop = 10;
-    const marginBottom = 15; // space for footer
-    const usableHeight = pdfHeight - marginTop - marginBottom;
-    const contentWidth = pdfWidth; // full width (padding already in the container)
-    const imgDataUrl = canvas.toDataURL("image/jpeg", 0.95);
+    const marginX = 15;
+    const marginTop = 14;
+    const marginBottom = 10;
+    const footerHeight = 10;
+    const sectionGap = 4;
+    const contentWidth = pdfWidth - marginX * 2;
+    const pageStartY = marginTop;
+    const pageEndY = pdfHeight - marginBottom - footerHeight;
+    const usableHeight = pageEndY - pageStartY;
+    let currentY = pageStartY;
 
-    // Scale: how many mm per canvas pixel
-    const scale = contentWidth / canvas.width;
-    const totalImgHeightMm = canvas.height * scale;
-
-    // Calculate how many pixels fit per page
-    const pixelsPerPage = usableHeight / scale;
-    const totalPages = Math.ceil(canvas.height / pixelsPerPage);
-
-    for (let page = 0; page < totalPages; page++) {
-      if (page > 0) pdf.addPage();
-
-      // Slice the canvas for this page
-      const srcY = Math.floor(page * pixelsPerPage);
-      const srcH = Math.min(Math.floor(pixelsPerPage), canvas.height - srcY);
-      if (srcH <= 0) break;
-
+    const addSectionSlice = (
+      canvas: HTMLCanvasElement,
+      srcY: number,
+      srcHeight: number,
+      targetY: number,
+    ) => {
       const sliceCanvas = document.createElement("canvas");
       sliceCanvas.width = canvas.width;
-      sliceCanvas.height = srcH;
+      sliceCanvas.height = srcHeight;
+
       const ctx = sliceCanvas.getContext("2d");
-      if (!ctx) break;
+      if (!ctx) return;
+
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-      ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
+      ctx.drawImage(canvas, 0, srcY, canvas.width, srcHeight, 0, 0, canvas.width, srcHeight);
 
-      const sliceHeightMm = srcH * scale;
+      const pxToMm = contentWidth / canvas.width;
+      const targetHeight = srcHeight * pxToMm;
       pdf.addImage(
-        sliceCanvas.toDataURL("image/jpeg", 0.95),
+        sliceCanvas.toDataURL("image/jpeg", 0.96),
         "JPEG",
-        0,
-        marginTop,
+        marginX,
+        targetY,
         contentWidth,
-        sliceHeightMm,
+        targetHeight,
       );
+    };
 
-      // Footer: page number + generation date
+    for (const canvas of renderedSections) {
+      const pxToMm = contentWidth / canvas.width;
+      const sectionHeightMm = canvas.height * pxToMm;
+
+      if (sectionHeightMm <= usableHeight) {
+        if (currentY + sectionHeightMm > pageEndY && currentY > pageStartY) {
+          pdf.addPage();
+          currentY = pageStartY;
+        }
+
+        addSectionSlice(canvas, 0, canvas.height, currentY);
+        currentY += sectionHeightMm + sectionGap;
+        continue;
+      }
+
+      if (currentY > pageStartY) {
+        pdf.addPage();
+        currentY = pageStartY;
+      }
+
+      let consumedPx = 0;
+      while (consumedPx < canvas.height) {
+        const remainingPx = canvas.height - consumedPx;
+        const availableHeightMm = pageEndY - currentY;
+        const maxSlicePx = Math.max(1, Math.floor(availableHeightMm / pxToMm));
+        const slicePx = Math.min(remainingPx, maxSlicePx);
+
+        addSectionSlice(canvas, consumedPx, slicePx, currentY);
+        consumedPx += slicePx;
+        currentY += slicePx * pxToMm;
+
+        if (consumedPx < canvas.height) {
+          pdf.addPage();
+          currentY = pageStartY;
+        } else {
+          currentY += sectionGap;
+        }
+      }
+    }
+
+    const totalPages = pdf.getNumberOfPages();
+    for (let page = 1; page <= totalPages; page++) {
+      pdf.setPage(page);
       pdf.setFontSize(8);
       pdf.setTextColor(150, 150, 150);
-      const footerY = pdfHeight - 6;
-      pdf.text(
-        `Página ${page + 1} de ${totalPages}`,
-        pdfWidth / 2,
-        footerY,
-        { align: "center" },
-      );
+      pdf.text(`Página ${page} de ${totalPages}`, pdfWidth / 2, pdfHeight - 6, {
+        align: "center",
+      });
     }
 
     return pdf.output("blob");
