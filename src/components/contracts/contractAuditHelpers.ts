@@ -133,30 +133,10 @@ export async function sendContractViaWhatsApp(
 
     const conv = convs?.[0];
 
-    // 4. Generate PDF from contract HTML content
-    const plainText = stripHtmlForWhatsApp(contractContent);
-    const doc = new jsPDF({ unit: "mm", format: "a4" });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 20;
-    const maxWidth = pageWidth - margin * 2;
-    let y = 25;
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text(contractName, pageWidth / 2, y, { align: "center" });
-    y += 12;
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    const lines = doc.splitTextToSize(plainText, maxWidth);
-
-    for (const line of lines) {
-      if (y > 280) {
-        doc.addPage();
-        y = 20;
-      }
-      doc.text(line, margin, y);
-      y += 5;
+    // 4. Generate PDF from contract HTML content (preserving full formatting & logo)
+    const pdfBlob = await renderContractHtmlToPdf(contractContent, contractName);
+    if (!pdfBlob) {
+      return { success: false, error: "Erro ao gerar PDF do contrato." };
     }
 
     const pdfBlob = doc.output("blob");
