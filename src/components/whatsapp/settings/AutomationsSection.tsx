@@ -349,6 +349,7 @@ export function AutomationsSection() {
     let query = supabase
       .from("wapi_instances")
       .select("id, instance_id, unit, status")
+      .eq("is_active", true)
       .order("unit", { ascending: true });
 
     if (currentCompanyId) {
