@@ -4844,7 +4844,7 @@ Deno.serve(async (req) => {
     
     // Detect Z-API payload and normalize
     const isZapiPayload = body.type === 'ReceivedCallback' || 
-      (body.phone && body.instanceId && !body.event && (body.text || body.image || body.audio || body.video || body.document));
+      (body.phone && body.instanceId && !body.event && (body.text || body.image || body.audio || body.video || body.document || body.buttonsResponseMessage || body.listResponseMessage));
     if (isZapiPayload) {
       console.log(`[Webhook] Z-API payload detected, normalizing. type=${body.type}, phone=${body.phone}`);
       body = normalizeZapiPayload(body);
