@@ -8,6 +8,9 @@ const corsHeaders = {
 const WAPI_BASE_URL = 'https://api.w-api.app/v1';
 const ZAPI_BASE_URL = 'https://api.z-api.io/instances';
 
+// Mega Magic instance ID for interactive messaging pilot test
+const MEGA_MAGIC_INSTANCE_ID = 'fff981eb-ebdd-49b6-9643-0251e252b586';
+
 type Provider = 'wapi' | 'zapi';
 
 function zapiUrl(instanceId: string, token: string, path: string): string {
@@ -563,7 +566,125 @@ async function sendBotMessage(instanceId: string, instanceToken: string, remoteJ
   } catch (e) {
     console.error(`[Bot] send-text exception:`, e);
     return null;
+}
+
+// ============= INTERACTIVE MESSAGING (Mega Magic pilot) =============
+
+/** Parse numbered emoji options from bot question text.
+ *  Returns { body, options } where body is the text before options,
+ *  and options is the list of { id, label } extracted from emoji lines. */
+function parseNumberedOptions(text: string): { body: string; options: { id: string; label: string }[] } | null {
+  const lines = text.split('\n');
+  const bodyLines: string[] = [];
+  const options: { id: string; label: string }[] = [];
+  
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) { bodyLines.push(line); continue; }
+    
+    // Try emoji keycap: "1️⃣ - Já sou cliente" or "1️⃣ Já sou cliente"
+    const emojiNum = emojiDigitsToNumber(trimmed);
+    if (emojiNum !== null) {
+      const label = trimmed
+        .replace(/🔟/g, '')
+        .replace(/[\d]\uFE0F?\u20E3/g, '')
+        .replace(/^\s*[-\.]\s*/, '')
+        .trim();
+      if (label) {
+        options.push({ id: String(emojiNum), label });
+        continue;
+      }
+    }
+    
+    // Try plain number: "*1* - Label" or "1 - Label"
+    const match = trimmed.match(/^\*?(\d+)\*?\s*[-\.]\s*(.+)$/);
+    if (match) {
+      options.push({ id: match[1], label: match[2].trim() });
+      continue;
+    }
+    
+    bodyLines.push(line);
   }
+  
+  if (options.length < 2) return null;
+  
+  // Clean trailing empty lines from body
+  while (bodyLines.length > 0 && !bodyLines[bodyLines.length - 1].trim()) {
+    bodyLines.pop();
+  }
+  
+  return { body: bodyLines.join('\n').trim(), options };
+}
+
+/** Send interactive message (buttons or list) for Mega Magic Z-API, fallback to text. */
+async function sendInteractiveOrText(
+  instanceId: string,
+  instanceToken: string,
+  remoteJid: string,
+  message: string,
+  instance: { id: string; provider?: string }
+): Promise<string | null> {
+  // Only apply to Mega Magic Z-API instance
+  if (instance.id !== MEGA_MAGIC_INSTANCE_ID || _activeProvider !== 'zapi') {
+    return sendBotMessage(instanceId, instanceToken, remoteJid, message);
+  }
+  
+  const parsed = parseNumberedOptions(message);
+  if (!parsed || parsed.options.length > 10) {
+    // 11+ options or parse failed: send as text
+    return sendBotMessage(instanceId, instanceToken, remoteJid, message);
+  }
+  
+  const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
+  
+  try {
+    if (parsed.options.length <= 3) {
+      // 2-3 options: send as buttons
+      console.log(`[Bot-Interactive] Sending ${parsed.options.length} buttons to ${phone}`);
+      const res = await zapiRequest(instanceId, instanceToken, _activeClientToken, 'send-button-actions', 'POST', {
+        phone,
+        message: parsed.body,
+        buttonActions: parsed.options.map(opt => ({
+          id: opt.id,
+          type: 'REPLY',
+          label: opt.label,
+        })),
+      });
+      if (res.ok) {
+        const msgId = res.data ? ((res.data as Record<string, unknown>).zaapId || (res.data as Record<string, unknown>).zapiMessageId || (res.data as Record<string, unknown>).messageId) as string || null : null;
+        console.log(`[Bot-Interactive] Button send OK, msgId=${msgId}`);
+        return msgId;
+      }
+      console.warn(`[Bot-Interactive] Button send failed, falling back to text: ${res.error}`);
+    } else {
+      // 4-10 options: send as option list
+      console.log(`[Bot-Interactive] Sending option list (${parsed.options.length} items) to ${phone}`);
+      const res = await zapiRequest(instanceId, instanceToken, _activeClientToken, 'send-option-list', 'POST', {
+        phone,
+        message: parsed.body,
+        optionList: {
+          title: 'Opções',
+          buttonLabel: 'Ver opções',
+          options: parsed.options.map(opt => ({
+            id: opt.id,
+            title: opt.label,
+          })),
+        },
+      });
+      if (res.ok) {
+        const msgId = res.data ? ((res.data as Record<string, unknown>).zaapId || (res.data as Record<string, unknown>).zapiMessageId || (res.data as Record<string, unknown>).messageId) as string || null : null;
+        console.log(`[Bot-Interactive] List send OK, msgId=${msgId}`);
+        return msgId;
+      }
+      console.warn(`[Bot-Interactive] List send failed, falling back to text: ${res.error}`);
+    }
+  } catch (e) {
+    console.error(`[Bot-Interactive] Exception, falling back to text:`, e);
+  }
+  
+  // Fallback: send as plain text
+  return sendBotMessage(instanceId, instanceToken, remoteJid, message);
+}
 }
 
 async function sendBotImage(instanceId: string, instanceToken: string, remoteJid: string, imageUrl: string, caption: string): Promise<string | null> {
@@ -2823,7 +2944,7 @@ async function processBotQualification(
   }
 
   // Send the text message
-  const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
+  const msgId = await sendInteractiveOrText(instance.instance_id, instance.instance_token, conv.remote_jid, msg, instance);
   
   // Always save bot message to DB so it appears in chat, even if W-API delivery failed
   await supabase.from('wapi_messages').insert({
@@ -3498,6 +3619,18 @@ function extractMsgContent(mc: Record<string, unknown>, msg: Record<string, unkn
     }
   }
   else if (mc.stickerMessage) { type = 'sticker'; content = '🎭 Figurinha'; }
+  // Z-API interactive response: button click
+  else if (mc.buttonsResponseMessage) {
+    const br = mc.buttonsResponseMessage as Record<string, unknown>;
+    content = (br.selectedButtonId as string) || (br.selectedButtonText as string) || '';
+    console.log(`[Interactive] Button response received: id=${br.selectedButtonId}, text=${content}`);
+  }
+  // Z-API interactive response: list selection
+  else if (mc.listResponseMessage) {
+    const lr = mc.listResponseMessage as Record<string, unknown>;
+    content = (lr.singleSelectReply as string) || (lr.title as string) || '';
+    console.log(`[Interactive] List response received: id=${lr.singleSelectReply}, title=${lr.title}`);
+  }
   else if (mc.reactionMessage) return null;
   else if (mc.pollCreationMessage || mc.pollUpdateMessage) { type = 'poll'; content = '📊 Enquete'; }
   else if ((mc as Record<string, unknown>).conversation) content = (mc as Record<string, string>).conversation;
