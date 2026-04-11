@@ -4874,10 +4874,16 @@ Deno.serve(async (req) => {
     let body = await req.json();
     
     // Detect Z-API payload and normalize
+    const hasInteractiveResponse = body.buttonsResponseMessage || body.buttonResponseMessage || body.interactiveResponseMessage || body.listResponseMessage || body.listMessage;
     const isZapiPayload = body.type === 'ReceivedCallback' || 
-      (body.phone && body.instanceId && !body.event && (body.text || body.image || body.audio || body.video || body.document || body.buttonsResponseMessage || body.listResponseMessage));
+      (body.phone && body.instanceId && !body.event && (body.text || body.image || body.audio || body.video || body.document || hasInteractiveResponse));
     if (isZapiPayload) {
-      console.log(`[Webhook] Z-API payload detected, normalizing. type=${body.type}, phone=${body.phone}`);
+      // Log raw payload keys for debugging interactive responses
+      const payloadKeys = Object.keys(body).join(',');
+      console.log(`[Webhook] Z-API payload detected, normalizing. type=${body.type}, phone=${body.phone}, keys=[${payloadKeys}]`);
+      if (hasInteractiveResponse) {
+        console.log(`[Webhook] Z-API interactive raw payload: ${JSON.stringify(body).substring(0, 500)}`);
+      }
       body = normalizeZapiPayload(body);
     }
 
