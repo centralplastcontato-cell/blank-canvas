@@ -1,0 +1,1 @@
+UPDATE public.company_units SET name = 'Mega Magic' WHERE id = 'c04a8bb3-d66e-4ce8-8e6b-2dcfe6cb1d5f';
