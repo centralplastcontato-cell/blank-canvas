@@ -486,14 +486,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
   }, [draggedIndex, dragOverIndex, formData]);
 
   const handleSaveMaterial = async () => {
-    const materialName = formData.name?.trim() || (() => {
-      const typeLabels: Record<string, string> = {
-        pdf_package: "Pacote de Preços",
-        photo_collection: "Coleção de Fotos",
-        video: "Vídeo",
-      };
-      return typeLabels[formData.type] || "Material";
-    })();
+    const materialName = formData.name.trim();
 
     if (formData.type === "photo_collection") {
       if (formData.photo_urls.length === 0) {
@@ -1031,18 +1024,18 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
 
             <div className="space-y-2">
               <Label htmlFor="name">
-                {formData.type === "photo_collection" ? "Nome da Coleção *" : "Nome do Material *"}
+                {formData.type === "photo_collection" ? "Nome da Coleção" : "Nome do Material"}
               </Label>
               <Input
                 id="name"
                 placeholder={
                   formData.type === "pdf_package" 
-                    ? "Ex: Pacote Premium 50 pessoas" 
+                    ? "Opcional — deixe em branco se não quiser texto" 
                     : formData.type === "photo_collection"
-                      ? "Ex: Área do Buffet"
+                      ? "Opcional — ex: Área do Buffet"
                       : formData.type === "photo" 
-                        ? "Ex: Salão Principal"
-                        : "Ex: Tour Virtual"
+                        ? "Opcional — ex: Salão Principal"
+                        : "Opcional — ex: Tour Virtual"
                 }
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
