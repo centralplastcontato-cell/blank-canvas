@@ -29,7 +29,7 @@ import { toast } from "@/hooks/use-toast";
 import { 
   Wifi, WifiOff, Plus, RefreshCw, Settings2, Copy, Check, 
   MessageSquare, CreditCard, Calendar, Building2, Pencil, 
-  Trash2, QrCode, Loader2, Phone, Smartphone, Eraser
+  Trash2, QrCode, Loader2, Phone, Eraser
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -73,25 +73,11 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [editingInstance, setEditingInstance] = useState<WapiInstance | null>(null);
   
-  // QR Code states
-  const [qrDialogOpen, setQrDialogOpen] = useState(false);
-  const [qrLoading, setQrLoading] = useState(false);
-  const [qrCode, setQrCode] = useState<string | null>(null);
-  const [qrInstance, setQrInstance] = useState<WapiInstance | null>(null);
-  const [qrPolling, setQrPolling] = useState(false);
-
   // Repair session states
   const [isRepairing, setIsRepairing] = useState<string | null>(null);
   const [repairPhoneDialogOpen, setRepairPhoneDialogOpen] = useState(false);
   const [repairPhoneInstance, setRepairPhoneInstance] = useState<WapiInstance | null>(null);
   const [repairManualPhone, setRepairManualPhone] = useState('');
-
-  // Phone pairing states
-  const [connectionMode, setConnectionMode] = useState<'qr' | 'phone'>('qr');
-  const [_phoneNumber, setPhoneNumber] = useState('');
-  const [pairingCode, setPairingCode] = useState<string | null>(null);
-  const [isPairingLoading, setIsPairingLoading] = useState(false);
-  const phoneInputRef = useRef<HTMLInputElement>(null);
 
   // Number change detection states
   const [numberChangeDialogOpen, setNumberChangeDialogOpen] = useState(false);
@@ -889,59 +875,6 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   }, []);
 
 
-  const handleRequestPairingCode = async () => {
-    const currentPhone = phoneInputRef.current?.value.replace(/\D/g, '') || '';
-    console.log("[PairingCode] phoneInputRef:", phoneInputRef.current, "value:", currentPhone, "qrInstance:", qrInstance?.unit);
-    if (!qrInstance || !currentPhone || currentPhone.length < 10) {
-      toast({
-        title: "Erro",
-        description: "Informe o número de telefone com DDD.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsPairingLoading(true);
-    setPairingCode(null);
-
-    try {
-      const response = await supabase.functions.invoke("wapi-send", {
-        body: { 
-          action: "request-pairing-code",
-          instanceId: qrInstance.instance_id,
-          instanceToken: qrInstance.instance_token,
-          phoneNumber: currentPhone,
-        },
-      });
-
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-
-      if (response.data?.pairingCode) {
-        setPairingCode(response.data.pairingCode);
-        toast({
-          title: "Código gerado!",
-          description: "Use este código no seu WhatsApp para conectar.",
-        });
-      } else if (response.data?.error) {
-        toast({
-          title: "Erro",
-          description: response.data.error,
-          variant: "destructive",
-        });
-      }
-    } catch (error: any) {
-      console.error("Error requesting pairing code:", error);
-      toast({
-        title: "Erro",
-        description: error.message || "Erro ao solicitar código de pareamento.",
-        variant: "destructive",
-      });
-    }
-
-    setIsPairingLoading(false);
-  };
 
   useEffect(() => {
     if (!qrDialogOpen || !qrInstance || !qrPolling) return;
