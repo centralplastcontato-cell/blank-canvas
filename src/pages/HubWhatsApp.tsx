@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { HubLayout } from "@/components/hub/HubLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,6 +55,7 @@ interface HubInstance {
   credits_available: number | null;
   provider?: string;
   client_token?: string | null;
+  is_active?: boolean;
 }
 
 interface ChildCompany {
