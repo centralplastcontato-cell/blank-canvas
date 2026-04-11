@@ -70,9 +70,83 @@ function stripHtmlForWhatsApp(html: string): string {
 }
 
 /**
- * Send a generated contract to the lead via WhatsApp using wapi-send.
- * Returns { success, error? }
+ * Render contract HTML to a multi-page PDF using html2canvas,
+ * preserving all formatting, images, and logos exactly as displayed.
  */
+async function renderContractHtmlToPdf(
+  htmlContent: string,
+  _contractName: string,
+): Promise<Blob | null> {
+  try {
+    // Create an off-screen container with A4-like width
+    const container = document.createElement("div");
+    container.style.cssText = `
+      position: fixed; left: -9999px; top: 0;
+      width: 794px; /* A4 at 96dpi */
+      background: white; color: black;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 14px; line-height: 1.6;
+      padding: 40px 50px;
+    `;
+    container.innerHTML = htmlContent;
+    document.body.appendChild(container);
+
+    // Wait for images to load
+    const images = container.querySelectorAll("img");
+    await Promise.all(
+      Array.from(images).map(
+        (img) =>
+          new Promise<void>((resolve) => {
+            if (img.complete) return resolve();
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+          }),
+      ),
+    );
+
+    // Small delay to ensure rendering is complete
+    await new Promise((r) => setTimeout(r, 200));
+
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: "#ffffff",
+      logging: false,
+    });
+
+    document.body.removeChild(container);
+
+    // Convert canvas to multi-page A4 PDF
+    const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pdfWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    // First page
+    pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, position, imgWidth, imgHeight);
+    heightLeft -= pdfHeight;
+
+    // Additional pages
+    while (heightLeft > 0) {
+      position = -(imgHeight - heightLeft);
+      pdf.addPage();
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
+    }
+
+    return pdf.output("blob");
+  } catch (e) {
+    console.error("[contract-pdf] Error rendering HTML to PDF:", e);
+    return null;
+  }
+}
+
+
 export async function sendContractViaWhatsApp(
   companyId: string,
   leadId: string,
