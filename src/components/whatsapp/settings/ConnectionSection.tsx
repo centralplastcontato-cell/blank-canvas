@@ -888,8 +888,6 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
     return false;
   }, []);
 
-    fetchQrCode(instance);
-  };
 
   const handleRequestPairingCode = async () => {
     const currentPhone = phoneInputRef.current?.value.replace(/\D/g, '') || '';
