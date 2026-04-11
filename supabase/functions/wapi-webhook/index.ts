@@ -4778,6 +4778,40 @@ async function processWebhookEvent(body: Record<string, unknown>) {
   }
 }
 
+// Extract Z-API interactive response from any known field name
+function extractZapiInteractiveResponse(body: Record<string, unknown>): { type: 'button' | 'list'; data: Record<string, unknown>; text: string } | null {
+  // Z-API button response - try all known field names
+  const btnFields = ['buttonsResponseMessage', 'buttonResponseMessage', 'interactiveResponseMessage'];
+  for (const field of btnFields) {
+    const obj = body[field] as Record<string, unknown> | undefined;
+    if (obj) {
+      const text = (obj.selectedButtonId as string) || (obj.selectedDisplayText as string) || (obj.selectedButtonText as string) || (obj.id as string) || (obj.title as string) || '';
+      console.log(`[normalizeZapi] Interactive response found in field "${field}": ${JSON.stringify(obj)} → text="${text}"`);
+      return { type: 'button', data: obj, text };
+    }
+  }
+  
+  // Z-API list response
+  const listFields = ['listResponseMessage', 'listMessage'];
+  for (const field of listFields) {
+    const obj = body[field] as Record<string, unknown> | undefined;
+    if (obj) {
+      const singleSelect = obj.singleSelectReply as Record<string, unknown> | string | undefined;
+      let text = '';
+      if (typeof singleSelect === 'object' && singleSelect) {
+        text = (singleSelect.selectedRowId as string) || (singleSelect.title as string) || '';
+      } else if (typeof singleSelect === 'string') {
+        text = singleSelect;
+      }
+      if (!text) text = (obj.title as string) || (obj.description as string) || (obj.selectedRowId as string) || '';
+      console.log(`[normalizeZapi] List response found in field "${field}": ${JSON.stringify(obj)} → text="${text}"`);
+      return { type: 'list', data: obj, text };
+    }
+  }
+  
+  return null;
+}
+
 // Normalize Z-API webhook payload to W-API format
 function normalizeZapiPayload(body: Record<string, unknown>): Record<string, unknown> {
   const phone = body.phone as string || '';
@@ -4793,21 +4827,18 @@ function normalizeZapiPayload(body: Record<string, unknown>): Record<string, unk
   const videoObj = body.video as Record<string, unknown> | undefined;
   const documentObj = body.document as Record<string, unknown> | undefined;
 
-  // Z-API interactive responses (button clicks / list selections)
-  const btnResponse = body.buttonsResponseMessage as Record<string, unknown> | undefined;
-  const listResponse = body.listResponseMessage as Record<string, unknown> | undefined;
+  // Z-API interactive responses (button clicks / list selections) - comprehensive check
+  const interactive = extractZapiInteractiveResponse(body);
 
   let message: Record<string, unknown> = {};
-  if (btnResponse) {
-    // Z-API button click: pass through so extractMsgContent can handle it
-    const selectedText = (btnResponse.selectedButtonId as string) || (btnResponse.selectedDisplayText as string) || '';
-    console.log(`[normalizeZapi] Button response detected: ${JSON.stringify(btnResponse)}`);
-    message = { buttonsResponseMessage: btnResponse, conversation: selectedText };
-  } else if (listResponse) {
-    // Z-API list selection: pass through
-    const selectedText = (listResponse.title as string) || (listResponse.description as string) || '';
-    console.log(`[normalizeZapi] List response detected: ${JSON.stringify(listResponse)}`);
-    message = { listResponseMessage: listResponse, conversation: selectedText };
+  if (interactive) {
+    // Put interactive response AND set conversation to the extracted text
+    if (interactive.type === 'button') {
+      message = { buttonsResponseMessage: interactive.data, conversation: interactive.text };
+    } else {
+      message = { listResponseMessage: interactive.data, conversation: interactive.text };
+    }
+    console.log(`[normalizeZapi] Interactive ${interactive.type} → conversation="${interactive.text}"`);
   } else if (textObj?.message) {
     message = { conversation: textObj.message };
   } else if (imageObj?.imageUrl) {
