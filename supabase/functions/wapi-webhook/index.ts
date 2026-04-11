@@ -3645,6 +3645,18 @@ async function sendQualificationMaterialsThenQuestion(
       return;
     }
 
+    // Save bot message to DB (sendInteractiveOrText bypasses wapi-send, so no auto-save)
+    await supabase.from('wapi_messages').insert({
+      conversation_id: conv.id,
+      message_id: msgId || `bot_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      from_me: true,
+      message_type: 'text',
+      content: nextStepQuestion,
+      status: msgId ? 'sent' : 'failed',
+      timestamp: new Date().toISOString(),
+      company_id: instance.company_id,
+    });
+
     const { data: stepAdvanced } = await supabase.from('wapi_conversations').update({
       bot_step: 'proximo_passo',
       last_message_at: new Date().toISOString(),
