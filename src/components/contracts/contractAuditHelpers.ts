@@ -82,9 +82,92 @@ function formatContractHtmlForPdf(content: string): string {
     .replace(/\n/g, "<br />");
 }
 
+function isCanvasRowMostlyWhite(
+  context: CanvasRenderingContext2D,
+  width: number,
+  y: number,
+  threshold = 245,
+  tolerance = 0.998,
+): boolean {
+  const safeY = Math.max(0, Math.floor(y));
+  const row = context.getImageData(0, safeY, width, 1).data;
+  let lightPixels = 0;
+  let sampledPixels = 0;
+
+  for (let pixel = 0; pixel < width; pixel += 4) {
+    const index = pixel * 4;
+    const alpha = row[index + 3];
+
+    if (
+      alpha < 16 ||
+      (row[index] >= threshold && row[index + 1] >= threshold && row[index + 2] >= threshold)
+    ) {
+      lightPixels += 1;
+    }
+
+    sampledPixels += 1;
+  }
+
+  return sampledPixels > 0 && lightPixels / sampledPixels >= tolerance;
+}
+
+function isWhitespaceBand(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  y: number,
+  bandSize = 4,
+): boolean {
+  const start = Math.max(0, Math.floor(y - bandSize / 2));
+  const end = Math.min(height - 1, Math.floor(y + bandSize / 2));
+
+  for (let row = start; row <= end; row++) {
+    if (!isCanvasRowMostlyWhite(context, width, row)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function findSafePageBreak(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  startY: number,
+  idealEndY: number,
+  minSliceHeightPx: number,
+): number {
+  const minY = Math.min(height - 1, Math.max(startY + minSliceHeightPx, startY + 1));
+  const maxY = Math.min(height - 1, idealEndY);
+
+  for (let y = maxY; y >= minY; y--) {
+    if (isWhitespaceBand(context, width, height, y)) {
+      return y;
+    }
+  }
+
+  return maxY;
+}
+
+function skipLeadingWhitespace(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  startY: number,
+): number {
+  let y = Math.max(0, Math.floor(startY));
+
+  while (y < height - 1 && isCanvasRowMostlyWhite(context, width, y, 250, 0.999)) {
+    y += 1;
+  }
+
+  return y;
+}
+
 /**
- * Render contract HTML to a multi-page PDF using a single html2canvas call,
- * then slicing the resulting canvas into A4 pages with margins and footer.
+ * Render contract HTML to a multi-page PDF using a single html2canvas call
+ * and whitespace-aware page breaks to avoid cutting text lines.
  */
 async function renderContractHtmlToPdf(
   htmlContent: string,
@@ -160,32 +243,58 @@ async function renderContractHtmlToPdf(
 
     document.body.removeChild(container);
 
-    // Slice the single canvas into A4 pages
+    const canvasContext = fullCanvas.getContext("2d", { willReadFrequently: true });
+    if (!canvasContext) {
+      return null;
+    }
+
+    // Slice the single canvas into A4 pages without cutting text lines
     const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
     const marginX = 10;
-    const marginTop = 10;
-    const footerReserve = 12;
+    const marginTop = 12;
+    const footerReserve = 14;
     const contentWidth = pdfWidth - marginX * 2;
     const usableHeight = pdfHeight - marginTop - footerReserve;
 
     const scale = contentWidth / fullCanvas.width;
-    const totalHeightMm = fullCanvas.height * scale;
-    const totalPages = Math.ceil(totalHeightMm / usableHeight);
+    const pixelsPerPage = Math.max(1, Math.floor(usableHeight / scale));
+    const minSliceHeightPx = Math.max(1, Math.floor(pixelsPerPage * 0.72));
+    const pageSlices: Array<{ startY: number; heightPx: number }> = [];
 
-    for (let page = 0; page < totalPages; page++) {
-      if (page > 0) pdf.addPage();
+    let startY = 0;
+    while (startY < fullCanvas.height) {
+      const remainingPx = fullCanvas.height - startY;
 
-      const srcY = Math.round((page * usableHeight) / scale);
-      const remainingPx = fullCanvas.height - srcY;
-      const sliceHeightPx = Math.min(Math.round(usableHeight / scale), remainingPx);
+      if (remainingPx <= pixelsPerPage) {
+        pageSlices.push({ startY, heightPx: remainingPx });
+        break;
+      }
 
-      if (sliceHeightPx <= 0) break;
+      const safeBreakY = findSafePageBreak(
+        canvasContext,
+        fullCanvas.width,
+        fullCanvas.height,
+        startY,
+        startY + pixelsPerPage,
+        minSliceHeightPx,
+      );
+
+      const heightPx = Math.max(1, safeBreakY - startY);
+      pageSlices.push({ startY, heightPx });
+      startY = Math.max(
+        safeBreakY + 1,
+        skipLeadingWhitespace(canvasContext, fullCanvas.width, fullCanvas.height, safeBreakY + 1),
+      );
+    }
+
+    for (const [pageIndex, slice] of pageSlices.entries()) {
+      if (pageIndex > 0) pdf.addPage();
 
       const sliceCanvas = document.createElement("canvas");
       sliceCanvas.width = fullCanvas.width;
-      sliceCanvas.height = sliceHeightPx;
+      sliceCanvas.height = slice.heightPx;
 
       const ctx = sliceCanvas.getContext("2d");
       if (!ctx) continue;
@@ -194,11 +303,11 @@ async function renderContractHtmlToPdf(
       ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
       ctx.drawImage(
         fullCanvas,
-        0, srcY, fullCanvas.width, sliceHeightPx,
-        0, 0, fullCanvas.width, sliceHeightPx,
+        0, slice.startY, fullCanvas.width, slice.heightPx,
+        0, 0, fullCanvas.width, slice.heightPx,
       );
 
-      const sliceHeightMm = sliceHeightPx * scale;
+      const sliceHeightMm = Math.min(usableHeight, slice.heightPx * scale);
       pdf.addImage(
         sliceCanvas.toDataURL("image/jpeg", 0.95),
         "JPEG",
