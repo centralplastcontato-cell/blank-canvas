@@ -8,7 +8,11 @@ const corsHeaders = {
 const WAPI_BASE_URL = 'https://api.w-api.app/v1';
 const ZAPI_BASE_URL = 'https://api.z-api.io/instances';
 
-// Mega Magic instance ID for interactive messaging pilot test
+// Instance IDs enabled for interactive messaging (Z-API buttons/lists)
+const INTERACTIVE_ENABLED_INSTANCES = new Set([
+  'fff981eb-ebdd-49b6-9643-0251e252b586', // Mega Magic
+  '75feab3b-eb12-44f0-8ada-463e5540c869', // Vendas 3
+]);
 const MEGA_MAGIC_INSTANCE_ID = 'fff981eb-ebdd-49b6-9643-0251e252b586';
 const MEGA_MAGIC_PILOT_PHONE = '15981121710';
 
