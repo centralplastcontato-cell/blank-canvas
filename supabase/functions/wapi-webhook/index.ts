@@ -10,8 +10,18 @@ const ZAPI_BASE_URL = 'https://api.z-api.io/instances';
 
 // Mega Magic instance ID for interactive messaging pilot test
 const MEGA_MAGIC_INSTANCE_ID = 'fff981eb-ebdd-49b6-9643-0251e252b586';
+const MEGA_MAGIC_PILOT_PHONE = '15981121710';
 
 type Provider = 'wapi' | 'zapi';
+
+function isMegaMagicPilotPhone(instanceId: string, contactPhone: string): boolean {
+  if (instanceId !== MEGA_MAGIC_INSTANCE_ID) return false;
+
+  const rawPhone = contactPhone.replace(/\D/g, '');
+  const cleanPhone = rawPhone.replace(/^55/, '');
+
+  return cleanPhone === MEGA_MAGIC_PILOT_PHONE || rawPhone.endsWith(MEGA_MAGIC_PILOT_PHONE);
+}
 
 function zapiUrl(instanceId: string, token: string, path: string): string {
   return `${ZAPI_BASE_URL}/${instanceId}/token/${token}/${path}`;
@@ -782,22 +792,19 @@ async function processFlowBuilderMessage(
   contactName: string | null
 ) {
   const companyId = instance.company_id;
+  const isPilot = isMegaMagicPilotPhone(instance.id, contactPhone);
   
   console.log(`[FlowBuilder] ========== PROCESSING MESSAGE ==========`);
   console.log(`[FlowBuilder] Company: ${companyId}, Conv: ${conv.id}, Phone: ${contactPhone}`);
   console.log(`[FlowBuilder] Content: "${content}", BotStep: ${conv.bot_step}, BotEnabled: ${conv.bot_enabled}`);
 
   // Guard: skip Flow Builder if bot was disabled (human takeover or lost lead)
-  if (conv.bot_step === 'human_takeover' || conv.bot_enabled === false) {
+  if (conv.bot_step === 'human_takeover' || (conv.bot_enabled === false && !isPilot)) {
     console.log(`[FlowBuilder] Bot disabled (step: ${conv.bot_step}, enabled: ${conv.bot_enabled}), skipping`);
     return;
   }
   
   // ── SANDBOX: número-piloto usa o Fluxo Comercial V2 ────────────
-  const PILOT_PHONE = '15981121710';
-  const cleanPhone = contactPhone.replace(/\D/g, '').replace(/^55/, '');
-  const isPilot = cleanPhone === PILOT_PHONE || contactPhone.replace(/\D/g, '').endsWith(PILOT_PHONE);
-
   let flow: { id: string; name: string } | null = null;
 
   if (isPilot) {
@@ -862,6 +869,32 @@ async function processFlowBuilderMessage(
     .eq('conversation_id', conv.id)
     .eq('flow_id', flowId)
     .maybeSingle();
+
+  const shouldRestartCompletedPilotFlow = isPilot && (
+    conv.bot_enabled === false ||
+    ['complete_final', 'flow_complete', 'flow_handoff', 'flow_ai_disabled', 'flow_no_followup', 'transferred'].includes(conv.bot_step || '')
+  );
+
+  if (shouldRestartCompletedPilotFlow) {
+    console.log(`[FlowBuilder] 🧪 Resetting completed flow state for pilot conversation ${conv.id}`);
+
+    const { error: resetErr } = await supabase
+      .from('flow_lead_state')
+      .delete()
+      .eq('conversation_id', conv.id);
+
+    if (resetErr) {
+      console.error(`[FlowBuilder] Failed to reset pilot state for ${conv.id}: ${resetErr.message}`);
+    } else {
+      state = null;
+      await supabase.from('wapi_conversations').update({
+        bot_enabled: true,
+        bot_step: null,
+      }).eq('id', conv.id);
+      conv.bot_enabled = true;
+      conv.bot_step = null;
+    }
+  }
   
   const startNode = nodes.find(n => n.node_type === 'start');
   if (!startNode) {
@@ -2075,9 +2108,7 @@ async function processBotQualification(
   content: string, contactPhone: string, contactName: string | null
 ) {
   // ── SANDBOX: número-piloto sempre vai para o Flow Builder V2 ─────
-  const PILOT_PHONE = '15981121710';
-  const cleanPhoneCheck = contactPhone.replace(/\D/g, '').replace(/^55/, '');
-  const isPilotPhone = cleanPhoneCheck === PILOT_PHONE || contactPhone.replace(/\D/g, '').endsWith(PILOT_PHONE);
+  const isPilotPhone = isMegaMagicPilotPhone(instance.id, contactPhone);
   if (isPilotPhone) {
     // Only force Flow Builder if the company actually has an active flow
     const { data: pilotFlows } = await supabase
@@ -2119,6 +2150,32 @@ async function processBotQualification(
   if (settings.test_mode_enabled && !isTest) {
     console.log(`[Bot] Test mode ON — phone ${contactPhone} is NOT test number, skipping`);
     return;
+  }
+
+  if (isPilotPhone && conv.bot_step !== 'human_takeover') {
+    const completedPilotSteps = [
+      'complete_final',
+      'flow_complete',
+      'flow_handoff',
+      'flow_ai_disabled',
+      'flow_no_followup',
+      'transferred',
+      'work_interest',
+      'sending_materials',
+    ];
+
+    if (conv.bot_enabled === false || completedPilotSteps.includes(conv.bot_step || '')) {
+      console.log(`[Bot] 🧪 Restarting legacy bot for Mega Magic pilot conversation ${conv.id}`);
+      await supabase.from('wapi_conversations').update({
+        bot_enabled: true,
+        bot_step: 'welcome',
+        bot_data: {},
+      }).eq('id', conv.id);
+
+      conv.bot_enabled = true;
+      conv.bot_step = 'welcome';
+      conv.bot_data = {};
+    }
   }
 
   // Check if bot settings allow running
@@ -4521,7 +4578,8 @@ async function processWebhookEvent(body: Record<string, unknown>) {
           }
 
           // Skip bot if disabled after re-read
-          if (conv.bot_enabled === false || conv.bot_step === 'human_takeover') {
+          const allowPilotRestart = isMegaMagicPilotPhone(instance.id, phone) && conv.bot_step !== 'human_takeover';
+          if ((conv.bot_enabled === false || conv.bot_step === 'human_takeover') && !allowPilotRestart) {
             console.log(`[Bot] Skipping — bot disabled after re-read (step: ${conv.bot_step}, enabled: ${conv.bot_enabled})`);
           } else {
             await processBotQualification(supabase, instance, conv, content, phone, cName as string | null);
