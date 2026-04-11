@@ -65,7 +65,15 @@ function ConnectionProgress({ stage, retryCount, isRetrying }: { stage: string; 
   );
 }
 
-function FailedState({ onRetryQr, onSwitchToPhone }: { onRetryQr: () => void; onSwitchToPhone: () => void }) {
+function FailedState({
+  onRetryQr,
+  onSwitchToPhone,
+  providerLabel,
+}: {
+  onRetryQr: () => void;
+  onSwitchToPhone: () => void;
+  providerLabel: string;
+}) {
   return (
     <div className="flex flex-col items-center gap-4 py-6">
       <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center">
@@ -73,7 +81,7 @@ function FailedState({ onRetryQr, onSwitchToPhone }: { onRetryQr: () => void; on
       </div>
       <div className="text-center space-y-1">
         <p className="text-sm font-medium">Não foi possível gerar o QR Code</p>
-        <p className="text-xs text-muted-foreground">O servidor W-API está instável no momento.</p>
+        <p className="text-xs text-muted-foreground">O servidor {providerLabel} está instável no momento.</p>
       </div>
       <div className="flex flex-col gap-2 w-full max-w-xs">
         <Button onClick={onSwitchToPhone} className="w-full">
@@ -200,6 +208,7 @@ export function ConnectionDialog({
 }: ConnectionDialogProps) {
   const isLoadingQr = (qrLoading || connectionStage === "connecting" || connectionStage === "generating" || connectionStage === "retrying") && !qrCode;
   const isFailed = connectionStage === "failed" && !qrCode;
+  const providerLabel = instance?.provider === "zapi" ? "Z-API" : "W-API";
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); else onOpenChange(o); }}>
@@ -211,7 +220,7 @@ export function ConnectionDialog({
             {isWapiUnstable && (
               <Badge variant="outline" className="ml-auto border-yellow-500 text-yellow-600 text-xs gap-1">
                 <AlertTriangle className="w-3 h-3" />
-                Instável
+                {providerLabel} instável
               </Badge>
             )}
           </DialogTitle>
@@ -250,13 +259,13 @@ export function ConnectionDialog({
               <FailedState
                 onRetryQr={onRetryQr}
                 onSwitchToPhone={() => onSetConnectionMode("phone")}
+                providerLabel={providerLabel}
               />
             ) : isLoadingQr ? (
               <div className="flex flex-col items-center gap-4 py-6 w-full">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 <ConnectionProgress stage={connectionStage} retryCount={retryCount} isRetrying={isRetrying} />
                 <ElapsedTimer />
-                {/* Show phone fallback early during loading */}
                 {(retryCount > 0 || isWapiUnstable) && (
                   <Button
                     variant="ghost"

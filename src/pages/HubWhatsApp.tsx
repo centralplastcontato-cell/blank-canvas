@@ -303,7 +303,7 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
       );
       setInstances(updates);
       const desc = degradedCount > 0 
-        ? `Sincronizado. ${degradedCount} instância(s) com W-API instável (status mantido).`
+        ? `Sincronizado. ${degradedCount} instância(s) com provedor instável (status mantido).`
         : "Todas as instâncias foram sincronizadas.";
       toast({ title: "Status atualizado", description: desc });
     } catch (err) {
