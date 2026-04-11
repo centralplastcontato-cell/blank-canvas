@@ -4543,7 +4543,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                   })()}
                   {/* Messages */}
                   <div className="flex-1 relative min-h-0">
-                    <ScrollArea ref={scrollAreaDesktopRef} className="h-full bg-muted/30">
+                    <ScrollArea ref={scrollAreaDesktopRef} className="h-full whatsapp-chat-bg">
                       <div className="space-y-2 sm:space-y-3 p-3 sm:p-4">
                         {/* Loading indicator at top */}
                         {isLoadingMoreMessages && (
@@ -5690,7 +5690,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                 </div>
 
                 <div className="flex-1 relative min-h-0">
-                  <ScrollArea ref={scrollAreaMobileRef} className="h-full bg-muted/30">
+                  <ScrollArea ref={scrollAreaMobileRef} className="h-full whatsapp-chat-bg">
                     <div className="space-y-2 p-3 overflow-hidden">
                       {/* Loading indicator at top - mobile */}
                       {isLoadingMoreMessages && (
