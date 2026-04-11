@@ -3679,14 +3679,20 @@ function extractMsgContent(mc: Record<string, unknown>, msg: Record<string, unkn
   // Z-API interactive response: button click
   else if (mc.buttonsResponseMessage) {
     const br = mc.buttonsResponseMessage as Record<string, unknown>;
-    content = (br.selectedButtonId as string) || (br.selectedButtonText as string) || '';
-    console.log(`[Interactive] Button response received: id=${br.selectedButtonId}, text=${content}`);
+    content = (br.selectedButtonId as string) || (br.selectedDisplayText as string) || (br.selectedButtonText as string) || '';
+    console.log(`[Interactive] Button response received: id=${br.selectedButtonId}, displayText=${br.selectedDisplayText}, content="${content}"`);
   }
   // Z-API interactive response: list selection
   else if (mc.listResponseMessage) {
     const lr = mc.listResponseMessage as Record<string, unknown>;
-    content = (lr.singleSelectReply as string) || (lr.title as string) || '';
-    console.log(`[Interactive] List response received: id=${lr.singleSelectReply}, title=${lr.title}`);
+    const singleSelect = lr.singleSelectReply as Record<string, unknown> | string | undefined;
+    if (typeof singleSelect === 'object' && singleSelect) {
+      content = (singleSelect.selectedRowId as string) || (singleSelect.title as string) || '';
+    } else if (typeof singleSelect === 'string') {
+      content = singleSelect;
+    }
+    if (!content) content = (lr.title as string) || (lr.selectedRowId as string) || '';
+    console.log(`[Interactive] List response received: content="${content}", raw=${JSON.stringify(lr).substring(0, 200)}`);
   }
   else if (mc.reactionMessage) return null;
   else if (mc.pollCreationMessage || mc.pollUpdateMessage) { type = 'poll'; content = '📊 Enquete'; }
