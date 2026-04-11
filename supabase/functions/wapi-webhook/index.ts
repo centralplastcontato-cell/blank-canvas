@@ -500,6 +500,46 @@ function validateAnswer(step: string, input: string, questionText?: string): { v
   }
 }
 
+const ACTIVE_CLASSIC_BOT_STEPS = [
+  'welcome',
+  'tipo',
+  'nome',
+  'mes',
+  'dia',
+  'convidados',
+  'sending_materials',
+  'proximo_passo',
+  'proximo_passo_reminded',
+];
+
+function isClassicBotStepActive(step: string | null | undefined): boolean {
+  return ACTIVE_CLASSIC_BOT_STEPS.includes(step || '');
+}
+
+function inferPendingClassicBotStep(botData: Record<string, unknown> | null | undefined): string | null {
+  const data = (botData || {}) as Record<string, unknown>;
+
+  if (!data.nome) return 'nome';
+  if (!data.tipo) return 'tipo';
+  if (!data.mes) return 'mes';
+  if (!data.dia) return 'dia';
+  if (!data.convidados) return 'convidados';
+  if (!data.proximo_passo) return 'proximo_passo';
+
+  return null;
+}
+
+function shouldRecoverAccidentalHumanTakeover(
+  provider: string | null | undefined,
+  conv: { bot_enabled: boolean | null; bot_step: string | null; bot_data: Record<string, unknown> | null; lead_id: string | null },
+): string | null {
+  if (provider !== 'zapi') return null;
+  if (conv.bot_enabled !== false || conv.bot_step !== 'human_takeover') return null;
+  if (conv.lead_id) return null;
+
+  return inferPendingClassicBotStep(conv.bot_data);
+}
+
 // Default questions fallback with numbered menus
 const DEFAULT_QUESTIONS: Record<string, { question: string; confirmation: string | null; next: string }> = {
   nome: { 
@@ -4552,15 +4592,22 @@ async function processWebhookEvent(body: Record<string, unknown>) {
         // Bot-sent and UI-sent messages are already saved in wapi_messages before the webhook fires.
         // Phone-sent messages are NOT in the DB yet → if msgId is absent from wapi_messages, it's human.
         if (fromMe && ex.bot_enabled === true && msgId) {
-          const { data: existingMsg } = await supabase.from('wapi_messages')
-            .select('id')
-            .eq('message_id', msgId)
-            .maybeSingle();
-          if (!existingMsg) {
-            // Message not in DB → sent from phone by human → disable bot
-            console.log(`[Bot] Human phone message detected (msgId ${msgId}), disabling bot for conv ${ex.id}`);
-            upd.bot_enabled = false;
-            upd.bot_step = 'human_takeover';
+          const isFlowStep = (ex.bot_step || '').startsWith('flow_');
+          const isBotActive = isClassicBotStepActive(ex.bot_step) || isFlowStep;
+
+          if (!isBotActive) {
+            const { data: existingMsg } = await supabase.from('wapi_messages')
+              .select('id')
+              .eq('message_id', msgId)
+              .maybeSingle();
+            if (!existingMsg) {
+              // Message not in DB → sent from phone by human → disable bot
+              console.log(`[Bot] Human phone message detected (msgId ${msgId}), disabling bot for conv ${ex.id}`);
+              upd.bot_enabled = false;
+              upd.bot_step = 'human_takeover';
+            }
+          } else {
+            console.log(`[Bot] Skipping human_takeover detection during active bot step (${ex.bot_step}) for conv ${ex.id}`);
           }
         }
         if (isGrp) { 
@@ -4758,6 +4805,17 @@ async function processWebhookEvent(body: Record<string, unknown>) {
             conv = freshConv;
           }
 
+          const recoveredStep = shouldRecoverAccidentalHumanTakeover(instance.provider, conv);
+          if (recoveredStep) {
+            console.warn(`[Bot] Recovering accidental human_takeover for conv ${conv.id}; resuming at step ${recoveredStep}`);
+            await supabase.from('wapi_conversations').update({
+              bot_enabled: true,
+              bot_step: recoveredStep,
+            }).eq('id', conv.id);
+            conv.bot_enabled = true;
+            conv.bot_step = recoveredStep;
+          }
+
           // Skip bot if disabled after re-read
           const allowPilotRestart = isMegaMagicPilotPhone(instance.id, phone) && conv.bot_step !== 'human_takeover';
           if ((conv.bot_enabled === false || conv.bot_step === 'human_takeover') && !allowPilotRestart) {
@@ -4800,9 +4858,8 @@ async function processWebhookEvent(body: Record<string, unknown>) {
                   // Don't disable bot during active bot steps — the bot's own outgoing messages
                   // may trigger status webhooks before the INSERT into wapi_messages completes,
                   // causing a false "human message" detection that resets bot_step to null.
-                  const statusActiveBotSteps = ['welcome', 'tipo', 'nome', 'mes', 'dia', 'convidados', 'sending_materials', 'proximo_passo', 'proximo_passo_reminded'];
                   const statusIsFlowStep = (ec.bot_step || '').startsWith('flow_');
-                  const statusIsBotActive = statusActiveBotSteps.includes(ec.bot_step || '') || statusIsFlowStep;
+                  const statusIsBotActive = isClassicBotStepActive(ec.bot_step) || statusIsFlowStep;
                   
                   if (!statusIsBotActive) {
                     const { data: existingStatusMsg } = await supabase.from('wapi_messages')
