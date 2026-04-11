@@ -37,7 +37,7 @@ function matchFlowOptionByReply<T extends { label?: string | null; value?: strin
 const OPTIONS = [
   { id: '1', label: 'Já sou cliente.', value: 'ja_sou_cliente' },
   { id: '2', label: 'Quero um orçamento.', value: 'quero_orcamento' },
-  { id: '3', label: 'Trabalhe no conosco.', value: 'trabalhe_conosco' },
+  { id: '3', label: 'Trabalhe conosco.', value: 'trabalhe_conosco' },
 ];
 
 Deno.test('matchFlowOptionByReply matches button label text with punctuation', () => {
