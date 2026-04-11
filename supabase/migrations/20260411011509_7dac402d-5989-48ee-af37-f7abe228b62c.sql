@@ -1,0 +1,1 @@
+ALTER TABLE public.wapi_instances ADD COLUMN is_active boolean NOT NULL DEFAULT true;
