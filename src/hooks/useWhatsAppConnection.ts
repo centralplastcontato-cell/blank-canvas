@@ -80,6 +80,9 @@ export function useWhatsAppConnection(onConnected?: () => void) {
         throw new Error('PROVIDER_UNSTABLE');
       }
 
+      const responseError = typeof response.data?.error === 'string' ? response.data.error.toLowerCase() : '';
+      const isQrPending = responseError.includes('qr não disponível') || responseError.includes('qr nao disponivel');
+
       if (response.data?.connected === true || response.data?.details?.connected === true) {
         toast({ title: "Já conectado!", description: "Esta instância já está conectada ao WhatsApp." });
         await supabase
@@ -99,11 +102,13 @@ export function useWhatsAppConnection(onConnected?: () => void) {
         setRetryCount(0);
         pollFailCountRef.current = 0;
       } else if (response.data?.error) {
-        const msg = response.data.error?.toLowerCase() || "";
-        if (msg.includes("conectad") || msg.includes("connected")) {
+        if (responseError.includes('conectad') || responseError.includes('connected')) {
           toast({ title: "Já conectado", description: "A instância já está conectada ao WhatsApp." });
           closeDialog();
           onConnected?.();
+        } else if (isQrPending) {
+          setConnectionStage('generating');
+          setIsWapiUnstable(false);
         } else {
           throw new Error('PROVIDER_UNSTABLE');
         }
