@@ -139,7 +139,6 @@ export async function sendContractViaWhatsApp(
       return { success: false, error: "Erro ao gerar PDF do contrato." };
     }
 
-    const pdfBlob = doc.output("blob");
     const safeFileName = contractName.replace(/[^a-zA-Z0-9_-]/g, "_").substring(0, 60);
     const storagePath = `contracts/${companyId}/${safeFileName}_${Date.now()}.pdf`;
 
