@@ -841,8 +841,8 @@ async function sendInteractiveOrText(
   message: string,
   instance: { id: string; provider?: string }
 ): Promise<string | null> {
-  // Only apply to Mega Magic Z-API instance
-  if (instance.id !== MEGA_MAGIC_INSTANCE_ID || _activeProvider !== 'zapi') {
+  // Only apply to Z-API instances enabled for interactive messaging
+  if (!INTERACTIVE_ENABLED_INSTANCES.has(instance.id) || _activeProvider !== 'zapi') {
     return sendBotMessage(instanceId, instanceToken, remoteJid, message);
   }
   
