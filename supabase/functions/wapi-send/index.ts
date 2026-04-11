@@ -266,9 +266,9 @@ async function zapiSendDocument(instanceId: string, token: string, clientToken: 
   });
 }
 
-// Z-API get QR code
+// Z-API get QR code — use 'qr-code' (JSON with base64) not 'qr-code/image' (raw binary)
 async function zapiGetQr(instanceId: string, token: string, clientToken: string | null): Promise<{ ok: boolean; data?: unknown; error?: string }> {
-  return zapiRequest(instanceId, token, clientToken, 'qr-code/image', 'GET');
+  return zapiRequest(instanceId, token, clientToken, 'qr-code', 'GET');
 }
 
 // Z-API get status
