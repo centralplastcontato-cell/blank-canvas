@@ -2944,7 +2944,7 @@ async function processBotQualification(
   }
 
   // Send the text message
-  const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
+  const msgId = await sendInteractiveOrText(instance.instance_id, instance.instance_token, conv.remote_jid, msg, instance);
   
   // Always save bot message to DB so it appears in chat, even if W-API delivery failed
   await supabase.from('wapi_messages').insert({
@@ -3619,6 +3619,18 @@ function extractMsgContent(mc: Record<string, unknown>, msg: Record<string, unkn
     }
   }
   else if (mc.stickerMessage) { type = 'sticker'; content = '🎭 Figurinha'; }
+  // Z-API interactive response: button click
+  else if (mc.buttonsResponseMessage) {
+    const br = mc.buttonsResponseMessage as Record<string, unknown>;
+    content = (br.selectedButtonId as string) || (br.selectedButtonText as string) || '';
+    console.log(`[Interactive] Button response received: id=${br.selectedButtonId}, text=${content}`);
+  }
+  // Z-API interactive response: list selection
+  else if (mc.listResponseMessage) {
+    const lr = mc.listResponseMessage as Record<string, unknown>;
+    content = (lr.singleSelectReply as string) || (lr.title as string) || '';
+    console.log(`[Interactive] List response received: id=${lr.singleSelectReply}, title=${lr.title}`);
+  }
   else if (mc.reactionMessage) return null;
   else if (mc.pollCreationMessage || mc.pollUpdateMessage) { type = 'poll'; content = '📊 Enquete'; }
   else if ((mc as Record<string, unknown>).conversation) content = (mc as Record<string, string>).conversation;
