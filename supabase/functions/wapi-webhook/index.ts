@@ -144,6 +144,40 @@ function buildMenuText(options: { num: number; value: string }[]): string {
   return options.map(opt => `${numToKeycap(opt.num)} - ${opt.value}`).join('\n');
 }
 
+function normalizeChoiceText(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function matchFlowOptionByReply<T extends { label?: string | null; value?: string | null }>(
+  input: string,
+  options: T[],
+): T | null {
+  const normalizedInput = normalizeChoiceText(input);
+  if (!normalizedInput) return null;
+
+  for (const option of options) {
+    const candidates = [option.label, option.value]
+      .filter((candidate): candidate is string => Boolean(candidate?.trim()))
+      .map((candidate) => normalizeChoiceText(candidate));
+
+    if (candidates.some((candidate) => (
+      candidate === normalizedInput ||
+      candidate.includes(normalizedInput) ||
+      normalizedInput.includes(candidate)
+    ))) {
+      return option;
+    }
+  }
+
+  return null;
+}
+
 // Helper: get notification targets scoped to a specific company
 async function getCompanyNotificationTargets(
   supabase: SupabaseClient,
@@ -1222,6 +1256,21 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
             await supabase.from('flow_lead_state').update({ collected_data: collectedData }).eq('id', state.id);
             console.log(`[FlowBuilder] 📝 Saved label for choice ${choiceNum}: ${currentNode.extract_field} = "${selectedOption.label}"`);
           }
+        }
+      }
+
+      if (!matchedEdge) {
+        const selectedOption = matchFlowOptionByReply(userChoice, nodeOptions as Array<{ id: string; label: string; value: string }>);
+        if (selectedOption) {
+          matchedEdge = edges.find(e => e.source_node_id === currentNode.id && e.source_option_id === selectedOption.id);
+
+          if (currentNode.extract_field) {
+            collectedData[currentNode.extract_field] = selectedOption.label;
+            await supabase.from('flow_lead_state').update({ collected_data: collectedData }).eq('id', state.id);
+            console.log(`[FlowBuilder] 📝 Saved label for text reply: ${currentNode.extract_field} = "${selectedOption.label}"`);
+          }
+
+          console.log(`[FlowBuilder] ✅ Matched option by text reply: "${userChoice}" → "${selectedOption.label}"`);
         }
       }
       
