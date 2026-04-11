@@ -77,7 +77,8 @@ export async function sendContractViaWhatsApp(
   leadId: string,
   contractContent: string,
   contractName: string,
-): Promise<{ success: boolean; error?: string }> {
+  options?: { instanceId?: string; instanceToken?: string },
+): Promise<{ success: boolean; error?: string; fileUrl?: string }> {
   try {
     // 1. Get lead phone
     const { data: lead, error: leadErr } = await supabase
@@ -91,14 +92,24 @@ export async function sendContractViaWhatsApp(
     }
 
     // 2. Find connected instance for this company
-    const { data: instances } = await (supabase as any)
-      .from("wapi_instances")
-      .select("id, instance_id, instance_token, status")
-      .eq("company_id", companyId)
-      .eq("status", "connected")
-      .limit(1);
+    let instance = null as { id?: string; instance_id: string; instance_token: string; status?: string } | null;
 
-    const instance = instances?.[0];
+    if (options?.instanceId && options?.instanceToken) {
+      instance = {
+        instance_id: options.instanceId,
+        instance_token: options.instanceToken,
+      };
+    } else {
+      const { data: instances } = await (supabase as any)
+        .from("wapi_instances")
+        .select("id, instance_id, instance_token, status")
+        .eq("company_id", companyId)
+        .eq("status", "connected")
+        .limit(1);
+
+      instance = instances?.[0] ?? null;
+    }
+
     if (!instance) {
       return { success: false, error: "Nenhuma instância do WhatsApp conectada." };
     }
@@ -192,7 +203,7 @@ export async function sendContractViaWhatsApp(
       return { success: false, error: sendPayload.error || "Falha no envio pelo WhatsApp." };
     }
 
-    return { success: true };
+    return { success: true, fileUrl: urlData.signedUrl };
   } catch (e: any) {
     return { success: false, error: e.message || "Erro inesperado ao enviar contrato." };
   }
