@@ -9,7 +9,7 @@ export interface ConnectableInstance {
   status: string | null;
   phone_number: string | null;
   unit: string | null;
-  provider?: "wapi" | "zapi" | null;
+  provider?: string | null;
 }
 
 const RETRY_DELAYS = [2000, 4000, 6000, 8000, 10000];
@@ -142,7 +142,7 @@ export function useWhatsAppConnection(onConnected?: () => void) {
       isFetchingQrRef.current = false;
       setQrLoading(false);
     }
-  }, [onConnected]);
+  }, [closeDialog, onConnected]);
 
   const pollConnectionStatus = useCallback(async (instance: ConnectableInstance) => {
     try {
@@ -200,7 +200,7 @@ export function useWhatsAppConnection(onConnected?: () => void) {
     fetchQrCode(instance, 0);
   };
 
-  const closeDialog = () => {
+  const closeDialog = useCallback(() => {
     clearRetryTimer();
     setQrDialogOpen(false);
     setQrPolling(false);
@@ -214,7 +214,7 @@ export function useWhatsAppConnection(onConnected?: () => void) {
     setConnectionStage("idle");
     pollFailCountRef.current = 0;
     isFetchingQrRef.current = false;
-  };
+  }, [clearRetryTimer]);
 
   const requestPairingCode = async () => {
     if (!qrInstance || !phoneNumber) {
