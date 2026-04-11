@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
+import { useWhatsAppConnection } from "@/hooks/useWhatsAppConnection";
 import { insertWithCompany } from "@/lib/supabase-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ConnectionDialog } from "@/components/whatsapp/ConnectionDialog";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +29,7 @@ import { toast } from "@/hooks/use-toast";
 import { 
   Wifi, WifiOff, Plus, RefreshCw, Settings2, Copy, Check, 
   MessageSquare, CreditCard, Calendar, Building2, Pencil, 
-  Trash2, QrCode, Loader2, Phone, Smartphone, Eraser
+  Trash2, QrCode, Loader2, Phone, Eraser
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -71,25 +73,11 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [editingInstance, setEditingInstance] = useState<WapiInstance | null>(null);
   
-  // QR Code states
-  const [qrDialogOpen, setQrDialogOpen] = useState(false);
-  const [qrLoading, setQrLoading] = useState(false);
-  const [qrCode, setQrCode] = useState<string | null>(null);
-  const [qrInstance, setQrInstance] = useState<WapiInstance | null>(null);
-  const [qrPolling, setQrPolling] = useState(false);
-
   // Repair session states
   const [isRepairing, setIsRepairing] = useState<string | null>(null);
   const [repairPhoneDialogOpen, setRepairPhoneDialogOpen] = useState(false);
   const [repairPhoneInstance, setRepairPhoneInstance] = useState<WapiInstance | null>(null);
   const [repairManualPhone, setRepairManualPhone] = useState('');
-
-  // Phone pairing states
-  const [connectionMode, setConnectionMode] = useState<'qr' | 'phone'>('qr');
-  const [_phoneNumber, setPhoneNumber] = useState('');
-  const [pairingCode, setPairingCode] = useState<string | null>(null);
-  const [isPairingLoading, setIsPairingLoading] = useState(false);
-  const phoneInputRef = useRef<HTMLInputElement>(null);
 
   // Number change detection states
   const [numberChangeDialogOpen, setNumberChangeDialogOpen] = useState(false);
@@ -111,26 +99,27 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
 
   const fetchInstances = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("wapi_instances")
       .select("*")
+      .eq("is_active", true)
       .order("unit", { ascending: true });
 
     if (data) {
-      // Filter out inactive instances (hidden by hub admin)
-      const activeInstances = data.filter((d: any) => d.is_active !== false);
-      // Load instances immediately from DB without waiting for status sync
-      setInstances(activeInstances as WapiInstance[]);
+      setInstances(data as WapiInstance[]);
       setIsLoading(false);
       
-      // Sync status in background (non-blocking) — only active instances
-      if (activeInstances.length > 0) {
-        syncInstancesInBackground(activeInstances as WapiInstance[]);
+      if (data.length > 0) {
+        syncInstancesInBackground(data as WapiInstance[]);
       }
     } else {
       setIsLoading(false);
     }
   };
+
+  const connection = useWhatsAppConnection(() => {
+    void fetchInstances();
+  });
 
   // Background sync without blocking the UI
   const syncInstancesInBackground = async (instancesList: WapiInstance[]) => {
@@ -885,70 +874,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
     return false;
   }, []);
 
-  const handleOpenQrDialog = (instance: WapiInstance) => {
-    setQrInstance(instance);
-    setQrCode(null);
-    setPairingCode(null);
-    setPhoneNumber('');
-    setConnectionMode('qr');
-    setQrDialogOpen(true);
-    setQrPolling(true);
-    fetchQrCode(instance);
-  };
 
-  const handleRequestPairingCode = async () => {
-    const currentPhone = phoneInputRef.current?.value.replace(/\D/g, '') || '';
-    console.log("[PairingCode] phoneInputRef:", phoneInputRef.current, "value:", currentPhone, "qrInstance:", qrInstance?.unit);
-    if (!qrInstance || !currentPhone || currentPhone.length < 10) {
-      toast({
-        title: "Erro",
-        description: "Informe o número de telefone com DDD.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsPairingLoading(true);
-    setPairingCode(null);
-
-    try {
-      const response = await supabase.functions.invoke("wapi-send", {
-        body: { 
-          action: "request-pairing-code",
-          instanceId: qrInstance.instance_id,
-          instanceToken: qrInstance.instance_token,
-          phoneNumber: currentPhone,
-        },
-      });
-
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-
-      if (response.data?.pairingCode) {
-        setPairingCode(response.data.pairingCode);
-        toast({
-          title: "Código gerado!",
-          description: "Use este código no seu WhatsApp para conectar.",
-        });
-      } else if (response.data?.error) {
-        toast({
-          title: "Erro",
-          description: response.data.error,
-          variant: "destructive",
-        });
-      }
-    } catch (error: any) {
-      console.error("Error requesting pairing code:", error);
-      toast({
-        title: "Erro",
-        description: error.message || "Erro ao solicitar código de pareamento.",
-        variant: "destructive",
-      });
-    }
-
-    setIsPairingLoading(false);
-  };
 
   useEffect(() => {
     if (!qrDialogOpen || !qrInstance || !qrPolling) return;
@@ -1260,174 +1186,31 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
     </Dialog>
   );
 
-  const connectionDialogJsx = (
-    <Dialog open={qrDialogOpen} onOpenChange={(open) => {
-      setQrDialogOpen(open);
-      if (!open) {
-        setQrPolling(false);
-        setQrCode(null);
-        setPairingCode(null);
-        setPhoneNumber('');
-        setConnectionMode('qr');
-      }
-    }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Smartphone className="w-5 h-5" />
-            Conectar WhatsApp - {qrInstance?.unit}
-          </DialogTitle>
-          <DialogDescription>
-            Escolha como deseja conectar seu WhatsApp
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="flex gap-2 p-1 bg-muted rounded-lg">
-          <Button
-            variant={connectionMode === 'qr' ? 'default' : 'ghost'}
-            size="sm"
-            className="flex-1"
-            onClick={() => {
-              setConnectionMode('qr');
-              if (qrInstance && !qrCode) fetchQrCode(qrInstance);
-            }}
-          >
-            <QrCode className="w-4 h-4 mr-2" />
-            QR Code
-          </Button>
-          <Button
-            variant={connectionMode === 'phone' ? 'default' : 'ghost'}
-            size="sm"
-            className="flex-1"
-            onClick={() => setConnectionMode('phone')}
-          >
-            <Phone className="w-4 h-4 mr-2" />
-            Telefone
-          </Button>
-        </div>
-
-        {connectionMode === 'qr' ? (
-          <div className="flex flex-col items-center justify-center py-4">
-            {qrLoading && !qrCode ? (
-              <div className="flex flex-col items-center gap-3 py-8">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">Gerando QR Code...</p>
-              </div>
-            ) : qrCode ? (
-              <div className="flex flex-col items-center gap-4">
-                <div className="bg-white p-4 rounded-lg">
-                  {qrCode.startsWith('data:image') ? (
-                    <img src={qrCode} alt="QR Code" className="w-64 h-64" />
-                  ) : (
-                    <img 
-                      src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`} 
-                      alt="QR Code" 
-                      className="w-64 h-64" 
-                    />
-                  )}
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <RefreshCw className={`w-4 h-4 ${qrLoading ? 'animate-spin' : ''}`} />
-                  <span>Aguardando conexão...</span>
-                </div>
-                <p className="text-xs text-muted-foreground text-center max-w-xs">
-                  Abra o WhatsApp no seu celular, vá em Configurações → Aparelhos conectados → Conectar aparelho
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-3 py-8">
-                <WifiOff className="w-12 h-12 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">Não foi possível gerar o QR Code</p>
-                <Button variant="outline" onClick={() => qrInstance && fetchQrCode(qrInstance)}>
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Tentar novamente
-                </Button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4 py-4">
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-4">
-                Informe o número que deseja conectar (o mesmo presente no seu WhatsApp)
-              </p>
-            </div>
-            
-            <div className="space-y-3">
-              <div className="flex gap-2">
-                <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg border border-input shrink-0">
-                  <span className="text-lg">🇧🇷</span>
-                  <span className="text-sm font-medium">+55</span>
-                </div>
-                <input
-                  ref={phoneInputRef}
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  placeholder="11999999999"
-                  maxLength={11}
-                  onInput={(e) => {
-                    const el = e.currentTarget;
-                    const cleaned = el.value.replace(/\D/g, '').slice(0, 11);
-                    if (cleaned !== el.value) el.value = cleaned;
-                  }}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex-1 min-w-0"
-                />
-              </div>
-              
-              <Button 
-                onClick={handleRequestPairingCode}
-                disabled={isPairingLoading}
-                className="w-full"
-              >
-                {isPairingLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Solicitando código...
-                  </>
-                ) : (
-                  <>
-                    <Phone className="w-4 h-4 mr-2" />
-                    Solicitar código
-                  </>
-                )}
-              </Button>
-            </div>
-
-            {pairingCode && (
-              <div className="mt-4 p-4 bg-primary/10 rounded-lg text-center">
-                <p className="text-sm text-muted-foreground mb-2">
-                  Código de pareamento:
-                </p>
-                <p className="text-3xl font-bold tracking-widest text-primary font-mono">
-                  {pairingCode}
-                </p>
-                <p className="text-xs text-muted-foreground mt-3">
-                  No seu WhatsApp: Configurações → Aparelhos conectados → Conectar aparelho → Conectar com número de telefone
-                </p>
-                <div className="flex items-center justify-center gap-2 mt-3 text-sm text-muted-foreground">
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Aguardando conexão...</span>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setQrDialogOpen(false)}>
-            Fechar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
 
   // Non-admin view
   if (!isAdmin) {
     return (
       <div className="space-y-4">
-        {connectionDialogJsx}
+        <ConnectionDialog
+          open={connection.qrDialogOpen}
+          onOpenChange={() => {}}
+          instance={connection.qrInstance}
+          qrCode={connection.qrCode}
+          qrLoading={connection.qrLoading}
+          connectionMode={connection.connectionMode}
+          phoneNumber={connection.phoneNumber}
+          pairingCode={connection.pairingCode}
+          isPairingLoading={connection.isPairingLoading}
+          retryCount={connection.retryCount}
+          isRetrying={connection.isRetrying}
+          isWapiUnstable={connection.isWapiUnstable}
+          connectionStage={connection.connectionStage}
+          onClose={connection.closeDialog}
+          onSetConnectionMode={connection.setConnectionMode}
+          onSetPhoneNumber={connection.setPhoneNumber}
+          onRequestPairingCode={connection.requestPairingCode}
+          onRetryQr={() => connection.qrInstance && connection.fetchQrCode(connection.qrInstance)}
+        />
         {numberChangeDialogJsx}
         {repairPhoneDialogJsx}
         <Card>
@@ -1484,7 +1267,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                     {instance.status !== 'connected' && (
                       <Button 
                         size="sm" 
-                        onClick={() => handleOpenQrDialog(instance)}
+                        onClick={() => connection.openDialog(instance)}
                       >
                         <QrCode className="w-4 h-4 mr-2" />
                         Conectar
@@ -1506,7 +1289,26 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   // Admin view
   return (
     <div className="space-y-6">
-      {connectionDialogJsx}
+      <ConnectionDialog
+        open={connection.qrDialogOpen}
+        onOpenChange={() => {}}
+        instance={connection.qrInstance}
+        qrCode={connection.qrCode}
+        qrLoading={connection.qrLoading}
+        connectionMode={connection.connectionMode}
+        phoneNumber={connection.phoneNumber}
+        pairingCode={connection.pairingCode}
+        isPairingLoading={connection.isPairingLoading}
+        retryCount={connection.retryCount}
+        isRetrying={connection.isRetrying}
+        isWapiUnstable={connection.isWapiUnstable}
+        connectionStage={connection.connectionStage}
+        onClose={connection.closeDialog}
+        onSetConnectionMode={connection.setConnectionMode}
+        onSetPhoneNumber={connection.setPhoneNumber}
+        onRequestPairingCode={connection.requestPairingCode}
+        onRetryQr={() => connection.qrInstance && connection.fetchQrCode(connection.qrInstance)}
+      />
       {numberChangeDialogJsx}
       {repairPhoneDialogJsx}
       
@@ -1640,7 +1442,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                         {instance.status !== 'connected' && (
                           <Button 
                             size="sm" 
-                            onClick={() => handleOpenQrDialog(instance)}
+                            onClick={() => connection.openDialog(instance)}
                           >
                             <QrCode className="w-4 h-4 mr-2" />
                             Conectar
