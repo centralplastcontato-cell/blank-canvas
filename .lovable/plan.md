@@ -1,24 +1,24 @@
 
 
-# Plano: Fundo estilizado na area de mensagens do chat
+# Mockup Visual: Central de Agenda
 
-## O que sera feito
+Vou criar um mockup em PDF mostrando como ficaria a Central de Agenda unificada, com as 4 abas (Festas, Visitas, Tarefas, Tudo) e o visual de cada uma.
 
-Adicionar um fundo decorativo na area de mensagens do WhatsApp dentro do app Celebrei, similar ao fundo do WhatsApp real - com uma cor suave e um pattern de icones/desenhos sutis (baloes, estrelas, emojis de festa, etc).
+## O que o mockup vai mostrar
 
-## Como
+1. **Pagina 1 - Aba Festas**: Layout atual do calendario de festas, agora dentro das tabs unificadas
+2. **Pagina 2 - Aba Visitas**: Calendario de visitas migrado para dentro do modulo
+3. **Pagina 3 - Aba Tarefas**: Nova funcionalidade com lista de tarefas internas, categorias e prioridades
+4. **Pagina 4 - Aba Tudo**: Visao consolidada com todos os tipos no mesmo calendario, diferenciados por cor
 
-**Arquivo: `src/index.css`**
-- Criar uma classe CSS `.whatsapp-chat-bg` com:
-  - Cor de fundo suave (bege claro no light mode, cinza escuro no dark mode, similar ao WhatsApp)
-  - Pattern SVG inline com desenhos sutis e repetitivos (baloes de mensagem, estrelas, coracoes, bolos, confetes) em opacidade baixa (~5-8%)
-  - O pattern sera feito com `background-image` usando SVG data URI para nao precisar de arquivos externos
+## Como sera feito
 
-**Arquivo: `src/components/whatsapp/WhatsAppChat.tsx`**
-- Nas duas `ScrollArea` de mensagens (desktop linha ~4546 e mobile linha ~5693), trocar `bg-muted/30` por `whatsapp-chat-bg`
-- Sao apenas 2 linhas de mudanca
+- Script Python usando `reportlab` para gerar um PDF com 4 paginas
+- Cada pagina simula a interface da Central de Agenda com a respectiva aba ativa
+- Usa as cores e estilos visuais ja existentes no Celebrei (roxo primary, cards arredondados, dots de status)
+- Mockup wireframe estilizado, nao screenshot real
 
-## Resultado esperado
+## Resultado
 
-A area de mensagens tera um visual mais bonito e acolhedor, com um fundo decorativo sutil que nao atrapalha a leitura das mensagens.
+Um PDF de 4 paginas em `/mnt/documents/` que voce podera visualizar e aprovar antes de iniciar a implementacao.
 
