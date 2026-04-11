@@ -117,16 +117,24 @@ function normalizeQrValue(qrCode: string) {
   const trimmed = qrCode.trim();
   const isImageDataUri = trimmed.startsWith("data:image");
   const isAnyDataUri = trimmed.startsWith("data:");
-  const looksLikeBase64 = /^[A-Za-z0-9+/=\s]+$/.test(trimmed) && !trimmed.includes("https://") && trimmed.length > 100;
-  const isLikelyRawQrPayload = trimmed.includes("@") || trimmed.includes(",") || trimmed.startsWith("2@");
+  const isMalformedZapiImageData = isImageDataUri && trimmed.includes("https://wa.me/");
+  const recoveredRawValue = isMalformedZapiImageData ? (trimmed.split(",").slice(1).join(",") || trimmed) : trimmed;
+  const looksLikeBase64 = /^[A-Za-z0-9+/=\s]+$/.test(recoveredRawValue) && !recoveredRawValue.includes("https://") && recoveredRawValue.length > 100;
 
   return {
     isImageDataUri,
     isAnyDataUri,
     looksLikeBase64,
-    isLikelyRawQrPayload,
-    imageSrc: isImageDataUri ? trimmed : isAnyDataUri ? trimmed : looksLikeBase64 ? `data:image/png;base64,${trimmed}` : null,
-    rawValue: trimmed,
+    imageSrc: isMalformedZapiImageData
+      ? null
+      : isImageDataUri
+        ? trimmed
+        : isAnyDataUri
+          ? trimmed
+          : looksLikeBase64
+            ? `data:image/png;base64,${recoveredRawValue}`
+            : null,
+    rawValue: recoveredRawValue,
   };
 }
 
