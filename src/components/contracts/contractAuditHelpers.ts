@@ -75,20 +75,49 @@ function stripHtmlForWhatsApp(html: string): string {
  */
 async function renderContractHtmlToPdf(
   htmlContent: string,
-  _contractName: string,
+  contractName: string,
+  companyId?: string,
 ): Promise<Blob | null> {
   try {
+    // Fetch company logo if companyId provided
+    let logoUrl: string | null = null;
+    let companyName: string | null = null;
+    if (companyId) {
+      try {
+        const { data } = await supabase
+          .from("companies")
+          .select("logo_url, name")
+          .eq("id", companyId)
+          .single();
+        logoUrl = data?.logo_url || null;
+        companyName = data?.name || null;
+      } catch { /* ignore */ }
+    }
+
+    // Build styled wrapper matching the signature page layout
+    const headerHtml = `
+      <div style="text-align:center; margin-bottom:24px;">
+        ${logoUrl ? `<img src="${logoUrl}" style="max-height:80px; max-width:280px; margin-bottom:16px;" crossorigin="anonymous" />` : ""}
+        <h1 style="font-size:18px; font-weight:bold; text-transform:uppercase; letter-spacing:1px; margin:0 0 12px 0; font-family:Georgia,serif;">
+          ${contractName || "Contrato"}
+        </h1>
+        <hr style="border:none; border-top:2px solid #222; margin:0 auto; width:100%;" />
+      </div>
+    `;
+
+    const wrappedContent = headerHtml + `<div style="text-align:justify; line-height:1.85; font-family:Georgia,'Times New Roman',serif; font-size:13px;">${htmlContent}</div>`;
+
     // Create an off-screen container with A4-like width
     const container = document.createElement("div");
     container.style.cssText = `
       position: fixed; left: -9999px; top: 0;
       width: 794px; /* A4 at 96dpi */
       background: white; color: black;
-      font-family: Arial, Helvetica, sans-serif;
-      font-size: 14px; line-height: 1.6;
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 13px; line-height: 1.85;
       padding: 40px 50px;
     `;
-    container.innerHTML = htmlContent;
+    container.innerHTML = wrappedContent;
     document.body.appendChild(container);
 
     // Wait for images to load
@@ -208,7 +237,7 @@ export async function sendContractViaWhatsApp(
     const conv = convs?.[0];
 
     // 4. Generate PDF from contract HTML content (preserving full formatting & logo)
-    const pdfBlob = await renderContractHtmlToPdf(contractContent, contractName);
+    const pdfBlob = await renderContractHtmlToPdf(contractContent, contractName, companyId);
     if (!pdfBlob) {
       return { success: false, error: "Erro ao gerar PDF do contrato." };
     }
