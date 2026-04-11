@@ -123,9 +123,9 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
       setInstances(activeInstances as WapiInstance[]);
       setIsLoading(false);
       
-      // Sync status in background (non-blocking) if there are instances
-      if (data.length > 0) {
-        syncInstancesInBackground(data as WapiInstance[]);
+      // Sync status in background (non-blocking) — only active instances
+      if (activeInstances.length > 0) {
+        syncInstancesInBackground(activeInstances as WapiInstance[]);
       }
     } else {
       setIsLoading(false);
