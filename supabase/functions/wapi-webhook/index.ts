@@ -3630,18 +3630,32 @@ async function sendQualificationMaterialsThenQuestion(
     await delay(messageDelay);
 
     console.log(`[Bot] Sending next step question to ${phone}`);
-    const msgId = await sendBotActionViaWapiSend(
-      'send-text',
-      instance,
-      conv,
-      { message: nextStepQuestion },
-      { timeoutMs: 30000, logLabel: 'next_step_question' },
+    
+    // Use sendInteractiveOrText so buttons are sent for Mega Magic Z-API
+    const msgId = await sendInteractiveOrText(
+      instance.instance_id,
+      instance.instance_token,
+      conv.remote_jid,
+      nextStepQuestion,
+      instance
     );
 
     if (!msgId) {
       console.warn(`[Bot] Next step question failed for ${phone}; recovery will retry later`);
       return;
     }
+
+    // Save bot message to DB (sendInteractiveOrText bypasses wapi-send, so no auto-save)
+    await supabase.from('wapi_messages').insert({
+      conversation_id: conv.id,
+      message_id: msgId || `bot_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      from_me: true,
+      message_type: 'text',
+      content: nextStepQuestion,
+      status: msgId ? 'sent' : 'failed',
+      timestamp: new Date().toISOString(),
+      company_id: instance.company_id,
+    });
 
     const { data: stepAdvanced } = await supabase.from('wapi_conversations').update({
       bot_step: 'proximo_passo',
