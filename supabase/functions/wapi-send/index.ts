@@ -1588,8 +1588,8 @@ Deno.serve(async (req) => {
               return new Response(JSON.stringify({ connected: true, success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
             }
             const qr = d.value || d.qrcode || d.qrCode || d.base64;
-            if (qr) {
-              const qrStr = typeof qr === 'string' && !qr.startsWith('data:') ? `data:image/png;base64,${qr}` : qr;
+            const qrStr = normalizeZapiQrValue(qr);
+            if (qrStr) {
               return new Response(JSON.stringify({ qrCode: qrStr, success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
             }
             return new Response(JSON.stringify({ error: 'QR não disponível (Z-API)' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
