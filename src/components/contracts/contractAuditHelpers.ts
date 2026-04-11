@@ -156,26 +156,61 @@ async function renderContractHtmlToPdf(
 
     document.body.removeChild(container);
 
-    // Convert canvas to multi-page A4 PDF
+    // Convert canvas to multi-page A4 PDF with proper margins and footer
     const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = pdfWidth;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    const marginTop = 10;
+    const marginBottom = 15; // space for footer
+    const usableHeight = pdfHeight - marginTop - marginBottom;
+    const contentWidth = pdfWidth; // full width (padding already in the container)
+    const imgDataUrl = canvas.toDataURL("image/jpeg", 0.95);
 
-    let heightLeft = imgHeight;
-    let position = 0;
+    // Scale: how many mm per canvas pixel
+    const scale = contentWidth / canvas.width;
+    const totalImgHeightMm = canvas.height * scale;
 
-    // First page
-    pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, position, imgWidth, imgHeight);
-    heightLeft -= pdfHeight;
+    // Calculate how many pixels fit per page
+    const pixelsPerPage = usableHeight / scale;
+    const totalPages = Math.ceil(canvas.height / pixelsPerPage);
 
-    // Additional pages
-    while (heightLeft > 0) {
-      position = -(imgHeight - heightLeft);
-      pdf.addPage();
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
+    for (let page = 0; page < totalPages; page++) {
+      if (page > 0) pdf.addPage();
+
+      // Slice the canvas for this page
+      const srcY = Math.floor(page * pixelsPerPage);
+      const srcH = Math.min(Math.floor(pixelsPerPage), canvas.height - srcY);
+      if (srcH <= 0) break;
+
+      const sliceCanvas = document.createElement("canvas");
+      sliceCanvas.width = canvas.width;
+      sliceCanvas.height = srcH;
+      const ctx = sliceCanvas.getContext("2d");
+      if (!ctx) break;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+      ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
+
+      const sliceHeightMm = srcH * scale;
+      pdf.addImage(
+        sliceCanvas.toDataURL("image/jpeg", 0.95),
+        "JPEG",
+        0,
+        marginTop,
+        contentWidth,
+        sliceHeightMm,
+      );
+
+      // Footer: page number + generation date
+      pdf.setFontSize(8);
+      pdf.setTextColor(150, 150, 150);
+      const footerY = pdfHeight - 6;
+      pdf.text(
+        `Página ${page + 1} de ${totalPages}`,
+        pdfWidth / 2,
+        footerY,
+        { align: "center" },
+      );
     }
 
     return pdf.output("blob");
