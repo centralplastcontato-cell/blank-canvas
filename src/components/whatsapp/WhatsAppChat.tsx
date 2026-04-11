@@ -1519,7 +1519,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     let query = supabase
       .from("wapi_instances")
       .select("id, instance_id, status, unit")
-      .eq("company_id", companyId);
+      .eq("company_id", companyId)
+      .eq("is_active" as any, true);
 
     // Filter by allowed units - if empty, show nothing (user has no unit access)
     if (!allowedUnits.includes('all')) {
