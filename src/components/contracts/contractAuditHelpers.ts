@@ -69,6 +69,15 @@ function stripHtmlForWhatsApp(html: string): string {
   return text.trim();
 }
 
+function formatContractHtmlForPdf(content: string): string {
+  return content
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\*\*([^\n]+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\n/g, "<br />");
+}
+
 /**
  * Render contract HTML to a multi-page PDF using html2canvas,
  * preserving all formatting, images, and logos exactly as displayed.
@@ -94,18 +103,19 @@ async function renderContractHtmlToPdf(
       } catch { /* ignore */ }
     }
 
+    const formattedContent = formatContractHtmlForPdf(htmlContent);
+
     // Build styled wrapper matching the signature page layout
     const headerHtml = `
-      <div style="text-align:center; margin-bottom:24px;">
-        ${logoUrl ? `<img src="${logoUrl}" style="max-height:80px; max-width:280px; margin-bottom:16px;" crossorigin="anonymous" />` : ""}
-        <h1 style="font-size:18px; font-weight:bold; text-transform:uppercase; letter-spacing:1px; margin:0 0 12px 0; font-family:Georgia,serif;">
+      <div style="text-align:center; margin-bottom:24px; padding-bottom:16px; border-bottom:2px solid #e5e7eb;">
+        ${logoUrl ? `<img src="${logoUrl}" style="height:112px; max-width:280px; object-fit:contain; margin:0 auto 8px; display:block;" crossorigin="anonymous" />` : ""}
+        <h1 style="font-size:16px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; margin:0; color:#1f2937; font-family:Georgia,'Times New Roman',serif;">
           ${contractName || "Contrato"}
         </h1>
-        <hr style="border:none; border-top:2px solid #222; margin:0 auto; width:100%;" />
       </div>
     `;
 
-    const wrappedContent = headerHtml + `<div style="text-align:justify; line-height:1.85; font-family:Georgia,'Times New Roman',serif; font-size:13px;">${htmlContent}</div>`;
+    const wrappedContent = headerHtml + `<div style="white-space:pre-wrap; word-break:break-word; text-align:justify; line-height:1.85; font-family:Georgia,'Times New Roman',serif; font-size:13px; color:#1f2937;">${formattedContent}</div>`;
 
     // Create an off-screen container with A4-like width
     const container = document.createElement("div");
