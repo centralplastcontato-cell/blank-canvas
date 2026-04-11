@@ -189,8 +189,30 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
       }
       await (supabase as any).from("generated_contracts").update({ status: "aguardando_assinatura", signature_token: token }).eq("id", contract.id);
       const signUrl = `${window.location.origin}/assinar-contrato/${token}`;
+
+      const pdfResult = await sendContractViaWhatsApp(
+        event.company_id,
+        leadId,
+        contract.conteudo_renderizado,
+        contract.nome_documento,
+        {
+          instanceId: inst.instance_id,
+          instanceToken: inst.instance_token,
+        },
+      );
+
+      if (!pdfResult.success) {
+        toast({
+          title: "Erro ao enviar contrato",
+          description: pdfResult.error,
+          variant: "destructive",
+        });
+        fetchGeneratedContracts();
+        return;
+      }
+
       const phone = lead.whatsapp.replace(/\D/g, "");
-      const msg = `📄 *${contract.nome_documento}*\n\nOlá ${lead.name}! Seu contrato está pronto para assinatura digital.\n\nAcesse o link abaixo para ler e assinar:\n${signUrl}`;
+      const msg = `Olá ${lead.name}! Seu contrato está pronto para assinatura digital.\n\nAcesse o link abaixo para ler e assinar:\n${signUrl}`;
       const { data: sendResult, error: sendErr } = await supabase.functions.invoke("wapi-send", {
         body: { action: "send-text", instanceId: inst.instance_id, instanceToken: inst.instance_token, phone, message: msg },
       });
@@ -199,14 +221,14 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
       if (sendErr || sendPayload?.success === false) {
         toast({
           title: "Erro ao enviar link",
-          description: sendErr?.message || sendPayload?.error || "Falha no envio pelo WhatsApp.",
+          description: sendErr?.message || sendPayload?.error || "Falha no envio do link pelo WhatsApp.",
           variant: "destructive",
         });
         fetchGeneratedContracts();
         return;
       }
 
-      toast({ title: `Link de assinatura enviado via ${inst.unit || 'WhatsApp'} ✅` });
+      toast({ title: `Contrato em PDF + link de assinatura enviados via ${inst.unit || 'WhatsApp'} ✅` });
       await logContractAction(event.company_id, contract.id, contract.template_id, "contract_sent_for_signature", userId, { lead_id: leadId, instance_unit: inst.unit });
       fetchGeneratedContracts();
     } finally {
