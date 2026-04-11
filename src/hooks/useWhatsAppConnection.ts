@@ -200,7 +200,7 @@ export function useWhatsAppConnection(onConnected?: () => void) {
     fetchQrCode(instance, 0);
   };
 
-  const closeDialog = useCallback(() => {
+  function closeDialog() {
     clearRetryTimer();
     setQrDialogOpen(false);
     setQrPolling(false);
@@ -214,7 +214,7 @@ export function useWhatsAppConnection(onConnected?: () => void) {
     setConnectionStage("idle");
     pollFailCountRef.current = 0;
     isFetchingQrRef.current = false;
-  }, [clearRetryTimer]);
+  }
 
   const requestPairingCode = async () => {
     if (!qrInstance || !phoneNumber) {
