@@ -9,6 +9,7 @@ export interface ConnectableInstance {
   status: string | null;
   phone_number: string | null;
   unit: string | null;
+  provider?: "wapi" | "zapi" | null;
 }
 
 const RETRY_DELAYS = [2000, 4000, 6000, 8000, 10000];
@@ -51,6 +52,8 @@ export function useWhatsAppConnection(onConnected?: () => void) {
     setConnectionStage(attempt > 0 ? "retrying" : "connecting");
     setRetryCount(attempt);
 
+    const providerLabel = instance.provider === "zapi" ? "Z-API" : "W-API";
+
     try {
       const timeout = TIMEOUTS[Math.min(attempt, TIMEOUTS.length - 1)];
 
@@ -74,7 +77,7 @@ export function useWhatsAppConnection(onConnected?: () => void) {
       if (response.data?.errorType === 'TIMEOUT_OR_GATEWAY' ||
           response.data?.errorType === 'RESTARTING' ||
           response.data?.errorType === 'INSTANCE_ERROR') {
-        throw new Error('WAPI_UNSTABLE');
+        throw new Error('PROVIDER_UNSTABLE');
       }
 
       if (response.data?.connected === true || response.data?.details?.connected === true) {
@@ -102,13 +105,13 @@ export function useWhatsAppConnection(onConnected?: () => void) {
           closeDialog();
           onConnected?.();
         } else {
-          throw new Error('WAPI_UNSTABLE');
+          throw new Error('PROVIDER_UNSTABLE');
         }
       }
     } catch (error: any) {
-      const isWapiError = error.message === 'TIMEOUT_CLIENT' || error.message === 'WAPI_UNSTABLE';
+      const isProviderError = error.message === 'TIMEOUT_CLIENT' || error.message === 'PROVIDER_UNSTABLE';
 
-      if (isWapiError && attempt < MAX_RETRIES - 1) {
+      if (isProviderError && attempt < MAX_RETRIES - 1) {
         setIsWapiUnstable(true);
         setIsRetrying(true);
         setConnectionStage("retrying");
@@ -124,12 +127,11 @@ export function useWhatsAppConnection(onConnected?: () => void) {
         return;
       }
 
-      // All retries exhausted or non-WAPI error
-      if (isWapiError) {
+      if (isProviderError) {
         setIsWapiUnstable(true);
         setConnectionStage("failed");
         toast({
-          title: "⚠️ W-API instável",
+          title: `⚠️ ${providerLabel} instável`,
           description: "Recomendamos conectar por Telefone — é mais confiável quando o servidor está lento.",
         });
       } else {
