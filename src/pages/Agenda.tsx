@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { cn } from "@/lib/utils";
 import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavigate } from "react-router-dom";
@@ -33,6 +34,8 @@ import { ReportDialog } from "@/components/reports/ReportDialog";
 import { generateAgendaPDF, generateAgendaXLSX, generateFichaFestasPDF, generateFichaFestasXLSX } from "@/lib/generateAgendaPDF";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, startOfMonth, endOfMonth, differenceInDays } from "date-fns";
+import { AgendaTarefasTab } from "@/components/agenda/AgendaTarefasTab";
+import { AgendaTudoTab } from "@/components/agenda/AgendaTudoTab";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 
@@ -164,6 +167,8 @@ export default function Agenda() {
   const [permLoading, setPermLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string; email: string; avatar?: string | null } | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const [centralTab, setCentralTab] = useState<"festas" | "visitas" | "tarefas" | "tudo">("festas");
 
   const [events, setEvents] = useState<CompanyEvent[]>([]);
   const [checklistProgress, setChecklistProgress] = useState<Record<string, { total: number; completed: number }>>({});
@@ -933,23 +938,28 @@ export default function Agenda() {
                   />
                   <div className="flex items-center gap-2 min-w-0">
                     <img src={getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url) || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
-                    <h1 className="font-display font-bold text-foreground text-sm truncate">Agenda</h1>
+                    <h1 className="font-display font-bold text-foreground text-sm truncate">Central de Agenda</h1>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <Button variant="outline" size="icon" className="h-9 w-9 border-blue-300 text-blue-600 hover:bg-blue-50" onClick={() => setReportOpen(true)} title="Gerar Relatório">
-                    <FileText className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="sm" className="border-pink-300 text-pink-600 hover:bg-pink-50" onClick={() => { setEditingPreRes(null); setPreResFormOpen(true); }}>
-                    <CalendarClock className="h-4 w-4 mr-1" /> Pré-reserva
-                  </Button>
-                  <Button variant="default" size="sm" onClick={() => { setEditingEvent(null); setFormOpen(true); }}>
-                    <Plus className="h-4 w-4 mr-1" /> Nova
-                  </Button>
+                  {centralTab === "festas" && (
+                    <>
+                      <Button variant="outline" size="icon" className="h-9 w-9 border-blue-300 text-blue-600 hover:bg-blue-50" onClick={() => setReportOpen(true)} title="Gerar Relatório">
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" className="border-pink-300 text-pink-600 hover:bg-pink-50" onClick={() => { setEditingPreRes(null); setPreResFormOpen(true); }}>
+                        <CalendarClock className="h-4 w-4 mr-1" /> Pré-reserva
+                      </Button>
+                      <Button variant="default" size="sm" onClick={() => { setEditingEvent(null); setFormOpen(true); }}>
+                        <Plus className="h-4 w-4 mr-1" /> Nova
+                      </Button>
+                    </>
+                  )}
                   <NotificationBell />
                 </div>
               </div>
               {/* Mobile content mode toggle - inside header */}
+              {centralTab === "festas" && (
               <div className="pt-2">
                 <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas" | "pre-reservas")}>
                   <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex-wrap w-full">
@@ -974,8 +984,69 @@ export default function Agenda() {
                   </TabsList>
                 </Tabs>
               </div>
+              )}
             </div>
           </header>
+
+          {/* Central Tab Bar */}
+          <div className="px-3 pt-3 md:px-6 lg:px-8 md:pt-6 shrink-0">
+            <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              {[
+                { value: "festas", label: "Festas", icon: CalendarDays },
+                { value: "visitas", label: "Visitas", icon: MapPin },
+                { value: "tarefas", label: "Tarefas", icon: ListChecks },
+                { value: "tudo", label: "Tudo", icon: List },
+              ].map((tab) => (
+                <button
+                  key={tab.value}
+                  onClick={() => setCentralTab(tab.value as any)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-full border transition-all duration-200 shrink-0",
+                    centralTab === tab.value
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-transparent text-muted-foreground border-border hover:bg-muted/50"
+                  )}
+                >
+                  <tab.icon className="h-3.5 w-3.5" />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Tab: Tarefas */}
+          {centralTab === "tarefas" && (
+            <div className="flex-1 p-3 md:p-6 lg:p-8 overflow-y-auto">
+              <div className="max-w-7xl mx-auto">
+                <AgendaTarefasTab userId={currentUser?.id || ""} />
+              </div>
+            </div>
+          )}
+
+          {/* Tab: Tudo */}
+          {centralTab === "tudo" && (
+            <div className="flex-1 p-3 md:p-6 lg:p-8 overflow-y-auto">
+              <div className="max-w-7xl mx-auto">
+                <AgendaTudoTab userId={currentUser?.id} />
+              </div>
+            </div>
+          )}
+
+          {/* Tab: Visitas */}
+          {centralTab === "visitas" && (
+            <div className="flex-1 p-3 md:p-6 lg:p-8 overflow-y-auto flex items-center justify-center">
+              <div className="text-center space-y-3">
+                <MapPin className="h-12 w-12 text-muted-foreground/30 mx-auto" />
+                <p className="text-muted-foreground text-sm">Acesse a página de Visitas para gerenciar suas visitas comerciais.</p>
+                <Button variant="outline" onClick={() => navigate("/visitas")}>
+                  <MapPin className="h-4 w-4 mr-1" /> Ir para Visitas
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Tab: Festas (original content) */}
+          {centralTab === "festas" && (<>
 
           {/* Mobile unit filter — hidden when units are sales channels only */}
           {!isSalesChannelOnly && (() => {
@@ -1027,8 +1098,8 @@ export default function Agenda() {
                         <CalendarDays className="h-7 w-7 text-primary-foreground" />
                       </div>
                       <div>
-                        <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Agenda de Festas</h1>
-                        <p className="text-sm text-muted-foreground/70 mt-0.5">Calendário mensal de eventos</p>
+                        <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Central de Agenda</h1>
+                        <p className="text-sm text-muted-foreground/70 mt-0.5">Festas · Calendário mensal de eventos</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2.5">
@@ -1725,6 +1796,8 @@ export default function Agenda() {
               )}
             </div>
           </PullToRefresh>
+
+          </>)}
         </div>
       </div>
 
