@@ -999,7 +999,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
 
       {/* Add Optional Dialog */}
       <Dialog open={optionalDialogOpen} onOpenChange={(open) => { if (!open) resetOptionalDialog(); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Package className="h-5 w-5 text-violet-500" /> Adicionar Opcional</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="flex gap-2">
