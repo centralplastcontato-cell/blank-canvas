@@ -78,7 +78,7 @@ export function AdminSidebar({
     ...(modules.agenda ? [{ title: "Agenda", url: "/agenda", icon: CalendarDays }] : []),
     ...(modules.operacoes ? [{ title: "Operações", url: "/formularios", icon: FolderOpen }] : []),
     ...(modules.campanhas ? [{ title: "Campanhas", url: "/campanhas", icon: Megaphone }] : []),
-    ...(modules.visitas ? [{ title: "Agenda de visitas", url: "/visitas", icon: MapPin }] : []),
+    
     ...(modules.contrato ? [{ title: "Contratos", url: "/contratos", icon: FileSignature }] : []),
     ...(showFinanceiro ? [{ title: "Financeiro", url: "/financeiro", icon: DollarSign }] : []),
     ...(modules.config ? [{ title: "Configurações", url: "/configuracoes", icon: Settings }] : []),
