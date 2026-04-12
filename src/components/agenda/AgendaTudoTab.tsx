@@ -126,13 +126,32 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
   }, [selectedDate, unifiedItems]);
 
   const calendarEvents = useMemo(() => {
-    return events.map((ev) => ({
-      id: ev.id,
-      event_date: ev.event_date,
-      status: ev.status,
-      title: ev.title,
-    }));
-  }, [events]);
+    const items: { id: string; event_date: string; status: string; title: string }[] = [];
+
+    events.forEach((ev) => {
+      items.push({ id: ev.id, event_date: ev.event_date, status: ev.status, title: ev.title });
+    });
+
+    visits.forEach((v: any) => {
+      items.push({
+        id: `visit-${v.id}`,
+        event_date: v.data_visita,
+        status: v.status_visita === "confirmada" ? "confirmado" : "pendente",
+        title: v.campaign_leads?.name || "Visita",
+      });
+    });
+
+    tasks.filter((t) => t.due_date).forEach((t) => {
+      items.push({
+        id: `task-${t.id}`,
+        event_date: t.due_date!,
+        status: t.completed ? "confirmado" : "pendente",
+        title: t.title,
+      });
+    });
+
+    return items;
+  }, [events, visits, tasks]);
 
   const isLoading = loading || tasksLoading;
 
