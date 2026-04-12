@@ -184,7 +184,7 @@ const App = () => (
               <Route path="/avaliacoes" element={<Avaliacoes />} />
               <Route path="/pre-festa" element={<PreFesta />} />
               <Route path="/campanhas" element={<Campanhas />} />
-              <Route path="/visitas" element={<Visitas />} />
+              <Route path="/visitas" element={<Navigate to="/agenda?tab=visitas" replace />} />
               {/* Party control hub */}
               <Route path="/festa/:eventId" element={<PublicPartyControl />} />
               {/* Public client data form */}

@@ -169,7 +169,12 @@ export default function Agenda() {
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string; email: string; avatar?: string | null } | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const [centralTab, setCentralTab] = useState<"festas" | "visitas" | "tarefas" | "tudo">("festas");
+  const [centralTab, setCentralTab] = useState<"festas" | "visitas" | "tarefas" | "tudo">(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    if (tab === "visitas" || tab === "tarefas" || tab === "tudo") return tab;
+    return "festas";
+  });
 
   const [events, setEvents] = useState<CompanyEvent[]>([]);
   const [checklistProgress, setChecklistProgress] = useState<Record<string, { total: number; completed: number }>>({});
