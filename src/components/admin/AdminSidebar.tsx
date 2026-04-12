@@ -75,7 +75,7 @@ export function AdminSidebar({
   const allItems = [
     ...(modules.central_atendimento ? [{ title: "Central de Atendimento", url: "/atendimento", icon: Headset }] : []),
     ...(modules.inteligencia ? [{ title: "Inteligência", url: "/inteligencia", icon: Brain }] : []),
-    ...(modules.agenda ? [{ title: "Agenda", url: "/agenda", icon: CalendarDays }] : []),
+    ...(modules.agenda ? [{ title: "Central de Agenda", url: "/agenda", icon: CalendarDays }] : []),
     ...(modules.operacoes ? [{ title: "Operações", url: "/formularios", icon: FolderOpen }] : []),
     ...(modules.campanhas ? [{ title: "Campanhas", url: "/campanhas", icon: Megaphone }] : []),
     
@@ -241,7 +241,7 @@ export function AdminSidebar({
                        <SidebarMenuButton 
                         asChild 
                         isActive={location.pathname === item.url}
-                        className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent hover:translate-x-0.5 transition-all duration-200 data-[active=true]:bg-sidebar-accent/80 data-[active=true]:text-sidebar-primary data-[active=true]:font-semibold data-[active=true]:border-l-4 data-[active=true]:border-sidebar-primary"
+                        className="h-11 text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent hover:translate-x-0.5 transition-all duration-200 data-[active=true]:bg-sidebar-accent/80 data-[active=true]:text-sidebar-primary data-[active=true]:font-semibold data-[active=true]:border-l-4 data-[active=true]:border-sidebar-primary"
                       >
                         <NavLink 
                           to={item.url} 
