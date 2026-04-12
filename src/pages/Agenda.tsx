@@ -949,17 +949,9 @@ export default function Agenda() {
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   {centralTab === "festas" && (
-                    <>
-                      <Button variant="outline" size="icon" className="h-9 w-9 border-blue-300 text-blue-600 hover:bg-blue-50" onClick={() => setReportOpen(true)} title="Gerar Relatório">
-                        <FileText className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" className="border-pink-300 text-pink-600 hover:bg-pink-50" onClick={() => { setEditingPreRes(null); setPreResFormOpen(true); }}>
-                        <CalendarClock className="h-4 w-4 mr-1" /> Pré-reserva
-                      </Button>
-                      <Button variant="default" size="sm" onClick={() => { setEditingEvent(null); setFormOpen(true); }}>
-                        <Plus className="h-4 w-4 mr-1" /> Nova
-                      </Button>
-                    </>
+                    <Button variant="outline" size="icon" className="h-9 w-9 border-blue-300 text-blue-600 hover:bg-blue-50" onClick={() => setReportOpen(true)} title="Gerar Relatório">
+                      <FileText className="h-4 w-4" />
+                    </Button>
                   )}
                   <NotificationBell />
                 </div>
@@ -1014,6 +1006,14 @@ export default function Agenda() {
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
+                <div className="flex items-center gap-2 pt-2">
+                  <Button size="sm" className="h-10 px-5 rounded-xl gap-2 font-semibold shadow-sm" onClick={() => { setEditingEvent(null); setFormOpen(true); }}>
+                    <Plus className="h-4 w-4" /> Nova Festa
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-10 px-5 rounded-xl gap-2 font-semibold shadow-sm border-pink-300 text-pink-600 hover:bg-pink-50" onClick={() => { setEditingPreRes(null); setPreResFormOpen(true); }}>
+                    <CalendarClock className="h-4 w-4" /> Pré-reserva
+                  </Button>
+                </div>
               </div>
               )}
             </div>
