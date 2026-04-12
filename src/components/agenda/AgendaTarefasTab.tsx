@@ -1,8 +1,7 @@
 import { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Plus, Loader2, CheckCircle2, Clock, AlertTriangle, ListChecks } from "lucide-react";
 import { useTasks, TASK_CATEGORIES, type CompanyTask, type TaskFormData } from "@/hooks/useTasks";
 import { TaskFormDialog } from "./TaskFormDialog";

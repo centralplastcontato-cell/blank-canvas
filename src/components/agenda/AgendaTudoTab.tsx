@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
-import { useTasks, type CompanyTask } from "@/hooks/useTasks";
+import { useTasks } from "@/hooks/useTasks";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CalendarDays, MapPin, CheckCircle2, Clock, PartyPopper } from "lucide-react";
-import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
+import { Loader2, MapPin, CheckCircle2, Clock, PartyPopper } from "lucide-react";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AgendaCalendar } from "./AgendaCalendar";
 import { cn } from "@/lib/utils";
