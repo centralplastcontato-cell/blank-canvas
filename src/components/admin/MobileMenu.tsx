@@ -105,7 +105,7 @@ export function MobileMenu({
     },
     {
       id: "agenda",
-      label: "Agenda de festas",
+      label: "Central de Agenda",
       icon: CalendarDays,
       path: "/agenda",
       show: !!modules.agenda,
