@@ -1789,6 +1789,8 @@ export default function Agenda() {
               )}
             </div>
           </PullToRefresh>
+
+          </>)}
         </div>
       </div>
 
