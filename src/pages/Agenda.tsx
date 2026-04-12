@@ -28,11 +28,13 @@ import { MonthSummaryCards } from "@/components/agenda/MonthSummaryCards";
 import { PeriodFilterPopover } from "@/components/agenda/PeriodFilterPopover";
 import { PreReservationFormDialog, type PreReservation } from "@/components/agenda/PreReservationFormDialog";
 import { PreReservationDetailSheet } from "@/components/agenda/PreReservationDetailSheet";
-import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List, ListChecks, MapPin, Users, DollarSign, Search, X, Phone, Pencil, Handshake, ArrowUpDown, CalendarClock, FileText } from "lucide-react";
+import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, List, ListChecks, MapPin, Users, DollarSign, Search, X, Phone, Pencil, Handshake, ArrowUpDown, CalendarClock, FileText, PartyPopper, CheckSquare, Eye } from "lucide-react";
 import { ReportDialog } from "@/components/reports/ReportDialog";
 import { generateAgendaPDF, generateAgendaXLSX, generateFichaFestasPDF, generateFichaFestasXLSX } from "@/lib/generateAgendaPDF";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { format, startOfMonth, endOfMonth, differenceInDays } from "date-fns";
+import { AgendaTarefasTab } from "@/components/agenda/AgendaTarefasTab";
+import { AgendaTudoTab } from "@/components/agenda/AgendaTudoTab";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 
