@@ -959,6 +959,7 @@ export default function Agenda() {
                 </div>
               </div>
               {/* Mobile content mode toggle - inside header */}
+              {centralTab === "festas" && (
               <div className="pt-2">
                 <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas" | "pre-reservas")}>
                   <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex-wrap w-full">
@@ -983,6 +984,7 @@ export default function Agenda() {
                   </TabsList>
                 </Tabs>
               </div>
+              )}
             </div>
           </header>
 
