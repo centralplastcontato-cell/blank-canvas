@@ -105,11 +105,11 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData }: Ta
           <div className="grid grid-cols-2 gap-3">
             <div className="min-w-0">
               <Label>Data limite</Label>
-              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full" />
+              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full h-10" />
             </div>
             <div className="min-w-0">
               <Label>Horário</Label>
-              <Input type="time" value={dueTime} onChange={(e) => setDueTime(e.target.value)} className="w-full" />
+              <Input type="time" value={dueTime} onChange={(e) => setDueTime(e.target.value)} className="w-full h-10" />
             </div>
           </div>
         </div>
