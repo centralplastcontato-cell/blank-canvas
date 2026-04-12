@@ -68,7 +68,7 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData }: Ta
           </div>
           <div>
             <Label>Descrição</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Detalhes da tarefa..." rows={3} />
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Detalhes da tarefa..." rows={3} className="bg-white dark:bg-background" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
