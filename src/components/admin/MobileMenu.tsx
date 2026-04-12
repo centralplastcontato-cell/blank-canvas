@@ -125,13 +125,6 @@ export function MobileMenu({
       show: !!modules.campanhas,
     },
     {
-      id: "visitas",
-      label: "Agenda de visitas",
-      icon: MapPin,
-      path: "/visitas",
-      show: !!modules.visitas,
-    },
-    {
       id: "contratos",
       label: "Contratos",
       icon: FileSignature,
