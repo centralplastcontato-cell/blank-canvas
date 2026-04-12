@@ -169,27 +169,27 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
     />
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 pt-4 pb-1 px-3 border-t border-border/30 mt-2">
-        <div className="flex items-center gap-1.5">
-          <span className="h-[7px] w-[7px] rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)]" />
-          <span className="text-[11px] text-muted-foreground font-medium">Confirmado</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="h-[7px] w-[7px] rounded-full bg-amber-400 shadow-[0_0_4px_rgba(251,191,36,0.4)]" />
-          <span className="text-[11px] text-muted-foreground font-medium">Pendente</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="h-[7px] w-[7px] rounded-full bg-red-400 shadow-[0_0_4px_rgba(248,113,113,0.3)]" />
-          <span className="text-[11px] text-muted-foreground font-medium">Cancelado</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="h-[7px] w-[7px] rounded-full bg-pink-400 shadow-[0_0_4px_rgba(244,114,182,0.4)]" />
-          <span className="text-[11px] text-muted-foreground font-medium">Pré-reserva</span>
-        </div>
-        <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center justify-center gap-2 pt-4 pb-2 px-3 border-t border-border/30 mt-2">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-medium">
+          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+          Confirmado
+        </span>
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-medium">
+          <span className="w-2 h-2 rounded-full bg-amber-400" />
+          Pendente
+        </span>
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium">
+          <span className="w-2 h-2 rounded-full bg-red-400" />
+          Cancelado
+        </span>
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-pink-50 border border-pink-200 text-pink-700 text-[11px] font-medium">
+          <span className="w-2 h-2 rounded-full bg-pink-400" />
+          Pré-reserva
+        </span>
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted border border-border text-muted-foreground text-[11px] font-medium">
           <span className="text-[9px] leading-none">📋</span>
-          <span className="text-[11px] text-muted-foreground font-medium">Checklist pendente</span>
-        </div>
+          Checklist
+        </span>
       </div>
     </div>
   );
