@@ -1066,7 +1066,9 @@ export default function Agenda() {
           {/* Tab: Visitas */}
           {centralTab === "visitas" && (
             <div className="flex-1 p-3 md:p-6 lg:p-8 overflow-y-auto">
-              <AgendaVisitasTab userId={currentUser?.id || ""} />
+              <div className="max-w-7xl mx-auto">
+                <AgendaVisitasTab userId={currentUser?.id || ""} />
+              </div>
             </div>
           )}
 
