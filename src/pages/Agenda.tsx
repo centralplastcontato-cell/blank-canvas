@@ -167,6 +167,8 @@ export default function Agenda() {
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string; email: string; avatar?: string | null } | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  const [centralTab, setCentralTab] = useState<"festas" | "visitas" | "tarefas" | "tudo">("festas");
+
   const [events, setEvents] = useState<CompanyEvent[]>([]);
   const [checklistProgress, setChecklistProgress] = useState<Record<string, { total: number; completed: number }>>({});
   const [loading, setLoading] = useState(true);
