@@ -1019,8 +1019,8 @@ export default function Agenda() {
             </div>
           </header>
 
-          {/* Central Tab Bar */}
-          <div className="px-3 pt-3 md:px-6 lg:px-8 md:pt-6 shrink-0">
+          {/* Central Tab Bar - desktop only (mobile version is in header) */}
+          <div className="hidden md:block px-3 pt-3 md:px-6 lg:px-8 md:pt-6 shrink-0">
             <div className="flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               {[
                 { value: "festas", label: "Festas", icon: CalendarDays },
