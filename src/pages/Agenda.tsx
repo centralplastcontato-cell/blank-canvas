@@ -964,6 +964,31 @@ export default function Agenda() {
                   <NotificationBell />
                 </div>
               </div>
+              {/* Central Tab Bar - mobile inside header */}
+              <div className="pt-2">
+                <div className="flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                  {[
+                    { value: "festas", label: "Festas", icon: CalendarDays },
+                    { value: "visitas", label: "Visitas", icon: MapPin },
+                    { value: "tarefas", label: "Tarefas", icon: ListChecks },
+                    { value: "tudo", label: "Tudo", icon: List },
+                  ].map((tab) => (
+                    <button
+                      key={tab.value}
+                      onClick={() => setCentralTab(tab.value as any)}
+                      className={cn(
+                        "inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-full border transition-all duration-200 shrink-0",
+                        centralTab === tab.value
+                          ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20"
+                          : "bg-transparent text-muted-foreground border-border hover:bg-muted/50"
+                      )}
+                    >
+                      <tab.icon className="h-4 w-4" />
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               {/* Mobile content mode toggle - inside header */}
               {centralTab === "festas" && (
               <div className="pt-2">
