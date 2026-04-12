@@ -1098,8 +1098,8 @@ export default function Agenda() {
                         <CalendarDays className="h-7 w-7 text-primary-foreground" />
                       </div>
                       <div>
-                        <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Agenda de Festas</h1>
-                        <p className="text-sm text-muted-foreground/70 mt-0.5">Calendário mensal de eventos</p>
+                        <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Central de Agenda</h1>
+                        <p className="text-sm text-muted-foreground/70 mt-0.5">Festas · Calendário mensal de eventos</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2.5">
