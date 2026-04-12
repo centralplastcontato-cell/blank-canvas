@@ -37,6 +37,10 @@ export const TASK_CATEGORIES = [
   { value: "financeiro", label: "Financeiro", emoji: "💰" },
   { value: "equipe", label: "Equipe", emoji: "👥" },
   { value: "evento", label: "Evento", emoji: "🎉" },
+  { value: "limpeza", label: "Limpeza", emoji: "🧹" },
+  { value: "marketing", label: "Marketing", emoji: "📣" },
+  { value: "estoque", label: "Estoque", emoji: "📦" },
+  { value: "fornecedores", label: "Fornecedores", emoji: "🤝" },
   { value: "outros", label: "Outros", emoji: "📌" },
 ];
 
