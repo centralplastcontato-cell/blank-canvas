@@ -57,7 +57,7 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData }: Ta
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{initialData ? "Editar Tarefa" : "Nova Tarefa"}</DialogTitle>
         </DialogHeader>
@@ -71,10 +71,10 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData }: Ta
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Detalhes da tarefa..." rows={3} className="bg-white dark:bg-background" />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div>
+            <div className="min-w-0">
               <Label>Categoria</Label>
               <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -86,10 +86,10 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData }: Ta
                 </SelectContent>
               </Select>
             </div>
-            <div>
+            <div className="min-w-0">
               <Label>Prioridade</Label>
               <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -103,21 +103,21 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData }: Ta
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div>
+            <div className="min-w-0">
               <Label>Data limite</Label>
-              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full" />
             </div>
-            <div>
+            <div className="min-w-0">
               <Label>Horário</Label>
-              <Input type="time" value={dueTime} onChange={(e) => setDueTime(e.target.value)} />
+              <Input type="time" value={dueTime} onChange={(e) => setDueTime(e.target.value)} className="w-full" />
             </div>
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={!title.trim()}>
+        <DialogFooter className="flex-col gap-2 sm:flex-row">
+          <Button onClick={handleSubmit} disabled={!title.trim()} className="w-full sm:w-auto">
             {initialData ? "Salvar" : "Criar"}
           </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">Cancelar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
