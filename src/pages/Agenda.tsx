@@ -36,6 +36,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, startOfMonth, endOfMonth, differenceInDays } from "date-fns";
 import { AgendaTarefasTab } from "@/components/agenda/AgendaTarefasTab";
 import { AgendaTudoTab } from "@/components/agenda/AgendaTudoTab";
+import { AgendaVisitasTab } from "@/components/agenda/AgendaVisitasTab";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 
@@ -168,7 +169,12 @@ export default function Agenda() {
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string; email: string; avatar?: string | null } | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const [centralTab, setCentralTab] = useState<"festas" | "visitas" | "tarefas" | "tudo">("festas");
+  const [centralTab, setCentralTab] = useState<"festas" | "visitas" | "tarefas" | "tudo">(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    if (tab === "visitas" || tab === "tarefas" || tab === "tudo") return tab;
+    return "festas";
+  });
 
   const [events, setEvents] = useState<CompanyEvent[]>([]);
   const [checklistProgress, setChecklistProgress] = useState<Record<string, { total: number; completed: number }>>({});
@@ -1034,14 +1040,8 @@ export default function Agenda() {
 
           {/* Tab: Visitas */}
           {centralTab === "visitas" && (
-            <div className="flex-1 p-3 md:p-6 lg:p-8 overflow-y-auto flex items-center justify-center">
-              <div className="text-center space-y-3">
-                <MapPin className="h-12 w-12 text-muted-foreground/30 mx-auto" />
-                <p className="text-muted-foreground text-sm">Acesse a página de Visitas para gerenciar suas visitas comerciais.</p>
-                <Button variant="outline" onClick={() => navigate("/visitas")}>
-                  <MapPin className="h-4 w-4 mr-1" /> Ir para Visitas
-                </Button>
-              </div>
+            <div className="flex-1 p-3 md:p-6 lg:p-8 overflow-y-auto">
+              <AgendaVisitasTab userId={currentUser?.id || ""} />
             </div>
           )}
 

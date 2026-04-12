@@ -44,7 +44,7 @@ const lazyImports = {
   "/avaliacoes": () => import("./pages/Avaliacoes"),
   "/pre-festa": () => import("./pages/PreFesta"),
   "/campanhas": () => import("./pages/Campanhas"),
-  "/visitas": () => import("./pages/Visitas"),
+  
   "/contratos": () => import("./pages/ContratosModule"),
   "/contrato": () => import("./pages/Contrato"),
   "/cardapio": () => import("./pages/Cardapio"),
@@ -102,7 +102,7 @@ const Formularios = lazy(lazyImports["/formularios"]);
 const Avaliacoes = lazy(lazyImports["/avaliacoes"]);
 const PreFesta = lazy(lazyImports["/pre-festa"]);
 const Campanhas = lazy(lazyImports["/campanhas"]);
-const Visitas = lazy(lazyImports["/visitas"]);
+
 const PublicRecruitmentForm = lazy(() => import("./pages/PublicRecruitmentForm"));
 const DynamicLandingPage = lazy(() => import("./pages/DynamicLandingPage"));
 const PublicEvaluation = lazy(() => import("./pages/PublicEvaluation"));
@@ -184,7 +184,7 @@ const App = () => (
               <Route path="/avaliacoes" element={<Avaliacoes />} />
               <Route path="/pre-festa" element={<PreFesta />} />
               <Route path="/campanhas" element={<Campanhas />} />
-              <Route path="/visitas" element={<Visitas />} />
+              <Route path="/visitas" element={<Navigate to="/agenda?tab=visitas" replace />} />
               {/* Party control hub */}
               <Route path="/festa/:eventId" element={<PublicPartyControl />} />
               {/* Public client data form */}
