@@ -996,7 +996,7 @@ export default function Agenda() {
 
           {/* Central Tab Bar */}
           <div className="px-3 pt-3 md:px-6 lg:px-8 md:pt-6 shrink-0">
-            <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <div className="flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               {[
                 { value: "festas", label: "Festas", icon: CalendarDays },
                 { value: "visitas", label: "Visitas", icon: MapPin },
@@ -1007,13 +1007,13 @@ export default function Agenda() {
                   key={tab.value}
                   onClick={() => setCentralTab(tab.value as any)}
                   className={cn(
-                    "inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-full border transition-all duration-200 shrink-0",
+                    "inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-full border transition-all duration-200 shrink-0",
                     centralTab === tab.value
-                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20"
                       : "bg-transparent text-muted-foreground border-border hover:bg-muted/50"
                   )}
                 >
-                  <tab.icon className="h-3.5 w-3.5" />
+                  <tab.icon className="h-4 w-4" />
                   {tab.label}
                 </button>
               ))}
