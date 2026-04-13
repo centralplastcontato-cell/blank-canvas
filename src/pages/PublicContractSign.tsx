@@ -99,21 +99,23 @@ export default function PublicContractSign() {
         _signature_base64: signatureData!,
         _ip: "client",
         _user_agent: navigator.userAgent,
-      });
+      } as any);
 
-      console.log("[ContractSign] RPC result:", { data, err });
+      console.log("[ContractSign] RPC response:", JSON.stringify({ data, err: err?.message }));
 
-      const result = data as any;
-      if (err || !result?.success) {
-        const errorMsg = err?.message || result?.error || "Erro ao submeter assinatura.";
-        console.error("[ContractSign] Submission failed:", { err, result });
-        toast({ title: "Erro", description: errorMsg, variant: "destructive" });
-        if (result?.attempts_left !== undefined) {
-          toast({ title: `Tentativas restantes: ${result.attempts_left}` });
-        }
+      if (err) {
+        toast({ title: "Erro", description: err.message || "Erro ao submeter assinatura.", variant: "destructive" });
       } else {
-        setStep("done");
-        toast({ title: "Contrato assinado com sucesso! ✅" });
+        const result = (typeof data === 'string' ? JSON.parse(data) : data) as any;
+        if (!result?.success) {
+          toast({ title: "Erro", description: result?.error || "Erro ao submeter assinatura.", variant: "destructive" });
+          if (result?.attempts_left !== undefined) {
+            toast({ title: `Tentativas restantes: ${result.attempts_left}` });
+          }
+        } else {
+          setStep("done");
+          toast({ title: "Contrato assinado com sucesso! ✅" });
+        }
       }
     } finally {
       setSubmitting(false);
