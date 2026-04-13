@@ -53,7 +53,7 @@ const FORM_TYPES = [
     color: "text-blue-500",
     bgColor: "bg-blue-500/10",
     borderColor: "border-blue-500/20",
-    defaultMessage: "Olá {{nome}}! 📋\n\nPrecisamos dos seus dados para finalizar o contrato da festa. Preencha o formulário abaixo com seus dados pessoais e do(s) aniversariante(s):\n\n{{link}}",
+    defaultMessage: "Olá {{nome}}! 😊\n\nEstamos finalizando os detalhes da sua festa no {{empresa}} no dia {{data_evento}}.\n\nPara seguirmos, preciso que você preencha seus dados pessoais e do(s) aniversariante(s) no link abaixo:\n\n{{link}}\n\nLeva menos de 2 minutos! Qualquer dúvida, estamos por aqui. 🎉",
     defaultDays: 5,
   },
   {
