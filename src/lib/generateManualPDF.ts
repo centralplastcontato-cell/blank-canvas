@@ -848,7 +848,7 @@ function ch15(doc: jsPDF) {
   addSectionTitle(doc, "Passo 2: Personalizar seu funil de vendas");
   addParagraph(doc, "Na Central de Atendimento, revise as etapas do Kanban. Renomeie, reordene ou crie novas colunas de acordo com o fluxo comercial do seu buffet. Recomendamos entre 5 e 7 etapas.");
   addBulletList(doc, [
-    "Novo Lead → Contato Inicial → Visita Agendada → Proposta Enviada → Fechado",
+    "Novo Lead > Contato Inicial > Visita Agendada > Proposta Enviada > Fechado",
     "Adapte os nomes à linguagem da sua equipe para facilitar a adoção.",
   ]);
 
@@ -1054,7 +1054,7 @@ function ch19(doc: jsPDF) {
   addParagraph(doc, "A partir de um evento na agenda, gere o contrato automaticamente:");
   addBulletList(doc, [
     "O sistema preenche todas as variáveis com dados do evento (nome, data, valor, convidados).",
-    "Valores são convertidos automaticamente para extenso (ex: R$ 5.000 → cinco mil reais).",
+    "Valores sao convertidos automaticamente para extenso (ex: R$ 5.000 = cinco mil reais).",
     "Verificação automática de variáveis não resolvidas antes da geração.",
     "Preview do contrato antes de enviar.",
   ]);
@@ -1171,7 +1171,7 @@ function ch21(doc: jsPDF) {
   addSectionTitle(doc, "Central de Pedidos");
   addParagraph(doc, "Pedidos do buffet são gerenciados em um Kanban visual:");
   addBulletList(doc, [
-    "Fluxo: Pendente → Confirmado → Em Produção → Entregue.",
+    "Fluxo: Pendente > Confirmado > Em Producao > Entregue.",
     "Aceitar ou recusar pedidos com um clique.",
     "Marcar progresso da produção.",
     "Confirmar entrega ao buffet.",
