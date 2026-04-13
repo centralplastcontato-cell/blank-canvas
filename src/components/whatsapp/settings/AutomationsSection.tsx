@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bot, Clock, Forward, Zap, Plus, Trash2, Phone, Shield, Beaker, Power, Loader2, MessageSquare, Save, RotateCcw, Images, Video, FileText, Send, RefreshCw, GitBranch, Map, GripVertical, Workflow, Globe2, Sparkles, CalendarClock } from "lucide-react";
+import { Bot, Clock, Forward, Zap, Plus, Trash2, Phone, Shield, Beaker, Power, Loader2, MessageSquare, Save, RotateCcw, Images, Video, FileText, Send, RefreshCw, GitBranch, Map, GripVertical, Workflow, Globe2, Sparkles, CalendarClock, ClipboardList } from "lucide-react";
 import { LPBotSection } from "./LPBotSection";
 import { FreelancerApprovalMessageCard } from "./FreelancerApprovalMessageCard";
 import { ScheduleGroupMessageCard } from "./ScheduleGroupMessageCard";
@@ -25,6 +25,7 @@ import { VisitConfirmationSection } from "./VisitConfirmationSection";
 import { ContractMessageSection } from "./ContractMessageSection";
 import { PreReservationAutomationSection } from "./PreReservationAutomationSection";
 import { PartyBotMessagesCard } from "./PartyBotMessagesCard";
+import { FormAutomationSection } from "./FormAutomationSection";
 import {
   DndContext,
   closestCenter,
@@ -820,6 +821,10 @@ export function AutomationsSection() {
           <TabsTrigger value="prereserva" className="rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
             <CalendarClock className="w-3.5 h-3.5" />
             <span>Pré-reserva</span>
+          </TabsTrigger>
+          <TabsTrigger value="formularios" className="rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
+            <ClipboardList className="w-3.5 h-3.5" />
+            <span>Formulários</span>
           </TabsTrigger>
         </TabsList>
 
@@ -2389,6 +2394,11 @@ export function AutomationsSection() {
         {/* ============ TAB: PRÉ-RESERVA ============ */}
         <TabsContent value="prereserva" className="mt-4">
           <PreReservationAutomationSection />
+        </TabsContent>
+
+        {/* ============ TAB: FORMULÁRIOS ============ */}
+        <TabsContent value="formularios" className="mt-4">
+          <FormAutomationSection />
         </TabsContent>
       </Tabs>
     </div>
