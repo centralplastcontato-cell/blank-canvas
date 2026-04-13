@@ -112,35 +112,35 @@ export function ContractModelsList({ userId }: Props) {
             {models.map((m) => (
               <Card key={m.id} className="border-border/40">
                 <CardContent className="p-4">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <h3 className="font-semibold truncate">{m.nome_modelo}</h3>
-                        <Badge variant={m.is_active ? "default" : "secondary"} className="text-xs">{m.is_active ? "Ativo" : "Inativo"}</Badge>
-                        <Badge variant="outline" className="text-xs">{TIPO_EVENTO_LABELS[m.tipo_evento] || m.tipo_evento}</Badge>
-                        <Badge variant="outline" className="text-xs font-mono">v{m.versao}</Badge>
+                      <h3 className="font-semibold text-sm truncate mb-1.5">{m.nome_modelo}</h3>
+                      <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
+                        <Badge variant={m.is_active ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">{m.is_active ? "Ativo" : "Inativo"}</Badge>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">{TIPO_EVENTO_LABELS[m.tipo_evento] || m.tipo_evento}</Badge>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono">v{m.versao}</Badge>
                       </div>
-                      {m.descricao && <p className="text-sm text-muted-foreground line-clamp-1">{m.descricao}</p>}
-                      <p className="text-xs text-muted-foreground mt-1">
+                      {m.descricao && <p className="text-xs text-muted-foreground line-clamp-1">{m.descricao}</p>}
+                      <p className="text-[11px] text-muted-foreground mt-1">
                         Atualizado em {format(new Date(m.updated_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                       </p>
                     </div>
-                    <Switch checked={m.is_active} onCheckedChange={(v) => handleToggleActive(m.id, v)} />
+                    <Switch checked={m.is_active} onCheckedChange={(v) => handleToggleActive(m.id, v)} className="shrink-0 mt-0.5" />
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap border-t border-border/40 pt-3 mt-3">
-                    <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5" onClick={() => openEdit(m)}>
-                      <Pencil className="h-3.5 w-3.5" /> Editar
+                  <div className="flex items-center gap-1.5 flex-wrap border-t border-border/40 pt-3 mt-3">
+                    <Button variant="outline" size="sm" className="h-7 text-[11px] rounded-full px-3 gap-1" onClick={() => openEdit(m)}>
+                      <Pencil className="h-3 w-3" /> Editar
                     </Button>
-                    <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5" onClick={() => setHistoryModel(m)}>
-                      <History className="h-3.5 w-3.5" /> Versões
+                    <Button variant="outline" size="sm" className="h-7 text-[11px] rounded-full px-3 gap-1" onClick={() => setHistoryModel(m)}>
+                      <History className="h-3 w-3" /> Versões
                     </Button>
-                    <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5" onClick={() => handleDuplicate(m)}>
-                      <Copy className="h-3.5 w-3.5" /> Duplicar
+                    <Button variant="outline" size="sm" className="h-7 text-[11px] rounded-full px-3 gap-1" onClick={() => handleDuplicate(m)}>
+                      <Copy className="h-3 w-3" /> Duplicar
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5 ml-auto border-destructive/30 text-destructive hover:bg-destructive/10">
-                          <Trash2 className="h-3.5 w-3.5" /> Excluir
+                        <Button variant="outline" size="sm" className="h-7 text-[11px] rounded-full px-3 gap-1 border-destructive/30 text-destructive hover:bg-destructive/10">
+                          <Trash2 className="h-3 w-3" /> Excluir
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
