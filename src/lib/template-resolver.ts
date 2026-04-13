@@ -209,7 +209,7 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
     resolver: (ctx) => ctx.lead?.month || '',
   },
   convidados: {
-    resolver: (ctx) => ctx.lead?.guests || ctx.event?.guest_count?.toString() || '',
+    resolver: (ctx) => ctx.event?.guest_count?.toString() || ctx.lead?.guests || '',
   },
   unidade: {
     resolver: (ctx) => ctx.lead?.unit || ctx.event?.unit || 'nossa unidade',
@@ -364,7 +364,7 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
     resolver: (ctx) => ctx.contract?.valor_convidado_adicional || '',
   },
   quantidade_pessoas: {
-    resolver: (ctx) => ctx.contract?.quantidade_pessoas || ctx.lead?.guests || ctx.event?.guest_count?.toString() || '',
+    resolver: (ctx) => ctx.contract?.quantidade_pessoas || ctx.event?.guest_count?.toString() || ctx.lead?.guests || '',
   },
   qtd_adultos: {
     resolver: (ctx) => ctx.contract?.qtd_adultos || '',
