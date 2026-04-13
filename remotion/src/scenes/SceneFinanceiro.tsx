@@ -1,134 +1,100 @@
-import { AbsoluteFill, useCurrentFrame, interpolate } from "remotion";
-import { loadFont } from "@remotion/google-fonts/Inter";
-import { GridBackground } from "../components/GridBackground";
+import { AbsoluteFill, useCurrentFrame, spring, interpolate, Sequence } from "remotion";
+import { AnimatedText } from "../components/AnimatedText";
+import { MockWindow } from "../components/MockWindow";
 
-const { fontFamily } = loadFont("normal", { weights: ["400", "700", "800", "900"], subsets: ["latin"] });
-
-export const SceneFinanceiro = () => {
+export const SceneFinanceiro: React.FC = () => {
   const frame = useCurrentFrame();
 
-  const badgeOpacity = interpolate(frame, [5, 18], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const titleOpacity = interpolate(frame, [12, 30], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const titleY = interpolate(frame, [12, 30], [25, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-
-  const payments = [
-    { name: "Festa Laura", value: "R$ 4.500", status: "Pago", statusColor: "#22c55e" },
-    { name: "Aniversário Pedro", value: "R$ 3.200", status: "Pendente", statusColor: "#f59e0b" },
-    { name: "Festa da Sofia", value: "R$ 5.800", status: "Vencido", statusColor: "#ef4444" },
-  ];
-
-  const cards = [
-    { name: "Festa Laura", value: "R$ 4.500", status: "Pago", badge: "✅ Pago", bgGrad: "linear-gradient(135deg, #064e3b, #065f46)", borderColor: "#22c55e", glowColor: "rgba(34,197,94,0.3)" },
-    { name: "Aniversário Pedro", value: "R$ 3.200", status: "Pendente", badge: "🟡 3 dias para venc.", bgGrad: "linear-gradient(135deg, #78350f, #92400e)", borderColor: "#f59e0b", glowColor: "rgba(245,158,11,0.3)" },
-    { name: "Festa da Sofia", value: "R$ 5.800", status: "Vencido", badge: "⚠️ 3 dias atrasido", bgGrad: "linear-gradient(135deg, #7f1d1d, #991b1b)", borderColor: "#ef4444", glowColor: "rgba(239,68,68,0.3)" },
+  // Animated bar chart
+  const bars = [
+    { label: "Jan", value: 45, color: "#3b82f6" },
+    { label: "Fev", value: 62, color: "#3b82f6" },
+    { label: "Mar", value: 78, color: "#3b82f6" },
+    { label: "Abr", value: 55, color: "#3b82f6" },
+    { label: "Mai", value: 90, color: "#22c55e" },
+    { label: "Jun", value: 85, color: "#22c55e" },
   ];
 
   return (
-    <AbsoluteFill>
-      <GridBackground />
-      <AbsoluteFill style={{ padding: "0 80px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-        {/* Title */}
-        <div>
-          <p style={{
-            fontFamily, fontWeight: 700, fontSize: 26, color: "#f59e0b",
-            letterSpacing: 5, textTransform: "uppercase", margin: "0 0 12px 0", opacity: badgeOpacity,
-          }}>CONTROLE FINANCEIRO</p>
-          <div style={{ opacity: titleOpacity, transform: `translateY(${titleY}px)` }}>
-            <h2 style={{ fontFamily, fontWeight: 900, fontSize: 72, color: "white", margin: 0, lineHeight: 1.05 }}>
-              Pagamentos e receita{" "}<span style={{ color: "#f59e0b" }}>sob controle</span>
-            </h2>
+    <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
+      <Sequence from={0} durationInFrames={140}>
+        <div style={{ position: "absolute", top: 60, left: "50%", transform: "translateX(-50%)" }}>
+          <AnimatedText text="💰 Financeiro Completo" fontSize={36} delay={0} color="rgba(255,255,255,0.9)" />
+        </div>
+      </Sequence>
+
+      <MockWindow title="Financeiro — Dashboard" delay={10} width={1300} height={600}>
+        <div style={{ padding: 24, display: "flex", gap: 24, height: "100%" }}>
+          {/* KPI Cards */}
+          <div style={{ width: 300, display: "flex", flexDirection: "column", gap: 16 }}>
+            {[
+              { label: "Receita Mensal", value: "R$ 142.500", icon: "📈", color: "#22c55e" },
+              { label: "Despesas", value: "R$ 38.200", icon: "📉", color: "#ef4444" },
+              { label: "Lucro Líquido", value: "R$ 104.300", icon: "💎", color: "#3b82f6" },
+              { label: "Festas Fechadas", value: "23", icon: "🎂", color: "#f59e0b" },
+            ].map((kpi, i) => {
+              const sp = spring({ frame: frame - 20 - i * 6, fps: 30, config: { damping: 16 } });
+              const x = interpolate(sp, [0, 1], [-60, 0]);
+              const opacity = interpolate(sp, [0, 1], [0, 1]);
+
+              return (
+                <div
+                  key={kpi.label}
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    borderRadius: 12,
+                    padding: "16px 20px",
+                    opacity,
+                    transform: `translateX(${x}px)`,
+                    borderLeft: `3px solid ${kpi.color}`,
+                  }}
+                >
+                  <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontFamily: "'Nunito', sans-serif", fontWeight: 600 }}>
+                    {kpi.icon} {kpi.label}
+                  </div>
+                  <div style={{ color: kpi.color, fontSize: 26, fontWeight: 800, fontFamily: "'Fredoka', sans-serif", marginTop: 4 }}>
+                    {kpi.value}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Chart */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, fontFamily: "'Nunito', sans-serif", fontWeight: 600, marginBottom: 16 }}>
+              Receita por Mês (mil R$)
+            </div>
+            <div style={{ flex: 1, display: "flex", alignItems: "flex-end", gap: 20, padding: "0 20px" }}>
+              {bars.map((bar, i) => {
+                const barDelay = 35 + i * 6;
+                const sp = spring({ frame: frame - barDelay, fps: 30, config: { damping: 14, stiffness: 100 } });
+                const height = interpolate(sp, [0, 1], [0, bar.value * 3.5]);
+
+                return (
+                  <div key={bar.label} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                    <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, fontFamily: "'Nunito', sans-serif", fontWeight: 700 }}>
+                      {Math.round(bar.value * interpolate(sp, [0, 1], [0, 1]))}k
+                    </div>
+                    <div
+                      style={{
+                        width: "100%",
+                        height,
+                        background: `linear-gradient(180deg, ${bar.color}, ${bar.color}88)`,
+                        borderRadius: "8px 8px 4px 4px",
+                        boxShadow: `0 0 20px ${bar.color}33`,
+                      }}
+                    />
+                    <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "'Nunito', sans-serif" }}>
+                      {bar.label}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
-
-        {/* KPI Cards */}
-        <div style={{ display: "flex", gap: 20, marginTop: 36 }}>
-          {[
-            { label: "Receita Mês", value: "R$ 48.500", sub: "+ R$ 20.000 este mês", color: "#22c55e", subColor: "#22c55e" },
-            { label: "Pendente", value: "R$ 12.200", sub: "3 pagamentos aguardando", color: "#f59e0b", subColor: "rgba(255,255,255,0.4)" },
-          ].map((card, i) => {
-            const delay = 35 + i * 12;
-            return (
-              <div key={i} style={{
-                flex: 1, background: "rgba(255,255,255,0.04)", borderRadius: 22,
-                border: "1px solid rgba(255,255,255,0.08)", padding: "24px 24px",
-                opacity: interpolate(frame, [delay, delay + 15], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
-                transform: `translateY(${interpolate(frame, [delay, delay + 15], [20, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })}px)`,
-              }}>
-                <p style={{ fontFamily, fontWeight: 400, fontSize: 20, color: "rgba(255,255,255,0.4)", margin: "0 0 6px 0" }}>{card.label}</p>
-                <p style={{ fontFamily, fontWeight: 900, fontSize: 44, color: card.color, margin: "0 0 6px 0" }}>{card.value}</p>
-                <p style={{ fontFamily, fontWeight: 500, fontSize: 16, color: card.subColor, margin: 0 }}>{card.sub}</p>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Payments list */}
-        <div style={{
-          marginTop: 20,
-          opacity: interpolate(frame, [55, 75], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
-          transform: `translateY(${interpolate(frame, [55, 75], [30, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })}px)`,
-          background: "rgba(255,255,255,0.04)", borderRadius: 24,
-          border: "1px solid rgba(255,255,255,0.08)", padding: "24px 24px",
-        }}>
-          <p style={{ fontFamily, fontWeight: 800, fontSize: 26, color: "white", margin: "0 0 16px 0" }}>💰 Pagamentos</p>
-          {payments.map((pay, i) => {
-            const payDelay = 65 + i * 14;
-            const payOpacity = interpolate(frame, [payDelay, payDelay + 12], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-            return (
-              <div key={i} style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "14px 0", opacity: payOpacity,
-                borderBottom: i < 2 ? "1px solid rgba(255,255,255,0.04)" : "none",
-              }}>
-                <span style={{ fontFamily, fontWeight: 600, fontSize: 24, color: "rgba(255,255,255,0.8)" }}>{pay.name}</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <span style={{ fontFamily, fontWeight: 700, fontSize: 24, color: "white" }}>{pay.value}</span>
-                  <span style={{
-                    fontFamily, fontWeight: 600, fontSize: 16, color: pay.statusColor,
-                    background: `${pay.statusColor}18`, padding: "5px 14px", borderRadius: 8,
-                  }}>{pay.status}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Subtitle */}
-        <p style={{
-          fontFamily, fontWeight: 400, fontSize: 20, color: "rgba(255,255,255,0.3)", margin: "18px 0 0 0",
-          opacity: interpolate(frame, [100, 115], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
-        }}>Emissão automática de cards para cada obrigação</p>
-
-        {/* Visual cards row */}
-        <div style={{
-          display: "flex", gap: 18, marginTop: 18, justifyContent: "center",
-          opacity: interpolate(frame, [110, 130], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
-          transform: `translateY(${interpolate(frame, [110, 130], [30, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })}px)`,
-        }}>
-          {cards.map((card, i) => {
-            const tilt = (i - 1) * 6;
-            return (
-              <div key={i} style={{
-                width: 260, borderRadius: 20, padding: "20px 18px",
-                background: card.bgGrad,
-                border: `1px solid ${card.borderColor}40`,
-                boxShadow: `0 8px 30px ${card.glowColor}`,
-                transform: `rotate(${tilt}deg) perspective(800px) rotateY(${(i - 1) * -5}deg)`,
-              }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                  <span style={{ fontFamily, fontWeight: 600, fontSize: 13, color: card.borderColor }}>{card.badge}</span>
-                  <span style={{
-                    fontFamily, fontWeight: 600, fontSize: 12, color: card.borderColor,
-                    background: `${card.borderColor}20`, padding: "3px 10px", borderRadius: 6,
-                  }}>{card.status}</span>
-                </div>
-                <p style={{ fontFamily, fontWeight: 800, fontSize: 20, color: "white", margin: "0 0 6px 0" }}>{card.name}</p>
-                <p style={{ fontFamily, fontWeight: 900, fontSize: 32, color: card.borderColor, margin: 0 }}>{card.value}</p>
-              </div>
-            );
-          })}
-        </div>
-      </AbsoluteFill>
+      </MockWindow>
     </AbsoluteFill>
   );
 };
