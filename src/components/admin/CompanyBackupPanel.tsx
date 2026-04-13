@@ -62,7 +62,7 @@ export function CompanyBackupPanel() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = fileName.split("/").pop() || "backup.csv";
+      a.download = fileName.split("/").pop() || "backup.xlsx";
       a.click();
       URL.revokeObjectURL(url);
     } catch {
