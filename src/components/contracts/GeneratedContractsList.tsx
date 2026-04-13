@@ -96,6 +96,8 @@ export function GeneratedContractsList({ userId }: Props) {
 
   const [sendingWA, setSendingWA] = useState<string | null>(null);
   const [sendingSign, setSendingSign] = useState<string | null>(null);
+  const [sentWA, setSentWA] = useState<Set<string>>(new Set());
+  const [sentSign, setSentSign] = useState<Set<string>>(new Set());
 
   const handleSendWhatsApp = async (contract: GeneratedContract) => {
     if (!currentCompany?.id) return;
