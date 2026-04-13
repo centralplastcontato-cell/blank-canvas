@@ -86,11 +86,26 @@ export default function PublicCardapio() {
         thank_you_message: row.thank_you_message,
       });
 
-      // Fetch events with linked leads for this company
-      setLoadingEvents(true);
-      const { data: eventsData } = await supabase.rpc("get_company_events_for_cardapio", { _company_id: row.company_id });
-      setEvents((eventsData as EventOption[]) || []);
-      setLoadingEvents(false);
+      // If event_id is provided via URL, pre-select it and skip event selection
+      if (eventIdFromUrl) {
+        setSelectedEventId(eventIdFromUrl);
+        // Fetch lead name for this event
+        const { data: eventData } = await supabase
+          .from("company_events")
+          .select("title, lead_id")
+          .eq("id", eventIdFromUrl)
+          .maybeSingle();
+        if (eventData) {
+          setRespondentName(eventData.title || "");
+        }
+        setCurrentStep(1); // Skip identification step
+      } else {
+        // Fetch events with linked leads for this company (legacy flow)
+        setLoadingEvents(true);
+        const { data: eventsData } = await supabase.rpc("get_company_events_for_cardapio", { _company_id: row.company_id });
+        setEvents((eventsData as EventOption[]) || []);
+        setLoadingEvents(false);
+      }
 
       setLoading(false);
     }
