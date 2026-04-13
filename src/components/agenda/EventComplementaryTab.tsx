@@ -307,6 +307,13 @@ export function EventComplementaryTab({
     toast({ title: "Link copiado!" });
   };
 
+  const FORM_TYPE_DEFAULT_MESSAGES: Record<string, string> = {
+    prefesta: "Olá {{nome}}! 🎉\n\nSua festa está chegando! Para garantir que tudo saia perfeito, precisamos de algumas informações.\n\nPreencha o formulário abaixo:\n{{link}}",
+    cardapio: "Olá {{nome}}! 🍽️\n\nVamos definir o cardápio da sua festa? Acesse o link abaixo e escolha as opções:\n\n{{link}}",
+    contrato: "Olá {{nome}}! 😊\n\nEstamos finalizando os detalhes da sua festa no {{empresa}} no dia {{data_evento}}.\n\nPara seguirmos, preciso que você preencha seus dados pessoais e as informações do aniversariante no link abaixo:\n\n{{link}}\n\nAssim o buffet consegue finalizar o preenchimento do contrato com essas informações. 🎉",
+    avaliacao: "Olá {{nome}}! ⭐\n\nEsperamos que a festa tenha sido incrível! 🎊\n\nNos ajude a melhorar cada vez mais respondendo nossa avaliação:\n{{link}}",
+  };
+
   const sendFormToHost = async (section: FormSection, template: FormTemplate) => {
     if (!leadPhone) {
       toast({ title: "Lead sem WhatsApp vinculado", variant: "destructive" });
@@ -324,7 +331,33 @@ export function EventComplementaryTab({
     try {
       const selectedInstance = instances.find(i => i.instance_id === selectedInstanceId);
       const link = getFormLink(section, template);
-      const message = `Olá! 😊\n\nPor favor, preencha o formulário de *${section.label}* para sua festa:\n\n${link}\n\nObrigado!`;
+
+      // Fetch configured template from form_automation_settings
+      const { data: automationSettings } = await supabase
+        .from("form_automation_settings")
+        .select("message_template")
+        .eq("company_id", companyId)
+        .eq("form_type", section.type)
+        .maybeSingle();
+
+      const rawTemplate = automationSettings?.message_template || FORM_TYPE_DEFAULT_MESSAGES[section.type] || "";
+
+      // Get lead name for variable resolution
+      const firstName = form.title?.split(" ")[0] || "Cliente";
+      const eventDate = form.event_date ? format(new Date(form.event_date + "T12:00:00"), "dd/MM/yyyy") : "";
+
+      // Fetch company name
+      const { data: companyData } = await supabase
+        .from("companies")
+        .select("name")
+        .eq("id", companyId)
+        .single();
+
+      const message = rawTemplate
+        .replace(/\{\{\s*nome\s*\}\}/gi, firstName)
+        .replace(/\{\{\s*link\s*\}\}/gi, link)
+        .replace(/\{\{\s*data_evento\s*\}\}/gi, eventDate)
+        .replace(/\{\{\s*empresa\s*\}\}/gi, companyData?.name || "");
 
       toast({ title: `Enviando via ${selectedInstance?.unit || 'WhatsApp'}...` });
 
