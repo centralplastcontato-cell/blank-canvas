@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
@@ -96,6 +97,8 @@ export function GeneratedContractsList({ userId }: Props) {
 
   const [sendingWA, setSendingWA] = useState<string | null>(null);
   const [sendingSign, setSendingSign] = useState<string | null>(null);
+  const [sentWA, setSentWA] = useState<Set<string>>(new Set());
+  const [sentSign, setSentSign] = useState<Set<string>>(new Set());
 
   const handleSendWhatsApp = async (contract: GeneratedContract) => {
     if (!currentCompany?.id) return;
@@ -111,6 +114,7 @@ export function GeneratedContractsList({ userId }: Props) {
     setSendingWA(contract.id);
     const result = await sendContractViaWhatsApp(currentCompany.id, leadId, contract.conteudo_renderizado, contract.nome_documento);
     if (result.success) {
+      setSentWA(prev => new Set(prev).add(contract.id));
       toast({ title: "Contrato enviado via WhatsApp ✅" });
       await logContractAction(currentCompany.id, contract.id, contract.template_id, "contract_sent_whatsapp", userId, { lead_id: leadId });
     } else {
@@ -215,6 +219,7 @@ export function GeneratedContractsList({ userId }: Props) {
         signatureSent = true;
       }
       if (signatureSent) {
+        setSentSign(prev => new Set(prev).add(contract.id));
         await logContractAction(currentCompany.id, contract.id, contract.template_id, "contract_sent_for_signature", userId, { lead_id: leadId });
       }
       fetchContracts();
@@ -277,24 +282,24 @@ export function GeneratedContractsList({ userId }: Props) {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-8 text-xs rounded-full px-3.5 gap-1.5 text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                          className={cn("h-8 text-xs rounded-full px-3.5 gap-1.5", (sentWA.has(c.id) || c.status === "enviado") ? "bg-emerald-500/15 text-emerald-700 border-emerald-300 hover:bg-emerald-100" : "text-emerald-700 border-emerald-300 hover:bg-emerald-50")}
                           onClick={() => handleSendWhatsApp(c)}
                           disabled={sendingWA === c.id}
                         >
                           {sendingWA === c.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5" />}
-                          WhatsApp
+                          {sentWA.has(c.id) || c.status === "enviado" ? "WhatsApp ✅" : "WhatsApp"}
                         </Button>
                       )}
                       {!isCancelled && c.status !== "assinado" && (
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-8 text-xs rounded-full px-3.5 gap-1.5 text-purple-700 border-purple-300 hover:bg-purple-50"
+                          className={cn("h-8 text-xs rounded-full px-3.5 gap-1.5", (sentSign.has(c.id) || c.status === "aguardando_assinatura") ? "bg-emerald-500/15 text-emerald-700 border-emerald-300 hover:bg-emerald-100" : "text-purple-700 border-purple-300 hover:bg-purple-50")}
                           onClick={() => handleSendForSignature(c)}
                           disabled={sendingSign === c.id}
                         >
                           {sendingSign === c.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileSignature className="h-3.5 w-3.5" />}
-                          Enviar p/ Assinatura
+                          {sentSign.has(c.id) || c.status === "aguardando_assinatura" ? "Assinatura ✅" : "Enviar p/ Assinatura"}
                         </Button>
                       )}
                       <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5" onClick={() => handleShowAudit(c.id)}>

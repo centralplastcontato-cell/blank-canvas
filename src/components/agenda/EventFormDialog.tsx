@@ -380,7 +380,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [generatedContracts, setGeneratedContracts] = useState<Array<{ id: string; nome_documento: string; status: string; conteudo_renderizado: string; lead_id: string | null; event_id: string | null; template_id: string | null; created_at: string }>>([]);
   const [sendingContractWA, setSendingContractWA] = useState<string | null>(null);
   const [sendingContractSign, setSendingContractSign] = useState<string | null>(null);
-  
+  const [sentWA, setSentWA] = useState<Set<string>>(new Set());
+  const [sentSign, setSentSign] = useState<Set<string>>(new Set());
 
   const fetchGeneratedContracts = useCallback(async () => {
     const eid = persistedEventId || form.id || initialData?.id;
@@ -413,6 +414,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     setSendingContractWA(contract.id);
     const result = await sendContractViaWhatsApp(currentCompany.id, leadId, contract.conteudo_renderizado, contract.nome_documento);
     if (result.success) {
+      setSentWA(prev => new Set(prev).add(contract.id));
       toast({ title: "Contrato enviado via WhatsApp ✅" });
       await logContractAction(currentCompany.id, contract.id, contract.template_id, "contract_sent_whatsapp", userId, { lead_id: leadId });
     } else {
@@ -451,7 +453,6 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         toast({ title: "Erro ao criar assinatura", description: sigErr.message, variant: "destructive" });
         return;
       }
-      await (supabase as any).from("generated_contracts").update({ status: "aguardando_assinatura", signature_token: token }).eq("id", contract.id);
       const signUrl = `${window.location.origin}/assinar-contrato/${token}`;
       const { data: instances } = await (supabase as any)
         .from("wapi_instances")
@@ -462,46 +463,30 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       const instance = instances?.[0];
       let signatureSent = false;
       if (instance) {
-        const pdfResult = await sendContractViaWhatsApp(
-          currentCompany.id,
-          leadId,
-          contract.conteudo_renderizado,
-          contract.nome_documento,
-          {
-            instanceId: instance.instance_id,
-            instanceToken: instance.instance_token,
-          },
-        );
-
-        if (!pdfResult.success) {
+        const phone = lead.whatsapp.replace(/\D/g, "");
+        const template = await getContractSendTemplate(currentCompany.id);
+        const msg = resolveContractSendMessage(template, {
+          nome: lead.name,
+          link: signUrl,
+          nome_contrato: contract.nome_documento,
+          empresa: currentCompany.name,
+        });
+        const { data: sendResult, error: sendErr } = await supabase.functions.invoke("wapi-send", {
+          body: { action: "send-text", instanceId: instance.instance_id, instanceToken: instance.instance_token, phone, message: msg },
+        });
+        const sendPayload = sendResult as { success?: boolean; error?: string } | null;
+        if (sendErr || sendPayload?.success === false) {
           toast({
-            title: "Erro ao enviar contrato",
-            description: pdfResult.error,
+            title: "Erro ao enviar link",
+            description: sendErr?.message || sendPayload?.error || "Falha no envio pelo WhatsApp.",
             variant: "destructive",
           });
+          await (supabase as any).from("contract_signatures").delete().eq("token", token);
         } else {
-          const phone = lead.whatsapp.replace(/\D/g, "");
-          const template = await getContractSendTemplate(currentCompany.id);
-          const msg = resolveContractSendMessage(template, {
-            nome: lead.name,
-            link: signUrl,
-            nome_contrato: contract.nome_documento,
-            empresa: currentCompany.name,
-          });
-          const { data: sendResult, error: sendErr } = await supabase.functions.invoke("wapi-send", {
-            body: { action: "send-text", instanceId: instance.instance_id, instanceToken: instance.instance_token, phone, message: msg },
-          });
-          const sendPayload = sendResult as { success?: boolean; error?: string } | null;
-          if (sendErr || sendPayload?.success === false) {
-            toast({
-              title: "Erro ao enviar link",
-              description: sendErr?.message || sendPayload?.error || "Falha no envio do link pelo WhatsApp.",
-              variant: "destructive",
-            });
-          } else {
-            signatureSent = true;
-            toast({ title: "Contrato em PDF + link de assinatura enviados via WhatsApp ✅" });
-          }
+          signatureSent = true;
+          await (supabase as any).from("generated_contracts").update({ status: "aguardando_assinatura", signature_token: token }).eq("id", contract.id);
+          setSentSign(prev => new Set(prev).add(contract.id));
+          toast({ title: "Link de assinatura enviado via WhatsApp ✅" });
         }
       } else {
         await navigator.clipboard.writeText(signUrl);
@@ -2462,24 +2447,24 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                className="h-7 text-[11px] gap-1.5"
+                                className={cn("h-7 text-[11px] gap-1.5", (sentWA.has(gc.id) || gc.status === "enviado") && "bg-emerald-500/15 text-emerald-700 border-emerald-300")}
                                 disabled={sendingContractWA === gc.id}
                                 onClick={() => handleContractSendWA(gc)}
                               >
                                 {sendingContractWA === gc.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <MessageCircle className="h-3 w-3" />}
-                                WhatsApp
+                                {sentWA.has(gc.id) || gc.status === "enviado" ? "WhatsApp ✅" : "WhatsApp"}
                               </Button>
                               {gc.status !== "assinado" && (
                                 <Button
                                   type="button"
                                   variant="outline"
                                   size="sm"
-                                  className="h-7 text-[11px] gap-1.5"
+                                  className={cn("h-7 text-[11px] gap-1.5", (sentSign.has(gc.id) || gc.status === "aguardando_assinatura") && "bg-emerald-500/15 text-emerald-700 border-emerald-300")}
                                   disabled={sendingContractSign === gc.id}
                                   onClick={() => handleContractSendSign(gc)}
                                 >
                                   {sendingContractSign === gc.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileSignature className="h-3 w-3" />}
-                                  Enviar p/ Assinatura
+                                  {sentSign.has(gc.id) || gc.status === "aguardando_assinatura" ? "Assinatura ✅" : "Enviar p/ Assinatura"}
                                 </Button>
                               )}
                             </div>
