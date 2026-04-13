@@ -95,7 +95,7 @@ export function EventComplementaryTab({
       return;
     }
     loadData();
-  }, [eventId, companyId]);
+  }, [eventId, companyId, form.package_name]);
 
   const loadData = async () => {
     setLoading(true);
