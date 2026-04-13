@@ -22,7 +22,7 @@ import { toast } from "@/hooks/use-toast";
 
 import { ReactivationSection } from "./ReactivationSection";
 import { VisitConfirmationSection } from "./VisitConfirmationSection";
-import { ContractMessageSection } from "./ContractMessageSection";
+
 import { PreReservationAutomationSection } from "./PreReservationAutomationSection";
 import { PartyBotMessagesCard } from "./PartyBotMessagesCard";
 import { FormAutomationSection } from "./FormAutomationSection";
