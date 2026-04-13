@@ -42,7 +42,6 @@ interface FormSection {
 
 interface WapiInstance {
   instance_id: string;
-  instance_name: string | null;
   unit: string | null;
   status: string | null;
 }
