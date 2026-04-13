@@ -274,7 +274,92 @@ export function FormAutomationSection() {
 
               {config.is_enabled && (
                 <CardContent className="space-y-4 pt-0">
-                  {/* Timing - hide for contrato_envio (manual send only) */}
+                  {/* For contract types: auto/manual toggle */}
+                  {(config.form_type === "contrato_envio" || config.form_type === "contrato_whatsapp") && (
+                    <div className="rounded-lg bg-muted/50 p-4 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label className="text-sm font-medium">Modo de envio</Label>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Escolha entre envio automático agendado ou manual
+                          </p>
+                        </div>
+                        <Select
+                          value={config.send_days_before > 0 ? "auto" : "manual"}
+                          onValueChange={(v) => updateConfig(config.form_type, "send_days_before", v === "auto" ? 5 : 0)}
+                        >
+                          <SelectTrigger className="w-[160px] h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="manual">🖐️ Manual</SelectItem>
+                            <SelectItem value="auto">⚡ Automático</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {config.send_days_before > 0 && (
+                        <>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">Dias antes do evento</Label>
+                              <Select
+                                value={String(config.send_days_before)}
+                                onValueChange={(v) => updateConfig(config.form_type, "send_days_before", parseInt(v))}
+                              >
+                                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {[1, 2, 3, 5, 7, 10, 14, 21, 30].map((d) => (
+                                    <SelectItem key={d} value={String(d)}>{d} {d === 1 ? "dia" : "dias"}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">Hora</Label>
+                              <Select value={String(config.send_hour)} onValueChange={(v) => updateConfig(config.form_type, "send_hour", parseInt(v))}>
+                                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {HOURS.map((h) => (
+                                    <SelectItem key={h} value={String(h)}>{String(h).padStart(2, "0")}h</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">Minuto</Label>
+                              <Select value={String(config.send_minute)} onValueChange={(v) => updateConfig(config.form_type, "send_minute", parseInt(v))}>
+                                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {[0, 15, 30, 45].map((m) => (
+                                    <SelectItem key={m} value={String(m)}>{String(m).padStart(2, "0")}min</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            📅 Será enviado <strong>{config.send_days_before} {config.send_days_before === 1 ? "dia" : "dias"} antes</strong> do evento às{" "}
+                            <strong>{String(config.send_hour).padStart(2, "0")}:{String(config.send_minute).padStart(2, "0")}</strong>
+                          </p>
+                        </>
+                      )}
+
+                      {config.send_days_before === 0 && config.form_type === "contrato_envio" && (
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          ✉️ A mensagem será enviada manualmente ao clicar em <strong>"Enviar p/ Assinatura"</strong> no contrato gerado.
+                        </p>
+                      )}
+
+                      {config.send_days_before === 0 && config.form_type === "contrato_whatsapp" && (
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          💬 A mensagem será enviada manualmente ao clicar em <strong>"WhatsApp"</strong> no contrato gerado. O PDF é enviado como anexo.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Timing for non-contract types */}
                   {config.form_type !== "contrato_envio" && config.form_type !== "contrato_whatsapp" && (
                     <div className="rounded-lg bg-muted/50 p-4 space-y-4">
                       <div className="flex items-center gap-2 text-sm font-medium text-foreground">
@@ -357,21 +442,6 @@ export function FormAutomationSection() {
                     </div>
                   )}
 
-                  {config.form_type === "contrato_envio" && (
-                    <div className="rounded-lg bg-purple-50/50 dark:bg-purple-500/5 border border-purple-200/40 p-3">
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        ✉️ Esta mensagem é enviada ao clicar em <strong>"Enviar p/ Assinatura"</strong> no contrato gerado. Acompanha o link de assinatura digital.
-                      </p>
-                    </div>
-                  )}
-
-                  {config.form_type === "contrato_whatsapp" && (
-                    <div className="rounded-lg bg-emerald-50/50 dark:bg-emerald-500/5 border border-emerald-200/40 p-3">
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        💬 Esta mensagem é enviada ao clicar em <strong>"WhatsApp"</strong> no contrato gerado. O PDF do contrato é enviado junto como anexo.
-                      </p>
-                    </div>
-                  )}
 
                   {/* Message Template */}
                   <div className="space-y-2">
