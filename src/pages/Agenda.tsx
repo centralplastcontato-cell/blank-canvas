@@ -958,27 +958,29 @@ export default function Agenda() {
               </div>
               {/* Central Tab Bar - mobile inside header */}
               <div className="pt-2">
-                <div className="flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                  {[
-                    { value: "festas", label: "Festas", icon: CalendarDays },
-                    { value: "visitas", label: "Visitas", icon: MapPin },
-                    { value: "tarefas", label: "Tarefas", icon: ListChecks },
-                    { value: "tudo", label: "Tudo", icon: List },
-                  ].map((tab) => (
-                    <button
-                      key={tab.value}
-                      onClick={() => setCentralTab(tab.value as any)}
-                      className={cn(
-                        "inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-full border transition-all duration-200 shrink-0",
-                        centralTab === tab.value
-                          ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20"
-                          : "bg-transparent text-muted-foreground border-border hover:bg-muted/50"
-                      )}
-                    >
-                      <tab.icon className="h-4 w-4" />
-                      {tab.label}
-                    </button>
-                  ))}
+                <div className="overflow-x-auto scrollbar-none">
+                  <div className="inline-flex gap-1 p-1 rounded-2xl bg-muted/50 border border-border/40 shadow-sm">
+                    {[
+                      { value: "festas", label: "Festas", icon: CalendarDays },
+                      { value: "visitas", label: "Visitas", icon: MapPin },
+                      { value: "tarefas", label: "Tarefas", icon: ListChecks },
+                      { value: "tudo", label: "Tudo", icon: List },
+                    ].map((tab) => (
+                      <button
+                        key={tab.value}
+                        onClick={() => setCentralTab(tab.value as any)}
+                        className={cn(
+                          "inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-xl transition-all duration-200 shrink-0 whitespace-nowrap",
+                          centralTab === tab.value
+                            ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-[1.02]"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                        )}
+                      >
+                        <tab.icon className="h-4 w-4" />
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
               {/* Mobile content mode toggle - inside header */}
@@ -1021,27 +1023,29 @@ export default function Agenda() {
 
           {/* Central Tab Bar - desktop only (mobile version is in header) */}
           <div className="hidden md:block px-3 pt-3 md:px-6 lg:px-8 md:pt-6 shrink-0">
-            <div className="flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-              {[
-                { value: "festas", label: "Festas", icon: CalendarDays },
-                { value: "visitas", label: "Visitas", icon: MapPin },
-                { value: "tarefas", label: "Tarefas", icon: ListChecks },
-                { value: "tudo", label: "Tudo", icon: List },
-              ].map((tab) => (
-                <button
-                  key={tab.value}
-                  onClick={() => setCentralTab(tab.value as any)}
-                  className={cn(
-                    "inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-full border transition-all duration-200 shrink-0",
-                    centralTab === tab.value
-                      ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20"
-                      : "bg-transparent text-muted-foreground border-border hover:bg-muted/50"
-                  )}
-                >
-                  <tab.icon className="h-4 w-4" />
-                  {tab.label}
-                </button>
-              ))}
+            <div className="overflow-x-auto scrollbar-none">
+              <div className="inline-flex gap-1 md:gap-2 p-1 md:p-1.5 rounded-2xl bg-muted/50 border border-border/40 shadow-sm">
+                {[
+                  { value: "festas", label: "Festas", icon: CalendarDays },
+                  { value: "visitas", label: "Visitas", icon: MapPin },
+                  { value: "tarefas", label: "Tarefas", icon: ListChecks },
+                  { value: "tudo", label: "Tudo", icon: List },
+                ].map((tab) => (
+                  <button
+                    key={tab.value}
+                    onClick={() => setCentralTab(tab.value as any)}
+                    className={cn(
+                      "inline-flex items-center gap-2 px-6 py-3 text-base font-semibold rounded-xl transition-all duration-200 shrink-0 whitespace-nowrap",
+                      centralTab === tab.value
+                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-[1.02]"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                    )}
+                  >
+                    <tab.icon className="h-4 w-4" />
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
