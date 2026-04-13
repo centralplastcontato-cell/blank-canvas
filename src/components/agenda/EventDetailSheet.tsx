@@ -96,7 +96,7 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
       .from("wapi_instances")
       .select("id, instance_id, instance_token, unit, status")
       .eq("company_id", event.company_id)
-      .eq("status", "connected")
+      .eq("is_active", true)
       .order("unit");
     const list = data || [];
     setWapiInstances(list);
