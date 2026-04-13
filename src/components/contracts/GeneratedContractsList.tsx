@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Plus, Loader2, FileText, Eye, Ban, History, MessageCircle, FileSignature } from "lucide-react";
+import { Plus, Loader2, FileText, Eye, Ban, History, MessageCircle, FileSignature, ShieldCheck, ChevronDown, ChevronUp } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ContractGenerator } from "./ContractGenerator";
@@ -54,6 +54,8 @@ export function GeneratedContractsList({ userId }: Props) {
   const [viewContract, setViewContract] = useState<GeneratedContract | null>(null);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [showAudit, setShowAudit] = useState<string | null>(null);
+  const [showSignature, setShowSignature] = useState<string | null>(null);
+  const [signatureData, setSignatureData] = useState<Record<string, any>>({});
 
   const fetchContracts = async () => {
     if (!currentCompany?.id) return;
