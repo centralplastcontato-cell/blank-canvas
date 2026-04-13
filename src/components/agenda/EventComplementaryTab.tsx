@@ -375,6 +375,40 @@ export function EventComplementaryTab({
         </div>
       </div>
 
+      {/* WhatsApp Instance Selector */}
+      {instances.length > 1 && (
+        <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
+          <div className="flex items-center gap-2.5 text-[11px] uppercase tracking-[0.18em] font-semibold text-muted-foreground mb-4 pb-2.5 border-b border-border/40">
+            <div className="p-1.5 rounded-md bg-primary/8 ring-1 ring-primary/15">
+              <Send className="h-3.5 w-3.5 text-primary" />
+            </div>
+            Enviar via WhatsApp
+          </div>
+          <Select value={selectedInstanceId} onValueChange={setSelectedInstanceId}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Selecione a instância" />
+            </SelectTrigger>
+            <SelectContent>
+              {instances.map((inst) => (
+                <SelectItem key={inst.instance_id} value={inst.instance_id}>
+                  <span className="flex items-center gap-2">
+                    {inst.unit || inst.instance_id}
+                    {inst.status === "connected" ? (
+                      <Badge variant="outline" className="text-[9px] bg-green-500/15 text-green-700 border-green-200">Online</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[9px] bg-muted text-muted-foreground">Offline</Badge>
+                    )}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[10px] text-muted-foreground mt-2">
+            Os formulários serão enviados pela instância selecionada.
+          </p>
+        </div>
+      )}
+
       {/* Form Sections */}
       {sections.map((section) => {
         if (section.templates.length === 0) return null;
