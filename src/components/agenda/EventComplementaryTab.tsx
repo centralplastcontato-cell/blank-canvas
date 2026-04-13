@@ -156,6 +156,7 @@ export function EventComplementaryTab({
   const [iframeModal, setIframeModal] = useState<{ url: string; title: string } | null>(null);
   const [instances, setInstances] = useState<WapiInstance[]>([]);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string>("");
+  const [sentForms, setSentForms] = useState<Set<string>>(new Set());
 
   // Load WhatsApp instances
   useEffect(() => {
