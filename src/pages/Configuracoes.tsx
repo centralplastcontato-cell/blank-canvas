@@ -36,7 +36,8 @@ export default function Configuracoes() {
   const navigate = useNavigate();
   const { currentCompany } = useCompany();
   const [searchParams] = useSearchParams();
-  const defaultTab = searchParams.get("tab") === "perfil" ? "perfil" : "whatsapp";
+  const tabParam = searchParams.get("tab");
+  const defaultTab = tabParam === "perfil" ? "perfil" : tabParam === "usuarios" ? "usuarios" : "whatsapp";
   const [user, setUser] = useState<User | null>(null);
   const [_session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
