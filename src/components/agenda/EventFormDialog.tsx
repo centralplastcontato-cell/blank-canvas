@@ -14,6 +14,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Loader2, Search, X, UserCheck, ListChecks, User, CalendarDays, PartyPopper, Briefcase, CalendarIcon, AlertTriangle, CreditCard, Handshake, Copy, ExternalLink, Clock, CheckCircle2, Send, PenLine, FileSignature, Repeat, Plus, Trash2, Package, MessageCircle } from "lucide-react";
 import { sendContractViaWhatsApp, logContractAction, getContractSendTemplate, resolveContractSendMessage } from "@/components/contracts/contractAuditHelpers";
+import { getFormAutomationTemplate, resolveFormAutomationMessage } from "@/lib/formAutomationMessages";
 import { ManualClientDataForm } from "./ManualClientDataForm";
 import { EventContractDialog } from "@/components/contracts/EventContractDialog";
 import { format } from "date-fns";

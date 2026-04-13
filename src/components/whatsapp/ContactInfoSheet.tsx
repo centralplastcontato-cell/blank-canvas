@@ -18,6 +18,7 @@ import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { getFormAutomationTemplate, resolveFormAutomationMessage } from "@/lib/formAutomationMessages";
 
 interface ContactInfoSheetProps {
   isOpen: boolean;
