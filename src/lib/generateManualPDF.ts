@@ -1035,6 +1035,160 @@ function ch18(doc: jsPDF) {
   addAlertBox(doc, "O suporte via chat é exclusivo para dúvidas sobre a plataforma. Para questões comerciais ou financeiras, entre em contato diretamente com seu gestor de conta.");
 }
 
+function ch19(doc: jsPDF) {
+  addChapterTitle(doc, 19, "Contratos Digitais");
+
+  addParagraph(doc, "O módulo de Contratos permite criar, gerenciar e enviar contratos digitais diretamente pela plataforma, com assinatura online e rastreamento completo.");
+
+  addSectionTitle(doc, "Modelos de contrato");
+  addParagraph(doc, "Crie modelos de contrato reutilizáveis com variáveis dinâmicas que são preenchidas automaticamente com dados do evento e do cliente:");
+  addBulletList(doc, [
+    "Editor de texto rico para formatação profissional (negrito, itálico, listas, tabelas).",
+    "Variáveis automáticas: {nome_cliente}, {data_evento}, {valor_total}, {valor_por_extenso}, {pacote}, etc.",
+    "Modelos por tipo de evento (aniversário, corporativo, etc.).",
+    "Histórico de versões: cada alteração no modelo é versionada.",
+    "Ative ou desative modelos conforme a necessidade.",
+  ]);
+
+  addSectionTitle(doc, "Geração de contratos");
+  addParagraph(doc, "A partir de um evento na agenda, gere o contrato automaticamente:");
+  addBulletList(doc, [
+    "O sistema preenche todas as variáveis com dados do evento (nome, data, valor, convidados).",
+    "Valores são convertidos automaticamente para extenso (ex: R$ 5.000 → cinco mil reais).",
+    "Verificação automática de variáveis não resolvidas antes da geração.",
+    "Preview do contrato antes de enviar.",
+  ]);
+
+  addSectionTitle(doc, "Envio por WhatsApp");
+  addParagraph(doc, "Envie o contrato por WhatsApp diretamente pela plataforma:");
+  addBulletList(doc, [
+    "Botão 'WhatsApp' envia o PDF do contrato para o cliente.",
+    "Botão 'Enviar p/ Assinatura' envia o link para assinatura digital.",
+    "Indicadores visuais (✅ verde) confirmam que o envio foi realizado.",
+    "O status persiste mesmo após recarregar a página.",
+  ]);
+
+  addSectionTitle(doc, "Assinatura digital");
+  addParagraph(doc, "O cliente assina o contrato online, sem necessidade de imprimir:");
+  addBulletList(doc, [
+    "Link público de assinatura compartilhável por WhatsApp.",
+    "Canvas de assinatura para o cliente desenhar sua assinatura.",
+    "Verificação por código OTP enviado por WhatsApp para segurança.",
+    "Registro de IP, data/hora e dispositivo da assinatura.",
+  ]);
+
+  addSectionTitle(doc, "Auditoria completa");
+  addParagraph(doc, "Todas as ações são registradas em um log de auditoria: criação, edição, envio por WhatsApp, envio para assinatura e assinatura realizada.");
+
+  addTipBox(doc, "Configure a mensagem de envio do contrato em Configurações > WhatsApp > Contrato. Personalize o texto que acompanha o PDF e o link de assinatura.");
+  addAlertBox(doc, "Sempre revise o preview do contrato antes de enviar. Verifique se todas as variáveis foram preenchidas corretamente.");
+}
+
+function ch20(doc: jsPDF) {
+  addChapterTitle(doc, 20, "Financeiro");
+
+  addParagraph(doc, "O módulo Financeiro oferece controle completo das finanças do seu buffet, com dashboard visual, gestão de pagamentos, despesas e contas bancárias.");
+
+  addSectionTitle(doc, "Dashboard financeiro");
+  addParagraph(doc, "O dashboard exibe cards interativos com as principais métricas:");
+  addBulletList(doc, [
+    "Receita total: soma de todos os pagamentos recebidos no período.",
+    "Despesas: total de gastos (fixos e variáveis).",
+    "Saldo: diferença entre receitas e despesas.",
+    "Inadimplência: pagamentos atrasados.",
+    "Clique em qualquer card para ver a lista detalhada das transações.",
+  ]);
+
+  addSectionTitle(doc, "Pagamentos por evento");
+  addParagraph(doc, "Registre pagamentos vinculados a cada evento:");
+  addBulletList(doc, [
+    "Múltiplas parcelas com datas de vencimento.",
+    "Status: pendente, pago, atrasado.",
+    "Métodos: PIX, cartão (crédito/débito), boleto, transferência, dinheiro.",
+    "Comprovantes anexados (upload de imagens).",
+    "Visão agrupada por cliente para acompanhar o histórico.",
+  ]);
+
+  addSectionTitle(doc, "Despesas");
+  addParagraph(doc, "Controle despesas fixas e variáveis do buffet:");
+  addBulletList(doc, [
+    "Categorias: aluguel, fornecedores, equipe, manutenção, marketing, etc.",
+    "Despesas fixas (recorrentes) vs variáveis (por evento).",
+    "Anexe boletos e comprovantes.",
+    "Filtre por categoria, período e unidade.",
+  ]);
+
+  addSectionTitle(doc, "Contas bancárias");
+  addParagraph(doc, "Gerencie múltiplas contas bancárias:");
+  addBulletList(doc, [
+    "Cadastre contas correntes, poupança, carteiras digitais.",
+    "Saldo individual de cada conta.",
+    "Transferências entre contas com registro automático.",
+    "Conta padrão para novos lançamentos.",
+  ]);
+
+  addSectionTitle(doc, "Simulador de taxas de cartão");
+  addParagraph(doc, "Cadastre as taxas de cada operadora (Cielo, Stone, Rede, etc.) e simule o valor líquido recebido em transações de crédito e débito, incluindo parcelamentos de 1x a 12x.");
+
+  addSectionTitle(doc, "Relatórios e exportação");
+  addBulletList(doc, [
+    "Relatórios financeiros com filtros por período e unidade.",
+    "Exportação em PDF com resumo visual.",
+    "Exportação em Excel (XLSX) com dados detalhados.",
+    "Festas encerradas com análise de rentabilidade (receita vs custos).",
+  ]);
+
+  addSectionTitle(doc, "KPIs financeiros");
+  addParagraph(doc, "Cards de KPI clicáveis permitem drill-down nas métricas. Ao clicar em 'Recebido', 'Despesas' ou outros totais, um painel lateral exibe a lista paginada de transações.");
+
+  addTipBox(doc, "Use a visão de 'Pagamentos por Cliente' para identificar rapidamente clientes com parcelas pendentes e enviar lembretes.");
+  addAlertBox(doc, "O acesso ao módulo Financeiro requer a permissão 'financial.view'. Solicite ao administrador caso não consiga visualizar.");
+}
+
+function ch21(doc: jsPDF) {
+  addChapterTitle(doc, 21, "Empresa Parceira");
+
+  addParagraph(doc, "O módulo Empresa Parceira permite que fornecedores do buffet (confeitarias, decoradores, brindes, etc.) tenham acesso próprio ao sistema para gerenciar seus produtos e pedidos.");
+
+  addSectionTitle(doc, "Painel do Parceiro");
+  addParagraph(doc, "Ao acessar /parceiro, o fornecedor vê um dashboard com métricas:");
+  addBulletList(doc, [
+    "Pedidos do mês: total de pedidos recebidos.",
+    "Faturamento: soma dos valores dos pedidos.",
+    "Pendentes: pedidos aguardando confirmação.",
+    "Itens no catálogo: total de produtos cadastrados.",
+  ]);
+
+  addSectionTitle(doc, "Catálogo de produtos");
+  addParagraph(doc, "O parceiro gerencia seu catálogo de produtos:");
+  addBulletList(doc, [
+    "Criar, editar e excluir produtos.",
+    "Informações: nome, descrição, preço, categoria e imagem.",
+    "Ativar ou desativar produtos conforme disponibilidade.",
+    "Categorias customizáveis por tipo de produto.",
+  ]);
+
+  addSectionTitle(doc, "Central de Pedidos");
+  addParagraph(doc, "Pedidos do buffet são gerenciados em um Kanban visual:");
+  addBulletList(doc, [
+    "Fluxo: Pendente → Confirmado → Em Produção → Entregue.",
+    "Aceitar ou recusar pedidos com um clique.",
+    "Marcar progresso da produção.",
+    "Confirmar entrega ao buffet.",
+    "Alternância entre visão Kanban e Lista.",
+  ]);
+
+  addSectionTitle(doc, "Configurações do parceiro");
+  addBulletList(doc, [
+    "Dados da empresa parceira (nome, logo, contato).",
+    "Personalização de aparência (cores, tema).",
+    "Configurações de notificações.",
+  ]);
+
+  addAlertBox(doc, "Os pedidos são criados pelo buffet (administrador). O parceiro apenas gerencia a produção e entrega dos pedidos recebidos.");
+  addTipBox(doc, "Use o menu lateral (ícone ☰) para navegar entre as páginas do módulo parceiro. Para voltar ao painel principal do buffet, use a opção correspondente no menu.");
+}
+
 // ── Main export ────────────────────────────────────────────────
 
 export async function generateManualPDF(companyName?: string) {
