@@ -147,6 +147,9 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
         return;
       }
 
+      if (!["aguardando_assinatura", "assinado"].includes(contract.status)) {
+        await supabase.from("generated_contracts").update({ status: "enviado" }).eq("id", contract.id);
+      }
       setSentWA(prev => new Set(prev).add(contract.id));
       toast({ title: `Contrato enviado via ${inst.unit || 'WhatsApp'} ✅` });
       await logContractAction(event.company_id, contract.id, contract.template_id, "contract_sent_whatsapp", userId, { lead_id: leadId, instance_unit: inst.unit });
