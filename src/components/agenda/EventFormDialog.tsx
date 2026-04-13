@@ -451,7 +451,6 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         toast({ title: "Erro ao criar assinatura", description: sigErr.message, variant: "destructive" });
         return;
       }
-      await (supabase as any).from("generated_contracts").update({ status: "aguardando_assinatura", signature_token: token }).eq("id", contract.id);
       const signUrl = `${window.location.origin}/assinar-contrato/${token}`;
       const { data: instances } = await (supabase as any)
         .from("wapi_instances")
@@ -462,46 +461,30 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       const instance = instances?.[0];
       let signatureSent = false;
       if (instance) {
-        const pdfResult = await sendContractViaWhatsApp(
-          currentCompany.id,
-          leadId,
-          contract.conteudo_renderizado,
-          contract.nome_documento,
-          {
-            instanceId: instance.instance_id,
-            instanceToken: instance.instance_token,
-          },
-        );
-
-        if (!pdfResult.success) {
+        const phone = lead.whatsapp.replace(/\D/g, "");
+        const template = await getContractSendTemplate(currentCompany.id);
+        const msg = resolveContractSendMessage(template, {
+          nome: lead.name,
+          link: signUrl,
+          nome_contrato: contract.nome_documento,
+          empresa: currentCompany.name,
+        });
+        const { data: sendResult, error: sendErr } = await supabase.functions.invoke("wapi-send", {
+          body: { action: "send-text", instanceId: instance.instance_id, instanceToken: instance.instance_token, phone, message: msg },
+        });
+        const sendPayload = sendResult as { success?: boolean; error?: string } | null;
+        if (sendErr || sendPayload?.success === false) {
           toast({
-            title: "Erro ao enviar contrato",
-            description: pdfResult.error,
+            title: "Erro ao enviar link",
+            description: sendErr?.message || sendPayload?.error || "Falha no envio pelo WhatsApp.",
             variant: "destructive",
           });
+          await (supabase as any).from("contract_signatures").delete().eq("token", token);
         } else {
-          const phone = lead.whatsapp.replace(/\D/g, "");
-          const template = await getContractSendTemplate(currentCompany.id);
-          const msg = resolveContractSendMessage(template, {
-            nome: lead.name,
-            link: signUrl,
-            nome_contrato: contract.nome_documento,
-            empresa: currentCompany.name,
-          });
-          const { data: sendResult, error: sendErr } = await supabase.functions.invoke("wapi-send", {
-            body: { action: "send-text", instanceId: instance.instance_id, instanceToken: instance.instance_token, phone, message: msg },
-          });
-          const sendPayload = sendResult as { success?: boolean; error?: string } | null;
-          if (sendErr || sendPayload?.success === false) {
-            toast({
-              title: "Erro ao enviar link",
-              description: sendErr?.message || sendPayload?.error || "Falha no envio do link pelo WhatsApp.",
-              variant: "destructive",
-            });
-          } else {
-            signatureSent = true;
-            toast({ title: "Contrato em PDF + link de assinatura enviados via WhatsApp ✅" });
-          }
+          signatureSent = true;
+          await (supabase as any).from("generated_contracts").update({ status: "aguardando_assinatura", signature_token: token }).eq("id", contract.id);
+          setSentSign(prev => new Set(prev).add(contract.id));
+          toast({ title: "Link de assinatura enviado via WhatsApp ✅" });
         }
       } else {
         await navigator.clipboard.writeText(signUrl);
