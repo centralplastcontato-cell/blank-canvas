@@ -392,6 +392,18 @@ export function EventComplementaryTab({
       });
 
       if (error) throw error;
+
+      // Persist sent status
+      setSentForms(prev => new Set(prev).add(key));
+      if (form.lead_id) {
+        await supabase.from("lead_history").insert({
+          lead_id: form.lead_id,
+          company_id: companyId,
+          action: "form_sent_whatsapp",
+          details: { form_type: section.type, template_id: template.id, event_id: eventId, template_name: template.name },
+        });
+      }
+
       toast({ title: `Formulário de ${section.label} enviado via WhatsApp!` });
     } catch (err: any) {
       toast({ title: "Erro ao enviar", description: err.message, variant: "destructive" });
