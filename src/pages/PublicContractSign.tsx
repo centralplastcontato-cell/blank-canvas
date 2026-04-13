@@ -99,17 +99,23 @@ export default function PublicContractSign() {
         _signature_base64: signatureData!,
         _ip: "client",
         _user_agent: navigator.userAgent,
-      });
+      } as any);
 
-      const result = data as any;
-      if (err || !result?.success) {
-        toast({ title: "Erro", description: result?.error || "Erro ao submeter assinatura.", variant: "destructive" });
-        if (result?.attempts_left !== undefined) {
-          toast({ title: `Tentativas restantes: ${result.attempts_left}` });
-        }
+      console.log("[ContractSign] RPC response:", JSON.stringify({ data, err: err?.message }));
+
+      if (err) {
+        toast({ title: "Erro", description: err.message || "Erro ao submeter assinatura.", variant: "destructive" });
       } else {
-        setStep("done");
-        toast({ title: "Contrato assinado com sucesso! ✅" });
+        const result = (typeof data === 'string' ? JSON.parse(data) : data) as any;
+        if (!result?.success) {
+          toast({ title: "Erro", description: result?.error || "Erro ao submeter assinatura.", variant: "destructive" });
+          if (result?.attempts_left !== undefined) {
+            toast({ title: `Tentativas restantes: ${result.attempts_left}` });
+          }
+        } else {
+          setStep("done");
+          toast({ title: "Contrato assinado com sucesso! ✅" });
+        }
       }
     } finally {
       setSubmitting(false);
