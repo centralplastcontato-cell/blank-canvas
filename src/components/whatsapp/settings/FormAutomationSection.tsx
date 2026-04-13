@@ -47,13 +47,13 @@ const FORM_TYPES = [
   },
   {
     type: "contrato",
-    label: "Contrato",
-    description: "Envio automático do contrato para assinatura digital",
+    label: "Dados do Contratante",
+    description: "Formulário para o anfitrião preencher dados pessoais e do aniversariante",
     icon: FileSignature,
     color: "text-blue-500",
     bgColor: "bg-blue-500/10",
     borderColor: "border-blue-500/20",
-    defaultMessage: "Olá {{nome}}! 📄\n\nSeu contrato está pronto! Acesse o link abaixo para revisar e assinar digitalmente:\n\n{{link}}",
+    defaultMessage: "Olá {{nome}}! 📋\n\nPrecisamos dos seus dados para finalizar o contrato da festa. Preencha o formulário abaixo com seus dados pessoais e do(s) aniversariante(s):\n\n{{link}}",
     defaultDays: 5,
   },
   {
