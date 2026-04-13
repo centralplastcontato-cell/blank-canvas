@@ -634,18 +634,23 @@ export function EventComplementaryTab({
                         </Button>
                         <Button
                           type="button"
-                          variant="default"
+                          variant={sentForms.has(sendKey) ? "outline" : "default"}
                           size="sm"
-                          className="gap-1.5 text-xs h-7"
+                          className={cn(
+                            "gap-1.5 text-xs h-7",
+                            sentForms.has(sendKey) && "bg-emerald-500/15 text-emerald-700 border-emerald-300 hover:bg-emerald-100"
+                          )}
                           disabled={sendingForm === sendKey}
                           onClick={() => sendFormToHost(section, template)}
                         >
                           {sendingForm === sendKey ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : sentForms.has(sendKey) ? (
+                            <CheckCircle2 className="h-3.5 w-3.5" />
                           ) : (
                             <Send className="h-3.5 w-3.5" />
                           )}
-                          Enviar
+                          {sentForms.has(sendKey) ? "Enviado ✅" : "Enviar"}
                         </Button>
                       </div>
                     </div>
