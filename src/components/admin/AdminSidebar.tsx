@@ -81,7 +81,7 @@ export function AdminSidebar({
     
     ...(modules.contrato ? [{ title: "Contratos", url: "/contratos", icon: FileSignature }] : []),
     ...(showFinanceiro ? [{ title: "Financeiro", url: "/financeiro", icon: DollarSign }] : []),
-    ...(modules.config ? [{ title: "Configurações", url: "/configuracoes", icon: Settings }] : []),
+    ...(modules.config ? [{ title: "Configurações Gerais", url: "/configuracoes", icon: Settings }] : []),
     ...(canManageUsers ? [{ title: "Gerenciar Usuários", url: "/users", icon: Users }] : []),
     ...(isAdmin ? [{ title: "Empresas", url: "/hub/empresas", icon: Building2 }] : []),
     ...(modules.treinamento ? [{ title: "Treinamento", url: "/treinamento", icon: GraduationCap }] : []),

@@ -140,7 +140,7 @@ export function MobileMenu({
     },
     {
       id: "configuracoes",
-      label: "Configurações",
+      label: "Configurações Gerais",
       icon: Settings,
       path: "/configuracoes",
       show: !!modules.config,
