@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ClipboardList, PartyPopper, UtensilsCrossed, Star, Clock, Save, Loader2, FileSignature } from "lucide-react";
+import { ClipboardList, PartyPopper, UtensilsCrossed, Star, Clock, Save, Loader2, FileSignature, Send } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -55,6 +55,17 @@ const FORM_TYPES = [
     borderColor: "border-blue-500/20",
     defaultMessage: "Olá {{nome}}! 😊\n\nEstamos finalizando os detalhes da sua festa no {{empresa}} no dia {{data_evento}}.\n\nPara seguirmos, preciso que você preencha seus dados pessoais e as informações do aniversariante no link abaixo:\n\n{{link}}\n\nAssim o buffet consegue finalizar o preenchimento do contrato com essas informações. 🎉",
     defaultDays: 5,
+  },
+  {
+    type: "contrato_envio",
+    label: "Envio de Contrato",
+    description: "Mensagem enviada ao cliente junto com o contrato para assinatura digital",
+    icon: Send,
+    color: "text-purple-500",
+    bgColor: "bg-purple-500/10",
+    borderColor: "border-purple-500/20",
+    defaultMessage: "📄 *{{nome_contrato}}*\n\nOlá {{nome}}! Seu contrato está pronto para assinatura digital.\n\nAcesse o link abaixo para ler e assinar:\n{{link}}\n\n_{{empresa}}_",
+    defaultDays: 0,
   },
   {
     type: "avaliacao",
@@ -252,86 +263,96 @@ export function FormAutomationSection() {
 
               {config.is_enabled && (
                 <CardContent className="space-y-4 pt-0">
-                  {/* Timing */}
-                  <div className="rounded-lg bg-muted/50 p-4 space-y-4">
-                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <Clock className="w-4 h-4 text-muted-foreground" />
-                      Agendamento de envio
+                  {/* Timing - hide for contrato_envio (manual send only) */}
+                  {config.form_type !== "contrato_envio" && (
+                    <div className="rounded-lg bg-muted/50 p-4 space-y-4">
+                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                        <Clock className="w-4 h-4 text-muted-foreground" />
+                        Agendamento de envio
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">
+                            {config.form_type === "avaliacao" ? "Dias depois do evento" : "Dias antes do evento"}
+                          </Label>
+                          <Select
+                            value={String(config.send_days_before)}
+                            onValueChange={(v) => updateConfig(config.form_type, "send_days_before", parseInt(v))}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[1, 2, 3, 5, 7, 10, 14, 21, 30].map((d) => (
+                                <SelectItem key={d} value={String(d)}>
+                                  {d} {d === 1 ? "dia" : "dias"}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">Hora</Label>
+                          <Select
+                            value={String(config.send_hour)}
+                            onValueChange={(v) => updateConfig(config.form_type, "send_hour", parseInt(v))}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {HOURS.map((h) => (
+                                <SelectItem key={h} value={String(h)}>
+                                  {String(h).padStart(2, "0")}h
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">Minuto</Label>
+                          <Select
+                            value={String(config.send_minute)}
+                            onValueChange={(v) => updateConfig(config.form_type, "send_minute", parseInt(v))}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[0, 15, 30, 45].map((m) => (
+                                <SelectItem key={m} value={String(m)}>
+                                  {String(m).padStart(2, "0")}min
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-muted-foreground">
+                        📅 O formulário será enviado{" "}
+                        <strong>
+                          {config.send_days_before} {config.send_days_before === 1 ? "dia" : "dias"}{" "}
+                          {config.form_type === "avaliacao" ? "depois" : "antes"}
+                        </strong>{" "}
+                        do evento às{" "}
+                        <strong>
+                          {String(config.send_hour).padStart(2, "0")}:{String(config.send_minute).padStart(2, "0")}
+                        </strong>
+                      </p>
                     </div>
+                  )}
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">
-                          {config.form_type === "avaliacao" ? "Dias depois do evento" : "Dias antes do evento"}
-                        </Label>
-                        <Select
-                          value={String(config.send_days_before)}
-                          onValueChange={(v) => updateConfig(config.form_type, "send_days_before", parseInt(v))}
-                        >
-                          <SelectTrigger className="h-9">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {[1, 2, 3, 5, 7, 10, 14, 21, 30].map((d) => (
-                              <SelectItem key={d} value={String(d)}>
-                                {d} {d === 1 ? "dia" : "dias"}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Hora</Label>
-                        <Select
-                          value={String(config.send_hour)}
-                          onValueChange={(v) => updateConfig(config.form_type, "send_hour", parseInt(v))}
-                        >
-                          <SelectTrigger className="h-9">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {HOURS.map((h) => (
-                              <SelectItem key={h} value={String(h)}>
-                                {String(h).padStart(2, "0")}h
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Minuto</Label>
-                        <Select
-                          value={String(config.send_minute)}
-                          onValueChange={(v) => updateConfig(config.form_type, "send_minute", parseInt(v))}
-                        >
-                          <SelectTrigger className="h-9">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {[0, 15, 30, 45].map((m) => (
-                              <SelectItem key={m} value={String(m)}>
-                                {String(m).padStart(2, "0")}min
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                  {config.form_type === "contrato_envio" && (
+                    <div className="rounded-lg bg-purple-50/50 dark:bg-purple-500/5 border border-purple-200/40 p-3">
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        ✉️ Esta mensagem é enviada manualmente ao clicar em <strong>"Enviar p/ Assinatura"</strong> no contrato gerado. Personalize o texto que acompanha o link de assinatura digital.
+                      </p>
                     </div>
-
-                    <p className="text-xs text-muted-foreground">
-                      📅 O formulário será enviado{" "}
-                      <strong>
-                        {config.send_days_before} {config.send_days_before === 1 ? "dia" : "dias"}{" "}
-                        {config.form_type === "avaliacao" ? "depois" : "antes"}
-                      </strong>{" "}
-                      do evento às{" "}
-                      <strong>
-                        {String(config.send_hour).padStart(2, "0")}:{String(config.send_minute).padStart(2, "0")}
-                      </strong>
-                    </p>
-                  </div>
+                  )}
 
                   {/* Message Template */}
                   <div className="space-y-2">
@@ -343,7 +364,10 @@ export function FormAutomationSection() {
                       placeholder="Digite a mensagem..."
                     />
                     <div className="flex flex-wrap gap-1.5">
-                      {["{{nome}}", "{{link}}", "{{data_evento}}", "{{empresa}}"].map((v) => (
+                      {(config.form_type === "contrato_envio"
+                        ? ["{{nome}}", "{{link}}", "{{nome_contrato}}", "{{empresa}}"]
+                        : ["{{nome}}", "{{link}}", "{{data_evento}}", "{{empresa}}"]
+                      ).map((v) => (
                         <Badge key={v} variant="outline" className="text-[10px] font-mono cursor-default">
                           {v}
                         </Badge>

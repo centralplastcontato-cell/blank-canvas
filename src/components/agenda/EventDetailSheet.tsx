@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { X, Clock, Users, MapPin, Package, DollarSign, Pencil, Trash2, AlertTriangle, UserCheck, Gamepad2, Copy, Check, ExternalLink, Briefcase, CalendarIcon, Loader2, CreditCard, MessageCircle, FileSignature } from "lucide-react";
 import { ContractReadinessPanel } from "@/components/contracts/ContractReadinessPanel";
 import { EventContractDialog } from "@/components/contracts/EventContractDialog";
-import { logContractAction, sendContractViaWhatsApp } from "@/components/contracts/contractAuditHelpers";
+import { logContractAction, sendContractViaWhatsApp, getContractSendTemplate, resolveContractSendMessage } from "@/components/contracts/contractAuditHelpers";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useEffect, useState, useCallback } from "react";
@@ -212,7 +212,14 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
       }
 
       const phone = lead.whatsapp.replace(/\D/g, "");
-      const msg = `Olá ${lead.name}! Seu contrato está pronto para assinatura digital.\n\nAcesse o link abaixo para ler e assinar:\n${signUrl}`;
+      const template = await getContractSendTemplate(event.company_id);
+      const { data: companyInfo } = await supabase.from("companies").select("name").eq("id", event.company_id).single();
+      const msg = resolveContractSendMessage(template, {
+        nome: lead.name,
+        link: signUrl,
+        nome_contrato: contract.nome_documento,
+        empresa: companyInfo?.name || "",
+      });
       const { data: sendResult, error: sendErr } = await supabase.functions.invoke("wapi-send", {
         body: { action: "send-text", instanceId: inst.instance_id, instanceToken: inst.instance_token, phone, message: msg },
       });

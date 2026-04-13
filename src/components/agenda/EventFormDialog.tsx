@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Loader2, Search, X, UserCheck, ListChecks, User, CalendarDays, PartyPopper, Briefcase, CalendarIcon, AlertTriangle, CreditCard, Handshake, Copy, ExternalLink, Clock, CheckCircle2, Send, PenLine, FileSignature, Repeat, Plus, Trash2, Package, MessageCircle } from "lucide-react";
-import { sendContractViaWhatsApp, logContractAction } from "@/components/contracts/contractAuditHelpers";
+import { sendContractViaWhatsApp, logContractAction, getContractSendTemplate, resolveContractSendMessage } from "@/components/contracts/contractAuditHelpers";
 import { ManualClientDataForm } from "./ManualClientDataForm";
 import { EventContractDialog } from "@/components/contracts/EventContractDialog";
 import { format } from "date-fns";
@@ -481,7 +481,13 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           });
         } else {
           const phone = lead.whatsapp.replace(/\D/g, "");
-          const msg = `Olá ${lead.name}! Seu contrato está pronto para assinatura digital.\n\nAcesse o link abaixo para ler e assinar:\n${signUrl}\n\n_${currentCompany.name}_`;
+          const template = await getContractSendTemplate(currentCompany.id);
+          const msg = resolveContractSendMessage(template, {
+            nome: lead.name,
+            link: signUrl,
+            nome_contrato: contract.nome_documento,
+            empresa: currentCompany.name,
+          });
           const { data: sendResult, error: sendErr } = await supabase.functions.invoke("wapi-send", {
             body: { action: "send-text", instanceId: instance.instance_id, instanceToken: instance.instance_token, phone, message: msg },
           });
