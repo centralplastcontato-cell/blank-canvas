@@ -101,9 +101,13 @@ export default function PublicContractSign() {
         _user_agent: navigator.userAgent,
       });
 
+      console.log("[ContractSign] RPC result:", { data, err });
+
       const result = data as any;
       if (err || !result?.success) {
-        toast({ title: "Erro", description: result?.error || "Erro ao submeter assinatura.", variant: "destructive" });
+        const errorMsg = err?.message || result?.error || "Erro ao submeter assinatura.";
+        console.error("[ContractSign] Submission failed:", { err, result });
+        toast({ title: "Erro", description: errorMsg, variant: "destructive" });
         if (result?.attempts_left !== undefined) {
           toast({ title: `Tentativas restantes: ${result.attempts_left}` });
         }
