@@ -476,7 +476,6 @@ export async function sendContractViaWhatsApp(
   }
 }
 
-import { getFormAutomationTemplate, resolveFormAutomationMessage } from "@/lib/formAutomationMessages";
 
 export async function getContractSendTemplate(companyId: string): Promise<string> {
   return getFormAutomationTemplate(companyId, "contrato_envio");
