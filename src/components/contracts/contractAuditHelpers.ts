@@ -450,3 +450,34 @@ export async function sendContractViaWhatsApp(
     return { success: false, error: e.message || "Erro inesperado ao enviar contrato." };
   }
 }
+
+const DEFAULT_CONTRACT_SEND_MESSAGE = "📄 *{{nome_contrato}}*\n\nOlá {{nome}}! Seu contrato está pronto para assinatura digital.\n\nAcesse o link abaixo para ler e assinar:\n{{link}}\n\n_{{empresa}}_";
+
+export async function getContractSendTemplate(companyId: string): Promise<string> {
+  try {
+    const { data } = await supabase
+      .from("form_automation_settings")
+      .select("message_template, is_enabled")
+      .eq("company_id", companyId)
+      .eq("form_type", "contrato_envio")
+      .maybeSingle();
+
+    if (data?.is_enabled && data?.message_template) {
+      return data.message_template;
+    }
+  } catch (e) {
+    console.error("Error fetching contract send template:", e);
+  }
+  return DEFAULT_CONTRACT_SEND_MESSAGE;
+}
+
+export function resolveContractSendMessage(
+  template: string,
+  vars: { nome?: string; link?: string; nome_contrato?: string; empresa?: string },
+): string {
+  return template
+    .replace(/\{\{nome\}\}/gi, vars.nome || "")
+    .replace(/\{\{link\}\}/gi, vars.link || "")
+    .replace(/\{\{nome_contrato\}\}/gi, vars.nome_contrato || "")
+    .replace(/\{\{empresa\}\}/gi, vars.empresa || "");
+}
