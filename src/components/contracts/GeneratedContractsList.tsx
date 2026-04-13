@@ -54,8 +54,8 @@ export function GeneratedContractsList({ userId }: Props) {
   const [viewContract, setViewContract] = useState<GeneratedContract | null>(null);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [showAudit, setShowAudit] = useState<string | null>(null);
-  const [showSignature, setShowSignature] = useState<string | null>(null);
-  const [signatureData, setSignatureData] = useState<Record<string, any>>({});
+  const [expandedSig, setExpandedSig] = useState<string | null>(null);
+  const [sigCache, setSigCache] = useState<Record<string, any>>({});
 
   const fetchContracts = async () => {
     if (!currentCompany?.id) return;
