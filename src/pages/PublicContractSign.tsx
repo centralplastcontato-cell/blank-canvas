@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -44,7 +45,7 @@ export default function PublicContractSign() {
   const [sendingOtp, setSendingOtp] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [maskedPhone, setMaskedPhone] = useState("");
-
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   useEffect(() => {
     if (!token) return;
     fetchContract();
@@ -186,10 +187,17 @@ export default function PublicContractSign() {
         {step === "read" && contract.signature_status !== "signed" && (
           <Card>
             <CardContent className="p-6 text-center space-y-4">
-              <p className="text-sm text-gray-600">
-                Li e concordo com todos os termos acima.
-              </p>
-              <Button onClick={() => setStep("sign")} className="gap-2">
+              <label className="flex items-start gap-3 text-left cursor-pointer">
+                <Checkbox
+                  checked={acceptedTerms}
+                  onCheckedChange={(v) => setAcceptedTerms(v === true)}
+                  className="mt-0.5"
+                />
+                <span className="text-sm text-gray-600">
+                  Li e concordo com todos os termos acima.
+                </span>
+              </label>
+              <Button onClick={() => setStep("sign")} className="gap-2" disabled={!acceptedTerms}>
                 <ArrowRight className="h-4 w-4" /> Prosseguir para Assinatura
               </Button>
             </CardContent>
