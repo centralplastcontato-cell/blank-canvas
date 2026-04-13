@@ -422,7 +422,31 @@ export async function sendContractViaWhatsApp(
       return { success: false, error: "Erro ao gerar URL do PDF." };
     }
 
-    // 6. Send via wapi-send as document
+    // 6. Send customizable text message before the PDF
+    const waTemplate = await getContractWhatsAppTemplate(companyId);
+    const textMsg = resolveContractSendMessage(waTemplate, {
+      nome: lead.name,
+      nome_contrato: contractName,
+      empresa: "", // Will be filled below
+    });
+    // Fetch company name for the template
+    const { data: companyInfo } = await supabase.from("companies").select("name").eq("id", companyId).single();
+    const finalMsg = textMsg.replace(/\{\{empresa\}\}/gi, companyInfo?.name || "");
+
+    if (finalMsg.trim()) {
+      await supabase.functions.invoke("wapi-send", {
+        body: {
+          action: "send-text",
+          instanceId: instance.instance_id,
+          instanceToken: instance.instance_token,
+          phone,
+          message: finalMsg,
+          conversationId: conv?.id || undefined,
+        },
+      });
+    }
+
+    // 7. Send PDF as document
     const { data: sendResult, error: sendErr } = await supabase.functions.invoke("wapi-send", {
       body: {
         action: "send-document",
