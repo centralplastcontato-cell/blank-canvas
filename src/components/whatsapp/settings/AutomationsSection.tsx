@@ -2395,6 +2395,11 @@ export function AutomationsSection() {
         <TabsContent value="prereserva" className="mt-4">
           <PreReservationAutomationSection />
         </TabsContent>
+
+        {/* ============ TAB: FORMULÁRIOS ============ */}
+        <TabsContent value="formularios" className="mt-4">
+          <FormAutomationSection />
+        </TabsContent>
       </Tabs>
     </div>
   );
