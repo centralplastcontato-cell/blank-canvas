@@ -821,6 +821,10 @@ export function AutomationsSection() {
             <CalendarClock className="w-3.5 h-3.5" />
             <span>Pré-reserva</span>
           </TabsTrigger>
+          <TabsTrigger value="formularios" className="rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
+            <ClipboardList className="w-3.5 h-3.5" />
+            <span>Formulários</span>
+          </TabsTrigger>
         </TabsList>
 
         {/* ============ TAB: GERAL ============ */}
