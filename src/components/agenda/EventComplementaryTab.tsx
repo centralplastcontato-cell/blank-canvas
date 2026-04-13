@@ -228,32 +228,27 @@ export function EventComplementaryTab({
       return;
     }
 
+    if (!selectedInstanceId) {
+      toast({ title: "Selecione uma instância WhatsApp", variant: "destructive" });
+      return;
+    }
+
     const key = `${section.type}-${template.id}`;
     setSendingForm(key);
 
     try {
-      const { data: instance } = await supabase
-        .from("wapi_instances")
-        .select("instance_id")
-        .eq("company_id", companyId)
-        .order("connected_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (!instance?.instance_id) {
-        toast({ title: "Nenhuma instância WhatsApp ativa", variant: "destructive" });
-        return;
-      }
-
+      const selectedInstance = instances.find(i => i.instance_id === selectedInstanceId);
       const link = getFormLink(section, template);
       const message = `Olá! 😊\n\nPor favor, preencha o formulário de *${section.label}* para sua festa:\n\n${link}\n\nObrigado!`;
+
+      toast({ title: `Enviando via ${selectedInstance?.unit || 'WhatsApp'}...` });
 
       const { error } = await supabase.functions.invoke("wapi-send", {
         body: {
           action: "send-text",
           phone: leadPhone,
           message,
-          instanceId: instance.instance_id,
+          instanceId: selectedInstanceId,
         },
       });
 
