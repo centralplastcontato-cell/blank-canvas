@@ -3,17 +3,17 @@ import "jspdf-autotable";
 
 // ── Color palette ──────────────────────────────────────────────
 const C = {
-  primary: [124, 58, 237] as [number, number, number],
-  primaryLight: [243, 232, 255] as [number, number, number],
-  primaryMid: [167, 119, 247] as [number, number, number],
+  primary: [37, 99, 195] as [number, number, number],       // Royal Blue
+  primaryLight: [225, 238, 255] as [number, number, number], // Light blue bg
+  primaryMid: [90, 150, 220] as [number, number, number],    // Mid blue
   text: [30, 30, 30] as [number, number, number],
   textSec: [100, 100, 100] as [number, number, number],
-  tipBg: [243, 232, 255] as [number, number, number],
+  tipBg: [225, 238, 255] as [number, number, number],
   alertBg: [254, 249, 195] as [number, number, number],
   alertBorder: [234, 179, 8] as [number, number, number],
   line: [210, 210, 210] as [number, number, number],
   white: [255, 255, 255] as [number, number, number],
-  coverDark: [91, 33, 182] as [number, number, number],
+  coverDark: [20, 70, 160] as [number, number, number],      // Darker blue
 };
 
 // ── Page constants ─────────────────────────────────────────────
