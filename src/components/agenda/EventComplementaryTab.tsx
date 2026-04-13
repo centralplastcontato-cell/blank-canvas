@@ -153,7 +153,16 @@ export function EventComplementaryTab({
           type: "cardapio",
           label: "Cardápio",
           icon: UtensilsCrossed,
-          templates: (cardapioTemplates || []) as FormTemplate[],
+          templates: (() => {
+            const all = (cardapioTemplates || []) as FormTemplate[];
+            if (!form.package_name || form.package_name === 'Sem pacote') return all;
+            const pkgLower = form.package_name.toLowerCase().trim();
+            const matched = all.filter((t) => {
+              const tName = t.name.toLowerCase();
+              return tName.includes(pkgLower) || pkgLower.split(/\s+/).every((word) => tName.includes(word));
+            });
+            return matched.length > 0 ? matched : all;
+          })(),
           responses: mapResponses(cardapioResponses),
           publicPath: "cardapio",
         },
