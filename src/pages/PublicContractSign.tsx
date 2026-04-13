@@ -45,7 +45,7 @@ export default function PublicContractSign() {
   const [sendingOtp, setSendingOtp] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [maskedPhone, setMaskedPhone] = useState("");
-
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   useEffect(() => {
     if (!token) return;
     fetchContract();
