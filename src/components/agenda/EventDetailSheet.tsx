@@ -213,11 +213,12 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
 
       const phone = lead.whatsapp.replace(/\D/g, "");
       const template = await getContractSendTemplate(event.company_id);
+      const { data: companyInfo } = await supabase.from("companies").select("name").eq("id", event.company_id).single();
       const msg = resolveContractSendMessage(template, {
         nome: lead.name,
         link: signUrl,
         nome_contrato: contract.nome_documento,
-        empresa: currentCompany?.name || "",
+        empresa: companyInfo?.name || "",
       });
       const { data: sendResult, error: sendErr } = await supabase.functions.invoke("wapi-send", {
         body: { action: "send-text", instanceId: inst.instance_id, instanceToken: inst.instance_token, phone, message: msg },
