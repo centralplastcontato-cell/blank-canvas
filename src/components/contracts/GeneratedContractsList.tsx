@@ -252,7 +252,26 @@ export function GeneratedContractsList({ userId }: Props) {
     }
   };
 
-  const ACTION_LABELS: Record<string, string> = {
+  const handleToggleSignature = async (contractId: string) => {
+    if (expandedSig === contractId) {
+      setExpandedSig(null);
+      return;
+    }
+    if (!sigCache[contractId]) {
+      const { data } = await (supabase as any)
+        .from("contract_signatures")
+        .select("signature_image_url, signed_at, document_hash, ip_address, user_agent, signer_name, signer_phone, otp_verified_at")
+        .eq("contract_id", contractId)
+        .eq("status", "signed")
+        .limit(1);
+      if (data?.[0]) {
+        setSigCache(prev => ({ ...prev, [contractId]: data[0] }));
+      }
+    }
+    setExpandedSig(contractId);
+  };
+
+
     contract_generated: "Contrato gerado",
     contract_cancelled: "Contrato cancelado",
     contract_downloaded: "Contrato baixado",
