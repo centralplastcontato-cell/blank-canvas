@@ -22,7 +22,7 @@ import { toast } from "@/hooks/use-toast";
 
 import { ReactivationSection } from "./ReactivationSection";
 import { VisitConfirmationSection } from "./VisitConfirmationSection";
-import { ContractMessageSection } from "./ContractMessageSection";
+
 import { PreReservationAutomationSection } from "./PreReservationAutomationSection";
 import { PartyBotMessagesCard } from "./PartyBotMessagesCard";
 import { FormAutomationSection } from "./FormAutomationSection";
@@ -813,10 +813,6 @@ export function AutomationsSection() {
           <TabsTrigger value="visitas" className="rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
             <Map className="w-3.5 h-3.5" />
             <span>Visitas</span>
-          </TabsTrigger>
-          <TabsTrigger value="contrato" className="rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
-            <FileText className="w-3.5 h-3.5" />
-            <span>Contrato</span>
           </TabsTrigger>
           <TabsTrigger value="prereserva" className="rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
             <CalendarClock className="w-3.5 h-3.5" />
@@ -2384,11 +2380,6 @@ export function AutomationsSection() {
         {/* ============ TAB: CONFIRMAÇÃO DE VISITAS ============ */}
         <TabsContent value="visitas" className="mt-4">
           <VisitConfirmationSection />
-        </TabsContent>
-
-        {/* ============ TAB: CONTRATO ============ */}
-        <TabsContent value="contrato" className="mt-4">
-          <ContractMessageSection />
         </TabsContent>
 
         {/* ============ TAB: PRÉ-RESERVA ============ */}

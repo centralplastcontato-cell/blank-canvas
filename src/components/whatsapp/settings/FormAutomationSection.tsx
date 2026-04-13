@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ClipboardList, PartyPopper, UtensilsCrossed, Star, Clock, Save, Loader2 } from "lucide-react";
+import { ClipboardList, PartyPopper, UtensilsCrossed, Star, Clock, Save, Loader2, FileSignature } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -44,6 +44,17 @@ const FORM_TYPES = [
     borderColor: "border-emerald-500/20",
     defaultMessage: "Olá {{nome}}! 🍽️\n\nVamos definir o cardápio da sua festa? Acesse o link abaixo e escolha as opções:\n\n{{link}}",
     defaultDays: 10,
+  },
+  {
+    type: "contrato",
+    label: "Contrato",
+    description: "Envio automático do contrato para assinatura digital",
+    icon: FileSignature,
+    color: "text-blue-500",
+    bgColor: "bg-blue-500/10",
+    borderColor: "border-blue-500/20",
+    defaultMessage: "Olá {{nome}}! 📄\n\nSeu contrato está pronto! Acesse o link abaixo para revisar e assinar digitalmente:\n\n{{link}}",
+    defaultDays: 5,
   },
   {
     type: "avaliacao",
