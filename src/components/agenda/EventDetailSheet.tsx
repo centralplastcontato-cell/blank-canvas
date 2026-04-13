@@ -76,6 +76,7 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
   const [sendingContractWA, setSendingContractWA] = useState<string | null>(null);
   const [sendingContractSign, setSendingContractSign] = useState<string | null>(null);
   const [wapiInstances, setWapiInstances] = useState<Array<{ id: string; instance_id: string; instance_token: string; unit: string | null; status: string }>>([]);
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string>("");
   const [sentWA, setSentWA] = useState<Set<string>>(new Set());
   const [sentSign, setSentSign] = useState<Set<string>>(new Set());
 
