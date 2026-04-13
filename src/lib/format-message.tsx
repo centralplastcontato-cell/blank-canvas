@@ -1,4 +1,21 @@
 import React from "react";
+import { ExternalLink } from "lucide-react";
+
+/** Truncate a URL for display: show hostname + short path */
+function formatUrlDisplay(url: string): string {
+  try {
+    const parsed = new URL(url.startsWith("http") ? url : `https://${url}`);
+    const host = parsed.hostname.replace(/^www\./, "");
+    const path = parsed.pathname + parsed.search;
+    if (path.length <= 1) return host;
+    // Show host + truncated path
+    const shortPath = path.length > 30 ? path.slice(0, 27) + "..." : path;
+    return `${host}${shortPath}`;
+  } catch {
+    // Fallback: just truncate
+    return url.length > 50 ? url.slice(0, 47) + "..." : url;
+  }
+}
 
 /**
  * Detects phone numbers (10-13 digits) and URLs in text,
@@ -28,9 +45,10 @@ export function formatMessageContent(text: string | null | undefined): React.Rea
           href={match[1]}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-blue-400 underline hover:text-blue-300"
+          className="inline-flex items-center gap-1 text-blue-200 underline underline-offset-2 decoration-blue-300/40 hover:text-white hover:decoration-white/60 transition-colors break-all text-[0.85em]"
         >
-          {match[1]}
+          <ExternalLink className="w-3 h-3 shrink-0 inline" />
+          {formatUrlDisplay(match[1])}
         </a>
       );
     } else if (match[2]) {
@@ -41,9 +59,10 @@ export function formatMessageContent(text: string | null | undefined): React.Rea
           href={`https://${match[2]}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-blue-400 underline hover:text-blue-300"
+          className="inline-flex items-center gap-1 text-blue-200 underline underline-offset-2 decoration-blue-300/40 hover:text-white hover:decoration-white/60 transition-colors break-all text-[0.85em]"
         >
-          {match[2]}
+          <ExternalLink className="w-3 h-3 shrink-0 inline" />
+          {formatUrlDisplay(match[2])}
         </a>
       );
     } else if (match[3]) {
@@ -56,7 +75,7 @@ export function formatMessageContent(text: string | null | undefined): React.Rea
           href={`https://wa.me/${waNumber}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-blue-400 underline hover:text-blue-300"
+          className="text-blue-200 underline underline-offset-2 decoration-blue-300/40 hover:text-white hover:decoration-white/60 transition-colors"
         >
           {raw}
         </a>
