@@ -2382,11 +2382,6 @@ export function AutomationsSection() {
           <VisitConfirmationSection />
         </TabsContent>
 
-        {/* ============ TAB: CONTRATO ============ */}
-        <TabsContent value="contrato" className="mt-4">
-          <ContractMessageSection />
-        </TabsContent>
-
         {/* ============ TAB: PRÉ-RESERVA ============ */}
         <TabsContent value="prereserva" className="mt-4">
           <PreReservationAutomationSection />
