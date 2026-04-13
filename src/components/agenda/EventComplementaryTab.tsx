@@ -74,6 +74,23 @@ export function EventComplementaryTab({
   const [instances, setInstances] = useState<WapiInstance[]>([]);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string>("");
 
+  // Load WhatsApp instances
+  useEffect(() => {
+    if (!companyId) return;
+    supabase
+      .from("wapi_instances")
+      .select("instance_id, instance_name, unit, status")
+      .eq("company_id", companyId)
+      .then(({ data }) => {
+        const list = (data || []) as WapiInstance[];
+        setInstances(list);
+        // Auto-select: prefer unit match, then first connected
+        const unitMatch = form.unit ? list.find(i => i.unit === form.unit && i.status === "connected") : null;
+        const firstConnected = list.find(i => i.status === "connected");
+        setSelectedInstanceId((unitMatch || firstConnected)?.instance_id || list[0]?.instance_id || "");
+      });
+  }, [companyId, form.unit]);
+
   useEffect(() => {
     if (!companyId) {
       setLoading(false);
