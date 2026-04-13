@@ -145,6 +145,7 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
         return;
       }
 
+      setSentWA(prev => new Set(prev).add(contract.id));
       toast({ title: `Contrato enviado via ${inst.unit || 'WhatsApp'} ✅` });
       await logContractAction(event.company_id, contract.id, contract.template_id, "contract_sent_whatsapp", userId, { lead_id: leadId, instance_unit: inst.unit });
     } finally {
@@ -187,29 +188,7 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
         toast({ title: "Erro ao criar assinatura", description: sigErr.message, variant: "destructive" });
         return;
       }
-      await (supabase as any).from("generated_contracts").update({ status: "aguardando_assinatura", signature_token: token }).eq("id", contract.id);
       const signUrl = `${window.location.origin}/assinar-contrato/${token}`;
-
-      const pdfResult = await sendContractViaWhatsApp(
-        event.company_id,
-        leadId,
-        contract.conteudo_renderizado,
-        contract.nome_documento,
-        {
-          instanceId: inst.instance_id,
-          instanceToken: inst.instance_token,
-        },
-      );
-
-      if (!pdfResult.success) {
-        toast({
-          title: "Erro ao enviar contrato",
-          description: pdfResult.error,
-          variant: "destructive",
-        });
-        fetchGeneratedContracts();
-        return;
-      }
 
       const phone = lead.whatsapp.replace(/\D/g, "");
       const template = await getContractSendTemplate(event.company_id);
@@ -231,11 +210,13 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
           description: sendErr?.message || sendPayload?.error || "Falha no envio do link pelo WhatsApp.",
           variant: "destructive",
         });
-        fetchGeneratedContracts();
+        await (supabase as any).from("contract_signatures").delete().eq("token", token);
         return;
       }
 
-      toast({ title: `Contrato em PDF + link de assinatura enviados via ${inst.unit || 'WhatsApp'} ✅` });
+      await (supabase as any).from("generated_contracts").update({ status: "aguardando_assinatura", signature_token: token }).eq("id", contract.id);
+      setSentSign(prev => new Set(prev).add(contract.id));
+      toast({ title: `Link de assinatura enviado via ${inst.unit || 'WhatsApp'} ✅` });
       await logContractAction(event.company_id, contract.id, contract.template_id, "contract_sent_for_signature", userId, { lead_id: leadId, instance_unit: inst.unit });
       fetchGeneratedContracts();
     } finally {
