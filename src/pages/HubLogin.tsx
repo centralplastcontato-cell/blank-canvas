@@ -118,7 +118,6 @@ export default function HubLogin() {
 
   if (isCheckingAccess) {
     return <LoadingScreen message="Verificando acesso..." />;
-    );
   }
 
   return (
