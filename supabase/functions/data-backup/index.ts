@@ -44,6 +44,23 @@ Deno.serve(async (req) => {
 
     // Support both cron (all companies) and manual (single company)
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
+
+    // Handle download action - generate signed URL
+    if (body.action === "download" && body.file_name) {
+      const { data: signedData, error: signError } = await supabase.storage
+        .from("data-backups")
+        .createSignedUrl(body.file_name, 300); // 5 min expiry
+      if (signError || !signedData?.signedUrl) {
+        return new Response(JSON.stringify({ error: "Não foi possível gerar URL de download" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ url: signedData.signedUrl }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const targetCompanyId = body.company_id;
 
     let companies: { id: string; name: string; slug: string }[];
