@@ -127,20 +127,20 @@ export function ContractModelsList({ userId }: Props) {
                     </div>
                     <Switch checked={m.is_active} onCheckedChange={(v) => handleToggleActive(m.id, v)} className="shrink-0 mt-0.5" />
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap border-t border-border/40 pt-3 mt-3">
-                    <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5" onClick={() => openEdit(m)}>
-                      <Pencil className="h-3.5 w-3.5" /> Editar
+                  <div className="flex items-center gap-1.5 flex-wrap border-t border-border/40 pt-3 mt-3">
+                    <Button variant="outline" size="sm" className="h-7 text-[11px] rounded-full px-3 gap-1" onClick={() => openEdit(m)}>
+                      <Pencil className="h-3 w-3" /> Editar
                     </Button>
-                    <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5" onClick={() => setHistoryModel(m)}>
-                      <History className="h-3.5 w-3.5" /> Versões
+                    <Button variant="outline" size="sm" className="h-7 text-[11px] rounded-full px-3 gap-1" onClick={() => setHistoryModel(m)}>
+                      <History className="h-3 w-3" /> Versões
                     </Button>
-                    <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5" onClick={() => handleDuplicate(m)}>
-                      <Copy className="h-3.5 w-3.5" /> Duplicar
+                    <Button variant="outline" size="sm" className="h-7 text-[11px] rounded-full px-3 gap-1" onClick={() => handleDuplicate(m)}>
+                      <Copy className="h-3 w-3" /> Duplicar
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5 ml-auto border-destructive/30 text-destructive hover:bg-destructive/10">
-                          <Trash2 className="h-3.5 w-3.5" /> Excluir
+                        <Button variant="outline" size="sm" className="h-7 text-[11px] rounded-full px-3 gap-1 border-destructive/30 text-destructive hover:bg-destructive/10">
+                          <Trash2 className="h-3 w-3" /> Excluir
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
