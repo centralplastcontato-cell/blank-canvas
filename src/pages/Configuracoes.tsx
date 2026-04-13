@@ -216,6 +216,7 @@ export default function Configuracoes() {
               </TabsContent>
             )}
           </Tabs>
+        </main>
       </div>
     );
   }
