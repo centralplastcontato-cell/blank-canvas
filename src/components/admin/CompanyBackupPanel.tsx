@@ -46,14 +46,28 @@ export function CompanyBackupPanel() {
   });
 
   const handleDownload = async (fileName: string) => {
-    const { data, error } = await supabase.storage.from("data-backups").download(fileName);
-    if (error || !data) { toast.error("Erro ao baixar arquivo"); return; }
-    const url = URL.createObjectURL(data);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName.split("/").pop() || "backup.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      // Use edge function to generate signed URL (bypasses RLS on private bucket)
+      const { data, error } = await supabase.functions.invoke("data-backup", {
+        body: { action: "download", file_name: fileName },
+      });
+      if (error || !data?.url) { 
+        toast.error("Erro ao baixar arquivo"); 
+        return; 
+      }
+      // Download via signed URL
+      const response = await fetch(data.url);
+      if (!response.ok) { toast.error("Erro ao baixar arquivo"); return; }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName.split("/").pop() || "backup.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Erro ao baixar o arquivo");
+    }
   };
 
   const statusBadge = (status: string) => {
