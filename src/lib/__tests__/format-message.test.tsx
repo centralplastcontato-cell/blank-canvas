@@ -23,6 +23,8 @@ describe("formatMessageContent", () => {
     expect(link).toBeTruthy();
     expect(link!.href).toBe("https://example.com/");
     expect(link!.target).toBe("_blank");
+    // Should show truncated display text, not raw URL
+    expect(link!.textContent).toContain("example.com");
   });
 
   it("converts 11-digit phone to wa.me link with 55 prefix", () => {
@@ -53,6 +55,6 @@ describe("formatMessageContent", () => {
     const link = container.querySelector("a");
     expect(link).toBeTruthy();
     expect(link!.href).toBe("https://www.example.com/");
-    expect(link!.textContent).toBe("www.example.com");
+    expect(link!.textContent).toContain("example.com");
   });
 });
