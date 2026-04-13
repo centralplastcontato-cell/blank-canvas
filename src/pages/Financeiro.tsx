@@ -213,11 +213,7 @@ export default function Financeiro() {
   };
 
   if (dashboard.isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary/40" />
-      </div>
-    );
+      return <LoadingScreen message="Carregando financeiro..." />;
   }
 
   const sortByDueDate = (a: any, b: any) => sortOrder === 'asc' ? a.due_date.localeCompare(b.due_date) : b.due_date.localeCompare(a.due_date);

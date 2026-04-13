@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { CompanyProvider } from "@/contexts/CompanyContext";
-import { Loader2 } from "lucide-react";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 
 // Eager: root-level routing (tiny, always needed)
 import RootPage from "./pages/RootPage";

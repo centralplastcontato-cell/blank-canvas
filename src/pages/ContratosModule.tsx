@@ -47,7 +47,7 @@ export default function ContratosModule() {
   const handleRefresh = () => window.location.reload();
 
   if (isLoading || !user) {
-    return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
+    return <LoadingScreen message="Carregando contratos..." />;
   }
 
   return (
