@@ -275,7 +275,7 @@ export function FormAutomationSection() {
               {config.is_enabled && (
                 <CardContent className="space-y-4 pt-0">
                   {/* Timing - hide for contrato_envio (manual send only) */}
-                  {config.form_type !== "contrato_envio" && (
+                  {config.form_type !== "contrato_envio" && config.form_type !== "contrato_whatsapp" && (
                     <div className="rounded-lg bg-muted/50 p-4 space-y-4">
                       <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                         <Clock className="w-4 h-4 text-muted-foreground" />
@@ -360,7 +360,15 @@ export function FormAutomationSection() {
                   {config.form_type === "contrato_envio" && (
                     <div className="rounded-lg bg-purple-50/50 dark:bg-purple-500/5 border border-purple-200/40 p-3">
                       <p className="text-xs text-muted-foreground leading-relaxed">
-                        ✉️ Esta mensagem é enviada manualmente ao clicar em <strong>"Enviar p/ Assinatura"</strong> no contrato gerado. Personalize o texto que acompanha o link de assinatura digital.
+                        ✉️ Esta mensagem é enviada ao clicar em <strong>"Enviar p/ Assinatura"</strong> no contrato gerado. Acompanha o link de assinatura digital.
+                      </p>
+                    </div>
+                  )}
+
+                  {config.form_type === "contrato_whatsapp" && (
+                    <div className="rounded-lg bg-emerald-50/50 dark:bg-emerald-500/5 border border-emerald-200/40 p-3">
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        💬 Esta mensagem é enviada ao clicar em <strong>"WhatsApp"</strong> no contrato gerado. O PDF do contrato é enviado junto como anexo.
                       </p>
                     </div>
                   )}
@@ -377,6 +385,8 @@ export function FormAutomationSection() {
                     <div className="flex flex-wrap gap-1.5">
                       {(config.form_type === "contrato_envio"
                         ? ["{{nome}}", "{{link}}", "{{nome_contrato}}", "{{empresa}}"]
+                        : config.form_type === "contrato_whatsapp"
+                        ? ["{{nome}}", "{{nome_contrato}}", "{{empresa}}"]
                         : ["{{nome}}", "{{link}}", "{{data_evento}}", "{{empresa}}"]
                       ).map((v) => (
                         <Badge key={v} variant="outline" className="text-[10px] font-mono cursor-default">
