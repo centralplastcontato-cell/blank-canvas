@@ -48,6 +48,8 @@ const PLATFORM_TIPS = [
 const STORAGE_KEY = "floating-tips-dismissed";
 const TIP_INDEX_KEY = "floating-tips-index";
 const ROTATION_INTERVAL = 30000;
+const DESKTOP_WIDTH = 480;
+const MOBILE_WIDTH = 320;
 
 // Allow external reactivation
 export function reactivateFloatingTips() {
@@ -68,12 +70,19 @@ export function FloatingTips() {
   const [isDragging, setIsDragging] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const dragRef = useRef<HTMLDivElement>(null);
-  const offsetRef = useRef({ x: 0, y: 0 });
+  const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
+  const hasDraggedRef = useRef(false);
+
+  const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
+  const cardWidth = isDesktop ? DESKTOP_WIDTH : MOBILE_WIDTH;
 
   // Set initial position on mount (bottom-right)
   useEffect(() => {
     if (position.y === -1) {
-      setPosition({ x: 24, y: window.innerHeight - 280 });
+      setPosition({
+        x: Math.max(16, window.innerWidth - cardWidth - 32),
+        y: Math.max(16, window.innerHeight - (isDesktop ? 320 : 280)),
+      });
     }
   }, []);
 
@@ -133,31 +142,41 @@ export function FloatingTips() {
     }, 200);
   };
 
-  // Drag handlers
+  // Improved drag using document-level listeners
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if (!dragRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    hasDraggedRef.current = false;
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      posX: position.x,
+      posY: position.y,
+    };
     setIsDragging(true);
-    const rect = dragRef.current.getBoundingClientRect();
-    offsetRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  }, []);
 
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (!isDragging) return;
-      const x = e.clientX - offsetRef.current.x;
-      const y = e.clientY - offsetRef.current.y;
+    const onMove = (ev: PointerEvent) => {
+      ev.preventDefault();
+      const dx = ev.clientX - dragStartRef.current.x;
+      const dy = ev.clientY - dragStartRef.current.y;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        hasDraggedRef.current = true;
+      }
       setPosition({
-        x: Math.max(0, Math.min(x, window.innerWidth - 320)),
-        y: Math.max(0, Math.min(y, window.innerHeight - 100)),
+        x: Math.max(0, Math.min(dragStartRef.current.posX + dx, window.innerWidth - cardWidth)),
+        y: Math.max(0, Math.min(dragStartRef.current.posY + dy, window.innerHeight - 80)),
       });
-    },
-    [isDragging]
-  );
+    };
 
-  const handlePointerUp = useCallback(() => {
-    setIsDragging(false);
-  }, []);
+    const onUp = () => {
+      setIsDragging(false);
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+    };
+
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+  }, [position, cardWidth]);
 
   if (!isVisible) return null;
 
@@ -169,16 +188,18 @@ export function FloatingTips() {
         ref={dragRef}
         style={{ position: "fixed", left: position.x, top: position.y, zIndex: 9999 }}
         className="select-none"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
       >
-        <button
-          onClick={() => !isDragging && setIsMinimized(false)}
-          className="h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
+        <div
+          className="cursor-grab active:cursor-grabbing"
+          onPointerDown={handlePointerDown}
         >
-          <Lightbulb className="h-5 w-5" />
-        </button>
+          <button
+            onClick={() => !hasDraggedRef.current && setIsMinimized(false)}
+            className="h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
+          >
+            <Lightbulb className="h-5 w-5" />
+          </button>
+        </div>
       </div>
     );
   }
@@ -191,24 +212,22 @@ export function FloatingTips() {
         left: position.x,
         top: position.y,
         zIndex: 9999,
-        width: 320,
+        width: cardWidth,
       }}
       className={cn(
         "select-none rounded-2xl border border-border/50 bg-card/95 backdrop-blur-md shadow-xl transition-all duration-300",
         isDragging && "opacity-90 scale-[1.02]"
       )}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
     >
       {/* Drag handle + controls */}
       <div
-        className="flex items-center justify-between px-3 py-2 cursor-grab active:cursor-grabbing border-b border-border/30"
+        className="flex items-center justify-between px-4 py-2.5 cursor-grab active:cursor-grabbing border-b border-border/30"
         onPointerDown={handlePointerDown}
       >
         <div className="flex items-center gap-2 text-muted-foreground">
           <GripHorizontal className="h-4 w-4" />
-          <Lightbulb className="h-4 w-4 text-primary" />
-          <span className="text-xs font-medium text-foreground">Dica da Plataforma</span>
+          <Lightbulb className={cn("text-primary", isDesktop ? "h-5 w-5" : "h-4 w-4")} />
+          <span className={cn("font-medium text-foreground", isDesktop ? "text-sm" : "text-xs")}>Dica da Plataforma</span>
         </div>
         <div className="flex items-center gap-1">
           <button
@@ -229,13 +248,17 @@ export function FloatingTips() {
       </div>
 
       {/* Tip content */}
-      <div className={cn("px-4 py-3 min-h-[80px] transition-opacity duration-200", isAnimating && "opacity-0")}>
-        <p className="text-sm font-semibold text-foreground mb-1">{tip.title}</p>
-        <p className="text-xs text-muted-foreground leading-relaxed">{tip.text}</p>
+      <div className={cn(
+        "px-5 transition-opacity duration-200",
+        isDesktop ? "py-5 min-h-[100px]" : "py-3 min-h-[80px]",
+        isAnimating && "opacity-0"
+      )}>
+        <p className={cn("font-semibold text-foreground mb-1.5", isDesktop ? "text-base" : "text-sm")}>{tip.title}</p>
+        <p className={cn("text-muted-foreground leading-relaxed", isDesktop ? "text-sm" : "text-xs")}>{tip.text}</p>
       </div>
 
       {/* Footer with navigation */}
-      <div className="flex items-center justify-between px-3 py-2 border-t border-border/30">
+      <div className="flex items-center justify-between px-4 py-2.5 border-t border-border/30">
         <div className="flex items-center gap-1">
           <button onClick={goPrev} className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
             <ChevronLeft className="h-4 w-4" />
