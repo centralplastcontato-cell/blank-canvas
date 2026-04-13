@@ -67,7 +67,26 @@ export function GeneratedContractsList({ userId }: Props) {
     setLoading(false);
   };
 
-  useEffect(() => { fetchContracts(); }, [currentCompany?.id]);
+  const fetchSentStatus = async () => {
+    if (!currentCompany?.id) return;
+    const { data: logs } = await (supabase as any)
+      .from("contract_audit_logs")
+      .select("contract_id, action")
+      .eq("company_id", currentCompany.id)
+      .in("action", ["contract_sent_whatsapp", "contract_sent_for_signature"]);
+    if (logs) {
+      const waIds = new Set<string>();
+      const signIds = new Set<string>();
+      for (const log of logs) {
+        if (log.action === "contract_sent_whatsapp" && log.contract_id) waIds.add(log.contract_id);
+        if (log.action === "contract_sent_for_signature" && log.contract_id) signIds.add(log.contract_id);
+      }
+      setSentWA(waIds);
+      setSentSign(signIds);
+    }
+  };
+
+  useEffect(() => { fetchContracts(); fetchSentStatus(); }, [currentCompany?.id]);
 
   const handleCancel = async (contract: GeneratedContract) => {
     if (!currentCompany?.id) return;
