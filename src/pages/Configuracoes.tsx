@@ -275,6 +275,12 @@ export default function Configuracoes() {
                       Usuários
                     </TabsTrigger>
                   )}
+                  {(isGestor || isAdmin || canManageUsers) && (
+                    <TabsTrigger value="backup" className="gap-2 rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground">
+                      <Database className="h-4 w-4" />
+                      Backup
+                    </TabsTrigger>
+                  )}
                 </TabsList>
                 <TabsContent value="perfil" className="mt-4">
                   <ProfileContent userId={user.id} userEmail={user.email || ""} />
@@ -290,6 +296,11 @@ export default function Configuracoes() {
                 {canManageUsers && (
                   <TabsContent value="usuarios" className="mt-4">
                     <UsersManagementPanel userId={user.id} isAdmin={isAdmin} />
+                  </TabsContent>
+                )}
+                {(isGestor || isAdmin || canManageUsers) && (
+                  <TabsContent value="backup" className="mt-4">
+                    <CompanyBackupPanel />
                   </TabsContent>
                 )}
               </Tabs>
