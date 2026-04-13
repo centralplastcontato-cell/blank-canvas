@@ -105,11 +105,7 @@ export default function Configuracoes() {
   };
 
   if (isLoading || isLoadingRole || isLoadingPermissions) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-xl h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <LoadingScreen message="Carregando configurações..." />;
   }
 
   if (!user || !role) {

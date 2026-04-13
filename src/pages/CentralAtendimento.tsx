@@ -769,11 +769,7 @@ export default function CentralAtendimento() {
   const { isLoading: isCompanyLoading } = useCompany();
 
   if (isLoading || isLoadingRole || isLoadingUnitPerms || isCompanyLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <LoadingScreen message="Carregando atendimento..." />;
   }
 
   if (!user) {
@@ -782,11 +778,7 @@ export default function CentralAtendimento() {
 
   // If role hasn't loaded yet (e.g. race condition), show loading instead of blank screen
   if (!role) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <LoadingScreen message="Carregando..." />;
   }
 
   const getInitials = (name: string) => {
