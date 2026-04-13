@@ -131,11 +131,7 @@ const PublicContractSign = lazy(() => import("./pages/PublicContractSign"));
 
 const SupportChatbot = lazy(() => import("./components/support/SupportChatbot").then(m => ({ default: m.SupportChatbot })));
 
-const PageLoader = () => (
-  <div className="min-h-screen bg-background flex items-center justify-center">
-    <Loader2 className="h-8 w-8 animate-spin text-primary/40" />
-  </div>
-);
+const PageLoader = () => <LoadingScreen message="Carregando..." />;
 
 const queryClient = new QueryClient();
 
