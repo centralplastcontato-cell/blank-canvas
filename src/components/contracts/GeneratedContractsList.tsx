@@ -270,8 +270,7 @@ export function GeneratedContractsList({ userId }: Props) {
     }
     setExpandedSig(contractId);
   };
-
-
+  const ACTION_LABELS: Record<string, string> = {
     contract_generated: "Contrato gerado",
     contract_cancelled: "Contrato cancelado",
     contract_downloaded: "Contrato baixado",
