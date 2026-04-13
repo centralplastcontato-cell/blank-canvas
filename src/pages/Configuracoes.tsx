@@ -193,6 +193,7 @@ export default function Configuracoes() {
                   Backup
                 </TabsTrigger>
               )}
+            </TabsList>
             <TabsContent value="perfil" className="mt-4">
               <ProfileContent userId={user.id} userEmail={user.email || ""} />
             </TabsContent>
@@ -208,13 +209,13 @@ export default function Configuracoes() {
               <TabsContent value="usuarios" className="mt-4">
                 <UsersManagementPanel userId={user.id} isAdmin={isAdmin} />
               </TabsContent>
-              )}
-              {(isGestor || isAdmin || canManageUsers) && (
-                <TabsContent value="backup" className="mt-4">
-                  <CompanyBackupPanel />
-                </TabsContent>
-              )}
-            </Tabs>
+            )}
+            {(isGestor || isAdmin || canManageUsers) && (
+              <TabsContent value="backup" className="mt-4">
+                <CompanyBackupPanel />
+              </TabsContent>
+            )}
+          </Tabs>
       </div>
     );
   }
