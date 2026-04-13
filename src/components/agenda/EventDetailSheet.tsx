@@ -582,12 +582,30 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                 <div className="px-3 py-2 border-b border-border/30">
                   <Select value={selectedInstanceId} onValueChange={setSelectedInstanceId}>
                     <SelectTrigger className="h-7 text-[11px]">
-                      <SelectValue placeholder="Enviar via..." />
+                      <SelectValue placeholder="Enviar via...">
+                        {(() => {
+                          const sel = wapiInstances.find(i => i.id === selectedInstanceId);
+                          if (!sel) return "Enviar via...";
+                          return (
+                            <span className="flex items-center gap-2">
+                              {sel.unit || sel.instance_id}
+                              <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0", sel.status === "connected" ? "bg-green-500/15 text-green-700 border-green-200" : "bg-muted text-muted-foreground")}>
+                                {sel.status === "connected" ? "Online" : "Offline"}
+                              </Badge>
+                            </span>
+                          );
+                        })()}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {wapiInstances.map((inst) => (
                         <SelectItem key={inst.id} value={inst.id} className="text-xs">
-                          {inst.unit || inst.instance_id}
+                          <span className="flex items-center gap-2">
+                            {inst.unit || inst.instance_id}
+                            <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0", inst.status === "connected" ? "bg-green-500/15 text-green-700 border-green-200" : "bg-muted text-muted-foreground")}>
+                              {inst.status === "connected" ? "Online" : "Offline"}
+                            </Badge>
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectContent>
