@@ -2447,24 +2447,24 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                className="h-7 text-[11px] gap-1.5"
+                                className={cn("h-7 text-[11px] gap-1.5", (sentWA.has(gc.id) || gc.status === "enviado") && "bg-emerald-500/15 text-emerald-700 border-emerald-300")}
                                 disabled={sendingContractWA === gc.id}
                                 onClick={() => handleContractSendWA(gc)}
                               >
                                 {sendingContractWA === gc.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <MessageCircle className="h-3 w-3" />}
-                                WhatsApp
+                                {sentWA.has(gc.id) || gc.status === "enviado" ? "WhatsApp ✅" : "WhatsApp"}
                               </Button>
                               {gc.status !== "assinado" && (
                                 <Button
                                   type="button"
                                   variant="outline"
                                   size="sm"
-                                  className="h-7 text-[11px] gap-1.5"
+                                  className={cn("h-7 text-[11px] gap-1.5", (sentSign.has(gc.id) || gc.status === "aguardando_assinatura") && "bg-emerald-500/15 text-emerald-700 border-emerald-300")}
                                   disabled={sendingContractSign === gc.id}
                                   onClick={() => handleContractSendSign(gc)}
                                 >
                                   {sendingContractSign === gc.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileSignature className="h-3 w-3" />}
-                                  Enviar p/ Assinatura
+                                  {sentSign.has(gc.id) || gc.status === "aguardando_assinatura" ? "Assinatura ✅" : "Enviar p/ Assinatura"}
                                 </Button>
                               )}
                             </div>
