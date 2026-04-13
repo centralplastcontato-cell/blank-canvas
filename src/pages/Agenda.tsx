@@ -957,7 +957,7 @@ export default function Agenda() {
                 </div>
               </div>
               {/* Central Tab Bar - mobile inside header */}
-              <div className="pt-2">
+              <div className="pt-2 flex justify-center">
                 <div className="overflow-x-auto scrollbar-none">
                   <div className="inline-flex gap-1 p-1 rounded-2xl bg-muted/50 border border-border/40 shadow-sm">
                     {[
@@ -1022,7 +1022,7 @@ export default function Agenda() {
           </header>
 
           {/* Central Tab Bar - desktop only (mobile version is in header) */}
-          <div className="hidden md:block px-3 pt-3 md:px-6 lg:px-8 md:pt-6 shrink-0">
+          <div className="hidden md:flex md:justify-center px-3 pt-3 md:px-6 lg:px-8 md:pt-6 shrink-0">
             <div className="overflow-x-auto scrollbar-none">
               <div className="inline-flex gap-1 md:gap-2 p-1 md:p-1.5 rounded-2xl bg-muted/50 border border-border/40 shadow-sm">
                 {[
