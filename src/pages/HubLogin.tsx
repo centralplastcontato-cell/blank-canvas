@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Lock, Mail } from "lucide-react";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 import logoCelebrei from "@/assets/logo-celebrei-2.png";
 import { z } from "zod";
 
