@@ -182,7 +182,7 @@ function addCoverPage(doc: jsPDF, companyName?: string, logoBase64?: string) {
   doc.setFont("helvetica", "normal");
   const now = new Date();
   const months = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-  doc.text(`Versão 2.0 — ${months[now.getMonth()]} ${now.getFullYear()}`, PAGE_W / 2, 200, { align: "center" });
+  doc.text(`Versão 3.0 — ${months[now.getMonth()]} ${now.getFullYear()}`, PAGE_W / 2, 200, { align: "center" });
 
   // Bottom strip
   doc.setFillColor(...rgb(C.coverDark));
