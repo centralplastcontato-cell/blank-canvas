@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
@@ -899,7 +900,7 @@ export default function Agenda() {
   };
 
   if (permLoading) {
-    return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+    return <LoadingScreen message="Carregando agenda..." />;
   }
 
   if (!modules.agenda && !isAdmin) {

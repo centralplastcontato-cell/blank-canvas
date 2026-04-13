@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen";
 import { useState, useEffect, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
@@ -268,7 +269,7 @@ export default function Visitas() {
   const handleLogout = async () => { await supabase.auth.signOut(); navigate("/auth"); };
 
   if (isLoading || !user) {
-    return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
+    return <LoadingScreen message="Carregando visitas..." />;
   }
 
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;

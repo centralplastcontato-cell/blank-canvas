@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen";
 import { useEffect, useState, useMemo } from "react";
 import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -115,7 +116,7 @@ export default function Formularios() {
   };
 
   if (permLoading) {
-    return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+    return <LoadingScreen message="Carregando operações..." />;
   }
 
   if (!canView) {

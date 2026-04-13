@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,7 +48,7 @@ export default function ContratosModule() {
   const handleRefresh = () => window.location.reload();
 
   if (isLoading || !user) {
-    return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
+    return <LoadingScreen message="Carregando contratos..." />;
   }
 
   return (
