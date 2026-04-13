@@ -163,9 +163,9 @@ export default function PartnerOrders() {
               </div>
             </div>
             <Tabs value={view} onValueChange={(v) => setView(v as any)}>
-              <TabsList className="rounded-full bg-primary/10">
-                <TabsTrigger value="kanban" className="rounded-full text-xs">Kanban</TabsTrigger>
-                <TabsTrigger value="lista" className="rounded-full text-xs">Lista</TabsTrigger>
+              <TabsList className="rounded-xl bg-primary/10">
+                <TabsTrigger value="kanban" className="rounded-xl text-xs">Kanban</TabsTrigger>
+                <TabsTrigger value="lista" className="rounded-xl text-xs">Lista</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
