@@ -1114,16 +1114,19 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     const eventType = EVENT_TYPES.find(t => t.value === form.event_type)?.label || form.event_type || "";
     const packageName = form.package_name || "";
 
-    return template
-      .replace(/\{\{nome\}\}/gi, leadName)
-      .replace(/\{\{primeiro_nome\}\}/gi, firstName)
-      .replace(/\{\{empresa\}\}/gi, companyName)
-      .replace(/\{\{buffet\}\}/gi, companyName)
-      .replace(/\{\{nome_buffet\}\}/gi, companyName)
-      .replace(/\{\{data_festa\}\}/gi, eventDate)
-      .replace(/\{\{tipo_festa\}\}/gi, eventType)
-      .replace(/\{\{pacote\}\}/gi, packageName)
-      .replace(/\{\{link_formulario_contrato\}\}/gi, link);
+    return resolveFormAutomationMessage(template, {
+      nome: leadName,
+      primeiro_nome: firstName,
+      empresa: companyName,
+      buffet: companyName,
+      nome_buffet: companyName,
+      data_evento: eventDate,
+      data_festa: eventDate,
+      tipo_festa: eventType,
+      pacote: packageName,
+      link,
+      link_formulario_contrato: link,
+    });
   };
 
   const buildClientLink = (token: string) => `${window.location.origin}/dados-contratante/${token}`;
@@ -1152,26 +1155,14 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       if (error) throw error;
       setClientRequest(data as ClientDataRequest);
 
-      // Load contract message settings and resolve
       const link = buildClientLink(token);
-      const { data: msgSettings } = await (supabase as any)
-        .from("contract_message_settings")
-        .select("is_enabled, message_template")
-        .eq("company_id", currentCompany.id)
-        .maybeSingle();
+      const template = await getFormAutomationTemplate(currentCompany.id, "contrato");
+      const resolved = resolveContractMessage(template, link);
+      setResolvedMessage(resolved);
 
-      if (msgSettings?.is_enabled && msgSettings?.message_template) {
-        const resolved = resolveContractMessage(msgSettings.message_template, link);
-        setResolvedMessage(resolved);
-        if (!options?.skipClipboard) {
-          navigator.clipboard.writeText(resolved);
-          toast({ title: "Link gerado e mensagem copiada!", description: "A mensagem personalizada foi copiada para a área de transferência." });
-        }
-      } else {
-        if (!options?.skipClipboard) {
-          navigator.clipboard.writeText(link);
-          toast({ title: "Link gerado e copiado!" });
-        }
+      if (!options?.skipClipboard) {
+        navigator.clipboard.writeText(resolved);
+        toast({ title: "Link gerado e mensagem copiada!", description: "A mensagem configurada em Automações foi copiada para a área de transferência." });
       }
 
       return data as ClientDataRequest;
@@ -1239,20 +1230,10 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
       const link = buildClientLink(effectiveToken);
 
-      // Always re-fetch the saved template so edited text is respected
       let message = "";
-      const { data: msgSettings } = await (supabase as any)
-        .from("contract_message_settings")
-        .select("is_enabled, message_template")
-        .eq("company_id", currentCompany?.id)
-        .maybeSingle();
-
-      if (msgSettings?.is_enabled && msgSettings?.message_template) {
-        message = resolveContractMessage(msgSettings.message_template, link);
-        setResolvedMessage(message);
-      } else {
-        message = `Olá! Segue o link para preenchimento dos dados do contratante:\n\n${link}`;
-      }
+      const template = await getFormAutomationTemplate(currentCompany.id, "contrato");
+      message = resolveContractMessage(template, link);
+      setResolvedMessage(message);
 
       const { error } = await supabase.functions.invoke("wapi-send", {
         body: {

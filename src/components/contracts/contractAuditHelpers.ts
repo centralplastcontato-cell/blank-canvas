@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { getFormAutomationTemplate, resolveFormAutomationMessage } from "@/lib/formAutomationMessages";
 
 /**
  * Verify that a WhatsApp instance is actually connected (live check via W-API).

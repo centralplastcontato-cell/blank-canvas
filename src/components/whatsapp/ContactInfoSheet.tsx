@@ -148,7 +148,6 @@ export function ContactInfoSheet({
     const firstName = leadName.split(" ")[0];
     const companyName = currentCompany?.name || "Buffet";
 
-    // Try to get event date from lead's month/day
     let eventDate = "";
     if (linkedLead?.day_of_month && linkedLead?.month) {
       eventDate = `${linkedLead.day_of_month}/${linkedLead.month}`;
@@ -156,36 +155,27 @@ export function ContactInfoSheet({
       eventDate = `${linkedLead.day_preference}/${linkedLead.month}`;
     }
 
-    return template
-      .replace(/\{\{nome\}\}/gi, leadName)
-      .replace(/\{\{primeiro_nome\}\}/gi, firstName)
-      .replace(/\{\{empresa\}\}/gi, companyName)
-      .replace(/\{\{buffet\}\}/gi, companyName)
-      .replace(/\{\{nome_buffet\}\}/gi, companyName)
-      .replace(/\{\{data_festa\}\}/gi, eventDate)
-      .replace(/\{\{tipo_festa\}\}/gi, "")
-      .replace(/\{\{pacote\}\}/gi, "")
-      .replace(/\{\{link_formulario_contrato\}\}/gi, link);
+    return resolveFormAutomationMessage(template, {
+      nome: leadName,
+      primeiro_nome: firstName,
+      empresa: companyName,
+      buffet: companyName,
+      nome_buffet: companyName,
+      data_evento: eventDate,
+      data_festa: eventDate,
+      link,
+      link_formulario_contrato: link,
+    });
   };
 
   const handleSendClientDataLink = async () => {
     if (!clientDataLink || !instanceId || !contactPhone) return;
     setIsSendingLink(true);
     try {
-      let message = `Olá! Segue o link para preenchimento dos dados do contratante:\n\n${clientDataLink}`;
-
-      // Fetch the user's custom template from contract_message_settings
-      if (currentCompany?.id) {
-        const { data: msgSettings } = await supabase
-          .from("contract_message_settings")
-          .select("is_enabled, message_template")
-          .eq("company_id", currentCompany.id)
-          .maybeSingle();
-
-        if (msgSettings?.is_enabled && msgSettings?.message_template) {
-          message = resolveContractTemplate(msgSettings.message_template, clientDataLink);
-        }
-      }
+      const template = currentCompany?.id
+        ? await getFormAutomationTemplate(currentCompany.id, "contrato")
+        : "";
+      const message = resolveContractTemplate(template, clientDataLink);
 
       const { error } = await supabase.functions.invoke("wapi-send", {
         body: {
