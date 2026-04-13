@@ -12,12 +12,13 @@ import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
 import { WhatsAppConfig } from "@/components/whatsapp/WhatsAppConfig";
 import { PartyControlConfig } from "@/components/admin/PartyControlConfig";
+import { UsersManagementPanel } from "@/components/admin/UsersManagementPanel";
 
 import { ProfileContent } from "@/components/admin/ProfileContent";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { Menu, Settings, MessageSquare, PartyPopper, UserCircle } from "lucide-react";
+import { Menu, Settings, MessageSquare, PartyPopper, UserCircle, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "@/hooks/use-toast";
