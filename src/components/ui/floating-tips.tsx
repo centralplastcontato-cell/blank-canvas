@@ -49,6 +49,12 @@ const STORAGE_KEY = "floating-tips-dismissed";
 const TIP_INDEX_KEY = "floating-tips-index";
 const ROTATION_INTERVAL = 30000;
 
+// Allow external reactivation
+export function reactivateFloatingTips() {
+  localStorage.removeItem(STORAGE_KEY);
+  window.dispatchEvent(new CustomEvent("floating-tips-reactivate"));
+}
+
 export function FloatingTips() {
   const [isVisible, setIsVisible] = useState(() => {
     return localStorage.getItem(STORAGE_KEY) !== "true";
