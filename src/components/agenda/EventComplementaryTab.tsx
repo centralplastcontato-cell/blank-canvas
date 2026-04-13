@@ -45,6 +45,91 @@ interface WapiInstance {
   status: string | null;
 }
 
+const MATCH_IGNORED_WORDS = new Set([
+  "a",
+  "o",
+  "as",
+  "os",
+  "da",
+  "de",
+  "do",
+  "das",
+  "dos",
+  "e",
+  "cardapio",
+  "pacote",
+  "formulario",
+  "template",
+]);
+
+const normalizeTemplateName = (value?: string | null) =>
+  (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const tokenizeTemplateName = (value?: string | null) =>
+  normalizeTemplateName(value)
+    .split(" ")
+    .filter((token) => token && !MATCH_IGNORED_WORDS.has(token));
+
+const getCardapioMatchScore = (templateName: string, packageName: string) => {
+  const normalizedTemplate = normalizeTemplateName(templateName);
+  const normalizedPackage = normalizeTemplateName(packageName);
+
+  if (!normalizedTemplate || !normalizedPackage) return 0;
+  if (normalizedTemplate === normalizedPackage) return 1000;
+  if (normalizedTemplate.includes(normalizedPackage)) {
+    return 900 - Math.max(normalizedTemplate.length - normalizedPackage.length, 0);
+  }
+
+  const packageTokens = tokenizeTemplateName(packageName);
+  const templateTokens = tokenizeTemplateName(templateName);
+  if (packageTokens.length === 0 || templateTokens.length === 0) return 0;
+
+  const overlap = packageTokens.filter((token) => templateTokens.includes(token)).length;
+  if (overlap === 0) return 0;
+
+  const missingTokens = packageTokens.length - overlap;
+  const extraTokens = templateTokens.length - overlap;
+
+  return overlap * 100 - missingTokens * 35 - extraTokens * 5;
+};
+
+const filterCardapioTemplatesByPackage = (templates: FormTemplate[], packageName?: string | null) => {
+  if (!packageName || packageName === "Sem pacote") return templates;
+
+  const packageTokens = tokenizeTemplateName(packageName);
+  if (packageTokens.length === 0) return templates;
+
+  const scoredTemplates = templates
+    .map((template) => ({
+      template,
+      score: getCardapioMatchScore(template.name, packageName),
+    }))
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (scoredTemplates.length === 0) return [];
+
+  const bestScore = scoredTemplates[0].score;
+  const bestTemplates = scoredTemplates
+    .filter(({ score }) => score === bestScore)
+    .map(({ template }) => template);
+
+  if (bestTemplates.length === 1) return bestTemplates;
+
+  const strictMatches = bestTemplates.filter((template) => {
+    const templateTokens = tokenizeTemplateName(template.name);
+    return packageTokens.every((token) => templateTokens.includes(token));
+  });
+
+  return strictMatches.length > 0 ? [strictMatches[0]] : [bestTemplates[0]];
+};
+
 interface EventComplementaryTabProps {
   eventId: string;
   companyId: string;
@@ -153,16 +238,7 @@ export function EventComplementaryTab({
           type: "cardapio",
           label: "Cardápio",
           icon: UtensilsCrossed,
-          templates: (() => {
-            const all = (cardapioTemplates || []) as FormTemplate[];
-            if (!form.package_name || form.package_name === 'Sem pacote') return all;
-            const pkgLower = form.package_name.toLowerCase().trim();
-            const matched = all.filter((t) => {
-              const tName = t.name.toLowerCase();
-              return tName.includes(pkgLower) || pkgLower.split(/\s+/).every((word) => tName.includes(word));
-            });
-            return matched.length > 0 ? matched : all;
-          })(),
+          templates: filterCardapioTemplatesByPackage((cardapioTemplates || []) as FormTemplate[], form.package_name),
           responses: mapResponses(cardapioResponses),
           publicPath: "cardapio",
         },
