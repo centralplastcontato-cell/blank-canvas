@@ -442,21 +442,6 @@ export function FormAutomationSection() {
                     </div>
                   )}
 
-                  {config.form_type === "contrato_envio" && (
-                    <div className="rounded-lg bg-purple-50/50 dark:bg-purple-500/5 border border-purple-200/40 p-3">
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        ✉️ Esta mensagem é enviada ao clicar em <strong>"Enviar p/ Assinatura"</strong> no contrato gerado. Acompanha o link de assinatura digital.
-                      </p>
-                    </div>
-                  )}
-
-                  {config.form_type === "contrato_whatsapp" && (
-                    <div className="rounded-lg bg-emerald-50/50 dark:bg-emerald-500/5 border border-emerald-200/40 p-3">
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        💬 Esta mensagem é enviada ao clicar em <strong>"WhatsApp"</strong> no contrato gerado. O PDF do contrato é enviado junto como anexo.
-                      </p>
-                    </div>
-                  )}
 
                   {/* Message Template */}
                   <div className="space-y-2">
