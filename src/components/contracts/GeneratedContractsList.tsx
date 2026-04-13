@@ -13,7 +13,7 @@ import { ptBR } from "date-fns/locale";
 import { ContractGenerator } from "./ContractGenerator";
 import { ContractDocumentViewer } from "./ContractDocumentViewer";
 import { toast } from "@/hooks/use-toast";
-import { logContractAction, sendContractViaWhatsApp } from "./contractAuditHelpers";
+import { logContractAction, sendContractViaWhatsApp, getContractSendTemplate, resolveContractSendMessage } from "./contractAuditHelpers";
 
 interface GeneratedContract {
   id: string;
@@ -182,7 +182,13 @@ export function GeneratedContractsList({ userId }: Props) {
         }
 
         const phone = lead.whatsapp.replace(/\D/g, "");
-        const msg = `📄 *${contract.nome_documento}*\n\nOlá ${lead.name}! Seu contrato está pronto para assinatura digital.\n\nAcesse o link abaixo para ler e assinar:\n${signUrl}\n\n_${currentCompany.name}_`;
+        const template = await getContractSendTemplate(currentCompany.id);
+        const msg = resolveContractSendMessage(template, {
+          nome: lead.name,
+          link: signUrl,
+          nome_contrato: contract.nome_documento,
+          empresa: currentCompany.name,
+        });
         const { data: sendResult, error: sendErr } = await supabase.functions.invoke("wapi-send", {
           body: { action: "send-text", instanceId: instance.instance_id, instanceToken: instance.instance_token, phone, message: msg },
         });
