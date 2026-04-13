@@ -136,7 +136,34 @@ const Sidebar = React.forwardRef<
     collapsible?: "offcanvas" | "icon" | "none";
   }
 >(({ side = "left", variant = "sidebar", collapsible = "offcanvas", className, children, ...props }, ref) => {
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  const { isMobile, state, openMobile, setOpenMobile, open, setOpen } = useSidebar();
+  const hoverTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [hoverExpanded, setHoverExpanded] = React.useState(false);
+
+  const handleMouseEnter = React.useCallback(() => {
+    if (isMobile || collapsible === "none") return;
+    if (!open) {
+      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = setTimeout(() => {
+        setHoverExpanded(true);
+        setOpen(true);
+      }, 100);
+    }
+  }, [isMobile, collapsible, open, setOpen]);
+
+  const handleMouseLeave = React.useCallback(() => {
+    if (isMobile || collapsible === "none") return;
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    if (hoverExpanded) {
+      setHoverExpanded(false);
+      setOpen(false);
+    }
+  }, [isMobile, collapsible, hoverExpanded, setOpen]);
+
+  // Reset hoverExpanded when user manually toggles (click)
+  React.useEffect(() => {
+    if (open) setHoverExpanded(false);
+  }, []);
 
   if (collapsible === "none") {
     return (
