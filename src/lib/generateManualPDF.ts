@@ -1230,6 +1230,9 @@ export async function generateManualPDF(companyName?: string) {
   ch16(doc);
   ch17(doc);
   ch18(doc);
+  ch19(doc);
+  ch20(doc);
+  ch21(doc);
 
   // Add footers to all pages (skip cover)
   addAllFooters(doc, 2);
