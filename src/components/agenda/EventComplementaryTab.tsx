@@ -78,7 +78,7 @@ export function EventComplementaryTab({
     if (!companyId) return;
     supabase
       .from("wapi_instances")
-      .select("instance_id, instance_name, unit, status")
+      .select("instance_id, unit, status")
       .eq("company_id", companyId)
       .then(({ data }) => {
         const list = (data || []) as WapiInstance[];
