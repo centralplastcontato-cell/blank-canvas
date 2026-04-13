@@ -156,6 +156,7 @@ export function EventComplementaryTab({
   const [iframeModal, setIframeModal] = useState<{ url: string; title: string } | null>(null);
   const [instances, setInstances] = useState<WapiInstance[]>([]);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string>("");
+  const [sentForms, setSentForms] = useState<Set<string>>(new Set());
 
   // Load WhatsApp instances
   useEffect(() => {
@@ -173,6 +174,26 @@ export function EventComplementaryTab({
         setSelectedInstanceId((unitMatch || firstConnected)?.instance_id || list[0]?.instance_id || "");
       });
   }, [companyId, form.unit]);
+
+  // Load sent form history from lead_history
+  useEffect(() => {
+    if (!eventId || !companyId) return;
+    supabase
+      .from("lead_history")
+      .select("details")
+      .eq("action", "form_sent_whatsapp")
+      .contains("details", JSON.stringify({ event_id: eventId }))
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          const keys = new Set<string>();
+          data.forEach((row: any) => {
+            const d = typeof row.details === "string" ? JSON.parse(row.details) : row.details;
+            if (d?.form_type && d?.template_id) keys.add(`${d.form_type}-${d.template_id}`);
+          });
+          setSentForms(keys);
+        }
+      });
+  }, [eventId, companyId]);
 
   useEffect(() => {
     if (!companyId) {
@@ -371,6 +392,18 @@ export function EventComplementaryTab({
       });
 
       if (error) throw error;
+
+      // Persist sent status
+      setSentForms(prev => new Set(prev).add(key));
+      if (form.lead_id) {
+        await supabase.from("lead_history").insert({
+          lead_id: form.lead_id,
+          company_id: companyId,
+          action: "form_sent_whatsapp",
+          details: { form_type: section.type, template_id: template.id, event_id: eventId, template_name: template.name },
+        });
+      }
+
       toast({ title: `Formulário de ${section.label} enviado via WhatsApp!` });
     } catch (err: any) {
       toast({ title: "Erro ao enviar", description: err.message, variant: "destructive" });
@@ -601,18 +634,23 @@ export function EventComplementaryTab({
                         </Button>
                         <Button
                           type="button"
-                          variant="default"
+                          variant={sentForms.has(sendKey) ? "outline" : "default"}
                           size="sm"
-                          className="gap-1.5 text-xs h-7"
+                          className={cn(
+                            "gap-1.5 text-xs h-7",
+                            sentForms.has(sendKey) && "bg-emerald-500/15 text-emerald-700 border-emerald-300 hover:bg-emerald-100"
+                          )}
                           disabled={sendingForm === sendKey}
                           onClick={() => sendFormToHost(section, template)}
                         >
                           {sendingForm === sendKey ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : sentForms.has(sendKey) ? (
+                            <CheckCircle2 className="h-3.5 w-3.5" />
                           ) : (
                             <Send className="h-3.5 w-3.5" />
                           )}
-                          Enviar
+                          {sentForms.has(sendKey) ? "Enviado ✅" : "Enviar"}
                         </Button>
                       </div>
                     </div>
