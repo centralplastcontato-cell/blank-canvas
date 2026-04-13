@@ -422,7 +422,31 @@ export async function sendContractViaWhatsApp(
       return { success: false, error: "Erro ao gerar URL do PDF." };
     }
 
-    // 6. Send via wapi-send as document
+    // 6. Send customizable text message before the PDF
+    const waTemplate = await getContractWhatsAppTemplate(companyId);
+    const textMsg = resolveContractSendMessage(waTemplate, {
+      nome: lead.name,
+      nome_contrato: contractName,
+      empresa: "", // Will be filled below
+    });
+    // Fetch company name for the template
+    const { data: companyInfo } = await supabase.from("companies").select("name").eq("id", companyId).single();
+    const finalMsg = textMsg.replace(/\{\{empresa\}\}/gi, companyInfo?.name || "");
+
+    if (finalMsg.trim()) {
+      await supabase.functions.invoke("wapi-send", {
+        body: {
+          action: "send-text",
+          instanceId: instance.instance_id,
+          instanceToken: instance.instance_token,
+          phone,
+          message: finalMsg,
+          conversationId: conv?.id || undefined,
+        },
+      });
+    }
+
+    // 7. Send PDF as document
     const { data: sendResult, error: sendErr } = await supabase.functions.invoke("wapi-send", {
       body: {
         action: "send-document",
@@ -453,22 +477,32 @@ export async function sendContractViaWhatsApp(
 
 const DEFAULT_CONTRACT_SEND_MESSAGE = "📄 *{{nome_contrato}}*\n\nOlá {{nome}}! Seu contrato está pronto para assinatura digital.\n\nAcesse o link abaixo para ler e assinar:\n{{link}}\n\n_{{empresa}}_";
 
-export async function getContractSendTemplate(companyId: string): Promise<string> {
+const DEFAULT_CONTRACT_WA_MESSAGE = "Olá {{nome}}! 📄\n\nSegue em anexo o contrato *{{nome_contrato}}* referente à sua festa.\n\nQualquer dúvida, estamos à disposição!\n\n_{{empresa}}_";
+
+async function getFormTemplate(companyId: string, formType: string, fallback: string): Promise<string> {
   try {
     const { data } = await supabase
       .from("form_automation_settings")
       .select("message_template, is_enabled")
       .eq("company_id", companyId)
-      .eq("form_type", "contrato_envio")
+      .eq("form_type", formType)
       .maybeSingle();
 
     if (data?.is_enabled && data?.message_template) {
       return data.message_template;
     }
   } catch (e) {
-    console.error("Error fetching contract send template:", e);
+    console.error(`Error fetching ${formType} template:`, e);
   }
-  return DEFAULT_CONTRACT_SEND_MESSAGE;
+  return fallback;
+}
+
+export async function getContractSendTemplate(companyId: string): Promise<string> {
+  return getFormTemplate(companyId, "contrato_envio", DEFAULT_CONTRACT_SEND_MESSAGE);
+}
+
+export async function getContractWhatsAppTemplate(companyId: string): Promise<string> {
+  return getFormTemplate(companyId, "contrato_whatsapp", DEFAULT_CONTRACT_WA_MESSAGE);
 }
 
 export function resolveContractSendMessage(

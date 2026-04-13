@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ClipboardList, PartyPopper, UtensilsCrossed, Star, Clock, Save, Loader2, FileSignature, Send } from "lucide-react";
+import { ClipboardList, PartyPopper, UtensilsCrossed, Star, Clock, Save, Loader2, FileSignature, Send, MessageCircle } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -57,9 +57,20 @@ const FORM_TYPES = [
     defaultDays: 5,
   },
   {
+    type: "contrato_whatsapp",
+    label: "Contrato via WhatsApp",
+    description: "Mensagem enviada junto com o PDF do contrato pelo botão WhatsApp",
+    icon: MessageCircle,
+    color: "text-emerald-500",
+    bgColor: "bg-emerald-500/10",
+    borderColor: "border-emerald-500/20",
+    defaultMessage: "Olá {{nome}}! 📄\n\nSegue em anexo o contrato *{{nome_contrato}}* referente à sua festa.\n\nQualquer dúvida, estamos à disposição!\n\n_{{empresa}}_",
+    defaultDays: 0,
+  },
+  {
     type: "contrato_envio",
-    label: "Envio de Contrato",
-    description: "Mensagem enviada ao cliente junto com o contrato para assinatura digital",
+    label: "Envio p/ Assinatura",
+    description: "Mensagem enviada ao cliente junto com o link de assinatura digital",
     icon: Send,
     color: "text-purple-500",
     bgColor: "bg-purple-500/10",
@@ -264,7 +275,7 @@ export function FormAutomationSection() {
               {config.is_enabled && (
                 <CardContent className="space-y-4 pt-0">
                   {/* Timing - hide for contrato_envio (manual send only) */}
-                  {config.form_type !== "contrato_envio" && (
+                  {config.form_type !== "contrato_envio" && config.form_type !== "contrato_whatsapp" && (
                     <div className="rounded-lg bg-muted/50 p-4 space-y-4">
                       <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                         <Clock className="w-4 h-4 text-muted-foreground" />
@@ -349,7 +360,15 @@ export function FormAutomationSection() {
                   {config.form_type === "contrato_envio" && (
                     <div className="rounded-lg bg-purple-50/50 dark:bg-purple-500/5 border border-purple-200/40 p-3">
                       <p className="text-xs text-muted-foreground leading-relaxed">
-                        ✉️ Esta mensagem é enviada manualmente ao clicar em <strong>"Enviar p/ Assinatura"</strong> no contrato gerado. Personalize o texto que acompanha o link de assinatura digital.
+                        ✉️ Esta mensagem é enviada ao clicar em <strong>"Enviar p/ Assinatura"</strong> no contrato gerado. Acompanha o link de assinatura digital.
+                      </p>
+                    </div>
+                  )}
+
+                  {config.form_type === "contrato_whatsapp" && (
+                    <div className="rounded-lg bg-emerald-50/50 dark:bg-emerald-500/5 border border-emerald-200/40 p-3">
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        💬 Esta mensagem é enviada ao clicar em <strong>"WhatsApp"</strong> no contrato gerado. O PDF do contrato é enviado junto como anexo.
                       </p>
                     </div>
                   )}
@@ -366,6 +385,8 @@ export function FormAutomationSection() {
                     <div className="flex flex-wrap gap-1.5">
                       {(config.form_type === "contrato_envio"
                         ? ["{{nome}}", "{{link}}", "{{nome_contrato}}", "{{empresa}}"]
+                        : config.form_type === "contrato_whatsapp"
+                        ? ["{{nome}}", "{{nome_contrato}}", "{{empresa}}"]
                         : ["{{nome}}", "{{link}}", "{{data_evento}}", "{{empresa}}"]
                       ).map((v) => (
                         <Badge key={v} variant="outline" className="text-[10px] font-mono cursor-default">
