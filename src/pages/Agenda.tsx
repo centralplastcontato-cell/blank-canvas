@@ -1181,61 +1181,67 @@ export default function Agenda() {
                         <p className="text-sm text-muted-foreground/70 mt-0.5">Festas · Calendário mensal de eventos</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2.5">
-                      {/* Content mode toggle: Agendadas vs Fechadas */}
-                      <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas" | "pre-reservas")}>
-                        <TabsList className="bg-transparent p-0 h-auto gap-1.5">
-                          <TabsTrigger value="agendadas" className="px-5 py-2 gap-1.5 text-sm font-medium rounded-full border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none">
-                            <CalendarDays className="h-4 w-4" />
-                            <span className="hidden sm:inline">Agendadas</span>
-                          </TabsTrigger>
-                          <TabsTrigger value="fechadas" className="px-5 py-2 gap-1.5 text-sm font-medium rounded-full border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none">
-                            <Handshake className="h-4 w-4" />
-                            <span className="hidden sm:inline">Fechadas</span>
-                            {closedInPeriod > 0 && (
-                              <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{closedInPeriod}</Badge>
-                            )}
-                          </TabsTrigger>
-                          <TabsTrigger value="pre-reservas" className="px-5 py-2 gap-1.5 text-sm font-medium rounded-full border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none">
-                            <CalendarClock className="h-4 w-4" />
-                            <span className="hidden sm:inline">Pré-reservas</span>
-                            {allPreReservations.filter(pr => pr.status === "ativa").length > 0 && (
-                              <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{allPreReservations.filter(pr => pr.status === "ativa").length}</Badge>
-                            )}
-                          </TabsTrigger>
-                        </TabsList>
-                      </Tabs>
-                      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "calendar" | "list")}>
-                        <TabsList className="bg-transparent p-0 h-auto gap-1.5">
-                          <TabsTrigger value="calendar" className="px-4 py-2 rounded-full border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none"><CalendarDays className="h-4 w-4" /></TabsTrigger>
-                          <TabsTrigger value="list" className="px-4 py-2 rounded-full border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none"><List className="h-4 w-4" /></TabsTrigger>
-                        </TabsList>
-                      </Tabs>
-                      {/* Desktop unit filter — hidden when units are sales channels only */}
-                      {!isSalesChannelOnly && (() => {
-                        const visibleUnits = canViewAll ? physicalUnits : physicalUnits.filter(u => unitAccess[u.name]);
-                        if (visibleUnits.length <= 1) return null;
-                        return (
-                          <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-                            <SelectTrigger className="w-[180px] h-10 bg-background/80 backdrop-blur-sm border-border/50 shadow-sm"><SelectValue placeholder="Todas" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">Todas as unidades</SelectItem>
-                              {visibleUnits.map(u => <SelectItem key={u.name} value={u.name}>{u.name}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        );
-                      })()}
-                      <Button variant="outline" size="icon" className="h-10 w-10 border-blue-300 text-blue-600 hover:bg-blue-50" onClick={() => setReportOpen(true)} title="Gerar Relatório">
-                        <FileText className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" className="h-10 px-4 border-pink-300 text-pink-600 hover:bg-pink-50" onClick={() => { setEditingPreRes(null); setPreResFormOpen(true); }}>
-                        <CalendarClock className="h-4 w-4 mr-2" /> Pré-reserva
-                      </Button>
-                      <Button onClick={() => { setEditingEvent(null); setFormOpen(true); }} className="h-10 px-5 shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all duration-200">
-                        <Plus className="h-4 w-4 mr-2" /> Nova Festa
-                      </Button>
-                    </div>
+                    <NotificationBell />
                   </div>
+                </div>
+              </div>
+
+              {/* Desktop action bar */}
+              <div className="hidden md:flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-2.5">
+                  <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas" | "pre-reservas")}>
+                    <TabsList className="bg-transparent p-0 h-auto gap-1.5">
+                      <TabsTrigger value="agendadas" className="px-5 py-2 gap-1.5 text-sm font-medium rounded-full border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none">
+                        <CalendarDays className="h-4 w-4" />
+                        Agendadas
+                      </TabsTrigger>
+                      <TabsTrigger value="fechadas" className="px-5 py-2 gap-1.5 text-sm font-medium rounded-full border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none">
+                        <Handshake className="h-4 w-4" />
+                        Fechadas
+                        {closedInPeriod > 0 && (
+                          <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{closedInPeriod}</Badge>
+                        )}
+                      </TabsTrigger>
+                      <TabsTrigger value="pre-reservas" className="px-5 py-2 gap-1.5 text-sm font-medium rounded-full border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none">
+                        <CalendarClock className="h-4 w-4" />
+                        Pré-reservas
+                        {allPreReservations.filter(pr => pr.status === "ativa").length > 0 && (
+                          <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{allPreReservations.filter(pr => pr.status === "ativa").length}</Badge>
+                        )}
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                  <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "calendar" | "list")}>
+                    <TabsList className="bg-transparent p-0 h-auto gap-1.5">
+                      <TabsTrigger value="calendar" className="px-4 py-2 rounded-full border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none"><CalendarDays className="h-4 w-4" /></TabsTrigger>
+                      <TabsTrigger value="list" className="px-4 py-2 rounded-full border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none"><List className="h-4 w-4" /></TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                  {/* Desktop unit filter */}
+                  {!isSalesChannelOnly && (() => {
+                    const visibleUnits = canViewAll ? physicalUnits : physicalUnits.filter(u => unitAccess[u.name]);
+                    if (visibleUnits.length <= 1) return null;
+                    return (
+                      <Select value={selectedUnit} onValueChange={setSelectedUnit}>
+                        <SelectTrigger className="w-[180px] h-10 bg-background/80 backdrop-blur-sm border-border/50 shadow-sm"><SelectValue placeholder="Todas" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas as unidades</SelectItem>
+                          {visibleUnits.map(u => <SelectItem key={u.name} value={u.name}>{u.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    );
+                  })()}
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <Button variant="outline" size="icon" className="h-10 w-10 border-blue-300 text-blue-600 hover:bg-blue-50" onClick={() => setReportOpen(true)} title="Gerar Relatório">
+                    <FileText className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" className="h-10 px-4 border-pink-300 text-pink-600 hover:bg-pink-50" onClick={() => { setEditingPreRes(null); setPreResFormOpen(true); }}>
+                    <CalendarClock className="h-4 w-4 mr-2" /> Pré-reserva
+                  </Button>
+                  <Button onClick={() => { setEditingEvent(null); setFormOpen(true); }} className="h-10 px-5 shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all duration-200">
+                    <Plus className="h-4 w-4 mr-2" /> Nova Festa
+                  </Button>
                 </div>
               </div>
 
