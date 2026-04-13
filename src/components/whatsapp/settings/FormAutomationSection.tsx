@@ -53,7 +53,7 @@ const FORM_TYPES = [
     color: "text-blue-500",
     bgColor: "bg-blue-500/10",
     borderColor: "border-blue-500/20",
-    defaultMessage: "Olá {{nome}}! 😊\n\nEstamos finalizando os detalhes da sua festa no {{empresa}} no dia {{data_evento}}.\n\nPara seguirmos, preciso que você preencha seus dados pessoais e do(s) aniversariante(s) no link abaixo:\n\n{{link}}\n\nLeva menos de 2 minutos! Qualquer dúvida, estamos por aqui. 🎉",
+    defaultMessage: "Olá {{nome}}! 😊\n\nEstamos finalizando os detalhes da sua festa no {{empresa}} no dia {{data_evento}}.\n\nPara seguirmos, preciso que você preencha seus dados pessoais e as informações do aniversariante no link abaixo:\n\n{{link}}\n\nAssim o buffet consegue finalizar o preenchimento do contrato com essas informações. 🎉",
     defaultDays: 5,
   },
   {
@@ -67,9 +67,27 @@ const FORM_TYPES = [
     defaultMessage: "Olá {{nome}}! ⭐\n\nEsperamos que a festa tenha sido incrível! 🎊\n\nNos ajude a melhorar cada vez mais respondendo nossa avaliação:\n{{link}}",
     defaultDays: 1,
   },
-];
+] as const;
+
+const LEGACY_CONTRACT_MESSAGES = new Set([
+  "Olá {{nome}}! 📄\n\nSeu contrato está pronto! Acesse o link abaixo para revisar e assinar digitalmente:\n\n{{link}}",
+  "Olá {{nome}}! 📋\n\nPrecisamos dos seus dados para finalizar o contrato da festa. Preencha o formulário abaixo com seus dados pessoais e do(s) aniversariante(s):\n\n{{link}}",
+  "Olá {{nome}}! 😊\n\nEstamos finalizando os detalhes da sua festa no {{empresa}} no dia {{data_evento}}.\n\nPara seguirmos, preciso que você preencha seus dados pessoais e do(s) aniversariante(s) no link abaixo:\n\n{{link}}\n\nLeva menos de 2 minutos! Qualquer dúvida, estamos por aqui. 🎉",
+]);
 
 const HOURS = Array.from({ length: 16 }, (_, i) => i + 7); // 7h to 22h
+
+const getMessageTemplate = (formType: string, messageTemplate: string | null | undefined) => {
+  const formTypeConfig = FORM_TYPES.find((ft) => ft.type === formType);
+  if (!formTypeConfig) return messageTemplate || "";
+  if (!messageTemplate) return formTypeConfig.defaultMessage;
+
+  if (formType === "contrato" && LEGACY_CONTRACT_MESSAGES.has(messageTemplate.trim())) {
+    return formTypeConfig.defaultMessage;
+  }
+
+  return messageTemplate;
+};
 
 export function FormAutomationSection() {
   const { currentCompanyId } = useCompany();
@@ -96,7 +114,6 @@ export function FormAutomationSection() {
       return;
     }
 
-    // Merge with defaults for any missing types
     const merged = FORM_TYPES.map((ft) => {
       const existing = data?.find((d: any) => d.form_type === ft.type);
       if (existing) {
@@ -107,7 +124,7 @@ export function FormAutomationSection() {
           send_days_before: existing.send_days_before,
           send_hour: existing.send_hour,
           send_minute: existing.send_minute,
-          message_template: existing.message_template || ft.defaultMessage,
+          message_template: getMessageTemplate(existing.form_type, existing.message_template),
         };
       }
       return {
