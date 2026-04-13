@@ -953,7 +953,6 @@ export default function Agenda() {
                       <FileText className="h-4 w-4" />
                     </Button>
                   )}
-                  <NotificationBell />
                 </div>
               </div>
               {/* Central Tab Bar - mobile inside header */}
@@ -1181,7 +1180,7 @@ export default function Agenda() {
                         <p className="text-sm text-muted-foreground/70 mt-0.5">Festas · Calendário mensal de eventos</p>
                       </div>
                     </div>
-                    <NotificationBell />
+                    
                   </div>
                 </div>
               </div>
