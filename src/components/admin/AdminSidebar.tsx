@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useLocation } from "react-router-dom";
-import { Users, LogOut, RefreshCw, Headset, Settings, Building2, Brain, CalendarDays, FolderOpen, GraduationCap, Megaphone, MapPin, FileSignature, DollarSign, Handshake } from "lucide-react";
+import { Users, LogOut, RefreshCw, Headset, Settings, Building2, Brain, CalendarDays, FolderOpen, GraduationCap, Megaphone, MapPin, FileSignature, DollarSign, Handshake, Lightbulb } from "lucide-react";
 import { prefetchRoute } from "@/App";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { NavLink } from "@/components/NavLink";
@@ -19,7 +19,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
-import { FloatingTips } from "@/components/ui/floating-tips";
+import { FloatingTips, reactivateFloatingTips } from "@/components/ui/floating-tips";
 
 import { CompanySwitcher } from "./CompanySwitcher";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -152,6 +152,16 @@ export function AdminSidebar({
                 >
                   <RefreshCw className="h-5 w-5 shrink-0" />
                   <span>Atualizar Dados</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  tooltip="Dicas da Plataforma"
+                  onClick={() => reactivateFloatingTips()}
+                  className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                >
+                  <Lightbulb className="h-5 w-5 shrink-0" />
+                  <span>Dicas</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
