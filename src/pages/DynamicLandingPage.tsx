@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 import { Helmet } from "react-helmet-async";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -185,11 +186,7 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
   }, [data]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" />
-      </div>
-    );
+    return <LoadingScreen message="Carregando página..." />;
   }
 
   if (notFound || !data) {

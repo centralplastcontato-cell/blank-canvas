@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
@@ -91,11 +92,7 @@ export default function WhatsApp() {
   };
 
   if (isLoading || isLoadingRole || isLoadingUnitPerms) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <LoadingScreen message="Carregando WhatsApp..." />;
   }
 
   if (!user || !role) {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { Helmet } from "react-helmet-async";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -105,11 +106,7 @@ export default function Configuracoes() {
   };
 
   if (isLoading || isLoadingRole || isLoadingPermissions) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-xl h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <LoadingScreen message="Carregando configurações..." />;
   }
 
   if (!user || !role) {
