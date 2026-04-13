@@ -1,24 +1,34 @@
 
 
-# Mockup Visual: Central de Agenda
+## Problema Identificado
 
-Vou criar um mockup em PDF mostrando como ficaria a Central de Agenda unificada, com as 4 abas (Festas, Visitas, Tarefas, Tudo) e o visual de cada uma.
+Quando o lead informa X convidados na qualificação do bot, e depois fecha a festa com Y convidados, o contrato continua mostrando X porque as variáveis `{{convidados}}` e `{{quantidade_pessoas}}` priorizam os dados do lead sobre os dados do evento.
 
-## O que o mockup vai mostrar
+**Causa raiz** no arquivo `src/lib/template-resolver.ts`:
 
-1. **Pagina 1 - Aba Festas**: Layout atual do calendario de festas, agora dentro das tabs unificadas
-2. **Pagina 2 - Aba Visitas**: Calendario de visitas migrado para dentro do modulo
-3. **Pagina 3 - Aba Tarefas**: Nova funcionalidade com lista de tarefas internas, categorias e prioridades
-4. **Pagina 4 - Aba Tudo**: Visao consolidada com todos os tipos no mesmo calendario, diferenciados por cor
+```text
+ATUAL (errado):
+  convidados  → lead.guests  ||  event.guest_count
+  quantidade_pessoas  → contract.quantidade_pessoas  ||  lead.guests  ||  event.guest_count
 
-## Como sera feito
+CORRETO:
+  convidados  → event.guest_count  ||  lead.guests
+  quantidade_pessoas  → contract.quantidade_pessoas  ||  event.guest_count  ||  lead.guests
+```
 
-- Script Python usando `reportlab` para gerar um PDF com 4 paginas
-- Cada pagina simula a interface da Central de Agenda com a respectiva aba ativa
-- Usa as cores e estilos visuais ja existentes no Celebrei (roxo primary, cards arredondados, dots de status)
-- Mockup wireframe estilizado, nao screenshot real
+## Plano
 
-## Resultado
+### Arquivo: `src/lib/template-resolver.ts`
 
-Um PDF de 4 paginas em `/mnt/documents/` que voce podera visualizar e aprovar antes de iniciar a implementacao.
+1. **Variavel `convidados` (linha 211-212)**: Inverter prioridade -- evento primeiro, lead como fallback.
+
+2. **Variavel `quantidade_pessoas` (linha 366-368)**: Inverter prioridade -- contrato primeiro, depois evento, depois lead como fallback.
+
+Isso garante que, se o evento tem `guest_count` preenchido (formulario da festa), esse valor prevalece. Se nao tem, cai para o valor do lead (qualificacao do bot).
+
+### Impacto
+- Apenas 2 linhas alteradas
+- Nenhuma mudanca no banco de dados
+- Corrige o comportamento para todos os contratos futuros
+- Contratos ja gerados nao sao afetados (conteudo congelado)
 
