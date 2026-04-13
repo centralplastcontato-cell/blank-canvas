@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ClipboardList, PartyPopper, UtensilsCrossed, Star, Clock, Save, Loader2, FileSignature } from "lucide-react";
+import { ClipboardList, PartyPopper, UtensilsCrossed, Star, Clock, Save, Loader2, FileSignature, Send } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -55,6 +55,17 @@ const FORM_TYPES = [
     borderColor: "border-blue-500/20",
     defaultMessage: "Olá {{nome}}! 😊\n\nEstamos finalizando os detalhes da sua festa no {{empresa}} no dia {{data_evento}}.\n\nPara seguirmos, preciso que você preencha seus dados pessoais e as informações do aniversariante no link abaixo:\n\n{{link}}\n\nAssim o buffet consegue finalizar o preenchimento do contrato com essas informações. 🎉",
     defaultDays: 5,
+  },
+  {
+    type: "contrato_envio",
+    label: "Envio de Contrato",
+    description: "Mensagem enviada ao cliente junto com o contrato para assinatura digital",
+    icon: Send,
+    color: "text-purple-500",
+    bgColor: "bg-purple-500/10",
+    borderColor: "border-purple-500/20",
+    defaultMessage: "📄 *{{nome_contrato}}*\n\nOlá {{nome}}! Seu contrato está pronto para assinatura digital.\n\nAcesse o link abaixo para ler e assinar:\n{{link}}\n\n_{{empresa}}_",
+    defaultDays: 0,
   },
   {
     type: "avaliacao",
