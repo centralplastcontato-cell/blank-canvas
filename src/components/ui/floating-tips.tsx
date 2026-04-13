@@ -43,6 +43,86 @@ const PLATFORM_TIPS = [
     title: "👥 Gerencie sua Equipe",
     text: "Em Configurações > Equipe, defina permissões por unidade. Cada vendedor vê apenas seus próprios leads.",
   },
+  {
+    title: "🤖 Reativação Automática",
+    text: "Ative a Reativação Inteligente em Configurações > Automações. Leads inativos recebem mensagens automáticas em 1, 2 e 3 meses.",
+  },
+  {
+    title: "🔥 Score de Temperatura",
+    text: "Cada lead tem um score de 0 a 100. Leads 'Quentes' e 'Prontos' devem ser priorizados para fechamento imediato.",
+  },
+  {
+    title: "📈 Funil de Conversão",
+    text: "Na aba Funil (Inteligência), veja o percentual de leads em cada etapa e identifique gargalos no processo de vendas.",
+  },
+  {
+    title: "⚠️ Alertas Inteligentes",
+    text: "O sistema detecta negociações paradas, queda de conversão e baixa ocupação. Veja os alertas no topo da Inteligência.",
+  },
+  {
+    title: "📄 Formulários Públicos",
+    text: "Crie formulários de avaliação, pré-festa e cardápio. Envie o link por WhatsApp e as respostas ficam vinculadas ao evento.",
+  },
+  {
+    title: "🏦 Contas Bancárias",
+    text: "Cadastre suas contas no Financeiro para controlar saldo, transferências e extrato detalhado por conta.",
+  },
+  {
+    title: "📅 Checklist por Evento",
+    text: "Crie templates de checklist reutilizáveis para padronizar a operação de cada tipo de festa.",
+  },
+  {
+    title: "👷 Escalas de Freelancers",
+    text: "Gere escalas mensais e envie o link para freelancers informarem disponibilidade direto pelo celular.",
+  },
+  {
+    title: "🔍 Busca no WhatsApp",
+    text: "Use a busca por conteúdo dentro das mensagens para encontrar informações em conversas longas.",
+  },
+  {
+    title: "🌐 Landing Page Própria",
+    text: "Personalize sua landing page em Configurações. Defina cores, fotos, depoimentos e formulário de captação.",
+  },
+  {
+    title: "💳 Simulador de Taxas",
+    text: "Cadastre as taxas de cada operadora de cartão e simule o valor líquido em transações de crédito e débito.",
+  },
+  {
+    title: "📤 Exportar Dados",
+    text: "Exporte leads para CSV na Central de Atendimento. No Financeiro, gere relatórios em PDF e Excel.",
+  },
+  {
+    title: "🔄 Follow-ups Organizados",
+    text: "Na aba Follow-ups (Inteligência), veja leads organizados por número de tentativas em um Kanban automático.",
+  },
+  {
+    title: "⭐ Favoritos no WhatsApp",
+    text: "Marque conversas como favoritas para acesso rápido. Elas aparecem fixas no topo da lista.",
+  },
+  {
+    title: "🎂 Festas Fechadas",
+    text: "Na aba Festas (Financeiro), acompanhe vendas fechadas no período com barra de progresso de pagamento.",
+  },
+  {
+    title: "📱 Acesso pelo Celular",
+    text: "A plataforma é responsiva. Acesse pelo celular para gerenciar leads, chat e agenda de qualquer lugar.",
+  },
+  {
+    title: "🧾 Receitas Avulsas",
+    text: "No Financeiro, registre receitas que não são de eventos (ex: aluguel de espaço) vinculadas a uma conta bancária.",
+  },
+  {
+    title: "🔐 Permissões Granulares",
+    text: "Restrinja acesso por módulo e unidade. Um gestor de filial vê apenas os dados da sua unidade.",
+  },
+  {
+    title: "💡 Resumo IA por Lead",
+    text: "Em cada card de lead, clique em 'Resumo IA' para obter um resumo da conversa e sugestão de próxima ação.",
+  },
+  {
+    title: "🎉 Hub da Festa",
+    text: "Cada evento tem um Hub com links públicos para checklist, presença e equipe — acessíveis sem login.",
+  },
 ];
 
 const STORAGE_KEY = "floating-tips-dismissed";
