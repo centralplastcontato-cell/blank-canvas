@@ -113,6 +113,7 @@ export function GeneratedContractsList({ userId }: Props) {
     setSendingWA(contract.id);
     const result = await sendContractViaWhatsApp(currentCompany.id, leadId, contract.conteudo_renderizado, contract.nome_documento);
     if (result.success) {
+      setSentWA(prev => new Set(prev).add(contract.id));
       toast({ title: "Contrato enviado via WhatsApp ✅" });
       await logContractAction(currentCompany.id, contract.id, contract.template_id, "contract_sent_whatsapp", userId, { lead_id: leadId });
     } else {
