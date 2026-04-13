@@ -38,6 +38,8 @@ interface EventOption {
 }
 
 export default function PublicCardapio() {
+  const [searchParams] = useSearchParams();
+  const eventIdFromUrl = searchParams.get("event_id");
   const { templateId, companySlug, templateSlug } = useParams<{ templateId?: string; companySlug?: string; templateSlug?: string }>();
   const [template, setTemplate] = useState<TemplateData | null>(null);
   const [loading, setLoading] = useState(true);
