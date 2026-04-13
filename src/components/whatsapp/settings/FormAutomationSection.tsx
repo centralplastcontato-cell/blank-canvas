@@ -46,6 +46,17 @@ const FORM_TYPES = [
     defaultDays: 10,
   },
   {
+    type: "contrato",
+    label: "Contrato",
+    description: "Envio automático do contrato para assinatura digital",
+    icon: FileSignature,
+    color: "text-blue-500",
+    bgColor: "bg-blue-500/10",
+    borderColor: "border-blue-500/20",
+    defaultMessage: "Olá {{nome}}! 📄\n\nSeu contrato está pronto! Acesse o link abaixo para revisar e assinar digitalmente:\n\n{{link}}",
+    defaultDays: 5,
+  },
+  {
     type: "avaliacao",
     label: "Pós-festa",
     description: "Formulário de avaliação enviado após o evento",
