@@ -40,6 +40,13 @@ interface FormSection {
   publicPath: string;
 }
 
+interface WapiInstance {
+  instance_id: string;
+  instance_name: string | null;
+  unit: string | null;
+  status: string | null;
+}
+
 interface EventComplementaryTabProps {
   eventId: string;
   companyId: string;
@@ -64,6 +71,8 @@ export function EventComplementaryTab({
   const [sendingForm, setSendingForm] = useState<string | null>(null);
   const [savingBeforeOpen, setSavingBeforeOpen] = useState(false);
   const [iframeModal, setIframeModal] = useState<{ url: string; title: string } | null>(null);
+  const [instances, setInstances] = useState<WapiInstance[]>([]);
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string>("");
 
   useEffect(() => {
     if (!companyId) {
