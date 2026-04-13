@@ -541,6 +541,15 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
             </div>
           )}
 
+          {/* Formulários Complementares */}
+          {event.company_id && (
+            <EventFormsStatusPanel
+              eventId={event.id}
+              companyId={event.company_id}
+              leadId={event.lead_id}
+            />
+          )}
+
           {/* Contract Readiness Panel */}
           {event.company_id && userId && (
             <ContractReadinessPanel
