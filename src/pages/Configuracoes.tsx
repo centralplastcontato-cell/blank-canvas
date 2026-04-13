@@ -19,7 +19,7 @@ import { CompanyBackupPanel } from "@/components/admin/CompanyBackupPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { Menu, Settings, MessageSquare, PartyPopper, UserCircle, Users } from "lucide-react";
+import { Menu, Settings, MessageSquare, PartyPopper, UserCircle, Users, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "@/hooks/use-toast";
