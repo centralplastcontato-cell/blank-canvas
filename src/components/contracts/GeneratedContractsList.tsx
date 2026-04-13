@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Plus, Loader2, FileText, Eye, Ban, History, MessageCircle, FileSignature } from "lucide-react";
+import { Plus, Loader2, FileText, Eye, Ban, History, MessageCircle, FileSignature, ShieldCheck } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ContractGenerator } from "./ContractGenerator";
@@ -54,6 +54,8 @@ export function GeneratedContractsList({ userId }: Props) {
   const [viewContract, setViewContract] = useState<GeneratedContract | null>(null);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [showAudit, setShowAudit] = useState<string | null>(null);
+  const [expandedSig, setExpandedSig] = useState<string | null>(null);
+  const [sigCache, setSigCache] = useState<Record<string, any>>({});
 
   const fetchContracts = async () => {
     if (!currentCompany?.id) return;
@@ -250,6 +252,24 @@ export function GeneratedContractsList({ userId }: Props) {
     }
   };
 
+  const handleToggleSignature = async (contractId: string) => {
+    if (expandedSig === contractId) {
+      setExpandedSig(null);
+      return;
+    }
+    if (!sigCache[contractId]) {
+      const { data } = await (supabase as any)
+        .from("contract_signatures")
+        .select("signature_image_url, signed_at, document_hash, ip_address, user_agent, signer_name, signer_phone, otp_verified_at")
+        .eq("contract_id", contractId)
+        .eq("status", "signed")
+        .limit(1);
+      if (data?.[0]) {
+        setSigCache(prev => ({ ...prev, [contractId]: data[0] }));
+      }
+    }
+    setExpandedSig(contractId);
+  };
   const ACTION_LABELS: Record<string, string> = {
     contract_generated: "Contrato gerado",
     contract_cancelled: "Contrato cancelado",
@@ -324,6 +344,16 @@ export function GeneratedContractsList({ userId }: Props) {
                           {sentSign.has(c.id) || c.status === "aguardando_assinatura" ? "Assinatura ✅" : "Enviar p/ Assinatura"}
                         </Button>
                       )}
+                      {c.status === "assinado" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs rounded-full px-3.5 gap-1.5 bg-emerald-500/15 text-emerald-700 border-emerald-300 hover:bg-emerald-100"
+                          onClick={() => handleToggleSignature(c.id)}
+                        >
+                          <ShieldCheck className="h-3.5 w-3.5" /> Ver Assinatura
+                        </Button>
+                      )}
                       <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5" onClick={() => handleShowAudit(c.id)}>
                         <History className="h-3.5 w-3.5" /> Histórico
                       </Button>
@@ -333,6 +363,53 @@ export function GeneratedContractsList({ userId }: Props) {
                         </Button>
                       )}
                     </div>
+                    {/* Signature details panel */}
+                    {expandedSig === c.id && sigCache[c.id] && (
+                      <div className="border-t border-border/40 pt-3 mt-3 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-lg p-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                          <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Comprovante de Assinatura Digital</span>
+                        </div>
+                        <div className="flex flex-col md:flex-row gap-4 items-start">
+                          {sigCache[c.id].signature_image_url && (
+                            <div className="border border-border/30 rounded-lg p-3 bg-white dark:bg-card shrink-0">
+                              <img src={sigCache[c.id].signature_image_url} alt="Assinatura do cliente" className="h-16 object-contain" />
+                            </div>
+                          )}
+                          <div className="text-xs text-muted-foreground space-y-1.5 flex-1">
+                            {sigCache[c.id].signer_name && (
+                              <p><strong className="text-foreground">Assinante:</strong> {sigCache[c.id].signer_name}</p>
+                            )}
+                            {sigCache[c.id].signer_phone && (
+                              <p><strong className="text-foreground">Telefone:</strong> {sigCache[c.id].signer_phone}</p>
+                            )}
+                            {sigCache[c.id].signed_at && (
+                              <p><strong className="text-foreground">Data/Hora:</strong> {new Date(sigCache[c.id].signed_at).toLocaleString("pt-BR")}</p>
+                            )}
+                            {sigCache[c.id].otp_verified_at && (
+                              <p><strong className="text-foreground">OTP Verificado:</strong> {new Date(sigCache[c.id].otp_verified_at).toLocaleString("pt-BR")}</p>
+                            )}
+                            {sigCache[c.id].ip_address && (
+                              <p><strong className="text-foreground">IP:</strong> {sigCache[c.id].ip_address}</p>
+                            )}
+                            {sigCache[c.id].user_agent && (
+                              <p className="truncate max-w-xs"><strong className="text-foreground">Dispositivo:</strong> {sigCache[c.id].user_agent}</p>
+                            )}
+                            {sigCache[c.id].document_hash && (
+                              <p className="font-mono text-[10px] break-all"><strong className="text-foreground">Hash SHA-256:</strong> {sigCache[c.id].document_hash}</p>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          Assinatura eletrônica válida conforme MP 2.200-2, Art. 10, §2º. Registro com IP, hash SHA-256, timestamp e validação OTP via WhatsApp.
+                        </p>
+                      </div>
+                    )}
+                    {expandedSig === c.id && !sigCache[c.id] && (
+                      <div className="border-t border-border/40 pt-3 mt-3 flex justify-center py-4">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );
