@@ -201,7 +201,7 @@ export default function Treinamento() {
               <div className="flex items-center gap-2 overflow-x-auto pb-1 mb-5 scrollbar-none">
                 <button
                   onClick={() => setFilterCategory("all")}
-                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
                     filterCategory === "all"
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -213,7 +213,7 @@ export default function Treinamento() {
                   <button
                     key={cat}
                     onClick={() => setFilterCategory(cat)}
-                    className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                    className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
                       filterCategory === cat
                         ? "bg-primary text-primary-foreground shadow-sm"
                         : "bg-muted text-muted-foreground hover:bg-muted/80"

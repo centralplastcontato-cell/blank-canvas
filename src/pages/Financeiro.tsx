@@ -291,7 +291,7 @@ export default function Financeiro() {
                     <button
                       key={p.value}
                       onClick={() => handlePresetChange(p.value)}
-                      className={`inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap ${
+                      className={`inline-flex items-center px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 border whitespace-nowrap ${
                         activePreset === p.value
                           ? 'bg-primary text-primary-foreground border-primary shadow-sm'
                           : 'bg-transparent text-muted-foreground border-border hover:bg-accent hover:text-foreground'
@@ -304,7 +304,7 @@ export default function Financeiro() {
                   <Popover open={customPopoverOpen} onOpenChange={setCustomPopoverOpen}>
                     <PopoverTrigger asChild>
                       <button
-                        className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap ${
+                        className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 border whitespace-nowrap ${
                           activePreset === 'custom'
                             ? 'bg-primary text-primary-foreground border-primary shadow-sm'
                             : 'bg-transparent text-muted-foreground border-border hover:bg-accent hover:text-foreground'
@@ -470,7 +470,7 @@ export default function Financeiro() {
                     <TabsTrigger
                       key={tab}
                       value={tab}
-                      className="rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground"
+                      className="rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground"
                     >
                       {tab === 'receitas' ? 'Receitas' : tab === 'despesas' ? 'Despesas' : tab === 'festas' ? '🎉 Festas' : tab === 'resultado' ? 'Resultado' : '🏦 Contas'}
                     </TabsTrigger>
@@ -492,7 +492,7 @@ export default function Financeiro() {
                           <button
                             key={t.value}
                             onClick={() => setReceitasSubTab(t.value)}
-                            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap ${
+                            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 border whitespace-nowrap ${
                               receitasSubTab === t.value
                                 ? 'bg-foreground text-background border-foreground shadow-sm'
                                 : 'bg-transparent text-muted-foreground border-border hover:bg-accent hover:text-foreground'
@@ -663,7 +663,7 @@ export default function Financeiro() {
                           <button
                             key={t.value}
                             onClick={() => setDespesasSubTab(t.value)}
-                            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border whitespace-nowrap ${
+                            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 border whitespace-nowrap ${
                               despesasSubTab === t.value
                                 ? 'bg-foreground text-background border-foreground shadow-sm'
                                 : 'bg-transparent text-muted-foreground border-border hover:bg-accent hover:text-foreground'
