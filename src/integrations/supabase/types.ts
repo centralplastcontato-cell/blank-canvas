@@ -2923,6 +2923,53 @@ export type Database = {
           },
         ]
       }
+      form_automation_settings: {
+        Row: {
+          company_id: string
+          created_at: string
+          form_type: string
+          id: string
+          is_enabled: boolean
+          message_template: string | null
+          send_days_before: number
+          send_hour: number
+          send_minute: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          form_type: string
+          id?: string
+          is_enabled?: boolean
+          message_template?: string | null
+          send_days_before?: number
+          send_hour?: number
+          send_minute?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          form_type?: string
+          id?: string
+          is_enabled?: boolean
+          message_template?: string | null
+          send_days_before?: number
+          send_hour?: number
+          send_minute?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_automation_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       freelancer_assignments: {
         Row: {
           company_id: string
