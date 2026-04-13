@@ -12,7 +12,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
-import { NotificationBell } from "@/components/admin/NotificationBell";
+
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { Button } from "@/components/ui/button";
 
@@ -953,7 +953,6 @@ export default function Agenda() {
                       <FileText className="h-4 w-4" />
                     </Button>
                   )}
-                  <NotificationBell />
                 </div>
               </div>
               {/* Central Tab Bar - mobile inside header */}
@@ -1181,7 +1180,7 @@ export default function Agenda() {
                         <p className="text-sm text-muted-foreground/70 mt-0.5">Festas · Calendário mensal de eventos</p>
                       </div>
                     </div>
-                    <NotificationBell />
+                    
                   </div>
                 </div>
               </div>
