@@ -343,7 +343,7 @@ function addTipBox(doc: jsPDF, text: string) {
   // Label
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...rgb(C.primary));
-  doc.text(">> Dica", MARGIN_L + 7, cursorY + 4);
+  doc.text("DICA", MARGIN_L + 7, cursorY + 4);
 
   // Text
   doc.setFont("helvetica", "normal");
@@ -372,7 +372,7 @@ function addAlertBox(doc: jsPDF, text: string) {
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(120, 80, 0);
-  doc.text("!! Atencao", MARGIN_L + 7, cursorY + 4);
+  doc.text("ATENCAO", MARGIN_L + 7, cursorY + 4);
 
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...rgb(C.text));
@@ -465,7 +465,7 @@ function ch03(doc: jsPDF) {
 
   addSectionTitle(doc, "Favoritos e encerramento");
   addBulletList(doc, [
-    "Marque conversas como favoritas (⭐) para acesso rápido — elas aparecem no topo da lista.",
+    "Marque conversas como favoritas para acesso rapido - elas aparecem no topo da lista.",
     "Encerre conversas finalizadas para mantê-las organizadas. Conversas encerradas ficam em um filtro separado.",
     "Reabra conversas encerradas a qualquer momento se o cliente voltar a interagir.",
   ]);
@@ -527,7 +527,7 @@ function ch04(doc: jsPDF) {
     "Ativar opções interativas (botões de resposta rápida) para o lead.",
     "Definir limite máximo de mensagens de reativação por lead.",
   ]);
-  addParagraph(doc, "Na aba Negociações Paradas do módulo Inteligência, leads que já receberam reativação automática são identificados com o ícone 🤖.");
+  addParagraph(doc, "Na aba Negociacoes Paradas do modulo Inteligencia, leads que ja receberam reativacao automatica sao identificados com um indicador visual.");
 
   addAlertBox(doc, "A reativação respeita a janela de horário configurada e os intervalos de segurança entre envios. Leads que já responderam ou estão em contato ativo NÃO recebem mensagem de reativação.");
 
@@ -580,15 +580,15 @@ function ch05(doc: jsPDF) {
   addSectionTitle(doc, "Aba Prioridades (Score e Temperatura)");
   addParagraph(doc, "Cada lead recebe automaticamente um score de 0 a 100 e uma temperatura baseada no engajamento:");
   addBulletList(doc, [
-    "❄ Frio: baixo engajamento, sem interação recente.",
-    "🌤 Morno: respondeu mas não avançou para visita ou orçamento.",
-    "🔥 Quente: pediu visita, orçamento ou demonstrou forte interesse.",
-    "🎯 Pronto: score máximo, orçamento enviado ou visita agendada. Prioridade de fechamento.",
+    "[Frio] Baixo engajamento, sem interacao recente.",
+    "[Morno] Respondeu mas nao avancou para visita ou orcamento.",
+    "[Quente] Pediu visita, orcamento ou demonstrou forte interesse.",
+    "[Pronto] Score maximo, orcamento enviado ou visita agendada. Prioridade de fechamento.",
   ]);
   addParagraph(doc, "Os leads são classificados em três grupos: Atender Agora (score bom, temperatura acima de frio), Em Risco (pararam de responder) e Frios (score baixo).");
 
   addSectionTitle(doc, "Aba Negociações Paradas");
-  addParagraph(doc, "Radar que identifica leads em estágios críticos (Visita, Orçamento, Negociação) onde a interação humana parou. Inclui score de prioridade, mês da festa (🎂), indicador de reativação automática (🤖) e navegação direta para a conversa. Filtre por estágio ou mês.");
+  addParagraph(doc, "Radar que identifica leads em estagios criticos (Visita, Orcamento, Negociacao) onde a interacao humana parou. Inclui score de prioridade, mes da festa, indicador de reativacao automatica e navegacao direta para a conversa. Filtre por estagio ou mes.");
 
   addSectionTitle(doc, "Aba Follow-ups");
   addParagraph(doc, "Painel Kanban com 4 colunas (1º ao 4º Follow-up) que organiza os leads automaticamente com base na última ação de follow-up. Os intervalos respeitam os delays configurados nas automações do WhatsApp de cada unidade. Cada card permite enviar mensagem com um clique.");
@@ -1064,7 +1064,7 @@ function ch19(doc: jsPDF) {
   addBulletList(doc, [
     "Botão 'WhatsApp' envia o PDF do contrato para o cliente.",
     "Botão 'Enviar p/ Assinatura' envia o link para assinatura digital.",
-    "Indicadores visuais (✅ verde) confirmam que o envio foi realizado.",
+    "Indicadores visuais (verde) confirmam que o envio foi realizado.",
     "O status persiste mesmo após recarregar a página.",
   ]);
 
@@ -1186,7 +1186,7 @@ function ch21(doc: jsPDF) {
   ]);
 
   addAlertBox(doc, "Os pedidos são criados pelo buffet (administrador). O parceiro apenas gerencia a produção e entrega dos pedidos recebidos.");
-  addTipBox(doc, "Use o menu lateral (ícone ☰) para navegar entre as páginas do módulo parceiro. Para voltar ao painel principal do buffet, use a opção correspondente no menu.");
+  addTipBox(doc, "Use o menu lateral para navegar entre as paginas do modulo parceiro. Para voltar ao painel principal do buffet, use a opcao correspondente no menu.");
 }
 
 // ── Main export ────────────────────────────────────────────────
