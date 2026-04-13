@@ -19,6 +19,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
+import { FloatingTips } from "@/components/ui/floating-tips";
 
 import { CompanySwitcher } from "./CompanySwitcher";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -80,6 +81,7 @@ export function AdminSidebar({
   ];
 
   return (
+    <>
     <Sidebar 
       collapsible="icon" 
       className="border-r border-sidebar-border z-40"
@@ -173,5 +175,7 @@ export function AdminSidebar({
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
+    <FloatingTips />
+    </>
   );
 }
