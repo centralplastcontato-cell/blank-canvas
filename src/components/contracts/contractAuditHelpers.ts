@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { getFormAutomationTemplate, resolveFormAutomationMessage } from "@/lib/formAutomationMessages";
 
 /**
  * Verify that a WhatsApp instance is actually connected (live check via W-API).
@@ -475,43 +476,18 @@ export async function sendContractViaWhatsApp(
   }
 }
 
-const DEFAULT_CONTRACT_SEND_MESSAGE = "📄 *{{nome_contrato}}*\n\nOlá {{nome}}! Seu contrato está pronto para assinatura digital.\n\nAcesse o link abaixo para ler e assinar:\n{{link}}\n\n_{{empresa}}_";
-
-const DEFAULT_CONTRACT_WA_MESSAGE = "Olá {{nome}}! 📄\n\nSegue em anexo o contrato *{{nome_contrato}}* referente à sua festa.\n\nQualquer dúvida, estamos à disposição!\n\n_{{empresa}}_";
-
-async function getFormTemplate(companyId: string, formType: string, fallback: string): Promise<string> {
-  try {
-    const { data } = await supabase
-      .from("form_automation_settings")
-      .select("message_template, is_enabled")
-      .eq("company_id", companyId)
-      .eq("form_type", formType)
-      .maybeSingle();
-
-    if (data?.is_enabled && data?.message_template) {
-      return data.message_template;
-    }
-  } catch (e) {
-    console.error(`Error fetching ${formType} template:`, e);
-  }
-  return fallback;
-}
 
 export async function getContractSendTemplate(companyId: string): Promise<string> {
-  return getFormTemplate(companyId, "contrato_envio", DEFAULT_CONTRACT_SEND_MESSAGE);
+  return getFormAutomationTemplate(companyId, "contrato_envio");
 }
 
 export async function getContractWhatsAppTemplate(companyId: string): Promise<string> {
-  return getFormTemplate(companyId, "contrato_whatsapp", DEFAULT_CONTRACT_WA_MESSAGE);
+  return getFormAutomationTemplate(companyId, "contrato_whatsapp");
 }
 
 export function resolveContractSendMessage(
   template: string,
   vars: { nome?: string; link?: string; nome_contrato?: string; empresa?: string },
 ): string {
-  return template
-    .replace(/\{\{nome\}\}/gi, vars.nome || "")
-    .replace(/\{\{link\}\}/gi, vars.link || "")
-    .replace(/\{\{nome_contrato\}\}/gi, vars.nome_contrato || "")
-    .replace(/\{\{empresa\}\}/gi, vars.empresa || "");
+  return resolveFormAutomationMessage(template, vars);
 }
