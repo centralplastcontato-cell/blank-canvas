@@ -388,8 +388,22 @@ export default function Financeiro() {
                 </div>
               </div>
 
+              {/* Tabs */}
+              <Tabs defaultValue="receitas" className="w-full">
+                <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex-wrap">
+                  {(financialPerms.canViewBankAccounts ? ['receitas', 'despesas', 'festas', 'resultado', 'contas'] : ['receitas', 'despesas', 'festas', 'resultado']).map(tab => (
+                    <TabsTrigger
+                      key={tab}
+                      value={tab}
+                      className="rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground"
+                    >
+                      {tab === 'receitas' ? 'Receitas' : tab === 'despesas' ? 'Despesas' : tab === 'festas' ? '🎉 Festas' : tab === 'resultado' ? 'Resultado' : '🏦 Contas'}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+
               {/* 5 Dashboard Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mt-4">
                 <Card className="p-4 bg-card border-border cursor-pointer hover:border-emerald-400/40 transition-colors" onClick={() => setKpiSheet('recebido')}>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
                     <TrendingUp className="h-3.5 w-3.5 text-emerald-400" /> Recebido
@@ -432,7 +446,7 @@ export default function Financeiro() {
 
               {/* Consolidated Bank Balance */}
               {financialPerms.canViewBankAccounts && bankAccounts.activeAccounts.length > 0 && (
-                <Card className="p-4 border-border bg-gradient-to-r from-card to-primary/[0.04]">
+                <Card className="p-4 border-border bg-gradient-to-r from-card to-primary/[0.04] mt-3">
                   <div className="flex items-center justify-between flex-wrap gap-3">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-primary/10">
@@ -459,20 +473,6 @@ export default function Financeiro() {
                   </div>
                 </Card>
               )}
-
-              {/* Tabs */}
-              <Tabs defaultValue="receitas" className="w-full">
-                <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex-wrap">
-                  {(financialPerms.canViewBankAccounts ? ['receitas', 'despesas', 'festas', 'resultado', 'contas'] : ['receitas', 'despesas', 'festas', 'resultado']).map(tab => (
-                    <TabsTrigger
-                      key={tab}
-                      value={tab}
-                      className="rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground"
-                    >
-                      {tab === 'receitas' ? 'Receitas' : tab === 'despesas' ? 'Despesas' : tab === 'festas' ? '🎉 Festas' : tab === 'resultado' ? 'Resultado' : '🏦 Contas'}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
 
                 <div className="mt-4" />
 
