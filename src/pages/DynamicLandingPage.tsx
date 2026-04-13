@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 import { Helmet } from "react-helmet-async";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
