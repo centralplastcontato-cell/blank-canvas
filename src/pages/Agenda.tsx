@@ -987,19 +987,19 @@ export default function Agenda() {
               {centralTab === "festas" && (
               <div className="pt-2">
                 <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas" | "pre-reservas")}>
-                  <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex-wrap w-full">
-                    <TabsTrigger value="agendadas" className="flex-1 gap-1.5 text-xs font-medium rounded-full px-4 py-2 border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none">
+                  <TabsList className="inline-flex gap-1 p-1 rounded-2xl bg-muted/50 border border-border/40 shadow-sm h-auto w-full">
+                    <TabsTrigger value="agendadas" className="flex-1 gap-1.5 text-xs font-semibold rounded-xl px-3 py-2 transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 data-[state=active]:scale-[1.02] data-[state=inactive]:bg-muted data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/80">
                       <CalendarDays className="h-3.5 w-3.5" />
                       Agendadas
                     </TabsTrigger>
-                    <TabsTrigger value="fechadas" className="flex-1 gap-1.5 text-xs font-medium rounded-full px-4 py-2 border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none">
+                    <TabsTrigger value="fechadas" className="flex-1 gap-1.5 text-xs font-semibold rounded-xl px-3 py-2 transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 data-[state=active]:scale-[1.02] data-[state=inactive]:bg-muted data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/80">
                       <Handshake className="h-3.5 w-3.5" />
                       Fechadas
                       {closedInPeriod > 0 && (
                         <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{closedInPeriod}</Badge>
                       )}
                     </TabsTrigger>
-                    <TabsTrigger value="pre-reservas" className="flex-1 gap-1.5 text-xs font-medium rounded-full px-4 py-2 border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none">
+                    <TabsTrigger value="pre-reservas" className="flex-1 gap-1.5 text-xs font-semibold rounded-xl px-3 py-2 transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 data-[state=active]:scale-[1.02] data-[state=inactive]:bg-muted data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/80">
                       <CalendarClock className="h-3.5 w-3.5" />
                       Pré-reservas
                       {allPreReservations.filter(pr => pr.status === "ativa").length > 0 && (
@@ -1190,19 +1190,19 @@ export default function Agenda() {
               <div className="hidden md:flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-2.5">
                   <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas" | "pre-reservas")}>
-                    <TabsList className="bg-transparent p-0 h-auto gap-1.5">
-                      <TabsTrigger value="agendadas" className="px-5 py-2 gap-1.5 text-sm font-medium rounded-full border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none">
+                    <TabsList className="inline-flex gap-1.5 p-1.5 rounded-2xl bg-muted/50 border border-border/40 shadow-sm h-auto">
+                      <TabsTrigger value="agendadas" className="px-6 py-3 gap-2 text-base font-semibold rounded-xl transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 data-[state=active]:scale-[1.02] data-[state=inactive]:bg-muted data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/80">
                         <CalendarDays className="h-4 w-4" />
                         Agendadas
                       </TabsTrigger>
-                      <TabsTrigger value="fechadas" className="px-5 py-2 gap-1.5 text-sm font-medium rounded-full border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none">
+                      <TabsTrigger value="fechadas" className="px-6 py-3 gap-2 text-base font-semibold rounded-xl transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 data-[state=active]:scale-[1.02] data-[state=inactive]:bg-muted data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/80">
                         <Handshake className="h-4 w-4" />
                         Fechadas
                         {closedInPeriod > 0 && (
                           <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{closedInPeriod}</Badge>
                         )}
                       </TabsTrigger>
-                      <TabsTrigger value="pre-reservas" className="px-5 py-2 gap-1.5 text-sm font-medium rounded-full border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none">
+                      <TabsTrigger value="pre-reservas" className="px-6 py-3 gap-2 text-base font-semibold rounded-xl transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 data-[state=active]:scale-[1.02] data-[state=inactive]:bg-muted data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/80">
                         <CalendarClock className="h-4 w-4" />
                         Pré-reservas
                         {allPreReservations.filter(pr => pr.status === "ativa").length > 0 && (
@@ -1212,9 +1212,9 @@ export default function Agenda() {
                     </TabsList>
                   </Tabs>
                   <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "calendar" | "list")}>
-                    <TabsList className="bg-transparent p-0 h-auto gap-1.5">
-                      <TabsTrigger value="calendar" className="px-4 py-2 rounded-full border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none"><CalendarDays className="h-4 w-4" /></TabsTrigger>
-                      <TabsTrigger value="list" className="px-4 py-2 rounded-full border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none"><List className="h-4 w-4" /></TabsTrigger>
+                    <TabsList className="inline-flex gap-1.5 p-1.5 rounded-2xl bg-muted/50 border border-border/40 shadow-sm h-auto">
+                      <TabsTrigger value="calendar" className="px-4 py-3 rounded-xl transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 data-[state=active]:scale-[1.02] data-[state=inactive]:bg-muted data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/80"><CalendarDays className="h-4 w-4" /></TabsTrigger>
+                      <TabsTrigger value="list" className="px-4 py-3 rounded-xl transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 data-[state=active]:scale-[1.02] data-[state=inactive]:bg-muted data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/80"><List className="h-4 w-4" /></TabsTrigger>
                     </TabsList>
                   </Tabs>
                   {/* Desktop unit filter */}
