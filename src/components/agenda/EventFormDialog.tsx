@@ -386,7 +386,13 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
   const fetchGeneratedContracts = useCallback(async () => {
     const eid = persistedEventId || form.id || initialData?.id;
-    if (!eid || !currentCompany?.id) return;
+    if (!eid || !currentCompany?.id) {
+      setGeneratedContracts([]);
+      setSentWA(new Set());
+      setSentSign(new Set());
+      return;
+    }
+
     const { data, error } = await (supabase as any)
       .from("generated_contracts")
       .select("id, nome_documento, status, conteudo_renderizado, lead_id, event_id, template_id, created_at")
@@ -396,7 +402,34 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       .order("created_at", { ascending: false })
       .limit(5);
     console.log("[contracts] fetch for event", eid, "found", data?.length ?? 0, error);
-    setGeneratedContracts(data || []);
+
+    const contracts = data || [];
+    setGeneratedContracts(contracts);
+
+    const contractIds = contracts.map((contract) => contract.id).filter(Boolean);
+    if (contractIds.length === 0) {
+      setSentWA(new Set());
+      setSentSign(new Set());
+      return;
+    }
+
+    const { data: logs } = await (supabase as any)
+      .from("contract_audit_logs")
+      .select("contract_id, action")
+      .eq("company_id", currentCompany.id)
+      .in("contract_id", contractIds)
+      .in("action", ["contract_sent_whatsapp", "contract_sent_for_signature"]);
+
+    const waIds = new Set<string>();
+    const signIds = new Set<string>();
+
+    for (const log of logs || []) {
+      if (log.action === "contract_sent_whatsapp" && log.contract_id) waIds.add(log.contract_id);
+      if (log.action === "contract_sent_for_signature" && log.contract_id) signIds.add(log.contract_id);
+    }
+
+    setSentWA(waIds);
+    setSentSign(signIds);
   }, [persistedEventId, form.id, initialData?.id, currentCompany?.id]);
 
   useEffect(() => { if (open) fetchGeneratedContracts(); }, [open, fetchGeneratedContracts]);
