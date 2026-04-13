@@ -218,6 +218,7 @@ export function GeneratedContractsList({ userId }: Props) {
         signatureSent = true;
       }
       if (signatureSent) {
+        setSentSign(prev => new Set(prev).add(contract.id));
         await logContractAction(currentCompany.id, contract.id, contract.template_id, "contract_sent_for_signature", userId, { lead_id: leadId });
       }
       fetchContracts();
