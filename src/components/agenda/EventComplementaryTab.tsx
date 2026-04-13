@@ -175,6 +175,26 @@ export function EventComplementaryTab({
       });
   }, [companyId, form.unit]);
 
+  // Load sent form history from lead_history
+  useEffect(() => {
+    if (!eventId || !companyId) return;
+    supabase
+      .from("lead_history")
+      .select("details")
+      .eq("action", "form_sent_whatsapp")
+      .contains("details", JSON.stringify({ event_id: eventId }))
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          const keys = new Set<string>();
+          data.forEach((row: any) => {
+            const d = typeof row.details === "string" ? JSON.parse(row.details) : row.details;
+            if (d?.form_type && d?.template_id) keys.add(`${d.form_type}-${d.template_id}`);
+          });
+          setSentForms(keys);
+        }
+      });
+  }, [eventId, companyId]);
+
   useEffect(() => {
     if (!companyId) {
       setLoading(false);
