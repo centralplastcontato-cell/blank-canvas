@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -39,6 +39,12 @@ interface FormSection {
   publicPath: string;
 }
 
+interface WapiInstance {
+  instance_id: string;
+  unit: string | null;
+  status: string | null;
+}
+
 interface EventComplementaryTabProps {
   eventId: string;
   companyId: string;
@@ -63,6 +69,25 @@ export function EventComplementaryTab({
   const [sendingForm, setSendingForm] = useState<string | null>(null);
   const [savingBeforeOpen, setSavingBeforeOpen] = useState(false);
   const [iframeModal, setIframeModal] = useState<{ url: string; title: string } | null>(null);
+  const [instances, setInstances] = useState<WapiInstance[]>([]);
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string>("");
+
+  // Load WhatsApp instances
+  useEffect(() => {
+    if (!companyId) return;
+    supabase
+      .from("wapi_instances")
+      .select("instance_id, unit, status")
+      .eq("company_id", companyId)
+      .then(({ data }) => {
+        const list = (data || []) as WapiInstance[];
+        setInstances(list);
+        // Auto-select: prefer unit match, then first connected
+        const unitMatch = form.unit ? list.find(i => i.unit === form.unit && i.status === "connected") : null;
+        const firstConnected = list.find(i => i.status === "connected");
+        setSelectedInstanceId((unitMatch || firstConnected)?.instance_id || list[0]?.instance_id || "");
+      });
+  }, [companyId, form.unit]);
 
   useEffect(() => {
     if (!companyId) {
@@ -203,32 +228,27 @@ export function EventComplementaryTab({
       return;
     }
 
+    if (!selectedInstanceId) {
+      toast({ title: "Selecione uma instância WhatsApp", variant: "destructive" });
+      return;
+    }
+
     const key = `${section.type}-${template.id}`;
     setSendingForm(key);
 
     try {
-      const { data: instance } = await supabase
-        .from("wapi_instances")
-        .select("instance_id")
-        .eq("company_id", companyId)
-        .order("connected_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (!instance?.instance_id) {
-        toast({ title: "Nenhuma instância WhatsApp ativa", variant: "destructive" });
-        return;
-      }
-
+      const selectedInstance = instances.find(i => i.instance_id === selectedInstanceId);
       const link = getFormLink(section, template);
       const message = `Olá! 😊\n\nPor favor, preencha o formulário de *${section.label}* para sua festa:\n\n${link}\n\nObrigado!`;
+
+      toast({ title: `Enviando via ${selectedInstance?.unit || 'WhatsApp'}...` });
 
       const { error } = await supabase.functions.invoke("wapi-send", {
         body: {
           action: "send-text",
           phone: leadPhone,
           message,
-          instanceId: instance.instance_id,
+          instanceId: selectedInstanceId,
         },
       });
 
@@ -354,6 +374,40 @@ export function EventComplementaryTab({
           </p>
         </div>
       </div>
+
+      {/* WhatsApp Instance Selector */}
+      {instances.length > 1 && (
+        <div className="rounded-xl border border-border/40 bg-card p-5 shadow-sm">
+          <div className="flex items-center gap-2.5 text-[11px] uppercase tracking-[0.18em] font-semibold text-muted-foreground mb-4 pb-2.5 border-b border-border/40">
+            <div className="p-1.5 rounded-md bg-primary/8 ring-1 ring-primary/15">
+              <Send className="h-3.5 w-3.5 text-primary" />
+            </div>
+            Enviar via WhatsApp
+          </div>
+          <Select value={selectedInstanceId} onValueChange={setSelectedInstanceId}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Selecione a instância" />
+            </SelectTrigger>
+            <SelectContent>
+              {instances.map((inst) => (
+                <SelectItem key={inst.instance_id} value={inst.instance_id}>
+                  <span className="flex items-center gap-2">
+                    {inst.unit || inst.instance_id}
+                    {inst.status === "connected" ? (
+                      <Badge variant="outline" className="text-[9px] bg-green-500/15 text-green-700 border-green-200">Online</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[9px] bg-muted text-muted-foreground">Offline</Badge>
+                    )}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[10px] text-muted-foreground mt-2">
+            Os formulários serão enviados pela instância selecionada.
+          </p>
+        </div>
+      )}
 
       {/* Form Sections */}
       {sections.map((section) => {
