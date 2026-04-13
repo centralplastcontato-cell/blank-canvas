@@ -606,10 +606,10 @@ function ch05(doc: jsPDF) {
 }
 
 function ch06(doc: jsPDF) {
-  addChapterTitle(doc, 6, "Agenda");
+  addChapterTitle(doc, 6, "Central de Agenda");
 
   addSectionTitle(doc, "Calendário de eventos");
-  addParagraph(doc, "A Agenda mostra todos os eventos (festas, visitas, reuniões) em formato de calendário mensal ou lista. Os eventos são coloridos conforme o tipo e unidade para fácil identificação.");
+  addParagraph(doc, "A Central de Agenda mostra todos os eventos (festas, visitas, reuniões) em formato de calendário mensal ou lista. Os eventos são coloridos conforme o tipo e unidade para fácil identificação.");
 
   addSectionTitle(doc, "Criar e editar eventos");
   addBulletList(doc, [
@@ -617,18 +617,32 @@ function ch06(doc: jsPDF) {
     "Preencha: título, data, horário início/fim, tipo, unidade, pacote, número de convidados e valor.",
     "Vincule o evento a um lead existente para manter o rastreamento.",
     "Adicione observações e notas internas.",
+    "Defina o vendedor responsável pelo fechamento.",
   ]);
 
-  addSectionTitle(doc, "Checklist por evento");
-  addParagraph(doc, "Cada evento pode ter um checklist operacional com itens a serem realizados antes, durante e depois da festa. Os itens podem ser marcados como concluídos por qualquer membro da equipe.");
+  addSectionTitle(doc, "Pré-reservas");
+  addParagraph(doc, "O sistema suporta pré-reservas com fluxo de aprovação. Leads podem solicitar pré-reserva de uma data, e o gestor aprova ou rejeita. Pré-reservas expiram automaticamente após o período configurado.");
 
-  addSectionTitle(doc, "Templates de checklist");
-  addParagraph(doc, "Crie templates de checklist padrão (ex: \"Checklist festa completa\", \"Checklist mini festa\") para aplicar rapidamente em novos eventos. Isso padroniza os processos operacionais.");
+  addSectionTitle(doc, "Visitas agendadas");
+  addParagraph(doc, "Gerencie visitas ao buffet diretamente pela agenda:");
+  addBulletList(doc, [
+    "Agende visitas vinculadas a leads do CRM.",
+    "Confirmação automática por WhatsApp antes da visita.",
+    "Qualificação da visita: registre notas, interesse e fotos.",
+    "Histórico completo de visitas por lead.",
+    "Banner de alerta no topo mostra visitas do dia.",
+  ]);
+
+  addSectionTitle(doc, "Tarefas por evento");
+  addParagraph(doc, "Crie tarefas com prioridade (alta, média, baixa) e categorias. Atribua tarefas a membros da equipe e acompanhe a conclusão.");
+
+  addSectionTitle(doc, "Checklist por evento");
+  addParagraph(doc, "Cada evento pode ter um checklist operacional com itens a serem realizados antes, durante e depois da festa. Use templates reutilizáveis para padronizar.");
 
   addSectionTitle(doc, "Resumo mensal");
   addParagraph(doc, "Cards no topo da agenda mostram um resumo do mês: total de eventos, eventos confirmados, valor total e ocupação por unidade.");
 
-  addTipBox(doc, "Use templates de checklist para garantir que nenhum detalhe seja esquecido. Crie um template para cada tipo de evento que sua empresa realiza.");
+  addTipBox(doc, "Use templates de checklist para garantir que nenhum detalhe seja esquecido. Crie um template para cada tipo de evento.");
 }
 
 function ch07(doc: jsPDF) {
