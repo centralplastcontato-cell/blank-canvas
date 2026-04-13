@@ -77,6 +77,16 @@ export function FloatingTips() {
     }
   }, []);
 
+  // Listen for reactivation
+  useEffect(() => {
+    const handler = () => {
+      setIsVisible(true);
+      setIsMinimized(false);
+    };
+    window.addEventListener("floating-tips-reactivate", handler);
+    return () => window.removeEventListener("floating-tips-reactivate", handler);
+  }, []);
+
   // Auto-rotate tips
   useEffect(() => {
     if (!isVisible || isMinimized) return;
