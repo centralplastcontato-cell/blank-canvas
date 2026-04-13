@@ -479,7 +479,8 @@ export default function Financeiro() {
                 {/* Tab Receitas */}
                 <TabsContent value="receitas" className="space-y-4">
                   <Tabs value={receitasSubTab} onValueChange={setReceitasSubTab} className="w-full">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="space-y-3">
+                      {/* Linha 1: Sub-filtros de status */}
                       <div className="flex gap-1.5 overflow-x-auto pb-1">
                         {[
                           { value: 'atraso', icon: AlertTriangle, label: 'Em Atraso', count: allLate.length },
@@ -507,7 +508,9 @@ export default function Financeiro() {
                           </button>
                         ))}
                       </div>
-                      <div className="flex items-center gap-2">
+
+                      {/* Linha 2: Ações e visualização */}
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
                         <Button
                           size="sm"
                           onClick={() => { setEditingRevenue(null); setRevenueDialogOpen(true); }}
@@ -515,23 +518,25 @@ export default function Financeiro() {
                         >
                           <Plus className="h-3.5 w-3.5" /> Nova Receita
                         </Button>
-                        <div className="flex items-center bg-muted/50 rounded-lg p-0.5 border border-border/50">
-                          <button
-                            onClick={() => setViewMode('list')}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                              viewMode === 'list' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                            }`}
-                          >
-                            <List className="h-3.5 w-3.5" /> Lista
-                          </button>
-                          <button
-                            onClick={() => setViewMode('client')}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                              viewMode === 'client' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                            }`}
-                          >
-                            <Users className="h-3.5 w-3.5" /> Por cliente
-                          </button>
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center bg-muted/50 rounded-lg p-0.5 border border-border/50">
+                            <button
+                              onClick={() => setViewMode('list')}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                                viewMode === 'list' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              <List className="h-3.5 w-3.5" /> Lista
+                            </button>
+                            <button
+                              onClick={() => setViewMode('client')}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                                viewMode === 'client' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              <Users className="h-3.5 w-3.5" /> Por cliente
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
