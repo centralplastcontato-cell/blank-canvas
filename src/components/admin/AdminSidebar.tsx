@@ -81,6 +81,7 @@ export function AdminSidebar({
   ];
 
   return (
+    <>
     <Sidebar 
       collapsible="icon" 
       className="border-r border-sidebar-border z-40"
