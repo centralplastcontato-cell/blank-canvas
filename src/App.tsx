@@ -157,7 +157,7 @@ const App = () => (
               <Route path="/hub/comercial-b2b" element={<ComercialB2B />} />
               <Route path="/para-buffets" element={<ParaBuffets />} />
               <Route path="/dashboard" element={<Index />} />
-              <Route path="/users" element={<Users />} />
+              <Route path="/users" element={<Navigate to="/configuracoes?tab=usuarios" replace />} />
               <Route path="/promo" element={<PromoPage />} />
               {/* Hub portal - independent */}
               <Route path="/hub-landing" element={<HubLandingPage />} />

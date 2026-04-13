@@ -12,12 +12,13 @@ import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
 import { WhatsAppConfig } from "@/components/whatsapp/WhatsAppConfig";
 import { PartyControlConfig } from "@/components/admin/PartyControlConfig";
+import { UsersManagementPanel } from "@/components/admin/UsersManagementPanel";
 
 import { ProfileContent } from "@/components/admin/ProfileContent";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { Menu, Settings, MessageSquare, PartyPopper, UserCircle } from "lucide-react";
+import { Menu, Settings, MessageSquare, PartyPopper, UserCircle, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "@/hooks/use-toast";
@@ -35,7 +36,8 @@ export default function Configuracoes() {
   const navigate = useNavigate();
   const { currentCompany } = useCompany();
   const [searchParams] = useSearchParams();
-  const defaultTab = searchParams.get("tab") === "perfil" ? "perfil" : "whatsapp";
+  const tabParam = searchParams.get("tab");
+  const defaultTab = tabParam === "perfil" ? "perfil" : tabParam === "usuarios" ? "usuarios" : "whatsapp";
   const [user, setUser] = useState<User | null>(null);
   const [_session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -178,6 +180,12 @@ export default function Configuracoes() {
                   Festa
                 </TabsTrigger>
               )}
+              {canManageUsers && (
+                <TabsTrigger value="usuarios" className="gap-2 rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground">
+                  <Users className="h-4 w-4" />
+                  Usuários
+                </TabsTrigger>
+              )}
             </TabsList>
             <TabsContent value="perfil" className="mt-4">
               <ProfileContent userId={user.id} userEmail={user.email || ""} />
@@ -188,6 +196,11 @@ export default function Configuracoes() {
             {showOperacoes && (
               <TabsContent value="festa" className="mt-4 space-y-6">
                 <PartyControlConfig />
+              </TabsContent>
+            )}
+            {canManageUsers && (
+              <TabsContent value="usuarios" className="mt-4">
+                <UsersManagementPanel userId={user.id} isAdmin={isAdmin} />
               </TabsContent>
             )}
           </Tabs>
@@ -244,6 +257,12 @@ export default function Configuracoes() {
                       Controle da Festa
                     </TabsTrigger>
                   )}
+                  {canManageUsers && (
+                    <TabsTrigger value="usuarios" className="gap-2 rounded-full px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground">
+                      <Users className="h-4 w-4" />
+                      Usuários
+                    </TabsTrigger>
+                  )}
                 </TabsList>
                 <TabsContent value="perfil" className="mt-4">
                   <ProfileContent userId={user.id} userEmail={user.email || ""} />
@@ -254,6 +273,11 @@ export default function Configuracoes() {
                 {showOperacoes && (
                   <TabsContent value="festa" className="mt-4 space-y-6">
                     <PartyControlConfig />
+                  </TabsContent>
+                )}
+                {canManageUsers && (
+                  <TabsContent value="usuarios" className="mt-4">
+                    <UsersManagementPanel userId={user.id} isAdmin={isAdmin} />
                   </TabsContent>
                 )}
               </Tabs>

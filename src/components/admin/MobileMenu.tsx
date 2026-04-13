@@ -146,13 +146,6 @@ export function MobileMenu({
       show: !!modules.config,
     },
     {
-      id: "users",
-      label: "Gerenciar Usuários",
-      icon: Users,
-      path: "/users",
-      show: canManageUsers,
-    },
-    {
       id: "empresas",
       label: "Empresas",
       icon: Building2,
