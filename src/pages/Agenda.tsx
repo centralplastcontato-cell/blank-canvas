@@ -1052,7 +1052,23 @@ export default function Agenda() {
           {/* Tab: Tarefas */}
           {centralTab === "tarefas" && (
             <div className="flex-1 p-3 md:p-6 lg:p-8 overflow-y-auto">
-              <div className="max-w-7xl mx-auto">
+              <div className="max-w-7xl mx-auto space-y-6">
+                <div className="hidden md:block">
+                  <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
+                    <div className="relative flex items-center justify-between gap-4 p-5 md:p-6">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20">
+                          <CalendarDays className="h-7 w-7 text-primary-foreground" />
+                        </div>
+                        <div>
+                          <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Central de Agenda</h1>
+                          <p className="text-sm text-muted-foreground/70 mt-0.5">Tarefas · Gestão de atividades internas</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 <AgendaTarefasTab userId={currentUser?.id || ""} />
               </div>
             </div>
@@ -1061,7 +1077,23 @@ export default function Agenda() {
           {/* Tab: Tudo */}
           {centralTab === "tudo" && (
             <div className="flex-1 p-3 md:p-6 lg:p-8 overflow-y-auto">
-              <div className="max-w-7xl mx-auto">
+              <div className="max-w-7xl mx-auto space-y-6">
+                <div className="hidden md:block">
+                  <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
+                    <div className="relative flex items-center justify-between gap-4 p-5 md:p-6">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20">
+                          <CalendarDays className="h-7 w-7 text-primary-foreground" />
+                        </div>
+                        <div>
+                          <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Central de Agenda</h1>
+                          <p className="text-sm text-muted-foreground/70 mt-0.5">Tudo · Visão consolidada de eventos, visitas e tarefas</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 <AgendaTudoTab userId={currentUser?.id} />
               </div>
             </div>
@@ -1070,7 +1102,23 @@ export default function Agenda() {
           {/* Tab: Visitas */}
           {centralTab === "visitas" && (
             <div className="flex-1 p-3 md:p-6 lg:p-8 overflow-y-auto">
-              <div className="max-w-7xl mx-auto">
+              <div className="max-w-7xl mx-auto space-y-6">
+                <div className="hidden md:block">
+                  <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
+                    <div className="relative flex items-center justify-between gap-4 p-5 md:p-6">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20">
+                          <CalendarDays className="h-7 w-7 text-primary-foreground" />
+                        </div>
+                        <div>
+                          <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Central de Agenda</h1>
+                          <p className="text-sm text-muted-foreground/70 mt-0.5">Visitas · Agendamentos comerciais</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 <AgendaVisitasTab userId={currentUser?.id || ""} />
               </div>
             </div>
