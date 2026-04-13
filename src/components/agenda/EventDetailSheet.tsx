@@ -14,6 +14,7 @@ import { ptBR } from "date-fns/locale";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { EventChecklist } from "./EventChecklist";
+import { EventFormsStatusPanel } from "./EventFormsStatusPanel";
 import { EventFinancialTab } from "@/components/financial/EventFinancialTab";
 import { useFinancialPermissions } from "@/hooks/useFinancialPermissions";
 
@@ -538,6 +539,15 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                 <EventChecklist eventId={event.id} companyId={event.company_id} />
               </div>
             </div>
+          )}
+
+          {/* Formulários Complementares */}
+          {event.company_id && (
+            <EventFormsStatusPanel
+              eventId={event.id}
+              companyId={event.company_id}
+              leadId={event.lead_id}
+            />
           )}
 
           {/* Contract Readiness Panel */}
