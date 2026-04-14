@@ -139,20 +139,25 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
                   {hasPreRes && (
                     <span className="h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full bg-pink-400 shadow-[0_0_4px_rgba(244,114,182,0.4)]" />
                   )}
-                  {/* Show up to 3 status dots */}
-                  {dayEvents.slice(0, 3).map((ev) => (
-                    <span
-                      key={ev.id}
-                      className={cn(
-                        "h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full transition-all duration-200",
-                        STATUS_DOT[ev.status] || "bg-muted-foreground/30"
-                      )}
-                    />
-                  ))}
-                  {/* Counter for 4+ events */}
-                  {eventCount > 3 && (
+                  {/* Show up to 4 type/status dots */}
+                  {dayEvents.slice(0, 4).map((ev) => {
+                    const dotClass = ev.type
+                      ? TYPE_DOT[ev.type] || "bg-muted-foreground/30"
+                      : STATUS_DOT[ev.status] || "bg-muted-foreground/30";
+                    return (
+                      <span
+                        key={ev.id}
+                        className={cn(
+                          "h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full transition-all duration-200",
+                          dotClass
+                        )}
+                      />
+                    );
+                  })}
+                  {/* Counter for 5+ events */}
+                  {eventCount > 4 && (
                     <span className="text-[7px] lg:text-[8px] font-bold text-muted-foreground/60 leading-none ml-0.5">
-                      +{eventCount - 3}
+                      +{eventCount - 4}
                     </span>
                   )}
                 </div>
