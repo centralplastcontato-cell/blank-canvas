@@ -84,3 +84,9 @@ verify_jwt = false
 [functions.contract-otp]
 verify_jwt = false
 
+[functions.task-notifications]
+verify_jwt = false
+
+[functions.generate-recurring-tasks]
+verify_jwt = false
+
