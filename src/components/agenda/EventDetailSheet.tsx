@@ -18,6 +18,7 @@ import { EventTasksSection } from "./EventTasksSection";
 import { EventFormsStatusPanel } from "./EventFormsStatusPanel";
 import { EventFinancialTab } from "@/components/financial/EventFinancialTab";
 import { useFinancialPermissions } from "@/hooks/useFinancialPermissions";
+import { useFinancialConsent } from "@/hooks/useFinancialConsent";
 
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
