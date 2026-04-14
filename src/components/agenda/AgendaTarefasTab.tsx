@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Loader2, CheckCircle2, Clock, AlertTriangle, ListChecks } from "lucide-react";
+import { Plus, Loader2, CheckCircle2, Clock, AlertTriangle, ListChecks, PlayCircle } from "lucide-react";
 import { useTasks, TASK_CATEGORIES, type CompanyTask, type TaskFormData } from "@/hooks/useTasks";
 import { TaskFormDialog } from "./TaskFormDialog";
 import { TaskCard } from "./TaskCard";
@@ -13,26 +13,28 @@ interface AgendaTarefasTabProps {
 }
 
 export function AgendaTarefasTab({ userId }: AgendaTarefasTabProps) {
-  const { tasks, loading, createTask, updateTask, toggleComplete, deleteTask } = useTasks();
+  const { tasks, loading, createTask, updateTask, toggleComplete, updateStatus, deleteTask } = useTasks();
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<CompanyTask | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [filterCategory, setFilterCategory] = useState("all");
-  const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "completed">("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "in_progress" | "completed">("all");
 
   const filtered = useMemo(() => {
     return tasks.filter((t) => {
       if (filterCategory !== "all" && t.category !== filterCategory) return false;
-      if (filterStatus === "pending" && t.completed) return false;
-      if (filterStatus === "completed" && !t.completed) return false;
+      if (filterStatus === "pending" && t.status !== "pendente") return false;
+      if (filterStatus === "in_progress" && t.status !== "em_andamento") return false;
+      if (filterStatus === "completed" && t.status !== "concluida") return false;
       return true;
     });
   }, [tasks, filterCategory, filterStatus]);
 
-  const pendingCount = tasks.filter((t) => !t.completed).length;
-  const completedCount = tasks.filter((t) => t.completed).length;
+  const pendingCount = tasks.filter((t) => t.status === "pendente").length;
+  const inProgressCount = tasks.filter((t) => t.status === "em_andamento").length;
+  const completedCount = tasks.filter((t) => t.status === "concluida").length;
   const overdueCount = tasks.filter((t) => {
-    if (t.completed || !t.due_date) return false;
+    if (t.status === "concluida" || !t.due_date) return false;
     return new Date(t.due_date) < new Date(new Date().toDateString());
   }).length;
 
@@ -47,7 +49,7 @@ export function AgendaTarefasTab({ userId }: AgendaTarefasTabProps) {
   return (
     <div className="space-y-4">
       {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card className="border-border/30">
           <CardContent className="p-3 flex items-center gap-2">
             <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/30">
@@ -56,6 +58,17 @@ export function AgendaTarefasTab({ userId }: AgendaTarefasTabProps) {
             <div>
               <p className="text-lg font-bold leading-none">{pendingCount}</p>
               <p className="text-[10px] text-muted-foreground">Pendentes</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-border/30">
+          <CardContent className="p-3 flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-blue-100 dark:bg-blue-900/30">
+              <PlayCircle className="h-4 w-4 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-lg font-bold leading-none">{inProgressCount}</p>
+              <p className="text-[10px] text-muted-foreground">Em andamento</p>
             </div>
           </CardContent>
         </Card>
@@ -97,13 +110,14 @@ export function AgendaTarefasTab({ userId }: AgendaTarefasTabProps) {
           </SelectContent>
         </Select>
         <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
-          <SelectTrigger className="w-[130px] h-9 text-xs">
+          <SelectTrigger className="w-[140px] h-9 text-xs">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas</SelectItem>
-            <SelectItem value="pending">Pendentes</SelectItem>
-            <SelectItem value="completed">Concluídas</SelectItem>
+            <SelectItem value="pending">⏳ Pendentes</SelectItem>
+            <SelectItem value="in_progress">🔄 Em andamento</SelectItem>
+            <SelectItem value="completed">✅ Concluídas</SelectItem>
           </SelectContent>
         </Select>
         <div className="flex-1" />
@@ -134,6 +148,7 @@ export function AgendaTarefasTab({ userId }: AgendaTarefasTabProps) {
                   key={task.id}
                   task={task}
                   onToggle={toggleComplete}
+                  onStatusChange={updateStatus}
                   onEdit={(t) => { setEditingTask(t); setFormOpen(true); }}
                   onDelete={(id) => setDeleteId(id)}
                 />

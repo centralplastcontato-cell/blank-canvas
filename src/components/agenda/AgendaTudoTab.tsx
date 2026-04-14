@@ -4,8 +4,9 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { useTasks } from "@/hooks/useTasks";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, MapPin, CheckCircle2, Clock, PartyPopper } from "lucide-react";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { Loader2, MapPin, CheckCircle2, Clock, PartyPopper, CalendarDays } from "lucide-react";
+import { format, startOfMonth, endOfMonth, isToday as isTodayFn } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AgendaCalendar } from "./AgendaCalendar";
 import { cn } from "@/lib/utils";
@@ -43,7 +44,7 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
   const [visits, setVisits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(startOfMonth(new Date()));
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
 
   useEffect(() => {
     if (!currentCompany?.id) return;
@@ -109,7 +110,7 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
           title: t.title,
           date: t.due_date!,
           time: t.due_time?.slice(0, 5),
-          status: t.completed ? "concluída" : "pendente",
+          status: (t as any).status || (t.completed ? "concluída" : "pendente"),
         });
       });
 
@@ -203,6 +204,23 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
           {/* Calendar */}
           <Card className="border-border/30">
             <CardContent className="p-0">
+              <div className="flex items-center justify-end px-3 pt-2">
+                {selectedDate && !isTodayFn(selectedDate) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => {
+                      const today = new Date();
+                      setSelectedDate(today);
+                      setMonth(startOfMonth(today));
+                    }}
+                  >
+                    <CalendarDays className="h-3.5 w-3.5 mr-1" />
+                    Hoje
+                  </Button>
+                )}
+              </div>
               <AgendaCalendar
                 events={calendarEvents}
                 month={month}

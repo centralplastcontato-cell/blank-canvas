@@ -1,44 +1,72 @@
 import { format, parseISO, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Pencil, Trash2, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { TASK_CATEGORIES, TASK_PRIORITIES, type CompanyTask } from "@/hooks/useTasks";
+import { TASK_CATEGORIES, TASK_PRIORITIES, TASK_STATUSES, type CompanyTask, type TaskStatus } from "@/hooks/useTasks";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface TaskCardProps {
   task: CompanyTask;
   onToggle: (id: string, completed: boolean) => void;
   onEdit: (task: CompanyTask) => void;
   onDelete: (id: string) => void;
+  onStatusChange?: (id: string, status: TaskStatus) => void;
 }
 
-export function TaskCard({ task, onToggle, onEdit, onDelete }: TaskCardProps) {
+export function TaskCard({ task, onToggle, onEdit, onDelete, onStatusChange }: TaskCardProps) {
   const cat = TASK_CATEGORIES.find((c) => c.value === task.category);
   const pri = TASK_PRIORITIES.find((p) => p.value === task.priority);
+  const currentStatus = TASK_STATUSES.find((s) => s.value === task.status) || TASK_STATUSES[0];
 
   const isOverdue = task.due_date && !task.completed && isPast(parseISO(task.due_date)) && !isToday(parseISO(task.due_date));
   const isDueToday = task.due_date && isToday(parseISO(task.due_date));
+
+  const handleStatusChange = (newStatus: string) => {
+    if (onStatusChange) {
+      onStatusChange(task.id, newStatus as TaskStatus);
+    } else {
+      onToggle(task.id, newStatus === "concluida");
+    }
+  };
 
   return (
     <div
       className={cn(
         "flex items-start gap-3 p-3 rounded-xl border transition-all duration-200 group",
-        task.completed
+        task.status === "concluida"
           ? "bg-muted/30 border-border/20 opacity-60"
-          : isOverdue
-            ? "bg-red-50/50 border-red-200/50 dark:bg-red-950/20 dark:border-red-800/30"
-            : "bg-card border-border/40 hover:shadow-sm hover:border-border/60"
+          : task.status === "em_andamento"
+            ? "bg-blue-50/50 border-blue-200/50 dark:bg-blue-950/20 dark:border-blue-800/30"
+            : isOverdue
+              ? "bg-red-50/50 border-red-200/50 dark:bg-red-950/20 dark:border-red-800/30"
+              : "bg-card border-border/40 hover:shadow-sm hover:border-border/60"
       )}
     >
-      <Checkbox
-        checked={task.completed}
-        onCheckedChange={(checked) => onToggle(task.id, !!checked)}
-        className="mt-0.5 shrink-0"
-      />
+      <Select value={task.status} onValueChange={handleStatusChange}>
+        <SelectTrigger className={cn(
+          "h-7 w-[120px] text-[10px] font-medium border shrink-0 mt-0.5",
+          currentStatus.color
+        )}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {TASK_STATUSES.map((s) => (
+            <SelectItem key={s.value} value={s.value} className="text-xs">
+              {s.icon} {s.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <div className="flex-1 min-w-0">
-        <p className={cn("text-sm font-medium leading-tight", task.completed && "line-through text-muted-foreground")}>
+        <p className={cn("text-sm font-medium leading-tight", task.status === "concluida" && "line-through text-muted-foreground")}>
           {task.title}
         </p>
         {task.description && (
