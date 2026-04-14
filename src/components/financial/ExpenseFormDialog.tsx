@@ -266,7 +266,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
         <DialogHeader className="px-6 pt-6 pb-3 border-b border-border/40">
           <DialogTitle className="text-lg font-bold">{defaultValues ? 'Editar Despesa' : 'Nova Despesa'}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+        <div className="space-y-4 overflow-y-auto flex-1 px-6 py-4">
           <div>
             <Label>Tipo de despesa</Label>
             <Select value={expenseType} onValueChange={setExpenseType}>
