@@ -97,6 +97,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       setExpenseType(defaultExpenseType || 'fixa');
       setStatus('pendente');
       setBankAccountId('');
+      setSubcategory('');
       setNotes('');
       setReceiptUrl('');
       setReceiptPreview('');
