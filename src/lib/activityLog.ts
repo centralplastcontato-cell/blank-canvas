@@ -31,18 +31,22 @@ export async function logActivity({
       .eq('user_id', user.id)
       .maybeSingle();
 
-    await supabase.from('activity_logs').insert({
+    const { error } = await supabase.from('activity_logs').insert({
       company_id: companyId,
       user_id: user.id,
       user_name: profile?.full_name || user.email || 'Desconhecido',
       action,
       module,
-      entity_type: entityType,
-      entity_id: entityId,
-      entity_name: entityName,
+      entity_type: entityType || null,
+      entity_id: entityId || null,
+      entity_name: entityName || null,
       details: details || null,
       user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
-    });
+    } as any);
+
+    if (error) {
+      console.error('[ActivityLog] Insert error:', error.message, error.details, error.hint);
+    }
   } catch (err) {
     console.error('[ActivityLog] Error:', err);
   }
