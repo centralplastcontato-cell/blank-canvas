@@ -212,35 +212,35 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
           {/* Summary */}
           <div className="grid grid-cols-3 gap-3">
             <Card className="border-border/30">
-              <CardContent className="p-3 flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-purple-100 dark:bg-purple-900/30">
-                  <PartyPopper className="h-4 w-4 text-purple-600" />
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-purple-100 dark:bg-purple-900/30">
+                  <PartyPopper className="h-5 w-5 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-lg font-bold leading-none">{events.length}</p>
-                  <p className="text-[10px] text-muted-foreground">Festas</p>
+                  <p className="text-2xl font-bold leading-none">{events.length}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Festas</p>
                 </div>
               </CardContent>
             </Card>
             <Card className="border-border/30">
-              <CardContent className="p-3 flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-blue-100 dark:bg-blue-900/30">
-                  <MapPin className="h-4 w-4 text-blue-600" />
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-blue-100 dark:bg-blue-900/30">
+                  <MapPin className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-lg font-bold leading-none">{visits.length}</p>
-                  <p className="text-[10px] text-muted-foreground">Visitas</p>
+                  <p className="text-2xl font-bold leading-none">{visits.length}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Visitas</p>
                 </div>
               </CardContent>
             </Card>
             <Card className="border-border/30">
-              <CardContent className="p-3 flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/30">
-                  <CheckCircle2 className="h-4 w-4 text-amber-600" />
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/30">
+                  <CheckCircle2 className="h-5 w-5 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-lg font-bold leading-none">{tasks.filter((t) => t.due_date).length}</p>
-                  <p className="text-[10px] text-muted-foreground">Tarefas</p>
+                  <p className="text-2xl font-bold leading-none">{tasks.filter((t) => t.due_date).length}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Tarefas</p>
                 </div>
               </CardContent>
             </Card>
