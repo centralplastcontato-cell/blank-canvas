@@ -164,6 +164,7 @@ export function useTasks() {
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
+      if (currentCompany?.id) logActivity({ companyId: currentCompany.id, action: 'status_change', module: 'agenda', entityType: 'task', entityId: id, details: { new_status: newStatus } });
       fetchTasks();
     }
   };
