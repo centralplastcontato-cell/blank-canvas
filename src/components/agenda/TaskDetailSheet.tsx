@@ -2,14 +2,16 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Clock, Pencil, Trash2, Repeat, Link2, Calendar, FileText, AlertTriangle, CheckCircle2, PartyPopper } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Clock, Pencil, Trash2, Repeat, Link2, Calendar, FileText, AlertTriangle, CheckCircle2, PartyPopper, MessageSquare } from "lucide-react";
 import { format, parseISO, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { TASK_CATEGORIES, TASK_PRIORITIES, TASK_STATUSES, RECURRENCE_OPTIONS, WEEKDAYS, type CompanyTask, type TaskStatus } from "@/hooks/useTasks";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface TaskDetailSheetProps {
   open: boolean;
