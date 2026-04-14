@@ -262,11 +262,11 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>{defaultValues ? 'Editar Despesa' : 'Nova Despesa'}</DialogTitle>
+      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-3 border-b border-border/40">
+          <DialogTitle className="text-lg font-bold">{defaultValues ? 'Editar Despesa' : 'Nova Despesa'}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+        <div className="space-y-4 overflow-y-auto flex-1 px-6 py-4">
           <div>
             <Label>Tipo de despesa</Label>
             <Select value={expenseType} onValueChange={setExpenseType}>
@@ -420,7 +420,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
             />
           </div>
         </div>
-        <DialogFooter className="pt-3">
+        <DialogFooter className="px-6 py-4 border-t border-border/40 bg-muted/20">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button onClick={handleSubmit} disabled={uploading || uploadingBoleto}>Salvar</Button>
         </DialogFooter>
