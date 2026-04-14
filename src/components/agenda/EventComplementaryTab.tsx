@@ -363,8 +363,9 @@ export function EventComplementaryTab({
 
       const rawTemplate = automationSettings?.message_template || FORM_TYPE_DEFAULT_MESSAGES[section.type] || "";
 
-      // Get lead name for variable resolution
-      const firstName = form.title?.split(" ")[0] || "Cliente";
+      // Get lead name (contratante), NOT event title (aniversariante)
+      const leadName = form.lead_name || form.parent_names || "Cliente";
+      const firstName = leadName.split(" ")[0];
       const eventDate = form.event_date ? format(new Date(form.event_date + "T12:00:00"), "dd/MM/yyyy") : "";
 
       // Fetch company name
