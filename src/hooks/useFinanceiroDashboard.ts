@@ -278,7 +278,7 @@ export function useFinanceiroDashboard() {
       const now = new Date().toISOString().split('T')[0];
       const enriched: EnrichedPayment[] = rawPayments.map(p => {
         const entriesTotal = entriesTotalsMap.get(p.id) || 0;
-        let status: EnrichedPayment['status'] = p.status === 'pending' && p.due_date < now ? 'late' : p.status;
+        let status: EnrichedPayment['status'] = (p.status === 'pending' && p.due_date < now ? 'late' : p.status) as EnrichedPayment['status'];
         // Mark as partial if has entries but not fully paid
         if (status !== 'paid' && entriesTotal > 0 && entriesTotal < Number(p.amount)) {
           status = 'partial';
