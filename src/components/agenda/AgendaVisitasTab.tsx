@@ -19,6 +19,7 @@ import { toast } from "@/hooks/use-toast";
 import { VisitQualification } from "@/components/visitas/VisitQualification";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { VisitFormDialog } from "@/components/visitas/VisitFormDialog";
+import { logActivity } from "@/lib/activityLog";
 
 const VISIT_STATUSES = [
   { value: "agendada", label: "Agendada", color: "bg-blue-500/15 text-blue-700 border-blue-300", dot: "bg-blue-500" },
@@ -218,10 +219,31 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
   };
 
   const deleteVisit = async (visitId: string) => {
+    const visitToDelete = visits.find((visit) => visit.id === visitId) ?? detailVisit;
     const { error } = await (supabase as any).from("lead_visits").delete().eq("id", visitId);
     if (error) {
       toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
     } else {
+      if (currentCompany?.id) {
+        logActivity({
+          companyId: currentCompany.id,
+          action: 'delete',
+          module: 'events',
+          entityType: 'visit',
+          entityId: visitId,
+          entityName: visitToDelete?.lead_name || visitToDelete?.event_title || 'Visita',
+          details: visitToDelete
+            ? {
+                visitType: visitToDelete.visit_type || 'visita',
+                date: visitToDelete.data_visita,
+                time: visitToDelete.horario_visita,
+                status: visitToDelete.status_visita,
+                leadId: visitToDelete.lead_id,
+                unit: visitToDelete.unit,
+              }
+            : undefined,
+        });
+      }
       toast({ title: "Visita excluída!" });
       setDetailVisit(null);
       fetchVisits();
