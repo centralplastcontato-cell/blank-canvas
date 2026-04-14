@@ -177,14 +177,19 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
     setAmount(formatCurrencyInput(e.target.value));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const val = parseCurrencyInput(amount);
     if (!val || !description.trim() || !expenseDate) return;
+    // Save new subcategory if typed
+    if (subcategory.trim() && expenseType !== 'ajuste') {
+      await addSubcategory(subcategory.trim());
+    }
     onSubmit({
       description: description.trim(),
       amount: val,
       expense_date: expenseDate,
       category: expenseType === 'ajuste' ? 'ajuste_saldo' : category,
+      subcategory: subcategory.trim() || undefined,
       expense_type: expenseType,
       status,
       notes: notes.trim() || undefined,
