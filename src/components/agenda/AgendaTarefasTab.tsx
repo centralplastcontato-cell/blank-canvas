@@ -122,6 +122,9 @@ export function AgendaTarefasTab({ userId }: AgendaTarefasTabProps) {
         </Card>
       </div>
 
+      {/* Productivity Dashboard */}
+      <TaskProductivityDashboard tasks={tasks} />
+
       {/* Filters + add */}
       <div className="flex items-center gap-2 flex-wrap">
         <Select value={filterCategory} onValueChange={setFilterCategory}>
