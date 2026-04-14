@@ -112,6 +112,30 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
         revenuesQuery = revenuesQuery.lte('revenue_date', dateTo);
       }
 
+      // Fetch ALL amounts (no date filter) to compute real current balance
+      const allEntriesQuery = supabase
+        .from('event_payments')
+        .select('amount')
+        .eq('bank_account_id', account.id)
+        .eq('status', 'paid');
+
+      const allPartialQuery = (supabase as any)
+        .from('event_payment_entries')
+        .select('amount')
+        .eq('bank_account_id', account.id);
+
+      const allExitsQuery = supabase
+        .from('company_expenses')
+        .select('amount')
+        .eq('bank_account_id', account.id)
+        .eq('status', 'pago');
+
+      const allRevenuesQuery = (supabase as any)
+        .from('company_revenues')
+        .select('amount')
+        .eq('bank_account_id', account.id)
+        .eq('status', 'recebido');
+
       // Only fetch movements after the selected end date when needed.
       let postEntriesQuery = supabase
         .from('event_payments')
@@ -143,11 +167,15 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
         postRevenuesQuery = postRevenuesQuery.gt('revenue_date', dateTo);
       }
 
-      const [entriesRes, partialEntriesRes, exitsRes, revenuesRes, postEntriesRes, postPartialRes, postExitsRes, postRevenuesRes] = await Promise.all([
+      const [entriesRes, partialEntriesRes, exitsRes, revenuesRes, allEntriesRes, allPartialRes, allExitsRes, allRevenuesRes, postEntriesRes, postPartialRes, postExitsRes, postRevenuesRes] = await Promise.all([
         entriesQuery,
         partialEntriesQuery,
         exitsQuery,
         revenuesQuery,
+        allEntriesQuery,
+        allPartialQuery,
+        allExitsQuery,
+        allRevenuesQuery,
         dateTo ? postEntriesQuery : Promise.resolve({ data: [] }),
         dateTo ? postPartialQuery : Promise.resolve({ data: [] }),
         dateTo ? postExitsQuery : Promise.resolve({ data: [] }),
