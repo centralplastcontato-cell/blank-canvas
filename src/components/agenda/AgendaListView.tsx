@@ -137,6 +137,11 @@ export function AgendaListView({ events, onEventClick, getConflicts, month, onMo
                           <AlertTriangle className="h-3 w-3" /> Conflito de horário
                         </div>
                       )}
+                      {taskCounts[ev.id] > 0 && (
+                        <div className="flex items-center gap-1 text-xs text-primary font-medium mt-1">
+                          <CheckSquare className="h-3 w-3" /> {taskCounts[ev.id]} tarefa{taskCounts[ev.id] > 1 ? "s" : ""} pendente{taskCounts[ev.id] > 1 ? "s" : ""}
+                        </div>
+                      )}
                     </button>
                   );
                 })}
