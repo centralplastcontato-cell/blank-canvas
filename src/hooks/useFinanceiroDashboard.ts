@@ -326,7 +326,7 @@ export function useFinanceiroDashboard() {
       if (filters.unit !== 'all' && p.unit !== filters.unit) return false;
       if (filters.status !== 'all') {
         if (filters.status === 'paid' && p.status !== 'paid') return false;
-        if (filters.status === 'pending' && p.status !== 'pending') return false;
+        if (filters.status === 'pending' && p.status !== 'pending' && p.status !== 'partial') return false;
         if (filters.status === 'late' && p.status !== 'late') return false;
       }
       if (filters.bankAccount !== 'all' && p.bank_account_id !== filters.bankAccount) return false;
