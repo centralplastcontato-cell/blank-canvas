@@ -30,6 +30,25 @@ interface AgendaListViewProps {
 }
 
 export function AgendaListView({ events, onEventClick, getConflicts, month, onMonthChange }: AgendaListViewProps) {
+  const [taskCounts, setTaskCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const eventIds = events.map(e => e.id);
+    if (eventIds.length === 0) { setTaskCounts({}); return; }
+    supabase
+      .from("company_tasks")
+      .select("event_id")
+      .in("event_id", eventIds)
+      .neq("status", "concluida")
+      .then(({ data }) => {
+        const counts: Record<string, number> = {};
+        (data || []).forEach((t: any) => {
+          if (t.event_id) counts[t.event_id] = (counts[t.event_id] || 0) + 1;
+        });
+        setTaskCounts(counts);
+      });
+  }, [events]);
+
   const grouped = new Map<string, CompanyEvent[]>();
   events.forEach((ev) => {
     const key = ev.event_date;
