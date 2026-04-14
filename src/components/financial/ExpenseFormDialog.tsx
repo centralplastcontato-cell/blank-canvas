@@ -69,6 +69,10 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
   const [uploadingBoleto, setUploadingBoleto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const boletoInputRef = useRef<HTMLInputElement>(null);
+  const [subcategory, setSubcategory] = useState('');
+  const [subcategoryOpen, setSubcategoryOpen] = useState(false);
+  const [subcategoryInput, setSubcategoryInput] = useState('');
+  const { subcategories, addSubcategory } = useExpenseSubcategories(category);
 
   useEffect(() => {
     if (open && defaultValues) {
