@@ -1181,7 +1181,7 @@ export default function Agenda() {
                         <p className="text-sm text-muted-foreground/70 mt-0.5">Festas · Calendário mensal de eventos</p>
                       </div>
                     </div>
-                    
+                    <GuiaAgendaDialog />
                   </div>
                 </div>
               </div>
