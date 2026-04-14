@@ -7,6 +7,7 @@ import { useTasks, TASK_CATEGORIES, type CompanyTask, type TaskFormData } from "
 import { TaskFormDialog } from "./TaskFormDialog";
 import { TaskCard } from "./TaskCard";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { TaskProductivityDashboard } from "./TaskProductivityDashboard";
 
 interface AgendaTarefasTabProps {
   userId: string;
