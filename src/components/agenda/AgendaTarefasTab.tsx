@@ -8,6 +8,7 @@ import { TaskFormDialog } from "./TaskFormDialog";
 import { TaskCard } from "./TaskCard";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { TaskProductivityDashboard } from "./TaskProductivityDashboard";
+import { EventTaskTemplateManager } from "./EventTaskTemplateManager";
 
 interface AgendaTarefasTabProps {
   userId: string;
@@ -186,6 +187,9 @@ export function AgendaTarefasTab({ userId }: AgendaTarefasTabProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Event Task Templates */}
+      <EventTaskTemplateManager />
 
       <TaskFormDialog
         open={formOpen}
