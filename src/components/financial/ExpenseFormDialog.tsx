@@ -420,7 +420,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
             />
           </div>
         </div>
-        <DialogFooter className="pt-3">
+        <DialogFooter className="px-6 py-4 border-t border-border/40 bg-muted/20">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button onClick={handleSubmit} disabled={uploading || uploadingBoleto}>Salvar</Button>
         </DialogFooter>
