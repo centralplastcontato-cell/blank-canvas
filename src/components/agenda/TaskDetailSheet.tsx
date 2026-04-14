@@ -11,7 +11,6 @@ import { TASK_CATEGORIES, TASK_PRIORITIES, TASK_STATUSES, RECURRENCE_OPTIONS, WE
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 
 interface TaskDetailSheetProps {
   open: boolean;
@@ -24,8 +23,17 @@ interface TaskDetailSheetProps {
 
 export function TaskDetailSheet({ open, onOpenChange, task, onEdit, onDelete, onStatusChange }: TaskDetailSheetProps) {
   const [linkedEvent, setLinkedEvent] = useState<{ id: string; title: string; event_date: string; start_time?: string } | null>(null);
+  const [observacoes, setObservacoes] = useState("");
+  const [savingObs, setSavingObs] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   const taskAny = task as any;
+
+  useEffect(() => {
+    if (open && task) {
+      setObservacoes((taskAny?.observacoes as string) || "");
+    }
+  }, [open, task?.id]);
 
   useEffect(() => {
     if (!open || !taskAny?.event_id) {
@@ -39,6 +47,19 @@ export function TaskDetailSheet({ open, onOpenChange, task, onEdit, onDelete, on
       .single()
       .then(({ data }) => setLinkedEvent(data || null));
   }, [open, taskAny?.event_id]);
+
+  const saveObservacoes = useCallback((value: string) => {
+    if (!task) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setSavingObs(true);
+      await supabase
+        .from("company_tasks")
+        .update({ observacoes: value } as any)
+        .eq("id", task.id);
+      setSavingObs(false);
+    }, 800);
+  }, [task?.id]);
 
   if (!task) return null;
 
@@ -152,6 +173,26 @@ export function TaskDetailSheet({ open, onOpenChange, task, onEdit, onDelete, on
               </p>
             </div>
           )}
+
+          {/* Observações */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-semibold">Observações</span>
+              {savingObs && (
+                <span className="text-[10px] text-muted-foreground ml-auto">Salvando...</span>
+              )}
+            </div>
+            <Textarea
+              value={observacoes}
+              onChange={(e) => {
+                setObservacoes(e.target.value);
+                saveObservacoes(e.target.value);
+              }}
+              placeholder="Escreva suas observações aqui..."
+              className="min-h-[100px] bg-white text-sm resize-none"
+            />
+          </div>
 
           {/* Recurrence */}
           {recurrence && (
