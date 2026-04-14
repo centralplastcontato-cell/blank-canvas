@@ -144,6 +144,23 @@ export default function Financeiro() {
 
   const confirmMarkPaymentPaid = async () => {
     if (!markPaidPayment) return;
+    
+    if (financialPerms.requiresConsent) {
+      const success = await consentHook.submitForConsent({
+        actionType: 'payment_paid',
+        entityId: markPaidPayment.id,
+        entityTable: 'event_payments',
+        payload: { bank_account_id: markPaidBankId || null },
+        description: `Parcela - ${markPaidPayment.lead_name || markPaidPayment.event_title || 'Pagamento'}`,
+        amount: markPaidPayment.amount,
+      });
+      if (success) {
+        setMarkPaidPayment(null);
+        setMarkPaidBankId(null);
+      }
+      return;
+    }
+    
     await dashboard.markPaymentAsPaid(markPaidPayment.id, markPaidBankId);
     setMarkPaidPayment(null);
     setMarkPaidBankId(null);
