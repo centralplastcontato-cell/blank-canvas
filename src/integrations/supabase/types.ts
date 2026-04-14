@@ -1267,6 +1267,7 @@ export type Database = {
           notes: string | null
           receipt_url: string | null
           status: string
+          subcategory: string | null
           unit: string | null
           updated_at: string | null
         }
@@ -1284,6 +1285,7 @@ export type Database = {
           notes?: string | null
           receipt_url?: string | null
           status?: string
+          subcategory?: string | null
           unit?: string | null
           updated_at?: string | null
         }
@@ -1301,6 +1303,7 @@ export type Database = {
           notes?: string | null
           receipt_url?: string | null
           status?: string
+          subcategory?: string | null
           unit?: string | null
           updated_at?: string | null
         }
@@ -2845,6 +2848,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "event_task_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expense_subcategories: {
+        Row: {
+          category: string
+          company_id: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          category: string
+          company_id: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          category?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_subcategories_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
