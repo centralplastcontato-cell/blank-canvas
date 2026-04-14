@@ -207,6 +207,7 @@ export default function Formularios() {
                       <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Operações</h1>
                       <p className="text-sm text-muted-foreground/70 mt-0.5">Gerencie formulários, checklists e pacotes da sua empresa</p>
                     </div>
+                    <GuiaOperacoesDialog />
                   </div>
                 </div>
               </div>
