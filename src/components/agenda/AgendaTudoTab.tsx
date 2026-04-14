@@ -325,6 +325,12 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
                               setSelectedEvent(found);
                               setEventSheetOpen(true);
                             }
+                          } else if (item.type === "visita") {
+                            const found = visits.find(v => v.id === item.id);
+                            if (found) {
+                              setSelectedVisit(found);
+                              setVisitSheetOpen(true);
+                            }
                           }
                         }}
                       >
