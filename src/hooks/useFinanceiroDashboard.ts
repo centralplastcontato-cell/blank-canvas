@@ -354,6 +354,7 @@ export function useFinanceiroDashboard() {
     const { error } = await supabase.from('company_expenses').insert({ ...data, expense_type: data.expense_type || 'fixa', company_id: companyId });
     if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
     toast({ title: data.expense_type === 'ajuste' ? 'Ajuste de saldo registrado' : 'Despesa adicionada' });
+    logActivity({ companyId, action: 'create', module: 'financial', entityType: 'expense', entityName: data.description, details: { amount: data.amount, category: data.category } });
     fetchData();
   };
 
@@ -361,6 +362,7 @@ export function useFinanceiroDashboard() {
     const { error } = await supabase.from('company_expenses').update(data).eq('id', id);
     if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Despesa atualizada' });
+    if (companyId) logActivity({ companyId, action: 'update', module: 'financial', entityType: 'expense', entityId: id });
     fetchData();
   };
 
@@ -368,6 +370,7 @@ export function useFinanceiroDashboard() {
     const { error } = await supabase.from('company_expenses').delete().eq('id', id);
     if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Despesa removida' });
+    if (companyId) logActivity({ companyId, action: 'delete', module: 'financial', entityType: 'expense', entityId: id });
     fetchData();
   };
 
@@ -377,6 +380,7 @@ export function useFinanceiroDashboard() {
     const { error } = await supabase.from('event_payments').update(updateData).eq('id', paymentId);
     if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Pagamento registrado' });
+    if (companyId) logActivity({ companyId, action: 'payment', module: 'financial', entityType: 'payment', entityId: paymentId });
     fetchData();
   };
 
@@ -387,6 +391,7 @@ export function useFinanceiroDashboard() {
     const { error } = await (supabase as any).from('company_revenues').insert({ ...data, company_id: companyId, created_by: user?.id || null });
     if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Receita adicionada' });
+    logActivity({ companyId, action: 'create', module: 'financial', entityType: 'revenue', entityName: data.description, details: { amount: data.amount } });
     fetchData();
   };
 
@@ -394,6 +399,7 @@ export function useFinanceiroDashboard() {
     const { error } = await (supabase as any).from('company_revenues').update(data).eq('id', id);
     if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Receita atualizada' });
+    if (companyId) logActivity({ companyId, action: 'update', module: 'financial', entityType: 'revenue', entityId: id });
     fetchData();
   };
 
@@ -401,6 +407,7 @@ export function useFinanceiroDashboard() {
     const { error } = await (supabase as any).from('company_revenues').delete().eq('id', id);
     if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Receita removida' });
+    if (companyId) logActivity({ companyId, action: 'delete', module: 'financial', entityType: 'revenue', entityId: id });
     fetchData();
   };
 
