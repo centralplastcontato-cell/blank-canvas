@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useEventFinancial } from "@/hooks/useEventFinancial";
 import { FinancialSummaryCards } from "./FinancialSummaryCards";
 import { PaymentFormDialog } from "./PaymentFormDialog";
+import { PartialPaymentDialog } from "./PartialPaymentDialog";
 import { FinancialTimeline } from "./FinancialTimeline";
 import { BankAccountSelect } from "./BankAccountSelect";
 import { useBankAccounts } from "@/hooks/useBankAccounts";
