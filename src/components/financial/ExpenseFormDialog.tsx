@@ -266,11 +266,11 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
         <DialogHeader>
           <DialogTitle>{defaultValues ? 'Editar Despesa' : 'Nova Despesa'}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3 overflow-y-auto flex-1 pr-1">
+        <div className="space-y-4 overflow-y-auto flex-1 pr-1">
           <div>
             <Label>Tipo de despesa</Label>
             <Select value={expenseType} onValueChange={setExpenseType}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="bg-white dark:bg-background"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {EXPENSE_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
               </SelectContent>
@@ -278,22 +278,22 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
           </div>
           <div>
             <Label>Descrição</Label>
-            <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Ex: DJ para festa" />
+            <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Ex: DJ para festa" className="bg-white dark:bg-background" />
           </div>
           <div>
             <Label>Valor (R$)</Label>
-            <Input inputMode="decimal" value={amount} onChange={handleAmountChange} placeholder="0,00" />
+            <Input inputMode="decimal" value={amount} onChange={handleAmountChange} placeholder="0,00" className="bg-white dark:bg-background" />
           </div>
           <div>
             <Label>Data</Label>
-            <Input type="date" value={expenseDate} onChange={e => setExpenseDate(e.target.value)} className="w-full min-w-0" />
+            <Input type="date" value={expenseDate} onChange={e => setExpenseDate(e.target.value)} className="w-full min-w-0 bg-white dark:bg-background" />
           </div>
           {expenseType !== 'ajuste' && (
             <>
               <div>
                 <Label>Categoria</Label>
                 <Select value={category} onValueChange={(val) => { setCategory(val); setSubcategory(''); setSubcategoryInput(''); }}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-white dark:bg-background"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
                   </SelectContent>
@@ -303,7 +303,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
                 <Label>Subcategoria (opcional)</Label>
                 <Popover open={subcategoryOpen} onOpenChange={setSubcategoryOpen}>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" role="combobox" className="w-full justify-between font-normal mt-1">
+                    <Button variant="outline" role="combobox" className="w-full justify-between font-normal mt-1 bg-white dark:bg-background">
                       {subcategory || 'Digite ou selecione...'}
                     </Button>
                   </PopoverTrigger>
@@ -354,7 +354,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
           <div>
             <Label>Status</Label>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="bg-white dark:bg-background"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="pendente">Pendente</SelectItem>
                 <SelectItem value="pago">Pago</SelectItem>
@@ -369,35 +369,50 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
             placeholder="Selecione a conta de saída"
           />
 
-          {renderUploadField(
-            'Boleto / Conta (opcional)',
-            boletoPreview,
-            boletoInputRef,
-            uploadingBoleto,
-            removeBoleto,
-            handleBoletoChange,
-            <FileText className="h-5 w-5 text-muted-foreground" />,
-            'Anexar imagem do boleto ou conta'
-          )}
+          {/* Seção: Anexos */}
+          <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-4 mt-2">
+            <div className="flex items-center gap-2 mb-1">
+              <FileText className="h-4 w-4 text-primary" />
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Anexos</span>
+            </div>
 
-          {renderUploadField(
-            'Comprovante de pagamento (opcional)',
-            receiptPreview,
-            fileInputRef,
-            uploading,
-            removeReceipt,
-            handleFileChange,
-            <Camera className="h-5 w-5 text-muted-foreground" />,
-            'Anexar comprovante de pagamento'
-          )}
+            {renderUploadField(
+              'Boleto / Conta (opcional)',
+              boletoPreview,
+              boletoInputRef,
+              uploadingBoleto,
+              removeBoleto,
+              handleBoletoChange,
+              <FileText className="h-5 w-5 text-muted-foreground" />,
+              'Anexar imagem do boleto ou conta'
+            )}
 
-          <div>
-            <Label>Observações (opcional)</Label>
+            <div className="border-t border-border/40" />
+
+            {renderUploadField(
+              'Comprovante de pagamento (opcional)',
+              receiptPreview,
+              fileInputRef,
+              uploading,
+              removeReceipt,
+              handleFileChange,
+              <Camera className="h-5 w-5 text-muted-foreground" />,
+              'Anexar comprovante de pagamento'
+            )}
+          </div>
+
+          {/* Seção: Observações */}
+          <div className="rounded-xl border border-border/60 bg-muted/20 p-4 mt-2">
+            <div className="flex items-center gap-2 mb-3">
+              <Camera className="h-4 w-4 text-primary" />
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Observações</span>
+            </div>
             <Textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}
               placeholder={expenseType === 'ajuste' ? 'Ex: Saldo em caixa na data de início da plataforma' : 'Detalhes adicionais sobre a despesa'}
               rows={2}
+              className="bg-white dark:bg-background"
             />
           </div>
         </div>
