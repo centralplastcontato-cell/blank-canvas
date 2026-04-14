@@ -4,6 +4,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { useTasks } from "@/hooks/useTasks";
 import { TaskDetailSheet } from "./TaskDetailSheet";
 import { EventDetailSheet } from "./EventDetailSheet";
+import { VisitDetailSheet } from "./VisitDetailSheet";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,8 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
   const [taskSheetOpen, setTaskSheetOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [eventSheetOpen, setEventSheetOpen] = useState(false);
+  const [selectedVisit, setSelectedVisit] = useState<any>(null);
+  const [visitSheetOpen, setVisitSheetOpen] = useState(false);
   const [visits, setVisits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(startOfMonth(new Date()));
@@ -74,7 +77,7 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
           .lte("event_date", to),
         supabase
           .from("lead_visits")
-          .select("id, data_visita, horario_visita, status_visita, lead_id, campaign_leads(name, whatsapp)")
+          .select("id, data_visita, horario_visita, status_visita, lead_id, visit_type, unit, interest_level, lead_channel, guest_count, package_interest, payment_preference, party_date_interest, observacoes, seller_notes, client_questions, created_at, campaign_leads(name, whatsapp)")
           .eq("company_id", currentCompany.id)
           .gte("data_visita", from)
           .lte("data_visita", to) as any,
@@ -322,6 +325,12 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
                               setSelectedEvent(found);
                               setEventSheetOpen(true);
                             }
+                          } else if (item.type === "visita") {
+                            const found = visits.find(v => v.id === item.id);
+                            if (found) {
+                              setSelectedVisit(found);
+                              setVisitSheetOpen(true);
+                            }
                           }
                         }}
                       >
@@ -365,6 +374,12 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
         onEdit={() => {}}
         onDelete={() => {}}
         userId={userId}
+      />
+
+      <VisitDetailSheet
+        open={visitSheetOpen}
+        onOpenChange={setVisitSheetOpen}
+        visit={selectedVisit}
       />
     </div>
   );
