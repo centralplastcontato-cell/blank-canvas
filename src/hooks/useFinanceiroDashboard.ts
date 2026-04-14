@@ -268,24 +268,40 @@ export function useFinanceiroDashboard() {
         }
       }
 
+      // Build entries totals map
+      const entriesTotalsMap = new Map<string, number>();
+      ((entriesRes.data || []) as any[]).forEach((entry: any) => {
+        const current = entriesTotalsMap.get(entry.payment_id) || 0;
+        entriesTotalsMap.set(entry.payment_id, current + Number(entry.amount));
+      });
+
       const now = new Date().toISOString().split('T')[0];
-      const enriched: EnrichedPayment[] = rawPayments.map(p => ({
-        id: p.id,
-        event_id: p.event_id,
-        amount: Number(p.amount),
-        due_date: p.due_date,
-        status: (p.status === 'pending' && p.due_date < now ? 'late' : p.status) as EnrichedPayment['status'],
-        type: p.type || 'parcela',
-        payment_method: p.payment_method,
-        paid_at: p.paid_at,
-        lead_name: eventsMap[p.event_id]?.lead_name || '',
-        event_title: eventsMap[p.event_id]?.title || '',
-        event_date: eventsMap[p.event_id]?.event_date || '',
-        event_type: eventsMap[p.event_id]?.event_type || '',
-        unit: eventsMap[p.event_id]?.unit || '',
-        is_permuta: eventsMap[p.event_id]?.is_permuta || false,
-        bank_account_id: p.bank_account_id || null,
-      }));
+      const enriched: EnrichedPayment[] = rawPayments.map(p => {
+        const entriesTotal = entriesTotalsMap.get(p.id) || 0;
+        let status: EnrichedPayment['status'] = p.status === 'pending' && p.due_date < now ? 'late' : p.status;
+        // Mark as partial if has entries but not fully paid
+        if (status !== 'paid' && entriesTotal > 0 && entriesTotal < Number(p.amount)) {
+          status = 'partial';
+        }
+        return {
+          id: p.id,
+          event_id: p.event_id,
+          amount: Number(p.amount),
+          due_date: p.due_date,
+          status,
+          type: p.type || 'parcela',
+          payment_method: p.payment_method,
+          paid_at: p.paid_at,
+          lead_name: eventsMap[p.event_id]?.lead_name || '',
+          event_title: eventsMap[p.event_id]?.title || '',
+          event_date: eventsMap[p.event_id]?.event_date || '',
+          event_type: eventsMap[p.event_id]?.event_type || '',
+          unit: eventsMap[p.event_id]?.unit || '',
+          is_permuta: eventsMap[p.event_id]?.is_permuta || false,
+          bank_account_id: p.bank_account_id || null,
+          entries_total: entriesTotal,
+        };
+      });
 
       setPayments(enriched);
       const expenseData = (expensesRes.data || []).map(e => ({ ...e, amount: Number(e.amount) })) as Expense[];
