@@ -21,6 +21,8 @@ interface CompanyPackage {
   preco_separado: boolean;
   valor_pessoa_adicional_crianca: number | null;
   valor_pessoa_adicional_adulto: number | null;
+  valor_adicional_antecipado: number | null;
+  valor_adicional_no_dia: number | null;
   is_active: boolean;
   sort_order: number;
 }
@@ -68,6 +70,8 @@ export function PackagesManager() {
   const [valorUnico, setValorUnico] = useState("");
   const [valorCrianca, setValorCrianca] = useState("");
   const [valorAdulto, setValorAdulto] = useState("");
+  const [valorAntecipado, setValorAntecipado] = useState("");
+  const [valorNoDia, setValorNoDia] = useState("");
   const [saving, setSaving] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const priceGridRef = useRef<PackagePriceGridHandle>(null);
@@ -99,6 +103,8 @@ export function PackagesManager() {
     setValorUnico("");
     setValorCrianca("");
     setValorAdulto("");
+    setValorAntecipado("");
+    setValorNoDia("");
     setDialogOpen(true);
   };
 
@@ -110,6 +116,8 @@ export function PackagesManager() {
     setValorUnico(numToDisplay(pkg.valor_pessoa_adicional));
     setValorCrianca(numToDisplay(pkg.valor_pessoa_adicional_crianca));
     setValorAdulto(numToDisplay(pkg.valor_pessoa_adicional_adulto));
+    setValorAntecipado(numToDisplay(pkg.valor_adicional_antecipado));
+    setValorNoDia(numToDisplay(pkg.valor_adicional_no_dia));
     setDialogOpen(true);
   };
 
@@ -132,6 +140,9 @@ export function PackagesManager() {
       payload.valor_pessoa_adicional_crianca = null;
       payload.valor_pessoa_adicional_adulto = null;
     }
+
+    payload.valor_adicional_antecipado = parseCurrency(valorAntecipado);
+    payload.valor_adicional_no_dia = parseCurrency(valorNoDia);
 
     let targetId = editing?.id;
 
@@ -249,6 +260,20 @@ export function PackagesManager() {
                     </div>
                   )
                 )}
+                {pkg.valor_adicional_antecipado != null && (
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                    <span className="text-[11px] font-semibold text-emerald-600 tracking-wide">
+                      📋 Antecipado: R$ {pkg.valor_adicional_antecipado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
+                {pkg.valor_adicional_no_dia != null && (
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/5 border border-amber-500/10">
+                    <span className="text-[11px] font-semibold text-amber-600 tracking-wide">
+                      🎉 No dia: R$ {pkg.valor_adicional_no_dia.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -314,6 +339,17 @@ export function PackagesManager() {
                   <CurrencyInput value={valorUnico} onChange={setValorUnico} placeholder="R$ 0,00" />
                 </div>
               )}
+
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/40">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">📋 Antecipado (R$)</Label>
+                  <CurrencyInput value={valorAntecipado} onChange={setValorAntecipado} placeholder="R$ 0,00" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">🎉 No dia (R$)</Label>
+                  <CurrencyInput value={valorNoDia} onChange={setValorNoDia} placeholder="R$ 0,00" />
+                </div>
+              </div>
             </div>
 
             {/* Seção: Grade de Preços — sempre visível */}

@@ -1150,6 +1150,8 @@ export type Database = {
           event_optionals: Json | null
           event_type: string | null
           extra_guest_value: number | null
+          extra_guest_value_antecipado: number | null
+          extra_guest_value_no_dia: number | null
           gifts: string | null
           guest_count: number | null
           id: string
@@ -1183,6 +1185,8 @@ export type Database = {
           event_optionals?: Json | null
           event_type?: string | null
           extra_guest_value?: number | null
+          extra_guest_value_antecipado?: number | null
+          extra_guest_value_no_dia?: number | null
           gifts?: string | null
           guest_count?: number | null
           id?: string
@@ -1216,6 +1220,8 @@ export type Database = {
           event_optionals?: Json | null
           event_type?: string | null
           extra_guest_value?: number | null
+          extra_guest_value_antecipado?: number | null
+          extra_guest_value_no_dia?: number | null
           gifts?: string | null
           guest_count?: number | null
           id?: string
@@ -1581,6 +1587,8 @@ export type Database = {
           preco_separado: boolean
           sort_order: number
           updated_at: string
+          valor_adicional_antecipado: number | null
+          valor_adicional_no_dia: number | null
           valor_pessoa_adicional: number | null
           valor_pessoa_adicional_adulto: number | null
           valor_pessoa_adicional_crianca: number | null
@@ -1595,6 +1603,8 @@ export type Database = {
           preco_separado?: boolean
           sort_order?: number
           updated_at?: string
+          valor_adicional_antecipado?: number | null
+          valor_adicional_no_dia?: number | null
           valor_pessoa_adicional?: number | null
           valor_pessoa_adicional_adulto?: number | null
           valor_pessoa_adicional_crianca?: number | null
@@ -1609,6 +1619,8 @@ export type Database = {
           preco_separado?: boolean
           sort_order?: number
           updated_at?: string
+          valor_adicional_antecipado?: number | null
+          valor_adicional_no_dia?: number | null
           valor_pessoa_adicional?: number | null
           valor_pessoa_adicional_adulto?: number | null
           valor_pessoa_adicional_crianca?: number | null
