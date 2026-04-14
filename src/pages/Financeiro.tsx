@@ -1143,7 +1143,9 @@ export default function Financeiro() {
           onOpenChange={(open) => { if (!open) setMarkPaidExpense(null); }}
           expenseId={markPaidExpense.id}
           expenseDescription={markPaidExpense.description}
+          expenseAmount={(markPaidExpense as any).amount}
           onConfirm={(id, data) => dashboard.updateExpense(id, data)}
+          onConsentSubmit={financialPerms.requiresConsent ? consentHook.submitForConsent : undefined}
         />
       )}
 
