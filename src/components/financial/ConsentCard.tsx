@@ -9,6 +9,7 @@ import type { FinancialConsent } from '@/hooks/useFinancialConsent';
 
 const ACTION_LABELS: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
   payment_paid: { label: 'Baixar Parcela', icon: <DollarSign className="h-4 w-4" />, color: 'text-emerald-500' },
+  partial_payment: { label: 'Pagamento Parcial', icon: <DollarSign className="h-4 w-4" />, color: 'text-amber-500' },
   expense_paid: { label: 'Pagar Despesa', icon: <Receipt className="h-4 w-4" />, color: 'text-blue-500' },
 };
 

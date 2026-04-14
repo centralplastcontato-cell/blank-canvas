@@ -7,13 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Trash2, CheckCircle, RotateCcw, Tag, Receipt, Clock, CreditCard, Building, Package, Pencil } from "lucide-react";
+import { Plus, Trash2, CheckCircle, RotateCcw, Tag, Receipt, Clock, CreditCard, Building, Package, Pencil, Coins, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEventFinancial } from "@/hooks/useEventFinancial";
 import { FinancialSummaryCards } from "./FinancialSummaryCards";
 import { PaymentFormDialog } from "./PaymentFormDialog";
+import { PartialPaymentDialog } from "./PartialPaymentDialog";
 import { FinancialTimeline } from "./FinancialTimeline";
 import { BankAccountSelect } from "./BankAccountSelect";
 import { useBankAccounts } from "@/hooks/useBankAccounts";
@@ -31,6 +32,7 @@ const STATUS_BADGE: Record<string, { label: string; className: string; bgRow: st
   pending: { label: "Pendente", className: "bg-muted text-muted-foreground border-border", bgRow: "" },
   paid: { label: "Pago", className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", bgRow: "bg-emerald-500/[0.04] border-emerald-500/20" },
   late: { label: "Atrasado", className: "bg-red-500/20 text-red-400 border-red-500/30", bgRow: "bg-red-500/[0.04] border-red-500/20" },
+  partial: { label: "Parcial", className: "bg-amber-500/20 text-amber-500 border-amber-500/30", bgRow: "bg-amber-500/[0.04] border-amber-500/20" },
 };
 
 interface CatalogOptional {
@@ -81,6 +83,8 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   const [optionalManualValue, setOptionalManualValue] = useState<number | null>(null);
   const [addingOptional, setAddingOptional] = useState(false);
   const syncAttempted = useRef(false);
+  const [partialPaymentTarget, setPartialPaymentTarget] = useState<any>(null);
+  const [expandedPaymentIds, setExpandedPaymentIds] = useState<Set<string>>(new Set());
 
   // Auto-sync: if no payments exist but event has payment_details, sync them
   useEffect(() => {
@@ -671,8 +675,38 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
           <div className="space-y-2">
             <AnimatePresence>
               {financial.payments.map(p => {
-                const sb = STATUS_BADGE[p.status];
+                const sb = STATUS_BADGE[p.status] || STATUS_BADGE.pending;
                 const justPaid = recentlyPaidIds.has(p.id);
+                const pEntries = financial.getEntriesForPayment(p.id);
+                const paidSum = financial.getEntriesSum(p.id);
+                const remaining = Math.max(0, p.amount - paidSum);
+                const hasEntries = pEntries.length > 0;
+                const isExpanded = expandedPaymentIds.has(p.id);
+                const progressPct = p.amount > 0 ? Math.min(100, (paidSum / p.amount) * 100) : 0;
+
+                const toggleExpand = () => {
+                  setExpandedPaymentIds(prev => {
+                    const next = new Set(prev);
+                    if (next.has(p.id)) next.delete(p.id); else next.add(p.id);
+                    return next;
+                  });
+                };
+
+                const handlePartialPayment = async (data: any) => {
+                  if (onConsentSubmit) {
+                    const success = await onConsentSubmit({
+                      actionType: 'partial_payment',
+                      entityId: p.id,
+                      entityTable: 'event_payments',
+                      payload: data,
+                      description: `Pagamento parcial - ${p.type === 'entrada' ? 'Entrada' : 'Parcela'} R$ ${data.amount.toFixed(2)}`,
+                      amount: data.amount,
+                    });
+                    return success;
+                  }
+                  return financial.addPartialPayment(p.id, data);
+                };
+
                 return (
                   <motion.div
                     key={p.id}
@@ -685,87 +719,182 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                     }}
                     exit={{ opacity: 0, height: 0 }}
                     transition={{ duration: 0.3 }}
-                    className={`flex items-center gap-3 p-3 rounded-xl border shadow-sm ${
+                    className={`rounded-xl border shadow-sm ${
                       justPaid
                         ? "bg-emerald-500/10 border-emerald-500/30"
                         : sb.bgRow || "bg-card border-border/40"
                     }`}
                   >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge className={`text-[10px] px-2 py-0.5 font-medium border ${sb.className}`}>
-                          {p.status === "paid" ? "✅" : p.status === "late" ? "🔴" : "⏳"} {sb.label}
-                        </Badge>
-                        <span className="text-[11px] font-medium text-muted-foreground uppercase">
-                          {p.type === "entrada" ? "Entrada" : "Parcela"}
-                        </span>
-                      </div>
-                      <p className="text-base font-bold text-foreground">{fmt(p.amount)}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {format(new Date(p.due_date + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}
-                        </span>
-                        {p.payment_method && (
-                          <span className="text-[11px] text-muted-foreground">
-                            • {METHOD_LABELS[p.payment_method] || p.payment_method}
+                    <div className="flex items-center gap-3 p-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge className={`text-[10px] px-2 py-0.5 font-medium border ${sb.className}`}>
+                            {p.status === "paid" ? "✅" : p.status === "late" ? "🔴" : p.status === "partial" ? "🟡" : "⏳"} {sb.label}
+                          </Badge>
+                          <span className="text-[11px] font-medium text-muted-foreground uppercase">
+                            {p.type === "entrada" ? "Entrada" : "Parcela"}
                           </span>
+                          {hasEntries && (
+                            <button
+                              onClick={toggleExpand}
+                              className="text-[10px] text-primary/70 hover:text-primary underline ml-auto"
+                            >
+                              {pEntries.length} pgto(s) {isExpanded ? "▲" : "▼"}
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-base font-bold text-foreground">{fmt(p.amount)}</p>
+                        
+                        {/* Progress bar for partial payments */}
+                        {hasEntries && p.status !== "paid" && (
+                          <div className="mt-1.5">
+                            <div className="flex justify-between text-[10px] text-muted-foreground mb-0.5">
+                              <span>Pago: {fmt(paidSum)}</span>
+                              <span>Restante: {fmt(remaining)}</span>
+                            </div>
+                            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                                style={{ width: `${progressPct}%` }}
+                              />
+                            </div>
+                          </div>
                         )}
-                        {p.status === 'paid' && p.bank_account_id && bankAccountMap[p.bank_account_id] && (
-                          <span className="text-[11px] text-primary/70 flex items-center gap-0.5">
-                            <Building className="h-2.5 w-2.5" />
-                            {bankAccountMap[p.bank_account_id]}
+                        
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {format(new Date(p.due_date + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}
                           </span>
+                          {p.payment_method && (
+                            <span className="text-[11px] text-muted-foreground">
+                              • {METHOD_LABELS[p.payment_method] || p.payment_method}
+                            </span>
+                          )}
+                          {p.status === 'paid' && p.bank_account_id && bankAccountMap[p.bank_account_id] && (
+                            <span className="text-[11px] text-primary/70 flex items-center gap-0.5">
+                              <Building className="h-2.5 w-2.5" />
+                              {bankAccountMap[p.bank_account_id]}
+                            </span>
+                          )}
+                        </div>
+                        {p.notes && (
+                          <p className="text-[11px] text-muted-foreground/70 italic mt-0.5">{p.notes}</p>
                         )}
                       </div>
-                      {p.notes && (
-                        <p className="text-[11px] text-muted-foreground/70 italic mt-0.5">{p.notes}</p>
-                      )}
+                      <div className="flex gap-1 shrink-0">
+                        {canPay && p.status !== "paid" && (
+                          <>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 rounded-xl bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 hover:text-amber-400 hover:shadow-sm hover:shadow-amber-500/10 transition-all duration-200"
+                              onClick={() => setPartialPaymentTarget(p)}
+                              title="Pagamento parcial"
+                            >
+                              <Coins className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 rounded-xl bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 hover:text-emerald-400 hover:shadow-sm hover:shadow-emerald-500/10 transition-all duration-200"
+                              onClick={() => handleMarkAsPaid(p)}
+                              title="Marcar como pago (total)"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                        {canPay && p.status === "paid" && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 rounded-xl bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 hover:text-amber-400 hover:shadow-sm hover:shadow-amber-500/10 transition-all duration-200"
+                            onClick={() => financial.reopenPayment(p)}
+                            title="Reabrir parcela"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {justPaid && (
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            className="h-8 w-8 rounded-xl bg-emerald-500/15 flex items-center justify-center shadow-sm shadow-emerald-500/10"
+                          >
+                            <CheckCircle className="h-4 w-4 text-emerald-500" />
+                          </motion.div>
+                        )}
+                        {canEdit && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 rounded-xl text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 hover:shadow-sm hover:shadow-destructive/10 transition-all duration-200"
+                            onClick={() => financial.deletePayment(p.id)}
+                            title="Excluir"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex gap-1 shrink-0">
-                      {canPay && p.status !== "paid" && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 rounded-xl bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 hover:text-emerald-400 hover:shadow-sm hover:shadow-emerald-500/10 transition-all duration-200"
-                          onClick={() => handleMarkAsPaid(p)}
-                          title="Marcar como pago"
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canPay && p.status === "paid" && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 rounded-xl bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 hover:text-amber-400 hover:shadow-sm hover:shadow-amber-500/10 transition-all duration-200"
-                          onClick={() => financial.reopenPayment(p)}
-                          title="Reabrir parcela"
-                        >
-                          <RotateCcw className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {justPaid && (
-                        <motion.div
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          className="h-8 w-8 rounded-xl bg-emerald-500/15 flex items-center justify-center shadow-sm shadow-emerald-500/10"
-                        >
-                          <CheckCircle className="h-4 w-4 text-emerald-500" />
-                        </motion.div>
-                      )}
-                      {canEdit && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 rounded-xl text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 hover:shadow-sm hover:shadow-destructive/10 transition-all duration-200"
-                          onClick={() => financial.deletePayment(p.id)}
-                          title="Excluir"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </div>
+
+                    {/* Expanded entries list */}
+                    {isExpanded && pEntries.length > 0 && (
+                      <div className="border-t border-border/30 px-3 pb-3 pt-2 space-y-1.5">
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Sub-pagamentos</p>
+                        {pEntries.map(entry => (
+                          <div key={entry.id} className="flex items-center justify-between py-1.5 px-2 rounded-lg bg-muted/30 text-xs">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-emerald-500">{fmt(entry.amount)}</span>
+                                {entry.payment_method && (
+                                  <span className="text-muted-foreground">{METHOD_LABELS[entry.payment_method] || entry.payment_method}</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+                                <span>{format(new Date(entry.paid_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</span>
+                                {entry.paid_by && <span>• {entry.paid_by}</span>}
+                                {entry.bank_account_id && bankAccountMap[entry.bank_account_id] && (
+                                  <span className="flex items-center gap-0.5"><Building className="h-2.5 w-2.5" />{bankAccountMap[entry.bank_account_id]}</span>
+                                )}
+                              </div>
+                              {entry.notes && <p className="text-[10px] text-muted-foreground/70 italic">{entry.notes}</p>}
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {entry.receipt_url && (
+                                <a href={entry.receipt_url} target="_blank" rel="noopener noreferrer" className="h-6 w-6 rounded-md bg-primary/10 text-primary flex items-center justify-center hover:bg-primary/20" title="Ver comprovante">
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                              )}
+                              {canEdit && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 rounded-md text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => financial.deletePartialPayment(entry.id)}
+                                  title="Excluir sub-pagamento"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Partial Payment Dialog per payment */}
+                    {partialPaymentTarget?.id === p.id && (
+                      <PartialPaymentDialog
+                        open={true}
+                        onOpenChange={(open) => { if (!open) setPartialPaymentTarget(null); }}
+                        onSubmit={handlePartialPayment}
+                        paymentAmount={p.amount}
+                        paidSoFar={paidSum}
+                        paymentLabel={`${p.type === 'entrada' ? 'Entrada' : 'Parcela'} — Venc. ${format(new Date(p.due_date + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}`}
+                      />
+                    )}
                   </motion.div>
                 );
               })}

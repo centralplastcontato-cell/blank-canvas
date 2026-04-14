@@ -2699,6 +2699,70 @@ export type Database = {
           },
         ]
       }
+      event_payment_entries: {
+        Row: {
+          amount: number
+          bank_account_id: string | null
+          company_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          paid_at: string
+          paid_by: string | null
+          payment_id: string
+          payment_method: string | null
+          receipt_url: string | null
+        }
+        Insert: {
+          amount: number
+          bank_account_id?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string
+          paid_by?: string | null
+          payment_id: string
+          payment_method?: string | null
+          receipt_url?: string | null
+        }
+        Update: {
+          amount?: number
+          bank_account_id?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string
+          paid_by?: string | null
+          payment_id?: string
+          payment_method?: string | null
+          receipt_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_payment_entries_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "company_bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_payment_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_payment_entries_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "event_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_payments: {
         Row: {
           amount: number
