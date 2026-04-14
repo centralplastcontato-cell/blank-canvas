@@ -77,7 +77,7 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
           .lte("event_date", to),
         supabase
           .from("lead_visits")
-          .select("id, data_visita, horario_visita, status_visita, lead_id, campaign_leads(name, whatsapp)")
+          .select("id, data_visita, horario_visita, status_visita, lead_id, visit_type, unit, interest_level, lead_channel, guest_count, package_interest, payment_preference, party_date_interest, observacoes, seller_notes, client_questions, created_at, campaign_leads(name, whatsapp)")
           .eq("company_id", currentCompany.id)
           .gte("data_visita", from)
           .lte("data_visita", to) as any,
