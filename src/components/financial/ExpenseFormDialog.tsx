@@ -262,9 +262,9 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>{defaultValues ? 'Editar Despesa' : 'Nova Despesa'}</DialogTitle>
+      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-3 border-b border-border/40">
+          <DialogTitle className="text-lg font-bold">{defaultValues ? 'Editar Despesa' : 'Nova Despesa'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 overflow-y-auto flex-1 pr-1">
           <div>
