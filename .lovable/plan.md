@@ -1,85 +1,92 @@
 
 
-## Plano: Sistema de Consentimento Financeiro
+# Pagamentos Parciais (Sub-Pagamentos) dentro de Parcelas
 
-### O que é
+## Resumo
 
-Uma camada opcional de aprovação para ações financeiras. Quando ativada, ações como "baixar parcela" ou "pagar despesa" não são efetivadas imediatamente -- ficam em estado de "aguardando consentimento" até que um gestor/dono aprove.
+Criar um sistema de **pagamentos parciais** onde uma parcela pode receber múltiplos pagamentos até atingir seu valor total. Exemplo: parcela de R$10.000 → cliente paga R$2.000 → saldo restante R$8.000.
 
-### Como funciona
+## O que já temos
 
-```text
-Funcionário marca parcela como paga
-        ↓
-  Consentimento ativo?
-   /           \
-  NÃO          SIM
-   ↓             ↓
-Efetiva       Cria registro em
-direto        financial_consents
-               (status: pending)
-                  ↓
-            Aparece na aba
-            "Consentimento"
-            do Financeiro
-                  ↓
-            Gestor/Dono aprova
-                  ↓
-            Sistema efetiva a ação
-            (marca como pago no banco)
+- Tabela `event_payments` com parcelas, status, valores
+- Sistema de consentimento financeiro (`financial_consents`) já funcional
+- Timeline financeira para auditoria
+- Upload de comprovantes via bucket `expense-receipts`
+- Hook `useEventFinancial` com CRUD completo
+
+## O que precisa ser criado
+
+### 1. Migration — Nova tabela `event_payment_entries`
+
+```sql
+CREATE TABLE public.event_payment_entries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  payment_id uuid NOT NULL REFERENCES public.event_payments(id) ON DELETE CASCADE,
+  company_id uuid NOT NULL REFERENCES public.companies(id),
+  amount numeric(12,2) NOT NULL,
+  paid_at timestamptz NOT NULL DEFAULT now(),
+  payment_method text,
+  bank_account_id uuid REFERENCES public.company_bank_accounts(id),
+  receipt_url text,
+  paid_by text,
+  notes text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
 ```
 
-### Banco de Dados
+Com RLS via `get_user_company_ids` e índice em `payment_id`.
 
-**1. Nova tabela `financial_consents`:**
-- `id`, `company_id`, `action_type` (payment_paid, expense_paid), `entity_id` (ID da parcela ou despesa), `entity_table` (event_payments ou company_expenses)
-- `payload` (JSONB - dados da ação: bank_account_id, receipt_url, etc.)
-- `requested_by` (quem solicitou), `requested_at`
-- `status` (pending, approved, rejected)
-- `reviewed_by`, `reviewed_at`, `review_notes`
-- RLS com `get_user_company_ids`
+### 2. Lógica de negócio — Hook `useEventFinancial`
 
-**2. Nova permissão `financial.consent`:**
-- Inserir na tabela `permission_definitions` com categoria "Financeiro"
-- Quando `granted = true` para um usuário, ações financeiras desse usuário passam pelo fluxo de consentimento
-- Gestores/admins aprovam (eles mesmos ficam isentos por padrão)
+- Nova função `addPartialPayment(paymentId, { amount, method, bankAccountId, receiptUrl, paidBy, notes })`
+- Ao adicionar sub-pagamento: se soma dos entries >= valor da parcela → marcar parcela como `paid`
+- Nova função `deletePartialPayment(entryId)`
+- Carregar entries junto com payments (`fetchAll` busca `event_payment_entries`)
+- Recalcular `receivedAmount` baseado na soma dos entries (não mais só parcelas com status `paid`)
 
-### Frontend
+### 3. Integração com Consentimento
 
-**3. Hook `useFinancialConsent`:**
-- Verifica se o usuário atual tem `financial.consent` ativo
-- Função `requiresConsent()` retorna boolean
-- Função `submitForConsent(actionType, entityId, payload)` cria o registro pendente
-- Função `approveConsent(id)` / `rejectConsent(id)` para gestores
+- Novo `action_type: 'partial_payment'` no consent flow
+- Se usuário tem `financial.consent`, sub-pagamento vai para aprovação
+- No `approveConsent`, inserir o entry e recalcular status da parcela
 
-**4. Interceptar ações existentes:**
-- Em `useFinanceiroDashboard.markPaymentAsPaid`: antes de efetivar, checar se requer consentimento. Se sim, criar registro pendente + toast "Enviado para aprovação"
-- Em `MarkExpensePaidDialog`: mesma lógica
-- Em `EventFinancialTab.confirmMarkAsPaid`: mesma lógica
+### 4. UI — Card de parcela expandível
 
-**5. Nova aba "Consentimento" no Financeiro:**
-- Aparece apenas para gestores/admins (ou quem tem permissão de aprovar)
-- Lista cards pendentes com: descrição da ação, valor, quem solicitou, data
-- Botões Aprovar / Rejeitar em cada card
-- Ao aprovar: executa a ação original (update no banco) e marca como approved
-- Badge com contador de pendentes na aba
+Dentro de `EventFinancialTab`, cada parcela pendente/atrasada ganha:
+- Botão "Pagamento Parcial" (ícone de moeda cortada)
+- Ao clicar, abre dialog com: valor, método, conta bancária, comprovante (upload), quem pagou, data/hora
+- Barra de progresso mostrando quanto já foi pago vs total
+- Lista dos sub-pagamentos já feitos com data, valor, quem pagou, e link do comprovante
+- Saldo restante em destaque
 
-**6. Painel de Permissões:**
-- Adicionar `financial.consent` no `PermissionsPanel` sob categoria "Financeiro"
-- Label: "Requer consentimento financeiro"
-- Descrição: "Ações financeiras deste usuário precisam de aprovação"
+### 5. UI — Visão no Dashboard Financeiro
 
-### Arquivos afetados
+- `FinancialPaymentCard` e `KpiSheetBody` mostram parcelas com entries como "parcialmente pago"
+- Novo badge: "Parcial" (amarelo/laranja) quando tem entries mas não está 100% pago
+
+### 6. Arquivos afetados
 
 | Arquivo | Mudança |
 |---------|---------|
-| Migration SQL | Nova tabela + RLS + permission_definition |
-| `src/hooks/useFinancialConsent.ts` | Novo hook |
-| `src/hooks/useFinancialPermissions.ts` | Adicionar `requiresConsent` |
-| `src/hooks/useFinanceiroDashboard.ts` | Interceptar `markPaymentAsPaid` |
-| `src/components/financial/MarkExpensePaidDialog.tsx` | Interceptar confirmação |
-| `src/components/financial/EventFinancialTab.tsx` | Interceptar `confirmMarkAsPaid` |
-| `src/pages/Financeiro.tsx` | Nova aba "Consentimento" |
-| `src/components/financial/ConsentTab.tsx` | Novo componente da aba |
-| `src/components/financial/ConsentCard.tsx` | Card de item pendente |
+| Nova migration | Tabela `event_payment_entries` + RLS |
+| `useEventFinancial.ts` | Fetch entries, `addPartialPayment`, recalc logic |
+| `EventFinancialTab.tsx` | UI expandível com entries, dialog de pagamento parcial, upload |
+| `useFinancialConsent.ts` | Handler para `partial_payment` |
+| `ConsentTab.tsx` | Renderizar consents de pagamento parcial |
+| `PaymentFormDialog.tsx` | Novo modo "parcial" com campo de comprovante |
+| `useFinanceiroDashboard.ts` | Considerar entries no cálculo de recebido |
+| `BankAccountStatement.tsx` | Incluir entries como movimentações |
+
+## Complexidade
+
+Moderada — temos 80% da infraestrutura pronta (consentimento, timeline, upload, bank accounts). O trabalho principal é a nova tabela, a lógica de soma parcial, e a UI expandível nos cards de parcela.
+
+## Implementação
+
+Passo a passo conforme sua preferência:
+1. Migration da tabela
+2. Hook com CRUD de entries
+3. UI do card expandível + dialog
+4. Integração com consentimento
+5. Ajuste no dashboard financeiro e extrato
 
