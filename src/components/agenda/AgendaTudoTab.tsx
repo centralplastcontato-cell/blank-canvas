@@ -375,6 +375,12 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
         onDelete={() => {}}
         userId={userId}
       />
+
+      <VisitDetailSheet
+        open={visitSheetOpen}
+        onOpenChange={setVisitSheetOpen}
+        visit={selectedVisit}
+      />
     </div>
   );
 }
