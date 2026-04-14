@@ -37,8 +37,8 @@ function MetricCard({
     : null;
 
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-background/60 border border-border/40">
-      <div className="p-2 rounded-lg bg-primary/10 shrink-0">
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-background/60 border border-border/40 hover:border-primary/20 hover:shadow-md transition-all duration-200 group">
+      <div className="p-2 rounded-lg bg-primary/10 shrink-0 group-hover:bg-primary/15 transition-colors">
         <Icon className="w-4 h-4 text-primary" />
       </div>
       <div className="min-w-0 flex-1">
