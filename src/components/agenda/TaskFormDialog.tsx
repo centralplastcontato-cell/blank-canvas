@@ -185,11 +185,11 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData, pres
           <div className="grid grid-cols-2 gap-3">
             <div className="min-w-0">
               <Label>Data limite</Label>
-              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full h-10" />
+              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full h-10 text-sm [&::-webkit-date-and-time-value]:text-left" />
             </div>
             <div className="min-w-0">
               <Label>Horário</Label>
-              <Input type="time" value={dueTime} onChange={(e) => setDueTime(e.target.value)} className="w-full h-10" />
+              <Input type="time" value={dueTime} onChange={(e) => setDueTime(e.target.value)} className="w-full h-10 text-sm [&::-webkit-date-and-time-value]:text-left" />
             </div>
           </div>
 
