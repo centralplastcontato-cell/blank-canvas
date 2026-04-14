@@ -10,6 +10,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatCurrencyInput, parseCurrencyInput, numberToCurrencyDisplay } from '@/lib/currency-input';
 import { BankAccountSelect } from './BankAccountSelect';
+import { useExpenseSubcategories } from '@/hooks/useExpenseSubcategories';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 const CATEGORIES = [
   { value: 'fornecedor', label: 'Fornecedor' },
