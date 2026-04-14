@@ -1,6 +1,6 @@
 import { format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarDays, Check, MapPin, PartyPopper, Building } from 'lucide-react';
+import { CalendarDays, Check, Coins, MapPin, PartyPopper, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -10,6 +10,7 @@ interface Props {
   payment: EnrichedPayment;
   onMarkAsPaid?: (id: string) => void;
   onOpenEvent?: (eventId: string) => void;
+  onPartialPayment?: (eventId: string) => void;
   bankAccountName?: string;
 }
 
