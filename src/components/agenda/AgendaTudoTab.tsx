@@ -328,6 +328,15 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
           )}
         </>
       )}
+
+      <TaskDetailSheet
+        open={taskSheetOpen}
+        onOpenChange={setTaskSheetOpen}
+        task={selectedTask}
+        onEdit={() => {}}
+        onDelete={(id) => { deleteTask(id); setTaskSheetOpen(false); }}
+        onStatusChange={(id, status) => { updateStatus(id, status); }}
+      />
     </div>
   );
 }
