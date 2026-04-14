@@ -7,6 +7,7 @@ import { useTasks, TASK_CATEGORIES, type CompanyTask, type TaskFormData } from "
 import { TaskFormDialog } from "./TaskFormDialog";
 import { TaskCard } from "./TaskCard";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { TaskProductivityDashboard } from "./TaskProductivityDashboard";
 
 interface AgendaTarefasTabProps {
   userId: string;
@@ -120,6 +121,9 @@ export function AgendaTarefasTab({ userId }: AgendaTarefasTabProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Productivity Dashboard */}
+      <TaskProductivityDashboard tasks={tasks} />
 
       {/* Filters + add */}
       <div className="flex items-center gap-2 flex-wrap">
