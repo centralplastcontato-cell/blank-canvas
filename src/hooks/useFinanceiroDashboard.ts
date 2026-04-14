@@ -10,7 +10,7 @@ export interface EnrichedPayment {
   event_id: string;
   amount: number;
   due_date: string;
-  status: 'pending' | 'paid' | 'late';
+  status: 'pending' | 'paid' | 'late' | 'partial';
   type: string;
   payment_method: string | null;
   paid_at: string | null;
@@ -21,6 +21,7 @@ export interface EnrichedPayment {
   unit: string;
   is_permuta: boolean;
   bank_account_id: string | null;
+  entries_total: number;
 }
 
 export interface Expense {
@@ -70,12 +71,13 @@ export function useFinanceiroDashboard() {
     setIsLoading(true);
 
     try {
-      const [paymentsRes, expensesRes, eventsWithDetailsRes, cardFeesRes, revenuesRes] = await Promise.all([
+      const [paymentsRes, expensesRes, eventsWithDetailsRes, cardFeesRes, revenuesRes, entriesRes] = await Promise.all([
         supabase.from('event_payments').select('*').eq('company_id', companyId).order('due_date'),
         supabase.from('company_expenses').select('*').eq('company_id', companyId).order('expense_date', { ascending: false }),
         supabase.from('company_events').select('id, payment_details').eq('company_id', companyId).not('payment_details', 'is', null),
         supabase.from('company_card_fees' as any).select('*').eq('company_id', companyId).eq('is_active', true),
         supabase.from('company_revenues' as any).select('*').eq('company_id', companyId).order('revenue_date', { ascending: false }),
+        supabase.from('event_payment_entries' as any).select('id, payment_id, amount, paid_at').eq('company_id', companyId),
       ]);
 
       const cardFeesList = (cardFeesRes.data || []) as any[];
@@ -266,24 +268,40 @@ export function useFinanceiroDashboard() {
         }
       }
 
+      // Build entries totals map
+      const entriesTotalsMap = new Map<string, number>();
+      ((entriesRes.data || []) as any[]).forEach((entry: any) => {
+        const current = entriesTotalsMap.get(entry.payment_id) || 0;
+        entriesTotalsMap.set(entry.payment_id, current + Number(entry.amount));
+      });
+
       const now = new Date().toISOString().split('T')[0];
-      const enriched: EnrichedPayment[] = rawPayments.map(p => ({
-        id: p.id,
-        event_id: p.event_id,
-        amount: Number(p.amount),
-        due_date: p.due_date,
-        status: (p.status === 'pending' && p.due_date < now ? 'late' : p.status) as EnrichedPayment['status'],
-        type: p.type || 'parcela',
-        payment_method: p.payment_method,
-        paid_at: p.paid_at,
-        lead_name: eventsMap[p.event_id]?.lead_name || '',
-        event_title: eventsMap[p.event_id]?.title || '',
-        event_date: eventsMap[p.event_id]?.event_date || '',
-        event_type: eventsMap[p.event_id]?.event_type || '',
-        unit: eventsMap[p.event_id]?.unit || '',
-        is_permuta: eventsMap[p.event_id]?.is_permuta || false,
-        bank_account_id: p.bank_account_id || null,
-      }));
+      const enriched: EnrichedPayment[] = rawPayments.map(p => {
+        const entriesTotal = entriesTotalsMap.get(p.id) || 0;
+        let status: EnrichedPayment['status'] = (p.status === 'pending' && p.due_date < now ? 'late' : p.status) as EnrichedPayment['status'];
+        // Mark as partial if has entries but not fully paid
+        if (status !== 'paid' && entriesTotal > 0 && entriesTotal < Number(p.amount)) {
+          status = 'partial';
+        }
+        return {
+          id: p.id,
+          event_id: p.event_id,
+          amount: Number(p.amount),
+          due_date: p.due_date,
+          status,
+          type: p.type || 'parcela',
+          payment_method: p.payment_method,
+          paid_at: p.paid_at,
+          lead_name: eventsMap[p.event_id]?.lead_name || '',
+          event_title: eventsMap[p.event_id]?.title || '',
+          event_date: eventsMap[p.event_id]?.event_date || '',
+          event_type: eventsMap[p.event_id]?.event_type || '',
+          unit: eventsMap[p.event_id]?.unit || '',
+          is_permuta: eventsMap[p.event_id]?.is_permuta || false,
+          bank_account_id: p.bank_account_id || null,
+          entries_total: entriesTotal,
+        };
+      });
 
       setPayments(enriched);
       const expenseData = (expensesRes.data || []).map(e => ({ ...e, amount: Number(e.amount) })) as Expense[];
@@ -308,7 +326,7 @@ export function useFinanceiroDashboard() {
       if (filters.unit !== 'all' && p.unit !== filters.unit) return false;
       if (filters.status !== 'all') {
         if (filters.status === 'paid' && p.status !== 'paid') return false;
-        if (filters.status === 'pending' && p.status !== 'pending') return false;
+        if (filters.status === 'pending' && p.status !== 'pending' && p.status !== 'partial') return false;
         if (filters.status === 'late' && p.status !== 'late') return false;
       }
       if (filters.bankAccount !== 'all' && p.bank_account_id !== filters.bankAccount) return false;
@@ -331,15 +349,19 @@ export function useFinanceiroDashboard() {
   const nonPermutaPayments = filteredPayments.filter(p => !p.is_permuta);
 
   const paidThisMonth = nonPermutaPayments.filter(p => p.status === 'paid' && p.paid_at && p.paid_at.slice(0, 10) >= periodFrom && p.paid_at.slice(0, 10) <= periodTo);
+  // Include entries_total from partial payments (entries already received even if installment not fully paid)
+  const partialReceivedInPeriod = nonPermutaPayments.filter(p => p.status === 'partial' && p.entries_total > 0);
   const revenuesReceivedInPeriod = revenues.filter(r => r.status === 'recebido' && r.revenue_date >= periodFrom && r.revenue_date <= periodTo);
-  const totalReceivedMonth = paidThisMonth.reduce((s, p) => s + p.amount, 0) + revenuesReceivedInPeriod.reduce((s: number, r: any) => s + r.amount, 0);
+  const totalReceivedMonth = paidThisMonth.reduce((s, p) => s + p.amount, 0)
+    + partialReceivedInPeriod.reduce((s, p) => s + p.entries_total, 0)
+    + revenuesReceivedInPeriod.reduce((s: number, r: any) => s + r.amount, 0);
 
-  const pendingThisMonth = nonPermutaPayments.filter(p => p.status === 'pending' && p.due_date >= periodFrom && p.due_date <= periodTo);
+  const pendingThisMonth = nonPermutaPayments.filter(p => (p.status === 'pending' || p.status === 'partial') && p.due_date >= periodFrom && p.due_date <= periodTo);
   const revenuesPendingInPeriod = revenues.filter(r => r.status === 'pendente' && r.revenue_date >= periodFrom && r.revenue_date <= periodTo);
-  const totalPendingMonth = pendingThisMonth.reduce((s, p) => s + p.amount, 0) + revenuesPendingInPeriod.reduce((s: number, r: any) => s + r.amount, 0);
+  const totalPendingMonth = pendingThisMonth.reduce((s, p) => s + (p.amount - p.entries_total), 0) + revenuesPendingInPeriod.reduce((s: number, r: any) => s + r.amount, 0);
 
   const latePayments = nonPermutaPayments.filter(p => p.status === 'late').sort((a, b) => a.due_date.localeCompare(b.due_date));
-  const totalLate = latePayments.reduce((s, p) => s + p.amount, 0);
+  const totalLate = latePayments.reduce((s, p) => s + (p.amount - p.entries_total), 0);
 
   const expensesThisMonth = filteredExpenses.filter(e => e.expense_date >= periodFrom && e.expense_date <= periodTo);
   const realExpensesThisMonth = expensesThisMonth.filter(e => e.expense_type !== 'ajuste');

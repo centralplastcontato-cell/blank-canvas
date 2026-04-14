@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -39,6 +40,13 @@ function paginate<T>(items: T[], page: number) {
   return { items: items.slice(start, start + PAGE_SIZE), totalPages, total: items.length };
 }
 
+const statusBadgeConfig: Record<string, { label: string; className: string }> = {
+  paid: { label: 'Pago', className: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' },
+  pending: { label: 'Pendente', className: 'bg-amber-500/10 text-amber-500 border-amber-500/20' },
+  late: { label: 'Atrasado', className: 'bg-red-500/10 text-red-500 border-red-500/20' },
+  partial: { label: 'Parcial', className: 'bg-orange-500/10 text-orange-500 border-orange-500/20' },
+};
+
 interface Props {
   kpiSheet: 'recebido' | 'a_receber' | 'atraso' | 'despesas' | 'despesas_pagas' | 'saldo' | null;
   dashboard: any;
@@ -61,25 +69,48 @@ export function KpiSheetBody({ kpiSheet, dashboard, fmt, CATEGORY_LABELS }: Prop
     const { items, totalPages, total } = paginate(payments, page);
     return (
       <div className="mt-4 space-y-2">
-        {items.map((p: any) => (
-          <Card key={p.id} className="p-3 bg-card border-border">
-            <div className="flex justify-between items-start">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground truncate">{p.lead_name || p.event_title}</p>
-                <p className={`text-xs ${colorClass === 'text-red-400' ? 'text-red-400' : 'text-muted-foreground'}`}>
-                  {p.type === 'entrada' ? 'Entrada' : 'Parcela'} · {datePrefix}{' '}
-                  {dateField === 'paid_at' && p.paid_at
-                    ? format(new Date(p.paid_at), 'dd/MM/yyyy')
-                    : dateField === 'due_date' && p.due_date
-                    ? format(new Date(p.due_date + 'T12:00:00'), 'dd/MM/yyyy')
-                    : ''}
-                </p>
-                {p.unit && <Badge variant="outline" className="mt-1 text-[10px]">{p.unit}</Badge>}
+        {items.map((p: any) => {
+          const entriesTotal = p.entries_total || 0;
+          const isPartial = p.status === 'partial' || (entriesTotal > 0 && p.status !== 'paid');
+          const progressPct = entriesTotal > 0 ? Math.min((entriesTotal / p.amount) * 100, 100) : 0;
+          const badgeCfg = statusBadgeConfig[p.status] || statusBadgeConfig.pending;
+
+          return (
+            <Card key={p.id} className="p-3 bg-card border-border">
+              <div className="flex justify-between items-start">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <p className="text-sm font-medium text-foreground truncate">{p.lead_name || p.event_title}</p>
+                    {isPartial && (
+                      <Badge variant="outline" className={statusBadgeConfig.partial.className + ' text-[9px] px-1.5 py-0'}>
+                        Parcial
+                      </Badge>
+                    )}
+                  </div>
+                  <p className={`text-xs ${colorClass === 'text-red-400' ? 'text-red-400' : 'text-muted-foreground'}`}>
+                    {p.type === 'entrada' ? 'Entrada' : 'Parcela'} · {datePrefix}{' '}
+                    {dateField === 'paid_at' && p.paid_at
+                      ? format(new Date(p.paid_at), 'dd/MM/yyyy')
+                      : dateField === 'due_date' && p.due_date
+                      ? format(new Date(p.due_date + 'T12:00:00'), 'dd/MM/yyyy')
+                      : ''}
+                  </p>
+                  {p.unit && <Badge variant="outline" className="mt-1 text-[10px]">{p.unit}</Badge>}
+                  {isPartial && entriesTotal > 0 && (
+                    <div className="mt-1.5 space-y-0.5">
+                      <div className="flex justify-between text-[10px]">
+                        <span className="text-orange-500">Pago: {fmt(entriesTotal)}</span>
+                        <span className="text-muted-foreground">Falta: {fmt(p.amount - entriesTotal)}</span>
+                      </div>
+                      <Progress value={progressPct} className="h-1 bg-orange-500/10" />
+                    </div>
+                  )}
+                </div>
+                <p className={`text-sm font-bold ${isPartial ? 'text-orange-400' : colorClass} whitespace-nowrap ml-2`}>{fmt(p.amount)}</p>
               </div>
-              <p className={`text-sm font-bold ${colorClass} whitespace-nowrap ml-2`}>{fmt(p.amount)}</p>
-            </div>
-          </Card>
-        ))}
+            </Card>
+          );
+        })}
         <PaginationBar page={page} totalPages={totalPages} onPageChange={setPage} totalItems={total} />
       </div>
     );

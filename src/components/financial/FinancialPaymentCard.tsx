@@ -3,6 +3,7 @@ import { ptBR } from 'date-fns/locale';
 import { CalendarDays, Check, MapPin, PartyPopper, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import type { EnrichedPayment } from '@/hooks/useFinanceiroDashboard';
 
 interface Props {
@@ -16,6 +17,7 @@ const statusConfig = {
   paid: { label: 'Pago', className: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' },
   pending: { label: 'Pendente', className: 'bg-amber-500/10 text-amber-500 border-amber-500/20' },
   late: { label: 'Atrasado', className: 'bg-red-500/10 text-red-500 border-red-500/20' },
+  partial: { label: 'Parcial', className: 'bg-orange-500/10 text-orange-500 border-orange-500/20' },
 };
 
 const typeLabels: Record<string, string> = {
@@ -27,12 +29,15 @@ const borderColors: Record<string, string> = {
   late: 'border-l-red-500',
   pending: 'border-l-amber-500',
   paid: 'border-l-emerald-500',
+  partial: 'border-l-orange-500',
 };
 
 export function FinancialPaymentCard({ payment, onMarkAsPaid, onOpenEvent, bankAccountName }: Props) {
   const cfg = statusConfig[payment.status];
   const daysLate = payment.status === 'late' ? differenceInDays(new Date(), new Date(payment.due_date)) : 0;
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const entriesTotal = payment.entries_total || 0;
+  const progressPct = entriesTotal > 0 ? Math.min((entriesTotal / payment.amount) * 100, 100) : 0;
 
   return (
     <div
@@ -73,6 +78,17 @@ export function FinancialPaymentCard({ payment, onMarkAsPaid, onOpenEvent, bankA
               </span>
             )}
           </div>
+
+          {/* Partial payment progress bar */}
+          {entriesTotal > 0 && payment.status !== 'paid' && (
+            <div className="space-y-0.5 pt-0.5">
+              <div className="flex justify-between text-[10px]">
+                <span className="text-orange-500 font-medium">Pago: {fmt(entriesTotal)}</span>
+                <span className="text-muted-foreground">Falta: {fmt(payment.amount - entriesTotal)}</span>
+              </div>
+              <Progress value={progressPct} className="h-1.5 bg-orange-500/10" />
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
@@ -80,6 +96,7 @@ export function FinancialPaymentCard({ payment, onMarkAsPaid, onOpenEvent, bankA
             <p className={`text-sm font-bold ${
               payment.status === 'late' ? 'text-red-400' :
               payment.status === 'paid' ? 'text-emerald-400' :
+              payment.status === 'partial' ? 'text-orange-400' :
               'text-foreground'
             }`}>
               {fmt(payment.amount)}

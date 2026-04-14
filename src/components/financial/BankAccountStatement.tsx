@@ -78,6 +78,13 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
         .eq('status', 'paid')
         .order('paid_at', { ascending: false });
 
+      // Partial payment entries for this bank account
+      let partialEntriesQuery = (supabase as any)
+        .from('event_payment_entries')
+        .select('id, amount, paid_at, notes, payment_id, event_payments(id, event_id, type, company_events(id, title, event_date))')
+        .eq('bank_account_id', account.id)
+        .order('paid_at', { ascending: false });
+
       let exitsQuery = supabase
         .from('company_expenses')
         .select('id, amount, expense_date, description, category, notes, receipt_url, boleto_url, unit, expense_type')
@@ -94,11 +101,13 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
 
       if (dateFrom) {
         entriesQuery = entriesQuery.gte('paid_at', dateFrom);
+        partialEntriesQuery = partialEntriesQuery.gte('paid_at', dateFrom);
         exitsQuery = exitsQuery.gte('expense_date', dateFrom);
         revenuesQuery = revenuesQuery.gte('revenue_date', dateFrom);
       }
       if (dateTo) {
         entriesQuery = entriesQuery.lte('paid_at', dateTo);
+        partialEntriesQuery = partialEntriesQuery.lte('paid_at', dateTo);
         exitsQuery = exitsQuery.lte('expense_date', dateTo);
         revenuesQuery = revenuesQuery.lte('revenue_date', dateTo);
       }
@@ -109,6 +118,11 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
         .select('amount')
         .eq('bank_account_id', account.id)
         .eq('status', 'paid');
+
+      let postPartialQuery = (supabase as any)
+        .from('event_payment_entries')
+        .select('amount')
+        .eq('bank_account_id', account.id);
 
       let postExitsQuery = supabase
         .from('company_expenses')
@@ -124,15 +138,18 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
 
       if (dateTo) {
         postEntriesQuery = postEntriesQuery.gt('paid_at', dateTo);
+        postPartialQuery = postPartialQuery.gt('paid_at', dateTo);
         postExitsQuery = postExitsQuery.gt('expense_date', dateTo);
         postRevenuesQuery = postRevenuesQuery.gt('revenue_date', dateTo);
       }
 
-      const [entriesRes, exitsRes, revenuesRes, postEntriesRes, postExitsRes, postRevenuesRes] = await Promise.all([
+      const [entriesRes, partialEntriesRes, exitsRes, revenuesRes, postEntriesRes, postPartialRes, postExitsRes, postRevenuesRes] = await Promise.all([
         entriesQuery,
+        partialEntriesQuery,
         exitsQuery,
         revenuesQuery,
         dateTo ? postEntriesQuery : Promise.resolve({ data: [] }),
+        dateTo ? postPartialQuery : Promise.resolve({ data: [] }),
         dateTo ? postExitsQuery : Promise.resolve({ data: [] }),
         dateTo ? postRevenuesQuery : Promise.resolve({ data: [] }),
       ]);
@@ -147,6 +164,23 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
           type: 'entry' as const,
           source: 'Recebimento',
           eventId: evt?.id || p.event_id,
+          eventTitle: evt?.title || undefined,
+          eventDate: evt?.event_date || undefined,
+        };
+      });
+
+      // Partial payment entries as individual movements
+      const partialMovements: Movement[] = (partialEntriesRes.data || []).map((pe: any) => {
+        const parentPayment = pe.event_payments;
+        const evt = parentPayment?.company_events;
+        return {
+          id: `pe-${pe.id}`,
+          date: pe.paid_at?.split('T')[0] || '',
+          description: `Pagamento Parcial${pe.notes ? ' — ' + pe.notes : ''}`,
+          amount: Number(pe.amount),
+          type: 'entry' as const,
+          source: 'Pgto Parcial',
+          eventId: evt?.id || undefined,
           eventTitle: evt?.title || undefined,
           eventDate: evt?.event_date || undefined,
         };
@@ -194,10 +228,11 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
         source: 'Receita avulsa',
       }));
 
-      const allEntries = [...entries, ...revenueMovements];
+      const allEntries = [...entries, ...partialMovements, ...revenueMovements];
       const periodEntries = allEntries.reduce((sum, movement) => sum + movement.amount, 0);
       const periodExits = exits.reduce((sum, movement) => sum + (movement.type === 'exit' ? movement.amount : 0), 0);
       const futureEntries = (postEntriesRes.data || []).reduce((sum: number, payment: any) => sum + Number(payment.amount), 0)
+        + (postPartialRes.data || []).reduce((sum: number, pe: any) => sum + Number(pe.amount), 0)
         + (postRevenuesRes.data || []).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
       const futureExitsNet = (postExitsRes.data || []).reduce((sum: number, expense: any) => sum + Number(expense.amount), 0);
       const balanceAtPeriodEnd = account.current_balance - futureEntries + futureExitsNet;
