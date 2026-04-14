@@ -1731,6 +1731,7 @@ export type Database = {
           id: string
           is_recurring: boolean | null
           lead_id: string | null
+          observacoes: string | null
           parent_task_id: string | null
           priority: string
           recurrence_days: number[] | null
@@ -1756,6 +1757,7 @@ export type Database = {
           id?: string
           is_recurring?: boolean | null
           lead_id?: string | null
+          observacoes?: string | null
           parent_task_id?: string | null
           priority?: string
           recurrence_days?: number[] | null
@@ -1781,6 +1783,7 @@ export type Database = {
           id?: string
           is_recurring?: boolean | null
           lead_id?: string | null
+          observacoes?: string | null
           parent_task_id?: string | null
           priority?: string
           recurrence_days?: number[] | null

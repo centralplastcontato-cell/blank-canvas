@@ -1,0 +1,1 @@
+ALTER TABLE public.company_tasks ADD COLUMN observacoes text;
