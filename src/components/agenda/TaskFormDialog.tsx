@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
+
 import { Repeat, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TASK_CATEGORIES, TASK_PRIORITIES, RECURRENCE_OPTIONS, WEEKDAYS, type TaskFormData, type CompanyTask, type RecurrenceType } from "@/hooks/useTasks";
