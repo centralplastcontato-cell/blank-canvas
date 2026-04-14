@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, MapPin, CheckCircle2, Clock, PartyPopper, CalendarDays } from "lucide-react";
-import { format, startOfMonth, endOfMonth, isToday as isTodayFn } from "date-fns";
+import { format, startOfMonth, endOfMonth, isToday as isTodayFn, eachDayOfInterval, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AgendaCalendar } from "./AgendaCalendar";
 import { cn } from "@/lib/utils";
@@ -75,6 +75,51 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
     fetchAll();
   }, [currentCompany?.id, month]);
 
+  // Helper: expand recurring tasks into individual date entries for the month
+  const expandedTaskDates = useMemo(() => {
+    const monthStart = startOfMonth(month);
+    const monthEnd = endOfMonth(month);
+    const results: { task: typeof tasks[0]; date: string }[] = [];
+
+    tasks.forEach((t) => {
+      const taskAny = t as any;
+      if (taskAny.is_recurring && taskAny.recurrence_type === "semanal" && taskAny.recurrence_days?.length) {
+        // Generate all matching weekdays in the month
+        const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+        days.forEach((day) => {
+          if ((taskAny.recurrence_days as number[]).includes(getDay(day))) {
+            const dateStr = format(day, "yyyy-MM-dd");
+            if (!taskAny.recurrence_end_date || dateStr <= taskAny.recurrence_end_date) {
+              results.push({ task: t, date: dateStr });
+            }
+          }
+        });
+      } else if (taskAny.is_recurring && taskAny.recurrence_type === "diaria") {
+        const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+        days.forEach((day) => {
+          const dateStr = format(day, "yyyy-MM-dd");
+          if (!taskAny.recurrence_end_date || dateStr <= taskAny.recurrence_end_date) {
+            results.push({ task: t, date: dateStr });
+          }
+        });
+      } else if (taskAny.is_recurring && taskAny.recurrence_type === "mensal" && t.due_date) {
+        // Same day each month
+        const dayNum = parseInt(t.due_date.split("-")[2]);
+        const monthStr = format(monthStart, "yyyy-MM");
+        const lastDay = parseInt(format(monthEnd, "dd"));
+        const targetDay = Math.min(dayNum, lastDay);
+        const dateStr = `${monthStr}-${String(targetDay).padStart(2, "0")}`;
+        if (!taskAny.recurrence_end_date || dateStr <= taskAny.recurrence_end_date) {
+          results.push({ task: t, date: dateStr });
+        }
+      } else if (t.due_date) {
+        results.push({ task: t, date: t.due_date });
+      }
+    });
+
+    return results;
+  }, [tasks, month]);
+
   const unifiedItems = useMemo<UnifiedItem[]>(() => {
     const items: UnifiedItem[] = [];
 
@@ -101,24 +146,22 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
       });
     });
 
-    tasks
-      .filter((t) => t.due_date)
-      .forEach((t) => {
-        items.push({
-          id: t.id,
-          type: "tarefa",
-          title: t.title,
-          date: t.due_date!,
-          time: t.due_time?.slice(0, 5),
-          status: (t as any).status || (t.completed ? "concluída" : "pendente"),
-        });
+    expandedTaskDates.forEach(({ task: t, date }) => {
+      items.push({
+        id: `${t.id}-${date}`,
+        type: "tarefa",
+        title: t.title,
+        date,
+        time: t.due_time?.slice(0, 5),
+        status: (t as any).status || (t.completed ? "concluída" : "pendente"),
       });
+    });
 
     return items.sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
       return (a.time || "").localeCompare(b.time || "");
     });
-  }, [events, visits, tasks]);
+  }, [events, visits, expandedTaskDates]);
 
   const selectedDayItems = useMemo(() => {
     if (!selectedDate) return [];
@@ -143,10 +186,10 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
       });
     });
 
-    tasks.filter((t) => t.due_date).forEach((t) => {
+    expandedTaskDates.forEach(({ task: t, date }) => {
       items.push({
-        id: `task-${t.id}`,
-        event_date: t.due_date!,
+        id: `task-${t.id}-${date}`,
+        event_date: date,
         status: t.completed ? "confirmado" : "pendente",
         title: t.title,
         type: "tarefa",
@@ -154,7 +197,7 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
     });
 
     return items;
-  }, [events, visits, tasks]);
+  }, [events, visits, expandedTaskDates]);
 
   const isLoading = loading || tasksLoading;
 
