@@ -103,6 +103,8 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData, pres
       recurrence_interval: isRecurring ? recurrenceInterval : 1,
       recurrence_days: isRecurring && recurrenceType === "semanal" ? recurrenceDays : null,
       recurrence_end_date: isRecurring && recurrenceEndDate ? recurrenceEndDate : null,
+      event_id: eventId || null,
+      lead_id: presetLeadId || null,
     });
     onOpenChange(false);
   };
