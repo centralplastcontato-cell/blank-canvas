@@ -229,13 +229,19 @@ export function FloatingTips() {
     e.preventDefault();
     e.stopPropagation();
     hasDraggedRef.current = false;
+    const currentPos = positionRef.current;
     dragStartRef.current = {
       x: e.clientX,
       y: e.clientY,
-      posX: position.x,
-      posY: position.y,
+      posX: currentPos.x,
+      posY: currentPos.y,
     };
     setIsDragging(true);
+
+    // Capture pointer for reliable tracking
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    const pointerId = e.pointerId;
+    const target = e.target as HTMLElement;
 
     const onMove = (ev: PointerEvent) => {
       ev.preventDefault();
@@ -244,21 +250,23 @@ export function FloatingTips() {
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
         hasDraggedRef.current = true;
       }
-      setPosition({
+      const newPos = {
         x: Math.max(0, Math.min(dragStartRef.current.posX + dx, window.innerWidth - cardWidth)),
         y: Math.max(0, Math.min(dragStartRef.current.posY + dy, window.innerHeight - 80)),
-      });
+      };
+      setPosition(newPos);
     };
 
     const onUp = () => {
       setIsDragging(false);
+      try { target.releasePointerCapture(pointerId); } catch {}
       document.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerup", onUp);
     };
 
     document.addEventListener("pointermove", onMove);
     document.addEventListener("pointerup", onUp);
-  }, [position, cardWidth]);
+  }, [cardWidth]);
 
   if (!isVisible) return null;
 
