@@ -71,12 +71,13 @@ export function useFinanceiroDashboard() {
     setIsLoading(true);
 
     try {
-      const [paymentsRes, expensesRes, eventsWithDetailsRes, cardFeesRes, revenuesRes] = await Promise.all([
+      const [paymentsRes, expensesRes, eventsWithDetailsRes, cardFeesRes, revenuesRes, entriesRes] = await Promise.all([
         supabase.from('event_payments').select('*').eq('company_id', companyId).order('due_date'),
         supabase.from('company_expenses').select('*').eq('company_id', companyId).order('expense_date', { ascending: false }),
         supabase.from('company_events').select('id, payment_details').eq('company_id', companyId).not('payment_details', 'is', null),
         supabase.from('company_card_fees' as any).select('*').eq('company_id', companyId).eq('is_active', true),
         supabase.from('company_revenues' as any).select('*').eq('company_id', companyId).order('revenue_date', { ascending: false }),
+        supabase.from('event_payment_entries' as any).select('id, payment_id, amount, paid_at').eq('company_id', companyId),
       ]);
 
       const cardFeesList = (cardFeesRes.data || []) as any[];
