@@ -31,6 +31,7 @@ interface AgendaCalendarProps {
   selectedDate: Date | null;
   checklistProgress?: ChecklistProgress;
   preReservations?: PreReservationCalendar[];
+  showTypeLegend?: boolean;
 }
 
 const STATUS_DOT: Record<string, string> = {
