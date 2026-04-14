@@ -140,9 +140,12 @@ export function OptionalsManager() {
   return (
     <div className="max-w-6xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Package className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold">Opcionais</h3>
+        <div>
+          <div className="flex items-center gap-2">
+            <Package className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold">Opcionais</h3>
+          </div>
+          <p className="text-sm text-muted-foreground mt-0.5">Cadastre itens opcionais para adicionar rapidamente às festas</p>
         </div>
         <Button size="sm" onClick={openNew}>
           <Plus className="h-4 w-4 mr-1" /> Novo Opcional
