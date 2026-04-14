@@ -349,7 +349,7 @@ export function useFinanceiroDashboard() {
   const saldoMonth = totalReceivedMonth - totalExpensesMonth;
 
   // CRUD expenses
-  const addExpense = async (data: { description: string; amount: number; expense_date: string; category: string; expense_type?: string; unit?: string; status: string; notes?: string; receipt_url?: string; boleto_url?: string; bank_account_id?: string }) => {
+  const addExpense = async (data: { description: string; amount: number; expense_date: string; category: string; subcategory?: string; expense_type?: string; unit?: string; status: string; notes?: string; receipt_url?: string; boleto_url?: string; bank_account_id?: string }) => {
     if (!companyId) return;
     const { error } = await supabase.from('company_expenses').insert({ ...data, expense_type: data.expense_type || 'fixa', company_id: companyId });
     if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }

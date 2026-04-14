@@ -1059,6 +1059,7 @@ export default function Financeiro() {
           amount: editingExpense.amount,
           expense_date: editingExpense.expense_date,
           category: editingExpense.category,
+          subcategory: (editingExpense as any).subcategory,
           expense_type: editingExpense.expense_type,
           status: editingExpense.status,
           notes: editingExpense.notes,
