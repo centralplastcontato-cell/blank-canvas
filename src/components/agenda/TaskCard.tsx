@@ -86,6 +86,12 @@ export function TaskCard({ task, onToggle, onEdit, onDelete, onStatusChange }: T
               {recurrence.label}
             </Badge>
           )}
+          {(task as any).event_id && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal border border-primary/30 text-primary bg-primary/5">
+              <Link2 className="h-2.5 w-2.5 mr-0.5" />
+              Vinculada
+            </Badge>
+          )}
           {pri && (
             <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 font-normal border", pri.color)}>
               {pri.label}
