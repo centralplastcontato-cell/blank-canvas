@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useTasks } from "@/hooks/useTasks";
+import { TaskDetailSheet } from "./TaskDetailSheet";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,8 +40,10 @@ const TYPE_LABELS: Record<string, string> = {
 
 export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
   const { currentCompany } = useCompany();
-  const { tasks, loading: tasksLoading } = useTasks();
+  const { tasks, loading: tasksLoading, updateStatus, deleteTask } = useTasks();
   const [events, setEvents] = useState<any[]>([]);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [taskSheetOpen, setTaskSheetOpen] = useState(false);
   const [visits, setVisits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(startOfMonth(new Date()));
@@ -289,19 +292,35 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
                   <p className="text-sm text-muted-foreground">Nenhum compromisso neste dia.</p>
                 ) : (
                   <div className="space-y-2">
-                    {selectedDayItems.map((item) => (
-                      <div key={item.id} className="flex items-center gap-2 p-2 rounded-lg border border-border/30 bg-muted/20">
-                        <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 shrink-0", TYPE_COLORS[item.type])}>
-                          {TYPE_LABELS[item.type]}
-                        </Badge>
-                        <span className="text-sm font-medium truncate flex-1">{item.title}</span>
-                        {item.time && (
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Clock className="h-3 w-3" /> {item.time}
-                          </span>
+                     {selectedDayItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className={cn(
+                          "flex items-center gap-2 p-2 rounded-lg border border-border/30 bg-muted/20",
+                          item.type === "tarefa" && "cursor-pointer hover:bg-muted/40 transition-colors"
                         )}
-                      </div>
-                    ))}
+                        onClick={() => {
+                          if (item.type === "tarefa") {
+                            const realId = item.id.includes("-") ? item.id.split("-")[0] : item.id;
+                            const found = tasks.find(t => t.id === realId || item.id.startsWith(t.id));
+                            if (found) {
+                              setSelectedTask(found);
+                              setTaskSheetOpen(true);
+                            }
+                          }
+                        }}
+                      >
+                         <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 shrink-0", TYPE_COLORS[item.type])}>
+                           {TYPE_LABELS[item.type]}
+                         </Badge>
+                         <span className="text-sm font-medium truncate flex-1">{item.title}</span>
+                         {item.time && (
+                           <span className="text-xs text-muted-foreground flex items-center gap-1">
+                             <Clock className="h-3 w-3" /> {item.time}
+                           </span>
+                         )}
+                       </div>
+                     ))}
                   </div>
                 )}
               </CardContent>
@@ -309,6 +328,15 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
           )}
         </>
       )}
+
+      <TaskDetailSheet
+        open={taskSheetOpen}
+        onOpenChange={setTaskSheetOpen}
+        task={selectedTask}
+        onEdit={() => {}}
+        onDelete={(id) => { deleteTask(id); setTaskSheetOpen(false); }}
+        onStatusChange={(id, status) => { updateStatus(id, status); }}
+      />
     </div>
   );
 }
