@@ -10,6 +10,7 @@ interface CalendarEvent {
   event_date: string;
   status: string;
   title: string;
+  type?: "festa" | "visita" | "tarefa";
 }
 
 interface ChecklistProgress {
