@@ -10,6 +10,7 @@ interface CalendarEvent {
   event_date: string;
   status: string;
   title: string;
+  type?: "festa" | "visita" | "tarefa";
 }
 
 interface ChecklistProgress {
@@ -30,6 +31,7 @@ interface AgendaCalendarProps {
   selectedDate: Date | null;
   checklistProgress?: ChecklistProgress;
   preReservations?: PreReservationCalendar[];
+  showTypeLegend?: boolean;
 }
 
 const STATUS_DOT: Record<string, string> = {
@@ -38,7 +40,13 @@ const STATUS_DOT: Record<string, string> = {
   cancelado: "bg-red-400 shadow-[0_0_4px_rgba(248,113,113,0.3)]",
 };
 
-export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selectedDate, checklistProgress = {}, preReservations = [] }: AgendaCalendarProps) {
+const TYPE_DOT: Record<string, string> = {
+  festa: "bg-purple-500 shadow-[0_0_4px_rgba(168,85,247,0.4)]",
+  visita: "bg-blue-500 shadow-[0_0_4px_rgba(59,130,246,0.4)]",
+  tarefa: "bg-amber-500 shadow-[0_0_4px_rgba(245,158,11,0.4)]",
+};
+
+export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selectedDate, checklistProgress = {}, preReservations = [], showTypeLegend = false }: AgendaCalendarProps) {
   const eventsByDate = new Map<string, CalendarEvent[]>();
   events.forEach((ev) => {
     const key = ev.event_date;
@@ -132,20 +140,25 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
                   {hasPreRes && (
                     <span className="h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full bg-pink-400 shadow-[0_0_4px_rgba(244,114,182,0.4)]" />
                   )}
-                  {/* Show up to 3 status dots */}
-                  {dayEvents.slice(0, 3).map((ev) => (
-                    <span
-                      key={ev.id}
-                      className={cn(
-                        "h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full transition-all duration-200",
-                        STATUS_DOT[ev.status] || "bg-muted-foreground/30"
-                      )}
-                    />
-                  ))}
-                  {/* Counter for 4+ events */}
-                  {eventCount > 3 && (
+                  {/* Show up to 4 type/status dots */}
+                  {dayEvents.slice(0, 4).map((ev) => {
+                    const dotClass = ev.type
+                      ? TYPE_DOT[ev.type] || "bg-muted-foreground/30"
+                      : STATUS_DOT[ev.status] || "bg-muted-foreground/30";
+                    return (
+                      <span
+                        key={ev.id}
+                        className={cn(
+                          "h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full transition-all duration-200",
+                          dotClass
+                        )}
+                      />
+                    );
+                  })}
+                  {/* Counter for 5+ events */}
+                  {eventCount > 4 && (
                     <span className="text-[7px] lg:text-[8px] font-bold text-muted-foreground/60 leading-none ml-0.5">
-                      +{eventCount - 3}
+                      +{eventCount - 4}
                     </span>
                   )}
                 </div>
@@ -170,26 +183,49 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
 
       {/* Legend */}
       <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 pt-4 pb-1 px-3 border-t border-border/30 mt-2">
-        <div className="flex items-center gap-1.5">
-          <span className="h-[7px] w-[7px] rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)]" />
-          <span className="text-[11px] text-muted-foreground font-medium">Confirmado</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="h-[7px] w-[7px] rounded-full bg-amber-400 shadow-[0_0_4px_rgba(251,191,36,0.4)]" />
-          <span className="text-[11px] text-muted-foreground font-medium">Pendente</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="h-[7px] w-[7px] rounded-full bg-red-400 shadow-[0_0_4px_rgba(248,113,113,0.3)]" />
-          <span className="text-[11px] text-muted-foreground font-medium">Cancelado</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="h-[7px] w-[7px] rounded-full bg-pink-400 shadow-[0_0_4px_rgba(244,114,182,0.4)]" />
-          <span className="text-[11px] text-muted-foreground font-medium">Pré-reserva</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-[9px] leading-none">📋</span>
-          <span className="text-[11px] text-muted-foreground font-medium">Checklist pendente</span>
-        </div>
+        {showTypeLegend ? (
+          <>
+            <div className="flex items-center gap-1.5">
+              <span className="h-[7px] w-[7px] rounded-full bg-purple-500 shadow-[0_0_4px_rgba(168,85,247,0.4)]" />
+              <span className="text-[11px] text-muted-foreground font-medium">🎉 Festa</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-[7px] w-[7px] rounded-full bg-blue-500 shadow-[0_0_4px_rgba(59,130,246,0.4)]" />
+              <span className="text-[11px] text-muted-foreground font-medium">📍 Visita</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-[7px] w-[7px] rounded-full bg-amber-500 shadow-[0_0_4px_rgba(245,158,11,0.4)]" />
+              <span className="text-[11px] text-muted-foreground font-medium">📋 Tarefa</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-[7px] w-[7px] rounded-full bg-pink-400 shadow-[0_0_4px_rgba(244,114,182,0.4)]" />
+              <span className="text-[11px] text-muted-foreground font-medium">🔒 Pré-reserva</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-1.5">
+              <span className="h-[7px] w-[7px] rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)]" />
+              <span className="text-[11px] text-muted-foreground font-medium">Confirmado</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-[7px] w-[7px] rounded-full bg-amber-400 shadow-[0_0_4px_rgba(251,191,36,0.4)]" />
+              <span className="text-[11px] text-muted-foreground font-medium">Pendente</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-[7px] w-[7px] rounded-full bg-red-400 shadow-[0_0_4px_rgba(248,113,113,0.3)]" />
+              <span className="text-[11px] text-muted-foreground font-medium">Cancelado</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-[7px] w-[7px] rounded-full bg-pink-400 shadow-[0_0_4px_rgba(244,114,182,0.4)]" />
+              <span className="text-[11px] text-muted-foreground font-medium">Pré-reserva</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] leading-none">📋</span>
+              <span className="text-[11px] text-muted-foreground font-medium">Checklist pendente</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
