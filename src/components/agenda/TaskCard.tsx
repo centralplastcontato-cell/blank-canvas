@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Pencil, Trash2, Clock, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { TASK_CATEGORIES, TASK_PRIORITIES, TASK_STATUSES, type CompanyTask, type TaskStatus } from "@/hooks/useTasks";
+import { TASK_CATEGORIES, TASK_PRIORITIES, TASK_STATUSES, RECURRENCE_OPTIONS, type CompanyTask, type TaskStatus } from "@/hooks/useTasks";
 import {
   Select,
   SelectContent,
@@ -25,6 +25,8 @@ export function TaskCard({ task, onToggle, onEdit, onDelete, onStatusChange }: T
   const cat = TASK_CATEGORIES.find((c) => c.value === task.category);
   const pri = TASK_PRIORITIES.find((p) => p.value === task.priority);
   const currentStatus = TASK_STATUSES.find((s) => s.value === task.status) || TASK_STATUSES[0];
+  const taskAny = task as any;
+  const recurrence = taskAny.is_recurring ? RECURRENCE_OPTIONS.find(r => r.value === taskAny.recurrence_type) : null;
 
   const isOverdue = task.due_date && !task.completed && isPast(parseISO(task.due_date)) && !isToday(parseISO(task.due_date));
   const isDueToday = task.due_date && isToday(parseISO(task.due_date));
@@ -76,6 +78,12 @@ export function TaskCard({ task, onToggle, onEdit, onDelete, onStatusChange }: T
           {cat && (
             <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
               {cat.emoji} {cat.label}
+            </Badge>
+          )}
+          {recurrence && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal border border-primary/30 text-primary bg-primary/5">
+              <Repeat className="h-2.5 w-2.5 mr-0.5" />
+              {recurrence.label}
             </Badge>
           )}
           {pri && (
