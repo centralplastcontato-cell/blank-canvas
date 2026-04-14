@@ -2,10 +2,9 @@ import { AbsoluteFill, useCurrentFrame, spring, interpolate, Sequence } from "re
 import { AnimatedText } from "../components/AnimatedText";
 import { MockWindow } from "../components/MockWindow";
 
-export const SceneFinanceiro: React.FC = () => {
+export const SceneFinanceiro2: React.FC = () => {
   const frame = useCurrentFrame();
 
-  // Animated bar chart
   const bars = [
     { label: "Jan", value: 45, color: "#3b82f6" },
     { label: "Fev", value: 62, color: "#3b82f6" },
@@ -25,7 +24,6 @@ export const SceneFinanceiro: React.FC = () => {
 
       <MockWindow title="Financeiro — Dashboard" delay={10} width={1300} height={600}>
         <div style={{ padding: 24, display: "flex", gap: 24, height: "100%" }}>
-          {/* KPI Cards */}
           <div style={{ width: 300, display: "flex", flexDirection: "column", gap: 16 }}>
             {[
               { label: "Receita Mensal", value: "R$ 142.500", icon: "📈", color: "#22c55e" },
@@ -60,7 +58,6 @@ export const SceneFinanceiro: React.FC = () => {
             })}
           </div>
 
-          {/* Chart */}
           <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
             <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, fontFamily: "'Nunito', sans-serif", fontWeight: 600, marginBottom: 16 }}>
               Receita por Mês (mil R$)
