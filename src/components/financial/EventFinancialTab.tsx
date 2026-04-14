@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { Plus, Trash2, CheckCircle, RotateCcw, Tag, Receipt, Clock, CreditCard, Building, Package, Pencil, Coins, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -85,6 +86,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   const syncAttempted = useRef(false);
   const [partialPaymentTarget, setPartialPaymentTarget] = useState<any>(null);
   const [expandedPaymentIds, setExpandedPaymentIds] = useState<Set<string>>(new Set());
+  const [deleteEntryTarget, setDeleteEntryTarget] = useState<{ id: string; amount: number } | null>(null);
 
   // Auto-sync: if no payments exist but event has payment_details, sync them
   useEffect(() => {
@@ -872,7 +874,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                                   size="icon"
                                   variant="ghost"
                                   className="h-6 w-6 rounded-md text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10"
-                                  onClick={() => financial.deletePartialPayment(entry.id)}
+                                  onClick={() => setDeleteEntryTarget({ id: entry.id, amount: entry.amount })}
                                   title="Excluir sub-pagamento"
                                 >
                                   <Trash2 className="h-3 w-3" />
@@ -1292,6 +1294,32 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmação de exclusão de sub-pagamento */}
+      <AlertDialog open={!!deleteEntryTarget} onOpenChange={(open) => { if (!open) setDeleteEntryTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir pagamento parcial?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Valor: {deleteEntryTarget?.amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} — Esta ação não pode ser desfeita. O saldo da parcela será recalculado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteEntryTarget) {
+                  financial.deletePartialPayment(deleteEntryTarget.id);
+                  setDeleteEntryTarget(null);
+                }
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
