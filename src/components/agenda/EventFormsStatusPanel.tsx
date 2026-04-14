@@ -6,10 +6,11 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import {
   FileText, ClipboardList, UtensilsCrossed, Star, CheckCircle2, Clock, Eye, Loader2,
-  User, MapPin, Phone, Mail, Calendar, Users, Baby, CreditCard, Hash,
+  User, MapPin, Phone, Mail, Calendar, Users, Baby, CreditCard, Hash, Send, MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { toast } from "@/hooks/use-toast";
 
 interface FormStatus {
   type: string;
@@ -19,20 +20,34 @@ interface FormStatus {
   hasResponse: boolean;
   responseCount: number;
   responses: Array<{ id: string; answers: any; respondent_name: string | null; created_at: string }>;
+  templateId?: string;
+  templateSlug?: string;
+  publicPath?: string;
 }
 
 interface EventFormsStatusPanelProps {
   eventId: string;
   companyId: string;
   leadId?: string | null;
+  eventTitle?: string;
+  eventDate?: string;
+  eventUnit?: string | null;
+  parentNames?: string | null;
 }
 
 const FORM_TYPES = [
-  { type: "prefesta", label: "Pré-Festa", icon: ClipboardList, responseTable: "prefesta_responses" },
-  { type: "cardapio", label: "Cardápio", icon: UtensilsCrossed, responseTable: "cardapio_responses" },
-  { type: "contrato", label: "Dados Complementares", icon: FileText, responseTable: "contrato_responses" },
-  { type: "avaliacao", label: "Avaliação", icon: Star, responseTable: "evaluation_responses" },
+  { type: "prefesta", label: "Pré-Festa", icon: ClipboardList, responseTable: "prefesta_responses", publicPath: "prefesta", templateTable: "prefesta_templates" },
+  { type: "cardapio", label: "Cardápio", icon: UtensilsCrossed, responseTable: "cardapio_responses", publicPath: "cardapio", templateTable: "cardapio_templates" },
+  { type: "contrato", label: "Dados Complementares", icon: FileText, responseTable: "contrato_responses", publicPath: "dados-complementares", templateTable: "contrato_templates" },
+  { type: "avaliacao", label: "Avaliação", icon: Star, responseTable: "evaluation_responses", publicPath: "avaliacao", templateTable: "evaluation_templates" },
 ];
+
+const FORM_TYPE_DEFAULT_MESSAGES: Record<string, string> = {
+  prefesta: "Olá {{nome}}! 🎉\n\nSua festa está chegando! Para garantir que tudo saia perfeito, precisamos de algumas informações.\n\nPreencha o formulário abaixo:\n{{link}}",
+  cardapio: "Olá {{nome}}! 🍽️\n\nVamos definir o cardápio da sua festa? Acesse o link abaixo e escolha as opções:\n\n{{link}}",
+  contrato: "Olá {{nome}}! 😊\n\nEstamos finalizando os detalhes da sua festa no {{empresa}} no dia {{data_evento}}.\n\nPara seguirmos, preciso que você preencha seus dados pessoais e as informações do aniversariante no link abaixo:\n\n{{link}}\n\nAssim o buffet consegue finalizar o preenchimento do contrato com essas informações. 🎉",
+  avaliacao: "Olá {{nome}}! ⭐\n\nEsperamos que a festa tenha sido incrível! 🎊\n\nNos ajude a melhorar cada vez mais respondendo nossa avaliação:\n{{link}}",
+};
 
 const FIELD_LABELS: Record<string, string> = {
   nome: "Nome", name: "Nome", email: "E-mail", cpf: "CPF", rg: "RG",
@@ -137,7 +152,6 @@ function FormattedResponseView({ answers, formType }: { answers: any; formType: 
     return <span className="text-xs text-muted-foreground italic">Sem dados</span>;
   }
 
-  // For contrato (client data), render structured view
   if (formType === "contrato" && !Array.isArray(answers)) {
     const simpleFields: [string, any][] = [];
     let responsaveis: any[] = [];
@@ -154,14 +168,12 @@ function FormattedResponseView({ answers, formType }: { answers: any; formType: 
       }
     });
 
-    // Group address fields
     const addressFields = new Set(["cep", "endereco", "numero", "complemento", "bairro", "cidade", "estado"]);
     const personalFields = simpleFields.filter(([k]) => !addressFields.has(k));
     const addrFields = simpleFields.filter(([k]) => addressFields.has(k));
 
     return (
       <div className="space-y-4">
-        {/* Personal info */}
         {personalFields.length > 0 && (
           <div className="space-y-1.5">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Dados Pessoais</p>
@@ -172,8 +184,6 @@ function FormattedResponseView({ answers, formType }: { answers: any; formType: 
             </div>
           </div>
         )}
-
-        {/* Address */}
         {addrFields.length > 0 && (
           <>
             <Separator />
@@ -187,16 +197,12 @@ function FormattedResponseView({ answers, formType }: { answers: any; formType: 
             </div>
           </>
         )}
-
-        {/* Responsáveis */}
         {responsaveis.length > 0 && (
           <>
             <Separator />
             <ResponsaveisCard data={responsaveis} />
           </>
         )}
-
-        {/* Birthday Children */}
         {birthdayChildren.length > 0 && (
           <>
             <Separator />
@@ -207,7 +213,6 @@ function FormattedResponseView({ answers, formType }: { answers: any; formType: 
     );
   }
 
-  // For cardápio responses (sections-based object format)
   if (formType === "cardapio" && !Array.isArray(answers)) {
     return (
       <div className="space-y-3">
@@ -229,7 +234,6 @@ function FormattedResponseView({ answers, formType }: { answers: any; formType: 
     );
   }
 
-  // For cardápio responses (array format with SectionTitle/Selected)
   if (formType === "cardapio" && Array.isArray(answers)) {
     const sections = answers.filter((item: any) => item?.SectionTitle || item?.sectionTitle);
     if (sections.length > 0) {
@@ -259,7 +263,6 @@ function FormattedResponseView({ answers, formType }: { answers: any; formType: 
     }
   }
 
-  // Generic rendering for prefesta / avaliação
   if (Array.isArray(answers)) {
     return (
       <div className="space-y-2">
@@ -280,7 +283,6 @@ function FormattedResponseView({ answers, formType }: { answers: any; formType: 
     );
   }
 
-  // Object with flat key-value
   return (
     <div className="space-y-1">
       {Object.entries(answers).filter(([k]) => !HIDDEN_FIELDS.has(k)).map(([key, value]) => {
@@ -321,10 +323,11 @@ function tryParseJSON(str: string): any[] {
   try { const p = JSON.parse(str); return Array.isArray(p) ? p : []; } catch { return []; }
 }
 
-export function EventFormsStatusPanel({ eventId, companyId, leadId }: EventFormsStatusPanelProps) {
+export function EventFormsStatusPanel({ eventId, companyId, leadId, eventTitle, eventDate, eventUnit, parentNames }: EventFormsStatusPanelProps) {
   const [formStatuses, setFormStatuses] = useState<FormStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewingResponses, setViewingResponses] = useState<FormStatus | null>(null);
+  const [sendingForm, setSendingForm] = useState<string | null>(null);
 
   const fetchStatuses = useCallback(async () => {
     if (!eventId || !companyId) return;
@@ -342,6 +345,19 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId }: EventForms
         const d = typeof row.details === "string" ? JSON.parse(row.details) : row.details;
         if (d?.form_type) sentTypes.add(d.form_type);
       });
+
+      // Fetch first active template for each form type to enable sending
+      const templatePromises = FORM_TYPES.map(async (ft) => {
+        const { data } = await (supabase as any)
+          .from(ft.templateTable)
+          .select("id, slug")
+          .eq("company_id", companyId)
+          .eq("is_active", true)
+          .limit(1);
+        return { type: ft.type, template: data?.[0] || null };
+      });
+      const templateResults = await Promise.all(templatePromises);
+      const templateMap = new Map(templateResults.map(r => [r.type, r.template]));
 
       const statuses: FormStatus[] = [];
 
@@ -377,6 +393,8 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId }: EventForms
           }));
         }
 
+        const tmpl = templateMap.get(ft.type);
+
         statuses.push({
           type: ft.type,
           label: ft.label,
@@ -385,6 +403,9 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId }: EventForms
           hasResponse: responses.length > 0,
           responseCount: responses.length,
           responses,
+          templateId: tmpl?.id,
+          templateSlug: tmpl?.slug || tmpl?.id,
+          publicPath: ft.publicPath,
         });
       }
 
@@ -397,6 +418,102 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId }: EventForms
   useEffect(() => {
     fetchStatuses();
   }, [fetchStatuses]);
+
+  const handleSendForm = async (fs: FormStatus) => {
+    if (!leadId || !fs.templateId || !fs.publicPath) return;
+
+    setSendingForm(fs.type);
+    try {
+      // Get lead data
+      const { data: lead } = await supabase
+        .from("campaign_leads")
+        .select("name, whatsapp")
+        .eq("id", leadId)
+        .single();
+
+      if (!lead?.whatsapp) {
+        toast({ title: "Lead sem WhatsApp cadastrado", variant: "destructive" });
+        return;
+      }
+
+      // Get company data (slug + name)
+      const { data: company } = await supabase
+        .from("companies")
+        .select("slug, name")
+        .eq("id", companyId)
+        .single();
+
+      if (!company?.slug) {
+        toast({ title: "Empresa sem slug configurado", variant: "destructive" });
+        return;
+      }
+
+      // Get connected WhatsApp instance
+      const { data: instances } = await (supabase as any)
+        .from("wapi_instances")
+        .select("instance_id, unit, status")
+        .eq("company_id", companyId)
+        .eq("status", "connected")
+        .limit(1);
+
+      const instance = instances?.[0];
+      if (!instance) {
+        toast({ title: "Nenhuma instância WhatsApp conectada", variant: "destructive" });
+        return;
+      }
+
+      // Build form link
+      const link = `${window.location.origin}/${fs.publicPath}/${company.slug}/${fs.templateSlug}?event_id=${eventId}`;
+
+      // Get configured template
+      const { data: automationSettings } = await supabase
+        .from("form_automation_settings")
+        .select("message_template")
+        .eq("company_id", companyId)
+        .eq("form_type", fs.type)
+        .maybeSingle();
+
+      const rawTemplate = automationSettings?.message_template || FORM_TYPE_DEFAULT_MESSAGES[fs.type] || "";
+
+      // Resolve variables - use lead name (contratante), not event title
+      const leadName = lead.name || parentNames || "Cliente";
+      const firstName = leadName.split(" ")[0];
+      const formattedDate = eventDate ? format(new Date(eventDate + "T12:00:00"), "dd/MM/yyyy") : "";
+
+      const message = rawTemplate
+        .replace(/\{\{\s*nome\s*\}\}/gi, firstName)
+        .replace(/\{\{\s*link\s*\}\}/gi, link)
+        .replace(/\{\{\s*data_evento\s*\}\}/gi, formattedDate)
+        .replace(/\{\{\s*empresa\s*\}\}/gi, company.name || "");
+
+      // Send via WhatsApp
+      const { error } = await supabase.functions.invoke("wapi-send", {
+        body: {
+          action: "send-text",
+          phone: lead.whatsapp,
+          message,
+          instanceId: instance.instance_id,
+        },
+      });
+
+      if (error) throw error;
+
+      // Log the send
+      await supabase.from("lead_history").insert({
+        lead_id: leadId,
+        company_id: companyId,
+        action: "form_sent_whatsapp",
+        details: { form_type: fs.type, template_id: fs.templateId, event_id: eventId },
+      });
+
+      toast({ title: `${fs.label} enviado via WhatsApp ✅` });
+      fetchStatuses(); // Refresh to show updated status
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar", description: err.message, variant: "destructive" });
+    } finally {
+      setSendingForm(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -422,45 +539,70 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId }: EventForms
         <div className="p-3 space-y-1.5">
           {formStatuses.map((fs) => {
             const Icon = fs.icon;
+            const canSend = !!leadId && !!fs.templateId;
+            const isSending = sendingForm === fs.type;
             return (
-              <div key={fs.type} className="flex items-center gap-2.5 rounded-lg px-3 py-2 bg-muted/20 hover:bg-muted/40 transition-colors">
-                <div className={cn(
-                  "p-1.5 rounded-lg",
-                  fs.hasResponse ? "bg-emerald-500/15" : fs.sent ? "bg-amber-500/15" : "bg-muted"
-                )}>
-                  <Icon className={cn(
-                    "h-3.5 w-3.5",
-                    fs.hasResponse ? "text-emerald-600" : fs.sent ? "text-amber-600" : "text-muted-foreground"
-                  )} />
-                </div>
-                <span className="text-xs font-medium flex-1 text-foreground">{fs.label}</span>
-                
-                {fs.hasResponse ? (
-                  <div className="flex items-center gap-1.5">
-                    <Badge variant="outline" className="text-[9px] bg-emerald-500/15 text-emerald-700 border-emerald-300 gap-1">
-                      <CheckCircle2 className="h-2.5 w-2.5" />
-                      Respondido
+              <div key={fs.type} className="rounded-lg px-3 py-2 bg-muted/20 hover:bg-muted/40 transition-colors space-y-1.5">
+                {/* Status row */}
+                <div className="flex items-center gap-2.5">
+                  <div className={cn(
+                    "p-1.5 rounded-lg",
+                    fs.hasResponse ? "bg-emerald-500/15" : fs.sent ? "bg-amber-500/15" : "bg-muted"
+                  )}>
+                    <Icon className={cn(
+                      "h-3.5 w-3.5",
+                      fs.hasResponse ? "text-emerald-600" : fs.sent ? "text-amber-600" : "text-muted-foreground"
+                    )} />
+                  </div>
+                  <span className="text-xs font-medium flex-1 text-foreground">{fs.label}</span>
+                  
+                  {fs.hasResponse ? (
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="outline" className="text-[9px] bg-emerald-500/15 text-emerald-700 border-emerald-300 gap-1">
+                        <CheckCircle2 className="h-2.5 w-2.5" />
+                        Respondido
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-primary hover:text-primary/80"
+                        onClick={() => setViewingResponses(fs)}
+                        title="Ver respostas"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ) : fs.sent ? (
+                    <Badge variant="outline" className="text-[9px] bg-amber-500/15 text-amber-700 border-amber-300 gap-1">
+                      <Clock className="h-2.5 w-2.5" />
+                      Enviado
                     </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[9px] text-muted-foreground gap-1">
+                      <Clock className="h-2.5 w-2.5" />
+                      Pendente
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Send button row - show when form has a template and lead is linked */}
+                {canSend && !fs.hasResponse && (
+                  <div className="flex items-center gap-1.5 pl-8">
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      className="h-6 w-6 p-0 text-primary hover:text-primary/80"
-                      onClick={() => setViewingResponses(fs)}
-                      title="Ver respostas"
+                      className="h-6 text-[10px] px-2 gap-1 border-emerald-300/50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                      disabled={isSending}
+                      onClick={() => handleSendForm(fs)}
                     >
-                      <Eye className="h-3.5 w-3.5" />
+                      {isSending ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <MessageCircle className="h-3 w-3" />
+                      )}
+                      {fs.sent ? "Reenviar WhatsApp" : "WhatsApp"}
                     </Button>
                   </div>
-                ) : fs.sent ? (
-                  <Badge variant="outline" className="text-[9px] bg-amber-500/15 text-amber-700 border-amber-300 gap-1">
-                    <Clock className="h-2.5 w-2.5" />
-                    Enviado
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-[9px] text-muted-foreground gap-1">
-                    <Clock className="h-2.5 w-2.5" />
-                    Pendente
-                  </Badge>
                 )}
               </div>
             );
