@@ -152,6 +152,8 @@ export function FloatingTips() {
   const dragRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
   const hasDraggedRef = useRef(false);
+  const positionRef = useRef(position);
+  positionRef.current = position;
 
   const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
   const cardWidth = isDesktop ? DESKTOP_WIDTH : MOBILE_WIDTH;
@@ -227,13 +229,19 @@ export function FloatingTips() {
     e.preventDefault();
     e.stopPropagation();
     hasDraggedRef.current = false;
+    const currentPos = positionRef.current;
     dragStartRef.current = {
       x: e.clientX,
       y: e.clientY,
-      posX: position.x,
-      posY: position.y,
+      posX: currentPos.x,
+      posY: currentPos.y,
     };
     setIsDragging(true);
+
+    // Capture pointer for reliable tracking
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    const pointerId = e.pointerId;
+    const target = e.target as HTMLElement;
 
     const onMove = (ev: PointerEvent) => {
       ev.preventDefault();
@@ -242,21 +250,23 @@ export function FloatingTips() {
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
         hasDraggedRef.current = true;
       }
-      setPosition({
+      const newPos = {
         x: Math.max(0, Math.min(dragStartRef.current.posX + dx, window.innerWidth - cardWidth)),
         y: Math.max(0, Math.min(dragStartRef.current.posY + dy, window.innerHeight - 80)),
-      });
+      };
+      setPosition(newPos);
     };
 
     const onUp = () => {
       setIsDragging(false);
+      try { target.releasePointerCapture(pointerId); } catch {}
       document.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerup", onUp);
     };
 
     document.addEventListener("pointermove", onMove);
     document.addEventListener("pointerup", onUp);
-  }, [position, cardWidth]);
+  }, [cardWidth]);
 
   if (!isVisible) return null;
 
@@ -271,6 +281,7 @@ export function FloatingTips() {
       >
         <div
           className="cursor-grab active:cursor-grabbing"
+          style={{ touchAction: "none" }}
           onPointerDown={handlePointerDown}
         >
           <button
@@ -302,6 +313,7 @@ export function FloatingTips() {
       {/* Drag handle + controls */}
       <div
         className="flex items-center justify-between px-4 py-2.5 cursor-grab active:cursor-grabbing border-b border-border/30"
+        style={{ touchAction: "none" }}
         onPointerDown={handlePointerDown}
       >
         <div className="flex items-center gap-2 text-muted-foreground">
