@@ -677,18 +677,18 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                         <Button
                           variant="outline"
                           size="sm"
-                          className={cn("h-7 text-[11px] gap-1.5", (sentWA.has(gc.id) || gc.status === "enviado") && "bg-emerald-500/15 text-emerald-700 border-emerald-300")}
+                          className={cn("h-6 text-[10px] px-2 gap-1 border-emerald-300/50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800", (sentWA.has(gc.id) || gc.status === "enviado") && "bg-emerald-500/15 text-emerald-700 border-emerald-300")}
                           disabled={sendingContractWA === gc.id}
                           onClick={() => handleContractSendWA(gc)}
                         >
                           {sendingContractWA === gc.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <MessageCircle className="h-3 w-3" />}
-                          {sentWA.has(gc.id) || gc.status === "enviado" ? "WhatsApp ✅" : "WhatsApp"}
+                          {sentWA.has(gc.id) || gc.status === "enviado" ? "Reenviar WhatsApp" : "WhatsApp"}
                         </Button>
                         {gc.status !== "assinado" && (
                           <Button
                             variant="outline"
                             size="sm"
-                            className={cn("h-7 text-[11px] gap-1.5", (sentSign.has(gc.id) || gc.status === "aguardando_assinatura") && "bg-emerald-500/15 text-emerald-700 border-emerald-300")}
+                            className={cn("h-6 text-[10px] px-2 gap-1 border-emerald-300/50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800", (sentSign.has(gc.id) || gc.status === "aguardando_assinatura") && "bg-emerald-500/15 text-emerald-700 border-emerald-300")}
                             disabled={sendingContractSign === gc.id}
                             onClick={() => handleContractSendSign(gc)}
                           >
