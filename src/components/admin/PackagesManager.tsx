@@ -21,6 +21,8 @@ interface CompanyPackage {
   preco_separado: boolean;
   valor_pessoa_adicional_crianca: number | null;
   valor_pessoa_adicional_adulto: number | null;
+  valor_adicional_antecipado: number | null;
+  valor_adicional_no_dia: number | null;
   is_active: boolean;
   sort_order: number;
 }
@@ -68,6 +70,8 @@ export function PackagesManager() {
   const [valorUnico, setValorUnico] = useState("");
   const [valorCrianca, setValorCrianca] = useState("");
   const [valorAdulto, setValorAdulto] = useState("");
+  const [valorAntecipado, setValorAntecipado] = useState("");
+  const [valorNoDia, setValorNoDia] = useState("");
   const [saving, setSaving] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const priceGridRef = useRef<PackagePriceGridHandle>(null);
@@ -99,6 +103,8 @@ export function PackagesManager() {
     setValorUnico("");
     setValorCrianca("");
     setValorAdulto("");
+    setValorAntecipado("");
+    setValorNoDia("");
     setDialogOpen(true);
   };
 
@@ -110,6 +116,8 @@ export function PackagesManager() {
     setValorUnico(numToDisplay(pkg.valor_pessoa_adicional));
     setValorCrianca(numToDisplay(pkg.valor_pessoa_adicional_crianca));
     setValorAdulto(numToDisplay(pkg.valor_pessoa_adicional_adulto));
+    setValorAntecipado(numToDisplay(pkg.valor_adicional_antecipado));
+    setValorNoDia(numToDisplay(pkg.valor_adicional_no_dia));
     setDialogOpen(true);
   };
 
@@ -132,6 +140,9 @@ export function PackagesManager() {
       payload.valor_pessoa_adicional_crianca = null;
       payload.valor_pessoa_adicional_adulto = null;
     }
+
+    payload.valor_adicional_antecipado = parseCurrency(valorAntecipado);
+    payload.valor_adicional_no_dia = parseCurrency(valorNoDia);
 
     let targetId = editing?.id;
 
