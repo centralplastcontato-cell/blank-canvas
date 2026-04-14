@@ -2,7 +2,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { X, Clock, Pencil, Trash2, Repeat, Link2, Calendar, FileText, AlertTriangle, CheckCircle2, PartyPopper } from "lucide-react";
+import { Clock, Pencil, Trash2, Repeat, Link2, Calendar, FileText, AlertTriangle, CheckCircle2, PartyPopper } from "lucide-react";
 import { format, parseISO, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
