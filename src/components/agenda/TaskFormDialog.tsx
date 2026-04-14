@@ -181,6 +181,29 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData, pres
             </div>
           </div>
 
+          {/* Event Link Section */}
+          {!presetEventId && (
+            <div>
+              <Label className="flex items-center gap-1.5">
+                <Link2 className="h-3.5 w-3.5 text-primary" />
+                Vincular a evento (opcional)
+              </Label>
+              <Select value={eventId || "none"} onValueChange={(v) => setEventId(v === "none" ? null : v)}>
+                <SelectTrigger className="w-full mt-1">
+                  <SelectValue placeholder="Nenhum evento vinculado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {events.map((ev) => (
+                    <SelectItem key={ev.id} value={ev.id}>
+                      🎉 {ev.title} — {new Date(ev.event_date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Recurrence Section */}
           <div className={cn(
             "rounded-xl border-2 p-4 space-y-3 transition-all",
