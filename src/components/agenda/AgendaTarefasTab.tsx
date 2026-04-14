@@ -48,6 +48,31 @@ export function AgendaTarefasTab({ userId }: AgendaTarefasTabProps) {
 
   return (
     <div className="space-y-4">
+      {/* Overdue banner */}
+      {overdueCount > 0 && (
+        <div className="flex items-center gap-3 p-3 rounded-xl border border-red-200/60 bg-red-50/60 dark:bg-red-950/20 dark:border-red-800/40">
+          <div className="p-2 rounded-xl bg-red-100 dark:bg-red-900/40">
+            <AlertTriangle className="h-5 w-5 text-red-600" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-red-700 dark:text-red-400">
+              {overdueCount} tarefa{overdueCount > 1 ? "s" : ""} atrasada{overdueCount > 1 ? "s" : ""}
+            </p>
+            <p className="text-xs text-red-600/70 dark:text-red-400/70">
+              Revise e atualize o status das tarefas vencidas para manter a operação em dia.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0 border-red-200 text-red-700 hover:bg-red-100 dark:border-red-800 dark:text-red-400"
+            onClick={() => setFilterStatus("pending")}
+          >
+            Ver atrasadas
+          </Button>
+        </div>
+      )}
+
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card className="border-border/30">
