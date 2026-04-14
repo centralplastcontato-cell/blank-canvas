@@ -11,6 +11,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
 import { WhatsAppChat } from "@/components/whatsapp/WhatsAppChat";
+import { GuiaCRMDialog } from "@/components/guias/GuiaCRMDialog";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Menu, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -128,6 +129,7 @@ export default function WhatsApp() {
                   <img src={getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url) || '/placeholder.svg'} alt={currentCompany?.name || 'Logo'} className="h-8 w-auto shrink-0" />
                   <h1 className="font-display font-bold text-foreground text-sm truncate">WhatsApp</h1>
               </div>
+              <GuiaCRMDialog />
               <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/inteligencia")}>
                 <Brain className="w-5 h-5 text-primary" />
               </Button>

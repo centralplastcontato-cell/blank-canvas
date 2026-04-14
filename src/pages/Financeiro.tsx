@@ -38,6 +38,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useBankAccounts, type BankAccountBalance } from '@/hooks/useBankAccounts';
 import type { DateRange } from 'react-day-picker';
+import { GuiaFinanceiroDialog } from "@/components/guias/GuiaFinanceiroDialog";
 
 const PAGE_SIZE = 20;
 
@@ -274,10 +275,13 @@ export default function Financeiro() {
                         <p className="text-sm text-muted-foreground/70 mt-0.5">Central de gestão financeira</p>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="gap-2 border-blue-300 text-blue-600 hover:bg-blue-50" onClick={() => setReportDialogOpen(true)}>
-                      <FileText className="h-4 w-4" />
-                      Gerar Relatório
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <GuiaFinanceiroDialog />
+                      <Button variant="outline" size="sm" className="gap-2 border-blue-300 text-blue-600 hover:bg-blue-50" onClick={() => setReportDialogOpen(true)}>
+                        <FileText className="h-4 w-4" />
+                        Gerar Relatório
+                      </Button>
+                    </div>
                 </div>
               </div>
 
