@@ -54,7 +54,7 @@ export function TaskCard({ task, onToggle, onEdit, onDelete, onStatusChange }: T
     >
       <Select value={task.status} onValueChange={handleStatusChange}>
         <SelectTrigger className={cn(
-          "h-7 w-[120px] text-[10px] font-medium border shrink-0 mt-0.5",
+          "h-7 w-auto min-w-[130px] text-[10px] font-medium border shrink-0 mt-0.5",
           currentStatus.color
         )}>
           <SelectValue />
