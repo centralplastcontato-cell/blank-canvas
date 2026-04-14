@@ -289,15 +289,67 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
             <Input type="date" value={expenseDate} onChange={e => setExpenseDate(e.target.value)} className="w-full min-w-0" />
           </div>
           {expenseType !== 'ajuste' && (
-            <div>
-              <Label>Categoria</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            <>
+              <div>
+                <Label>Categoria</Label>
+                <Select value={category} onValueChange={(val) => { setCategory(val); setSubcategory(''); setSubcategoryInput(''); }}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Subcategoria (opcional)</Label>
+                <Popover open={subcategoryOpen} onOpenChange={setSubcategoryOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" className="w-full justify-between font-normal mt-1">
+                      {subcategory || 'Digite ou selecione...'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <CommandInput
+                        placeholder="Buscar ou criar subcategoria..."
+                        value={subcategoryInput}
+                        onValueChange={setSubcategoryInput}
+                      />
+                      <CommandList>
+                        <CommandEmpty>
+                          {subcategoryInput.trim() ? (
+                            <button
+                              className="w-full px-3 py-2 text-sm text-left hover:bg-accent cursor-pointer"
+                              onClick={() => {
+                                setSubcategory(subcategoryInput.trim());
+                                setSubcategoryOpen(false);
+                              }}
+                            >
+                              Criar "<strong>{subcategoryInput.trim()}</strong>"
+                            </button>
+                          ) : (
+                            <span className="text-muted-foreground text-sm px-3">Nenhuma subcategoria encontrada</span>
+                          )}
+                        </CommandEmpty>
+                        <CommandGroup>
+                          {subcategories.map(sub => (
+                            <CommandItem
+                              key={sub}
+                              value={sub}
+                              onSelect={() => {
+                                setSubcategory(sub);
+                                setSubcategoryOpen(false);
+                              }}
+                            >
+                              {sub}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </>
           )}
           <div>
             <Label>Status</Label>
