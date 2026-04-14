@@ -49,9 +49,10 @@ interface Props {
   canPay?: boolean;
   showValues?: boolean;
   onAddOptional?: () => void;
+  onConsentSubmit?: (params: { actionType: string; entityId: string; entityTable: string; payload: Record<string, any>; description?: string; amount?: number }) => Promise<boolean | undefined>;
 }
 
-export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = true, canPay = true, showValues = true, onAddOptional: _onAddOptional }: Props) {
+export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = true, canPay = true, showValues = true, onAddOptional: _onAddOptional, onConsentSubmit }: Props) {
   const financial = useEventFinancial(eventId, companyId, baseValue);
   const { activeAccounts } = useBankAccounts();
   const bankAccountMap = useMemo(() => {
@@ -213,6 +214,23 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
 
   const confirmMarkAsPaid = async () => {
     if (!markPaidPayment) return;
+    
+    if (onConsentSubmit) {
+      const success = await onConsentSubmit({
+        actionType: 'payment_paid',
+        entityId: markPaidPayment.id,
+        entityTable: 'event_payments',
+        payload: { bank_account_id: markPaidBankId || null },
+        description: `Parcela - ${markPaidPayment.type === 'entrada' ? 'Entrada' : 'Parcela'} R$ ${markPaidPayment.amount.toFixed(2)}`,
+        amount: markPaidPayment.amount,
+      });
+      if (success) {
+        setMarkPaidPayment(null);
+        setMarkPaidBankId(null);
+      }
+      return;
+    }
+    
     await financial.markAsPaid(markPaidPayment, markPaidBankId);
     setRecentlyPaidIds(prev => new Set(prev).add(markPaidPayment.id));
     setMarkPaidPayment(null);
