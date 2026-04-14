@@ -33,7 +33,7 @@ const borderColors: Record<string, string> = {
   partial: 'border-l-orange-500',
 };
 
-export function FinancialPaymentCard({ payment, onMarkAsPaid, onOpenEvent, bankAccountName }: Props) {
+export function FinancialPaymentCard({ payment, onMarkAsPaid, onOpenEvent, onPartialPayment, bankAccountName }: Props) {
   const cfg = statusConfig[payment.status];
   const daysLate = payment.status === 'late' ? differenceInDays(new Date(), new Date(payment.due_date)) : 0;
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
