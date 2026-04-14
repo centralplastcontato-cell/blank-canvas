@@ -2,7 +2,9 @@ import { format, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Users, MapPin, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Clock, Users, MapPin, AlertTriangle, ChevronLeft, ChevronRight, CheckSquare } from "lucide-react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CompanyEvent {
   id: string;
