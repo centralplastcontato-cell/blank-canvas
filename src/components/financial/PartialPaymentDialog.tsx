@@ -62,6 +62,7 @@ export function PartialPaymentDialog({ open, onOpenChange, onSubmit, paymentAmou
   };
 
   const handleSubmit = async () => {
+    const val = parseCurrencyInput(amount);
     const originalRemaining = paymentAmount - paidSoFar;
     if (!val || val <= 0) return;
     if (val > originalRemaining + 0.01) {
