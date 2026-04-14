@@ -1124,6 +1124,7 @@ export default function Financeiro() {
                 eventId={selectedEventId}
                 companyId={currentCompany.id}
                 baseValue={selectedEventData.total_value}
+                onConsentSubmit={financialPerms.requiresConsent ? consentHook.submitForConsent : undefined}
               />
             </div>
           )}
