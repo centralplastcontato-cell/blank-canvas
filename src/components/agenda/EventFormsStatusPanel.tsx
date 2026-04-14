@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import {
   FileText, ClipboardList, UtensilsCrossed, Star, CheckCircle2, Clock, Eye, Loader2,
-  User, MapPin, Phone, Mail, Calendar, Users, Baby, CreditCard, Hash, Send, MessageCircle,
+  User, MapPin, Phone, Mail, Calendar, Users, Baby, CreditCard, Hash, MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -29,9 +29,7 @@ interface EventFormsStatusPanelProps {
   eventId: string;
   companyId: string;
   leadId?: string | null;
-  eventTitle?: string;
   eventDate?: string;
-  eventUnit?: string | null;
   parentNames?: string | null;
 }
 
@@ -323,7 +321,7 @@ function tryParseJSON(str: string): any[] {
   try { const p = JSON.parse(str); return Array.isArray(p) ? p : []; } catch { return []; }
 }
 
-export function EventFormsStatusPanel({ eventId, companyId, leadId, eventTitle, eventDate, eventUnit, parentNames }: EventFormsStatusPanelProps) {
+export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, parentNames }: EventFormsStatusPanelProps) {
   const [formStatuses, setFormStatuses] = useState<FormStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewingResponses, setViewingResponses] = useState<FormStatus | null>(null);
