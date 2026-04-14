@@ -1015,6 +1015,11 @@ export default function Financeiro() {
                     onOpenEvent={handleOpenEvent}
                   />
                 </TabsContent>
+
+                {/* Tab Consentimento */}
+                <TabsContent value="consentimento" className="space-y-4">
+                  <ConsentTab consentHook={consentHook} onRefreshDashboard={dashboard.refresh} />
+                </TabsContent>
               </Tabs>
             </div>
           </main>
