@@ -127,10 +127,10 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
   }, [selectedDate, unifiedItems]);
 
   const calendarEvents = useMemo(() => {
-    const items: { id: string; event_date: string; status: string; title: string }[] = [];
+    const items: { id: string; event_date: string; status: string; title: string; type: "festa" | "visita" | "tarefa" }[] = [];
 
     events.forEach((ev) => {
-      items.push({ id: ev.id, event_date: ev.event_date, status: ev.status, title: ev.title });
+      items.push({ id: ev.id, event_date: ev.event_date, status: ev.status, title: ev.title, type: "festa" });
     });
 
     visits.forEach((v: any) => {
@@ -139,6 +139,7 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
         event_date: v.data_visita,
         status: v.status_visita === "confirmada" ? "confirmado" : "pendente",
         title: v.campaign_leads?.name || "Visita",
+        type: "visita",
       });
     });
 
@@ -148,6 +149,7 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
         event_date: t.due_date!,
         status: t.completed ? "confirmado" : "pendente",
         title: t.title,
+        type: "tarefa",
       });
     });
 
