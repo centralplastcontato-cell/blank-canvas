@@ -86,12 +86,12 @@ export function AdminSidebar({
       collapsible="icon" 
       className="border-r border-sidebar-border z-40"
     >
-      <SidebarHeader className="p-4">
+      <SidebarHeader className="p-4 bg-gradient-to-b from-sidebar-primary/5 to-transparent">
         <div className="flex items-center gap-3">
           <img 
             src={getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url) || '/placeholder.svg'} 
             alt={currentCompany?.name || "Logo"} 
-            className="h-9 w-9 object-contain shrink-0 rounded-lg"
+            className="h-9 w-9 object-contain shrink-0 rounded-lg ring-2 ring-sidebar-primary/20"
           />
           {!collapsed && (
             <div className="min-w-0 overflow-hidden flex-1">
@@ -121,7 +121,7 @@ export function AdminSidebar({
                     asChild 
                     tooltip={item.title}
                     isActive={location.pathname === item.url}
-                    className="h-11 text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors data-[active=true]:bg-sidebar-accent/80 data-[active=true]:text-sidebar-primary data-[active=true]:font-semibold data-[active=true]:border-l-4 data-[active=true]:border-sidebar-primary"
+                    className="h-11 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-all duration-200 data-[active=true]:bg-sidebar-primary/10 data-[active=true]:text-sidebar-primary data-[active=true]:font-semibold data-[active=true]:border-l-[3px] data-[active=true]:border-sidebar-primary data-[active=true]:shadow-[inset_0_0_12px_hsl(var(--sidebar-primary)/0.06)]"
                   >
                     <NavLink 
                       to={item.url} 
