@@ -23,6 +23,24 @@ export interface CompanyTask {
   status: TaskStatus;
 }
 
+export type RecurrenceType = "diaria" | "semanal" | "mensal" | "personalizada";
+
+export const RECURRENCE_OPTIONS = [
+  { value: "diaria" as RecurrenceType, label: "Diária", icon: "📅" },
+  { value: "semanal" as RecurrenceType, label: "Semanal", icon: "🗓️" },
+  { value: "mensal" as RecurrenceType, label: "Mensal", icon: "📆" },
+];
+
+export const WEEKDAYS = [
+  { value: 0, label: "Dom" },
+  { value: 1, label: "Seg" },
+  { value: 2, label: "Ter" },
+  { value: 3, label: "Qua" },
+  { value: 4, label: "Qui" },
+  { value: 5, label: "Sex" },
+  { value: 6, label: "Sáb" },
+];
+
 export type TaskFormData = {
   title: string;
   description?: string;
@@ -31,6 +49,11 @@ export type TaskFormData = {
   due_date?: string;
   due_time?: string;
   assigned_to?: string | null;
+  is_recurring?: boolean;
+  recurrence_type?: RecurrenceType | null;
+  recurrence_interval?: number;
+  recurrence_days?: number[] | null;
+  recurrence_end_date?: string | null;
 };
 
 export const TASK_CATEGORIES = [
@@ -102,11 +125,16 @@ export function useTasks() {
       assigned_to: data.assigned_to || null,
       created_by: userId,
       status: "pendente",
-    });
+      is_recurring: data.is_recurring || false,
+      recurrence_type: data.recurrence_type || null,
+      recurrence_interval: data.recurrence_interval || 1,
+      recurrence_days: data.recurrence_days || null,
+      recurrence_end_date: data.recurrence_end_date || null,
+    } as any);
     if (error) {
       toast({ title: "Erro ao criar tarefa", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Tarefa criada!" });
+      toast({ title: data.is_recurring ? "Tarefa recorrente criada!" : "Tarefa criada!" });
       fetchTasks();
     }
   };
