@@ -276,7 +276,7 @@ export default function Formularios() {
                   <Tabs defaultValue="equipe" className="flex-1 flex flex-col overflow-hidden">
                      <div className="px-3 md:px-5 pt-2">
                       <div className="max-w-7xl mx-auto">
-                      <TabsList>
+                      <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex-wrap">
                         {[
                           { value: "equipe", icon: Users, label: "Equipe" },
                           { value: "manutencao", icon: Wrench, label: "Manutenção" },
@@ -285,7 +285,7 @@ export default function Formularios() {
                           { value: "informacoes", icon: FileText, label: "Informações" },
                           { value: "templates", icon: LayoutTemplate, label: "Templates" },
                         ].map(t => (
-                          <TabsTrigger key={t.value} value={t.value} className="gap-2">
+                          <TabsTrigger key={t.value} value={t.value} className="gap-2 rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground">
                             <t.icon className="h-4 w-4" />
                             {t.label}
                           </TabsTrigger>
@@ -332,21 +332,21 @@ export default function Formularios() {
                   <Tabs defaultValue={canFreelancer ? "escalas" : "avaliacoes-fl"} className="flex-1 flex flex-col overflow-hidden">
                     <div className="px-3 md:px-5 pt-2">
                       <div className="max-w-7xl mx-auto">
-                      <TabsList>
+                      <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex-wrap">
                         {canFreelancer && (
-                          <TabsTrigger value="escalas" className="gap-2">
+                          <TabsTrigger value="escalas" className="gap-2 rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground">
                             <CalendarClock className="h-4 w-4" />
                             Escalas
                           </TabsTrigger>
                         )}
                         {canFreelancer && (
-                          <TabsTrigger value="cadastro" className="gap-2">
+                          <TabsTrigger value="cadastro" className="gap-2 rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground">
                             <HardHat className="h-4 w-4" />
                             Cadastro
                           </TabsTrigger>
                         )}
                         {canAvaliacoes && (
-                          <TabsTrigger value="avaliacoes-fl" className="gap-2">
+                          <TabsTrigger value="avaliacoes-fl" className="gap-2 rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground">
                             <ClipboardCheck className="h-4 w-4" />
                             Avaliações
                           </TabsTrigger>
