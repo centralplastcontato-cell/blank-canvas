@@ -33,6 +33,12 @@ const TYPE_COLORS: Record<string, string> = {
   tarefa: "bg-amber-100 text-amber-700 border-amber-200",
 };
 
+const TYPE_BORDER_COLORS: Record<string, string> = {
+  festa: "border-l-purple-500",
+  visita: "border-l-blue-500",
+  tarefa: "border-l-amber-500",
+};
+
 const TYPE_LABELS: Record<string, string> = {
   festa: "🎉 Festa",
   visita: "📍 Visita",
