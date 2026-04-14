@@ -1138,7 +1138,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   };
 
   const resolveContractMessage = (template: string, link: string) => {
-    const leadName = form.title || form.lead_name || "Cliente";
+    const leadName = form.lead_name || form.parent_names || "Cliente";
     const firstName = leadName.split(" ")[0];
     const companyName = currentCompany?.name || "Buffet";
     const eventDate = form.event_date
