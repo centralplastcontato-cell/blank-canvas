@@ -10,6 +10,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatCurrencyInput, parseCurrencyInput, numberToCurrencyDisplay } from '@/lib/currency-input';
 import { BankAccountSelect } from './BankAccountSelect';
+import { useExpenseSubcategories } from '@/hooks/useExpenseSubcategories';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 const CATEGORIES = [
   { value: 'fornecedor', label: 'Fornecedor' },
@@ -44,8 +47,8 @@ const EXPENSE_TYPES = [
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { description: string; amount: number; expense_date: string; category: string; expense_type?: string; status: string; notes?: string; receipt_url?: string; boleto_url?: string; bank_account_id?: string }) => void;
-  defaultValues?: { description?: string; amount?: number; expense_date?: string; category?: string; expense_type?: string; status?: string; notes?: string; receipt_url?: string; boleto_url?: string; bank_account_id?: string };
+  onSubmit: (data: { description: string; amount: number; expense_date: string; category: string; subcategory?: string; expense_type?: string; status: string; notes?: string; receipt_url?: string; boleto_url?: string; bank_account_id?: string }) => void;
+  defaultValues?: { description?: string; amount?: number; expense_date?: string; category?: string; subcategory?: string; expense_type?: string; status?: string; notes?: string; receipt_url?: string; boleto_url?: string; bank_account_id?: string };
   defaultExpenseType?: string;
 }
 
@@ -66,6 +69,10 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
   const [uploadingBoleto, setUploadingBoleto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const boletoInputRef = useRef<HTMLInputElement>(null);
+  const [subcategory, setSubcategory] = useState('');
+  const [subcategoryOpen, setSubcategoryOpen] = useState(false);
+  const [subcategoryInput, setSubcategoryInput] = useState('');
+  const { subcategories, addSubcategory } = useExpenseSubcategories(category);
 
   useEffect(() => {
     if (open && defaultValues) {
@@ -75,6 +82,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       setCategory(defaultValues.category || 'outros');
       setExpenseType(defaultValues.expense_type || defaultExpenseType || 'fixa');
       setStatus(defaultValues.status || 'pendente');
+      setSubcategory(defaultValues.subcategory || '');
       setNotes(defaultValues.notes || '');
       setBankAccountId(defaultValues.bank_account_id || '');
       setReceiptUrl(defaultValues.receipt_url || '');
@@ -89,6 +97,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       setExpenseType(defaultExpenseType || 'fixa');
       setStatus('pendente');
       setBankAccountId('');
+      setSubcategory('');
       setNotes('');
       setReceiptUrl('');
       setReceiptPreview('');
@@ -168,14 +177,19 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
     setAmount(formatCurrencyInput(e.target.value));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const val = parseCurrencyInput(amount);
     if (!val || !description.trim() || !expenseDate) return;
+    // Save new subcategory if typed
+    if (subcategory.trim() && expenseType !== 'ajuste') {
+      await addSubcategory(subcategory.trim());
+    }
     onSubmit({
       description: description.trim(),
       amount: val,
       expense_date: expenseDate,
       category: expenseType === 'ajuste' ? 'ajuste_saldo' : category,
+      subcategory: subcategory.trim() || undefined,
       expense_type: expenseType,
       status,
       notes: notes.trim() || undefined,
@@ -275,15 +289,67 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
             <Input type="date" value={expenseDate} onChange={e => setExpenseDate(e.target.value)} className="w-full min-w-0" />
           </div>
           {expenseType !== 'ajuste' && (
-            <div>
-              <Label>Categoria</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            <>
+              <div>
+                <Label>Categoria</Label>
+                <Select value={category} onValueChange={(val) => { setCategory(val); setSubcategory(''); setSubcategoryInput(''); }}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Subcategoria (opcional)</Label>
+                <Popover open={subcategoryOpen} onOpenChange={setSubcategoryOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" className="w-full justify-between font-normal mt-1">
+                      {subcategory || 'Digite ou selecione...'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <CommandInput
+                        placeholder="Buscar ou criar subcategoria..."
+                        value={subcategoryInput}
+                        onValueChange={setSubcategoryInput}
+                      />
+                      <CommandList>
+                        <CommandEmpty>
+                          {subcategoryInput.trim() ? (
+                            <button
+                              className="w-full px-3 py-2 text-sm text-left hover:bg-accent cursor-pointer"
+                              onClick={() => {
+                                setSubcategory(subcategoryInput.trim());
+                                setSubcategoryOpen(false);
+                              }}
+                            >
+                              Criar "<strong>{subcategoryInput.trim()}</strong>"
+                            </button>
+                          ) : (
+                            <span className="text-muted-foreground text-sm px-3">Nenhuma subcategoria encontrada</span>
+                          )}
+                        </CommandEmpty>
+                        <CommandGroup>
+                          {subcategories.map(sub => (
+                            <CommandItem
+                              key={sub}
+                              value={sub}
+                              onSelect={() => {
+                                setSubcategory(sub);
+                                setSubcategoryOpen(false);
+                              }}
+                            >
+                              {sub}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </>
           )}
           <div>
             <Label>Status</Label>
