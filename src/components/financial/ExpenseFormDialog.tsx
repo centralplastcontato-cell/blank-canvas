@@ -20,6 +20,7 @@ const CATEGORIES = [
   { value: 'energia', label: 'Energia' },
   { value: 'agua', label: 'Água' },
   { value: 'internet', label: 'Internet/Telefone' },
+  { value: 'cozinha', label: 'Cozinha' },
   { value: 'limpeza', label: 'Limpeza' },
   { value: 'marketing', label: 'Marketing' },
   { value: 'impostos', label: 'Impostos/Taxas' },
