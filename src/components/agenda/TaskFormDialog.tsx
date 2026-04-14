@@ -22,7 +22,8 @@ interface TaskFormDialogProps {
   presetLeadId?: string | null;
 }
 
-export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData }: TaskFormDialogProps) {
+export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData, presetEventId, presetLeadId }: TaskFormDialogProps) {
+  const { currentCompany } = useCompany();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("outros");
@@ -34,6 +35,20 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData }: Ta
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
   const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]);
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
+  const [eventId, setEventId] = useState<string | null>(null);
+  const [events, setEvents] = useState<Array<{ id: string; title: string; event_date: string }>>([]);
+
+  // Fetch events for linking
+  useEffect(() => {
+    if (!open || !currentCompany?.id) return;
+    supabase
+      .from("company_events")
+      .select("id, title, event_date")
+      .eq("company_id", currentCompany.id)
+      .neq("status", "cancelado")
+      .order("event_date", { ascending: true })
+      .then(({ data }) => setEvents(data || []));
+  }, [open, currentCompany?.id]);
 
   useEffect(() => {
     if (open) {
@@ -50,6 +65,7 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData }: Ta
         setRecurrenceInterval(taskAny.recurrence_interval || 1);
         setRecurrenceDays(taskAny.recurrence_days || []);
         setRecurrenceEndDate(taskAny.recurrence_end_date || "");
+        setEventId(taskAny.event_id || null);
       } else {
         setTitle("");
         setDescription("");
@@ -62,9 +78,10 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData }: Ta
         setRecurrenceInterval(1);
         setRecurrenceDays([]);
         setRecurrenceEndDate("");
+        setEventId(presetEventId || null);
       }
     }
-  }, [open, initialData]);
+  }, [open, initialData, presetEventId]);
 
   const toggleDay = (day: number) => {
     setRecurrenceDays(prev =>
