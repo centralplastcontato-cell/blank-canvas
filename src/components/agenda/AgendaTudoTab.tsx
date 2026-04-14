@@ -229,6 +229,7 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
                 onMonthChange={setMonth}
                 onDayClick={setSelectedDate}
                 selectedDate={selectedDate}
+                showTypeLegend
               />
             </CardContent>
           </Card>
