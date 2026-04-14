@@ -28,6 +28,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { VisitQualification } from "@/components/visitas/VisitQualification";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { VisitFormDialog } from "@/components/visitas/VisitFormDialog";
+import { logActivity } from "@/lib/activityLog";
 
 // Status config
 const VISIT_STATUSES = [
@@ -256,10 +257,31 @@ export default function Visitas() {
   };
 
   const deleteVisit = async (visitId: string) => {
+    const visitToDelete = visits.find((visit) => visit.id === visitId) ?? detailVisit;
     const { error } = await (supabase as any).from("lead_visits").delete().eq("id", visitId);
     if (error) {
       toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
     } else {
+      if (currentCompany?.id) {
+        logActivity({
+          companyId: currentCompany.id,
+          action: 'delete',
+          module: 'events',
+          entityType: 'visit',
+          entityId: visitId,
+          entityName: visitToDelete?.lead_name || visitToDelete?.event_title || 'Visita',
+          details: visitToDelete
+            ? {
+                visitType: visitToDelete.visit_type || 'visita',
+                date: visitToDelete.data_visita,
+                time: visitToDelete.horario_visita,
+                status: visitToDelete.status_visita,
+                leadId: visitToDelete.lead_id,
+                unit: visitToDelete.unit,
+              }
+            : undefined,
+        });
+      }
       toast({ title: "Visita excluída!" });
       setDetailVisit(null);
       fetchVisits();
