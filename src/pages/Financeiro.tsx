@@ -530,6 +530,13 @@ export default function Financeiro() {
                               <Users className="h-3.5 w-3.5" /> Por cliente
                             </button>
                           </div>
+                          <Button
+                            size="sm"
+                            onClick={() => { setEditingRevenue(null); setRevenueDialogOpen(true); }}
+                            className="gap-1.5"
+                          >
+                            <Plus className="h-3.5 w-3.5" /> Nova Receita
+                          </Button>
                         </div>
                       </div>
                     </div>
