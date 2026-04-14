@@ -119,6 +119,11 @@ export function FinancialPaymentCard({ payment, onMarkAsPaid, onOpenEvent, onPar
           </div>
 
           <div className="flex items-center gap-1">
+            {payment.status !== 'paid' && onPartialPayment && (
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10" onClick={(e) => { e.stopPropagation(); onPartialPayment(payment.event_id); }} title="Pagamento parcial">
+                <Coins className="h-4 w-4" />
+              </Button>
+            )}
             {payment.status !== 'paid' && onMarkAsPaid && (
               <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10" onClick={(e) => { e.stopPropagation(); onMarkAsPaid(payment.id); }} title="Marcar como pago">
                 <Check className="h-4 w-4" />
