@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useTasks } from "@/hooks/useTasks";
 import { TaskDetailSheet } from "./TaskDetailSheet";
+import { EventDetailSheet } from "./EventDetailSheet";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,12 @@ const TYPE_COLORS: Record<string, string> = {
   tarefa: "bg-amber-100 text-amber-700 border-amber-200",
 };
 
+const TYPE_BORDER_COLORS: Record<string, string> = {
+  festa: "border-l-purple-500",
+  visita: "border-l-blue-500",
+  tarefa: "border-l-amber-500",
+};
+
 const TYPE_LABELS: Record<string, string> = {
   festa: "🎉 Festa",
   visita: "📍 Visita",
@@ -44,6 +51,8 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
   const [events, setEvents] = useState<any[]>([]);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [taskSheetOpen, setTaskSheetOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [eventSheetOpen, setEventSheetOpen] = useState(false);
   const [visits, setVisits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(startOfMonth(new Date()));
@@ -59,13 +68,13 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
       const [evRes, visitRes] = await Promise.all([
         supabase
           .from("company_events")
-          .select("id, title, event_date, start_time, status, unit")
+          .select("id, title, event_date, start_time, end_time, status, unit, event_type, package_name, guest_count, total_value, lead_id, child_name, child_age, notes, internal_notes, payment_method, created_by, created_at, updated_at, is_permuta, parent_names, gifts, extra_guest_value, event_optionals, birthday_children, child_birthdate, payment_details, data_fechamento_venda, vendedor_responsavel_id")
           .eq("company_id", currentCompany.id)
           .gte("event_date", from)
           .lte("event_date", to),
         supabase
           .from("lead_visits")
-          .select("id, data_visita, horario_visita, status_visita, lead_id, campaign_leads(name)")
+          .select("id, data_visita, horario_visita, status_visita, lead_id, campaign_leads(name, whatsapp)")
           .eq("company_id", currentCompany.id)
           .gte("data_visita", from)
           .lte("data_visita", to) as any,
@@ -296,8 +305,8 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
                       <div
                         key={item.id}
                         className={cn(
-                          "flex items-center gap-2 p-2 rounded-lg border border-border/30 bg-muted/20",
-                          item.type === "tarefa" && "cursor-pointer hover:bg-muted/40 transition-colors"
+                          "flex items-center gap-3 p-3 rounded-xl border border-border/30 bg-card cursor-pointer hover:bg-muted/40 transition-colors border-l-4",
+                          TYPE_BORDER_COLORS[item.type]
                         )}
                         onClick={() => {
                           if (item.type === "tarefa") {
@@ -307,13 +316,24 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
                               setSelectedTask(found);
                               setTaskSheetOpen(true);
                             }
+                          } else if (item.type === "festa") {
+                            const found = events.find(e => e.id === item.id);
+                            if (found) {
+                              setSelectedEvent(found);
+                              setEventSheetOpen(true);
+                            }
                           }
                         }}
                       >
-                         <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 shrink-0", TYPE_COLORS[item.type])}>
+                         <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0.5 shrink-0", TYPE_COLORS[item.type])}>
                            {TYPE_LABELS[item.type]}
                          </Badge>
                          <span className="text-sm font-medium truncate flex-1">{item.title}</span>
+                         {item.extra && (
+                           <span className="text-xs text-muted-foreground flex items-center gap-1">
+                             <MapPin className="h-3 w-3" /> {item.extra}
+                           </span>
+                         )}
                          {item.time && (
                            <span className="text-xs text-muted-foreground flex items-center gap-1">
                              <Clock className="h-3 w-3" /> {item.time}
@@ -336,6 +356,15 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
         onEdit={() => {}}
         onDelete={(id) => { deleteTask(id); setTaskSheetOpen(false); }}
         onStatusChange={(id, status) => { updateStatus(id, status); }}
+      />
+
+      <EventDetailSheet
+        open={eventSheetOpen}
+        onOpenChange={setEventSheetOpen}
+        event={selectedEvent}
+        onEdit={() => {}}
+        onDelete={() => {}}
+        userId={userId}
       />
     </div>
   );
