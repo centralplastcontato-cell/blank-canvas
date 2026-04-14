@@ -101,6 +101,7 @@ export default function Financeiro() {
   const { unitOptions, units } = useCompanyUnits(currentCompany?.id);
   const isSalesOnly = units.length > 0 && units.every(u => /vendas/i.test(u.name));
   const dashboard = useFinanceiroDashboard();
+  const consentHook = useFinancialConsent();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [expenseDialogType, setExpenseDialogType] = useState<string>('fixa');
