@@ -398,13 +398,28 @@ export default function Financeiro() {
               {/* Tabs */}
               <Tabs defaultValue="receitas" className="w-full">
                 <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex-wrap">
-                  {(financialPerms.canViewBankAccounts ? ['receitas', 'despesas', 'festas', 'resultado', 'contas'] : ['receitas', 'despesas', 'festas', 'resultado']).map(tab => (
+                  {(() => {
+                    const tabs = ['receitas', 'despesas', 'festas', 'resultado'];
+                    if (financialPerms.canViewBankAccounts) tabs.push('contas');
+                    if (consentHook.pendingCount > 0 || !financialPerms.requiresConsent) tabs.push('consentimento');
+                    return tabs;
+                  })().map(tab => (
                     <TabsTrigger
                       key={tab}
                       value={tab}
-                      className="rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground"
+                      className="rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground relative"
                     >
-                      {tab === 'receitas' ? 'Receitas' : tab === 'despesas' ? 'Despesas' : tab === 'festas' ? '🎉 Festas' : tab === 'resultado' ? 'Resultado' : '🏦 Contas'}
+                      {tab === 'receitas' ? 'Receitas' : tab === 'despesas' ? 'Despesas' : tab === 'festas' ? '🎉 Festas' : tab === 'resultado' ? 'Resultado' : tab === 'contas' ? '🏦 Contas' : (
+                        <span className="flex items-center gap-1.5">
+                          <ClipboardCheck className="h-3.5 w-3.5" />
+                          Consentimento
+                          {consentHook.pendingCount > 0 && (
+                            <Badge className="h-5 min-w-[20px] px-1.5 text-[10px] bg-amber-500 text-white border-0">
+                              {consentHook.pendingCount}
+                            </Badge>
+                          )}
+                        </span>
+                      )}
                     </TabsTrigger>
                   ))}
                 </TabsList>
