@@ -200,19 +200,56 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData, pres
                 <Link2 className="h-3.5 w-3.5 text-primary" />
                 Vincular a evento (opcional)
               </Label>
-              <Select value={eventId || "none"} onValueChange={(v) => setEventId(v === "none" ? null : v)}>
-                <SelectTrigger className="w-full mt-1">
-                  <SelectValue placeholder="Nenhum evento vinculado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nenhum</SelectItem>
-                  {events.map((ev) => (
-                    <SelectItem key={ev.id} value={ev.id}>
-                      🎉 {ev.title} — {new Date(ev.event_date + 'T12:00:00').toLocaleDateString('pt-BR')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={eventPopoverOpen} onOpenChange={setEventPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" role="combobox" className="w-full mt-1 justify-between font-normal h-10 text-sm">
+                    {eventId
+                      ? (() => {
+                          const ev = events.find((e) => e.id === eventId);
+                          return ev ? `🎉 ${ev.title} — ${new Date(ev.event_date + 'T12:00:00').toLocaleDateString('pt-BR')}` : "Evento selecionado";
+                        })()
+                      : "Buscar evento..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar por criança, pais ou telefone..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum evento encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="__none__"
+                          onSelect={() => { setEventId(null); setEventPopoverOpen(false); }}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", !eventId ? "opacity-100" : "opacity-0")} />
+                          Nenhum
+                        </CommandItem>
+                        {events.map((ev) => {
+                          const searchValue = [ev.title, ev.child_name, ev.parent_names, ev.lead_phone].filter(Boolean).join(" ");
+                          return (
+                            <CommandItem
+                              key={ev.id}
+                              value={searchValue}
+                              onSelect={() => { setEventId(ev.id); setEventPopoverOpen(false); }}
+                            >
+                              <Check className={cn("mr-2 h-4 w-4", eventId === ev.id ? "opacity-100" : "opacity-0")} />
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-sm font-medium truncate">🎉 {ev.title} — {new Date(ev.event_date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                                {(ev.child_name || ev.parent_names || ev.lead_phone) && (
+                                  <span className="text-[11px] text-muted-foreground truncate">
+                                    {[ev.child_name, ev.parent_names, ev.lead_phone].filter(Boolean).join(" · ")}
+                                  </span>
+                                )}
+                              </div>
+                            </CommandItem>
+                          );
+                        })}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           )}
 
