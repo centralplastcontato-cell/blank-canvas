@@ -32,6 +32,7 @@ const STATUS_BADGE: Record<string, { label: string; className: string; bgRow: st
   pending: { label: "Pendente", className: "bg-muted text-muted-foreground border-border", bgRow: "" },
   paid: { label: "Pago", className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", bgRow: "bg-emerald-500/[0.04] border-emerald-500/20" },
   late: { label: "Atrasado", className: "bg-red-500/20 text-red-400 border-red-500/30", bgRow: "bg-red-500/[0.04] border-red-500/20" },
+  partial: { label: "Parcial", className: "bg-amber-500/20 text-amber-500 border-amber-500/30", bgRow: "bg-amber-500/[0.04] border-amber-500/20" },
 };
 
 interface CatalogOptional {
