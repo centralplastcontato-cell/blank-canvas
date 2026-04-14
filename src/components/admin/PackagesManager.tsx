@@ -260,6 +260,20 @@ export function PackagesManager() {
                     </div>
                   )
                 )}
+                {pkg.valor_adicional_antecipado != null && (
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                    <span className="text-[11px] font-semibold text-emerald-600 tracking-wide">
+                      📋 Antecipado: R$ {pkg.valor_adicional_antecipado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
+                {pkg.valor_adicional_no_dia != null && (
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/5 border border-amber-500/10">
+                    <span className="text-[11px] font-semibold text-amber-600 tracking-wide">
+                      🎉 No dia: R$ {pkg.valor_adicional_no_dia.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -325,6 +339,17 @@ export function PackagesManager() {
                   <CurrencyInput value={valorUnico} onChange={setValorUnico} placeholder="R$ 0,00" />
                 </div>
               )}
+
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/40">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">📋 Antecipado (R$)</Label>
+                  <CurrencyInput value={valorAntecipado} onChange={setValorAntecipado} placeholder="R$ 0,00" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">🎉 No dia (R$)</Label>
+                  <CurrencyInput value={valorNoDia} onChange={setValorNoDia} placeholder="R$ 0,00" />
+                </div>
+              </div>
             </div>
 
             {/* Seção: Grade de Preços — sempre visível */}
