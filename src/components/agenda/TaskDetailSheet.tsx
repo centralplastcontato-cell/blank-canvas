@@ -2,7 +2,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { X, Clock, Pencil, Trash2, Repeat, Link2, Calendar, FileText, AlertTriangle, CheckCircle2, PartyPopper } from "lucide-react";
+import { Clock, Pencil, Trash2, Repeat, Link2, Calendar, FileText, AlertTriangle, CheckCircle2, PartyPopper } from "lucide-react";
 import { format, parseISO, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -66,20 +66,15 @@ export function TaskDetailSheet({ open, onOpenChange, task, onEdit, onDelete, on
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md overflow-y-auto p-0">
         <SheetHeader className="p-5 pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <SheetTitle className="text-lg font-bold leading-tight text-left">
-                {task.title}
-              </SheetTitle>
-              {cat && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  {cat.emoji} {cat.label}
-                </p>
-              )}
-            </div>
-            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => onOpenChange(false)}>
-              <X className="h-4 w-4" />
-            </Button>
+          <div>
+            <SheetTitle className="text-lg font-bold leading-tight text-left">
+              {task.title}
+            </SheetTitle>
+            {cat && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {cat.emoji} {cat.label}
+              </p>
+            )}
           </div>
         </SheetHeader>
 
