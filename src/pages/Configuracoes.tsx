@@ -17,6 +17,7 @@ import { UsersManagementPanel } from "@/components/admin/UsersManagementPanel";
 
 import { ProfileContent } from "@/components/admin/ProfileContent";
 import { CompanyBackupPanel } from "@/components/admin/CompanyBackupPanel";
+import { ActivityLogPanel } from "@/components/admin/ActivityLogPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
