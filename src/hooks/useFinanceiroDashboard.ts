@@ -10,7 +10,7 @@ export interface EnrichedPayment {
   event_id: string;
   amount: number;
   due_date: string;
-  status: 'pending' | 'paid' | 'late';
+  status: 'pending' | 'paid' | 'late' | 'partial';
   type: string;
   payment_method: string | null;
   paid_at: string | null;
@@ -21,6 +21,7 @@ export interface EnrichedPayment {
   unit: string;
   is_permuta: boolean;
   bank_account_id: string | null;
+  entries_total: number;
 }
 
 export interface Expense {
