@@ -38,6 +38,7 @@ import { format, startOfMonth, endOfMonth, differenceInDays } from "date-fns";
 import { AgendaTarefasTab } from "@/components/agenda/AgendaTarefasTab";
 import { AgendaTudoTab } from "@/components/agenda/AgendaTudoTab";
 import { AgendaVisitasTab } from "@/components/agenda/AgendaVisitasTab";
+import { GuiaAgendaDialog } from "@/components/guias/GuiaAgendaDialog";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 

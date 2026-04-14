@@ -29,6 +29,7 @@ import { CampaignGalleryTab } from "@/components/campanhas/CampaignGalleryTab";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { GuiaCampanhasDialog } from "@/components/guias/GuiaCampanhasDialog";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 

@@ -38,6 +38,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useBankAccounts, type BankAccountBalance } from '@/hooks/useBankAccounts';
 import type { DateRange } from 'react-day-picker';
+import { GuiaFinanceiroDialog } from "@/components/guias/GuiaFinanceiroDialog";
 
 const PAGE_SIZE = 20;
 
