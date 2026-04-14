@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useTasks } from "@/hooks/useTasks";
 import { TaskDetailSheet } from "./TaskDetailSheet";
+import { EventDetailSheet } from "./EventDetailSheet";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
