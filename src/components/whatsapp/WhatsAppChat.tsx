@@ -106,6 +106,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { EventFinancialTab } from "@/components/financial/EventFinancialTab";
 import { useFinancialPermissions } from "@/hooks/useFinancialPermissions";
+import { useFinancialConsent } from "@/hooks/useFinancialConsent";
 
 interface WapiInstance {
   id: string;
