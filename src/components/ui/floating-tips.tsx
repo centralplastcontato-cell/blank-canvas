@@ -313,6 +313,7 @@ export function FloatingTips() {
       {/* Drag handle + controls */}
       <div
         className="flex items-center justify-between px-4 py-2.5 cursor-grab active:cursor-grabbing border-b border-border/30"
+        style={{ touchAction: "none" }}
         onPointerDown={handlePointerDown}
       >
         <div className="flex items-center gap-2 text-muted-foreground">
