@@ -11,6 +11,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
 import { WhatsAppChat } from "@/components/whatsapp/WhatsAppChat";
+import { GuiaCRMDialog } from "@/components/guias/GuiaCRMDialog";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Menu, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
