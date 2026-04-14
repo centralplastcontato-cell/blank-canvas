@@ -81,6 +81,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       setExpenseDate(defaultValues.expense_date || '');
       setCategory(defaultValues.category || 'outros');
       setExpenseType(defaultValues.expense_type || defaultExpenseType || 'fixa');
+      setStatus(defaultValues.status || 'pendente');
       setSubcategory(defaultValues.subcategory || '');
       setNotes(defaultValues.notes || '');
       setBankAccountId(defaultValues.bank_account_id || '');
