@@ -62,10 +62,10 @@ export function PartialPaymentDialog({ open, onOpenChange, onSubmit, paymentAmou
   };
 
   const handleSubmit = async () => {
-    const val = parseCurrencyInput(amount);
+    const originalRemaining = paymentAmount - paidSoFar;
     if (!val || val <= 0) return;
-    if (val > remaining + 0.01) {
-      toast({ title: 'Valor excede o saldo', description: `Restante: ${fmt(remaining)}`, variant: 'destructive' });
+    if (val > originalRemaining + 0.01) {
+      toast({ title: 'Valor excede o saldo', description: `Restante: ${fmt(originalRemaining)}`, variant: 'destructive' });
       return;
     }
     setSubmitting(true);
