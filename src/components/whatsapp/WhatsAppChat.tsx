@@ -6719,6 +6719,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                 canEdit={financialPerms.canEdit}
                 canPay={financialPerms.canPay}
                 showValues={financialPerms.canViewValues}
+                onConsentSubmit={financialPerms.requiresConsent ? consentHookChat.submitForConsent : undefined}
               />
             </div>
           </SheetContent>
