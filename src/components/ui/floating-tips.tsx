@@ -152,6 +152,8 @@ export function FloatingTips() {
   const dragRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
   const hasDraggedRef = useRef(false);
+  const positionRef = useRef(position);
+  positionRef.current = position;
 
   const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
   const cardWidth = isDesktop ? DESKTOP_WIDTH : MOBILE_WIDTH;
