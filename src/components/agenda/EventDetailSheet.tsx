@@ -18,6 +18,7 @@ import { EventTasksSection } from "./EventTasksSection";
 import { EventFormsStatusPanel } from "./EventFormsStatusPanel";
 import { EventFinancialTab } from "@/components/financial/EventFinancialTab";
 import { useFinancialPermissions } from "@/hooks/useFinancialPermissions";
+import { useFinancialConsent } from "@/hooks/useFinancialConsent";
 
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -65,6 +66,7 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
 
 export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, conflicts = [], userId }: EventDetailSheetProps) {
   const financialPerms = useFinancialPermissions(userId);
+  const consentHook = useFinancialConsent();
   
   const [leadName, setLeadName] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -391,6 +393,7 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                   canPay={financialPerms.canPay}
                   showValues={financialPerms.canViewValues}
                   onAddOptional={() => onEdit(event)}
+                  onConsentSubmit={financialPerms.requiresConsent ? consentHook.submitForConsent : undefined}
                 />
               </div>
             </div>

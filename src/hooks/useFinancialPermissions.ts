@@ -7,6 +7,7 @@ export interface FinancialPermissions {
   canEdit: boolean;
   canPay: boolean;
   canViewBankAccounts: boolean;
+  requiresConsent: boolean;
 }
 
 /**
@@ -20,6 +21,7 @@ export function useFinancialPermissions(userId: string | undefined) {
     canEdit: true,
     canPay: true,
     canViewBankAccounts: true,
+    requiresConsent: false,
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -40,6 +42,7 @@ export function useFinancialPermissions(userId: string | undefined) {
           'financial.edit',
           'financial.payments',
           'financial.bank_accounts',
+          'financial.consent',
         ]);
 
       const map: Record<string, boolean> = {};
@@ -53,6 +56,7 @@ export function useFinancialPermissions(userId: string | undefined) {
         canEdit: map['financial.edit'] ?? true,
         canPay: map['financial.payments'] ?? true,
         canViewBankAccounts: map['financial.bank_accounts'] ?? true,
+        requiresConsent: map['financial.consent'] ?? false,
       });
     } catch (err) {
       console.error('[useFinancialPermissions] Error:', err);

@@ -12,6 +12,8 @@ import { RevenueFormDialog } from '@/components/financial/RevenueFormDialog';
 import { EventFinancialTab } from '@/components/financial/EventFinancialTab';
 import { FinancialReportDialog } from '@/components/financial/FinancialReportDialog';
 import { MarkExpensePaidDialog } from '@/components/financial/MarkExpensePaidDialog';
+import { ConsentTab } from '@/components/financial/ConsentTab';
+import { useFinancialConsent } from '@/hooks/useFinancialConsent';
 
 import { BankAccountStatement } from '@/components/financial/BankAccountStatement';
 import { ClosedPartiesTab } from '@/components/financial/ClosedPartiesTab';
@@ -31,7 +33,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users, ChevronLeft, ChevronRight, ExternalLink, ArrowUpDown, CalendarRange, X, FileText, CheckCircle, RotateCcw, Clock, ArrowLeftRight } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users, ChevronLeft, ChevronRight, ExternalLink, ArrowUpDown, CalendarRange, X, FileText, CheckCircle, RotateCcw, Clock, ArrowLeftRight, ClipboardCheck } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, addMonths, startOfYear, endOfYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -99,6 +101,7 @@ export default function Financeiro() {
   const { unitOptions, units } = useCompanyUnits(currentCompany?.id);
   const isSalesOnly = units.length > 0 && units.every(u => /vendas/i.test(u.name));
   const dashboard = useFinanceiroDashboard();
+  const consentHook = useFinancialConsent();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [expenseDialogType, setExpenseDialogType] = useState<string>('fixa');
@@ -141,6 +144,23 @@ export default function Financeiro() {
 
   const confirmMarkPaymentPaid = async () => {
     if (!markPaidPayment) return;
+    
+    if (financialPerms.requiresConsent) {
+      const success = await consentHook.submitForConsent({
+        actionType: 'payment_paid',
+        entityId: markPaidPayment.id,
+        entityTable: 'event_payments',
+        payload: { bank_account_id: markPaidBankId || null },
+        description: `Parcela - ${markPaidPayment.lead_name || markPaidPayment.event_title || 'Pagamento'}`,
+        amount: markPaidPayment.amount,
+      });
+      if (success) {
+        setMarkPaidPayment(null);
+        setMarkPaidBankId(null);
+      }
+      return;
+    }
+    
     await dashboard.markPaymentAsPaid(markPaidPayment.id, markPaidBankId);
     setMarkPaidPayment(null);
     setMarkPaidBankId(null);
@@ -395,13 +415,28 @@ export default function Financeiro() {
               {/* Tabs */}
               <Tabs defaultValue="receitas" className="w-full">
                 <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex-wrap">
-                  {(financialPerms.canViewBankAccounts ? ['receitas', 'despesas', 'festas', 'resultado', 'contas'] : ['receitas', 'despesas', 'festas', 'resultado']).map(tab => (
+                  {(() => {
+                    const tabs = ['receitas', 'despesas', 'festas', 'resultado'];
+                    if (financialPerms.canViewBankAccounts) tabs.push('contas');
+                    if (consentHook.pendingCount > 0 || !financialPerms.requiresConsent) tabs.push('consentimento');
+                    return tabs;
+                  })().map(tab => (
                     <TabsTrigger
                       key={tab}
                       value={tab}
-                      className="rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground"
+                      className="rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground relative"
                     >
-                      {tab === 'receitas' ? 'Receitas' : tab === 'despesas' ? 'Despesas' : tab === 'festas' ? '🎉 Festas' : tab === 'resultado' ? 'Resultado' : '🏦 Contas'}
+                      {tab === 'receitas' ? 'Receitas' : tab === 'despesas' ? 'Despesas' : tab === 'festas' ? '🎉 Festas' : tab === 'resultado' ? 'Resultado' : tab === 'contas' ? '🏦 Contas' : (
+                        <span className="flex items-center gap-1.5">
+                          <ClipboardCheck className="h-3.5 w-3.5" />
+                          Consentimento
+                          {consentHook.pendingCount > 0 && (
+                            <Badge className="h-5 min-w-[20px] px-1.5 text-[10px] bg-amber-500 text-white border-0">
+                              {consentHook.pendingCount}
+                            </Badge>
+                          )}
+                        </span>
+                      )}
                     </TabsTrigger>
                   ))}
                 </TabsList>
@@ -997,6 +1032,11 @@ export default function Financeiro() {
                     onOpenEvent={handleOpenEvent}
                   />
                 </TabsContent>
+
+                {/* Tab Consentimento */}
+                <TabsContent value="consentimento" className="space-y-4">
+                  <ConsentTab consentHook={consentHook} onRefreshDashboard={dashboard.refresh} />
+                </TabsContent>
               </Tabs>
             </div>
           </main>
@@ -1084,6 +1124,7 @@ export default function Financeiro() {
                 eventId={selectedEventId}
                 companyId={currentCompany.id}
                 baseValue={selectedEventData.total_value}
+                onConsentSubmit={financialPerms.requiresConsent ? consentHook.submitForConsent : undefined}
               />
             </div>
           )}
@@ -1103,7 +1144,9 @@ export default function Financeiro() {
           onOpenChange={(open) => { if (!open) setMarkPaidExpense(null); }}
           expenseId={markPaidExpense.id}
           expenseDescription={markPaidExpense.description}
+          expenseAmount={(markPaidExpense as any).amount}
           onConfirm={(id, data) => dashboard.updateExpense(id, data)}
+          onConsentSubmit={financialPerms.requiresConsent ? consentHook.submitForConsent : undefined}
         />
       )}
 
