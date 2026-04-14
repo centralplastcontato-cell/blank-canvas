@@ -112,6 +112,30 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
         revenuesQuery = revenuesQuery.lte('revenue_date', dateTo);
       }
 
+      // Fetch ALL amounts (no date filter) to compute real current balance
+      const allEntriesQuery = supabase
+        .from('event_payments')
+        .select('amount')
+        .eq('bank_account_id', account.id)
+        .eq('status', 'paid');
+
+      const allPartialQuery = (supabase as any)
+        .from('event_payment_entries')
+        .select('amount')
+        .eq('bank_account_id', account.id);
+
+      const allExitsQuery = supabase
+        .from('company_expenses')
+        .select('amount')
+        .eq('bank_account_id', account.id)
+        .eq('status', 'pago');
+
+      const allRevenuesQuery = (supabase as any)
+        .from('company_revenues')
+        .select('amount')
+        .eq('bank_account_id', account.id)
+        .eq('status', 'recebido');
+
       // Only fetch movements after the selected end date when needed.
       let postEntriesQuery = supabase
         .from('event_payments')
@@ -143,11 +167,15 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
         postRevenuesQuery = postRevenuesQuery.gt('revenue_date', dateTo);
       }
 
-      const [entriesRes, partialEntriesRes, exitsRes, revenuesRes, postEntriesRes, postPartialRes, postExitsRes, postRevenuesRes] = await Promise.all([
+      const [entriesRes, partialEntriesRes, exitsRes, revenuesRes, allEntriesRes, allPartialRes, allExitsRes, allRevenuesRes, postEntriesRes, postPartialRes, postExitsRes, postRevenuesRes] = await Promise.all([
         entriesQuery,
         partialEntriesQuery,
         exitsQuery,
         revenuesQuery,
+        allEntriesQuery,
+        allPartialQuery,
+        allExitsQuery,
+        allRevenuesQuery,
         dateTo ? postEntriesQuery : Promise.resolve({ data: [] }),
         dateTo ? postPartialQuery : Promise.resolve({ data: [] }),
         dateTo ? postExitsQuery : Promise.resolve({ data: [] }),
@@ -231,11 +259,19 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
       const allEntries = [...entries, ...partialMovements, ...revenueMovements];
       const periodEntries = allEntries.reduce((sum, movement) => sum + movement.amount, 0);
       const periodExits = exits.reduce((sum, movement) => sum + (movement.type === 'exit' ? movement.amount : 0), 0);
+
+      // Compute REAL current balance from DB totals (not stale prop)
+      const realTotalEntries = (allEntriesRes.data || []).reduce((s: number, p: any) => s + Number(p.amount), 0)
+        + (allPartialRes.data || []).reduce((s: number, pe: any) => s + Number(pe.amount), 0)
+        + (allRevenuesRes.data || []).reduce((s: number, r: any) => s + Number(r.amount), 0);
+      const realTotalExits = (allExitsRes.data || []).reduce((s: number, e: any) => s + Number(e.amount), 0);
+      const realCurrentBalance = account.initial_balance + realTotalEntries - realTotalExits;
+
       const futureEntries = (postEntriesRes.data || []).reduce((sum: number, payment: any) => sum + Number(payment.amount), 0)
         + (postPartialRes.data || []).reduce((sum: number, pe: any) => sum + Number(pe.amount), 0)
         + (postRevenuesRes.data || []).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
       const futureExitsNet = (postExitsRes.data || []).reduce((sum: number, expense: any) => sum + Number(expense.amount), 0);
-      const balanceAtPeriodEnd = account.current_balance - futureEntries + futureExitsNet;
+      const balanceAtPeriodEnd = realCurrentBalance - futureEntries + futureExitsNet;
 
       setBalanceBefore(balanceAtPeriodEnd - periodEntries + periodExits);
 
@@ -243,7 +279,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
     } finally {
       setIsLoading(false);
     }
-  }, [account.current_balance, account.id, dateFrom, dateTo]);
+  }, [account.initial_balance, account.id, dateFrom, dateTo]);
 
   useEffect(() => { fetchMovements(); }, [fetchMovements]);
 
