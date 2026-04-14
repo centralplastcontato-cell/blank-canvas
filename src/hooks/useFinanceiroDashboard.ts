@@ -349,15 +349,19 @@ export function useFinanceiroDashboard() {
   const nonPermutaPayments = filteredPayments.filter(p => !p.is_permuta);
 
   const paidThisMonth = nonPermutaPayments.filter(p => p.status === 'paid' && p.paid_at && p.paid_at.slice(0, 10) >= periodFrom && p.paid_at.slice(0, 10) <= periodTo);
+  // Include entries_total from partial payments (entries already received even if installment not fully paid)
+  const partialReceivedInPeriod = nonPermutaPayments.filter(p => p.status === 'partial' && p.entries_total > 0);
   const revenuesReceivedInPeriod = revenues.filter(r => r.status === 'recebido' && r.revenue_date >= periodFrom && r.revenue_date <= periodTo);
-  const totalReceivedMonth = paidThisMonth.reduce((s, p) => s + p.amount, 0) + revenuesReceivedInPeriod.reduce((s: number, r: any) => s + r.amount, 0);
+  const totalReceivedMonth = paidThisMonth.reduce((s, p) => s + p.amount, 0)
+    + partialReceivedInPeriod.reduce((s, p) => s + p.entries_total, 0)
+    + revenuesReceivedInPeriod.reduce((s: number, r: any) => s + r.amount, 0);
 
-  const pendingThisMonth = nonPermutaPayments.filter(p => p.status === 'pending' && p.due_date >= periodFrom && p.due_date <= periodTo);
+  const pendingThisMonth = nonPermutaPayments.filter(p => (p.status === 'pending' || p.status === 'partial') && p.due_date >= periodFrom && p.due_date <= periodTo);
   const revenuesPendingInPeriod = revenues.filter(r => r.status === 'pendente' && r.revenue_date >= periodFrom && r.revenue_date <= periodTo);
-  const totalPendingMonth = pendingThisMonth.reduce((s, p) => s + p.amount, 0) + revenuesPendingInPeriod.reduce((s: number, r: any) => s + r.amount, 0);
+  const totalPendingMonth = pendingThisMonth.reduce((s, p) => s + (p.amount - p.entries_total), 0) + revenuesPendingInPeriod.reduce((s: number, r: any) => s + r.amount, 0);
 
   const latePayments = nonPermutaPayments.filter(p => p.status === 'late').sort((a, b) => a.due_date.localeCompare(b.due_date));
-  const totalLate = latePayments.reduce((s, p) => s + p.amount, 0);
+  const totalLate = latePayments.reduce((s, p) => s + (p.amount - p.entries_total), 0);
 
   const expensesThisMonth = filteredExpenses.filter(e => e.expense_date >= periodFrom && e.expense_date <= periodTo);
   const realExpensesThisMonth = expensesThisMonth.filter(e => e.expense_type !== 'ajuste');
