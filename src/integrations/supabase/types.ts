@@ -1727,8 +1727,10 @@ export type Database = {
           description: string | null
           due_date: string | null
           due_time: string | null
+          event_id: string | null
           id: string
           is_recurring: boolean | null
+          lead_id: string | null
           parent_task_id: string | null
           priority: string
           recurrence_days: number[] | null
@@ -1750,8 +1752,10 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           due_time?: string | null
+          event_id?: string | null
           id?: string
           is_recurring?: boolean | null
+          lead_id?: string | null
           parent_task_id?: string | null
           priority?: string
           recurrence_days?: number[] | null
@@ -1773,8 +1777,10 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           due_time?: string | null
+          event_id?: string | null
           id?: string
           is_recurring?: boolean | null
+          lead_id?: string | null
           parent_task_id?: string | null
           priority?: string
           recurrence_days?: number[] | null
@@ -1791,6 +1797,20 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_tasks_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "company_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_tasks_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_leads"
             referencedColumns: ["id"]
           },
           {
