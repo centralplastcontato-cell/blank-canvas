@@ -281,6 +281,7 @@ export function FloatingTips() {
       >
         <div
           className="cursor-grab active:cursor-grabbing"
+          style={{ touchAction: "none" }}
           onPointerDown={handlePointerDown}
         >
           <button
