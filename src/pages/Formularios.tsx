@@ -31,6 +31,7 @@ import { CardFeesManager } from "@/components/admin/CardFeesManager";
 import { SellersManager } from "@/components/admin/SellersManager";
 import { BankAccountsManager } from "@/components/financial/BankAccountsManager";
 import { EventTypesConfig } from "@/components/admin/EventTypesConfig";
+import { GuiaOperacoesDialog } from "@/components/guias/GuiaOperacoesDialog";
 
 export default function Formularios() {
   const navigate = useNavigate();
