@@ -40,8 +40,10 @@ const TYPE_LABELS: Record<string, string> = {
 
 export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
   const { currentCompany } = useCompany();
-  const { tasks, loading: tasksLoading } = useTasks();
+  const { tasks, loading: tasksLoading, updateStatus, deleteTask } = useTasks();
   const [events, setEvents] = useState<any[]>([]);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [taskSheetOpen, setTaskSheetOpen] = useState(false);
   const [visits, setVisits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(startOfMonth(new Date()));
