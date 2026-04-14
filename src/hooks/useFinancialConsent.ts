@@ -131,6 +131,32 @@ export function useFinancialConsent() {
       if (consent.payload.bank_account_id) updateData.bank_account_id = consent.payload.bank_account_id;
       const { error } = await supabase.from('event_payments').update(updateData).eq('id', consent.entity_id);
       if (error) actionError = error.message;
+    } else if (consent.action_type === 'partial_payment') {
+      // Insert the partial payment entry
+      const { error } = await (supabase as any).from('event_payment_entries').insert({
+        payment_id: consent.entity_id,
+        company_id: consent.company_id,
+        amount: consent.payload.amount,
+        payment_method: consent.payload.payment_method || null,
+        bank_account_id: consent.payload.bank_account_id || null,
+        receipt_url: consent.payload.receipt_url || null,
+        paid_by: consent.payload.paid_by || null,
+        notes: consent.payload.notes || null,
+      });
+      if (error) {
+        actionError = error.message;
+      } else {
+        // Check if payment is now fully paid
+        const { data: entriesData } = await (supabase as any)
+          .from('event_payment_entries')
+          .select('amount')
+          .eq('payment_id', consent.entity_id);
+        const totalPaid = (entriesData || []).reduce((s: number, e: any) => s + Number(e.amount), 0);
+        const { data: paymentData } = await supabase.from('event_payments').select('amount').eq('id', consent.entity_id).single();
+        if (paymentData && totalPaid >= Number(paymentData.amount)) {
+          await supabase.from('event_payments').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('id', consent.entity_id);
+        }
+      }
     } else if (consent.action_type === 'expense_paid') {
       const updateData: Record<string, any> = { status: 'pago' };
       if (consent.payload.receipt_url) updateData.receipt_url = consent.payload.receipt_url;
