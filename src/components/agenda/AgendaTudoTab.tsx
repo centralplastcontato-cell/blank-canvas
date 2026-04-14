@@ -186,10 +186,10 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
       });
     });
 
-    tasks.filter((t) => t.due_date).forEach((t) => {
+    expandedTaskDates.forEach(({ task: t, date }) => {
       items.push({
-        id: `task-${t.id}`,
-        event_date: t.due_date!,
+        id: `task-${t.id}-${date}`,
+        event_date: date,
         status: t.completed ? "confirmado" : "pendente",
         title: t.title,
         type: "tarefa",
@@ -197,7 +197,7 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
     });
 
     return items;
-  }, [events, visits, tasks]);
+  }, [events, visits, expandedTaskDates]);
 
   const isLoading = loading || tasksLoading;
 
