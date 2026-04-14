@@ -965,7 +965,7 @@ export default function Agenda() {
                       { value: "festas", label: "Festas", icon: CalendarDays },
                       { value: "visitas", label: "Visitas", icon: MapPin },
                       { value: "tarefas", label: "Tarefas", icon: ListChecks },
-                      { value: "tudo", label: "Tudo", icon: List },
+                      { value: "tudo", label: "Geral", icon: List },
                     ].map((tab) => (
                       <button
                         key={tab.value}
@@ -1030,7 +1030,7 @@ export default function Agenda() {
                   { value: "festas", label: "Festas", icon: CalendarDays },
                   { value: "visitas", label: "Visitas", icon: MapPin },
                   { value: "tarefas", label: "Tarefas", icon: ListChecks },
-                  { value: "tudo", label: "Tudo", icon: List },
+                  { value: "tudo", label: "Geral", icon: List },
                 ].map((tab) => (
                   <button
                     key={tab.value}
@@ -1089,7 +1089,7 @@ export default function Agenda() {
                         </div>
                         <div>
                           <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Central de Agenda</h1>
-                          <p className="text-sm text-muted-foreground/70 mt-0.5">Tudo · Visão consolidada de eventos, visitas e tarefas</p>
+                          <p className="text-sm text-muted-foreground/70 mt-0.5">Geral · Visão consolidada de eventos, visitas e tarefas</p>
                         </div>
                       </div>
                     </div>
