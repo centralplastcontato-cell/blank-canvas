@@ -140,6 +140,7 @@ export function useTasks() {
       toast({ title: "Erro ao criar tarefa", description: error.message, variant: "destructive" });
     } else {
       toast({ title: data.is_recurring ? "Tarefa recorrente criada!" : "Tarefa criada!" });
+      logActivity({ companyId: currentCompany.id, action: 'create', module: 'agenda', entityType: 'task', entityName: data.title, details: { category: data.category, priority: data.priority, is_recurring: data.is_recurring } });
       fetchTasks();
     }
   };
