@@ -510,14 +510,7 @@ export default function Financeiro() {
                       </div>
 
                       {/* Linha 2: Ações e visualização */}
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <Button
-                          size="sm"
-                          onClick={() => { setEditingRevenue(null); setRevenueDialogOpen(true); }}
-                          className="gap-1.5"
-                        >
-                          <Plus className="h-3.5 w-3.5" /> Nova Receita
-                        </Button>
+                      <div className="flex items-center justify-end gap-2 flex-wrap">
                         <div className="flex items-center gap-2">
                           <div className="flex items-center bg-muted/50 rounded-lg p-0.5 border border-border/50">
                             <button
@@ -537,6 +530,13 @@ export default function Financeiro() {
                               <Users className="h-3.5 w-3.5" /> Por cliente
                             </button>
                           </div>
+                          <Button
+                            size="sm"
+                            onClick={() => { setEditingRevenue(null); setRevenueDialogOpen(true); }}
+                            className="gap-1.5"
+                          >
+                            <Plus className="h-3.5 w-3.5" /> Nova Receita
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -721,7 +721,7 @@ export default function Financeiro() {
                                 {despesasSortAsc ? 'Mais próxima' : 'Mais recente'}
                               </Button>
                               <Button size="sm" onClick={() => { setExpenseDialogType(expType === 'todos' ? 'fixa' : expType); setExpenseDialogOpen(true); }}>
-                                <Plus className="h-4 w-4 mr-1" /> Adicionar
+                                <Plus className="h-4 w-4 mr-1" /> Nova Despesa
                               </Button>
                             </div>
                           </div>
