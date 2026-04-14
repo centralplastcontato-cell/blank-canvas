@@ -667,7 +667,7 @@ export default function Financeiro() {
                             onClick={() => setDespesasSubTab(t.value)}
                             className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 border whitespace-nowrap ${
                               despesasSubTab === t.value
-                                ? 'bg-foreground text-background border-foreground shadow-sm'
+                                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
                                 : 'bg-transparent text-muted-foreground border-border hover:bg-accent hover:text-foreground'
                             }`}
                           >
