@@ -47,8 +47,8 @@ const EXPENSE_TYPES = [
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { description: string; amount: number; expense_date: string; category: string; expense_type?: string; status: string; notes?: string; receipt_url?: string; boleto_url?: string; bank_account_id?: string }) => void;
-  defaultValues?: { description?: string; amount?: number; expense_date?: string; category?: string; expense_type?: string; status?: string; notes?: string; receipt_url?: string; boleto_url?: string; bank_account_id?: string };
+  onSubmit: (data: { description: string; amount: number; expense_date: string; category: string; subcategory?: string; expense_type?: string; status: string; notes?: string; receipt_url?: string; boleto_url?: string; bank_account_id?: string }) => void;
+  defaultValues?: { description?: string; amount?: number; expense_date?: string; category?: string; subcategory?: string; expense_type?: string; status?: string; notes?: string; receipt_url?: string; boleto_url?: string; bank_account_id?: string };
   defaultExpenseType?: string;
 }
 
