@@ -53,7 +53,8 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [taskSheetOpen, setTaskSheetOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
-  const [eventSheetOpen, setEventSheetOpen] = useState(false);
+  const [selectedVisit, setSelectedVisit] = useState<any>(null);
+  const [visitSheetOpen, setVisitSheetOpen] = useState(false);
   const [visits, setVisits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(startOfMonth(new Date()));
