@@ -12,6 +12,8 @@ import { RevenueFormDialog } from '@/components/financial/RevenueFormDialog';
 import { EventFinancialTab } from '@/components/financial/EventFinancialTab';
 import { FinancialReportDialog } from '@/components/financial/FinancialReportDialog';
 import { MarkExpensePaidDialog } from '@/components/financial/MarkExpensePaidDialog';
+import { ConsentTab } from '@/components/financial/ConsentTab';
+import { useFinancialConsent } from '@/hooks/useFinancialConsent';
 
 import { BankAccountStatement } from '@/components/financial/BankAccountStatement';
 import { ClosedPartiesTab } from '@/components/financial/ClosedPartiesTab';
@@ -31,7 +33,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users, ChevronLeft, ChevronRight, ExternalLink, ArrowUpDown, CalendarRange, X, FileText, CheckCircle, RotateCcw, Clock, ArrowLeftRight } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users, ChevronLeft, ChevronRight, ExternalLink, ArrowUpDown, CalendarRange, X, FileText, CheckCircle, RotateCcw, Clock, ArrowLeftRight, ClipboardCheck } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, addMonths, startOfYear, endOfYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
