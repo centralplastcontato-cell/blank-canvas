@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "@/hooks/use-toast";
 
+export type TaskStatus = "pendente" | "em_andamento" | "concluida";
+
 export interface CompanyTask {
   id: string;
   company_id: string;
@@ -18,6 +20,7 @@ export interface CompanyTask {
   created_by: string;
   created_at: string;
   updated_at: string;
+  status: TaskStatus;
 }
 
 export type TaskFormData = {
@@ -51,6 +54,12 @@ export const TASK_PRIORITIES = [
   { value: "urgente", label: "Urgente", color: "text-red-600 bg-red-100 border-red-200" },
 ];
 
+export const TASK_STATUSES = [
+  { value: "pendente" as TaskStatus, label: "Pendente", icon: "⏳", color: "text-amber-600 bg-amber-50 border-amber-200" },
+  { value: "em_andamento" as TaskStatus, label: "Em andamento", icon: "🔄", color: "text-blue-600 bg-blue-50 border-blue-200" },
+  { value: "concluida" as TaskStatus, label: "Concluída", icon: "✅", color: "text-emerald-600 bg-emerald-50 border-emerald-200" },
+];
+
 export function useTasks() {
   const { currentCompany } = useCompany();
   const [tasks, setTasks] = useState<CompanyTask[]>([]);
@@ -71,7 +80,7 @@ export function useTasks() {
       console.error("Error fetching tasks:", error);
       toast({ title: "Erro ao carregar tarefas", variant: "destructive" });
     } else {
-      setTasks((data || []) as CompanyTask[]);
+      setTasks((data || []).map(d => ({ ...d, status: (d as any).status || (d.completed ? 'concluida' : 'pendente') })) as CompanyTask[]);
     }
     setLoading(false);
   }, [currentCompany?.id]);
@@ -92,6 +101,7 @@ export function useTasks() {
       due_time: data.due_time || null,
       assigned_to: data.assigned_to || null,
       created_by: userId,
+      status: "pendente",
     });
     if (error) {
       toast({ title: "Erro ao criar tarefa", description: error.message, variant: "destructive" });
@@ -111,12 +121,22 @@ export function useTasks() {
   };
 
   const toggleComplete = async (id: string, completed: boolean) => {
+    const newStatus: TaskStatus = completed ? "concluida" : "pendente";
     const { error } = await supabase
       .from("company_tasks")
-      .update({
-        completed,
-        completed_at: completed ? new Date().toISOString() : null,
-      })
+      .update({ status: newStatus })
+      .eq("id", id);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      fetchTasks();
+    }
+  };
+
+  const updateStatus = async (id: string, status: TaskStatus) => {
+    const { error } = await supabase
+      .from("company_tasks")
+      .update({ status })
       .eq("id", id);
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
@@ -135,5 +155,5 @@ export function useTasks() {
     }
   };
 
-  return { tasks, loading, fetchTasks, createTask, updateTask, toggleComplete, deleteTask };
+  return { tasks, loading, fetchTasks, createTask, updateTask, toggleComplete, updateStatus, deleteTask };
 }

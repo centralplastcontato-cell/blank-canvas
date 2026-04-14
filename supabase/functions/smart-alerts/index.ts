@@ -218,6 +218,26 @@ Deno.serve(async (req) => {
         }
       }
 
+      // ===================== ALERTA 7: TAREFAS ATRASADAS =====================
+      const todayStr = now.toISOString().split("T")[0];
+      const { data: overdueTasks } = await supabase
+        .from("company_tasks")
+        .select("id")
+        .eq("company_id", companyId)
+        .eq("completed", false)
+        .lt("due_date", todayStr);
+
+      const overdueTaskCount = overdueTasks?.length || 0;
+      if (overdueTaskCount > 0) {
+        alerts.push({
+          alert_type: "tarefas_atrasadas",
+          alert_message: `⚠️ Você tem ${overdueTaskCount} tarefa${overdueTaskCount > 1 ? "s" : ""} atrasada${overdueTaskCount > 1 ? "s" : ""}.`,
+          severity: overdueTaskCount >= 5 ? "critical" : "warning",
+          related_filter: { action: "navigate", path: "/agenda", tab: "tarefas" },
+          priority: 4,
+        });
+      }
+
       // Sort by priority, take top MAX_ALERTS
       alerts.sort((a, b) => a.priority - b.priority);
       const topAlerts = alerts.slice(0, MAX_ALERTS);
