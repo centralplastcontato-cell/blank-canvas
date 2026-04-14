@@ -7,18 +7,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 
-import { Repeat, Info } from "lucide-react";
+import { Repeat, Info, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TASK_CATEGORIES, TASK_PRIORITIES, RECURRENCE_OPTIONS, WEEKDAYS, type TaskFormData, type CompanyTask, type RecurrenceType } from "@/hooks/useTasks";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 
 interface TaskFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: TaskFormData) => void;
   initialData?: CompanyTask | null;
+  presetEventId?: string | null;
+  presetLeadId?: string | null;
 }
 
-export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData }: TaskFormDialogProps) {
+export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData, presetEventId, presetLeadId }: TaskFormDialogProps) {
+  const { currentCompany } = useCompany();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("outros");
@@ -30,6 +35,20 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData }: Ta
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
   const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]);
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
+  const [eventId, setEventId] = useState<string | null>(null);
+  const [events, setEvents] = useState<Array<{ id: string; title: string; event_date: string }>>([]);
+
+  // Fetch events for linking
+  useEffect(() => {
+    if (!open || !currentCompany?.id) return;
+    supabase
+      .from("company_events")
+      .select("id, title, event_date")
+      .eq("company_id", currentCompany.id)
+      .neq("status", "cancelado")
+      .order("event_date", { ascending: true })
+      .then(({ data }) => setEvents(data || []));
+  }, [open, currentCompany?.id]);
 
   useEffect(() => {
     if (open) {
@@ -46,6 +65,7 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData }: Ta
         setRecurrenceInterval(taskAny.recurrence_interval || 1);
         setRecurrenceDays(taskAny.recurrence_days || []);
         setRecurrenceEndDate(taskAny.recurrence_end_date || "");
+        setEventId(taskAny.event_id || null);
       } else {
         setTitle("");
         setDescription("");
@@ -58,9 +78,10 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData }: Ta
         setRecurrenceInterval(1);
         setRecurrenceDays([]);
         setRecurrenceEndDate("");
+        setEventId(presetEventId || null);
       }
     }
-  }, [open, initialData]);
+  }, [open, initialData, presetEventId]);
 
   const toggleDay = (day: number) => {
     setRecurrenceDays(prev =>
@@ -82,6 +103,8 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData }: Ta
       recurrence_interval: isRecurring ? recurrenceInterval : 1,
       recurrence_days: isRecurring && recurrenceType === "semanal" ? recurrenceDays : null,
       recurrence_end_date: isRecurring && recurrenceEndDate ? recurrenceEndDate : null,
+      event_id: eventId || null,
+      lead_id: presetLeadId || null,
     });
     onOpenChange(false);
   };
@@ -157,6 +180,29 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData }: Ta
               <Input type="time" value={dueTime} onChange={(e) => setDueTime(e.target.value)} className="w-full h-10" />
             </div>
           </div>
+
+          {/* Event Link Section */}
+          {!presetEventId && (
+            <div>
+              <Label className="flex items-center gap-1.5">
+                <Link2 className="h-3.5 w-3.5 text-primary" />
+                Vincular a evento (opcional)
+              </Label>
+              <Select value={eventId || "none"} onValueChange={(v) => setEventId(v === "none" ? null : v)}>
+                <SelectTrigger className="w-full mt-1">
+                  <SelectValue placeholder="Nenhum evento vinculado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {events.map((ev) => (
+                    <SelectItem key={ev.id} value={ev.id}>
+                      🎉 {ev.title} — {new Date(ev.event_date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Recurrence Section */}
           <div className={cn(

@@ -54,6 +54,8 @@ export type TaskFormData = {
   recurrence_interval?: number;
   recurrence_days?: number[] | null;
   recurrence_end_date?: string | null;
+  event_id?: string | null;
+  lead_id?: string | null;
 };
 
 export const TASK_CATEGORIES = [
@@ -130,6 +132,8 @@ export function useTasks() {
       recurrence_interval: data.recurrence_interval || 1,
       recurrence_days: data.recurrence_days || null,
       recurrence_end_date: data.recurrence_end_date || null,
+      event_id: data.event_id || null,
+      lead_id: data.lead_id || null,
     } as any);
     if (error) {
       toast({ title: "Erro ao criar tarefa", description: error.message, variant: "destructive" });

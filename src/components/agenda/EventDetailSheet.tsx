@@ -14,6 +14,7 @@ import { ptBR } from "date-fns/locale";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { EventChecklist } from "./EventChecklist";
+import { EventTasksSection } from "./EventTasksSection";
 import { EventFormsStatusPanel } from "./EventFormsStatusPanel";
 import { EventFinancialTab } from "@/components/financial/EventFinancialTab";
 import { useFinancialPermissions } from "@/hooks/useFinancialPermissions";
@@ -747,6 +748,14 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
 
 
 
+
+          {/* Linked Tasks */}
+          {userId && event.company_id && (
+            <>
+              <Separator />
+              <EventTasksSection eventId={event.id} userId={userId} companyId={event.company_id} />
+            </>
+          )}
 
           {/* Action Buttons */}
           <div className="flex gap-2 pt-1 pb-2">

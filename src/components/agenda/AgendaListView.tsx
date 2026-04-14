@@ -2,7 +2,9 @@ import { format, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Users, MapPin, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Clock, Users, MapPin, AlertTriangle, ChevronLeft, ChevronRight, CheckSquare } from "lucide-react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CompanyEvent {
   id: string;
@@ -28,6 +30,25 @@ interface AgendaListViewProps {
 }
 
 export function AgendaListView({ events, onEventClick, getConflicts, month, onMonthChange }: AgendaListViewProps) {
+  const [taskCounts, setTaskCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const eventIds = events.map(e => e.id);
+    if (eventIds.length === 0) { setTaskCounts({}); return; }
+    supabase
+      .from("company_tasks")
+      .select("event_id")
+      .in("event_id", eventIds)
+      .neq("status", "concluida")
+      .then(({ data }) => {
+        const counts: Record<string, number> = {};
+        (data || []).forEach((t: any) => {
+          if (t.event_id) counts[t.event_id] = (counts[t.event_id] || 0) + 1;
+        });
+        setTaskCounts(counts);
+      });
+  }, [events]);
+
   const grouped = new Map<string, CompanyEvent[]>();
   events.forEach((ev) => {
     const key = ev.event_date;
@@ -114,6 +135,11 @@ export function AgendaListView({ events, onEventClick, getConflicts, month, onMo
                       {conflicts.length > 0 && (
                         <div className="flex items-center gap-1 text-xs text-destructive font-medium mt-1.5">
                           <AlertTriangle className="h-3 w-3" /> Conflito de horário
+                        </div>
+                      )}
+                      {taskCounts[ev.id] > 0 && (
+                        <div className="flex items-center gap-1 text-xs text-primary font-medium mt-1">
+                          <CheckSquare className="h-3 w-3" /> {taskCounts[ev.id]} tarefa{taskCounts[ev.id] > 1 ? "s" : ""} pendente{taskCounts[ev.id] > 1 ? "s" : ""}
                         </div>
                       )}
                     </button>
