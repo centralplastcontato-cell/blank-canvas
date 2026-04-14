@@ -10,10 +10,12 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   expenseId: string;
   expenseDescription: string;
+  expenseAmount?: number;
   onConfirm: (id: string, data: { status: string; receipt_url?: string; bank_account_id?: string }) => void;
+  onConsentSubmit?: (params: { actionType: string; entityId: string; entityTable: string; payload: Record<string, any>; description?: string; amount?: number }) => Promise<boolean | undefined>;
 }
 
-export function MarkExpensePaidDialog({ open, onOpenChange, expenseId, expenseDescription, onConfirm }: Props) {
+export function MarkExpensePaidDialog({ open, onOpenChange, expenseId, expenseDescription, expenseAmount, onConfirm, onConsentSubmit }: Props) {
   const [uploading, setUploading] = useState(false);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -35,10 +37,24 @@ export function MarkExpensePaidDialog({ open, onOpenChange, expenseId, expenseDe
     setUploading(false);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     const data: { status: string; receipt_url?: string; bank_account_id?: string } = { status: 'pago' };
     if (receiptUrl) data.receipt_url = receiptUrl;
     if (bankAccountId) data.bank_account_id = bankAccountId;
+    
+    if (onConsentSubmit) {
+      const success = await onConsentSubmit({
+        actionType: 'expense_paid',
+        entityId: expenseId,
+        entityTable: 'company_expenses',
+        payload: { receipt_url: receiptUrl, bank_account_id: bankAccountId || null },
+        description: expenseDescription,
+        amount: expenseAmount,
+      });
+      if (success) handleClose();
+      return;
+    }
+    
     onConfirm(expenseId, data);
     handleClose();
   };
