@@ -166,9 +166,12 @@ export function ChecklistTemplateManager() {
   return (
     <div className="max-w-6xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <ListChecks className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold">Templates de Checklist</h3>
+        <div>
+          <div className="flex items-center gap-2">
+            <ListChecks className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold">Templates de Checklist</h3>
+          </div>
+          <p className="text-sm text-muted-foreground mt-0.5">Crie modelos de checklist para agilizar a preparação das festas</p>
         </div>
         <Button size="sm" onClick={openNew}>
           <Plus className="h-4 w-4 mr-1" /> Novo Template
