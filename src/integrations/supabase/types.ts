@@ -1728,7 +1728,13 @@ export type Database = {
           due_date: string | null
           due_time: string | null
           id: string
+          is_recurring: boolean | null
+          parent_task_id: string | null
           priority: string
+          recurrence_days: number[] | null
+          recurrence_end_date: string | null
+          recurrence_interval: number | null
+          recurrence_type: string | null
           status: string
           title: string
           updated_at: string
@@ -1745,7 +1751,13 @@ export type Database = {
           due_date?: string | null
           due_time?: string | null
           id?: string
+          is_recurring?: boolean | null
+          parent_task_id?: string | null
           priority?: string
+          recurrence_days?: number[] | null
+          recurrence_end_date?: string | null
+          recurrence_interval?: number | null
+          recurrence_type?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -1762,7 +1774,13 @@ export type Database = {
           due_date?: string | null
           due_time?: string | null
           id?: string
+          is_recurring?: boolean | null
+          parent_task_id?: string | null
           priority?: string
+          recurrence_days?: number[] | null
+          recurrence_end_date?: string | null
+          recurrence_interval?: number | null
+          recurrence_type?: string | null
           status?: string
           title?: string
           updated_at?: string
@@ -1773,6 +1791,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "company_tasks"
             referencedColumns: ["id"]
           },
         ]
