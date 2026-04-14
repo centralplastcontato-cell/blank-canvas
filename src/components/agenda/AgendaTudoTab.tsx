@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
-import { useTasks, type CompanyTask, type TaskStatus } from "@/hooks/useTasks";
+import { useTasks } from "@/hooks/useTasks";
 import { TaskDetailSheet } from "./TaskDetailSheet";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
