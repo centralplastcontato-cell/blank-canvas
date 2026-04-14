@@ -538,10 +538,12 @@ export default function Admin() {
       const { error } = await supabase.from("company_events").update(payload).eq("id", data.id);
       if (error) { toast({ title: "Erro ao salvar festa", description: error.message, variant: "destructive" }); throw error; }
       toast({ title: "Festa atualizada!" });
+      logActivity({ companyId: currentCompany.id, action: 'update', module: 'events', entityType: 'event', entityId: data.id, entityName: data.title });
     } else {
       const { data: newEvent, error } = await supabase.from("company_events").insert(payload).select("id").single();
       if (error) { toast({ title: "Erro ao criar festa", description: error.message, variant: "destructive" }); throw error; }
       toast({ title: "Festa criada com sucesso!" });
+      logActivity({ companyId: currentCompany.id, action: 'create', module: 'events', entityType: 'event', entityId: newEvent.id, entityName: data.title });
       return newEvent.id;
     }
   };
