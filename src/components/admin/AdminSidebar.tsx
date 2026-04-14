@@ -184,6 +184,7 @@ export function AdminSidebar({
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
     <FloatingTips />
