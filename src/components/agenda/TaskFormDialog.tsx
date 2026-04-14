@@ -7,9 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 
-import { Repeat, Info } from "lucide-react";
+import { Repeat, Info, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TASK_CATEGORIES, TASK_PRIORITIES, RECURRENCE_OPTIONS, WEEKDAYS, type TaskFormData, type CompanyTask, type RecurrenceType } from "@/hooks/useTasks";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 
 interface TaskFormDialogProps {
   open: boolean;
