@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, MapPin, CheckCircle2, Clock, PartyPopper, CalendarDays } from "lucide-react";
-import { format, startOfMonth, endOfMonth, isToday as isTodayFn, eachDayOfInterval, getDay, addDays } from "date-fns";
+import { format, startOfMonth, endOfMonth, isToday as isTodayFn, eachDayOfInterval, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AgendaCalendar } from "./AgendaCalendar";
 import { cn } from "@/lib/utils";
