@@ -170,7 +170,6 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData }: Ta
                 <div className="p-2 rounded-lg bg-primary/15">
                   <Repeat className="h-4 w-4 text-primary" />
                 </div>
-                </div>
                 <div>
                   <span className="text-sm font-semibold block">Tarefa recorrente</span>
                   <span className="text-[11px] text-muted-foreground">Repetir automaticamente</span>
