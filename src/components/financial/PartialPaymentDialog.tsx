@@ -102,11 +102,11 @@ export function PartialPaymentDialog({ open, onOpenChange, onSubmit, paymentAmou
           </div>
           <div className="flex justify-between text-xs text-muted-foreground mt-1">
             <span>Já pago:</span>
-            <span className="font-semibold text-emerald-500">{fmt(paidSoFar)}</span>
+            <span className="font-semibold text-emerald-500">{fmt(newPaidSoFar)}</span>
           </div>
           <div className="flex justify-between text-xs font-bold mt-1 pt-1 border-t border-border">
             <span>Restante:</span>
-            <span className="text-amber-500">{fmt(remaining)}</span>
+            <span className={remaining > 0 ? "text-amber-500" : "text-emerald-500"}>{fmt(remaining)}</span>
           </div>
         </div>
 
