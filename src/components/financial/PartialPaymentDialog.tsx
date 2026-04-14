@@ -37,7 +37,9 @@ export function PartialPaymentDialog({ open, onOpenChange, onSubmit, paymentAmou
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const remaining = paymentAmount - paidSoFar;
+  const typedAmount = parseCurrencyInput(amount) || 0;
+  const newPaidSoFar = paidSoFar + typedAmount;
+  const remaining = Math.max(paymentAmount - newPaidSoFar, 0);
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   const handleUploadReceipt = async (e: React.ChangeEvent<HTMLInputElement>) => {
