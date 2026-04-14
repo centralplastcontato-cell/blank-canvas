@@ -305,8 +305,8 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
                       <div
                         key={item.id}
                         className={cn(
-                          "flex items-center gap-2 p-2 rounded-lg border border-border/30 bg-muted/20",
-                          item.type === "tarefa" && "cursor-pointer hover:bg-muted/40 transition-colors"
+                          "flex items-center gap-3 p-3 rounded-xl border border-border/30 bg-card cursor-pointer hover:bg-muted/40 transition-colors border-l-4",
+                          TYPE_BORDER_COLORS[item.type]
                         )}
                         onClick={() => {
                           if (item.type === "tarefa") {
@@ -316,13 +316,24 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
                               setSelectedTask(found);
                               setTaskSheetOpen(true);
                             }
+                          } else if (item.type === "festa") {
+                            const found = events.find(e => e.id === item.id);
+                            if (found) {
+                              setSelectedEvent(found);
+                              setEventSheetOpen(true);
+                            }
                           }
                         }}
                       >
-                         <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 shrink-0", TYPE_COLORS[item.type])}>
+                         <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0.5 shrink-0", TYPE_COLORS[item.type])}>
                            {TYPE_LABELS[item.type]}
                          </Badge>
                          <span className="text-sm font-medium truncate flex-1">{item.title}</span>
+                         {item.extra && (
+                           <span className="text-xs text-muted-foreground flex items-center gap-1">
+                             <MapPin className="h-3 w-3" /> {item.extra}
+                           </span>
+                         )}
                          {item.time && (
                            <span className="text-xs text-muted-foreground flex items-center gap-1">
                              <Clock className="h-3 w-3" /> {item.time}
@@ -330,6 +341,7 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
                          )}
                        </div>
                      ))}
+                  </div>
                   </div>
                 )}
               </CardContent>
