@@ -163,15 +163,12 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData }: Ta
             "rounded-xl border-2 p-4 space-y-3 transition-all",
             isRecurring 
               ? "border-primary/40 bg-primary/5" 
-              : "border-dashed border-border/60 bg-muted/20 hover:border-primary/30 hover:bg-primary/5"
+              : "border-primary/25 bg-primary/[0.03]"
           )}>
             <label className="flex items-center justify-between cursor-pointer">
               <div className="flex items-center gap-2.5">
-                <div className={cn(
-                  "p-2 rounded-lg transition-colors",
-                  isRecurring ? "bg-primary/15" : "bg-muted/50"
-                )}>
-                  <Repeat className={cn("h-4 w-4", isRecurring ? "text-primary" : "text-muted-foreground")} />
+                <div className="p-2 rounded-lg bg-primary/15">
+                  <Repeat className="h-4 w-4 text-primary" />
                 </div>
                 <div>
                   <span className="text-sm font-semibold block">Tarefa recorrente</span>
