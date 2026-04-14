@@ -1,92 +1,57 @@
 
 
-# Pagamentos Parciais (Sub-Pagamentos) dentro de Parcelas
+# Passo 5: Dashboard Financeiro + Extrato com Pagamentos Parciais
 
 ## Resumo
 
-Criar um sistema de **pagamentos parciais** onde uma parcela pode receber múltiplos pagamentos até atingir seu valor total. Exemplo: parcela de R$10.000 → cliente paga R$2.000 → saldo restante R$8.000.
+Ajustar o dashboard financeiro e o extrato bancário para reconhecer pagamentos parciais (sub-pagamentos via `event_payment_entries`), mostrando badge "Parcial" e calculando valores recebidos com base nas entries.
 
-## O que já temos
+## Mudanças
 
-- Tabela `event_payments` com parcelas, status, valores
-- Sistema de consentimento financeiro (`financial_consents`) já funcional
-- Timeline financeira para auditoria
-- Upload de comprovantes via bucket `expense-receipts`
-- Hook `useEventFinancial` com CRUD completo
+### 1. `EnrichedPayment` — Novo campo `entries_total`
 
-## O que precisa ser criado
+Adicionar `entries_total` ao tipo `EnrichedPayment` para carregar a soma dos sub-pagamentos de cada parcela. Isso permite ao dashboard saber se uma parcela tem pagamentos parciais.
 
-### 1. Migration — Nova tabela `event_payment_entries`
+### 2. `useFinanceiroDashboard.ts` — Fetch entries + recalcular totais
 
-```sql
-CREATE TABLE public.event_payment_entries (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  payment_id uuid NOT NULL REFERENCES public.event_payments(id) ON DELETE CASCADE,
-  company_id uuid NOT NULL REFERENCES public.companies(id),
-  amount numeric(12,2) NOT NULL,
-  paid_at timestamptz NOT NULL DEFAULT now(),
-  payment_method text,
-  bank_account_id uuid REFERENCES public.company_bank_accounts(id),
-  receipt_url text,
-  paid_by text,
-  notes text,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-```
+- No `fetchData`, buscar `event_payment_entries` com `company_id` e agrupar por `payment_id`
+- Enriquecer cada payment com `entries_total` (soma dos entries daquela parcela)
+- No cálculo de `totalReceivedMonth`: incluir entries de parcelas não-pagas no período (entries com `paid_at` no range), além dos payments com status `paid`
+- Parcelas com entries > 0 mas < amount ficam com status visual "partial" (sem alterar o DB)
 
-Com RLS via `get_user_company_ids` e índice em `payment_id`.
+### 3. `EnrichedPayment` status — Adicionar `'partial'`
 
-### 2. Lógica de negócio — Hook `useEventFinancial`
+Expandir o tipo de status para incluir `'partial'` quando `entries_total > 0 && entries_total < amount && status !== 'paid'`.
 
-- Nova função `addPartialPayment(paymentId, { amount, method, bankAccountId, receiptUrl, paidBy, notes })`
-- Ao adicionar sub-pagamento: se soma dos entries >= valor da parcela → marcar parcela como `paid`
-- Nova função `deletePartialPayment(entryId)`
-- Carregar entries junto com payments (`fetchAll` busca `event_payment_entries`)
-- Recalcular `receivedAmount` baseado na soma dos entries (não mais só parcelas com status `paid`)
+### 4. `FinancialPaymentCard.tsx` — Badge "Parcial" + barra de progresso
 
-### 3. Integração com Consentimento
+- Novo entry em `statusConfig`: `partial` com cor laranja/amarela
+- Novo entry em `borderColors`: `partial` com `border-l-orange-500`
+- Mostrar barra de progresso mini quando `entries_total > 0` (pago X de Y)
 
-- Novo `action_type: 'partial_payment'` no consent flow
-- Se usuário tem `financial.consent`, sub-pagamento vai para aprovação
-- No `approveConsent`, inserir o entry e recalcular status da parcela
+### 5. `KpiSheetBody.tsx` — Badge "Parcial" nas listas
 
-### 4. UI — Card de parcela expandível
+- Na renderização de payments, identificar status `partial` e mostrar badge correspondente
 
-Dentro de `EventFinancialTab`, cada parcela pendente/atrasada ganha:
-- Botão "Pagamento Parcial" (ícone de moeda cortada)
-- Ao clicar, abre dialog com: valor, método, conta bancária, comprovante (upload), quem pagou, data/hora
-- Barra de progresso mostrando quanto já foi pago vs total
-- Lista dos sub-pagamentos já feitos com data, valor, quem pagou, e link do comprovante
-- Saldo restante em destaque
+### 6. `BankAccountStatement.tsx` — Incluir entries como movimentações
 
-### 5. UI — Visão no Dashboard Financeiro
+- Além de buscar `event_payments` com `status=paid`, buscar `event_payment_entries` com `bank_account_id` do account
+- Mapear entries como movimentações individuais (tipo "entry", com descrição "Pagamento Parcial — [notes]")
+- Incluir entries nos cálculos de `postEntries` para saldo correto
 
-- `FinancialPaymentCard` e `KpiSheetBody` mostram parcelas com entries como "parcialmente pago"
-- Novo badge: "Parcial" (amarelo/laranja) quando tem entries mas não está 100% pago
-
-### 6. Arquivos afetados
+## Arquivos afetados
 
 | Arquivo | Mudança |
 |---------|---------|
-| Nova migration | Tabela `event_payment_entries` + RLS |
-| `useEventFinancial.ts` | Fetch entries, `addPartialPayment`, recalc logic |
-| `EventFinancialTab.tsx` | UI expandível com entries, dialog de pagamento parcial, upload |
-| `useFinancialConsent.ts` | Handler para `partial_payment` |
-| `ConsentTab.tsx` | Renderizar consents de pagamento parcial |
-| `PaymentFormDialog.tsx` | Novo modo "parcial" com campo de comprovante |
-| `useFinanceiroDashboard.ts` | Considerar entries no cálculo de recebido |
-| `BankAccountStatement.tsx` | Incluir entries como movimentações |
+| `src/hooks/useFinanceiroDashboard.ts` | Fetch entries, enriquecer payments com `entries_total`, recalcular `totalReceivedMonth` |
+| `src/components/financial/FinancialPaymentCard.tsx` | Badge "Parcial", barra de progresso, cores |
+| `src/components/financial/KpiSheetBody.tsx` | Badge "Parcial" nas listas |
+| `src/components/financial/BankAccountStatement.tsx` | Entries como movimentações no extrato |
 
-## Complexidade
+## Ordem de implementação
 
-Moderada — temos 80% da infraestrutura pronta (consentimento, timeline, upload, bank accounts). O trabalho principal é a nova tabela, a lógica de soma parcial, e a UI expandível nos cards de parcela.
-
-## Implementação
-
-Passo a passo conforme sua preferência:
-1. Migration da tabela
-2. Hook com CRUD de entries
-3. UI do card expandível + dialog
-4. Integração com consentimento
-5. Ajuste no dashboard financeiro e extrato
+1. Tipo `EnrichedPayment` + fetch entries no hook
+2. `FinancialPaymentCard` com badge + progress
+3. `KpiSheetBody` com badge
+4. `BankAccountStatement` com entries
 
