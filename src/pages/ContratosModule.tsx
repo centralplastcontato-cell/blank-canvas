@@ -79,7 +79,7 @@ export default function ContratosModule() {
             <h1 className="text-lg font-bold flex items-center gap-2">
               <FileSignature className="h-5 w-5 text-primary" /> Contratos
             </h1>
-            <NotificationBell />
+            <div />
           </div>
 
           <div className="flex-1 p-3 md:p-5 overflow-auto">
@@ -98,7 +98,7 @@ export default function ContratosModule() {
                       <p className="text-sm text-muted-foreground/70 mt-0.5">Gerencie modelos de contrato e contratos gerados</p>
                     </div>
                   </div>
-                  <NotificationBell />
+                  <div />
                 </div>
               </div>
             </div>
