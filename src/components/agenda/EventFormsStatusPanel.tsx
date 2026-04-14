@@ -207,13 +207,13 @@ function FormattedResponseView({ answers, formType }: { answers: any; formType: 
     );
   }
 
-  // For cardápio responses (sections-based)
+  // For cardápio responses (sections-based object format)
   if (formType === "cardapio" && !Array.isArray(answers)) {
     return (
-      <div className="space-y-2">
+      <div className="space-y-3">
         {Object.entries(answers).map(([sectionName, items]) => (
-          <div key={sectionName} className="space-y-1">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{sectionName}</p>
+          <div key={sectionName} className="rounded-lg bg-muted/20 border border-border/30 p-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-primary mb-2">{sectionName}</p>
             {Array.isArray(items) ? (
               <div className="flex flex-wrap gap-1.5">
                 {(items as string[]).map((item, i) => (
@@ -227,6 +227,36 @@ function FormattedResponseView({ answers, formType }: { answers: any; formType: 
         ))}
       </div>
     );
+  }
+
+  // For cardápio responses (array format with SectionTitle/Selected)
+  if (formType === "cardapio" && Array.isArray(answers)) {
+    const sections = answers.filter((item: any) => item?.SectionTitle || item?.sectionTitle);
+    if (sections.length > 0) {
+      return (
+        <div className="space-y-3">
+          {sections.map((section: any, idx: number) => {
+            const title = section.SectionTitle || section.sectionTitle || "Seção";
+            const selected = section.Selected || section.selected || [];
+            const items = Array.isArray(selected) ? selected : typeof selected === "string" ? tryParseJSON(selected) : [];
+            return (
+              <div key={idx} className="rounded-lg bg-muted/20 border border-border/30 p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-primary mb-2">{title}</p>
+                {items.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {items.map((item: string, i: number) => (
+                      <Badge key={i} variant="secondary" className="text-[10px] font-normal">{item}</Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted-foreground italic">Nenhum item selecionado</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
   }
 
   // Generic rendering for prefesta / avaliação
