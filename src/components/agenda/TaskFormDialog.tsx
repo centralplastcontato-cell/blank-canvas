@@ -38,18 +38,28 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData, pres
   const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]);
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
   const [eventId, setEventId] = useState<string | null>(null);
-  const [events, setEvents] = useState<Array<{ id: string; title: string; event_date: string }>>([]);
+  const [events, setEvents] = useState<Array<{ id: string; title: string; event_date: string; child_name?: string; parent_names?: string; lead_phone?: string }>>([]);
+  const [eventPopoverOpen, setEventPopoverOpen] = useState(false);
 
-  // Fetch events for linking
+  // Fetch events for linking (with lead info for search)
   useEffect(() => {
     if (!open || !currentCompany?.id) return;
     supabase
       .from("company_events")
-      .select("id, title, event_date")
+      .select("id, title, event_date, child_name, parent_names, lead_id, campaign_leads(name, whatsapp)")
       .eq("company_id", currentCompany.id)
       .neq("status", "cancelado")
       .order("event_date", { ascending: true })
-      .then(({ data }) => setEvents(data || []));
+      .then(({ data }) => {
+        setEvents((data || []).map((ev: any) => ({
+          id: ev.id,
+          title: ev.title,
+          event_date: ev.event_date,
+          child_name: ev.child_name || undefined,
+          parent_names: ev.parent_names || ev.campaign_leads?.name || undefined,
+          lead_phone: ev.campaign_leads?.whatsapp || undefined,
+        })));
+      });
   }, [open, currentCompany?.id]);
 
   useEffect(() => {
