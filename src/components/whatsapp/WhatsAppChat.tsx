@@ -624,6 +624,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const { hasPermission: hasUserPermission } = usePermissions(userId);
   const { isAdmin } = useUserRole(userId);
   const financialPerms = useFinancialPermissions(userId);
+  const consentHookChat = useFinancialConsent();
   const canTransferLeads = isAdmin || hasUserPermission('leads.transfer');
   const canDeleteFromChat = isAdmin || hasUserPermission('leads.delete.from_chat');
   const canSendMessages = isAdmin || hasUserPermission('whatsapp.send');
