@@ -18,6 +18,8 @@ interface TaskFormDialogProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: TaskFormData) => void;
   initialData?: CompanyTask | null;
+  presetEventId?: string | null;
+  presetLeadId?: string | null;
 }
 
 export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData }: TaskFormDialogProps) {
