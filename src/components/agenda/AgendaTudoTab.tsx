@@ -342,7 +342,6 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
                        </div>
                      ))}
                   </div>
-                  </div>
                 )}
               </CardContent>
             </Card>
@@ -357,6 +356,15 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
         onEdit={() => {}}
         onDelete={(id) => { deleteTask(id); setTaskSheetOpen(false); }}
         onStatusChange={(id, status) => { updateStatus(id, status); }}
+      />
+
+      <EventDetailSheet
+        open={eventSheetOpen}
+        onOpenChange={setEventSheetOpen}
+        event={selectedEvent}
+        onEdit={() => {}}
+        onDelete={() => {}}
+        userId={userId}
       />
     </div>
   );
