@@ -370,14 +370,16 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
           />
 
           {/* Seção: Anexos */}
-          <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-4 mt-2">
-            <div className="flex items-center gap-2 mb-1">
-              <FileText className="h-4 w-4 text-primary" />
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Anexos</span>
+          <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4 space-y-4 mt-3">
+            <div className="flex items-center gap-2 pb-2 border-b border-primary/15">
+              <div className="p-1.5 rounded-md bg-primary/10">
+                <FileText className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <span className="text-[11px] font-bold uppercase tracking-widest text-primary/70">Anexos</span>
             </div>
 
             {renderUploadField(
-              'Boleto / Conta (opcional)',
+              'Boleto / Conta',
               boletoPreview,
               boletoInputRef,
               uploadingBoleto,
@@ -387,10 +389,10 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
               'Anexar imagem do boleto ou conta'
             )}
 
-            <div className="border-t border-border/40" />
+            <div className="border-t border-primary/10" />
 
             {renderUploadField(
-              'Comprovante de pagamento (opcional)',
+              'Comprovante de pagamento',
               receiptPreview,
               fileInputRef,
               uploading,
@@ -402,17 +404,19 @@ export function ExpenseFormDialog({ open, onOpenChange, onSubmit, defaultValues,
           </div>
 
           {/* Seção: Observações */}
-          <div className="rounded-xl border border-border/60 bg-muted/20 p-4 mt-2">
-            <div className="flex items-center gap-2 mb-3">
-              <Camera className="h-4 w-4 text-primary" />
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Observações</span>
+          <div className="rounded-xl border-2 border-accent/40 bg-accent/20 p-4 mt-3">
+            <div className="flex items-center gap-2 pb-2 mb-3 border-b border-accent/30">
+              <div className="p-1.5 rounded-md bg-accent/30">
+                <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+              </div>
+              <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Observações</span>
             </div>
             <Textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}
               placeholder={expenseType === 'ajuste' ? 'Ex: Saldo em caixa na data de início da plataforma' : 'Detalhes adicionais sobre a despesa'}
               rows={2}
-              className="bg-white dark:bg-background"
+              className="bg-white dark:bg-background border-border/60"
             />
           </div>
         </div>
