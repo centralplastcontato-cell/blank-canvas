@@ -584,6 +584,8 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
               eventId={event.id}
               companyId={event.company_id}
               leadId={event.lead_id}
+              eventDate={event.event_date}
+              parentNames={leadName}
             />
           )}
 
