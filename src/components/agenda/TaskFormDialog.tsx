@@ -159,14 +159,27 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData }: Ta
           </div>
 
           {/* Recurrence Section */}
-          <div className="rounded-xl border border-border/40 p-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Repeat className="h-4 w-4 text-primary" />
-                <Label className="text-sm font-medium cursor-pointer mb-0">Tarefa recorrente</Label>
+          <div className={cn(
+            "rounded-xl border-2 p-4 space-y-3 transition-all",
+            isRecurring 
+              ? "border-primary/40 bg-primary/5" 
+              : "border-dashed border-border/60 bg-muted/20 hover:border-primary/30 hover:bg-primary/5"
+          )}>
+            <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex items-center gap-2.5">
+                <div className={cn(
+                  "p-2 rounded-lg transition-colors",
+                  isRecurring ? "bg-primary/15" : "bg-muted/50"
+                )}>
+                  <Repeat className={cn("h-4 w-4", isRecurring ? "text-primary" : "text-muted-foreground")} />
+                </div>
+                <div>
+                  <span className="text-sm font-semibold block">Tarefa recorrente</span>
+                  <span className="text-[11px] text-muted-foreground">Repetir automaticamente</span>
+                </div>
               </div>
               <Switch checked={isRecurring} onCheckedChange={setIsRecurring} />
-            </div>
+            </label>
 
             {isRecurring && (
               <div className="space-y-3 pt-1">
