@@ -1,6 +1,6 @@
 import { format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarDays, Check, MapPin, PartyPopper, Building } from 'lucide-react';
+import { CalendarDays, Check, Coins, MapPin, PartyPopper, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -10,6 +10,7 @@ interface Props {
   payment: EnrichedPayment;
   onMarkAsPaid?: (id: string) => void;
   onOpenEvent?: (eventId: string) => void;
+  onPartialPayment?: (eventId: string) => void;
   bankAccountName?: string;
 }
 
@@ -32,7 +33,7 @@ const borderColors: Record<string, string> = {
   partial: 'border-l-orange-500',
 };
 
-export function FinancialPaymentCard({ payment, onMarkAsPaid, onOpenEvent, bankAccountName }: Props) {
+export function FinancialPaymentCard({ payment, onMarkAsPaid, onOpenEvent, onPartialPayment, bankAccountName }: Props) {
   const cfg = statusConfig[payment.status];
   const daysLate = payment.status === 'late' ? differenceInDays(new Date(), new Date(payment.due_date)) : 0;
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -118,6 +119,11 @@ export function FinancialPaymentCard({ payment, onMarkAsPaid, onOpenEvent, bankA
           </div>
 
           <div className="flex items-center gap-1">
+            {payment.status !== 'paid' && onPartialPayment && (
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10" onClick={(e) => { e.stopPropagation(); onPartialPayment(payment.event_id); }} title="Pagamento parcial">
+                <Coins className="h-4 w-4" />
+              </Button>
+            )}
             {payment.status !== 'paid' && onMarkAsPaid && (
               <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10" onClick={(e) => { e.stopPropagation(); onMarkAsPaid(payment.id); }} title="Marcar como pago">
                 <Check className="h-4 w-4" />
