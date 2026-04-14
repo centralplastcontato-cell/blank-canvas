@@ -39,6 +39,12 @@ const STATUS_DOT: Record<string, string> = {
   cancelado: "bg-red-400 shadow-[0_0_4px_rgba(248,113,113,0.3)]",
 };
 
+const TYPE_DOT: Record<string, string> = {
+  festa: "bg-purple-500 shadow-[0_0_4px_rgba(168,85,247,0.4)]",
+  visita: "bg-blue-500 shadow-[0_0_4px_rgba(59,130,246,0.4)]",
+  tarefa: "bg-amber-500 shadow-[0_0_4px_rgba(245,158,11,0.4)]",
+};
+
 export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selectedDate, checklistProgress = {}, preReservations = [] }: AgendaCalendarProps) {
   const eventsByDate = new Map<string, CalendarEvent[]>();
   events.forEach((ev) => {
