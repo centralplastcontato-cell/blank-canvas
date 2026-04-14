@@ -165,6 +165,10 @@
     @apply max-w-6xl mx-auto px-4 sm:px-6 lg:px-8;
   }
 
+  .section-header {
+    @apply pb-4 mb-4 border-b border-border/60 bg-gradient-to-r from-primary/[0.03] via-transparent to-transparent -mx-4 px-4 pt-2 rounded-t-xl;
+  }
+
   .gradient-text {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-festive;
   }
