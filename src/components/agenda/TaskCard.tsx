@@ -2,7 +2,7 @@ import { format, parseISO, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, Clock, Repeat } from "lucide-react";
+import { Pencil, Trash2, Clock, Repeat, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TASK_CATEGORIES, TASK_PRIORITIES, TASK_STATUSES, RECURRENCE_OPTIONS, type CompanyTask, type TaskStatus } from "@/hooks/useTasks";
 import {
