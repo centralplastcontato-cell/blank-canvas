@@ -150,6 +150,7 @@ export function useTasks() {
     if (error) {
       toast({ title: "Erro ao atualizar tarefa", description: error.message, variant: "destructive" });
     } else {
+      if (currentCompany?.id) logActivity({ companyId: currentCompany.id, action: 'update', module: 'agenda', entityType: 'task', entityId: id });
       fetchTasks();
     }
   };
