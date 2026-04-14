@@ -115,14 +115,15 @@
     --input: 225 25% 20%;
     --ring: 215 85% 55%;
 
-    --sidebar-background: 225 30% 95%;
+    --sidebar-background: 225 20% 97%;
     --sidebar-foreground: 225 40% 15%;
     --sidebar-primary: 215 85% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 215 85% 90%;
+    --sidebar-accent: 215 75% 93%;
     --sidebar-accent-foreground: 225 40% 15%;
-    --sidebar-border: 225 25% 85%;
+    --sidebar-border: 225 20% 88%;
     --sidebar-ring: 215 85% 55%;
+    --sidebar-muted: 225 15% 55%;
   }
 }
 
@@ -163,6 +164,10 @@
 
   .section-container {
     @apply max-w-6xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .section-header {
+    @apply pb-4 mb-4 border-b border-border/60 bg-gradient-to-r from-primary/[0.03] via-transparent to-transparent -mx-4 px-4 pt-2 rounded-t-xl;
   }
 
   .gradient-text {

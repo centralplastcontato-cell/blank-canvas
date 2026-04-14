@@ -28,12 +28,12 @@ function MetricCard({ icon: Icon, label, value, color }: {
   icon: React.ElementType; label: string; value: number | string; color: string;
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-card p-2 md:p-2.5 shadow-sm">
-      <div className={`p-1.5 rounded-lg shrink-0 ${color}`}>
+    <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-card p-2 md:p-2.5 shadow-sm hover:shadow-md transition-shadow duration-200 group">
+      <div className={`p-1.5 rounded-lg shrink-0 ${color} ring-1 ring-current/10`}>
         <Icon className="h-3.5 w-3.5" />
       </div>
       <div className="min-w-0">
-        <p className="text-sm md:text-base font-bold tracking-tight text-foreground leading-none">{value}</p>
+        <p className="text-sm md:text-base font-bold tracking-tight text-foreground leading-none group-hover:text-primary transition-colors">{value}</p>
         <p className="text-[9px] md:text-[10px] font-medium text-muted-foreground leading-snug whitespace-nowrap mt-0.5">{label}</p>
       </div>
     </div>
