@@ -200,7 +200,7 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData }: Ta
                     </Select>
                   </div>
                   <div className="min-w-0">
-                    <Label className="text-xs">A cada</Label>
+                    <Label className="text-xs">A cada X {recurrenceType === "diaria" ? "dias" : recurrenceType === "semanal" ? "semanas" : "meses"}</Label>
                     <Input
                       type="number"
                       min={1}
