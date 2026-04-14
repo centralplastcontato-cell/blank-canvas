@@ -187,6 +187,7 @@ export function useTasks() {
       toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Tarefa excluída" });
+      if (currentCompany?.id) logActivity({ companyId: currentCompany.id, action: 'delete', module: 'agenda', entityType: 'task', entityId: id });
       fetchTasks();
     }
   };
