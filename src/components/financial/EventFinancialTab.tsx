@@ -83,6 +83,8 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   const [optionalManualValue, setOptionalManualValue] = useState<number | null>(null);
   const [addingOptional, setAddingOptional] = useState(false);
   const syncAttempted = useRef(false);
+  const [partialPaymentTarget, setPartialPaymentTarget] = useState<any>(null);
+  const [expandedPaymentIds, setExpandedPaymentIds] = useState<Set<string>>(new Set());
 
   // Auto-sync: if no payments exist but event has payment_details, sync them
   useEffect(() => {
