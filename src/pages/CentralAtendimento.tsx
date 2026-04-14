@@ -1190,7 +1190,7 @@ export default function CentralAtendimento() {
 
   // Desktop layout with Sidebar
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={false}>
       <Helmet><title>Atendimento</title></Helmet>
       <div className="h-dvh flex w-full overflow-hidden">
         <AdminSidebar 
