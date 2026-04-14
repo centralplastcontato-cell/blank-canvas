@@ -104,7 +104,7 @@ export function useEventTaskTemplates() {
     const eventDateObj = new Date(eventDate + "T00:00:00");
 
     for (const template of activeTemplates) {
-      const items: EventTaskTemplateItem[] = Array.isArray(template.items) ? template.items : [];
+      const items: EventTaskTemplateItem[] = Array.isArray((template as any).items) ? (template as any).items : [];
       
       for (const item of items) {
         const dueDate = new Date(eventDateObj);
