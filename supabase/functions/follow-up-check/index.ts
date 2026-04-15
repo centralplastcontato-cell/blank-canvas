@@ -2979,17 +2979,8 @@ async function processStuckSendingMaterials({
       }
 
       // Send the proximo_passo question
-      const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-        body: JSON.stringify({ phone, message: nextStepQuestion, delayTyping: 2 }),
-      });
-
-      let msgId: string | null = null;
-      if (res.ok) {
-        const r = await res.json();
-        msgId = r.messageId || r.data?.messageId || null;
-      }
+      const sendRes = await providerSendText(instance, phone, nextStepQuestion, { delayTyping: 2 });
+      const msgId = sendRes.messageId;
 
       if (msgId) {
         await supabase.from('wapi_messages').insert({
