@@ -499,7 +499,7 @@ async function processNextStepReminder({
   // Get instance credentials
   const { data: instance } = await supabase
     .from("wapi_instances")
-    .select("instance_id, instance_token, company_id")
+    .select("instance_id, instance_token, company_id, provider, client_token")
     .eq("id", settings.instance_id)
     .single();
 
@@ -527,34 +527,17 @@ async function processNextStepReminder({
 
       const phone = conv.remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
 
-      const wapiResponse = await fetch(
-        `https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${instance.instance_token}`,
-          },
-          body: JSON.stringify({ phone, message: personalizedMessage }),
-        }
-      );
+      const sendResult = await providerSendText(instance, phone, personalizedMessage);
 
-      if (!wapiResponse.ok) {
-        const errorText = await wapiResponse.text();
-        console.error(`[follow-up-check] Failed to send reminder to ${phone}:`, errorText);
-        errors.push(`Failed reminder to ${phone}: ${errorText}`);
+      if (!sendResult.ok) {
+        console.error(`[follow-up-check] Failed to send reminder to ${phone}:`, sendResult.error);
+        errors.push(`Failed reminder to ${phone}: ${sendResult.error}`);
         continue;
       }
 
       console.log(`[follow-up-check] Next-step reminder sent to ${phone}`);
 
-      // Extract message_id from W-API response to prevent duplicate inserts by webhook
-      let sentMsgId: string | null = null;
-      try {
-        const wapiData = await wapiResponse.json();
-        sentMsgId = wapiData?.result?.key?.id || wapiData?.key?.id || wapiData?.messageId || wapiData?.data?.messageId || wapiData?.id || null;
-        console.log(`[follow-up-check] W-API response messageId: ${sentMsgId}`);
-      } catch { /* ignore parse errors */ }
+      const sentMsgId = sendResult.messageId;
 
       // Save message
       await supabase.from("wapi_messages").insert({
@@ -798,7 +781,7 @@ async function processFollowUp({
       // Get instance credentials
       const { data: instance } = await supabase
         .from("wapi_instances")
-        .select("instance_id, instance_token, company_id")
+        .select("instance_id, instance_token, company_id, provider, client_token")
         .eq("id", conversation.instance_id)
         .single();
 
@@ -833,38 +816,19 @@ async function processFollowUp({
         personalizedMessage += `\n\n1️⃣ - Agendar visita\n2️⃣ - Tirar dúvidas\n3️⃣ - Analisar com calma`;
       }
 
-      // Send the message via W-API
-      const wapiResponse = await fetch(
-        `https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${instance.instance_token}`,
-          },
-          body: JSON.stringify({
-            phone: conversation.remote_jid.replace("@s.whatsapp.net", ""),
-            message: personalizedMessage,
-          }),
-        }
-      );
+      // Send the message via provider-aware helper
+      const fuPhone = conversation.remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
+      const sendResult = await providerSendText(instance, fuPhone, personalizedMessage);
 
-      if (!wapiResponse.ok) {
-        const errorText = await wapiResponse.text();
-        console.error(`[follow-up-check] Failed to send message to ${lead.name}:`, errorText);
-        errors.push(`Failed to send to ${lead.name}: ${errorText}`);
+      if (!sendResult.ok) {
+        console.error(`[follow-up-check] Failed to send message to ${lead.name}:`, sendResult.error);
+        errors.push(`Failed to send to ${lead.name}: ${sendResult.error}`);
         continue;
       }
 
       console.log(`[follow-up-check] Follow-up #${followUpNumber} sent successfully to ${lead.name}`);
 
-      // Extract message_id from W-API response to prevent duplicate inserts by webhook
-      let sentMsgId: string | null = null;
-      try {
-        const wapiData = await wapiResponse.json();
-        sentMsgId = wapiData?.result?.key?.id || wapiData?.key?.id || wapiData?.messageId || wapiData?.data?.messageId || wapiData?.id || null;
-        console.log(`[follow-up-check] W-API follow-up response messageId: ${sentMsgId}`);
-      } catch { /* ignore parse errors */ }
+      const sentMsgId = sendResult.messageId;
 
       // Save the message to the database
       await supabase.from("wapi_messages").insert({
@@ -1045,7 +1009,7 @@ async function processBotInactiveFollowUp({
   // Get instance credentials
   const { data: instance } = await supabase
     .from("wapi_instances")
-    .select("instance_id, instance_token, company_id")
+    .select("instance_id, instance_token, company_id, provider, client_token")
     .eq("id", settings.instance_id)
     .single();
 
@@ -1129,34 +1093,17 @@ Podemos continuar de onde paramos?`;
       }
       const phone = conv.remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
 
-      const wapiResponse = await fetch(
-        `https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${instance.instance_token}`,
-          },
-          body: JSON.stringify({ phone, message: personalizedMessage }),
-        }
-      );
+      const sendResult = await providerSendText(instance, phone, personalizedMessage);
 
-      if (!wapiResponse.ok) {
-        const errorText = await wapiResponse.text();
-        console.error(`[follow-up-check] Failed to send bot-inactive follow-up to ${phone}:`, errorText);
-        errors.push(`Failed bot-inactive follow-up to ${phone}: ${errorText}`);
+      if (!sendResult.ok) {
+        console.error(`[follow-up-check] Failed to send bot-inactive follow-up to ${phone}:`, sendResult.error);
+        errors.push(`Failed bot-inactive follow-up to ${phone}: ${sendResult.error}`);
         continue;
       }
 
       console.log(`[follow-up-check] Bot-inactive follow-up sent to ${phone} (was stuck at step: ${conv.bot_step})`);
 
-      // Extract message_id from W-API response to prevent duplicate inserts by webhook
-      let sentMsgId: string | null = null;
-      try {
-        const wapiData = await wapiResponse.json();
-        sentMsgId = wapiData?.result?.key?.id || wapiData?.key?.id || wapiData?.messageId || wapiData?.data?.messageId || wapiData?.id || null;
-        console.log(`[follow-up-check] W-API bot-inactive response messageId: ${sentMsgId}`);
-      } catch { /* ignore parse errors */ }
+      const sentMsgId = sendResult.messageId;
 
       // Save message
       await supabase.from("wapi_messages").insert({
@@ -1384,6 +1331,145 @@ async function processAutoLost({
 // ============= FLOW BUILDER TIMER TIMEOUT (checks expired timer nodes and triggers timeout path) =============
 
 const WAPI_BASE_URL = 'https://api.w-api.app/v1';
+const ZAPI_BASE_URL = 'https://api.z-api.io/instances';
+
+type Provider = 'wapi' | 'zapi';
+
+interface InstanceInfo {
+  instance_id: string;
+  instance_token: string;
+  company_id: string;
+  provider?: Provider | string | null;
+  client_token?: string | null;
+  id?: string;
+  unit?: string;
+}
+
+/**
+ * Provider-aware send-text helper. Routes to W-API or Z-API based on provider.
+ * Returns { ok, messageId, error }
+ */
+async function providerSendText(
+  inst: InstanceInfo,
+  phone: string,
+  message: string,
+  extraBody?: Record<string, unknown>,
+): Promise<{ ok: boolean; messageId: string | null; error?: string }> {
+  const provider = (inst.provider || 'wapi') as Provider;
+  try {
+    let res: Response;
+    if (provider === 'zapi') {
+      const url = `${ZAPI_BASE_URL}/${inst.instance_id}/token/${inst.instance_token}/send-text`;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (inst.client_token) headers['Client-Token'] = inst.client_token;
+      res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ phone: phone.replace(/\D/g, ''), message, ...extraBody }),
+      });
+    } else {
+      res = await fetch(`${WAPI_BASE_URL}/message/send-text?instanceId=${inst.instance_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${inst.instance_token}` },
+        body: JSON.stringify({ phone, message, ...extraBody }),
+      });
+    }
+    if (!res.ok) {
+      const errText = await res.text();
+      return { ok: false, messageId: null, error: errText };
+    }
+    const data = await res.json();
+    const messageId = data?.zapiMessageId || data?.messageId || data?.result?.key?.id || data?.key?.id || data?.data?.messageId || data?.id || null;
+    return { ok: true, messageId };
+  } catch (err) {
+    return { ok: false, messageId: null, error: String(err) };
+  }
+}
+
+/** Provider-aware send-image helper */
+async function providerSendImage(
+  inst: InstanceInfo,
+  phone: string,
+  image: string,
+  caption?: string,
+): Promise<{ ok: boolean; messageId: string | null }> {
+  const provider = (inst.provider || 'wapi') as Provider;
+  try {
+    let res: Response;
+    if (provider === 'zapi') {
+      const url = `${ZAPI_BASE_URL}/${inst.instance_id}/token/${inst.instance_token}/send-image`;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (inst.client_token) headers['Client-Token'] = inst.client_token;
+      res = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ phone: phone.replace(/\D/g, ''), image, caption }) });
+    } else {
+      res = await fetch(`${WAPI_BASE_URL}/message/send-image?instanceId=${inst.instance_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${inst.instance_token}` },
+        body: JSON.stringify({ phone, image, caption }),
+      });
+    }
+    if (!res.ok) return { ok: false, messageId: null };
+    const r = await res.json();
+    return { ok: true, messageId: r.zapiMessageId || r.messageId || null };
+  } catch { return { ok: false, messageId: null }; }
+}
+
+/** Provider-aware send-video helper */
+async function providerSendVideo(
+  inst: InstanceInfo,
+  phone: string,
+  video: string,
+  caption?: string,
+): Promise<{ ok: boolean; messageId: string | null }> {
+  const provider = (inst.provider || 'wapi') as Provider;
+  try {
+    let res: Response;
+    if (provider === 'zapi') {
+      const url = `${ZAPI_BASE_URL}/${inst.instance_id}/token/${inst.instance_token}/send-video`;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (inst.client_token) headers['Client-Token'] = inst.client_token;
+      res = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ phone: phone.replace(/\D/g, ''), video, caption }) });
+    } else {
+      res = await fetch(`${WAPI_BASE_URL}/message/send-video?instanceId=${inst.instance_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${inst.instance_token}` },
+        body: JSON.stringify({ phone, video, caption }),
+      });
+    }
+    if (!res.ok) return { ok: false, messageId: null };
+    const r = await res.json();
+    return { ok: true, messageId: r.zapiMessageId || r.messageId || null };
+  } catch { return { ok: false, messageId: null }; }
+}
+
+/** Provider-aware send-document helper */
+async function providerSendDocument(
+  inst: InstanceInfo,
+  phone: string,
+  document: string,
+  fileName: string,
+): Promise<{ ok: boolean; messageId: string | null }> {
+  const provider = (inst.provider || 'wapi') as Provider;
+  const ext = document.split('.').pop()?.split('?')[0] || 'pdf';
+  try {
+    let res: Response;
+    if (provider === 'zapi') {
+      const url = `${ZAPI_BASE_URL}/${inst.instance_id}/token/${inst.instance_token}/send-document/${ext}`;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (inst.client_token) headers['Client-Token'] = inst.client_token;
+      res = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ phone: phone.replace(/\D/g, ''), document, fileName }) });
+    } else {
+      res = await fetch(`${WAPI_BASE_URL}/message/send-document?instanceId=${inst.instance_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${inst.instance_token}` },
+        body: JSON.stringify({ phone, document, fileName, extension: ext }),
+      });
+    }
+    if (!res.ok) return { ok: false, messageId: null };
+    const r = await res.json();
+    return { ok: true, messageId: r.zapiMessageId || r.messageId || null };
+  } catch { return { ok: false, messageId: null }; }
+}
 
 interface FlowTimerParams {
   supabase: ReturnType<typeof createClient>;
@@ -1496,7 +1582,7 @@ async function processFlowTimerTimeouts({
 
       const { data: instance } = await supabase
         .from('wapi_instances')
-        .select('id, instance_id, instance_token, unit, company_id')
+        .select('id, instance_id, instance_token, unit, company_id, provider, client_token')
         .eq('id', conv.instance_id)
         .single();
 
@@ -1543,15 +1629,10 @@ async function processFlowTimerTimeouts({
       // Send target node message if it has one
       if (targetNode.message_template) {
         const msg = replaceVars(targetNode.message_template);
-        const res = await fetch(`${WAPI_BASE_URL}/message/send-text?instanceId=${instance.instance_id}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-          body: JSON.stringify({ phone, message: msg, delayTyping: 1 }),
-        });
+        const sendRes = await providerSendText(instance, phone, msg, { delayTyping: 1 });
 
-        if (res.ok) {
-          const r = await res.json();
-          const msgId = r.messageId || r.data?.messageId || r.id || null;
+        if (sendRes.ok) {
+          const msgId = sendRes.messageId;
 
           await supabase.from('wapi_messages').insert({
             conversation_id: conv.id, message_id: msgId, from_me: true,
@@ -1953,7 +2034,7 @@ async function processStuckBotRecovery({
       // Get instance info
       const { data: instance } = await supabase
         .from('wapi_instances')
-        .select('id, instance_id, instance_token, unit, company_id')
+        .select('id, instance_id, instance_token, unit, company_id, provider, client_token')
         .eq('id', conv.instance_id)
         .single();
 
@@ -2040,17 +2121,8 @@ async function processStuckBotRecovery({
         const welcomeMsg = welcomeAlreadyAsksName ? renderedWelcome : renderedWelcome + '\n\n' + firstQuestion;
 
         const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
-        const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-          body: JSON.stringify({ phone, message: welcomeMsg, delayTyping: 1 }),
-        });
-
-        let msgId: string | null = null;
-        if (res.ok) {
-          const r = await res.json();
-          msgId = r.messageId || r.data?.messageId || null;
-        }
+        const sendRes = await providerSendText(instance, phone, welcomeMsg, { delayTyping: 1 });
+        const msgId = sendRes.messageId;
 
         if (msgId) {
           await supabase.from('wapi_messages').insert({
@@ -2084,14 +2156,8 @@ async function processStuckBotRecovery({
         const errorMsg = validation.error || 'Não entendi sua resposta. Por favor, tente novamente.';
         const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
         
-        const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-          body: JSON.stringify({ phone, message: errorMsg, delayTyping: 1 }),
-        });
-
-        let msgId: string | null = null;
-        if (res.ok) { const r = await res.json(); msgId = r.messageId || r.data?.messageId || null; }
+        const sendRes = await providerSendText(instance, phone, errorMsg, { delayTyping: 1 });
+        const msgId = sendRes.messageId;
         
         if (msgId) {
           await supabase.from('wapi_messages').insert({
@@ -2129,13 +2195,8 @@ async function processStuckBotRecovery({
           const transferMsg = recoveryReplaceVariables(settings?.transfer_message || defaultTransfer, updated);
           const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
 
-          const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-            body: JSON.stringify({ phone, message: transferMsg, delayTyping: 1 }),
-          });
-          let msgId: string | null = null;
-          if (res.ok) { const r = await res.json(); msgId = r.messageId || r.data?.messageId || null; }
+          const sendRes = await providerSendText(instance, phone, transferMsg, { delayTyping: 1 });
+          const msgId = sendRes.messageId;
           if (msgId) {
             await supabase.from('wapi_messages').insert({
               conversation_id: conv.id, message_id: msgId, from_me: true,
@@ -2162,13 +2223,8 @@ async function processStuckBotRecovery({
           const workMsg = recoveryReplaceVariables(settings?.work_here_response || defaultWork, updated);
           const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
 
-          const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-            body: JSON.stringify({ phone, message: workMsg, delayTyping: 1 }),
-          });
-          let msgId: string | null = null;
-          if (res.ok) { const r = await res.json(); msgId = r.messageId || r.data?.messageId || null; }
+          const sendRes = await providerSendText(instance, phone, workMsg, { delayTyping: 1 });
+          const msgId = sendRes.messageId;
           if (msgId) {
             await supabase.from('wapi_messages').insert({
               conversation_id: conv.id, message_id: msgId, from_me: true,
@@ -2222,13 +2278,8 @@ async function processStuckBotRecovery({
         const n = phone.replace(/\D/g, '');
 
         // Send completion message
-        const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-          body: JSON.stringify({ phone, message: completionMsg, delayTyping: 1 }),
-        });
-        let msgId: string | null = null;
-        if (res.ok) { const r = await res.json(); msgId = r.messageId || r.data?.messageId || null; }
+        const sendRes = await providerSendText(instance, phone, completionMsg, { delayTyping: 1 });
+        const msgId = sendRes.messageId;
         if (msgId) {
           await supabase.from('wapi_messages').insert({
             conversation_id: conv.id, message_id: msgId, from_me: true,
@@ -2284,13 +2335,8 @@ async function processStuckBotRecovery({
         const nsMsgDelay = (settings?.message_delay_seconds || 5) * 1000;
         await new Promise(r => setTimeout(r, nsMsgDelay));
         
-        const res2 = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-          body: JSON.stringify({ phone, message: nextStepQuestion, delayTyping: 2 }),
-        });
-        let msgId2: string | null = null;
-        if (res2.ok) { const r = await res2.json(); msgId2 = r.messageId || r.data?.messageId || null; }
+        const sendRes2 = await providerSendText(instance, phone, nextStepQuestion, { delayTyping: 2 });
+        const msgId2 = sendRes2.messageId;
         if (msgId2) {
           await supabase.from('wapi_messages').insert({
             conversation_id: conv.id, message_id: msgId2, from_me: true,
@@ -2322,13 +2368,8 @@ async function processStuckBotRecovery({
         : (nextQ?.question || '');
 
       const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
-      const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-        body: JSON.stringify({ phone, message: nextQuestionMsg, delayTyping: 1 }),
-      });
-      let msgId: string | null = null;
-      if (res.ok) { const r = await res.json(); msgId = r.messageId || r.data?.messageId || null; }
+      const sendRes = await providerSendText(instance, phone, nextQuestionMsg, { delayTyping: 1 });
+      const msgId = sendRes.messageId;
       if (msgId) {
         await supabase.from('wapi_messages').insert({
           conversation_id: conv.id, message_id: msgId, from_me: true,
@@ -2447,54 +2488,29 @@ async function recoverySendMaterials(
       }
       const ct = imgRes.headers.get('content-type') || 'image/jpeg';
       const base64 = `data:${ct};base64,${btoa(bin)}`;
-      const res = await fetch(`${WAPI_BASE_URL}/message/send-image?instanceId=${instance.instance_id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-        body: JSON.stringify({ phone, image: base64, caption })
-      });
-      if (!res.ok) return null;
-      const r = await res.json();
-      return r.messageId || null;
+      const sendRes = await providerSendImage(instance, phone, base64, caption);
+      return sendRes.messageId;
     } catch (e) { console.error('[Recovery Materials] Error sending image:', e); return null; }
   };
 
   const sendVideo = async (url: string, caption: string) => {
     try {
-      const res = await fetch(`${WAPI_BASE_URL}/message/send-video?instanceId=${instance.instance_id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-        body: JSON.stringify({ phone, video: url, caption })
-      });
-      if (!res.ok) return null;
-      const r = await res.json();
-      return r.messageId || null;
+      const sendRes = await providerSendVideo(instance, phone, url, caption);
+      return sendRes.messageId;
     } catch (e) { console.error('[Recovery Materials] Error sending video:', e); return null; }
   };
 
   const sendDocument = async (url: string, fileName: string) => {
     try {
-      const ext = url.split('.').pop()?.split('?')[0] || 'pdf';
-      const res = await fetch(`${WAPI_BASE_URL}/message/send-document?instanceId=${instance.instance_id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-        body: JSON.stringify({ phone, document: url, fileName, extension: ext })
-      });
-      if (!res.ok) return null;
-      const r = await res.json();
-      return r.messageId || null;
+      const sendRes = await providerSendDocument(instance, phone, url, fileName);
+      return sendRes.messageId;
     } catch (e) { console.error('[Recovery Materials] Error sending document:', e); return null; }
   };
 
   const sendText = async (message: string) => {
     try {
-      const res = await fetch(`${WAPI_BASE_URL}/message/send-text?instanceId=${instance.instance_id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-        body: JSON.stringify({ phone, message, delayTyping: 1 })
-      });
-      if (!res.ok) return null;
-      const r = await res.json();
-      return r.messageId || null;
+      const sendRes = await providerSendText(instance, phone, message, { delayTyping: 1 });
+      return sendRes.messageId;
     } catch (e) { console.error('[Recovery Materials] Error sending text:', e); return null; }
   };
 
@@ -2892,7 +2908,7 @@ async function processStuckSendingMaterials({
       // Get instance credentials
       const { data: instance } = await supabase
         .from('wapi_instances')
-        .select('id, instance_id, instance_token, company_id, unit')
+        .select('id, instance_id, instance_token, company_id, unit, provider, client_token')
         .eq('id', conv.instance_id)
         .single();
 
@@ -2933,17 +2949,8 @@ async function processStuckSendingMaterials({
       }
 
       // Send the proximo_passo question
-      const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-        body: JSON.stringify({ phone, message: nextStepQuestion, delayTyping: 2 }),
-      });
-
-      let msgId: string | null = null;
-      if (res.ok) {
-        const r = await res.json();
-        msgId = r.messageId || r.data?.messageId || null;
-      }
+      const sendRes = await providerSendText(instance, phone, nextStepQuestion, { delayTyping: 2 });
+      const msgId = sendRes.messageId;
 
       if (msgId) {
         await supabase.from('wapi_messages').insert({
