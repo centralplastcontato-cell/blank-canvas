@@ -499,7 +499,7 @@ async function processNextStepReminder({
   // Get instance credentials
   const { data: instance } = await supabase
     .from("wapi_instances")
-    .select("instance_id, instance_token, company_id")
+    .select("instance_id, instance_token, company_id, provider, client_token")
     .eq("id", settings.instance_id)
     .single();
 
@@ -798,7 +798,7 @@ async function processFollowUp({
       // Get instance credentials
       const { data: instance } = await supabase
         .from("wapi_instances")
-        .select("instance_id, instance_token, company_id")
+        .select("instance_id, instance_token, company_id, provider, client_token")
         .eq("id", conversation.instance_id)
         .single();
 
@@ -1045,7 +1045,7 @@ async function processBotInactiveFollowUp({
   // Get instance credentials
   const { data: instance } = await supabase
     .from("wapi_instances")
-    .select("instance_id, instance_token, company_id")
+    .select("instance_id, instance_token, company_id, provider, client_token")
     .eq("id", settings.instance_id)
     .single();
 
@@ -1635,7 +1635,7 @@ async function processFlowTimerTimeouts({
 
       const { data: instance } = await supabase
         .from('wapi_instances')
-        .select('id, instance_id, instance_token, unit, company_id')
+        .select('id, instance_id, instance_token, unit, company_id, provider, client_token')
         .eq('id', conv.instance_id)
         .single();
 
@@ -2092,7 +2092,7 @@ async function processStuckBotRecovery({
       // Get instance info
       const { data: instance } = await supabase
         .from('wapi_instances')
-        .select('id, instance_id, instance_token, unit, company_id')
+        .select('id, instance_id, instance_token, unit, company_id, provider, client_token')
         .eq('id', conv.instance_id)
         .single();
 
@@ -3031,7 +3031,7 @@ async function processStuckSendingMaterials({
       // Get instance credentials
       const { data: instance } = await supabase
         .from('wapi_instances')
-        .select('id, instance_id, instance_token, company_id, unit')
+        .select('id, instance_id, instance_token, company_id, unit, provider, client_token')
         .eq('id', conv.instance_id)
         .single();
 
