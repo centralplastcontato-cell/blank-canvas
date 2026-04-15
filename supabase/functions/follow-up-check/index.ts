@@ -2126,17 +2126,8 @@ async function processStuckBotRecovery({
         const welcomeMsg = welcomeAlreadyAsksName ? renderedWelcome : renderedWelcome + '\n\n' + firstQuestion;
 
         const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
-        const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-          body: JSON.stringify({ phone, message: welcomeMsg, delayTyping: 1 }),
-        });
-
-        let msgId: string | null = null;
-        if (res.ok) {
-          const r = await res.json();
-          msgId = r.messageId || r.data?.messageId || null;
-        }
+        const sendRes = await providerSendText(instance, phone, welcomeMsg, { delayTyping: 1 });
+        const msgId = sendRes.messageId;
 
         if (msgId) {
           await supabase.from('wapi_messages').insert({
@@ -2170,14 +2161,8 @@ async function processStuckBotRecovery({
         const errorMsg = validation.error || 'Não entendi sua resposta. Por favor, tente novamente.';
         const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
         
-        const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-          body: JSON.stringify({ phone, message: errorMsg, delayTyping: 1 }),
-        });
-
-        let msgId: string | null = null;
-        if (res.ok) { const r = await res.json(); msgId = r.messageId || r.data?.messageId || null; }
+        const sendRes = await providerSendText(instance, phone, errorMsg, { delayTyping: 1 });
+        const msgId = sendRes.messageId;
         
         if (msgId) {
           await supabase.from('wapi_messages').insert({
@@ -2215,13 +2200,8 @@ async function processStuckBotRecovery({
           const transferMsg = recoveryReplaceVariables(settings?.transfer_message || defaultTransfer, updated);
           const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
 
-          const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-            body: JSON.stringify({ phone, message: transferMsg, delayTyping: 1 }),
-          });
-          let msgId: string | null = null;
-          if (res.ok) { const r = await res.json(); msgId = r.messageId || r.data?.messageId || null; }
+          const sendRes = await providerSendText(instance, phone, transferMsg, { delayTyping: 1 });
+          const msgId = sendRes.messageId;
           if (msgId) {
             await supabase.from('wapi_messages').insert({
               conversation_id: conv.id, message_id: msgId, from_me: true,
@@ -2248,13 +2228,8 @@ async function processStuckBotRecovery({
           const workMsg = recoveryReplaceVariables(settings?.work_here_response || defaultWork, updated);
           const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
 
-          const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-            body: JSON.stringify({ phone, message: workMsg, delayTyping: 1 }),
-          });
-          let msgId: string | null = null;
-          if (res.ok) { const r = await res.json(); msgId = r.messageId || r.data?.messageId || null; }
+          const sendRes = await providerSendText(instance, phone, workMsg, { delayTyping: 1 });
+          const msgId = sendRes.messageId;
           if (msgId) {
             await supabase.from('wapi_messages').insert({
               conversation_id: conv.id, message_id: msgId, from_me: true,
@@ -2308,13 +2283,8 @@ async function processStuckBotRecovery({
         const n = phone.replace(/\D/g, '');
 
         // Send completion message
-        const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-          body: JSON.stringify({ phone, message: completionMsg, delayTyping: 1 }),
-        });
-        let msgId: string | null = null;
-        if (res.ok) { const r = await res.json(); msgId = r.messageId || r.data?.messageId || null; }
+        const sendRes = await providerSendText(instance, phone, completionMsg, { delayTyping: 1 });
+        const msgId = sendRes.messageId;
         if (msgId) {
           await supabase.from('wapi_messages').insert({
             conversation_id: conv.id, message_id: msgId, from_me: true,
@@ -2370,13 +2340,8 @@ async function processStuckBotRecovery({
         const nsMsgDelay = (settings?.message_delay_seconds || 5) * 1000;
         await new Promise(r => setTimeout(r, nsMsgDelay));
         
-        const res2 = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-          body: JSON.stringify({ phone, message: nextStepQuestion, delayTyping: 2 }),
-        });
-        let msgId2: string | null = null;
-        if (res2.ok) { const r = await res2.json(); msgId2 = r.messageId || r.data?.messageId || null; }
+        const sendRes2 = await providerSendText(instance, phone, nextStepQuestion, { delayTyping: 2 });
+        const msgId2 = sendRes2.messageId;
         if (msgId2) {
           await supabase.from('wapi_messages').insert({
             conversation_id: conv.id, message_id: msgId2, from_me: true,
@@ -2408,13 +2373,8 @@ async function processStuckBotRecovery({
         : (nextQ?.question || '');
 
       const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
-      const res = await fetch(`https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-        body: JSON.stringify({ phone, message: nextQuestionMsg, delayTyping: 1 }),
-      });
-      let msgId: string | null = null;
-      if (res.ok) { const r = await res.json(); msgId = r.messageId || r.data?.messageId || null; }
+      const sendRes = await providerSendText(instance, phone, nextQuestionMsg, { delayTyping: 1 });
+      const msgId = sendRes.messageId;
       if (msgId) {
         await supabase.from('wapi_messages').insert({
           conversation_id: conv.id, message_id: msgId, from_me: true,
