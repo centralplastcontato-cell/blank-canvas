@@ -121,6 +121,8 @@ export interface VariableContext {
     observacoes_evento?: string | null;
     tema?: string | null;
     valor_convidado_adicional?: string | null;
+    valor_adicional_antecipado?: string | null;
+    valor_adicional_no_dia?: string | null;
     quantidade_pessoas?: string | null;
     qtd_adultos?: string | null;
     qtd_criancas?: string | null;
@@ -412,6 +414,24 @@ const VARIABLE_CATALOG: Record<string, CatalogEntry> = {
       return numberToWordsBRL(ctx.contract.valor_convidado_adicional);
     },
   },
+  valor_adicional_antecipado: {
+    resolver: (ctx) => ctx.contract?.valor_adicional_antecipado || '',
+  },
+  valor_adicional_no_dia: {
+    resolver: (ctx) => ctx.contract?.valor_adicional_no_dia || '',
+  },
+  valor_adicional_antecipado_extenso: {
+    resolver: (ctx) => {
+      if (!ctx.contract?.valor_adicional_antecipado) return '';
+      return numberToWordsBRL(ctx.contract.valor_adicional_antecipado);
+    },
+  },
+  valor_adicional_no_dia_extenso: {
+    resolver: (ctx) => {
+      if (!ctx.contract?.valor_adicional_no_dia) return '';
+      return numberToWordsBRL(ctx.contract.valor_adicional_no_dia);
+    },
+  },
   telefone_pais: {
     resolver: (ctx) => formatPhoneDisplay(ctx.contract?.telefone_pais),
   },
@@ -653,6 +673,8 @@ export function getAvailableVariables(): {
     tema: 'contract', valor_convidado_adicional: 'contract', quantidade_pessoas: 'contract',
     estado: 'contract', duracao_festa: 'contract', cardapio: 'contract', valor_total_extenso: 'contract',
     valor_sinal_extenso: 'contract', valor_restante_extenso: 'contract', valor_convidado_adicional_extenso: 'contract',
+    valor_adicional_antecipado: 'contract', valor_adicional_no_dia: 'contract',
+    valor_adicional_antecipado_extenso: 'contract', valor_adicional_no_dia_extenso: 'contract',
     data_entrada: 'contract', data_saldo: 'contract', aniversariantes: 'contract', opcionais: 'contract',
     qtd_adultos: 'contract', qtd_criancas: 'contract', valor_por_adulto: 'contract', valor_por_crianca: 'contract', observacoes_evento: 'contract',
     titulo: 'schedule', periodo: 'schedule', qtd_festas: 'schedule',
