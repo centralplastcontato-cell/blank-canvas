@@ -88,6 +88,8 @@ export interface EventFormData {
   parent_names?: string | null;
   gifts?: string | null;
   extra_guest_value?: number | null;
+  extra_guest_value_antecipado?: number | null;
+  extra_guest_value_no_dia?: number | null;
   is_permuta?: boolean;
   internal_notes?: string;
   event_optionals?: EventOptional[];
