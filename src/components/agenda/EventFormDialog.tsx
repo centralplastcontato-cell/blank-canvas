@@ -360,7 +360,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [loadingLeads, setLoadingLeads] = useState(false);
 
   const [templates, setTemplates] = useState<Array<{ id: string; name: string; items: string[] }>>([]);
-  const [packages, setPackages] = useState<Array<{ id: string; name: string; valor_pessoa_adicional: number | null; preco_separado: boolean; valor_pessoa_adicional_adulto: number | null; valor_pessoa_adicional_crianca: number | null }>>([]);
+  const [packages, setPackages] = useState<Array<{ id: string; name: string; valor_pessoa_adicional: number | null; preco_separado: boolean; valor_pessoa_adicional_adulto: number | null; valor_pessoa_adicional_crianca: number | null; valor_adicional_antecipado: number | null; valor_adicional_no_dia: number | null }>>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [companyUsers, setCompanyUsers] = useState<Array<{ id: string; name: string }>>([]);
   const [catalogOptionals, setCatalogOptionals] = useState<Array<{ id: string; name: string; description: string | null; value: number | null; valor_por_pessoa: number | null }>>([]);
@@ -848,7 +848,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       .eq("is_active", true)
       .order("sort_order")
       .then(({ data }) => {
-        setPackages((data || []).map((p: any) => ({ id: p.id, name: p.name, valor_pessoa_adicional: p.valor_pessoa_adicional, preco_separado: !!p.preco_separado, valor_pessoa_adicional_adulto: p.valor_pessoa_adicional_adulto, valor_pessoa_adicional_crianca: p.valor_pessoa_adicional_crianca })));
+        setPackages((data || []).map((p: any) => ({ id: p.id, name: p.name, valor_pessoa_adicional: p.valor_pessoa_adicional, preco_separado: !!p.preco_separado, valor_pessoa_adicional_adulto: p.valor_pessoa_adicional_adulto, valor_pessoa_adicional_crianca: p.valor_pessoa_adicional_crianca, valor_adicional_antecipado: p.valor_adicional_antecipado, valor_adicional_no_dia: p.valor_adicional_no_dia })));
       });
     supabase
       .from("company_optionals" as any)
