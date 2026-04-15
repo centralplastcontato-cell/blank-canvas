@@ -1384,6 +1384,145 @@ async function processAutoLost({
 // ============= FLOW BUILDER TIMER TIMEOUT (checks expired timer nodes and triggers timeout path) =============
 
 const WAPI_BASE_URL = 'https://api.w-api.app/v1';
+const ZAPI_BASE_URL = 'https://api.z-api.io/instances';
+
+type Provider = 'wapi' | 'zapi';
+
+interface InstanceInfo {
+  instance_id: string;
+  instance_token: string;
+  company_id: string;
+  provider?: Provider | string | null;
+  client_token?: string | null;
+  id?: string;
+  unit?: string;
+}
+
+/**
+ * Provider-aware send-text helper. Routes to W-API or Z-API based on provider.
+ * Returns { ok, messageId, error }
+ */
+async function providerSendText(
+  inst: InstanceInfo,
+  phone: string,
+  message: string,
+  extraBody?: Record<string, unknown>,
+): Promise<{ ok: boolean; messageId: string | null; error?: string }> {
+  const provider = (inst.provider || 'wapi') as Provider;
+  try {
+    let res: Response;
+    if (provider === 'zapi') {
+      const url = `${ZAPI_BASE_URL}/${inst.instance_id}/token/${inst.instance_token}/send-text`;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (inst.client_token) headers['Client-Token'] = inst.client_token;
+      res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ phone: phone.replace(/\D/g, ''), message, ...extraBody }),
+      });
+    } else {
+      res = await fetch(`${WAPI_BASE_URL}/message/send-text?instanceId=${inst.instance_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${inst.instance_token}` },
+        body: JSON.stringify({ phone, message, ...extraBody }),
+      });
+    }
+    if (!res.ok) {
+      const errText = await res.text();
+      return { ok: false, messageId: null, error: errText };
+    }
+    const data = await res.json();
+    const messageId = data?.zapiMessageId || data?.messageId || data?.result?.key?.id || data?.key?.id || data?.data?.messageId || data?.id || null;
+    return { ok: true, messageId };
+  } catch (err) {
+    return { ok: false, messageId: null, error: String(err) };
+  }
+}
+
+/** Provider-aware send-image helper */
+async function providerSendImage(
+  inst: InstanceInfo,
+  phone: string,
+  image: string,
+  caption?: string,
+): Promise<{ ok: boolean; messageId: string | null }> {
+  const provider = (inst.provider || 'wapi') as Provider;
+  try {
+    let res: Response;
+    if (provider === 'zapi') {
+      const url = `${ZAPI_BASE_URL}/${inst.instance_id}/token/${inst.instance_token}/send-image`;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (inst.client_token) headers['Client-Token'] = inst.client_token;
+      res = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ phone: phone.replace(/\D/g, ''), image, caption }) });
+    } else {
+      res = await fetch(`${WAPI_BASE_URL}/message/send-image?instanceId=${inst.instance_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${inst.instance_token}` },
+        body: JSON.stringify({ phone, image, caption }),
+      });
+    }
+    if (!res.ok) return { ok: false, messageId: null };
+    const r = await res.json();
+    return { ok: true, messageId: r.zapiMessageId || r.messageId || null };
+  } catch { return { ok: false, messageId: null }; }
+}
+
+/** Provider-aware send-video helper */
+async function providerSendVideo(
+  inst: InstanceInfo,
+  phone: string,
+  video: string,
+  caption?: string,
+): Promise<{ ok: boolean; messageId: string | null }> {
+  const provider = (inst.provider || 'wapi') as Provider;
+  try {
+    let res: Response;
+    if (provider === 'zapi') {
+      const url = `${ZAPI_BASE_URL}/${inst.instance_id}/token/${inst.instance_token}/send-video`;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (inst.client_token) headers['Client-Token'] = inst.client_token;
+      res = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ phone: phone.replace(/\D/g, ''), video, caption }) });
+    } else {
+      res = await fetch(`${WAPI_BASE_URL}/message/send-video?instanceId=${inst.instance_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${inst.instance_token}` },
+        body: JSON.stringify({ phone, video, caption }),
+      });
+    }
+    if (!res.ok) return { ok: false, messageId: null };
+    const r = await res.json();
+    return { ok: true, messageId: r.zapiMessageId || r.messageId || null };
+  } catch { return { ok: false, messageId: null }; }
+}
+
+/** Provider-aware send-document helper */
+async function providerSendDocument(
+  inst: InstanceInfo,
+  phone: string,
+  document: string,
+  fileName: string,
+): Promise<{ ok: boolean; messageId: string | null }> {
+  const provider = (inst.provider || 'wapi') as Provider;
+  const ext = document.split('.').pop()?.split('?')[0] || 'pdf';
+  try {
+    let res: Response;
+    if (provider === 'zapi') {
+      const url = `${ZAPI_BASE_URL}/${inst.instance_id}/token/${inst.instance_token}/send-document/${ext}`;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (inst.client_token) headers['Client-Token'] = inst.client_token;
+      res = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ phone: phone.replace(/\D/g, ''), document, fileName }) });
+    } else {
+      res = await fetch(`${WAPI_BASE_URL}/message/send-document?instanceId=${inst.instance_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${inst.instance_token}` },
+        body: JSON.stringify({ phone, document, fileName, extension: ext }),
+      });
+    }
+    if (!res.ok) return { ok: false, messageId: null };
+    const r = await res.json();
+    return { ok: true, messageId: r.zapiMessageId || r.messageId || null };
+  } catch { return { ok: false, messageId: null }; }
+}
 
 interface FlowTimerParams {
   supabase: ReturnType<typeof createClient>;
