@@ -1093,34 +1093,17 @@ Podemos continuar de onde paramos?`;
       }
       const phone = conv.remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
 
-      const wapiResponse = await fetch(
-        `https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${instance.instance_token}`,
-          },
-          body: JSON.stringify({ phone, message: personalizedMessage }),
-        }
-      );
+      const sendResult = await providerSendText(instance, phone, personalizedMessage);
 
-      if (!wapiResponse.ok) {
-        const errorText = await wapiResponse.text();
-        console.error(`[follow-up-check] Failed to send bot-inactive follow-up to ${phone}:`, errorText);
-        errors.push(`Failed bot-inactive follow-up to ${phone}: ${errorText}`);
+      if (!sendResult.ok) {
+        console.error(`[follow-up-check] Failed to send bot-inactive follow-up to ${phone}:`, sendResult.error);
+        errors.push(`Failed bot-inactive follow-up to ${phone}: ${sendResult.error}`);
         continue;
       }
 
       console.log(`[follow-up-check] Bot-inactive follow-up sent to ${phone} (was stuck at step: ${conv.bot_step})`);
 
-      // Extract message_id from W-API response to prevent duplicate inserts by webhook
-      let sentMsgId: string | null = null;
-      try {
-        const wapiData = await wapiResponse.json();
-        sentMsgId = wapiData?.result?.key?.id || wapiData?.key?.id || wapiData?.messageId || wapiData?.data?.messageId || wapiData?.id || null;
-        console.log(`[follow-up-check] W-API bot-inactive response messageId: ${sentMsgId}`);
-      } catch { /* ignore parse errors */ }
+      const sentMsgId = sendResult.messageId;
 
       // Save message
       await supabase.from("wapi_messages").insert({
