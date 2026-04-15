@@ -174,6 +174,8 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
         brindes: eventData?.gifts || "",
         tema: clientData.tema || "",
         valor_convidado_adicional: eventData?.extra_guest_value ? `R$ ${Number(eventData.extra_guest_value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "",
+        valor_adicional_antecipado: eventData?.extra_guest_value_antecipado ? `R$ ${Number(eventData.extra_guest_value_antecipado).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "",
+        valor_adicional_no_dia: eventData?.extra_guest_value_no_dia ? `R$ ${Number(eventData.extra_guest_value_no_dia).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "",
         quantidade_pessoas: eventData?.guest_count?.toString() || leadData?.guests || "",
         opcionais: (() => {
           const opts = Array.isArray(eventData?.event_optionals) ? eventData.event_optionals.filter((o: any) => o.name) : [];
