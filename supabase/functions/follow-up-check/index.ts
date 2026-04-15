@@ -816,38 +816,19 @@ async function processFollowUp({
         personalizedMessage += `\n\n1️⃣ - Agendar visita\n2️⃣ - Tirar dúvidas\n3️⃣ - Analisar com calma`;
       }
 
-      // Send the message via W-API
-      const wapiResponse = await fetch(
-        `https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${instance.instance_token}`,
-          },
-          body: JSON.stringify({
-            phone: conversation.remote_jid.replace("@s.whatsapp.net", ""),
-            message: personalizedMessage,
-          }),
-        }
-      );
+      // Send the message via provider-aware helper
+      const fuPhone = conversation.remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
+      const sendResult = await providerSendText(instance, fuPhone, personalizedMessage);
 
-      if (!wapiResponse.ok) {
-        const errorText = await wapiResponse.text();
-        console.error(`[follow-up-check] Failed to send message to ${lead.name}:`, errorText);
-        errors.push(`Failed to send to ${lead.name}: ${errorText}`);
+      if (!sendResult.ok) {
+        console.error(`[follow-up-check] Failed to send message to ${lead.name}:`, sendResult.error);
+        errors.push(`Failed to send to ${lead.name}: ${sendResult.error}`);
         continue;
       }
 
       console.log(`[follow-up-check] Follow-up #${followUpNumber} sent successfully to ${lead.name}`);
 
-      // Extract message_id from W-API response to prevent duplicate inserts by webhook
-      let sentMsgId: string | null = null;
-      try {
-        const wapiData = await wapiResponse.json();
-        sentMsgId = wapiData?.result?.key?.id || wapiData?.key?.id || wapiData?.messageId || wapiData?.data?.messageId || wapiData?.id || null;
-        console.log(`[follow-up-check] W-API follow-up response messageId: ${sentMsgId}`);
-      } catch { /* ignore parse errors */ }
+      const sentMsgId = sendResult.messageId;
 
       // Save the message to the database
       await supabase.from("wapi_messages").insert({
