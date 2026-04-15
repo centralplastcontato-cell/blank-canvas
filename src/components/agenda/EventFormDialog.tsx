@@ -88,6 +88,8 @@ export interface EventFormData {
   parent_names?: string | null;
   gifts?: string | null;
   extra_guest_value?: number | null;
+  extra_guest_value_antecipado?: number | null;
+  extra_guest_value_no_dia?: number | null;
   is_permuta?: boolean;
   internal_notes?: string;
   event_optionals?: EventOptional[];
@@ -248,6 +250,8 @@ const EMPTY: EventFormData = {
   parent_names: null,
   gifts: null,
   extra_guest_value: null,
+  extra_guest_value_antecipado: null,
+  extra_guest_value_no_dia: null,
   is_permuta: false,
   internal_notes: "",
   event_optionals: [],
@@ -356,7 +360,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [loadingLeads, setLoadingLeads] = useState(false);
 
   const [templates, setTemplates] = useState<Array<{ id: string; name: string; items: string[] }>>([]);
-  const [packages, setPackages] = useState<Array<{ id: string; name: string; valor_pessoa_adicional: number | null; preco_separado: boolean; valor_pessoa_adicional_adulto: number | null; valor_pessoa_adicional_crianca: number | null }>>([]);
+  const [packages, setPackages] = useState<Array<{ id: string; name: string; valor_pessoa_adicional: number | null; preco_separado: boolean; valor_pessoa_adicional_adulto: number | null; valor_pessoa_adicional_crianca: number | null; valor_adicional_antecipado: number | null; valor_adicional_no_dia: number | null }>>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [companyUsers, setCompanyUsers] = useState<Array<{ id: string; name: string }>>([]);
   const [catalogOptionals, setCatalogOptionals] = useState<Array<{ id: string; name: string; description: string | null; value: number | null; valor_por_pessoa: number | null }>>([]);
@@ -839,12 +843,12 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       });
     supabase
       .from("company_packages")
-      .select("id, name, valor_pessoa_adicional, preco_separado, valor_pessoa_adicional_adulto, valor_pessoa_adicional_crianca")
+      .select("id, name, valor_pessoa_adicional, preco_separado, valor_pessoa_adicional_adulto, valor_pessoa_adicional_crianca, valor_adicional_antecipado, valor_adicional_no_dia")
       .eq("company_id", currentCompany.id)
       .eq("is_active", true)
       .order("sort_order")
       .then(({ data }) => {
-        setPackages((data || []).map((p: any) => ({ id: p.id, name: p.name, valor_pessoa_adicional: p.valor_pessoa_adicional, preco_separado: !!p.preco_separado, valor_pessoa_adicional_adulto: p.valor_pessoa_adicional_adulto, valor_pessoa_adicional_crianca: p.valor_pessoa_adicional_crianca })));
+        setPackages((data || []).map((p: any) => ({ id: p.id, name: p.name, valor_pessoa_adicional: p.valor_pessoa_adicional, preco_separado: !!p.preco_separado, valor_pessoa_adicional_adulto: p.valor_pessoa_adicional_adulto, valor_pessoa_adicional_crianca: p.valor_pessoa_adicional_crianca, valor_adicional_antecipado: p.valor_adicional_antecipado, valor_adicional_no_dia: p.valor_adicional_no_dia })));
       });
     supabase
       .from("company_optionals" as any)
@@ -1544,7 +1548,9 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     const pkgName = v === "none" ? "" : v;
                     const selectedPkg = packages.find(p => p.name === pkgName);
                     const autoExtraValue = selectedPkg?.valor_pessoa_adicional ?? null;
-                    setForm({ ...form, package_name: pkgName, extra_guest_value: autoExtraValue });
+                    const autoAntecipado = selectedPkg?.valor_adicional_antecipado ?? null;
+                    const autoNoDia = selectedPkg?.valor_adicional_no_dia ?? null;
+                    setForm({ ...form, package_name: pkgName, extra_guest_value: autoExtraValue, extra_guest_value_antecipado: autoAntecipado, extra_guest_value_no_dia: autoNoDia });
                     if (selectedPkg?.preco_separado) {
                       setPricingMode('per_person');
                       if (selectedPkg.valor_pessoa_adicional_adulto != null) setPricePerAdult(selectedPkg.valor_pessoa_adicional_adulto);
@@ -1873,6 +1879,16 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               <div className="space-y-2.5">
                 <Label className="text-sm font-medium text-foreground/70">Valor por convidado extra</Label>
                 <MoneyInput value={form.extra_guest_value} onChange={(v) => setForm({ ...form, extra_guest_value: v })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2.5">
+                <Label className="text-sm font-medium text-foreground/70">📋 Adicional antecipado</Label>
+                <MoneyInput value={form.extra_guest_value_antecipado} onChange={(v) => setForm({ ...form, extra_guest_value_antecipado: v })} />
+              </div>
+              <div className="space-y-2.5">
+                <Label className="text-sm font-medium text-foreground/70">🎉 Adicional no dia</Label>
+                <MoneyInput value={form.extra_guest_value_no_dia} onChange={(v) => setForm({ ...form, extra_guest_value_no_dia: v })} />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
