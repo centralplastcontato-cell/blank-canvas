@@ -843,7 +843,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       });
     supabase
       .from("company_packages")
-      .select("id, name, valor_pessoa_adicional, preco_separado, valor_pessoa_adicional_adulto, valor_pessoa_adicional_crianca")
+      .select("id, name, valor_pessoa_adicional, preco_separado, valor_pessoa_adicional_adulto, valor_pessoa_adicional_crianca, valor_adicional_antecipado, valor_adicional_no_dia")
       .eq("company_id", currentCompany.id)
       .eq("is_active", true)
       .order("sort_order")
