@@ -322,7 +322,7 @@ export function PackagesManager() {
                 <Switch checked={precoSeparado} onCheckedChange={setPrecoSeparado} />
               </div>
 
-              {precoSeparado ? (
+              {precoSeparado && (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">🧒 Criança (R$)</Label>
@@ -333,23 +333,37 @@ export function PackagesManager() {
                     <CurrencyInput value={valorAdulto} onChange={setValorAdulto} placeholder="R$ 0,00" />
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Valor por pessoa adicional (R$)</Label>
-                  <CurrencyInput value={valorUnico} onChange={setValorUnico} placeholder="R$ 0,00" />
-                </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/40">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">📋 Antecipado (R$)</Label>
-                  <CurrencyInput value={valorAntecipado} onChange={setValorAntecipado} placeholder="R$ 0,00" />
+              <div className="space-y-3 rounded-xl border border-border/50 bg-muted/20 p-3">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-foreground">Convidados extras</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Preencha os dois valores abaixo para diferenciar confirmação antecipada e cobrança no dia do evento.
+                  </p>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">🎉 No dia (R$)</Label>
-                  <CurrencyInput value={valorNoDia} onChange={setValorNoDia} placeholder="R$ 0,00" />
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">📋 Antecipado (R$)</Label>
+                    <CurrencyInput value={valorAntecipado} onChange={setValorAntecipado} placeholder="R$ 0,00" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">🎉 No dia (R$)</Label>
+                    <CurrencyInput value={valorNoDia} onChange={setValorNoDia} placeholder="R$ 0,00" />
+                  </div>
                 </div>
               </div>
+
+              {!precoSeparado && (
+                <div className="space-y-1.5 pt-1 border-t border-border/40">
+                  <Label className="text-xs text-muted-foreground">Valor por pessoa adicional (fallback legado)</Label>
+                  <CurrencyInput value={valorUnico} onChange={setValorUnico} placeholder="R$ 0,00" />
+                  <p className="text-[11px] text-muted-foreground">
+                    Opcional: use apenas se não quiser separar entre antecipado e no dia.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Seção: Grade de Preços — sempre visível */}
