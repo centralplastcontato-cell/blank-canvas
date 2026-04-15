@@ -1629,15 +1629,10 @@ async function processFlowTimerTimeouts({
       // Send target node message if it has one
       if (targetNode.message_template) {
         const msg = replaceVars(targetNode.message_template);
-        const res = await fetch(`${WAPI_BASE_URL}/message/send-text?instanceId=${instance.instance_id}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-          body: JSON.stringify({ phone, message: msg, delayTyping: 1 }),
-        });
+        const sendRes = await providerSendText(instance, phone, msg, { delayTyping: 1 });
 
-        if (res.ok) {
-          const r = await res.json();
-          const msgId = r.messageId || r.data?.messageId || r.id || null;
+        if (sendRes.ok) {
+          const msgId = sendRes.messageId;
 
           await supabase.from('wapi_messages').insert({
             conversation_id: conv.id, message_id: msgId, from_me: true,
@@ -2493,54 +2488,29 @@ async function recoverySendMaterials(
       }
       const ct = imgRes.headers.get('content-type') || 'image/jpeg';
       const base64 = `data:${ct};base64,${btoa(bin)}`;
-      const res = await fetch(`${WAPI_BASE_URL}/message/send-image?instanceId=${instance.instance_id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-        body: JSON.stringify({ phone, image: base64, caption })
-      });
-      if (!res.ok) return null;
-      const r = await res.json();
-      return r.messageId || null;
+      const sendRes = await providerSendImage(instance, phone, base64, caption);
+      return sendRes.messageId;
     } catch (e) { console.error('[Recovery Materials] Error sending image:', e); return null; }
   };
 
   const sendVideo = async (url: string, caption: string) => {
     try {
-      const res = await fetch(`${WAPI_BASE_URL}/message/send-video?instanceId=${instance.instance_id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-        body: JSON.stringify({ phone, video: url, caption })
-      });
-      if (!res.ok) return null;
-      const r = await res.json();
-      return r.messageId || null;
+      const sendRes = await providerSendVideo(instance, phone, url, caption);
+      return sendRes.messageId;
     } catch (e) { console.error('[Recovery Materials] Error sending video:', e); return null; }
   };
 
   const sendDocument = async (url: string, fileName: string) => {
     try {
-      const ext = url.split('.').pop()?.split('?')[0] || 'pdf';
-      const res = await fetch(`${WAPI_BASE_URL}/message/send-document?instanceId=${instance.instance_id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-        body: JSON.stringify({ phone, document: url, fileName, extension: ext })
-      });
-      if (!res.ok) return null;
-      const r = await res.json();
-      return r.messageId || null;
+      const sendRes = await providerSendDocument(instance, phone, url, fileName);
+      return sendRes.messageId;
     } catch (e) { console.error('[Recovery Materials] Error sending document:', e); return null; }
   };
 
   const sendText = async (message: string) => {
     try {
-      const res = await fetch(`${WAPI_BASE_URL}/message/send-text?instanceId=${instance.instance_id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance.instance_token}` },
-        body: JSON.stringify({ phone, message, delayTyping: 1 })
-      });
-      if (!res.ok) return null;
-      const r = await res.json();
-      return r.messageId || null;
+      const sendRes = await providerSendText(instance, phone, message, { delayTyping: 1 });
+      return sendRes.messageId;
     } catch (e) { console.error('[Recovery Materials] Error sending text:', e); return null; }
   };
 
