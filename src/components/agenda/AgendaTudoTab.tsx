@@ -71,7 +71,7 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
       const [evRes, visitRes] = await Promise.all([
         supabase
           .from("company_events")
-          .select("id, title, event_date, start_time, end_time, status, unit, event_type, package_name, guest_count, total_value, lead_id, child_name, child_age, notes, internal_notes, payment_method, created_by, created_at, updated_at, is_permuta, parent_names, gifts, extra_guest_value, event_optionals, birthday_children, child_birthdate, payment_details, data_fechamento_venda, vendedor_responsavel_id")
+          .select("id, title, event_date, start_time, end_time, status, unit, event_type, package_name, guest_count, total_value, lead_id, child_name, child_age, notes, internal_notes, payment_method, created_by, created_at, updated_at, is_permuta, parent_names, gifts, extra_guest_value, extra_guest_value_antecipado, extra_guest_value_no_dia, event_optionals, birthday_children, child_birthdate, payment_details, data_fechamento_venda, vendedor_responsavel_id")
           .eq("company_id", currentCompany.id)
           .gte("event_date", from)
           .lte("event_date", to),

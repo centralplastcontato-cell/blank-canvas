@@ -69,6 +69,8 @@ interface CompanyEvent {
   parent_names?: string | null;
   gifts?: string | null;
   extra_guest_value?: number | null;
+  extra_guest_value_antecipado?: number | null;
+  extra_guest_value_no_dia?: number | null;
   is_permuta?: boolean;
   internal_notes?: string;
   birthday_children?: any;
@@ -152,6 +154,8 @@ const mapEventToFormData = (ev: CompanyEvent): EventFormData => ({
   parent_names: ev.parent_names || null,
   gifts: ev.gifts || null,
   extra_guest_value: ev.extra_guest_value ?? null,
+  extra_guest_value_antecipado: (ev as any).extra_guest_value_antecipado ?? null,
+  extra_guest_value_no_dia: (ev as any).extra_guest_value_no_dia ?? null,
   is_permuta: ev.is_permuta || false,
   internal_notes: ev.internal_notes || "",
   birthday_children: Array.isArray(ev.birthday_children) ? ev.birthday_children : [],
@@ -675,6 +679,8 @@ export default function Agenda() {
       parent_names: data.parent_names || null,
       gifts: data.gifts || null,
       extra_guest_value: data.extra_guest_value,
+      extra_guest_value_antecipado: data.extra_guest_value_antecipado,
+      extra_guest_value_no_dia: data.extra_guest_value_no_dia,
       is_permuta: data.is_permuta || false,
       internal_notes: data.internal_notes || null,
       event_optionals: (data.event_optionals || []).filter((o: any) => o.name || (o.value != null && o.value > 0)),

@@ -250,6 +250,8 @@ const EMPTY: EventFormData = {
   parent_names: null,
   gifts: null,
   extra_guest_value: null,
+  extra_guest_value_antecipado: null,
+  extra_guest_value_no_dia: null,
   is_permuta: false,
   internal_notes: "",
   event_optionals: [],
@@ -1546,7 +1548,9 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     const pkgName = v === "none" ? "" : v;
                     const selectedPkg = packages.find(p => p.name === pkgName);
                     const autoExtraValue = selectedPkg?.valor_pessoa_adicional ?? null;
-                    setForm({ ...form, package_name: pkgName, extra_guest_value: autoExtraValue });
+                    const autoAntecipado = selectedPkg?.valor_adicional_antecipado ?? null;
+                    const autoNoDia = selectedPkg?.valor_adicional_no_dia ?? null;
+                    setForm({ ...form, package_name: pkgName, extra_guest_value: autoExtraValue, extra_guest_value_antecipado: autoAntecipado, extra_guest_value_no_dia: autoNoDia });
                     if (selectedPkg?.preco_separado) {
                       setPricingMode('per_person');
                       if (selectedPkg.valor_pessoa_adicional_adulto != null) setPricePerAdult(selectedPkg.valor_pessoa_adicional_adulto);
@@ -1875,6 +1879,16 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               <div className="space-y-2.5">
                 <Label className="text-sm font-medium text-foreground/70">Valor por convidado extra</Label>
                 <MoneyInput value={form.extra_guest_value} onChange={(v) => setForm({ ...form, extra_guest_value: v })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2.5">
+                <Label className="text-sm font-medium text-foreground/70">📋 Adicional antecipado</Label>
+                <MoneyInput value={form.extra_guest_value_antecipado} onChange={(v) => setForm({ ...form, extra_guest_value_antecipado: v })} />
+              </div>
+              <div className="space-y-2.5">
+                <Label className="text-sm font-medium text-foreground/70">🎉 Adicional no dia</Label>
+                <MoneyInput value={form.extra_guest_value_no_dia} onChange={(v) => setForm({ ...form, extra_guest_value_no_dia: v })} />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
