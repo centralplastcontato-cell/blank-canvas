@@ -357,10 +357,10 @@ export function PackagesManager() {
 
               {!precoSeparado && (
                 <div className="space-y-1.5 pt-1 border-t border-border/40">
-                  <Label className="text-xs text-muted-foreground">Valor por pessoa adicional (fallback legado)</Label>
+                  <Label className="text-xs text-muted-foreground">Valor por pessoa adicional</Label>
                   <CurrencyInput value={valorUnico} onChange={setValorUnico} placeholder="R$ 0,00" />
                   <p className="text-[11px] text-muted-foreground">
-                    Opcional: use apenas se não quiser separar entre antecipado e no dia.
+                    Opcional: use se não quiser diferenciar entre antecipado e no dia.
                   </p>
                 </div>
               )}
