@@ -403,13 +403,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
   // Quick connect shortcut from banners
   const connection = useWhatsAppConnection(() => {
-    // On successful connection, refresh instances
     fetchInstances();
   });
 
   const handleQuickConnect = useCallback(async () => {
     if (!selectedInstance) return;
-    // Fetch full instance data (with token/provider) for connection
     const companyId = localStorage.getItem('selected_company_id') || 'a0000000-0000-0000-0000-000000000001';
     const { data } = await supabase
       .from('wapi_instances')
@@ -418,7 +416,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       .eq('company_id', companyId)
       .single();
     if (data) {
-      connection.startConnection(data as ConnectableInstance);
+      connection.openDialog(data as ConnectableInstance);
     }
   }, [selectedInstance, connection]);
   
