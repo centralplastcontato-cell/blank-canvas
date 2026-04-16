@@ -57,6 +57,9 @@ import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useMessagesRealtime } from "@/hooks/useMessagesRealtime";
+import { useWhatsAppConnection, ConnectableInstance } from "@/hooks/useWhatsAppConnection";
+import { ConnectionDialog } from "@/components/whatsapp/ConnectionDialog";
+import { Plug } from "lucide-react";
 // Latency monitoring removed - was causing flickering
 import { format, isToday, isYesterday } from "date-fns";
 import { ptBR } from "date-fns/locale";
