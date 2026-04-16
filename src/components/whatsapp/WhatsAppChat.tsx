@@ -6778,6 +6778,28 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           contactName={selectedConversation.contact_name}
         />
       )}
+
+      {/* Quick Connect Dialog */}
+      <ConnectionDialog
+        open={connection.qrDialogOpen}
+        onOpenChange={() => {}}
+        instance={connection.qrInstance}
+        qrCode={connection.qrCode}
+        qrLoading={connection.qrLoading}
+        connectionMode={connection.connectionMode}
+        phoneNumber={connection.phoneNumber}
+        pairingCode={connection.pairingCode}
+        isPairingLoading={connection.isPairingLoading}
+        retryCount={connection.retryCount}
+        isRetrying={connection.isRetrying}
+        isWapiUnstable={connection.isWapiUnstable}
+        connectionStage={connection.connectionStage}
+        onClose={connection.closeDialog}
+        onSetConnectionMode={connection.setConnectionMode}
+        onSetPhoneNumber={connection.setPhoneNumber}
+        onRequestPairingCode={() => connection.requestPairingCode(connection.qrInstance!)}
+        onRetryQr={() => connection.qrInstance && connection.fetchQrCode(connection.qrInstance, 0)}
+      />
     </div>
   );
 }
