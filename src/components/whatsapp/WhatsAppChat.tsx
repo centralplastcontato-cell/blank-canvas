@@ -3595,11 +3595,24 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
       {/* Disconnected warning - Premium styled */}
       {(allDisconnected || (hasDisconnectedInstances && selectedInstance?.status !== 'connected' && selectedInstance?.status !== 'degraded')) && (
-        <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-3 mb-3 text-sm text-center shrink-0 shadow-sm backdrop-blur-sm">
-          <WifiOff className="w-4 h-4 inline mr-2" />
-          {allDisconnected 
-            ? 'Todas as unidades estão desconectadas. Você pode visualizar as mensagens já registradas, mas não poderá enviar novas mensagens.'
-            : 'Esta unidade está desconectada. Selecione outra ou aguarde o administrador.'}
+        <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-3 mb-3 text-sm text-center shrink-0 shadow-sm backdrop-blur-sm flex items-center justify-center gap-3 flex-wrap">
+          <span>
+            <WifiOff className="w-4 h-4 inline mr-2" />
+            {allDisconnected 
+              ? 'Todas as unidades estão desconectadas. Você pode visualizar as mensagens já registradas, mas não poderá enviar novas mensagens.'
+              : 'Esta unidade está desconectada. Selecione outra ou aguarde o administrador.'}
+          </span>
+          {selectedInstance && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-emerald-700 border-emerald-400 hover:bg-emerald-100 dark:text-emerald-300 dark:border-emerald-600 dark:hover:bg-emerald-900/30"
+              onClick={handleQuickConnect}
+            >
+              <Plug className="w-3 h-3 mr-1" />
+              Conectar
+            </Button>
+          )}
         </div>
       )}
 
