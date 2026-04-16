@@ -3700,6 +3700,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             <Eraser className="w-3 h-3 mr-1" />
             Reparar
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-emerald-700 border-emerald-400 hover:bg-emerald-100 dark:text-emerald-300 dark:border-emerald-600 dark:hover:bg-emerald-900/30"
+            onClick={handleQuickConnect}
+          >
+            <Plug className="w-3 h-3 mr-1" />
+            Conectar
+          </Button>
         </div>
       )}
 
