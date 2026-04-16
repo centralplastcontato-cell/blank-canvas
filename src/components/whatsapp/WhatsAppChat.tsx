@@ -400,6 +400,27 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   
   // Reply (quote) state
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+
+  // Quick connect shortcut from banners
+  const connection = useWhatsAppConnection(() => {
+    // On successful connection, refresh instances
+    fetchInstances();
+  });
+
+  const handleQuickConnect = useCallback(async () => {
+    if (!selectedInstance) return;
+    // Fetch full instance data (with token/provider) for connection
+    const companyId = localStorage.getItem('selected_company_id') || 'a0000000-0000-0000-0000-000000000001';
+    const { data } = await supabase
+      .from('wapi_instances')
+      .select('id, instance_id, instance_token, status, phone_number, unit, provider')
+      .eq('id', selectedInstance.id)
+      .eq('company_id', companyId)
+      .single();
+    if (data) {
+      connection.startConnection(data as ConnectableInstance);
+    }
+  }, [selectedInstance, connection]);
   
   // Multi-select image download state
   const [isSelectMode, setIsSelectMode] = useState(false);
