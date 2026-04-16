@@ -57,6 +57,9 @@ import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useMessagesRealtime } from "@/hooks/useMessagesRealtime";
+import { useWhatsAppConnection, ConnectableInstance } from "@/hooks/useWhatsAppConnection";
+import { ConnectionDialog } from "@/components/whatsapp/ConnectionDialog";
+import { Plug } from "lucide-react";
 // Latency monitoring removed - was causing flickering
 import { format, isToday, isYesterday } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -397,6 +400,25 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   
   // Reply (quote) state
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+
+  // Quick connect shortcut from banners
+  const connection = useWhatsAppConnection(() => {
+    fetchInstances();
+  });
+
+  const handleQuickConnect = useCallback(async () => {
+    if (!selectedInstance) return;
+    const companyId = localStorage.getItem('selected_company_id') || 'a0000000-0000-0000-0000-000000000001';
+    const { data } = await supabase
+      .from('wapi_instances')
+      .select('id, instance_id, instance_token, status, phone_number, unit, provider')
+      .eq('id', selectedInstance.id)
+      .eq('company_id', companyId)
+      .single();
+    if (data) {
+      connection.openDialog(data as ConnectableInstance);
+    }
+  }, [selectedInstance, connection]);
   
   // Multi-select image download state
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -3573,11 +3595,24 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
       {/* Disconnected warning - Premium styled */}
       {(allDisconnected || (hasDisconnectedInstances && selectedInstance?.status !== 'connected' && selectedInstance?.status !== 'degraded')) && (
-        <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-3 mb-3 text-sm text-center shrink-0 shadow-sm backdrop-blur-sm">
-          <WifiOff className="w-4 h-4 inline mr-2" />
-          {allDisconnected 
-            ? 'Todas as unidades estão desconectadas. Você pode visualizar as mensagens já registradas, mas não poderá enviar novas mensagens.'
-            : 'Esta unidade está desconectada. Selecione outra ou aguarde o administrador.'}
+        <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-3 mb-3 text-sm text-center shrink-0 shadow-sm backdrop-blur-sm flex items-center justify-center gap-3 flex-wrap">
+          <span>
+            <WifiOff className="w-4 h-4 inline mr-2" />
+            {allDisconnected 
+              ? 'Todas as unidades estão desconectadas. Você pode visualizar as mensagens já registradas, mas não poderá enviar novas mensagens.'
+              : 'Esta unidade está desconectada. Selecione outra ou aguarde o administrador.'}
+          </span>
+          {selectedInstance && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-emerald-700 border-emerald-400 hover:bg-emerald-100 dark:text-emerald-300 dark:border-emerald-600 dark:hover:bg-emerald-900/30"
+              onClick={handleQuickConnect}
+            >
+              <Plug className="w-3 h-3 mr-1" />
+              Conectar
+            </Button>
+          )}
         </div>
       )}
 
@@ -3664,6 +3699,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           >
             <Eraser className="w-3 h-3 mr-1" />
             Reparar
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-emerald-700 border-emerald-400 hover:bg-emerald-100 dark:text-emerald-300 dark:border-emerald-600 dark:hover:bg-emerald-900/30"
+            onClick={handleQuickConnect}
+          >
+            <Plug className="w-3 h-3 mr-1" />
+            Conectar
           </Button>
         </div>
       )}
@@ -6734,6 +6778,28 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           contactName={selectedConversation.contact_name}
         />
       )}
+
+      {/* Quick Connect Dialog */}
+      <ConnectionDialog
+        open={connection.qrDialogOpen}
+        onOpenChange={() => {}}
+        instance={connection.qrInstance}
+        qrCode={connection.qrCode}
+        qrLoading={connection.qrLoading}
+        connectionMode={connection.connectionMode}
+        phoneNumber={connection.phoneNumber}
+        pairingCode={connection.pairingCode}
+        isPairingLoading={connection.isPairingLoading}
+        retryCount={connection.retryCount}
+        isRetrying={connection.isRetrying}
+        isWapiUnstable={connection.isWapiUnstable}
+        connectionStage={connection.connectionStage}
+        onClose={connection.closeDialog}
+        onSetConnectionMode={connection.setConnectionMode}
+        onSetPhoneNumber={connection.setPhoneNumber}
+        onRequestPairingCode={() => connection.requestPairingCode(connection.qrInstance!)}
+        onRetryQr={() => connection.qrInstance && connection.fetchQrCode(connection.qrInstance, 0)}
+      />
     </div>
   );
 }
