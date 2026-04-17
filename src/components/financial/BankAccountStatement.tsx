@@ -69,6 +69,90 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
   // Expense detail sheet
   const [selectedExpense, setSelectedExpense] = useState<Movement | null>(null);
 
+  // Edit & delete state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editAmount, setEditAmount] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const openEdit = () => {
+    if (!selectedExpense) return;
+    setEditAmount(formatCurrencyInput(String(Math.round(selectedExpense.amount * 100))));
+    setEditDescription(selectedExpense.description || '');
+    setEditDate(selectedExpense.date || '');
+    setEditNotes(selectedExpense.expenseNotes || '');
+    setEditOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedExpense?.expenseId) return;
+    const amountNum = parseCurrencyInput(editAmount);
+    if (amountNum <= 0) {
+      toast.error('Informe um valor válido.');
+      return;
+    }
+    if (!editDescription.trim()) {
+      toast.error('Informe uma descrição.');
+      return;
+    }
+    setEditSaving(true);
+    try {
+      // Preserve sign: original could be negative (transferência/ajuste)
+      const sign = selectedExpense.amount < 0 || selectedExpense.type === 'entry' && (selectedExpense.expenseCategory === 'transferencia' || selectedExpense.expenseCategory === 'ajuste_saldo') ? -1 : 1;
+      // For simplicity: keep sign of original DB record
+      const { data: orig } = await supabase
+        .from('company_expenses')
+        .select('amount')
+        .eq('id', selectedExpense.expenseId)
+        .single();
+      const finalAmount = orig && Number(orig.amount) < 0 ? -Math.abs(amountNum) : Math.abs(amountNum);
+      const { error } = await supabase
+        .from('company_expenses')
+        .update({
+          amount: finalAmount,
+          description: editDescription.trim(),
+          expense_date: editDate,
+          notes: editNotes.trim() || null,
+        })
+        .eq('id', selectedExpense.expenseId);
+      if (error) throw error;
+      toast.success('Lançamento atualizado.');
+      setEditOpen(false);
+      setSelectedExpense(null);
+      await fetchMovements();
+      onBalanceChanged?.();
+    } catch (e: any) {
+      toast.error('Erro ao atualizar: ' + (e.message || ''));
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedExpense?.expenseId) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('company_expenses')
+        .delete()
+        .eq('id', selectedExpense.expenseId);
+      if (error) throw error;
+      toast.success('Lançamento excluído. Saldo recalculado.');
+      setConfirmDeleteOpen(false);
+      setSelectedExpense(null);
+      await fetchMovements();
+      onBalanceChanged?.();
+    } catch (e: any) {
+      toast.error('Erro ao excluir: ' + (e.message || ''));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const fetchMovements = useCallback(async () => {
     setIsLoading(true);
     try {
