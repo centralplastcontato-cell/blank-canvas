@@ -95,6 +95,8 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
     }
 
     setSending(true);
+    setPaused(false);
+    pauseRequestedRef.current = false;
     isSendingRef.current = true;
     setProgress({ current: 0, total: recipients.length, waiting: false });
     setResult(null);
