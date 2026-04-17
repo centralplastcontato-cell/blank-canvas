@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Loader2, Send, Minus, CheckCircle2, XCircle, Clock, Megaphone } from "lucide-react";
+import { Loader2, Send, Minus, CheckCircle2, XCircle, Clock, Megaphone, Pause } from "lucide-react";
 import { toast } from "sonner";
 
 interface Recipient {
@@ -47,6 +47,8 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
   const [result, setResult] = useState<{ success: number; errors: number } | null>(null);
   const [statuses, setStatuses] = useState<Map<string, string>>(new Map());
   const isSendingRef = useRef(false);
+  const pauseRequestedRef = useRef(false);
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
     if (countdown === null || countdown <= 0) return;
@@ -93,6 +95,8 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
     }
 
     setSending(true);
+    setPaused(false);
+    pauseRequestedRef.current = false;
     isSendingRef.current = true;
     setProgress({ current: 0, total: recipients.length, waiting: false });
     setResult(null);
@@ -105,18 +109,24 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
     let errorCount = 0;
 
     for (let i = 0; i < recipients.length; i++) {
+      if (pauseRequestedRef.current) break;
       const r = recipients[i];
 
       if (i > 0) {
         const totalDelay = campaign.delay_seconds + Math.floor(Math.random() * 5);
         setCountdown(totalDelay);
         setProgress({ current: i, total: recipients.length, waiting: true });
-        await new Promise((res) => setTimeout(res, totalDelay * 1000));
+        for (let s = 0; s < totalDelay; s++) {
+          if (pauseRequestedRef.current) break;
+          await new Promise((res) => setTimeout(res, 1000));
+        }
         setCountdown(null);
+        if (pauseRequestedRef.current) break;
       }
 
       setProgress({ current: i + 1, total: recipients.length, waiting: false });
       setStatuses((prev) => new Map(prev).set(r.id, "sending"));
+
 
       const variation = variations[r.variation_index] || variations[0];
       const text = (variation?.text || "").replace(/\{nome\}/g, r.lead_name || "");
@@ -169,19 +179,41 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
       }
     }
 
+    const wasPaused = pauseRequestedRef.current;
+
     // Finalize
     await supabase.from("campaigns").update({
-      status: "completed",
-      completed_at: new Date().toISOString(),
+      status: wasPaused ? "draft" : "completed",
+      completed_at: wasPaused ? null : new Date().toISOString(),
       sent_count: successCount,
       error_count: errorCount,
     }).eq("id", campaign.id);
+
+    if (wasPaused) {
+      toast.success(`Campanha pausada. ${successCount} enviados, ${recipients.length - successCount - errorCount} pendentes.`);
+      setSending(false);
+      setPaused(false);
+      pauseRequestedRef.current = false;
+      isSendingRef.current = false;
+      setProgress(null);
+      setCountdown(null);
+      setMinimized(false);
+      onOpenChange(false);
+      onComplete();
+      return;
+    }
 
     setResult({ success: successCount, errors: errorCount });
     setSending(false);
     isSendingRef.current = false;
     setProgress(null);
     setMinimized(false);
+  };
+
+  const handlePause = () => {
+    pauseRequestedRef.current = true;
+    setPaused(true);
+    toast.info("Pausando após o envio atual...");
   };
 
   const handleClose = () => {
@@ -208,12 +240,21 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
             <>
               <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">Enviando {progress?.current || 0} de {progress?.total || 0}...</p>
-                {progress?.waiting && countdown !== null && (
+                <p className="text-sm font-medium truncate">{paused ? "Pausando..." : `Enviando ${progress?.current || 0} de ${progress?.total || 0}...`}</p>
+                {progress?.waiting && countdown !== null && !paused && (
                   <p className="text-[10px] text-muted-foreground">Próximo em {countdown}s ⏳</p>
                 )}
                 <Progress value={progressPercent} className="h-1.5 mt-1" />
               </div>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); handlePause(); }}
+                disabled={paused}
+                className="shrink-0 flex items-center justify-center h-7 w-7 rounded-md bg-muted hover:bg-accent text-foreground transition-colors disabled:opacity-50"
+                title="Pausar campanha"
+              >
+                <Pause className="h-3.5 w-3.5" />
+              </button>
             </>
           ) : result ? (
             <>
@@ -277,11 +318,21 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
           ) : sending ? (
             <div className="space-y-3 py-2 flex-1 overflow-hidden flex flex-col min-h-0">
               <div className="space-y-1.5 shrink-0">
-                <p className="text-sm font-medium">Enviando {progress?.current || 0} de {progress?.total || 0}...</p>
+                <p className="text-sm font-medium">{paused ? "Finalizando envio atual..." : `Enviando ${progress?.current || 0} de ${progress?.total || 0}...`}</p>
                 <Progress value={progressPercent} className="h-2" />
-                {progress?.waiting && countdown !== null && (
+                {progress?.waiting && countdown !== null && !paused && (
                   <p className="text-xs text-muted-foreground animate-pulse">Próximo envio em {countdown}s ⏳</p>
                 )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePause}
+                  disabled={paused}
+                  className="w-full mt-2"
+                >
+                  <Pause className="w-3.5 h-3.5 mr-1.5" />
+                  {paused ? "Pausando..." : "Pausar campanha"}
+                </Button>
               </div>
               <ScrollArea className="flex-1 border rounded-md min-h-0">
                 <div className="p-1 space-y-0.5">
