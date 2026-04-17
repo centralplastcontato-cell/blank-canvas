@@ -47,6 +47,8 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
   const [result, setResult] = useState<{ success: number; errors: number } | null>(null);
   const [statuses, setStatuses] = useState<Map<string, string>>(new Map());
   const isSendingRef = useRef(false);
+  const pauseRequestedRef = useRef(false);
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
     if (countdown === null || countdown <= 0) return;
