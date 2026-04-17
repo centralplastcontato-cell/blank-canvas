@@ -2715,8 +2715,12 @@ export type Database = {
         Row: {
           amount: number
           bank_account_id: string | null
+          card_fee_percent: number | null
+          card_installments: number | null
+          card_operator_id: string | null
           company_id: string
           created_at: string
+          gross_amount: number | null
           id: string
           notes: string | null
           paid_at: string
@@ -2728,8 +2732,12 @@ export type Database = {
         Insert: {
           amount: number
           bank_account_id?: string | null
+          card_fee_percent?: number | null
+          card_installments?: number | null
+          card_operator_id?: string | null
           company_id: string
           created_at?: string
+          gross_amount?: number | null
           id?: string
           notes?: string | null
           paid_at?: string
@@ -2741,8 +2749,12 @@ export type Database = {
         Update: {
           amount?: number
           bank_account_id?: string | null
+          card_fee_percent?: number | null
+          card_installments?: number | null
+          card_operator_id?: string | null
           company_id?: string
           created_at?: string
+          gross_amount?: number | null
           id?: string
           notes?: string | null
           paid_at?: string
@@ -2757,6 +2769,13 @@ export type Database = {
             columns: ["bank_account_id"]
             isOneToOne: false
             referencedRelation: "company_bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_payment_entries_card_operator_id_fkey"
+            columns: ["card_operator_id"]
+            isOneToOne: false
+            referencedRelation: "company_card_fees"
             referencedColumns: ["id"]
           },
           {
@@ -2779,10 +2798,14 @@ export type Database = {
         Row: {
           amount: number
           bank_account_id: string | null
+          card_fee_percent: number | null
+          card_installments: number | null
+          card_operator_id: string | null
           company_id: string
           created_at: string
           due_date: string
           event_id: string
+          gross_amount: number | null
           id: string
           notes: string | null
           paid_at: string | null
@@ -2794,10 +2817,14 @@ export type Database = {
         Insert: {
           amount?: number
           bank_account_id?: string | null
+          card_fee_percent?: number | null
+          card_installments?: number | null
+          card_operator_id?: string | null
           company_id: string
           created_at?: string
           due_date: string
           event_id: string
+          gross_amount?: number | null
           id?: string
           notes?: string | null
           paid_at?: string | null
@@ -2809,10 +2836,14 @@ export type Database = {
         Update: {
           amount?: number
           bank_account_id?: string | null
+          card_fee_percent?: number | null
+          card_installments?: number | null
+          card_operator_id?: string | null
           company_id?: string
           created_at?: string
           due_date?: string
           event_id?: string
+          gross_amount?: number | null
           id?: string
           notes?: string | null
           paid_at?: string | null
@@ -2827,6 +2858,13 @@ export type Database = {
             columns: ["bank_account_id"]
             isOneToOne: false
             referencedRelation: "company_bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_payments_card_operator_id_fkey"
+            columns: ["card_operator_id"]
+            isOneToOne: false
+            referencedRelation: "company_card_fees"
             referencedColumns: ["id"]
           },
           {
