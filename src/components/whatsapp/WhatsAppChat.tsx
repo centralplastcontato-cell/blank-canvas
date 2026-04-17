@@ -28,6 +28,78 @@ async function invokeWithRetry(
 
   throw lastError ?? new Error('Falha ao chamar wapi-send');
 }
+
+function writeWavString(view: DataView, offset: number, value: string) {
+  for (let i = 0; i < value.length; i += 1) {
+    view.setUint8(offset + i, value.charCodeAt(i));
+  }
+}
+
+function convertAudioBufferToWavBlob(audioBuffer: AudioBuffer): Blob {
+  const channelCount = audioBuffer.numberOfChannels;
+  const length = audioBuffer.length;
+  const sampleRate = audioBuffer.sampleRate;
+  const monoChannel = new Float32Array(length);
+
+  for (let channelIndex = 0; channelIndex < channelCount; channelIndex += 1) {
+    const channelData = audioBuffer.getChannelData(channelIndex);
+    for (let sampleIndex = 0; sampleIndex < length; sampleIndex += 1) {
+      monoChannel[sampleIndex] += channelData[sampleIndex] / channelCount;
+    }
+  }
+
+  const bytesPerSample = 2;
+  const dataSize = monoChannel.length * bytesPerSample;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  writeWavString(view, 0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  writeWavString(view, 8, 'WAVE');
+  writeWavString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * bytesPerSample, true);
+  view.setUint16(32, bytesPerSample, true);
+  view.setUint16(34, 16, true);
+  writeWavString(view, 36, 'data');
+  view.setUint32(40, dataSize, true);
+
+  let offset = 44;
+  for (let i = 0; i < monoChannel.length; i += 1) {
+    const sample = Math.max(-1, Math.min(1, monoChannel[i]));
+    view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+    offset += bytesPerSample;
+  }
+
+  return new Blob([buffer], { type: 'audio/wav' });
+}
+
+async function prepareAudioBlobForWhatsApp(blob: Blob): Promise<Blob> {
+  const mimeBase = (blob.type || '').split(';')[0].trim().toLowerCase();
+
+  if (mimeBase && mimeBase !== 'audio/webm') {
+    return blob;
+  }
+
+  const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextClass) {
+    return blob;
+  }
+
+  const audioContext = new AudioContextClass();
+
+  try {
+    const arrayBuffer = await blob.arrayBuffer();
+    const decodedAudio = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+    return convertAudioBufferToWavBlob(decodedAudio);
+  } finally {
+    await audioContext.close();
+  }
+}
+
 import { insertWithCompany, insertSingleWithCompany, getCurrentCompanyId } from "@/lib/supabase-helpers";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
@@ -2823,29 +2895,36 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     
     // Capture blob before clearing recording UI
     const capturedBlob = audioBlob;
-    const mimeType = capturedBlob.type || 'audio/webm';
-    const mimeBase = mimeType.split(';')[0].trim().toLowerCase();
-    const storageExtension = mimeBase === 'audio/ogg'
-      ? 'ogg'
-      : mimeBase === 'audio/mp4' || mimeBase === 'audio/aac'
-        ? 'm4a'
-        : mimeBase === 'audio/mpeg'
-          ? 'mp3'
-          : mimeBase === 'audio/wav' || mimeBase === 'audio/x-wav'
-            ? 'wav'
-            : 'webm';
     
     // Clear the recording UI immediately for better UX
     cancelRecording();
 
     try {
+      let preparedBlob = capturedBlob;
+
+      try {
+        preparedBlob = await prepareAudioBlobForWhatsApp(capturedBlob);
+      } catch (conversionError) {
+        console.warn('[sendRecordedAudio] Falha ao converter áudio web para formato compatível:', conversionError);
+      }
+
+      const mimeType = preparedBlob.type || capturedBlob.type || 'audio/webm';
+      const mimeBase = mimeType.split(';')[0].trim().toLowerCase();
+      const storageExtension = mimeBase === 'audio/ogg'
+        ? 'ogg'
+        : mimeBase === 'audio/mp4' || mimeBase === 'audio/aac'
+          ? 'm4a'
+          : mimeBase === 'audio/mpeg'
+            ? 'mp3'
+            : mimeBase === 'audio/wav' || mimeBase === 'audio/x-wav'
+              ? 'wav'
+              : 'webm';
+
       // Upload to Storage FIRST so W-API can fetch via public URL.
-      // Sending base64 webm fails because W-API only accepts audio/ogg and we
-      // can't transcode in Deno — sending via mediaUrl lets W-API handle conversion.
       const fileName = `${selectedConversation.id}/${Date.now()}.${storageExtension}`;
       const { error: uploadError } = await supabase.storage
         .from('whatsapp-media')
-        .upload(fileName, capturedBlob, { contentType: mimeType });
+        .upload(fileName, preparedBlob, { contentType: mimeType });
 
       if (uploadError) {
         throw new Error('Falha ao subir áudio: ' + uploadError.message);
