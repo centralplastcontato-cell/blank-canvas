@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,37 +7,92 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BankAccountSelect } from "./BankAccountSelect";
 import { formatCurrencyInput, parseCurrencyInput, numberToCurrencyDisplay } from "@/lib/currency-input";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
+import { calcCardFee, isCardMethod, isDebitMethod, type CardFeeRow } from "@/lib/cardFees";
+
+export interface PaymentFormSubmitData {
+  type: string;
+  amount: number; // NET amount (after card fee)
+  due_date: string;
+  payment_method: string;
+  notes?: string;
+  bank_account_id?: string;
+  card_operator_id?: string;
+  card_installments?: number;
+  card_fee_percent?: number;
+  gross_amount?: number;
+}
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: { type: string; amount: number; due_date: string; payment_method: string; notes?: string; bank_account_id?: string }) => void;
+  onSubmit: (data: PaymentFormSubmitData) => void;
   defaultValues?: { type?: string; amount?: number; due_date?: string; payment_method?: string; notes?: string; bank_account_id?: string };
 }
 
 export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues }: Props) {
+  const { currentCompany } = useCompany();
   const [type, setType] = useState(defaultValues?.type || "parcela");
   const [amount, setAmount] = useState(defaultValues?.amount ? numberToCurrencyDisplay(defaultValues.amount) : "");
   const [dueDate, setDueDate] = useState(defaultValues?.due_date || "");
   const [method, setMethod] = useState(defaultValues?.payment_method || "pix");
   const [notes, setNotes] = useState(defaultValues?.notes || "");
   const [bankAccountId, setBankAccountId] = useState(defaultValues?.bank_account_id || "");
+  const [installments, setInstallments] = useState<number>(1);
+  const [operatorId, setOperatorId] = useState<string>("");
+  const [cardFees, setCardFees] = useState<CardFeeRow[]>([]);
+
+  // Load card fee operators
+  useEffect(() => {
+    if (!currentCompany?.id || !open) return;
+    supabase
+      .from("company_card_fees" as any)
+      .select("*")
+      .eq("company_id", currentCompany.id)
+      .eq("is_active", true)
+      .order("operator_name")
+      .then(({ data }) => {
+        const fees = (data || []) as unknown as CardFeeRow[];
+        setCardFees(fees);
+        if (fees.length === 1) setOperatorId(fees[0].id);
+      });
+  }, [currentCompany?.id, open]);
+
+  const grossAmount = parseCurrencyInput(amount);
+  const operator = cardFees.find(f => f.id === operatorId) || null;
+  const isCard = isCardMethod(method);
+  const isDebit = isDebitMethod(method);
+  const calc = calcCardFee({ grossAmount, method, installments, operator });
 
   const handleSubmit = () => {
-    const val = parseCurrencyInput(amount);
-    if (!val || !dueDate) return;
-    onSubmit({
-      type, amount: val, due_date: dueDate, payment_method: method,
+    if (!grossAmount || !dueDate) return;
+
+    const submitData: PaymentFormSubmitData = {
+      type,
+      amount: calc.netAmount, // Store NET amount (matches event-side behavior)
+      due_date: dueDate,
+      payment_method: method,
       notes: notes.trim() || undefined,
       bank_account_id: bankAccountId || undefined,
-    });
+    };
+
+    if (isCard && operator && calc.feePercent > 0) {
+      submitData.card_operator_id = operator.id;
+      submitData.card_installments = calc.installments;
+      submitData.card_fee_percent = calc.feePercent;
+      submitData.gross_amount = grossAmount;
+    }
+
+    onSubmit(submitData);
     onOpenChange(false);
     setAmount(""); setDueDate(""); setNotes(""); setBankAccountId("");
+    setInstallments(1);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{defaultValues ? "Editar Parcela" : "Nova Parcela"}</DialogTitle>
         </DialogHeader>
@@ -73,6 +128,57 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues 
               </SelectContent>
             </Select>
           </div>
+
+          {isCard && (
+            <div className="space-y-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+              {cardFees.length === 0 ? (
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  ⚠️ Nenhuma operadora de cartão cadastrada. Cadastre em Configurações → Taxas de Cartão para que a taxa seja descontada automaticamente.
+                </p>
+              ) : (
+                <>
+                  {cardFees.length > 1 && (
+                    <div>
+                      <Label className="text-xs">Operadora</Label>
+                      <Select value={operatorId} onValueChange={setOperatorId}>
+                        <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="Selecione a operadora" /></SelectTrigger>
+                        <SelectContent>
+                          {cardFees.map(f => <SelectItem key={f.id} value={f.id}>{f.operator_name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {!isDebit && (
+                    <div>
+                      <Label className="text-xs">Parcelas</Label>
+                      <Select value={String(installments)} onValueChange={v => setInstallments(Number(v))}>
+                        <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 12 }, (_, i) => i + 1).map(n => (
+                            <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {operator && grossAmount > 0 && calc.feePercent > 0 && (
+                    <div className="text-xs space-y-0.5 pt-1 border-t border-amber-500/20">
+                      <p className="font-medium text-amber-700 dark:text-amber-400">
+                        💳 Taxa {operator.operator_name} {isDebit ? "Débito" : `${calc.installments}x`}: {calc.feePercent.toFixed(2)}%
+                      </p>
+                      <p className="text-muted-foreground">
+                        Bruto R$ {grossAmount.toFixed(2)} − Taxa R$ {calc.feeAmount.toFixed(2)}
+                      </p>
+                      <p className="font-semibold text-foreground">
+                        Líquido a receber: R$ {calc.netAmount.toFixed(2)}
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
           <div>
             <Label>Anotações (opcional)</Label>
             <Textarea
