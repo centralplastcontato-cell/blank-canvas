@@ -109,18 +109,24 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
     let errorCount = 0;
 
     for (let i = 0; i < recipients.length; i++) {
+      if (pauseRequestedRef.current) break;
       const r = recipients[i];
 
       if (i > 0) {
         const totalDelay = campaign.delay_seconds + Math.floor(Math.random() * 5);
         setCountdown(totalDelay);
         setProgress({ current: i, total: recipients.length, waiting: true });
-        await new Promise((res) => setTimeout(res, totalDelay * 1000));
+        for (let s = 0; s < totalDelay; s++) {
+          if (pauseRequestedRef.current) break;
+          await new Promise((res) => setTimeout(res, 1000));
+        }
         setCountdown(null);
+        if (pauseRequestedRef.current) break;
       }
 
       setProgress({ current: i + 1, total: recipients.length, waiting: false });
       setStatuses((prev) => new Map(prev).set(r.id, "sending"));
+
 
       const variation = variations[r.variation_index] || variations[0];
       const text = (variation?.text || "").replace(/\{nome\}/g, r.lead_name || "");
