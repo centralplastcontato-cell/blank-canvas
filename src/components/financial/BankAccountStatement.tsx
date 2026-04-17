@@ -31,6 +31,10 @@ interface Movement {
   amount: number;
   type: 'entry' | 'exit';
   source: string;
+  // Indicates which underlying table this movement comes from
+  sourceKind?: 'expense' | 'revenue' | 'event_payment' | 'partial_entry';
+  // Underlying record id (without prefix), for editing/deleting
+  recordId?: string;
   eventId?: string;
   eventTitle?: string;
   eventDate?: string;
@@ -89,7 +93,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
   };
 
   const handleSaveEdit = async () => {
-    if (!selectedExpense?.expenseId) return;
+    if (!selectedExpense) return;
     const amountNum = parseCurrencyInput(editAmount);
     if (amountNum <= 0) {
       toast.error('Informe um valor válido.');
@@ -101,25 +105,62 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
     }
     setEditSaving(true);
     try {
-      // Preserve sign: original could be negative (transferência/ajuste)
-      const sign = selectedExpense.amount < 0 || selectedExpense.type === 'entry' && (selectedExpense.expenseCategory === 'transferencia' || selectedExpense.expenseCategory === 'ajuste_saldo') ? -1 : 1;
-      // For simplicity: keep sign of original DB record
-      const { data: orig } = await supabase
-        .from('company_expenses')
-        .select('amount')
-        .eq('id', selectedExpense.expenseId)
-        .single();
-      const finalAmount = orig && Number(orig.amount) < 0 ? -Math.abs(amountNum) : Math.abs(amountNum);
-      const { error } = await supabase
-        .from('company_expenses')
-        .update({
-          amount: finalAmount,
-          description: editDescription.trim(),
-          expense_date: editDate,
-          notes: editNotes.trim() || null,
-        })
-        .eq('id', selectedExpense.expenseId);
-      if (error) throw error;
+      const kind = selectedExpense.sourceKind;
+      const recId = selectedExpense.recordId;
+      if (!recId) throw new Error('Registro não identificado');
+
+      if (kind === 'expense') {
+        const { data: orig } = await supabase
+          .from('company_expenses')
+          .select('amount')
+          .eq('id', recId)
+          .single();
+        const finalAmount = orig && Number(orig.amount) < 0 ? -Math.abs(amountNum) : Math.abs(amountNum);
+        const { error } = await supabase
+          .from('company_expenses')
+          .update({
+            amount: finalAmount,
+            description: editDescription.trim(),
+            expense_date: editDate,
+            notes: editNotes.trim() || null,
+          })
+          .eq('id', recId);
+        if (error) throw error;
+      } else if (kind === 'revenue') {
+        const { error } = await (supabase as any)
+          .from('company_revenues')
+          .update({
+            amount: Math.abs(amountNum),
+            description: editDescription.trim(),
+            revenue_date: editDate,
+            notes: editNotes.trim() || null,
+          })
+          .eq('id', recId);
+        if (error) throw error;
+      } else if (kind === 'event_payment') {
+        const { error } = await supabase
+          .from('event_payments')
+          .update({
+            amount: Math.abs(amountNum),
+            paid_at: editDate,
+            notes: editNotes.trim() || null,
+          })
+          .eq('id', recId);
+        if (error) throw error;
+      } else if (kind === 'partial_entry') {
+        const { error } = await (supabase as any)
+          .from('event_payment_entries')
+          .update({
+            amount: Math.abs(amountNum),
+            paid_at: editDate,
+            notes: editNotes.trim() || null,
+          })
+          .eq('id', recId);
+        if (error) throw error;
+      } else {
+        throw new Error('Tipo de lançamento não suportado');
+      }
+
       toast.success('Lançamento atualizado.');
       setEditOpen(false);
       setSelectedExpense(null);
@@ -133,15 +174,34 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
   };
 
   const handleDelete = async () => {
-    if (!selectedExpense?.expenseId) return;
+    if (!selectedExpense) return;
+    const kind = selectedExpense.sourceKind;
+    const recId = selectedExpense.recordId;
+    if (!recId) return;
     setDeleting(true);
     try {
-      const { error } = await supabase
-        .from('company_expenses')
-        .delete()
-        .eq('id', selectedExpense.expenseId);
+      let error: any = null;
+      if (kind === 'expense') {
+        ({ error } = await supabase.from('company_expenses').delete().eq('id', recId));
+      } else if (kind === 'revenue') {
+        ({ error } = await (supabase as any).from('company_revenues').delete().eq('id', recId));
+      } else if (kind === 'event_payment') {
+        // Reset parcela to pending instead of removing the schedule
+        ({ error } = await supabase
+          .from('event_payments')
+          .update({ status: 'pending', paid_at: null, bank_account_id: null })
+          .eq('id', recId));
+      } else if (kind === 'partial_entry') {
+        ({ error } = await (supabase as any).from('event_payment_entries').delete().eq('id', recId));
+      } else {
+        throw new Error('Tipo de lançamento não suportado');
+      }
       if (error) throw error;
-      toast.success('Lançamento excluído. Saldo recalculado.');
+      toast.success(
+        kind === 'event_payment'
+          ? 'Pagamento estornado. Parcela voltou para pendente.'
+          : 'Lançamento excluído. Saldo recalculado.'
+      );
       setConfirmDeleteOpen(false);
       setSelectedExpense(null);
       await fetchMovements();
@@ -277,6 +337,8 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
           amount: Number(p.amount),
           type: 'entry' as const,
           source: 'Recebimento',
+          sourceKind: 'event_payment' as const,
+          recordId: p.id,
           eventId: evt?.id || p.event_id,
           eventTitle: evt?.title || undefined,
           eventDate: evt?.event_date || undefined,
@@ -294,6 +356,8 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
           amount: Number(pe.amount),
           type: 'entry' as const,
           source: 'Pgto Parcial',
+          sourceKind: 'partial_entry' as const,
+          recordId: pe.id,
           eventId: evt?.id || undefined,
           eventTitle: evt?.title || undefined,
           eventDate: evt?.event_date || undefined,
@@ -309,6 +373,8 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
           expenseReceiptUrl: e.receipt_url || undefined,
           expenseBoletoUrl: e.boleto_url || undefined,
           expenseUnit: e.unit || undefined,
+          sourceKind: 'expense' as const,
+          recordId: e.id,
         };
         if (amt < 0) {
           return {
@@ -334,12 +400,16 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
 
       // Revenue movements (receitas avulsas)
       const revenueMovements: Movement[] = (revenuesRes.data || []).map((r: any) => ({
-        id: r.id,
+        id: `rev-${r.id}`,
         date: r.revenue_date,
         description: r.description || 'Receita avulsa',
         amount: Number(r.amount),
         type: 'entry' as const,
         source: 'Receita avulsa',
+        sourceKind: 'revenue' as const,
+        recordId: r.id,
+        expenseNotes: r.notes || undefined,
+        expenseReceiptUrl: r.receipt_url || undefined,
       }));
 
       const allEntries = [...entries, ...partialMovements, ...revenueMovements];
@@ -528,14 +598,16 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
             const paginated = movementsWithBalance.slice((pageStmt - 1) * STMT_PAGE_SIZE, pageStmt * STMT_PAGE_SIZE);
             return (
               <>
-                {paginated.map(m => (
+                {paginated.map(m => {
+                  const hasDetail = !!m.eventId || !!m.recordId;
+                  return (
                   <div
                     key={m.id}
-                    className={`flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-card ${(m.eventId || m.expenseId) ? 'cursor-pointer hover:border-primary/40 hover:bg-accent/30 transition-colors' : ''}`}
+                    className={`flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-card ${hasDetail ? 'cursor-pointer hover:border-primary/40 hover:bg-accent/30 transition-colors' : ''}`}
                     onClick={() => {
                       if (m.eventId) {
                         setSelectedEvent({ id: m.eventId, title: m.eventTitle || 'Festa' });
-                      } else if (m.expenseId) {
+                      } else if (m.recordId) {
                         setSelectedExpense(m);
                       }
                     }}
@@ -560,7 +632,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
                         {m.eventId && (
                           <Badge variant="outline" className="text-[9px] h-4 text-primary border-primary/30">Ver festa</Badge>
                         )}
-                        {!m.eventId && m.expenseId && (
+                        {!m.eventId && m.recordId && (
                           <Badge variant="outline" className="text-[9px] h-4 text-muted-foreground border-border">Detalhes</Badge>
                         )}
                       </div>
@@ -572,7 +644,8 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
                       <p className="text-[10px] text-muted-foreground">{fmt(m.balance)}</p>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between pt-3 border-t border-border/40">
                     <p className="text-xs text-muted-foreground">
@@ -928,7 +1001,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
               )}
 
               {/* Edit / Delete actions — only for expense-type movements */}
-              {selectedExpense.expenseId && (
+              {selectedExpense.recordId && (
                 <div className="flex gap-2 pt-2">
                   <Button variant="outline" className="flex-1 gap-2" onClick={openEdit}>
                     <Pencil className="h-4 w-4" />
