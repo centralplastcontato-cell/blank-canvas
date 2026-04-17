@@ -366,14 +366,31 @@ export default function Campanhas() {
           </Tabs>
 
           <CampaignWizard
-            open={wizardOpen}
-            onOpenChange={setWizardOpen}
+            open={wizardOpen || !!editingAudienceCampaign}
+            onOpenChange={(o) => {
+              if (!o) {
+                setWizardOpen(false);
+                setEditingAudienceCampaign(null);
+              } else {
+                setWizardOpen(o);
+              }
+            }}
             companyId={companyId || ""}
             companyName={currentCompany?.name || ""}
+            editingCampaign={editingAudienceCampaign ? {
+              id: editingAudienceCampaign.id,
+              name: editingAudienceCampaign.name,
+              total_recipients: editingAudienceCampaign.total_recipients,
+            } : null}
             onCampaignCreated={(campaign) => {
-              setWizardOpen(false);
-              loadCampaigns();
-              setSendCampaign(campaign);
+              if (editingAudienceCampaign) {
+                setEditingAudienceCampaign(null);
+                loadCampaigns();
+              } else {
+                setWizardOpen(false);
+                loadCampaigns();
+                setSendCampaign(campaign);
+              }
             }}
           />
 
@@ -397,6 +414,7 @@ export default function Campanhas() {
             companyId={companyId || ""}
             onStartSend={(c) => { setDetailCampaign(null); setSendCampaign(c); }}
             onResend={(c) => { setSendCampaign(c); }}
+            onEditAudience={(c) => { setDetailCampaign(null); setEditingAudienceCampaign(c); }}
             onRefresh={loadCampaigns}
           />
 
