@@ -2563,26 +2563,29 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   };
 
   const getStatusIcon = (status: string, message?: Message) => {
+    // Use cores adaptadas ao balão azul de mensagens enviadas (from_me).
+    // Cinza claro = enviado/entregue (não lido); Ciano vivo = lido (visível sobre o azul).
+    const baseColor = "text-primary-foreground/60"; // cinza/claro sobre balão azul
+    const readColor = "text-cyan-300"; // azul-ciano vivo (estilo WhatsApp), legível no balão azul
     switch (status) {
       case "sent":
-        return <Check className="w-3 h-3 text-muted-foreground" />;
+        return <Check className={cn("w-3.5 h-3.5", baseColor)} />;
       case "delivered":
-        return <CheckCheck className="w-3 h-3 text-muted-foreground" />;
+        return <CheckCheck className={cn("w-3.5 h-3.5", baseColor)} />;
       case "read":
-        return <CheckCheck className="w-3 h-3 text-primary" />;
+        return <CheckCheck className={cn("w-3.5 h-3.5", readColor)} />;
       case "error":
       case "failed":
-        return <Check className="w-3 h-3 text-destructive" />;
+        return <Check className="w-3.5 h-3.5 text-destructive" />;
       default: {
-        // Fallback: if we know this message has no ACK tracking (Z-API without messageId),
-        // OR the message is older than 30s and still has no status, assume it reached the server (✓).
-        // This prevents the eternal clock icon caused by webhook misses.
+        // Fallback: se a mensagem não tem rastreio de ACK (Z-API sem messageId),
+        // ou se já passou de 30s sem status, mostra ✓ simples para evitar relógio eterno.
         const noTracking = message?.metadata && (message.metadata as Record<string, unknown>).no_ack_tracking === true;
         const olderThan30s = message?.timestamp && (Date.now() - new Date(message.timestamp).getTime()) > 30_000;
         if (noTracking || olderThan30s) {
-          return <Check className="w-3 h-3 text-muted-foreground" />;
+          return <Check className={cn("w-3.5 h-3.5", baseColor)} />;
         }
-        return <Clock className="w-3 h-3 text-muted-foreground" />;
+        return <Clock className={cn("w-3 h-3", baseColor)} />;
       }
     }
   };
