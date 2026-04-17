@@ -78,26 +78,16 @@ function convertAudioBufferToWavBlob(audioBuffer: AudioBuffer): Blob {
 }
 
 async function prepareAudioBlobForWhatsApp(blob: Blob): Promise<Blob> {
+  // WhatsApp voice notes need OGG/Opus. Browsers record webm/opus (same codec, different container).
+  // We re-label the blob as audio/ogg so W-API/WhatsApp treat it as a playable voice note.
   const mimeBase = (blob.type || '').split(';')[0].trim().toLowerCase();
 
-  if (mimeBase && mimeBase !== 'audio/webm') {
-    return blob;
-  }
-
-  const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioContextClass) {
-    return blob;
-  }
-
-  const audioContext = new AudioContextClass();
-
-  try {
+  if (mimeBase === 'audio/webm' || mimeBase === '' || mimeBase === 'audio/ogg') {
     const arrayBuffer = await blob.arrayBuffer();
-    const decodedAudio = await audioContext.decodeAudioData(arrayBuffer.slice(0));
-    return convertAudioBufferToWavBlob(decodedAudio);
-  } finally {
-    await audioContext.close();
+    return new Blob([arrayBuffer], { type: 'audio/ogg; codecs=opus' });
   }
+
+  return blob;
 }
 
 import { insertWithCompany, insertSingleWithCompany, getCurrentCompanyId } from "@/lib/supabase-helpers";
@@ -2900,15 +2890,18 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     cancelRecording();
 
     try {
-      let preparedBlob = capturedBlob;
+      console.log('[sendRecordedAudio] Original blob:', { type: capturedBlob.type, size: capturedBlob.size });
 
+      let preparedBlob = capturedBlob;
       try {
         preparedBlob = await prepareAudioBlobForWhatsApp(capturedBlob);
       } catch (conversionError) {
-        console.warn('[sendRecordedAudio] Falha ao converter áudio web para formato compatível:', conversionError);
+        console.warn('[sendRecordedAudio] Falha ao preparar áudio:', conversionError);
       }
 
-      const mimeType = preparedBlob.type || capturedBlob.type || 'audio/webm';
+      console.log('[sendRecordedAudio] Prepared blob:', { type: preparedBlob.type, size: preparedBlob.size });
+
+      const mimeType = preparedBlob.type || 'audio/ogg; codecs=opus';
       const mimeBase = mimeType.split(';')[0].trim().toLowerCase();
       const storageExtension = mimeBase === 'audio/ogg'
         ? 'ogg'
@@ -2918,7 +2911,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             ? 'mp3'
             : mimeBase === 'audio/wav' || mimeBase === 'audio/x-wav'
               ? 'wav'
-              : 'webm';
+              : 'ogg';
 
       // Upload to Storage FIRST so W-API can fetch via public URL.
       const fileName = `${selectedConversation.id}/${Date.now()}.${storageExtension}`;
