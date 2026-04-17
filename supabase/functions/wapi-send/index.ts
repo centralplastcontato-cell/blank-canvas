@@ -2298,7 +2298,7 @@ Deno.serve(async (req) => {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Client-Token': zapiClientToken || '',
+                'Client-Token': client_token || '',
               },
               body: JSON.stringify({ phone, message: newContent, messageId: editMsgId, editMessage: true }),
             });
