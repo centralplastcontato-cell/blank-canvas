@@ -94,6 +94,14 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
       return;
     }
 
+    // Buscar nome do buffet/empresa para interpolar {empresa}
+    const { data: companyData } = await supabase
+      .from("companies")
+      .select("name")
+      .eq("id", companyId)
+      .single();
+    const companyName = companyData?.name || "";
+
     setSending(true);
     setPaused(false);
     pauseRequestedRef.current = false;
@@ -129,7 +137,9 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
 
 
       const variation = variations[r.variation_index] || variations[0];
-      const text = (variation?.text || "").replace(/\{nome\}/g, r.lead_name || "");
+      const text = (variation?.text || "")
+        .replace(/\{\{?\s*nome\s*\}?\}/gi, r.lead_name || "")
+        .replace(/\{\{?\s*empresa\s*\}?\}/gi, companyName);
 
       try {
         let sendError: any = null;
