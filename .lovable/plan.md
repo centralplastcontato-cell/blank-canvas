@@ -1,81 +1,55 @@
 
-The client is asking about inconsistency between the two payment entry points:
 
-1. **Inside the event/contract** (EventDetailSheet → financial section): When adding a payment with credit card 10x, the system applies card fees (Infinitepay 8.49%) and shows "Valor não arrecadado: R$ 399,32" — debiting fees automatically.
+## Problema
 
-2. **Standalone payment add** (probably from `/financeiro` dashboard or quick-add): When adding the same parcela here, it does NOT apply card fees — saves the gross value without deducting taxes.
+Na imagem do cliente:
+- **Valor Total:** R$ 4.972,00 (valor da festa)
+- **Recebido (líquido):** R$ 4.960,84 (já com taxa descontada)
+- **Pendente:** R$ 11,16 ← **ERRADO**
 
-The client wants both flows to behave identically: card fees should always be calculated regardless of where the payment is added.
+O cliente **já pagou tudo** (R$ 400 entrada + R$ 4.572 em 10x = R$ 4.972). Mas o sistema está calculando:
 
-Let me investigate the two flows to confirm and design the fix.
-
-**Files to inspect:**
-- `src/components/financial/PaymentFormDialog.tsx` — the quick payment dialog
-- The event-side payment dialog (likely in `src/components/agenda/event-details/` or similar)
-- `useEventFinancial.ts` `addPayment` vs `useFinanceiroDashboard.ts` 
-- Card fee calculation logic (`company_card_fees` consumption)
-
-I'll need to find where card fees are computed inside the event flow and replicate that into the dashboard flow — OR centralize it.
-
-Plan below assumes findings; will verify in implementation phase.
-
-<lov-plan>
-
-## Plano: Unificar cálculo de taxas de cartão entre as 2 telas de pagamento
-
-### Diagnóstico
-Hoje existem **dois pontos** onde se cria um pagamento:
-
-1. **Dentro da Festa** (aba Financeiro do evento) → calcula taxas de cartão automaticamente, mostra "Valor não arrecadado" e desconta a taxa do recebido.
-2. **Fora da Festa** (Financeiro geral / quick-add) → grava só o valor bruto, **sem** aplicar taxa.
-
-Resultado: o cliente vê números diferentes para a **mesma parcela**, dependendo de onde ele clica.
-
-### Objetivo
-Garantir que **toda parcela** de cartão (entrada ou parcela) — independentemente de onde for criada — passe pelo **mesmo cálculo de taxa** baseado em:
-- Operadora cadastrada (`company_card_fees`)
-- Quantidade de parcelas (1x a 12x)
-- Tipo (débito ou crédito)
-
-### O que será feito
-
-**1. Centralizar o cálculo de taxa**
-Criar um utilitário único (`src/lib/cardFees.ts`) com a função:
 ```
-calcularTaxaCartao({ valor, operadora, parcelas, tipo, companyCardFees })
-→ { valorBruto, taxa%, valorTaxa, valorLiquido }
+Pendente = Valor Total (4.972) − Recebido líquido (4.960,84) = 11,16
 ```
-Hoje essa lógica está duplicada/só existe na visão da festa.
 
-**2. Padronizar o `PaymentFormDialog` (quick-add)**
-Adicionar ao formulário (quando método = cartão crédito/débito):
-- Seletor de **Operadora** (vinda de `company_card_fees`)
-- Campo **Parcelas** (1x–12x para crédito)
-- Preview em tempo real: "Taxa: -R$ X,XX → Líquido: R$ Y,YY"
+Ou seja, o sistema trata a **taxa da maquininha (R$ 399,32)** como se fosse uma dívida do cliente. Não é — é custo do buffet.
 
-**3. Salvar metadados da taxa no pagamento**
-Persistir nos campos do `event_payments` (que já existem para a festa):
-- `card_operator`, `card_installments`, `card_fee_percent`, `card_fee_amount`, `net_amount`
+## Causa raiz
 
-Assim o cálculo fica **igual** nas duas telas e nos relatórios.
+Em `useEventFinancial.ts` (linha 163):
+```
+pendingAmount = totalAmount − receivedAmount
+```
+Onde `receivedAmount` soma o **valor líquido** das parcelas pagas no cartão (já descontada a taxa). Resultado: a taxa "vaza" para o pendente do cliente.
 
-**4. Recalcular agregados**
-Ajustar `useFinanceiroDashboard` para considerar `net_amount` (líquido) nos totais de "Recebido", como já acontece dentro da festa.
+## Solução
 
-### Resultado visual (após o ajuste)
-Em **qualquer lugar** que o usuário adicione uma parcela de R$ 4.572 em 10x Infinitepay (8,49%):
-- Recebido líquido: **R$ 4.183,84**
-- Taxa debitada: **R$ 388,16**
-- Card "Taxas de Cartão" aparece tanto na festa quanto no extrato geral.
+Separar dois conceitos hoje misturados:
 
-### Arquivos que serão tocados
-- `src/lib/cardFees.ts` (novo — utilitário central)
-- `src/components/financial/PaymentFormDialog.tsx` (operadora + parcelas + preview)
-- `src/hooks/useFinanceiroDashboard.ts` (usar `net_amount` nos agregados)
-- `src/hooks/useEventFinancial.ts` (consumir o utilitário central, remover duplicação)
-- Possível pequena migração se faltar alguma coluna em `event_payments` (verificar antes)
+1. **Pendente do cliente** = o que ele ainda deve → deve usar **valor bruto** das parcelas pagas (o que o cliente efetivamente pagou na maquininha).
+2. **Recebido líquido (caixa)** = o que entrou no banco → continua usando o valor com taxa descontada.
+3. **Taxas de cartão** = card "Valor não arrecadado" já existe e mostra isso corretamente.
 
-### Fora do escopo (para confirmar depois, se você quiser)
-- Editar parcelas antigas já criadas sem taxa → posso fazer um "recalcular agora" em massa ou deixar manual.
-- Aplicar a mesma lógica em **despesas** pagas no cartão (hoje a categoria existe, mas sem cálculo de taxa).
+### Mudança técnica (1 arquivo)
+
+Em `src/hooks/useEventFinancial.ts`, no cálculo do summary:
+
+- Para parcelas **pagas no cartão**, usar `gross_amount` (valor bruto) ao calcular o **Pendente**.
+- Manter `amount` (líquido) no card **Recebido**.
+- O card **Taxas de Cartão** continua mostrando a diferença (já funciona).
+
+Resultado na tela do cliente Tania/Kaleb:
+- Valor Total: R$ 4.972,00
+- Recebido: R$ 4.960,84 (caixa)
+- **Pendente: R$ 0,00** ✅
+- Status: **Pago** ✅
+- Taxas de Cartão: −R$ 399,32 (informativo)
+
+### Compatibilidade com dados antigos
+
+Parcelas antigas (sem `gross_amount` preenchido) → fallback para `amount`. Não quebra nada.
+
+### Arquivo tocado
+- `src/hooks/useEventFinancial.ts` (apenas o bloco de cálculo do `summary`, ~10 linhas)
 
