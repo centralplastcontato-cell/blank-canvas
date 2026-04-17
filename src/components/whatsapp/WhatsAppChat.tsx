@@ -4879,7 +4879,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   )}>
                                     {formatMessageTime(msg.timestamp)}
                                   </span>
-                                  {msg.from_me && getStatusIcon(msg.status)}
+                                  {msg.from_me && getStatusIcon(msg.status, msg)}
                                 </div>
                                 </div>
                                 {/* Context menu for all messages */}
@@ -6014,7 +6014,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                               )}>
                                 {formatMessageTime(msg.timestamp)}
                               </span>
-                              {msg.from_me && getStatusIcon(msg.status)}
+                              {msg.from_me && getStatusIcon(msg.status, msg)}
                             </div>
                             </div>
                             {/* Context menu for all messages - mobile */}
