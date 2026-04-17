@@ -8,6 +8,7 @@ export interface EventPayment {
   company_id: string;
   type: 'entrada' | 'parcela';
   amount: number;
+  gross_amount: number | null;
   due_date: string;
   status: 'pending' | 'paid' | 'late' | 'partial';
   payment_method: string | null;
@@ -22,6 +23,7 @@ export interface PaymentEntry {
   payment_id: string;
   company_id: string;
   amount: number;
+  gross_amount: number | null;
   paid_at: string;
   payment_method: string | null;
   bank_account_id: string | null;
