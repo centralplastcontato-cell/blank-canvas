@@ -253,6 +253,27 @@ export default function Campanhas() {
                                 </div>
                               )}
                             </div>
+                            {(campaign.status === "draft" || campaign.status === "sending") && (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                className="h-8"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (campaign.status === "sending") {
+                                    setCampaignToReset(campaign);
+                                  } else {
+                                    setSendCampaign(campaign);
+                                  }
+                                }}
+                              >
+                                {campaign.status === "sending" ? (
+                                  <><RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Retomar</>
+                                ) : (
+                                  <><Play className="h-3.5 w-3.5 mr-1.5" /> Iniciar</>
+                                )}
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="icon"
