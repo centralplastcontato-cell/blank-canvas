@@ -861,6 +861,9 @@ export default function Financeiro() {
                                           </div>
                                         )}
                                         <p className="text-sm font-bold text-blue-400">{fmt(e.amount)}</p>
+                                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:text-primary" title="Editar despesa" onClick={() => { setEditingExpense(e); setExpenseDialogType(e.expense_type || 'fixa'); setExpenseDialogOpen(true); }}>
+                                          <Pencil className="h-4 w-4" />
+                                        </Button>
                                         <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive/80" onClick={() => dashboard.deleteExpense(e.id)}>
                                           <Trash2 className="h-4 w-4" />
                                         </Button>
