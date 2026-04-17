@@ -160,7 +160,7 @@ export function PriceGridConfigDialog({ open, onOpenChange, companyId, currentSe
             Configurar Grade de Preços
           </DialogTitle>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Defina os tipos de dia (colunas) e faixas de convidados (linhas) da grade de preços dos seus pacotes.
+            Defina os tipos de dia (colunas) e faixas de convidados (linhas) da grade de preços. Marque <strong>quais dias da semana</strong> usam cada coluna.
           </p>
         </DialogHeader>
 
@@ -169,24 +169,49 @@ export function PriceGridConfigDialog({ open, onOpenChange, companyId, currentSe
           <div className="rounded-xl border border-border/60 bg-card p-4 space-y-3">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">📅 Tipos de Dia (colunas)</span>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               {dayTypes.map((dt, idx) => (
-                <div key={dt.key} className="flex items-center gap-2">
-                  <Input
-                    className="h-8 text-sm flex-1"
-                    value={dt.label}
-                    onChange={(e) => updateDayTypeLabel(idx, e.target.value)}
-                    placeholder="Nome da coluna"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0"
-                    onClick={() => removeDayType(idx)}
-                    disabled={dayTypes.length <= 1}
-                  >
-                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                  </Button>
+                <div key={dt.key} className="rounded-lg border border-border/50 bg-muted/20 p-2.5 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      className="h-8 text-sm flex-1"
+                      value={dt.label}
+                      onChange={(e) => updateDayTypeLabel(idx, e.target.value)}
+                      placeholder="Nome da coluna"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0"
+                      onClick={() => removeDayType(idx)}
+                      disabled={dayTypes.length <= 1}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">Dias que usam esta coluna:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {DAY_TOKENS.map(({ token, short, full }) => {
+                        const active = dt.days?.includes(token) ?? false;
+                        return (
+                          <button
+                            key={token}
+                            type="button"
+                            title={full}
+                            onClick={() => toggleDayMapping(idx, token)}
+                            className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-colors ${
+                              active
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background text-muted-foreground border-border hover:border-primary/50"
+                            }`}
+                          >
+                            {short}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
