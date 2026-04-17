@@ -383,6 +383,25 @@ export default function Campanhas() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          <AlertDialog open={!!campaignToReset} onOpenChange={(open) => !open && setCampaignToReset(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Retomar campanha?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  A campanha "{campaignToReset?.name}" está marcada como "Enviando" mas não há envio ativo (provavelmente foi interrompida).
+                  Deseja resetar e retomar o envio dos contatos pendentes?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleResetCampaign} disabled={resetting}>
+                  {resetting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Retomar envio
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           </div>
           </div>
         </main>
