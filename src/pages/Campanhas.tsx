@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Megaphone, Plus, CheckCircle2, XCircle, Clock, Loader2, Users, Menu, ImageIcon, Trash2 } from "lucide-react";
+import { Megaphone, Plus, CheckCircle2, XCircle, Clock, Loader2, Users, Menu, ImageIcon, Trash2, Play, RotateCcw } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,6 +68,8 @@ export default function Campanhas() {
   const [sendCampaign, setSendCampaign] = useState<Campaign | null>(null);
   const [detailCampaign, setDetailCampaign] = useState<Campaign | null>(null);
   const [campaignToDelete, setCampaignToDelete] = useState<Campaign | null>(null);
+  const [campaignToReset, setCampaignToReset] = useState<Campaign | null>(null);
+  const [resetting, setResetting] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
@@ -106,6 +108,31 @@ export default function Campanhas() {
     }
     setDeleting(false);
     setCampaignToDelete(null);
+  };
+
+  const handleResetCampaign = async () => {
+    if (!campaignToReset) return;
+    setResetting(true);
+    // Volta status para draft e marca quem estava "sending" como "pending"
+    await supabase
+      .from("campaign_recipients")
+      .update({ status: "pending", error_message: null })
+      .eq("campaign_id", campaignToReset.id)
+      .eq("status", "sending");
+    const { error } = await supabase
+      .from("campaigns")
+      .update({ status: "draft", started_at: null })
+      .eq("id", campaignToReset.id);
+    if (error) {
+      toast.error("Erro ao resetar campanha");
+    } else {
+      toast.success("Campanha pronta para retomar!");
+      const updated = { ...campaignToReset, status: "draft" };
+      setCampaignToReset(null);
+      await loadCampaigns();
+      setSendCampaign(updated);
+    }
+    setResetting(false);
   };
 
   const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
@@ -253,6 +280,27 @@ export default function Campanhas() {
                                 </div>
                               )}
                             </div>
+                            {(campaign.status === "draft" || campaign.status === "sending") && (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                className="h-8"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (campaign.status === "sending") {
+                                    setCampaignToReset(campaign);
+                                  } else {
+                                    setSendCampaign(campaign);
+                                  }
+                                }}
+                              >
+                                {campaign.status === "sending" ? (
+                                  <><RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Retomar</>
+                                ) : (
+                                  <><Play className="h-3.5 w-3.5 mr-1.5" /> Iniciar</>
+                                )}
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -331,6 +379,25 @@ export default function Campanhas() {
                 >
                   {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                   Excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog open={!!campaignToReset} onOpenChange={(open) => !open && setCampaignToReset(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Retomar campanha?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  A campanha "{campaignToReset?.name}" está marcada como "Enviando" mas não há envio ativo (provavelmente foi interrompida).
+                  Deseja resetar e retomar o envio dos contatos pendentes?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleResetCampaign} disabled={resetting}>
+                  {resetting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Retomar envio
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
