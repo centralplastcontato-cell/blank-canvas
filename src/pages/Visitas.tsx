@@ -937,6 +937,7 @@ export default function Visitas() {
         </div>
         {detailSheet}
         {createDialog}
+        {confirmationDialog}
       </div>
     );
   }
@@ -987,6 +988,7 @@ export default function Visitas() {
       </div>
       {detailSheet}
       {createDialog}
+      {confirmationDialog}
       <ReportDialog
         open={reportOpen}
         onOpenChange={setReportOpen}
