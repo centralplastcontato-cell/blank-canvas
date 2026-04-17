@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Loader2, Send, Minus, CheckCircle2, XCircle, Clock, Megaphone } from "lucide-react";
+import { Loader2, Send, Minus, CheckCircle2, XCircle, Clock, Megaphone, Pause } from "lucide-react";
 import { toast } from "sonner";
 
 interface Recipient {
