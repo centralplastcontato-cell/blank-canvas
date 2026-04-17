@@ -186,19 +186,19 @@ export function PackagesManager() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <Package className="h-5 w-5 text-primary" />
+            <Package className="h-5 w-5 text-primary shrink-0" />
             <h3 className="font-semibold">Pacotes</h3>
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">Cadastre os pacotes de festa que serão oferecidos nos eventos</p>
         </div>
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => setConfigOpen(true)}>
+        <div className="flex flex-wrap gap-2 sm:shrink-0">
+          <Button size="sm" variant="outline" onClick={() => setConfigOpen(true)} className="flex-1 sm:flex-none">
             <Settings2 className="h-4 w-4 mr-1" /> Configurar Grade
           </Button>
-          <Button size="sm" onClick={openNew}>
+          <Button size="sm" onClick={openNew} className="flex-1 sm:flex-none">
             <Plus className="h-4 w-4 mr-1" /> Novo Pacote
           </Button>
         </div>
