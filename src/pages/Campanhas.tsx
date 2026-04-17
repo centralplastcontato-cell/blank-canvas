@@ -68,6 +68,8 @@ export default function Campanhas() {
   const [sendCampaign, setSendCampaign] = useState<Campaign | null>(null);
   const [detailCampaign, setDetailCampaign] = useState<Campaign | null>(null);
   const [campaignToDelete, setCampaignToDelete] = useState<Campaign | null>(null);
+  const [campaignToReset, setCampaignToReset] = useState<Campaign | null>(null);
+  const [resetting, setResetting] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
