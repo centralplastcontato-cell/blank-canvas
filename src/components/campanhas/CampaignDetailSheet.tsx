@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { CheckCircle2, XCircle, Clock, Loader2, Users, RefreshCw, Send } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Loader2, Users, RefreshCw, Send, ImageIcon, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -163,10 +163,57 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
           <MetricCard label="Pendentes" value={pendingCount} icon={Clock} color="text-yellow-600" />
         </div>
 
-        {/* Recipient list */}
+        {/* Preview + Recipient list */}
         <ScrollArea className="flex-1 min-h-0">
+          {/* Prévia da campanha */}
+          <div className="p-4 sm:px-6 border-b border-border">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <MessageSquare className="w-3.5 h-3.5" /> Prévia da campanha
+            </p>
+            <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
+              {campaign.image_url && (
+                <div className="rounded-lg overflow-hidden bg-card shadow-sm max-w-[280px] border border-border">
+                  <img
+                    src={campaign.image_url}
+                    alt="Imagem da campanha"
+                    className="w-full h-auto object-cover"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                  />
+                </div>
+              )}
+              {Array.isArray(campaign.message_variations) && campaign.message_variations.length > 0 ? (
+                campaign.message_variations.map((v: any, idx: number) => {
+                  const text = typeof v === "string" ? v : v?.text;
+                  const tone = typeof v === "object" ? v?.tone : null;
+                  if (!text) return null;
+                  return (
+                    <div key={idx} className="space-y-1">
+                      <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
+                        <span className="px-1.5 py-0.5 rounded bg-card border border-border">Variação {idx + 1}</span>
+                        {tone && <span className="italic">{tone}</span>}
+                      </div>
+                      <div className="relative max-w-[90%] bg-card rounded-lg rounded-tl-none px-3 py-2 shadow-sm border border-border">
+                        <p className="text-sm whitespace-pre-wrap text-foreground leading-relaxed">{text}</p>
+                        <p className="text-[9px] text-muted-foreground text-right mt-1">prévia</p>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-4 text-xs text-muted-foreground flex flex-col items-center gap-1">
+                  <ImageIcon className="w-5 h-5 opacity-40" />
+                  Nenhuma mensagem configurada
+                </div>
+              )}
+              <p className="text-[10px] text-muted-foreground pt-2 border-t border-border/50">
+                💡 Variáveis <code className="px-1 bg-card rounded">{"{nome}"}</code> e <code className="px-1 bg-card rounded">{"{empresa}"}</code> serão substituídas no envio.
+              </p>
+            </div>
+          </div>
+
           <div className="p-4 sm:px-6 space-y-1.5">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Destinatários</p>
+
             {loading ? (
               <div className="flex items-center justify-center py-10">
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Megaphone, Plus, CheckCircle2, XCircle, Clock, Loader2, Users, Menu, ImageIcon, Trash2, Play, RotateCcw } from "lucide-react";
+import { Megaphone, Plus, CheckCircle2, XCircle, Clock, Loader2, Users, Menu, ImageIcon, Trash2, Play, RotateCcw, Eye } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
@@ -330,6 +330,14 @@ export default function Campanhas() {
                                 )}
                               </Button>
                             )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8"
+                              onClick={(e) => { e.stopPropagation(); setDetailCampaign(campaign); }}
+                            >
+                              <Eye className="h-3.5 w-3.5 mr-1.5" /> Prévia
+                            </Button>
                             <Button
                               variant="ghost"
                               size="icon"
