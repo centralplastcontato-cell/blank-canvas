@@ -239,10 +239,18 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
         {/* Actions */}
         <div className="p-4 sm:px-6 border-t border-border space-y-2">
           {campaign.status === "draft" && (
-            <Button className="w-full" onClick={() => { onOpenChange(false); onStartSend(campaign); }}>
-              <Send className="w-4 h-4 mr-1.5" />
-              Iniciar Envio
-            </Button>
+            <>
+              <Button className="w-full" onClick={() => { onOpenChange(false); onStartSend(campaign); }}>
+                <Send className="w-4 h-4 mr-1.5" />
+                Iniciar Envio
+              </Button>
+              {onEditAudience && (
+                <Button variant="outline" className="w-full" onClick={() => { onOpenChange(false); onEditAudience(campaign); }}>
+                  <UserCog className="w-4 h-4 mr-1.5" />
+                  Editar destinatários
+                </Button>
+              )}
+            </>
           )}
           {errorCount > 0 && (
             <Button
