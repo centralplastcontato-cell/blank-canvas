@@ -7,8 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Textarea } from '@/components/ui/textarea';
 
-import { ArrowUpCircle, ArrowDownCircle, Loader2, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Loader2, SlidersHorizontal, ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -66,6 +68,90 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
 
   // Expense detail sheet
   const [selectedExpense, setSelectedExpense] = useState<Movement | null>(null);
+
+  // Edit & delete state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editAmount, setEditAmount] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const openEdit = () => {
+    if (!selectedExpense) return;
+    setEditAmount(formatCurrencyInput(String(Math.round(selectedExpense.amount * 100))));
+    setEditDescription(selectedExpense.description || '');
+    setEditDate(selectedExpense.date || '');
+    setEditNotes(selectedExpense.expenseNotes || '');
+    setEditOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedExpense?.expenseId) return;
+    const amountNum = parseCurrencyInput(editAmount);
+    if (amountNum <= 0) {
+      toast.error('Informe um valor válido.');
+      return;
+    }
+    if (!editDescription.trim()) {
+      toast.error('Informe uma descrição.');
+      return;
+    }
+    setEditSaving(true);
+    try {
+      // Preserve sign: original could be negative (transferência/ajuste)
+      const sign = selectedExpense.amount < 0 || selectedExpense.type === 'entry' && (selectedExpense.expenseCategory === 'transferencia' || selectedExpense.expenseCategory === 'ajuste_saldo') ? -1 : 1;
+      // For simplicity: keep sign of original DB record
+      const { data: orig } = await supabase
+        .from('company_expenses')
+        .select('amount')
+        .eq('id', selectedExpense.expenseId)
+        .single();
+      const finalAmount = orig && Number(orig.amount) < 0 ? -Math.abs(amountNum) : Math.abs(amountNum);
+      const { error } = await supabase
+        .from('company_expenses')
+        .update({
+          amount: finalAmount,
+          description: editDescription.trim(),
+          expense_date: editDate,
+          notes: editNotes.trim() || null,
+        })
+        .eq('id', selectedExpense.expenseId);
+      if (error) throw error;
+      toast.success('Lançamento atualizado.');
+      setEditOpen(false);
+      setSelectedExpense(null);
+      await fetchMovements();
+      onBalanceChanged?.();
+    } catch (e: any) {
+      toast.error('Erro ao atualizar: ' + (e.message || ''));
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedExpense?.expenseId) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('company_expenses')
+        .delete()
+        .eq('id', selectedExpense.expenseId);
+      if (error) throw error;
+      toast.success('Lançamento excluído. Saldo recalculado.');
+      setConfirmDeleteOpen(false);
+      setSelectedExpense(null);
+      await fetchMovements();
+      onBalanceChanged?.();
+    } catch (e: any) {
+      toast.error('Erro ao excluir: ' + (e.message || ''));
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const fetchMovements = useCallback(async () => {
     setIsLoading(true);
@@ -840,10 +926,88 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
                   )}
                 </Card>
               )}
+
+              {/* Edit / Delete actions — only for expense-type movements */}
+              {selectedExpense.expenseId && (
+                <div className="flex gap-2 pt-2">
+                  <Button variant="outline" className="flex-1 gap-2" onClick={openEdit}>
+                    <Pencil className="h-4 w-4" />
+                    Editar
+                  </Button>
+                  <Button variant="destructive" className="flex-1 gap-2" onClick={() => setConfirmDeleteOpen(true)}>
+                    <Trash2 className="h-4 w-4" />
+                    Excluir
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Edit dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Lançamento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label>Descrição</Label>
+              <Input value={editDescription} onChange={e => setEditDescription(e.target.value)} className="bg-white" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Valor</Label>
+                <Input
+                  value={editAmount}
+                  onChange={e => setEditAmount(formatCurrencyInput(e.target.value))}
+                  className="bg-white"
+                  placeholder="R$ 0,00"
+                />
+              </div>
+              <div>
+                <Label>Data</Label>
+                <Input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} className="bg-white" />
+              </div>
+            </div>
+            <div>
+              <Label>Observações</Label>
+              <Textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} className="bg-white" rows={3} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={editSaving}>Cancelar</Button>
+            <Button onClick={handleSaveEdit} disabled={editSaving}>
+              {editSaving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm delete */}
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir lançamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O saldo da conta será recalculado automaticamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDelete(); }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
