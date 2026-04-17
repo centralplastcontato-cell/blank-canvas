@@ -240,12 +240,21 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
             <>
               <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">Enviando {progress?.current || 0} de {progress?.total || 0}...</p>
-                {progress?.waiting && countdown !== null && (
+                <p className="text-sm font-medium truncate">{paused ? "Pausando..." : `Enviando ${progress?.current || 0} de ${progress?.total || 0}...`}</p>
+                {progress?.waiting && countdown !== null && !paused && (
                   <p className="text-[10px] text-muted-foreground">Próximo em {countdown}s ⏳</p>
                 )}
                 <Progress value={progressPercent} className="h-1.5 mt-1" />
               </div>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); handlePause(); }}
+                disabled={paused}
+                className="shrink-0 flex items-center justify-center h-7 w-7 rounded-md bg-muted hover:bg-accent text-foreground transition-colors disabled:opacity-50"
+                title="Pausar campanha"
+              >
+                <Pause className="h-3.5 w-3.5" />
+              </button>
             </>
           ) : result ? (
             <>
