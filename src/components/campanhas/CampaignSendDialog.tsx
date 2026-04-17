@@ -309,11 +309,21 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
           ) : sending ? (
             <div className="space-y-3 py-2 flex-1 overflow-hidden flex flex-col min-h-0">
               <div className="space-y-1.5 shrink-0">
-                <p className="text-sm font-medium">Enviando {progress?.current || 0} de {progress?.total || 0}...</p>
+                <p className="text-sm font-medium">{paused ? "Finalizando envio atual..." : `Enviando ${progress?.current || 0} de ${progress?.total || 0}...`}</p>
                 <Progress value={progressPercent} className="h-2" />
-                {progress?.waiting && countdown !== null && (
+                {progress?.waiting && countdown !== null && !paused && (
                   <p className="text-xs text-muted-foreground animate-pulse">Próximo envio em {countdown}s ⏳</p>
                 )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePause}
+                  disabled={paused}
+                  className="w-full mt-2"
+                >
+                  <Pause className="w-3.5 h-3.5 mr-1.5" />
+                  {paused ? "Pausando..." : "Pausar campanha"}
+                </Button>
               </div>
               <ScrollArea className="flex-1 border rounded-md min-h-0">
                 <div className="p-1 space-y-0.5">
