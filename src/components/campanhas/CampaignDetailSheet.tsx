@@ -234,8 +234,11 @@ function RecipientRow({ recipient, formatPhone, messageVariations }: { recipient
 
   const resolvedMessage = (() => {
     if (!messageVariations || !Array.isArray(messageVariations)) return null;
-    const template = messageVariations[recipient.variation_index || 0];
-    if (!template) return null;
+    const item = messageVariations[recipient.variation_index || 0];
+    if (!item) return null;
+    // Suporta tanto formato novo { tone, text } quanto string legada
+    const template = typeof item === "string" ? item : item?.text;
+    if (!template || typeof template !== "string") return null;
     return template.replace(/\{nome\}/gi, recipient.lead_name);
   })();
 
