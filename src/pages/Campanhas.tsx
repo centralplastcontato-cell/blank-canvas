@@ -110,6 +110,31 @@ export default function Campanhas() {
     setCampaignToDelete(null);
   };
 
+  const handleResetCampaign = async () => {
+    if (!campaignToReset) return;
+    setResetting(true);
+    // Volta status para draft e marca quem estava "sending" como "pending"
+    await supabase
+      .from("campaign_recipients")
+      .update({ status: "pending", error_message: null })
+      .eq("campaign_id", campaignToReset.id)
+      .eq("status", "sending");
+    const { error } = await supabase
+      .from("campaigns")
+      .update({ status: "draft", started_at: null })
+      .eq("id", campaignToReset.id);
+    if (error) {
+      toast.error("Erro ao resetar campanha");
+    } else {
+      toast.success("Campanha pronta para retomar!");
+      const updated = { ...campaignToReset, status: "draft" };
+      setCampaignToReset(null);
+      await loadCampaigns();
+      setSendCampaign(updated);
+    }
+    setResetting(false);
+  };
+
   const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
     draft: { label: "Rascunho", variant: "secondary", icon: Clock },
     sending: { label: "Enviando", variant: "default", icon: Loader2 },
