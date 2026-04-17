@@ -217,7 +217,7 @@ interface Message {
   media_url: string | null;
   status: string;
   timestamp: string;
-  metadata?: Record<string, string> | null;
+  metadata?: Record<string, unknown> | null;
   quoted_message_id?: string | null;
   is_starred?: boolean;
 }
@@ -2562,7 +2562,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     return format(date, "dd/MM", { locale: ptBR });
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: string, message?: Message) => {
     switch (status) {
       case "sent":
         return <Check className="w-3 h-3 text-muted-foreground" />;
@@ -2570,8 +2570,20 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         return <CheckCheck className="w-3 h-3 text-muted-foreground" />;
       case "read":
         return <CheckCheck className="w-3 h-3 text-primary" />;
-      default:
+      case "error":
+      case "failed":
+        return <Check className="w-3 h-3 text-destructive" />;
+      default: {
+        // Fallback: if we know this message has no ACK tracking (Z-API without messageId),
+        // OR the message is older than 30s and still has no status, assume it reached the server (✓).
+        // This prevents the eternal clock icon caused by webhook misses.
+        const noTracking = message?.metadata && (message.metadata as Record<string, unknown>).no_ack_tracking === true;
+        const olderThan30s = message?.timestamp && (Date.now() - new Date(message.timestamp).getTime()) > 30_000;
+        if (noTracking || olderThan30s) {
+          return <Check className="w-3 h-3 text-muted-foreground" />;
+        }
         return <Clock className="w-3 h-3 text-muted-foreground" />;
+      }
     }
   };
 
