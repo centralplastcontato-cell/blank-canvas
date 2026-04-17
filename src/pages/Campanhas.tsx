@@ -331,6 +331,14 @@ export default function Campanhas() {
                               </Button>
                             )}
                             <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8"
+                              onClick={(e) => { e.stopPropagation(); setDetailCampaign(campaign); }}
+                            >
+                              <Eye className="h-3.5 w-3.5 mr-1.5" /> Prévia
+                            </Button>
+                            <Button
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-muted-foreground hover:text-destructive"
