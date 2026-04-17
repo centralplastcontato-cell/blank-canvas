@@ -926,10 +926,88 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
                   )}
                 </Card>
               )}
+
+              {/* Edit / Delete actions — only for expense-type movements */}
+              {selectedExpense.expenseId && (
+                <div className="flex gap-2 pt-2">
+                  <Button variant="outline" className="flex-1 gap-2" onClick={openEdit}>
+                    <Pencil className="h-4 w-4" />
+                    Editar
+                  </Button>
+                  <Button variant="destructive" className="flex-1 gap-2" onClick={() => setConfirmDeleteOpen(true)}>
+                    <Trash2 className="h-4 w-4" />
+                    Excluir
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Edit dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Lançamento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label>Descrição</Label>
+              <Input value={editDescription} onChange={e => setEditDescription(e.target.value)} className="bg-white" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Valor</Label>
+                <Input
+                  value={editAmount}
+                  onChange={e => setEditAmount(formatCurrencyInput(e.target.value))}
+                  className="bg-white"
+                  placeholder="R$ 0,00"
+                />
+              </div>
+              <div>
+                <Label>Data</Label>
+                <Input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} className="bg-white" />
+              </div>
+            </div>
+            <div>
+              <Label>Observações</Label>
+              <Textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} className="bg-white" rows={3} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={editSaving}>Cancelar</Button>
+            <Button onClick={handleSaveEdit} disabled={editSaving}>
+              {editSaving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm delete */}
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir lançamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O saldo da conta será recalculado automaticamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDelete(); }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
