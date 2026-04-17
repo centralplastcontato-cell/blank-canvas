@@ -69,9 +69,18 @@ export function isHolidayEve(date: Date): boolean {
   return isHoliday(next);
 }
 
+/**
+ * Day-of-week tokens used in manual mapping.
+ * 0=Domingo, 1=Segunda, 2=Terça, 3=Quarta, 4=Quinta, 5=Sexta, 6=Sábado
+ * Plus special tokens: "feriado" and "vespera_feriado"
+ */
+export type DayMappingToken = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "feriado" | "vespera_feriado";
+
 export interface DayTypeConfig {
   key: string;
   label: string;
+  /** Optional manual mapping: which days of the week (and feriado/vespera) use this column */
+  days?: DayMappingToken[];
 }
 
 export const DEFAULT_DAY_TYPES: DayTypeConfig[] = [
