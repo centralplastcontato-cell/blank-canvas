@@ -135,7 +135,7 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-lg p-0 flex flex-col">
+      <SheetContent side="right" className="w-full sm:max-w-[620px] lg:max-w-[760px] p-0 flex flex-col overflow-hidden">
         {/* Header */}
         <div className="p-4 sm:p-6 border-b border-border space-y-2">
           <SheetHeader className="space-y-1">
@@ -164,13 +164,13 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
         </div>
 
         {/* Preview + Recipient list */}
-        <ScrollArea className="flex-1 min-h-0">
+        <ScrollArea className="flex-1 min-h-0 w-full">
           {/* Prévia da campanha */}
           <div className="p-4 sm:px-6 border-b border-border">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
               <MessageSquare className="w-3.5 h-3.5" /> Prévia da campanha
             </p>
-            <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
+            <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3 min-w-0 overflow-hidden">
               {campaign.image_url && (
                 <div className="rounded-lg overflow-hidden bg-card shadow-sm max-w-[280px] border border-border">
                   <img
@@ -187,20 +187,20 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
                   const tone = typeof v === "object" ? v?.tone : null;
                   if (!text) return null;
                   return (
-                    <div key={idx} className="space-y-1">
+                    <div key={idx} className="space-y-1 min-w-0">
                       <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
                         <span className="px-1.5 py-0.5 rounded bg-card border border-border">Variação {idx + 1}</span>
                         {tone && <span className="italic">{tone}</span>}
                       </div>
-                      <div className="bg-card rounded-lg rounded-tl-none px-3 py-2 shadow-sm border border-border w-full">
-                        <p className="text-sm whitespace-pre-wrap break-words text-foreground leading-relaxed">{text}</p>
+                       <div className="bg-card rounded-lg rounded-tl-none px-3 py-2 shadow-sm border border-border w-full max-w-full min-w-0 overflow-hidden">
+                         <p className="text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-foreground leading-relaxed">{text}</p>
                         <p className="text-[9px] text-muted-foreground text-right mt-1">prévia</p>
                       </div>
                     </div>
                   );
                 })
               ) : (
-                <div className="text-center py-4 text-xs text-muted-foreground flex flex-col items-center gap-1">
+                <div className="text-center py-4 text-xs text-muted-foreground flex flex-col items-center gap-1 min-w-0">
                   <ImageIcon className="w-5 h-5 opacity-40" />
                   Nenhuma mensagem configurada
                 </div>
