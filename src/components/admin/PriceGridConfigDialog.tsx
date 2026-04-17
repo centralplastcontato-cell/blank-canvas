@@ -7,7 +7,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Trash2, RotateCcw, Loader2, Settings2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_DAY_TYPES, DEFAULT_GUEST_TIERS, type DayTypeConfig } from "@/lib/brazilian-holidays";
+import { DEFAULT_DAY_TYPES, DEFAULT_GUEST_TIERS, type DayTypeConfig, type DayMappingToken } from "@/lib/brazilian-holidays";
+
+const DAY_TOKENS: { token: DayMappingToken; short: string; full: string }[] = [
+  { token: "1", short: "Seg", full: "Segunda" },
+  { token: "2", short: "Ter", full: "Terça" },
+  { token: "3", short: "Qua", full: "Quarta" },
+  { token: "4", short: "Qui", full: "Quinta" },
+  { token: "5", short: "Sex", full: "Sexta" },
+  { token: "6", short: "Sáb", full: "Sábado" },
+  { token: "0", short: "Dom", full: "Domingo" },
+  { token: "vespera_feriado", short: "Véspera", full: "Véspera de Feriado" },
+  { token: "feriado", short: "Feriado", full: "Feriado" },
+];
 
 const PRESET_DAY_TYPES: DayTypeConfig[] = [
   { key: "seg_qui", label: "Seg a Qui" },
