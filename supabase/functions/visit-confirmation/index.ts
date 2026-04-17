@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const WAPI_BASE_URL = "https://api.w-api.app/v1";
+
 
 function interpolateMessage(template: string, vars: Record<string, string>): string {
   let result = template;
@@ -140,7 +140,7 @@ Deno.serve(async (req) => {
 
         const { data: instances } = await supabase
           .from("wapi_instances")
-          .select("id, instance_id, instance_token, unit, status")
+          .select("id, instance_id, instance_token, unit, status, provider")
           .eq("company_id", companyId)
           .eq("status", "connected");
 
@@ -235,34 +235,30 @@ Deno.serve(async (req) => {
               dia_visita: diaVisita,
             });
 
-            // Send via W-API
+            // Send via wapi-send (multi-provider: Z-API or W-API auto-detected)
             const phone = conv.remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
-
-            const sendResponse = await fetch(
-              `${WAPI_BASE_URL}/message/send-text?instanceId=${instance.instance_id}`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${instance.instance_token}`,
-                },
-                body: JSON.stringify({ phone, message }),
-              }
-            );
 
             let sentStatus = "sent";
             let sentMsgId: string | null = null;
 
-            if (!sendResponse.ok) {
-              const errText = await sendResponse.text();
-              console.error(`[visit-confirmation] Send failed for ${phone}:`, errText);
+            const { data: sendData, error: sendErr } = await supabase.functions.invoke("wapi-send", {
+              body: {
+                action: "send-text",
+                instance_id: instance.instance_id,
+                phone,
+                message,
+                conversation_id: conv.id,
+                metadata: { source: "visit_confirmation", type: messageType, visit_id: visit.id },
+              },
+            });
+
+            if (sendErr || (sendData && sendData.error)) {
+              const errMsg = sendErr?.message || sendData?.error || "unknown";
+              console.error(`[visit-confirmation] Send failed for ${phone} (${instance.provider || 'wapi'}):`, errMsg);
               sentStatus = "failed";
             } else {
-              try {
-                const sendData = await sendResponse.json();
-                sentMsgId = sendData?.result?.key?.id || sendData?.key?.id || null;
-              } catch { /* ignore */ }
-              console.log(`[visit-confirmation] ✅ Sent ${messageType} to ${phone} (lead: ${lead.name})`);
+              sentMsgId = sendData?.message_id || sendData?.result?.key?.id || sendData?.key?.id || null;
+              console.log(`[visit-confirmation] ✅ Sent ${messageType} to ${phone} via ${instance.provider || 'wapi'} (lead: ${lead.name})`);
             }
 
             // Record in history
@@ -274,31 +270,11 @@ Deno.serve(async (req) => {
               status: sentStatus,
             });
 
-            // Save message in wapi_messages
+            // wapi-send already persists the message in wapi_messages and updates the conversation
             if (sentStatus === "sent") {
-              // Track that we just sent the first message for this visit
               if (messageType === "first") {
                 sentFirstInThisRun.add(visit.id);
               }
-
-              await supabase.from("wapi_messages").insert({
-                conversation_id: conv.id,
-                content: message,
-                from_me: true,
-                message_type: "text",
-                message_id: sentMsgId,
-                status: "sent",
-                timestamp: new Date().toISOString(),
-                metadata: { source: "visit_confirmation", type: messageType, visit_id: visit.id },
-                company_id: companyId,
-              });
-
-              await supabase.from("wapi_conversations").update({
-                last_message_at: new Date().toISOString(),
-                last_message_content: message.substring(0, 100),
-                last_message_from_me: true,
-              }).eq("id", conv.id);
-
               totalSent++;
             }
 
