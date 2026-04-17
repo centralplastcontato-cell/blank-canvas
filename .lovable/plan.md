@@ -1,77 +1,81 @@
 
+The client is asking about inconsistency between the two payment entry points:
 
-# Valor por Pessoa Adicional: Antecipado vs No Dia
+1. **Inside the event/contract** (EventDetailSheet → financial section): When adding a payment with credit card 10x, the system applies card fees (Infinitepay 8.49%) and shows "Valor não arrecadado: R$ 399,32" — debiting fees automatically.
 
-## Resumo
+2. **Standalone payment add** (probably from `/financeiro` dashboard or quick-add): When adding the same parcela here, it does NOT apply card fees — saves the gross value without deducting taxes.
 
-Hoje o pacote tem um único campo `valor_pessoa_adicional` (ou separado criança/adulto). Muitos buffets cobram **preços diferentes** dependendo se o convidado extra foi confirmado com antecedência ou apareceu no dia do evento. Vamos adicionar essa distinção.
+The client wants both flows to behave identically: card fees should always be calculated regardless of where the payment is added.
 
-## O que muda
+Let me investigate the two flows to confirm and design the fix.
 
-### 1. Banco de dados — Migration
+**Files to inspect:**
+- `src/components/financial/PaymentFormDialog.tsx` — the quick payment dialog
+- The event-side payment dialog (likely in `src/components/agenda/event-details/` or similar)
+- `useEventFinancial.ts` `addPayment` vs `useFinanceiroDashboard.ts` 
+- Card fee calculation logic (`company_card_fees` consumption)
 
-Adicionar 2 novas colunas na tabela `company_packages`:
-- `valor_adicional_antecipado` (numeric, nullable) — preço para pessoa adicional confirmada antes da festa
-- `valor_adicional_no_dia` (numeric, nullable) — preço para pessoa adicional no dia do evento
+I'll need to find where card fees are computed inside the event flow and replicate that into the dashboard flow — OR centralize it.
 
-Adicionar 2 novas colunas na tabela `company_events`:
-- `extra_guest_value_antecipado` (numeric, nullable)
-- `extra_guest_value_no_dia` (numeric, nullable)
+Plan below assumes findings; will verify in implementation phase.
 
-As colunas existentes (`valor_pessoa_adicional`, `extra_guest_value`) continuam funcionando para quem não usa essa distinção.
+<lov-plan>
 
-### 2. Formulário de Pacotes (`PackagesManager.tsx`)
+## Plano: Unificar cálculo de taxas de cartão entre as 2 telas de pagamento
 
-Quando **não** está em modo "preços separados" (criança/adulto):
-- Substituir o campo único "Valor por pessoa adicional" por **dois campos** lado a lado:
-  - "Antecipado (R$)" — valor quando confirmado antes
-  - "No dia (R$)" — valor quando no dia do evento
-- Manter o campo único como fallback se ambos estiverem vazios
+### Diagnóstico
+Hoje existem **dois pontos** onde se cria um pagamento:
 
-Quando **está** em modo "preços separados":
-- Adicionar os mesmos dois campos (antecipado/no dia) para cada categoria (criança e adulto), ou manter simples e só ter antecipado/no dia no modo unificado
+1. **Dentro da Festa** (aba Financeiro do evento) → calcula taxas de cartão automaticamente, mostra "Valor não arrecadado" e desconta a taxa do recebido.
+2. **Fora da Festa** (Financeiro geral / quick-add) → grava só o valor bruto, **sem** aplicar taxa.
 
-### 3. Formulário de Evento (`EventFormDialog.tsx`)
+Resultado: o cliente vê números diferentes para a **mesma parcela**, dependendo de onde ele clica.
 
-- Ao selecionar pacote, auto-preencher os dois valores (antecipado e no dia)
-- Mostrar os dois valores no info do pacote selecionado
-- Salvar ambos na tabela `company_events`
+### Objetivo
+Garantir que **toda parcela** de cartão (entrada ou parcela) — independentemente de onde for criada — passe pelo **mesmo cálculo de taxa** baseado em:
+- Operadora cadastrada (`company_card_fees`)
+- Quantidade de parcelas (1x a 12x)
+- Tipo (débito ou crédito)
 
-### 4. Cards de Pacote (`PackagesManager.tsx`)
+### O que será feito
 
-- Mostrar badges separados: "Antecipado: R$ X" e "No dia: R$ Y"
+**1. Centralizar o cálculo de taxa**
+Criar um utilitário único (`src/lib/cardFees.ts`) com a função:
+```
+calcularTaxaCartao({ valor, operadora, parcelas, tipo, companyCardFees })
+→ { valorBruto, taxa%, valorTaxa, valorLiquido }
+```
+Hoje essa lógica está duplicada/só existe na visão da festa.
 
-### 5. Variáveis de Contrato
+**2. Padronizar o `PaymentFormDialog` (quick-add)**
+Adicionar ao formulário (quando método = cartão crédito/débito):
+- Seletor de **Operadora** (vinda de `company_card_fees`)
+- Campo **Parcelas** (1x–12x para crédito)
+- Preview em tempo real: "Taxa: -R$ X,XX → Líquido: R$ Y,YY"
 
-Adicionar novas variáveis no template resolver:
-- `{{valor_adicional_antecipado}}` — valor formatado
-- `{{valor_adicional_no_dia}}` — valor formatado
-- `{{valor_adicional_antecipado_extenso}}` — por extenso
-- `{{valor_adicional_no_dia_extenso}}` — por extenso
+**3. Salvar metadados da taxa no pagamento**
+Persistir nos campos do `event_payments` (que já existem para a festa):
+- `card_operator`, `card_installments`, `card_fee_percent`, `card_fee_amount`, `net_amount`
 
-Atualizar tanto `src/lib/template-resolver.ts` quanto `supabase/functions/_shared/template-resolver.ts`.
+Assim o cálculo fica **igual** nas duas telas e nos relatórios.
 
-### 6. Contrato (`EventContractDialog.tsx`)
+**4. Recalcular agregados**
+Ajustar `useFinanceiroDashboard` para considerar `net_amount` (líquido) nos totais de "Recebido", como já acontece dentro da festa.
 
-- Passar os dois novos valores no snapshot do contrato
+### Resultado visual (após o ajuste)
+Em **qualquer lugar** que o usuário adicione uma parcela de R$ 4.572 em 10x Infinitepay (8,49%):
+- Recebido líquido: **R$ 4.183,84**
+- Taxa debitada: **R$ 388,16**
+- Card "Taxas de Cartão" aparece tanto na festa quanto no extrato geral.
 
-## Arquivos afetados
+### Arquivos que serão tocados
+- `src/lib/cardFees.ts` (novo — utilitário central)
+- `src/components/financial/PaymentFormDialog.tsx` (operadora + parcelas + preview)
+- `src/hooks/useFinanceiroDashboard.ts` (usar `net_amount` nos agregados)
+- `src/hooks/useEventFinancial.ts` (consumir o utilitário central, remover duplicação)
+- Possível pequena migração se faltar alguma coluna em `event_payments` (verificar antes)
 
-| Arquivo | Mudança |
-|---------|---------|
-| Nova migration SQL | Adicionar 4 colunas (2 em `company_packages`, 2 em `company_events`) |
-| `src/integrations/supabase/types.ts` | Regenerar tipos com novas colunas |
-| `src/components/admin/PackagesManager.tsx` | Dois campos de valor + badges + save/load |
-| `src/components/agenda/EventFormDialog.tsx` | Auto-fill + exibição + save dos dois valores |
-| `src/pages/Agenda.tsx` | Interface e payload com novos campos |
-| `src/components/contracts/EventContractDialog.tsx` | Novas variáveis no snapshot |
-| `src/lib/template-resolver.ts` | 4 novas variáveis |
-| `supabase/functions/_shared/template-resolver.ts` | 4 novas variáveis |
-
-## Ordem de implementação (passo a passo)
-
-1. Migration + types
-2. PackagesManager (form + cards + save)
-3. EventFormDialog + Agenda (auto-fill + save)
-4. Template resolver + contrato (variáveis)
+### Fora do escopo (para confirmar depois, se você quiser)
+- Editar parcelas antigas já criadas sem taxa → posso fazer um "recalcular agora" em massa ou deixar manual.
+- Aplicar a mesma lógica em **despesas** pagas no cartão (hoje a categoria existe, mas sem cálculo de taxa).
 
