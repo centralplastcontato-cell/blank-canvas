@@ -1,55 +1,54 @@
 
 
-## Problema
+## Diagnóstico
 
-Na imagem do cliente:
-- **Valor Total:** R$ 4.972,00 (valor da festa)
-- **Recebido (líquido):** R$ 4.960,84 (já com taxa descontada)
-- **Pendente:** R$ 11,16 ← **ERRADO**
+Inconsistência de ticks (1✓, 2✓✓, nenhum, ou 2✓✓ azul prematuro) tem 4 causas reais no código:
 
-O cliente **já pagou tudo** (R$ 400 entrada + R$ 4.572 em 10x = R$ 4.972). Mas o sistema está calculando:
+**1. Status inicial nem sempre é gravado**  
+Algumas mensagens são inseridas em `wapi_messages` sem `message_id` (envios via Z-API que não retornam ID, ou via webhook delivery sem chave). Sem `message_id`, o webhook `messageStatus` da W-API não consegue casar e atualizar → fica em `sent` para sempre, ou pior, com status null (mostra relógio ⏰).
 
-```
-Pendente = Valor Total (4.972) − Recebido líquido (4.960,84) = 11,16
-```
+**2. Mapeamento de status aceita `PLAYED` como `read`**  
+Em `wapi-webhook/index.ts` linha 4938: `'PLAYED': 'read'`. Para áudio isso faz sentido, mas a W-API às vezes envia `PLAYED` em outros contextos, marcando mensagens como lidas indevidamente (✓✓ azul antes da hora).
 
-Ou seja, o sistema trata a **taxa da maquininha (R$ 399,32)** como se fosse uma dívida do cliente. Não é — é custo do buffet.
+**3. Race no `webhookDelivery`**  
+Quando o usuário envia pelo celular físico (fora da plataforma), o webhook `webhookDelivery` insere a mensagem com `status: 'sent'` e, logo em seguida, dentro do mesmo handler, faz `UPDATE` com o `ack` que vier no payload. Se o payload já trouxer `ack=4` (mensagem antiga re-entregue), aparece como ✓✓ azul instantaneamente, sem o destinatário ter visto.
 
-## Causa raiz
+**4. Status `unknown` não é tratado**  
+Linha 4939-4940: se a W-API enviar um valor de status fora do mapa, o código simplesmente ignora (`'unknown'` → não atualiza). A mensagem fica congelada no estado anterior.
 
-Em `useEventFinancial.ts` (linha 163):
-```
-pendingAmount = totalAmount − receivedAmount
-```
-Onde `receivedAmount` soma o **valor líquido** das parcelas pagas no cartão (já descontada a taxa). Resultado: a taxa "vaza" para o pendente do cliente.
+## Plano de correção
 
-## Solução
+**A. Garantir status inicial sempre presente**  
+- Toda inserção em `wapi_messages` com `from_me: true` deve gravar `status: 'pending'` (não `'sent'`) quando ainda não há confirmação da W-API, e `'sent'` somente após a API confirmar o envio (HTTP 200 com messageId).
+- Se não houver `message_id` no retorno, gravar `status: 'sent'` mas marcar metadado `no_ack_tracking: true` para a UI exibir 1✓ definitivo (sem expectativa de evolução).
 
-Separar dois conceitos hoje misturados:
+**B. Corrigir mapeamento `PLAYED`**  
+- Remover `'PLAYED': 'read'` do mapa genérico.
+- Tratar `PLAYED` apenas quando `message_type === 'audio'`. Para outros tipos, ignorar.
 
-1. **Pendente do cliente** = o que ele ainda deve → deve usar **valor bruto** das parcelas pagas (o que o cliente efetivamente pagou na maquininha).
-2. **Recebido líquido (caixa)** = o que entrou no banco → continua usando o valor com taxa descontada.
-3. **Taxas de cartão** = card "Valor não arrecadado" já existe e mostra isso corretamente.
+**C. Eliminar race no `webhookDelivery`**  
+- No handler `webhookDelivery` (linha ~4918): ao inserir mensagem nova proveniente do celular físico, **não** rodar o bloco de update de status logo em seguida (linhas 4938-4940). O status inicial deve ser apenas `'sent'` e os updates virão de webhooks `messageStatus` subsequentes.
+- Adicionar guarda: o update de status só roda se a mensagem **já existia** antes (`em` é truthy na linha 4855).
 
-### Mudança técnica (1 arquivo)
+**D. Tratar status `unknown`**  
+- Quando `ns === 'unknown'`, logar o payload completo (debug) em vez de ignorar silenciosamente.
+- Adicionar mapeamentos comuns que faltam: `'SERVER_ACK'`, `'DELIVERY_ACK'`, `'READ_SELF'`, etc.
 
-Em `src/hooks/useEventFinancial.ts`, no cálculo do summary:
+**E. Fallback visual no frontend**  
+- Em `WhatsAppChat.tsx` linha ~2568-2574: se `status` for null/undefined **e** a mensagem tem mais de 30 segundos, mostrar 1✓ (assumir entregue ao servidor) em vez de relógio eterno.
 
-- Para parcelas **pagas no cartão**, usar `gross_amount` (valor bruto) ao calcular o **Pendente**.
-- Manter `amount` (líquido) no card **Recebido**.
-- O card **Taxas de Cartão** continua mostrando a diferença (já funciona).
+## Pontos técnicos
 
-Resultado na tela do cliente Tania/Kaleb:
-- Valor Total: R$ 4.972,00
-- Recebido: R$ 4.960,84 (caixa)
-- **Pendente: R$ 0,00** ✅
-- Status: **Pago** ✅
-- Taxas de Cartão: −R$ 399,32 (informativo)
+- **Arquivos a editar**: `supabase/functions/wapi-webhook/index.ts` (mapeamento e race), `supabase/functions/wapi-send/index.ts` (status inicial), `src/components/whatsapp/WhatsAppChat.tsx` (fallback visual).
+- **Sem migration de DB necessária** — só lógica.
+- **Sem risco de quebrar a conexão WhatsApp** — não estamos mexendo em conexão, instâncias ou webhooks de configuração, apenas no parse de payloads de status (respeita a regra `constraints/whatsapp-integration-safety`).
+- **Não afeta mensagens já existentes** — a correção só age em novas mensagens daqui pra frente. Mensagens antigas continuarão com o status que tiverem.
 
-### Compatibilidade com dados antigos
+## O que o cliente verá depois
 
-Parcelas antigas (sem `gross_amount` preenchido) → fallback para `amount`. Não quebra nada.
-
-### Arquivo tocado
-- `src/hooks/useEventFinancial.ts` (apenas o bloco de cálculo do `summary`, ~10 linhas)
+- ⏰ relógio aparece só nos primeiros segundos (mensagem realmente em trânsito).
+- ✓ um check assim que a W-API confirma envio (sempre).
+- ✓✓ cinza quando o WhatsApp do destinatário recebe.
+- ✓✓ azul **somente** quando o destinatário realmente abre a conversa.
+- Sem mais "✓✓ azul instantâneo" enganoso.
 
