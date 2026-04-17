@@ -93,7 +93,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
   };
 
   const handleSaveEdit = async () => {
-    if (!selectedExpense?.expenseId) return;
+    if (!selectedExpense) return;
     const amountNum = parseCurrencyInput(editAmount);
     if (amountNum <= 0) {
       toast.error('Informe um valor válido.');
@@ -105,25 +105,62 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
     }
     setEditSaving(true);
     try {
-      // Preserve sign: original could be negative (transferência/ajuste)
-      const sign = selectedExpense.amount < 0 || selectedExpense.type === 'entry' && (selectedExpense.expenseCategory === 'transferencia' || selectedExpense.expenseCategory === 'ajuste_saldo') ? -1 : 1;
-      // For simplicity: keep sign of original DB record
-      const { data: orig } = await supabase
-        .from('company_expenses')
-        .select('amount')
-        .eq('id', selectedExpense.expenseId)
-        .single();
-      const finalAmount = orig && Number(orig.amount) < 0 ? -Math.abs(amountNum) : Math.abs(amountNum);
-      const { error } = await supabase
-        .from('company_expenses')
-        .update({
-          amount: finalAmount,
-          description: editDescription.trim(),
-          expense_date: editDate,
-          notes: editNotes.trim() || null,
-        })
-        .eq('id', selectedExpense.expenseId);
-      if (error) throw error;
+      const kind = selectedExpense.sourceKind;
+      const recId = selectedExpense.recordId;
+      if (!recId) throw new Error('Registro não identificado');
+
+      if (kind === 'expense') {
+        const { data: orig } = await supabase
+          .from('company_expenses')
+          .select('amount')
+          .eq('id', recId)
+          .single();
+        const finalAmount = orig && Number(orig.amount) < 0 ? -Math.abs(amountNum) : Math.abs(amountNum);
+        const { error } = await supabase
+          .from('company_expenses')
+          .update({
+            amount: finalAmount,
+            description: editDescription.trim(),
+            expense_date: editDate,
+            notes: editNotes.trim() || null,
+          })
+          .eq('id', recId);
+        if (error) throw error;
+      } else if (kind === 'revenue') {
+        const { error } = await (supabase as any)
+          .from('company_revenues')
+          .update({
+            amount: Math.abs(amountNum),
+            description: editDescription.trim(),
+            revenue_date: editDate,
+            notes: editNotes.trim() || null,
+          })
+          .eq('id', recId);
+        if (error) throw error;
+      } else if (kind === 'event_payment') {
+        const { error } = await supabase
+          .from('event_payments')
+          .update({
+            amount: Math.abs(amountNum),
+            paid_at: editDate,
+            notes: editNotes.trim() || null,
+          })
+          .eq('id', recId);
+        if (error) throw error;
+      } else if (kind === 'partial_entry') {
+        const { error } = await (supabase as any)
+          .from('event_payment_entries')
+          .update({
+            amount: Math.abs(amountNum),
+            paid_at: editDate,
+            notes: editNotes.trim() || null,
+          })
+          .eq('id', recId);
+        if (error) throw error;
+      } else {
+        throw new Error('Tipo de lançamento não suportado');
+      }
+
       toast.success('Lançamento atualizado.');
       setEditOpen(false);
       setSelectedExpense(null);
@@ -137,15 +174,34 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
   };
 
   const handleDelete = async () => {
-    if (!selectedExpense?.expenseId) return;
+    if (!selectedExpense) return;
+    const kind = selectedExpense.sourceKind;
+    const recId = selectedExpense.recordId;
+    if (!recId) return;
     setDeleting(true);
     try {
-      const { error } = await supabase
-        .from('company_expenses')
-        .delete()
-        .eq('id', selectedExpense.expenseId);
+      let error: any = null;
+      if (kind === 'expense') {
+        ({ error } = await supabase.from('company_expenses').delete().eq('id', recId));
+      } else if (kind === 'revenue') {
+        ({ error } = await (supabase as any).from('company_revenues').delete().eq('id', recId));
+      } else if (kind === 'event_payment') {
+        // Reset parcela to pending instead of removing the schedule
+        ({ error } = await supabase
+          .from('event_payments')
+          .update({ status: 'pending', paid_at: null, bank_account_id: null })
+          .eq('id', recId));
+      } else if (kind === 'partial_entry') {
+        ({ error } = await (supabase as any).from('event_payment_entries').delete().eq('id', recId));
+      } else {
+        throw new Error('Tipo de lançamento não suportado');
+      }
       if (error) throw error;
-      toast.success('Lançamento excluído. Saldo recalculado.');
+      toast.success(
+        kind === 'event_payment'
+          ? 'Pagamento estornado. Parcela voltou para pendente.'
+          : 'Lançamento excluído. Saldo recalculado.'
+      );
       setConfirmDeleteOpen(false);
       setSelectedExpense(null);
       await fetchMovements();
