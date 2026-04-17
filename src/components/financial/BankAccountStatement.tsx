@@ -257,7 +257,10 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
       }));
 
       const allEntries = [...entries, ...partialMovements, ...revenueMovements];
-      const periodEntries = allEntries.reduce((sum, movement) => sum + movement.amount, 0);
+      // Negative expenses (transfers/adjustments) were remapped to type 'entry' inside `exits`.
+      // They must also be counted in periodEntries so balanceBefore is consistent with liveTotals.
+      const exitsAsEntriesSum = exits.reduce((sum, m) => sum + (m.type === 'entry' ? m.amount : 0), 0);
+      const periodEntries = allEntries.reduce((sum, movement) => sum + movement.amount, 0) + exitsAsEntriesSum;
       const periodExits = exits.reduce((sum, movement) => sum + (movement.type === 'exit' ? movement.amount : 0), 0);
 
       // Compute REAL current balance from DB totals (not stale prop)
