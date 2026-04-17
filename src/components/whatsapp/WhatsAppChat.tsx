@@ -6860,7 +6860,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         <AutomationTimelineSheet
           isOpen={showAutomationTimeline}
           onClose={() => setShowAutomationTimeline(false)}
-          messages={messages}
+          messages={messages as any}
           contactName={selectedConversation.contact_name}
         />
       )}
@@ -6883,8 +6883,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         onClose={connection.closeDialog}
         onSetConnectionMode={connection.setConnectionMode}
         onSetPhoneNumber={connection.setPhoneNumber}
-        onRequestPairingCode={() => connection.requestPairingCode(connection.qrInstance!)}
-        onRetryQr={() => connection.qrInstance && connection.fetchQrCode(connection.qrInstance, 0)}
+        onRequestPairingCode={() => connection.requestPairingCode()}
+        onRetryQr={() => connection.qrInstance && connection.fetchQrCode(connection.qrInstance)}
       />
     </div>
   );
