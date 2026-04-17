@@ -281,6 +281,8 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
           amount: Number(p.amount),
           type: 'entry' as const,
           source: 'Recebimento',
+          sourceKind: 'event_payment' as const,
+          recordId: p.id,
           eventId: evt?.id || p.event_id,
           eventTitle: evt?.title || undefined,
           eventDate: evt?.event_date || undefined,
@@ -298,6 +300,8 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
           amount: Number(pe.amount),
           type: 'entry' as const,
           source: 'Pgto Parcial',
+          sourceKind: 'partial_entry' as const,
+          recordId: pe.id,
           eventId: evt?.id || undefined,
           eventTitle: evt?.title || undefined,
           eventDate: evt?.event_date || undefined,
@@ -313,6 +317,8 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
           expenseReceiptUrl: e.receipt_url || undefined,
           expenseBoletoUrl: e.boleto_url || undefined,
           expenseUnit: e.unit || undefined,
+          sourceKind: 'expense' as const,
+          recordId: e.id,
         };
         if (amt < 0) {
           return {
@@ -338,12 +344,16 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
 
       // Revenue movements (receitas avulsas)
       const revenueMovements: Movement[] = (revenuesRes.data || []).map((r: any) => ({
-        id: r.id,
+        id: `rev-${r.id}`,
         date: r.revenue_date,
         description: r.description || 'Receita avulsa',
         amount: Number(r.amount),
         type: 'entry' as const,
         source: 'Receita avulsa',
+        sourceKind: 'revenue' as const,
+        recordId: r.id,
+        expenseNotes: r.notes || undefined,
+        expenseReceiptUrl: r.receipt_url || undefined,
       }));
 
       const allEntries = [...entries, ...partialMovements, ...revenueMovements];
