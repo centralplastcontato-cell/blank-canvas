@@ -4851,6 +4851,15 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       const sd = data || body, mId = (sd as Record<string, unknown>)?.messageId || body?.messageId, st = (sd as Record<string, unknown>)?.status, ack = (sd as Record<string, unknown>)?.ack;
       const fm = body?.fromMe || (sd as Record<string, unknown>)?.fromMe || false, mcd = body?.msgContent || (sd as Record<string, unknown>)?.msgContent;
       
+      // Track whether the message already existed BEFORE we (potentially) insert it from physical-phone payload.
+      // Only existing messages should have their status updated — newly inserted ones start at 'sent' and wait
+      // for subsequent messageStatus webhooks to evolve, eliminating the ack=4 race on re-delivered payloads.
+      let messageAlreadyExisted = false;
+      if (mId) {
+        const { data: preCheck } = await supabase.from('wapi_messages').select('id, message_type').eq('message_id', mId).maybeSingle();
+        messageAlreadyExisted = !!preCheck;
+      }
+      
       if (fm && mcd && mId) {
         const { data: em } = await supabase.from('wapi_messages').select('id').eq('message_id', mId).single();
         if (!em) {
