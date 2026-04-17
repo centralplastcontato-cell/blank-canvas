@@ -69,9 +69,18 @@ export function isHolidayEve(date: Date): boolean {
   return isHoliday(next);
 }
 
+/**
+ * Day-of-week tokens used in manual mapping.
+ * 0=Domingo, 1=Segunda, 2=Terça, 3=Quarta, 4=Quinta, 5=Sexta, 6=Sábado
+ * Plus special tokens: "feriado" and "vespera_feriado"
+ */
+export type DayMappingToken = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "feriado" | "vespera_feriado";
+
 export interface DayTypeConfig {
   key: string;
   label: string;
+  /** Optional manual mapping: which days of the week (and feriado/vespera) use this column */
+  days?: DayMappingToken[];
 }
 
 export const DEFAULT_DAY_TYPES: DayTypeConfig[] = [
@@ -89,14 +98,37 @@ export const DEFAULT_GUEST_TIERS = [50, 60, 70, 80, 90, 100];
  * Priority: feriado > véspera > day-of-week mapping
  */
 export function getDayType(date: Date, dayTypes?: DayTypeConfig[]): string {
-  const keys = new Set((dayTypes || DEFAULT_DAY_TYPES).map((d) => d.key));
+  const types = dayTypes || DEFAULT_DAY_TYPES;
+  const keys = new Set(types.map((d) => d.key));
 
-  if (isHoliday(date) && keys.has("feriado")) return "feriado";
-  if (isHolidayEve(date) && keys.has("vespera_feriado")) return "vespera_feriado";
+  const isHol = isHoliday(date);
+  const isEve = isHolidayEve(date);
+  const dow = date.getDay(); // 0=Sun..6=Sat
+  const dowToken = String(dow) as DayMappingToken;
 
-  const dow = date.getDay(); // 0=Sun, 1=Mon...6=Sat
+  // 1) MANUAL MAPPING (highest priority): if any column has explicit `days`, use it
+  const hasAnyManual = types.some((t) => t.days && t.days.length > 0);
+  if (hasAnyManual) {
+    // Holiday wins
+    if (isHol) {
+      const matchHol = types.find((t) => t.days?.includes("feriado"));
+      if (matchHol) return matchHol.key;
+    }
+    // Holiday eve next
+    if (isEve) {
+      const matchEve = types.find((t) => t.days?.includes("vespera_feriado"));
+      if (matchEve) return matchEve.key;
+    }
+    // Day of week
+    const matchDow = types.find((t) => t.days?.includes(dowToken));
+    if (matchDow) return matchDow.key;
+    // fall through to legacy if nothing matched
+  }
 
-  // Check granular keys first (individual days)
+  // 2) LEGACY HARDCODED MAPPING (backward compat for grids without `days` config)
+  if (isHol && keys.has("feriado")) return "feriado";
+  if (isEve && keys.has("vespera_feriado")) return "vespera_feriado";
+
   if (dow === 0 && keys.has("domingo")) return "domingo";
   if (dow === 6 && keys.has("sabado")) return "sabado";
   if (dow === 5 && keys.has("sexta")) return "sexta";
@@ -105,19 +137,16 @@ export function getDayType(date: Date, dayTypes?: DayTypeConfig[]): string {
   if (dow === 2 && keys.has("terca")) return "terca";
   if (dow === 1 && keys.has("segunda")) return "segunda";
 
-  // Two-day composites
   if ((dow === 1 || dow === 2) && keys.has("seg_ter")) return "seg_ter";
   if ((dow === 3 || dow === 4) && keys.has("qua_qui")) return "qua_qui";
 
-  // Multi-day composites
   if ((dow === 0 || dow === 6) && keys.has("sab_dom")) return "sab_dom";
   if (dow >= 1 && dow <= 4 && keys.has("seg_qui")) return "seg_qui";
   if ((dow >= 5 || dow === 0) && keys.has("sex_sab_dom")) return "sex_sab_dom";
 
-  // Broad fallbacks
   if (dow >= 1 && dow <= 5 && keys.has("seg_sex")) return "seg_sex";
 
-  return "seg_qui"; // ultimate fallback
+  return types[0]?.key || "seg_qui";
 }
 
 /**
