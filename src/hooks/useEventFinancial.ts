@@ -8,6 +8,7 @@ export interface EventPayment {
   company_id: string;
   type: 'entrada' | 'parcela';
   amount: number;
+  gross_amount: number | null;
   due_date: string;
   status: 'pending' | 'paid' | 'late' | 'partial';
   payment_method: string | null;
@@ -22,6 +23,7 @@ export interface PaymentEntry {
   payment_id: string;
   company_id: string;
   amount: number;
+  gross_amount: number | null;
   paid_at: string;
   payment_method: string | null;
   bank_account_id: string | null;
@@ -145,22 +147,37 @@ export function useEventFinancial(eventId: string | undefined, companyId: string
   }, 0);
   const totalAmount = baseValue + extrasTotal - discountsTotal;
   
-  // Received = fully paid parcels (amount) + partial entries sum for non-paid parcels
+  // Received (net/cash) — what actually entered the bank, fees already deducted
   const receivedAmount = (() => {
     let total = 0;
     payments.forEach(p => {
       if (p.status === 'paid') {
         total += p.amount;
       } else {
-        // For partial/pending, sum their entries
         const pEntries = entries.filter(e => e.payment_id === p.id);
         total += pEntries.reduce((s, e) => s + e.amount, 0);
       }
     });
     return total;
   })();
-  
-  const pendingAmount = totalAmount - receivedAmount;
+
+  // Client-paid (gross) — what the client effectively paid (before card fees).
+  // Used to determine if the client still owes anything. Falls back to net amount
+  // when gross_amount isn't tracked (legacy records / non-card payments).
+  const clientPaidGross = (() => {
+    let total = 0;
+    payments.forEach(p => {
+      if (p.status === 'paid') {
+        total += Number(p.gross_amount ?? p.amount);
+      } else {
+        const pEntries = entries.filter(e => e.payment_id === p.id);
+        total += pEntries.reduce((s, e) => s + Number(e.gross_amount ?? e.amount), 0);
+      }
+    });
+    return total;
+  })();
+
+  const pendingAmount = totalAmount - clientPaidGross;
   const hasLate = payments.some(p => p.status === 'late');
   const hasPartial = payments.some(p => p.status === 'partial');
 
@@ -168,7 +185,7 @@ export function useEventFinancial(eventId: string | undefined, companyId: string
     totalAmount: Math.max(0, totalAmount),
     receivedAmount,
     pendingAmount: Math.max(0, pendingAmount),
-    status: pendingAmount <= 0 && payments.length > 0 ? 'pago' : hasLate ? 'atrasado' : (hasPartial || receivedAmount > 0) ? 'parcial' : 'pendente',
+    status: pendingAmount <= 0.01 && payments.length > 0 ? 'pago' : hasLate ? 'atrasado' : (hasPartial || receivedAmount > 0) ? 'parcial' : 'pendente',
   };
 
   const addTimeline = async (type: string, description: string) => {
