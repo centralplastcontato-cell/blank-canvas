@@ -1001,7 +1001,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
               )}
 
               {/* Edit / Delete actions — only for expense-type movements */}
-              {selectedExpense.expenseId && (
+              {selectedExpense.recordId && (
                 <div className="flex gap-2 pt-2">
                   <Button variant="outline" className="flex-1 gap-2" onClick={openEdit}>
                     <Pencil className="h-4 w-4" />
