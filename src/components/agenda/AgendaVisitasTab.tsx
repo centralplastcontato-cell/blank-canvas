@@ -90,6 +90,7 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
   const [detailVisit, setDetailVisit] = useState<Visit | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createType, setCreateType] = useState<"visita" | "atendimento">("visita");
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [profiles, setProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
 
   const { units } = useCompanyUnits(currentCompany?.id);
@@ -720,6 +721,16 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
                     <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={() => updateVisitStatus(detailVisit.id, "confirmada")}><Check className="h-3.5 w-3.5 text-green-600" /> Confirmar</Button>
                     <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={() => updateVisitStatus(detailVisit.id, "remarcada")}><RefreshCw className="h-3.5 w-3.5" /> Remarcar</Button>
                     <Button variant="outline" size="sm" className="text-xs gap-1.5 text-destructive hover:text-destructive" onClick={() => updateVisitStatus(detailVisit.id, "cancelada")}><X className="h-3.5 w-3.5" /> Cancelar</Button>
+                    {!isDetailEntrega && detailVisit.lead_phone && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="col-span-2 text-xs gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                        onClick={() => setConfirmationOpen(true)}
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" /> Enviar confirmação de visita
+                      </Button>
+                    )}
                     {!isDetailEntrega && (
                       <Button
                         size="sm"
