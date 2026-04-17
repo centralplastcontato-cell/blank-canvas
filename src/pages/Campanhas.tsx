@@ -295,6 +295,20 @@ export default function Campanhas() {
                                 </div>
                               )}
                             </div>
+                            <div
+                              className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-border bg-card"
+                              onClick={(e) => e.stopPropagation()}
+                              title={campaign.status === "cancelled" ? "Campanha desativada" : "Campanha ativa"}
+                            >
+                              <Switch
+                                checked={campaign.status !== "cancelled"}
+                                onCheckedChange={(v) => handleToggleActive(campaign, v)}
+                                disabled={campaign.status === "sending" || campaign.status === "completed"}
+                              />
+                              <span className="text-[10px] text-muted-foreground">
+                                {campaign.status === "cancelled" ? "Inativa" : "Ativa"}
+                              </span>
+                            </div>
                             {(campaign.status === "draft" || campaign.status === "sending") && (
                               <Button
                                 variant="default"
