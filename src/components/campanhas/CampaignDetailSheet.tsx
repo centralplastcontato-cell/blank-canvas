@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { CheckCircle2, XCircle, Clock, Loader2, Users, RefreshCw, Send, ImageIcon, MessageSquare } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Loader2, Users, RefreshCw, Send, ImageIcon, MessageSquare, UserCog } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -44,6 +44,7 @@ interface CampaignDetailSheetProps {
   companyId: string;
   onStartSend: (campaign: Campaign) => void;
   onResend: (campaign: Campaign) => void;
+  onEditAudience?: (campaign: Campaign) => void;
   onRefresh: () => void;
 }
 
@@ -54,7 +55,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   cancelled: { label: "Cancelada", variant: "destructive", icon: XCircle },
 };
 
-export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, onStartSend, onResend, onRefresh }: CampaignDetailSheetProps) {
+export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, onStartSend, onResend, onEditAudience, onRefresh }: CampaignDetailSheetProps) {
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -238,10 +239,18 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
         {/* Actions */}
         <div className="p-4 sm:px-6 border-t border-border space-y-2">
           {campaign.status === "draft" && (
-            <Button className="w-full" onClick={() => { onOpenChange(false); onStartSend(campaign); }}>
-              <Send className="w-4 h-4 mr-1.5" />
-              Iniciar Envio
-            </Button>
+            <>
+              <Button className="w-full" onClick={() => { onOpenChange(false); onStartSend(campaign); }}>
+                <Send className="w-4 h-4 mr-1.5" />
+                Iniciar Envio
+              </Button>
+              {onEditAudience && (
+                <Button variant="outline" className="w-full" onClick={() => { onOpenChange(false); onEditAudience(campaign); }}>
+                  <UserCog className="w-4 h-4 mr-1.5" />
+                  Editar destinatários
+                </Button>
+              )}
+            </>
           )}
           {errorCount > 0 && (
             <Button
