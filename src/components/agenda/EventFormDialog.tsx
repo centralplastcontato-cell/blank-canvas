@@ -1068,6 +1068,41 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       toast({ title: "Conflito de horário detectado", description: "Altere o horário, data ou unidade antes de salvar.", variant: "destructive" });
       return;
     }
+    // Final safety check: re-query DB right before saving to catch race conditions
+    // (e.g. user clicks save before the debounced 300ms detector finishes)
+    if (form.start_time && currentCompany?.id) {
+      const endTimeCheck = form.end_time || inferEndTime(form.start_time);
+      if (endTimeCheck) {
+        let q = supabase
+          .from("company_events")
+          .select("id, title, start_time, end_time, unit")
+          .eq("company_id", currentCompany.id)
+          .eq("event_date", form.event_date)
+          .neq("status", "cancelado");
+        const editId = form.id || initialData?.id;
+        if (editId) q = q.neq("id", editId);
+        const { data: dbEvents } = await q;
+        const normUnit = (u: string | null | undefined) => (u || "").toLowerCase().replace(/\s+/g, "").trim();
+        const formUnitNorm = normUnit(form.unit);
+        const dbConflict = (dbEvents || []).find((ev: any) => {
+          if (formUnitNorm && normUnit(ev.unit) !== formUnitNorm) return false;
+          const evStart = normalizeTimeValue(ev.start_time) || "00:00";
+          const evEnd = normalizeTimeValue(ev.end_time) || inferEndTime(evStart);
+          if (!evEnd) return false;
+          return form.start_time! < evEnd && endTimeCheck > evStart;
+        });
+        if (dbConflict) {
+          setConflictEvent({
+            title: dbConflict.title,
+            start_time: normalizeTimeValue(dbConflict.start_time) || "",
+            end_time: normalizeTimeValue(dbConflict.end_time) || "",
+            unit: dbConflict.unit || "",
+          });
+          toast({ title: "Conflito de horário detectado", description: "Já existe uma festa neste horário. Verifique antes de salvar.", variant: "destructive" });
+          return;
+        }
+      }
+    }
     setSaving(true);
     try {
       const paymentWithDiscount = {
