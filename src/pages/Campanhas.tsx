@@ -68,6 +68,7 @@ export default function Campanhas() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [sendCampaign, setSendCampaign] = useState<Campaign | null>(null);
   const [detailCampaign, setDetailCampaign] = useState<Campaign | null>(null);
+  const [editingAudienceCampaign, setEditingAudienceCampaign] = useState<Campaign | null>(null);
   const [campaignToDelete, setCampaignToDelete] = useState<Campaign | null>(null);
   const [campaignToReset, setCampaignToReset] = useState<Campaign | null>(null);
   const [resetting, setResetting] = useState(false);
