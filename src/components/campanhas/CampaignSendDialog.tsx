@@ -179,19 +179,41 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
       }
     }
 
+    const wasPaused = pauseRequestedRef.current;
+
     // Finalize
     await supabase.from("campaigns").update({
-      status: "completed",
-      completed_at: new Date().toISOString(),
+      status: wasPaused ? "draft" : "completed",
+      completed_at: wasPaused ? null : new Date().toISOString(),
       sent_count: successCount,
       error_count: errorCount,
     }).eq("id", campaign.id);
+
+    if (wasPaused) {
+      toast.success(`Campanha pausada. ${successCount} enviados, ${recipients.length - successCount - errorCount} pendentes.`);
+      setSending(false);
+      setPaused(false);
+      pauseRequestedRef.current = false;
+      isSendingRef.current = false;
+      setProgress(null);
+      setCountdown(null);
+      setMinimized(false);
+      onOpenChange(false);
+      onComplete();
+      return;
+    }
 
     setResult({ success: successCount, errors: errorCount });
     setSending(false);
     isSendingRef.current = false;
     setProgress(null);
     setMinimized(false);
+  };
+
+  const handlePause = () => {
+    pauseRequestedRef.current = true;
+    setPaused(true);
+    toast.info("Pausando após o envio atual...");
   };
 
   const handleClose = () => {
