@@ -192,8 +192,8 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
                         <span className="px-1.5 py-0.5 rounded bg-card border border-border">Variação {idx + 1}</span>
                         {tone && <span className="italic">{tone}</span>}
                       </div>
-                      <div className="relative max-w-[90%] bg-card rounded-lg rounded-tl-none px-3 py-2 shadow-sm border border-border">
-                        <p className="text-sm whitespace-pre-wrap text-foreground leading-relaxed">{text}</p>
+                      <div className="bg-card rounded-lg rounded-tl-none px-3 py-2 shadow-sm border border-border w-full">
+                        <p className="text-sm whitespace-pre-wrap break-words text-foreground leading-relaxed">{text}</p>
                         <p className="text-[9px] text-muted-foreground text-right mt-1">prévia</p>
                       </div>
                     </div>
