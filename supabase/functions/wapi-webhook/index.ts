@@ -4944,9 +4944,34 @@ async function processWebhookEvent(body: Record<string, unknown>) {
         }
       }
       
-      const sm: Record<string | number, string> = { 0: 'error', 1: 'pending', 2: 'sent', 3: 'delivered', 4: 'read', 'PENDING': 'pending', 'SENT': 'sent', 'DELIVERY': 'delivered', 'READ': 'read', 'PLAYED': 'read', 'ERROR': 'error' };
-      const ns = sm[st as string | number] || sm[ack as string | number] || 'unknown';
-      if (mId && ns !== 'unknown') await supabase.from('wapi_messages').update({ status: ns }).eq('message_id', mId);
+      // Removed 'PLAYED': 'read' from generic map — PLAYED is handled separately below for audio-only messages.
+      // Added missing common ACK variants used by W-API/Z-API to avoid silent 'unknown' drops.
+      const sm: Record<string | number, string> = {
+        0: 'error', 1: 'pending', 2: 'sent', 3: 'delivered', 4: 'read',
+        'PENDING': 'pending', 'SENT': 'sent', 'SERVER_ACK': 'sent',
+        'DELIVERY': 'delivered', 'DELIVERY_ACK': 'delivered', 'DELIVERED': 'delivered',
+        'READ': 'read', 'READ_SELF': 'read',
+        'ERROR': 'error', 'FAILED': 'error',
+      };
+      let ns = sm[st as string | number] || sm[ack as string | number] || 'unknown';
+      
+      // PLAYED → 'read' only for audio messages. For other types it's ambiguous and was prematurely
+      // marking text/image messages as read.
+      if (ns === 'unknown' && (st === 'PLAYED' || ack === 'PLAYED') && mId) {
+        const { data: msgRow } = await supabase.from('wapi_messages').select('message_type').eq('message_id', mId).maybeSingle();
+        if (msgRow?.message_type === 'audio') ns = 'read';
+      }
+      
+      if (ns === 'unknown') {
+        console.log(`[Webhook] Unknown status payload — st=${JSON.stringify(st)}, ack=${JSON.stringify(ack)}, mId=${mId}`);
+      }
+      
+      // Race fix: only update status for messages that already existed BEFORE this webhook ran.
+      // For brand-new messages just inserted by webhookDelivery (physical phone), skip the update —
+      // the initial 'sent' status is correct, and subsequent messageStatus webhooks will evolve it.
+      if (mId && ns !== 'unknown' && messageAlreadyExisted) {
+        await supabase.from('wapi_messages').update({ status: ns }).eq('message_id', mId);
+      }
       break;
     }
     default: {
