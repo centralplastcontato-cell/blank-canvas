@@ -44,6 +44,7 @@ interface CampaignDetailSheetProps {
   companyId: string;
   onStartSend: (campaign: Campaign) => void;
   onResend: (campaign: Campaign) => void;
+  onEditAudience?: (campaign: Campaign) => void;
   onRefresh: () => void;
 }
 
