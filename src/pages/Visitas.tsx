@@ -28,6 +28,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { VisitQualification } from "@/components/visitas/VisitQualification";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { VisitFormDialog } from "@/components/visitas/VisitFormDialog";
+import { SendVisitConfirmationDialog } from "@/components/visitas/SendVisitConfirmationDialog";
 import { logActivity } from "@/lib/activityLog";
 
 // Status config
