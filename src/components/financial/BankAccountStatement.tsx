@@ -31,6 +31,10 @@ interface Movement {
   amount: number;
   type: 'entry' | 'exit';
   source: string;
+  // Indicates which underlying table this movement comes from
+  sourceKind?: 'expense' | 'revenue' | 'event_payment' | 'partial_entry';
+  // Underlying record id (without prefix), for editing/deleting
+  recordId?: string;
   eventId?: string;
   eventTitle?: string;
   eventDate?: string;
