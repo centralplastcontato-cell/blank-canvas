@@ -270,31 +270,11 @@ Deno.serve(async (req) => {
               status: sentStatus,
             });
 
-            // Save message in wapi_messages
+            // wapi-send already persists the message in wapi_messages and updates the conversation
             if (sentStatus === "sent") {
-              // Track that we just sent the first message for this visit
               if (messageType === "first") {
                 sentFirstInThisRun.add(visit.id);
               }
-
-              await supabase.from("wapi_messages").insert({
-                conversation_id: conv.id,
-                content: message,
-                from_me: true,
-                message_type: "text",
-                message_id: sentMsgId,
-                status: "sent",
-                timestamp: new Date().toISOString(),
-                metadata: { source: "visit_confirmation", type: messageType, visit_id: visit.id },
-                company_id: companyId,
-              });
-
-              await supabase.from("wapi_conversations").update({
-                last_message_at: new Date().toISOString(),
-                last_message_content: message.substring(0, 100),
-                last_message_from_me: true,
-              }).eq("id", conv.id);
-
               totalSent++;
             }
 
