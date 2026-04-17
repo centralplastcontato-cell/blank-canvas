@@ -2280,80 +2280,83 @@ Deno.serve(async (req) => {
       }
 
       case 'edit-text': {
-        // Edit a sent message - fallback: delete original + send new
+        // Edit a sent message via native WhatsApp edit (W-API / Z-API)
         const { messageId: editMsgId, newContent, conversationId: editConvId } = body;
-        
+
         if (!editMsgId || !newContent) {
           return new Response(JSON.stringify({ error: 'messageId e newContent são obrigatórios' }), {
             status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
-        // Try W-API edit endpoint first
-        const editRes = await wapiRequest(
-          `${WAPI_BASE_URL}/message/edit?instanceId=${instance_id}`,
-          instance_token,
-          'PUT',
-          { messageId: editMsgId, text: newContent }
-        );
-
-        if (editRes.ok) {
-          // Edit succeeded - update DB
-          await supabase.from('wapi_messages')
-            .update({ content: newContent })
-            .eq('message_id', editMsgId);
-
-          return new Response(JSON.stringify({ success: true, method: 'edit' }), {
-            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
+        // ============ Z-API ============
+        if (provider === 'zapi') {
+          // Z-API: PUT /send-text with messageId in body to edit
+          const zUrl = zapiUrl(instance_id, instance_token, 'send-text');
+          try {
+            const zRes = await fetch(zUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Client-Token': zapiClientToken || '',
+              },
+              body: JSON.stringify({ phone, message: newContent, messageId: editMsgId, editMessage: true }),
+            });
+            const zData = await zRes.json().catch(() => ({}));
+            if (!zRes.ok || zData?.error) {
+              return new Response(JSON.stringify({
+                error: zData?.error || 'A Z-API não retornou sucesso ao editar a mensagem. Sua plataforma pode não suportar edição nativa.',
+              }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+            }
+            await supabase.from('wapi_messages').update({ content: newContent }).eq('message_id', editMsgId);
+            if (editConvId) {
+              await supabase.from('wapi_conversations').update({
+                last_message_content: newContent.substring(0, 100),
+              }).eq('id', editConvId);
+            }
+            return new Response(JSON.stringify({ success: true, method: 'zapi-edit' }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          } catch (e) {
+            return new Response(JSON.stringify({ error: e instanceof Error ? e.message : 'Erro Z-API edit' }), {
+              status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
         }
 
-        // Fallback: delete + resend
-        console.log('Edit not supported, falling back to delete+resend');
-        
-        // Try to delete the original message
-        const deleteRes = await wapiRequest(
-          `${WAPI_BASE_URL}/message/delete?instanceId=${instance_id}`,
-          instance_token,
-          'DELETE',
-          { messageId: editMsgId, forEveryone: true }
-        );
+        // ============ W-API ============
+        // Try multiple endpoint/payload variants the W-API uses across plans.
+        const editAttempts: Array<{ url: string; method: string; body: Record<string, unknown> }> = [
+          { url: `${WAPI_BASE_URL}/message/edit-message?instanceId=${instance_id}`, method: 'POST', body: { phone, messageId: editMsgId, text: newContent } },
+          { url: `${WAPI_BASE_URL}/message/edit-text?instanceId=${instance_id}`, method: 'POST', body: { phone, messageId: editMsgId, text: newContent } },
+          { url: `${WAPI_BASE_URL}/message/edit?instanceId=${instance_id}`, method: 'POST', body: { phone, messageId: editMsgId, text: newContent } },
+          { url: `${WAPI_BASE_URL}/message/edit?instanceId=${instance_id}`, method: 'PUT', body: { phone, messageId: editMsgId, text: newContent } },
+        ];
 
-        if (!deleteRes.ok) {
-          console.warn('Delete failed:', deleteRes.error, '- sending new message anyway');
+        let lastError = 'Endpoint de edição não suportado pela W-API';
+        for (const attempt of editAttempts) {
+          const res = await wapiRequest(attempt.url, instance_token, attempt.method, attempt.body);
+          if (res.ok) {
+            await supabase.from('wapi_messages').update({ content: newContent }).eq('message_id', editMsgId);
+            if (editConvId) {
+              await supabase.from('wapi_conversations').update({
+                last_message_content: newContent.substring(0, 100),
+              }).eq('id', editConvId);
+            }
+            console.log(`✅ Edição nativa funcionou via ${attempt.method} ${attempt.url}`);
+            return new Response(JSON.stringify({ success: true, method: 'wapi-native-edit' }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          lastError = res.error || lastError;
+          console.log(`Tentativa edit falhou ${attempt.method} ${attempt.url}:`, res.error);
         }
 
-        // Send the new message
-        const resendRes = await wapiRequest(
-          `${WAPI_BASE_URL}/message/send-text?instanceId=${instance_id}`,
-          instance_token,
-          'POST',
-          { phone, message: newContent }
-        );
-
-        if (!resendRes.ok) {
-          return new Response(JSON.stringify({ error: resendRes.error || 'Falha ao reenviar mensagem' }), {
-            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-
-        const newMsgId = (resendRes.data as { messageId?: string })?.messageId;
-
-        // Update message in DB
-        await supabase.from('wapi_messages')
-          .update({ content: newContent, message_id: newMsgId || editMsgId })
-          .eq('message_id', editMsgId);
-
-        // Update conversation preview
-        if (editConvId) {
-          await supabase.from('wapi_conversations').update({
-            last_message_content: newContent.substring(0, 100),
-          }).eq('id', editConvId);
-        }
-
-        return new Response(JSON.stringify({ success: true, method: 'delete-resend', messageId: newMsgId }), {
-          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        // No duplicate sending fallback - return error so the UI can show a clear message
+        return new Response(JSON.stringify({
+          error: 'Sua instância da W-API não suporta edição nativa de mensagens. ' + lastError,
+          unsupported: true,
+        }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       case 'repair-session': {
