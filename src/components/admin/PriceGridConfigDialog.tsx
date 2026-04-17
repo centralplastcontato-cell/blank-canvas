@@ -83,6 +83,23 @@ export function PriceGridConfigDialog({ open, onOpenChange, companyId, currentSe
     setDayTypes(dayTypes.map((d, i) => (i === idx ? { ...d, label } : d)));
   };
 
+  const toggleDayMapping = (idx: number, token: DayMappingToken) => {
+    setDayTypes(dayTypes.map((d, i) => {
+      if (i !== idx) {
+        // Remove this token from any other column to keep mapping exclusive
+        if (d.days?.includes(token)) {
+          return { ...d, days: d.days.filter((t) => t !== token) };
+        }
+        return d;
+      }
+      const current = d.days || [];
+      const next = current.includes(token)
+        ? current.filter((t) => t !== token)
+        : [...current, token];
+      return { ...d, days: next };
+    }));
+  };
+
   const removeDayType = (idx: number) => {
     if (dayTypes.length <= 1) return;
     setDayTypes(dayTypes.filter((_, i) => i !== idx));
