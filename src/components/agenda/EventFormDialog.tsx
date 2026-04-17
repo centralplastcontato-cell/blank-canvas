@@ -606,11 +606,6 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           .eq("event_date", form.event_date)
           .neq("status", "cancelado");
 
-        // Filter by unit if set
-        if (form.unit) {
-          query = query.eq("unit", form.unit);
-        }
-
         // Exclude current event if editing
         const editId = form.id || initialData?.id;
         if (editId) {
@@ -625,8 +620,15 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           return;
         }
 
+        // Normalize unit string for tolerant comparison (case/space-insensitive)
+        const normUnit = (u: string | null | undefined) =>
+          (u || "").toLowerCase().replace(/\s+/g, "").trim();
+        const formUnitNorm = normUnit(form.unit);
+
         // Check overlap: (newStart < existingEnd) AND (newEnd > existingStart)
+        // AND same unit (when set) using normalized comparison
         const conflict = events.find((ev) => {
+          if (formUnitNorm && normUnit(ev.unit) !== formUnitNorm) return false;
           const evStart = normalizeTimeValue(ev.start_time) || "00:00";
           const evEnd = normalizeTimeValue(ev.end_time) || inferEndTime(evStart);
           if (!evEnd) return false;
