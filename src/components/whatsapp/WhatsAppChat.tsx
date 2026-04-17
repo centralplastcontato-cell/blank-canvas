@@ -2566,7 +2566,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     // Use cores adaptadas ao balão azul de mensagens enviadas (from_me).
     // Cinza claro = enviado/entregue (não lido); Ciano vivo = lido (visível sobre o azul).
     const baseColor = "text-primary-foreground/60"; // cinza/claro sobre balão azul
-    const readColor = "text-cyan-300"; // azul-ciano vivo (estilo WhatsApp), legível no balão azul
+    const readColor = "text-green-400"; // verde vivo para confirmação de leitura
     switch (status) {
       case "sent":
         return <Check className={cn("w-3.5 h-3.5", baseColor)} />;
