@@ -2839,33 +2839,35 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     cancelRecording();
 
     try {
-      // Convert blob to base64 directly (eliminates Storage round-trip)
-      const audioBuffer = await capturedBlob.arrayBuffer();
-      const base64Audio = arrayBufferToBase64(audioBuffer);
-
-      // Storage upload in parallel for history persistence (non-blocking)
+      // Upload to Storage FIRST so W-API can fetch via public URL.
+      // Sending base64 webm fails because W-API only accepts audio/ogg and we
+      // can't transcode in Deno — sending via mediaUrl lets W-API handle conversion.
       const fileName = `${selectedConversation.id}/${Date.now()}.${storageExtension}`;
-      const storagePromise = supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('whatsapp-media')
-        .upload(fileName, capturedBlob, { contentType: mimeType })
-        .then(({ error: uploadError }) => {
-          if (uploadError) {
-            console.warn('Audio storage upload failed (non-blocking):', uploadError.message);
-            return null;
-          }
-          return supabase.storage
-            .from('whatsapp-media')
-            .createSignedUrl(fileName, 31536000)
-            .then(({ data }) => data?.signedUrl || null);
-        });
+        .upload(fileName, capturedBlob, { contentType: mimeType });
 
-      // Send base64 directly to edge function (main path)
+      if (uploadError) {
+        throw new Error('Falha ao subir áudio: ' + uploadError.message);
+      }
+
+      const { data: signedData, error: signErr } = await supabase.storage
+        .from('whatsapp-media')
+        .createSignedUrl(fileName, 31536000);
+
+      if (signErr || !signedData?.signedUrl) {
+        throw new Error('Falha ao gerar URL do áudio');
+      }
+
+      const mediaUrl = signedData.signedUrl;
+
+      // Send via mediaUrl (W-API fetches and converts server-side)
       const response = await invokeWithRetry({
           action: 'send-audio',
           phone: getConversationPhone(selectedConversation),
           conversationId: selectedConversation.id,
           instanceId: selectedInstance.instance_id,
-          base64: base64Audio,
+          mediaUrl,
           mimeType,
       });
 
@@ -2877,16 +2879,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         throw new Error(response.data?.error || 'Falha ao enviar áudio');
       }
 
-      // Wait for storage URL and update message for history
-      const mediaUrl = await storagePromise;
-      
       // Update optimistic message to sent status
       setMessages(prev => prev.map(m => 
         m.id === optimisticId ? { ...m, status: 'sent', media_url: mediaUrl } : m
       ));
 
-      // Update media_url in database if storage succeeded
-      if (mediaUrl && response.data?.messageId) {
+      // Update media_url in database if not set
+      if (response.data?.messageId) {
         supabase.from('wapi_messages')
           .update({ media_url: mediaUrl })
           .eq('message_id', response.data.messageId)
