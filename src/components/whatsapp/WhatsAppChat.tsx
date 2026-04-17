@@ -2569,23 +2569,23 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const readColor = "text-green-400"; // verde vivo para confirmação de leitura
     switch (status) {
       case "sent":
-        return <Check className={cn("w-3.5 h-3.5", baseColor)} />;
+        return <Check className={cn("w-7 h-7", baseColor)} />;
       case "delivered":
-        return <CheckCheck className={cn("w-3.5 h-3.5", baseColor)} />;
+        return <CheckCheck className={cn("w-7 h-7", baseColor)} />;
       case "read":
-        return <CheckCheck className={cn("w-3.5 h-3.5", readColor)} />;
+        return <CheckCheck className={cn("w-7 h-7", readColor)} />;
       case "error":
       case "failed":
-        return <Check className="w-3.5 h-3.5 text-destructive" />;
+        return <Check className="w-7 h-7 text-destructive" />;
       default: {
         // Fallback: se a mensagem não tem rastreio de ACK (Z-API sem messageId),
         // ou se já passou de 30s sem status, mostra ✓ simples para evitar relógio eterno.
         const noTracking = message?.metadata && (message.metadata as Record<string, unknown>).no_ack_tracking === true;
         const olderThan30s = message?.timestamp && (Date.now() - new Date(message.timestamp).getTime()) > 30_000;
         if (noTracking || olderThan30s) {
-          return <Check className={cn("w-3.5 h-3.5", baseColor)} />;
+          return <Check className={cn("w-7 h-7", baseColor)} />;
         }
-        return <Clock className={cn("w-3 h-3", baseColor)} />;
+        return <Clock className={cn("w-6 h-6", baseColor)} />;
       }
     }
   };
