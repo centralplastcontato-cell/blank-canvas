@@ -34,6 +34,7 @@ const CATEGORIES = [
   { value: 'alimentacao', label: 'Alimentação' },
   { value: 'seguro', label: 'Seguro' },
   { value: 'contabilidade', label: 'Contabilidade' },
+  { value: 'cartao_credito', label: 'Cartão de Crédito' },
   { value: 'outros', label: 'Outros' },
 ];
 
