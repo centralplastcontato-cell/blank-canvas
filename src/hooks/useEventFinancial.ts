@@ -181,12 +181,16 @@ export function useEventFinancial(eventId: string | undefined, companyId: string
   const getEntriesSum = (paymentId: string) => getEntriesForPayment(paymentId).reduce((s, e) => s + e.amount, 0);
 
   // CRUD operations
-  const addPayment = async (data: { type: string; amount: number; due_date: string; payment_method: string; notes?: string }) => {
+  const addPayment = async (data: {
+    type: string; amount: number; due_date: string; payment_method: string;
+    notes?: string; bank_account_id?: string;
+    card_operator_id?: string; card_installments?: number; card_fee_percent?: number; gross_amount?: number;
+  }) => {
     if (!eventId || !companyId) return;
     const { notes, ...rest } = data;
     const { error } = await supabase.from('event_payments').insert({
       event_id: eventId, company_id: companyId, ...rest, notes: notes || null,
-    });
+    } as any);
     if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
     await addTimeline('payment_created', `${data.type === 'entrada' ? 'Entrada' : 'Parcela'} de R$ ${data.amount.toFixed(2)} criada`);
     toast({ title: 'Parcela adicionada' });
