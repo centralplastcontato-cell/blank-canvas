@@ -55,7 +55,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   cancelled: { label: "Cancelada", variant: "destructive", icon: XCircle },
 };
 
-export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, onStartSend, onResend, onRefresh }: CampaignDetailSheetProps) {
+export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, onStartSend, onResend, onEditAudience, onRefresh }: CampaignDetailSheetProps) {
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
