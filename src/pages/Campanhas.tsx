@@ -136,6 +136,20 @@ export default function Campanhas() {
     setResetting(false);
   };
 
+  const handleToggleActive = async (campaign: Campaign, active: boolean) => {
+    const newStatus = active ? "draft" : "cancelled";
+    const { error } = await supabase
+      .from("campaigns")
+      .update({ status: newStatus })
+      .eq("id", campaign.id);
+    if (error) {
+      toast.error("Erro ao atualizar campanha");
+    } else {
+      toast.success(active ? "Campanha ativada" : "Campanha desativada");
+      loadCampaigns();
+    }
+  };
+
   const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
     draft: { label: "Rascunho", variant: "secondary", icon: Clock },
     sending: { label: "Enviando", variant: "default", icon: Loader2 },
