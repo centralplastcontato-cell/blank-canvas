@@ -598,14 +598,16 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
             const paginated = movementsWithBalance.slice((pageStmt - 1) * STMT_PAGE_SIZE, pageStmt * STMT_PAGE_SIZE);
             return (
               <>
-                {paginated.map(m => (
+                {paginated.map(m => {
+                  const hasDetail = !!m.eventId || !!m.recordId;
+                  return (
                   <div
                     key={m.id}
-                    className={`flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-card ${(m.eventId || m.expenseId) ? 'cursor-pointer hover:border-primary/40 hover:bg-accent/30 transition-colors' : ''}`}
+                    className={`flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-card ${hasDetail ? 'cursor-pointer hover:border-primary/40 hover:bg-accent/30 transition-colors' : ''}`}
                     onClick={() => {
                       if (m.eventId) {
                         setSelectedEvent({ id: m.eventId, title: m.eventTitle || 'Festa' });
-                      } else if (m.expenseId) {
+                      } else if (m.recordId) {
                         setSelectedExpense(m);
                       }
                     }}
@@ -630,7 +632,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
                         {m.eventId && (
                           <Badge variant="outline" className="text-[9px] h-4 text-primary border-primary/30">Ver festa</Badge>
                         )}
-                        {!m.eventId && m.expenseId && (
+                        {!m.eventId && m.recordId && (
                           <Badge variant="outline" className="text-[9px] h-4 text-muted-foreground border-border">Detalhes</Badge>
                         )}
                       </div>
@@ -642,7 +644,8 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
                       <p className="text-[10px] text-muted-foreground">{fmt(m.balance)}</p>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between pt-3 border-t border-border/40">
                     <p className="text-xs text-muted-foreground">
