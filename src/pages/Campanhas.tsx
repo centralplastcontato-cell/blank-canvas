@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Megaphone, Plus, CheckCircle2, XCircle, Clock, Loader2, Users, Menu, ImageIcon, Trash2, Play, RotateCcw } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -133,6 +134,20 @@ export default function Campanhas() {
       setSendCampaign(updated);
     }
     setResetting(false);
+  };
+
+  const handleToggleActive = async (campaign: Campaign, active: boolean) => {
+    const newStatus = active ? "draft" : "cancelled";
+    const { error } = await supabase
+      .from("campaigns")
+      .update({ status: newStatus })
+      .eq("id", campaign.id);
+    if (error) {
+      toast.error("Erro ao atualizar campanha");
+    } else {
+      toast.success(active ? "Campanha ativada" : "Campanha desativada");
+      loadCampaigns();
+    }
   };
 
   const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
@@ -279,6 +294,20 @@ export default function Campanhas() {
                                   <p className="text-[10px] text-muted-foreground">Erros</p>
                                 </div>
                               )}
+                            </div>
+                            <div
+                              className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-border bg-card"
+                              onClick={(e) => e.stopPropagation()}
+                              title={campaign.status === "cancelled" ? "Campanha desativada" : "Campanha ativa"}
+                            >
+                              <Switch
+                                checked={campaign.status !== "cancelled"}
+                                onCheckedChange={(v) => handleToggleActive(campaign, v)}
+                                disabled={campaign.status === "sending" || campaign.status === "completed"}
+                              />
+                              <span className="text-[10px] text-muted-foreground">
+                                {campaign.status === "cancelled" ? "Inativa" : "Ativa"}
+                              </span>
                             </div>
                             {(campaign.status === "draft" || campaign.status === "sending") && (
                               <Button
