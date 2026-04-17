@@ -1042,27 +1042,23 @@ Deno.serve(async (req) => {
           ? clientMimeType.split(';')[0].trim().toLowerCase()
           : 'audio/webm');
         const storageExtension = getExtensionFromMimeType(originalMimeType);
+        const resolvedAudioMimeType = originalMimeType || 'audio/webm';
         
         let audioPayload: Record<string, unknown> = {};
 
         if (audioBase64) {
           let finalAudio = audioBase64;
-          // W-API only accepts audio/ogg — force mime type regardless of browser recording format
           if (finalAudio.startsWith('data:')) {
-            // Strip existing data URI header and re-wrap with audio/ogg
-            const commaIdx = finalAudio.indexOf(',');
-            if (commaIdx !== -1) {
-              finalAudio = `data:audio/ogg;base64,${finalAudio.substring(commaIdx + 1)}`;
-            }
+            audioPayload.audio = finalAudio;
           } else {
-            finalAudio = `data:audio/ogg;base64,${finalAudio}`;
+            audioPayload.audio = `data:${resolvedAudioMimeType};base64,${finalAudio}`;
           }
-          console.log('send-audio: forcing audio/ogg mime for W-API, original client mimeType:', clientMimeType || 'not provided');
-          audioPayload.audio = finalAudio;
+          console.log('send-audio: using provided audio payload mimeType:', resolvedAudioMimeType);
         } else if (audioMediaUrl) {
           console.log('send-audio: fetching and converting to base64:', audioMediaUrl.substring(0, 80));
           const audioRes = await fetch(audioMediaUrl);
           if (!audioRes.ok) throw new Error('Falha ao baixar audio: ' + audioRes.status);
+          const fetchedMimeType = audioRes.headers.get('content-type')?.split(';')[0].trim().toLowerCase() || resolvedAudioMimeType;
           const buf = await audioRes.arrayBuffer();
           const bytes = new Uint8Array(buf);
           let bin = '';
@@ -1073,7 +1069,8 @@ Deno.serve(async (req) => {
               bin += String.fromCharCode(bytes[j]);
             }
           }
-          audioPayload.audio = `data:audio/ogg;base64,${btoa(bin)}`;
+          audioPayload.audio = `data:${fetchedMimeType};base64,${btoa(bin)}`;
+          console.log('send-audio: fetched media mimeType:', fetchedMimeType);
         } else {
           return new Response(JSON.stringify({ error: 'Áudio é obrigatório' }), {
             status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
