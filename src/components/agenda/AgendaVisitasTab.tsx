@@ -809,6 +809,22 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
         currentUserId={userId}
         onCreated={fetchVisits}
       />
+
+      {/* Send Visit Confirmation Dialog */}
+      <SendVisitConfirmationDialog
+        open={confirmationOpen}
+        onOpenChange={setConfirmationOpen}
+        visit={detailVisit ? {
+          id: detailVisit.id,
+          lead_id: detailVisit.lead_id,
+          lead_name: detailVisit.lead_name,
+          lead_phone: detailVisit.lead_phone,
+          data_visita: detailVisit.data_visita,
+          horario_visita: detailVisit.horario_visita,
+          company_id: detailVisit.company_id,
+        } : null}
+        onSent={fetchVisits}
+      />
     </div>
   );
 }
