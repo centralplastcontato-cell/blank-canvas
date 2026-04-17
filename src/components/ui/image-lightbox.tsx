@@ -35,10 +35,8 @@ export function ImageLightbox({ images, currentIndex, onClose, onNavigate }: Ima
       if (e.key === "ArrowLeft") goPrev();
     };
     document.addEventListener("keydown", handleKey);
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", handleKey);
-      document.body.style.overflow = "";
     };
   }, [onClose, goNext, goPrev]);
 
