@@ -94,6 +94,14 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
       return;
     }
 
+    // Buscar nome do buffet/empresa para interpolar {empresa}
+    const { data: companyData } = await supabase
+      .from("companies")
+      .select("name")
+      .eq("id", companyId)
+      .single();
+    const companyName = companyData?.name || "";
+
     setSending(true);
     setPaused(false);
     pauseRequestedRef.current = false;
