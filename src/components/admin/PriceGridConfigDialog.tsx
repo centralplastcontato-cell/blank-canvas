@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Trash2, RotateCcw, Loader2, Settings2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_DAY_TYPES, DEFAULT_GUEST_TIERS, type DayTypeConfig, type DayMappingToken } from "@/lib/brazilian-holidays";
+import { DEFAULT_DAY_TYPES, DEFAULT_GUEST_TIERS, type DayTypeConfig, type DayMappingToken, type ShiftToken } from "@/lib/brazilian-holidays";
 
 const DAY_TOKENS: { token: DayMappingToken; short: string; full: string }[] = [
   { token: "1", short: "Seg", full: "Segunda" },
