@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
-import { getDayType, getDayTypeLabel, findMatchingTier, DEFAULT_DAY_TYPES, DEFAULT_GUEST_TIERS } from "@/lib/brazilian-holidays";
+import { getDayType, getDayTypeLabel, findMatchingTier, getShiftFromTime, DEFAULT_DAY_TYPES, DEFAULT_GUEST_TIERS } from "@/lib/brazilian-holidays";
 import { DEFAULT_EVENT_TYPES } from "@/components/admin/EventTypesConfig";
 
 export interface ParcelaDetail {
