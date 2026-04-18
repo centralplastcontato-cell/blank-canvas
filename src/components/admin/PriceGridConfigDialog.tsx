@@ -100,6 +100,10 @@ export function PriceGridConfigDialog({ open, onOpenChange, companyId, currentSe
     }));
   };
 
+  const updateDayTypeShift = (idx: number, shift: ShiftToken) => {
+    setDayTypes(dayTypes.map((d, i) => (i === idx ? { ...d, shift: shift === "any" ? undefined : shift } : d)));
+  };
+
   const removeDayType = (idx: number) => {
     if (dayTypes.length <= 1) return;
     setDayTypes(dayTypes.filter((_, i) => i !== idx));
