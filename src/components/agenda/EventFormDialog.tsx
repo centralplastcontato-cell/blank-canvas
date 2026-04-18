@@ -982,7 +982,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     const guestTiersConf = (s.guest_tiers as number[]) || DEFAULT_GUEST_TIERS;
     const [y, mo, da] = form.event_date.split("-").map(Number);
     const eventDate = new Date(y, mo - 1, da);
-    const dayType = getDayType(eventDate, dayTypesConf);
+    const shift = getShiftFromTime(form.start_time);
+    const dayType = getDayType(eventDate, dayTypesConf, shift);
     const matchedTier = findMatchingTier(form.guest_count, guestTiersConf);
     if (!matchedTier) { setSuggestedPrice(null); return; }
     const tier = priceTiers.find(t => t.guest_count === matchedTier && t.day_type === dayType);
