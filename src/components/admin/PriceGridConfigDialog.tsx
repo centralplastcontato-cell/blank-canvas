@@ -216,6 +216,36 @@ export function PriceGridConfigDialog({ open, onOpenChange, companyId, currentSe
                       })}
                     </div>
                   </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">Turno (opcional):</p>
+                    <div className="flex flex-wrap gap-1">
+                      {([
+                        { v: "any", label: "Qualquer", emoji: "🕐" },
+                        { v: "almoco", label: "Almoço", emoji: "☀️" },
+                        { v: "jantar", label: "Jantar", emoji: "🌙" },
+                      ] as { v: ShiftToken; label: string; emoji: string }[]).map(({ v, label, emoji }) => {
+                        const current = dt.shift || "any";
+                        const active = current === v;
+                        return (
+                          <button
+                            key={v}
+                            type="button"
+                            onClick={() => updateDayTypeShift(idx, v)}
+                            className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-colors ${
+                              active
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background text-muted-foreground border-border hover:border-primary/50"
+                            }`}
+                          >
+                            {emoji} {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      Use turnos para separar preços de almoço e jantar no mesmo dia. Corte padrão: antes das 16h = almoço.
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
