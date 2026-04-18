@@ -76,11 +76,24 @@ export function isHolidayEve(date: Date): boolean {
  */
 export type DayMappingToken = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "feriado" | "vespera_feriado";
 
+/** Optional shift filter for the day type column. 'any' = applies regardless of time. */
+export type ShiftToken = "any" | "almoco" | "jantar";
+
 export interface DayTypeConfig {
   key: string;
   label: string;
   /** Optional manual mapping: which days of the week (and feriado/vespera) use this column */
   days?: DayMappingToken[];
+  /** Optional shift filter — when set to 'almoco' or 'jantar', column only applies to that shift */
+  shift?: ShiftToken;
+}
+
+/** Detect shift from a HH:MM time string given a cutoff hour (default 16h) */
+export function getShiftFromTime(time: string | null | undefined, cutoffHour = 16): ShiftToken | null {
+  if (!time) return null;
+  const [h] = time.split(":").map(Number);
+  if (isNaN(h)) return null;
+  return h < cutoffHour ? "almoco" : "jantar";
 }
 
 export const DEFAULT_DAY_TYPES: DayTypeConfig[] = [
