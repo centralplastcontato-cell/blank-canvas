@@ -76,11 +76,24 @@ export function isHolidayEve(date: Date): boolean {
  */
 export type DayMappingToken = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "feriado" | "vespera_feriado";
 
+/** Optional shift filter for the day type column. 'any' = applies regardless of time. */
+export type ShiftToken = "any" | "almoco" | "jantar";
+
 export interface DayTypeConfig {
   key: string;
   label: string;
   /** Optional manual mapping: which days of the week (and feriado/vespera) use this column */
   days?: DayMappingToken[];
+  /** Optional shift filter — when set to 'almoco' or 'jantar', column only applies to that shift */
+  shift?: ShiftToken;
+}
+
+/** Detect shift from a HH:MM time string given a cutoff hour (default 16h) */
+export function getShiftFromTime(time: string | null | undefined, cutoffHour = 16): ShiftToken | null {
+  if (!time) return null;
+  const [h] = time.split(":").map(Number);
+  if (isNaN(h)) return null;
+  return h < cutoffHour ? "almoco" : "jantar";
 }
 
 export const DEFAULT_DAY_TYPES: DayTypeConfig[] = [
@@ -97,7 +110,7 @@ export const DEFAULT_GUEST_TIERS = [50, 60, 70, 80, 90, 100];
  * Detect the day type key for a given date, using the company's day type config.
  * Priority: feriado > véspera > day-of-week mapping
  */
-export function getDayType(date: Date, dayTypes?: DayTypeConfig[]): string {
+export function getDayType(date: Date, dayTypes?: DayTypeConfig[], shift?: ShiftToken | null): string {
   const types = dayTypes || DEFAULT_DAY_TYPES;
   const keys = new Set(types.map((d) => d.key));
 
@@ -106,21 +119,31 @@ export function getDayType(date: Date, dayTypes?: DayTypeConfig[]): string {
   const dow = date.getDay(); // 0=Sun..6=Sat
   const dowToken = String(dow) as DayMappingToken;
 
+  // Helper: filter columns by shift compatibility (column with no shift, 'any', or matching shift)
+  const matchesShift = (t: DayTypeConfig) => {
+    if (!shift) return true; // no shift requested → ignore filter
+    const colShift = t.shift || "any";
+    return colShift === "any" || colShift === shift;
+  };
+
   // 1) MANUAL MAPPING (highest priority): if any column has explicit `days`, use it
   const hasAnyManual = types.some((t) => t.days && t.days.length > 0);
   if (hasAnyManual) {
     // Holiday wins
     if (isHol) {
-      const matchHol = types.find((t) => t.days?.includes("feriado"));
+      const matchHol = types.filter(matchesShift).find((t) => t.days?.includes("feriado"))
+        || types.find((t) => t.days?.includes("feriado"));
       if (matchHol) return matchHol.key;
     }
     // Holiday eve next
     if (isEve) {
-      const matchEve = types.find((t) => t.days?.includes("vespera_feriado"));
+      const matchEve = types.filter(matchesShift).find((t) => t.days?.includes("vespera_feriado"))
+        || types.find((t) => t.days?.includes("vespera_feriado"));
       if (matchEve) return matchEve.key;
     }
-    // Day of week
-    const matchDow = types.find((t) => t.days?.includes(dowToken));
+    // Day of week — prefer shift-specific match, fallback to any column with that day
+    const matchDow = types.filter(matchesShift).find((t) => t.days?.includes(dowToken))
+      || types.find((t) => t.days?.includes(dowToken));
     if (matchDow) return matchDow.key;
     // fall through to legacy if nothing matched
   }

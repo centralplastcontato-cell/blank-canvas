@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Trash2, RotateCcw, Loader2, Settings2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_DAY_TYPES, DEFAULT_GUEST_TIERS, type DayTypeConfig, type DayMappingToken } from "@/lib/brazilian-holidays";
+import { DEFAULT_DAY_TYPES, DEFAULT_GUEST_TIERS, type DayTypeConfig, type DayMappingToken, type ShiftToken } from "@/lib/brazilian-holidays";
 
 const DAY_TOKENS: { token: DayMappingToken; short: string; full: string }[] = [
   { token: "1", short: "Seg", full: "Segunda" },
@@ -98,6 +98,10 @@ export function PriceGridConfigDialog({ open, onOpenChange, companyId, currentSe
         : [...current, token];
       return { ...d, days: next };
     }));
+  };
+
+  const updateDayTypeShift = (idx: number, shift: ShiftToken) => {
+    setDayTypes(dayTypes.map((d, i) => (i === idx ? { ...d, shift: shift === "any" ? undefined : shift } : d)));
   };
 
   const removeDayType = (idx: number) => {
@@ -211,6 +215,36 @@ export function PriceGridConfigDialog({ open, onOpenChange, companyId, currentSe
                         );
                       })}
                     </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">Turno (opcional):</p>
+                    <div className="flex flex-wrap gap-1">
+                      {([
+                        { v: "any", label: "Qualquer", emoji: "🕐" },
+                        { v: "almoco", label: "Almoço", emoji: "☀️" },
+                        { v: "jantar", label: "Jantar", emoji: "🌙" },
+                      ] as { v: ShiftToken; label: string; emoji: string }[]).map(({ v, label, emoji }) => {
+                        const current = dt.shift || "any";
+                        const active = current === v;
+                        return (
+                          <button
+                            key={v}
+                            type="button"
+                            onClick={() => updateDayTypeShift(idx, v)}
+                            className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-colors ${
+                              active
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background text-muted-foreground border-border hover:border-primary/50"
+                            }`}
+                          >
+                            {emoji} {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      Use turnos para separar preços de almoço e jantar no mesmo dia. Corte padrão: antes das 16h = almoço.
+                    </p>
                   </div>
                 </div>
               ))}
