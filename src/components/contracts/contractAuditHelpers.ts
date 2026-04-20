@@ -170,7 +170,7 @@ function skipLeadingWhitespace(
  * Render contract HTML to a multi-page PDF using a single html2canvas call
  * and whitespace-aware page breaks to avoid cutting text lines.
  */
-async function renderContractHtmlToPdf(
+export async function renderContractHtmlToPdf(
   htmlContent: string,
   contractName: string,
   companyId?: string,

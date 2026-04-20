@@ -8,13 +8,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Plus, Loader2, FileText, Eye, Ban, History, MessageCircle, FileSignature, ShieldCheck, Copy } from "lucide-react";
+import { Plus, Loader2, FileText, Eye, Ban, History, MessageCircle, FileSignature, ShieldCheck, Copy, Download } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ContractGenerator } from "./ContractGenerator";
 import { ContractDocumentViewer } from "./ContractDocumentViewer";
 import { toast } from "@/hooks/use-toast";
-import { logContractAction, sendContractViaWhatsApp, getContractSendTemplate, resolveContractSendMessage } from "./contractAuditHelpers";
+import { logContractAction, sendContractViaWhatsApp, getContractSendTemplate, resolveContractSendMessage, renderContractHtmlToPdf } from "./contractAuditHelpers";
 
 interface GeneratedContract {
   id: string;
@@ -337,6 +337,32 @@ export function GeneratedContractsList({ userId }: Props) {
                         }}
                       >
                         <Copy className="h-3.5 w-3.5" /> Copiar
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs rounded-full px-3.5 gap-1.5"
+                        onClick={async () => {
+                          toast({ title: "Gerando PDF..." });
+                          try {
+                            const blob = await renderContractHtmlToPdf(c.conteudo_renderizado || "", c.nome_documento, currentCompany?.id);
+                            if (!blob) throw new Error("Falha ao gerar PDF");
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `${c.nome_documento.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                            if (currentCompany?.id) {
+                              await logContractAction(currentCompany.id, c.id, c.template_id, "contract_downloaded", userId);
+                            }
+                            toast({ title: "Contrato baixado ✅" });
+                          } catch (e: any) {
+                            toast({ title: "Erro ao baixar", description: e?.message, variant: "destructive" });
+                          }
+                        }}
+                      >
+                        <Download className="h-3.5 w-3.5" /> Baixar
                       </Button>
                       {!isCancelled && (
                         <Button
