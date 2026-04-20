@@ -1723,13 +1723,20 @@ async function processStaleRemindedAlerts({
   const leadIds = staleConvs.map(c => c.lead_id).filter(Boolean);
   if (leadIds.length === 0) return;
 
-  const { data: existingAlerts } = await supabase
-    .from("lead_history")
-    .select("lead_id")
-    .in("lead_id", leadIds)
-    .eq("action", "alerta_reminded_2h");
-
-  const alreadyAlerted = new Set((existingAlerts || []).map(a => a.lead_id));
+  // Paginate to bypass Supabase's 1000-row default limit (otherwise leads beyond
+  // the first 1000 get re-alerted on every cron run, flooding notifications)
+  const alreadyAlerted = new Set<string>();
+  const BATCH = 200;
+  for (let i = 0; i < leadIds.length; i += BATCH) {
+    const slice = leadIds.slice(i, i + BATCH);
+    const { data: existingAlerts } = await supabase
+      .from("lead_history")
+      .select("lead_id")
+      .in("lead_id", slice)
+      .eq("action", "alerta_reminded_2h")
+      .limit(slice.length);
+    (existingAlerts || []).forEach(a => a.lead_id && alreadyAlerted.add(a.lead_id));
+  }
   const newStale = staleConvs.filter(c => c.lead_id && !alreadyAlerted.has(c.lead_id));
 
   if (newStale.length === 0) return;
