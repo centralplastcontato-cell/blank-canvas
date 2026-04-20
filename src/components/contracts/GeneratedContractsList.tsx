@@ -338,6 +338,32 @@ export function GeneratedContractsList({ userId }: Props) {
                       >
                         <Copy className="h-3.5 w-3.5" /> Copiar
                       </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs rounded-full px-3.5 gap-1.5"
+                        onClick={async () => {
+                          const t = toast({ title: "Gerando PDF..." });
+                          try {
+                            const blob = await renderContractHtmlToPdf(c.conteudo_renderizado || "", c.nome_documento, currentCompany?.id);
+                            if (!blob) throw new Error("Falha ao gerar PDF");
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `${c.nome_documento.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                            if (currentCompany?.id) {
+                              await logContractAction(currentCompany.id, c.id, c.template_id, "contract_downloaded", userId);
+                            }
+                            toast({ title: "Contrato baixado ✅" });
+                          } catch (e: any) {
+                            toast({ title: "Erro ao baixar", description: e?.message, variant: "destructive" });
+                          }
+                        }}
+                      >
+                        <Download className="h-3.5 w-3.5" /> Baixar
+                      </Button>
                       {!isCancelled && (
                         <Button
                           variant="outline"
