@@ -3001,6 +3001,71 @@ export type Database = {
           },
         ]
       }
+      financial_consents: {
+        Row: {
+          action_type: string
+          amount: number | null
+          company_id: string
+          description: string | null
+          entity_id: string
+          entity_table: string
+          id: string
+          payload: Json
+          requested_at: string
+          requested_by: string | null
+          requested_by_name: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewed_by_name: string | null
+          status: string
+        }
+        Insert: {
+          action_type: string
+          amount?: number | null
+          company_id: string
+          description?: string | null
+          entity_id: string
+          entity_table: string
+          id?: string
+          payload?: Json
+          requested_at?: string
+          requested_by?: string | null
+          requested_by_name?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewed_by_name?: string | null
+          status?: string
+        }
+        Update: {
+          action_type?: string
+          amount?: number | null
+          company_id?: string
+          description?: string | null
+          entity_id?: string
+          entity_table?: string
+          id?: string
+          payload?: Json
+          requested_at?: string
+          requested_by?: string | null
+          requested_by_name?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewed_by_name?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_consents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       flow_edges: {
         Row: {
           condition_type: string | null
