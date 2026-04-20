@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Plus, Loader2, FileText, Eye, Ban, History, MessageCircle, FileSignature, ShieldCheck } from "lucide-react";
+import { Plus, Loader2, FileText, Eye, Ban, History, MessageCircle, FileSignature, ShieldCheck, Copy } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ContractGenerator } from "./ContractGenerator";
@@ -319,6 +319,24 @@ export function GeneratedContractsList({ userId }: Props) {
                     <div className="flex items-center gap-2 border-t border-border/40 pt-3 mt-3 flex-wrap min-w-0">
                       <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5" onClick={() => setViewContract(c)}>
                         <Eye className="h-3.5 w-3.5" /> Visualizar
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs rounded-full px-3.5 gap-1.5"
+                        onClick={async () => {
+                          try {
+                            const tmp = document.createElement("div");
+                            tmp.innerHTML = c.conteudo_renderizado || "";
+                            const text = tmp.innerText || tmp.textContent || "";
+                            await navigator.clipboard.writeText(text);
+                            toast({ title: "Contrato copiado! 📋" });
+                          } catch (e: any) {
+                            toast({ title: "Erro ao copiar", description: e?.message, variant: "destructive" });
+                          }
+                        }}
+                      >
+                        <Copy className="h-3.5 w-3.5" /> Copiar
                       </Button>
                       {!isCancelled && (
                         <Button
