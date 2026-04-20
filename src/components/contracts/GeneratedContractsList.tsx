@@ -320,6 +320,24 @@ export function GeneratedContractsList({ userId }: Props) {
                       <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5" onClick={() => setViewContract(c)}>
                         <Eye className="h-3.5 w-3.5" /> Visualizar
                       </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs rounded-full px-3.5 gap-1.5"
+                        onClick={async () => {
+                          try {
+                            const tmp = document.createElement("div");
+                            tmp.innerHTML = c.conteudo_renderizado || "";
+                            const text = tmp.innerText || tmp.textContent || "";
+                            await navigator.clipboard.writeText(text);
+                            toast({ title: "Contrato copiado! 📋" });
+                          } catch (e: any) {
+                            toast({ title: "Erro ao copiar", description: e?.message, variant: "destructive" });
+                          }
+                        }}
+                      >
+                        <Copy className="h-3.5 w-3.5" /> Copiar
+                      </Button>
                       {!isCancelled && (
                         <Button
                           variant="outline"
