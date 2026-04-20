@@ -302,21 +302,21 @@ export function GeneratedContractsList({ userId }: Props) {
               const leadName = c.dados_utilizados?.lead?.name || "—";
               const isCancelled = c.status === "cancelado";
               return (
-                <Card key={c.id} className={`border-border/40 ${isCancelled ? "opacity-60" : ""}`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between gap-3">
+                <Card key={c.id} className={`border-border/40 overflow-hidden ${isCancelled ? "opacity-60" : ""}`}>
+                  <CardContent className="p-4 min-w-0">
+                    <div className="flex items-center justify-between gap-3 min-w-0">
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <h3 className="font-semibold truncate">{c.nome_documento}</h3>
+                        <div className="flex items-center gap-2 flex-wrap mb-1 min-w-0">
+                          <h3 className="font-semibold truncate min-w-0 max-w-full text-sm sm:text-base">{c.nome_documento}</h3>
                           <Badge className={`text-xs ${STATUS_COLORS[c.status] || ""}`}>{STATUS_LABELS[c.status] || c.status}</Badge>
                         </div>
-                        <p className="text-sm text-muted-foreground">Contratante: {leadName}</p>
+                        <p className="text-sm text-muted-foreground truncate">Contratante: {leadName}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           Gerado em {format(new Date(c.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 border-t border-border/40 pt-3 mt-3 flex-wrap">
+                    <div className="flex items-center gap-2 border-t border-border/40 pt-3 mt-3 flex-wrap min-w-0">
                       <Button variant="outline" size="sm" className="h-8 text-xs rounded-full px-3.5 gap-1.5" onClick={() => setViewContract(c)}>
                         <Eye className="h-3.5 w-3.5" /> Visualizar
                       </Button>
