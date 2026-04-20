@@ -343,7 +343,7 @@ export function GeneratedContractsList({ userId }: Props) {
                         size="sm"
                         className="h-8 text-xs rounded-full px-3.5 gap-1.5"
                         onClick={async () => {
-                          const t = toast({ title: "Gerando PDF..." });
+                          toast({ title: "Gerando PDF..." });
                           try {
                             const blob = await renderContractHtmlToPdf(c.conteudo_renderizado || "", c.nome_documento, currentCompany?.id);
                             if (!blob) throw new Error("Falha ao gerar PDF");
