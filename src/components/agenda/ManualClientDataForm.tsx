@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, User, CreditCard, MapPin, Baby, Plus, Trash2, Check } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { logActivity } from "@/lib/activityLog";
 
 interface BirthdayChild {
   name: string;
@@ -221,6 +222,18 @@ export function ManualClientDataForm({ eventId, companyId, leadId, initialClient
 
       lastSavedSnapshotRef.current = snapshot;
       setSaved(true);
+
+      // Log de auditoria
+      const savedRequestId = requestId || (typeof onSaved === 'function' ? undefined : undefined);
+      logActivity({
+        companyId,
+        action: requestId ? 'update' : 'create',
+        module: 'contracts',
+        entityType: 'client_data',
+        entityId: requestId || undefined,
+        entityName: data.nome || 'Não informado',
+        details: { source: 'manual', event_id: eventId },
+      }).catch(() => {});
 
       if (savedIndicatorRef.current) clearTimeout(savedIndicatorRef.current);
       savedIndicatorRef.current = setTimeout(() => setSaved(false), 2000);
