@@ -1401,8 +1401,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     enabled: true,
   });
   
-  // Cleanup reference for conversation ID tracking
-  const prevConversationIdRef = useRef<string | null>(null);
+  // Reuse prevConversationIdRef declared above for conversation change tracking
   
   // Effect for fetching data when conversation changes
   useEffect(() => {
