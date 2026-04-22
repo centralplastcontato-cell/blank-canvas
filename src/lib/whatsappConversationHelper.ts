@@ -49,18 +49,25 @@ function getBrazilianPhoneVariants(phone: string): string[] {
 
 /**
  * Find an existing WhatsApp conversation for a lead.
- * Priority: lead_id match > phone match.
+ * Priority: lead_id match > phone match (scoped by companyId).
  */
 export async function findExistingConversation(
   leadId?: string | null,
-  phone?: string | null
+  phone?: string | null,
+  companyId?: string | null
 ): Promise<ExistingConversation | null> {
   // 1. Try by lead_id first (most reliable)
   if (leadId) {
-    const { data } = await supabase
+    let query = supabase
       .from("wapi_conversations")
       .select("id, instance_id, company_id")
-      .eq("lead_id", leadId)
+      .eq("lead_id", leadId);
+
+    if (companyId) {
+      query = query.eq("company_id", companyId);
+    }
+
+    const { data } = await query
       .order("last_message_at", { ascending: false, nullsFirst: false })
       .limit(1)
       .maybeSingle();
@@ -74,14 +81,20 @@ export async function findExistingConversation(
     }
   }
 
-  // 2. Fallback: try by phone variants
+  // 2. Fallback: try by phone variants (always scoped by companyId when available)
   if (phone) {
     const variants = getBrazilianPhoneVariants(phone);
 
-    const { data } = await supabase
+    let query = supabase
       .from("wapi_conversations")
       .select("id, instance_id, company_id")
-      .in("contact_phone", variants)
+      .in("contact_phone", variants);
+
+    if (companyId) {
+      query = query.eq("company_id", companyId);
+    }
+
+    const { data } = await query
       .order("last_message_at", { ascending: false, nullsFirst: false })
       .limit(1)
       .maybeSingle();
