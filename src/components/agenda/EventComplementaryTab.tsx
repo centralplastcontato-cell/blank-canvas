@@ -385,7 +385,7 @@ export function EventComplementaryTab({
 
       // Find existing conversation to avoid duplicates
       const { findExistingConversation } = await import("@/lib/whatsappConversationHelper");
-      const existingConv = await findExistingConversation(form.lead_id, leadPhone);
+      const existingConv = await findExistingConversation(form.lead_id, leadPhone, companyId);
 
       const { error } = await supabase.functions.invoke("wapi-send", {
         body: {

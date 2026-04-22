@@ -486,7 +486,7 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
 
       // Find existing conversation to avoid duplicates
       const { findExistingConversation } = await import("@/lib/whatsappConversationHelper");
-      const existingConv = await findExistingConversation(leadId, lead.whatsapp);
+      const existingConv = await findExistingConversation(leadId, lead.whatsapp, companyId);
 
       // Send via WhatsApp
       const { error } = await supabase.functions.invoke("wapi-send", {
