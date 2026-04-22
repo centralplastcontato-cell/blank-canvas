@@ -1,35 +1,33 @@
 
 
-# Plano: Detalhes Expandidos no Card de Consentimento
+# Plano: Persistir Rascunho de Mensagem por Conversa
 
 ## Resumo
-Ao clicar no card de consentimento, expandir uma seção com informações adicionais: nome da festa, tipo de evento, data da festa e banco selecionado para baixa.
+Quando o usuario sai da Central de Atendimento (para ver a Agenda, por exemplo) e volta, o texto que estava digitando desaparece. A solucao e salvar o rascunho automaticamente por conversa no `sessionStorage` do navegador.
 
 ## Como vai funcionar
-- O card terá um comportamento de "expandir/recolher" ao clicar na area do card (fora dos botoes)
-- Quando expandido, mostra: nome da festa, tipo de evento, data da festa e nome do banco
-- Os dados extras serao carregados via join no hook `useFinancialConsent`
+- Ao digitar, o rascunho e salvo automaticamente (com debounce de 500ms) associado ao ID da conversa
+- Ao trocar de conversa, o rascunho da conversa anterior e salvo e o da nova conversa e restaurado
+- Ao navegar para outra pagina e voltar, os rascunhos continuam disponiveis (sessionStorage persiste na aba)
+- Ao enviar a mensagem, o rascunho daquela conversa e apagado
 
 ## Alteracoes
 
-### 1. Atualizar `useFinancialConsent.ts` — enriquecer dados pendentes
-Na funcao `fetchPending`, fazer joins para buscar dados do evento e do banco:
-- Join `event_payments` para pegar `event_id`
-- Join `company_events` para pegar `title`, `event_type`, `event_date`
-- Join `company_bank_accounts` para pegar o nome do banco a partir do `payload->bank_account_id`
-- Adicionar campos `event_title`, `event_type`, `event_date`, `bank_account_name` na interface `FinancialConsent`
+### 1. Criar hook `useDraftMessages` (`src/hooks/useDraftMessages.ts`)
+Hook simples que gerencia rascunhos no `sessionStorage`:
+- `getDraft(conversationId)` — retorna o rascunho salvo
+- `saveDraft(conversationId, text)` — salva (ou remove se vazio)
+- `clearDraft(conversationId)` — remove o rascunho
+- Chave de storage: `chat-draft:{conversationId}`
 
-### 2. Atualizar `ConsentCard.tsx` — seção expandível
-- Adicionar estado `expanded` (toggle ao clicar no card)
-- Quando expandido, mostrar seção com:
-  - Nome da festa (ex: "Antonella 2 anos")
-  - Tipo do evento (ex: "Aniversário")
-  - Data da festa (ex: "26/04/2026")
-  - Banco selecionado (ex: "Infinity Pay")
-- Icone de seta (chevron) indicando que é expansível
-- Animação suave de abertura/fechamento
+### 2. Modificar `WhatsAppChat.tsx`
+- Importar e usar `useDraftMessages`
+- Ao trocar de conversa (`selectedConversation` muda): salvar rascunho da conversa anterior e carregar o da nova
+- No `setNewMessage` via input: salvar com debounce no sessionStorage
+- No `handleSendMessage`: chamar `clearDraft` apos enviar com sucesso
+- Manter compatibilidade com `initialDraft` (que tem prioridade sobre o rascunho salvo)
 
-### Arquivos modificados
-- `src/hooks/useFinancialConsent.ts`
-- `src/components/financial/ConsentCard.tsx`
+### Arquivos
+- **Novo**: `src/hooks/useDraftMessages.ts`
+- **Modificado**: `src/components/whatsapp/WhatsAppChat.tsx`
 
