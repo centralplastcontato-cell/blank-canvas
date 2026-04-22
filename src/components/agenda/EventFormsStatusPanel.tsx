@@ -33,19 +33,19 @@ interface EventFormsStatusPanelProps {
   parentNames?: string | null;
 }
 
-const FORM_TYPES = [
-  { type: "prefesta", label: "Pré-Festa", icon: ClipboardList, responseTable: "prefesta_responses", publicPath: "pre-festa", templateTable: "prefesta_templates" },
-  { type: "cardapio", label: "Cardápio", icon: UtensilsCrossed, responseTable: "cardapio_responses", publicPath: "cardapio", templateTable: "cardapio_templates" },
-  { type: "contrato", label: "Dados Complementares", icon: FileText, responseTable: "contrato_responses", publicPath: "contrato", templateTable: "contrato_templates" },
-  { type: "avaliacao", label: "Avaliação", icon: Star, responseTable: "evaluation_responses", publicPath: "avaliacao", templateTable: "evaluation_templates" },
-];
+import { FORM_TYPE_CONFIGS, FORM_TYPE_DEFAULT_MESSAGES, buildFormUrl } from "@/lib/formTypeConfigs";
 
-const FORM_TYPE_DEFAULT_MESSAGES: Record<string, string> = {
-  prefesta: "Olá {{nome}}! 🎉\n\nSua festa está chegando! Para garantir que tudo saia perfeito, precisamos de algumas informações.\n\nPreencha o formulário abaixo:\n{{link}}",
-  cardapio: "Olá {{nome}}! 🍽️\n\nVamos definir o cardápio da sua festa? Acesse o link abaixo e escolha as opções:\n\n{{link}}",
-  contrato: "Olá {{nome}}! 😊\n\nEstamos finalizando os detalhes da sua festa no {{empresa}} no dia {{data_evento}}.\n\nPara seguirmos, preciso que você preencha seus dados pessoais e as informações do aniversariante no link abaixo:\n\n{{link}}\n\nAssim o buffet consegue finalizar o preenchimento do contrato com essas informações. 🎉",
-  avaliacao: "Olá {{nome}}! ⭐\n\nEsperamos que a festa tenha sido incrível! 🎊\n\nNos ajude a melhorar cada vez mais respondendo nossa avaliação:\n{{link}}",
+const ICON_MAP: Record<string, React.ElementType> = {
+  prefesta: ClipboardList,
+  cardapio: UtensilsCrossed,
+  contrato: FileText,
+  avaliacao: Star,
 };
+
+const FORM_TYPES = FORM_TYPE_CONFIGS.map((c) => ({
+  ...c,
+  icon: ICON_MAP[c.type] || FileText,
+}));
 
 const FIELD_LABELS: Record<string, string> = {
   nome: "Nome", name: "Nome", email: "E-mail", cpf: "CPF", rg: "RG",
@@ -460,8 +460,8 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
         return;
       }
 
-      // Build form link
-      const link = `${window.location.origin}/${fs.publicPath}/${company.slug}/${fs.templateSlug}?event_id=${eventId}`;
+      // Build form link using centralized helper
+      const link = buildFormUrl(fs.publicPath || "", company.slug, fs.templateSlug || fs.templateId || "", eventId);
 
       // Get configured template
       const { data: automationSettings } = await supabase

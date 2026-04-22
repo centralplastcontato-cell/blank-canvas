@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import type { EventFormData } from "./EventFormDialog";
+import { buildFormUrl } from "@/lib/formTypeConfigs";
 
 interface FormTemplate {
   id: string;
@@ -246,40 +247,34 @@ export function EventComplementaryTab({
         return map;
       };
 
-      setSections([
-        {
-          type: "prefesta",
-          label: "Pré-Festa",
-          icon: ClipboardList,
-          templates: (prefestaTemplates || []) as FormTemplate[],
-          responses: mapResponses(prefestaResponses),
-          publicPath: "pre-festa",
-        },
-        {
-          type: "cardapio",
-          label: "Cardápio",
-          icon: UtensilsCrossed,
-          templates: filterCardapioTemplatesByPackage((cardapioTemplates || []) as FormTemplate[], form.package_name),
-          responses: mapResponses(cardapioResponses),
-          publicPath: "cardapio",
-        },
-        {
-          type: "contrato",
-          label: "Dados Complementares",
-          icon: ScrollText,
-          templates: (contratoTemplates || []) as FormTemplate[],
-          responses: mapResponses(contratoResponses),
-          publicPath: "contrato",
-        },
-        {
-          type: "avaliacao",
-          label: "Avaliação",
-          icon: Star,
-          templates: (evaluationTemplates || []) as FormTemplate[],
-          responses: mapResponses(evaluationResponses),
-          publicPath: "avaliacao",
-        },
-      ]);
+      const configs = await import("@/lib/formTypeConfigs");
+      const typeConfigs = configs.FORM_TYPE_CONFIGS;
+      const iconMap: Record<string, any> = { prefesta: ClipboardList, cardapio: UtensilsCrossed, contrato: ScrollText, avaliacao: Star };
+
+      const templatesMap: Record<string, FormTemplate[]> = {
+        prefesta: (prefestaTemplates || []) as FormTemplate[],
+        cardapio: filterCardapioTemplatesByPackage((cardapioTemplates || []) as FormTemplate[], form.package_name),
+        contrato: (contratoTemplates || []) as FormTemplate[],
+        avaliacao: (evaluationTemplates || []) as FormTemplate[],
+      };
+
+      const responsesMap: Record<string, any> = {
+        prefesta: prefestaResponses,
+        cardapio: cardapioResponses,
+        contrato: contratoResponses,
+        avaliacao: evaluationResponses,
+      };
+
+      setSections(
+        typeConfigs.map((c) => ({
+          type: c.type as FormSection["type"],
+          label: c.label,
+          icon: iconMap[c.type] || FileText,
+          templates: templatesMap[c.type] || [],
+          responses: mapResponses(responsesMap[c.type]),
+          publicPath: c.publicPath,
+        }))
+      );
     } catch (err) {
       console.error("Error loading complementary data:", err);
     } finally {
@@ -290,7 +285,7 @@ export function EventComplementaryTab({
   const getFormLink = (section: FormSection, template: FormTemplate, overrideEventId?: string) => {
     const slug = template.slug || template.id;
     const eid = overrideEventId || eventId;
-    return `${window.location.origin}/${section.publicPath}/${companySlug}/${slug}?event_id=${eid}`;
+    return buildFormUrl(section.publicPath, companySlug, slug, eid);
   };
 
   const openFormModal = async (section: FormSection, template: FormTemplate) => {
