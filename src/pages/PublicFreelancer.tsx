@@ -52,6 +52,12 @@ export default function PublicFreelancer() {
       if (companySlug && templateSlug) {
         const res = await supabase.rpc("get_freelancer_template_by_slugs", { _company_slug: companySlug, _template_slug: templateSlug });
         data = res.data; error = res.error;
+
+        if (error || !data || (data as any[]).length === 0) {
+          const fallback = await supabase.rpc("get_freelancer_template_public", { _template_id: templateSlug });
+          data = fallback.data;
+          error = fallback.error;
+        }
       } else if (templateId) {
         const res = await supabase.rpc("get_freelancer_template_public", { _template_id: templateId });
         data = res.data; error = res.error;
