@@ -460,8 +460,8 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
         return;
       }
 
-      // Build form link
-      const link = `${window.location.origin}/${fs.publicPath}/${company.slug}/${fs.templateSlug}?event_id=${eventId}`;
+      // Build form link using centralized helper
+      const link = buildFormUrl(fs.publicPath || "", company.slug, fs.templateSlug || fs.templateId || "", eventId);
 
       // Get configured template
       const { data: automationSettings } = await supabase
