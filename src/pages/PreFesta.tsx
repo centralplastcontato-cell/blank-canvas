@@ -15,6 +15,7 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/component
 
 import { PartyPopper, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, Calendar, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { buildPublicFormPath, buildPublicFormUrl } from "@/lib/publicFormRoutes";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -290,15 +291,22 @@ export function PreFestaContent() {
   };
 
   const getTemplateUrl = (t: PreFestaTemplate & { slug?: string | null }) => {
-    const companySlug = currentCompany?.slug;
-    if (companySlug && t.slug) return `/pre-festa/${companySlug}/${t.slug}`;
-    return `/pre-festa/${t.id}`;
+    return buildPublicFormPath({
+      type: "prefesta",
+      templateId: t.id,
+      templateSlug: t.slug,
+      companySlug: currentCompany?.slug,
+    });
   };
 
   const copyLink = (t: PreFestaTemplate & { slug?: string | null }) => {
-    const domain = currentCompany?.custom_domain || '';
-    const path = getTemplateUrl(t);
-    const fullUrl = domain ? `${domain}${path}` : `${window.location.origin}${path}`;
+    const fullUrl = buildPublicFormUrl({
+      type: "prefesta",
+      templateId: t.id,
+      templateSlug: t.slug,
+      companySlug: currentCompany?.slug,
+      baseUrl: currentCompany?.custom_domain || window.location.origin,
+    });
     navigator.clipboard.writeText(fullUrl);
     toast({ title: "Link copiado!" });
   };

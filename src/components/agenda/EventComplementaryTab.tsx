@@ -12,6 +12,7 @@ import {
   FileText, ClipboardList, UtensilsCrossed, ScrollText, ExternalLink, Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { buildPublicFormUrl } from "@/lib/publicFormRoutes";
 import { format } from "date-fns";
 import type { EventFormData } from "./EventFormDialog";
 
@@ -288,9 +289,15 @@ export function EventComplementaryTab({
   };
 
   const getFormLink = (section: FormSection, template: FormTemplate, overrideEventId?: string) => {
-    const slug = template.slug || template.id;
     const eid = overrideEventId || eventId;
-    return `${window.location.origin}/${section.publicPath}/${companySlug}/${slug}?event_id=${eid}`;
+    return buildPublicFormUrl({
+      type: section.type,
+      templateId: template.id,
+      templateSlug: template.slug,
+      companySlug,
+      baseUrl: window.location.origin,
+      eventId: eid,
+    });
   };
 
   const openFormModal = async (section: FormSection, template: FormTemplate) => {

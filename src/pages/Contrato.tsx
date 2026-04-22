@@ -15,6 +15,7 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/component
 
 import { FileSignature, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, Calendar, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { buildPublicFormPath, buildPublicFormUrl } from "@/lib/publicFormRoutes";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -273,15 +274,22 @@ export function ContratoContent() {
   };
 
   const getTemplateUrl = (t: ContratoTemplate & { slug?: string | null }) => {
-    const companySlug = currentCompany?.slug;
-    if (companySlug && t.slug) return `/contrato/${companySlug}/${t.slug}`;
-    return `/contrato/${t.id}`;
+    return buildPublicFormPath({
+      type: "contrato",
+      templateId: t.id,
+      templateSlug: t.slug,
+      companySlug: currentCompany?.slug,
+    });
   };
 
   const copyLink = (t: ContratoTemplate & { slug?: string | null }) => {
-    const domain = currentCompany?.custom_domain || '';
-    const path = getTemplateUrl(t);
-    const fullUrl = domain ? `${domain}${path}` : `${window.location.origin}${path}`;
+    const fullUrl = buildPublicFormUrl({
+      type: "contrato",
+      templateId: t.id,
+      templateSlug: t.slug,
+      companySlug: currentCompany?.slug,
+      baseUrl: currentCompany?.custom_domain || window.location.origin,
+    });
     navigator.clipboard.writeText(fullUrl);
     toast({ title: "Link copiado!" });
   };
