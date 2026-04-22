@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import type { EventFormData } from "./EventFormDialog";
+import { buildFormUrl } from "@/lib/formTypeConfigs";
 
 interface FormTemplate {
   id: string;
@@ -284,7 +285,6 @@ export function EventComplementaryTab({
   const getFormLink = (section: FormSection, template: FormTemplate, overrideEventId?: string) => {
     const slug = template.slug || template.id;
     const eid = overrideEventId || eventId;
-    const { buildFormUrl } = require("@/lib/formTypeConfigs");
     return buildFormUrl(section.publicPath, companySlug, slug, eid);
   };
 
