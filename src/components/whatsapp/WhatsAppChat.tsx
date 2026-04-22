@@ -372,6 +372,7 @@ import { VisitFormDialog } from "@/components/visitas/VisitFormDialog";
 import { FollowUpChip, isAutomationMessage } from "@/components/whatsapp/FollowUpChip";
 import { AutomationTimelineSheet } from "@/components/whatsapp/AutomationTimelineSheet";
 import { useFilterOrder } from "@/hooks/useFilterOrder";
+import { useDraftMessages } from "@/hooks/useDraftMessages";
 
 export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded, onLeadClosedMobile, onUnreadCountChange }: WhatsAppChatProps) {
   const { currentCompany } = useCompany();
@@ -380,7 +381,18 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState("");
+  const [newMessage, setNewMessageRaw] = useState("");
+  const { getDraft, saveDraft, clearDraft } = useDraftMessages();
+  const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevConversationIdRef = useRef<string | null>(null);
+
+  // Wrapper that also saves draft with debounce
+  const setNewMessage = useCallback((valueOrFn: string | ((prev: string) => string)) => {
+    setNewMessageRaw((prev) => {
+      const next = typeof valueOrFn === 'function' ? valueOrFn(prev) : valueOrFn;
+      return next;
+    });
+  }, []);
   const [isLoading, setIsLoading] = useState(true);
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
@@ -1133,10 +1145,53 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const selectedConversationRef = useRef<string | null>(null);
   selectedConversationRef.current = selectedConversation?.id ?? null;
 
+  // Save/restore drafts when switching conversations
+  useEffect(() => {
+    const prevId = prevConversationIdRef.current;
+    const newId = selectedConversation?.id ?? null;
+
+    // Save draft for previous conversation
+    if (prevId && prevId !== newId) {
+      // Read current message from state synchronously via ref trick
+      setNewMessageRaw(prev => {
+        saveDraft(prevId, prev);
+        return prev;
+      });
+    }
+
+    // Load draft for new conversation
+    if (newId && newId !== prevId) {
+      if (initialDraft && !draftApplied) {
+        setNewMessageRaw(initialDraft);
+        setDraftApplied(true);
+      } else {
+        const draft = getDraft(newId);
+        setNewMessageRaw(draft);
+      }
+    }
+
+    prevConversationIdRef.current = newId;
+  }, [selectedConversation?.id]);
+
+  // Debounced save on every keystroke
+  useEffect(() => {
+    if (!selectedConversation?.id) return;
+    const convId = selectedConversation.id;
+
+    if (draftSaveTimerRef.current) clearTimeout(draftSaveTimerRef.current);
+    draftSaveTimerRef.current = setTimeout(() => {
+      saveDraft(convId, newMessage);
+    }, 500);
+
+    return () => {
+      if (draftSaveTimerRef.current) clearTimeout(draftSaveTimerRef.current);
+    };
+  }, [newMessage, selectedConversation?.id, saveDraft]);
+
   // Apply initialDraft to message input when conversation is selected
   useEffect(() => {
     if (initialDraft && selectedConversation && !draftApplied) {
-      setNewMessage(initialDraft);
+      setNewMessageRaw(initialDraft);
       setDraftApplied(true);
     }
   }, [initialDraft, selectedConversation, draftApplied]);
@@ -2280,7 +2335,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
     const messageToSend = newMessage.trim();
     const quotedMsg = replyingTo;
-    setNewMessage(""); // Clear immediately for UX
+    setNewMessageRaw(""); // Clear immediately for UX
+    if (selectedConversation?.id) clearDraft(selectedConversation.id);
     setReplyingTo(null);
     setIsSending(true);
 
