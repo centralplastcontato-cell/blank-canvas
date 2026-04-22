@@ -1380,7 +1380,7 @@ Deno.serve(async (req) => {
             const connected = isZapiSessionConnected(zapiData) || hasZapiConnectedMessage(zapiRes.error);
             const zapiPhone = extractConnectedPhone(zapiData) || fallbackPhone;
             const hasVerifiedActivity = instRecord?.id
-              ? await hasRecentVerifiedActivity(supabase, instRecord.id)
+              ? await hasRecentVerifiedActivity(supabase, instRecord.id, 24 * 60)
               : false;
 
             if (connected || (fallbackPhone && hasVerifiedActivity)) {
@@ -1525,11 +1525,40 @@ Deno.serve(async (req) => {
           const hasQrCode = data.qrcode || data.qrCode || data.qr || data.base64;
           
           if (hasQrCode) {
-            // QR code present means the session is genuinely disconnected.
-            // Do NOT mask this with activity-based fallback — it prevents
-            // users from seeing the real disconnected state and reconnecting.
-            console.log(`get-status: QR detected for instance ${instance_id} — reporting disconnected`);
+            // W-API LITE can intermittently return QR code in JSON for sessions that are
+            // still working. Check DB status and recent activity before declaring disconnected.
+            try {
+              const { data: instRecord } = await supabase
+                .from('wapi_instances')
+                .select('id, status, phone_number')
+                .eq('instance_id', instance_id)
+                .maybeSingle();
 
+              const hasKnownConnectedSession = Boolean(
+                instRecord?.status === 'connected' && instRecord?.phone_number
+              );
+              const hasVerifiedActivity = instRecord?.id
+                ? await hasRecentVerifiedActivity(supabase, instRecord.id, 24 * 60)
+                : false;
+
+              if (hasKnownConnectedSession || hasVerifiedActivity) {
+                console.log(`get-status: JSON QR detected for ${instance_id} but has known session/activity — returning degraded`);
+                return new Response(JSON.stringify({
+                  status: 'degraded',
+                  connected: false,
+                  phoneNumber: instRecord?.phone_number || null,
+                  error: 'W-API retornou QR code mas a instância possui atividade recente. Pode ser um falso positivo.',
+                  errorType: 'AMBIGUOUS_QR_STATE',
+                  evidenceBased: hasVerifiedActivity,
+                }), {
+                  status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                });
+              }
+            } catch (ambiguityErr) {
+              console.warn('get-status: JSON QR ambiguity check failed:', ambiguityErr);
+            }
+
+            console.log(`get-status: QR detected for instance ${instance_id} — reporting disconnected`);
             return new Response(JSON.stringify({ 
               status: 'disconnected',
               phoneNumber: null,
