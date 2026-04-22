@@ -383,12 +383,20 @@ export function EventComplementaryTab({
 
       toast({ title: `Enviando via ${selectedInstance?.unit || 'WhatsApp'}...` });
 
+      // Find existing conversation to avoid duplicates
+      const { findExistingConversation } = await import("@/lib/whatsappConversationHelper");
+      const existingConv = await findExistingConversation(form.lead_id, leadPhone);
+
       const { error } = await supabase.functions.invoke("wapi-send", {
         body: {
           action: "send-text",
           phone: leadPhone,
           message,
-          instanceId: selectedInstanceId,
+          instanceId: existingConv?.instanceId || selectedInstanceId,
+          ...(existingConv && {
+            conversationId: existingConv.conversationId,
+            companyId: existingConv.companyId,
+          }),
         },
       });
 

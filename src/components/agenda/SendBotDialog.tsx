@@ -132,14 +132,22 @@ export function SendBotButton({ guests, onSent }: Omit<SendBotDialogProps, 'reco
         const message = getNextMessage(customMessages, i, guest.name, companyName);
 
         try {
+          // Find existing conversation to avoid duplicates
+          const { findExistingConversation } = await import("@/lib/whatsappConversationHelper");
+          const existingConv = await findExistingConversation(null, guest.phone);
+
           const { error } = await supabase.functions.invoke("wapi-send", {
             body: {
               action: "send-text",
               phone,
               message,
-              instanceId: instance.instance_id,
+              instanceId: existingConv?.instanceId || instance.instance_id,
               lpMode: true,
               contactName: guest.name,
+              ...(existingConv && {
+                conversationId: existingConv.conversationId,
+                companyId: existingConv.companyId,
+              }),
             },
           });
 
