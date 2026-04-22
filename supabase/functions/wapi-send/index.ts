@@ -1380,7 +1380,7 @@ Deno.serve(async (req) => {
             const connected = isZapiSessionConnected(zapiData) || hasZapiConnectedMessage(zapiRes.error);
             const zapiPhone = extractConnectedPhone(zapiData) || fallbackPhone;
             const hasVerifiedActivity = instRecord?.id
-              ? await hasRecentVerifiedActivity(supabase, instRecord.id)
+              ? await hasRecentVerifiedActivity(supabase, instRecord.id, 24 * 60)
               : false;
 
             if (connected || (fallbackPhone && hasVerifiedActivity)) {
