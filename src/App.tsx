@@ -197,6 +197,8 @@ const App = () => (
               {/* Public pre-festa form */}
               <Route path="/pre-festa/:companySlug/:templateSlug" element={<PublicPreFesta />} />
               <Route path="/pre-festa/:templateId" element={<PublicPreFesta />} />
+              <Route path="/prefesta/:companySlug/:templateSlug" element={<PublicPreFesta />} />
+              <Route path="/prefesta/:templateId" element={<PublicPreFesta />} />
               {/* Public contrato form */}
               <Route path="/contrato/:companySlug/:templateSlug" element={<PublicContrato />} />
               <Route path="/contrato/:templateId" element={<PublicContrato />} />
