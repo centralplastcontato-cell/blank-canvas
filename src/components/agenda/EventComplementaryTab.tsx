@@ -284,7 +284,8 @@ export function EventComplementaryTab({
   const getFormLink = (section: FormSection, template: FormTemplate, overrideEventId?: string) => {
     const slug = template.slug || template.id;
     const eid = overrideEventId || eventId;
-    return `${window.location.origin}/${section.publicPath}/${companySlug}/${slug}?event_id=${eid}`;
+    const { buildFormUrl } = require("@/lib/formTypeConfigs");
+    return buildFormUrl(section.publicPath, companySlug, slug, eid);
   };
 
   const openFormModal = async (section: FormSection, template: FormTemplate) => {
