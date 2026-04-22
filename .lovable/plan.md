@@ -1,39 +1,35 @@
 
 
-# Plano: Log de Auditoria para Dados do Contratante
+# Plano: Detalhes Expandidos no Card de Consentimento
 
 ## Resumo
-Registrar na tabela `activity_logs` quem preencheu/atualizou os dados do contratante de cada festa, diferenciando entre preenchimento manual (pelo usuário do buffet) e preenchimento público (pelo próprio cliente via link).
+Ao clicar no card de consentimento, expandir uma seção com informações adicionais: nome da festa, tipo de evento, data da festa e banco selecionado para baixa.
 
-## Alterações
+## Como vai funcionar
+- O card terá um comportamento de "expandir/recolher" ao clicar na area do card (fora dos botoes)
+- Quando expandido, mostra: nome da festa, tipo de evento, data da festa e nome do banco
+- Os dados extras serao carregados via join no hook `useFinancialConsent`
 
-### 1. Adicionar log no formulário manual (`ManualClientDataForm.tsx`)
-Após salvar com sucesso os dados do contratante (tanto insert quanto update), chamar `logActivity` com:
-- **action**: `create` (novo) ou `update` (existente)
-- **module**: `contracts`
-- **entityType**: `client_data`
-- **entityId**: o ID do `client_data_requests`
-- **entityName**: nome do contratante preenchido
-- **details**: `{ source: "manual", event_id }`
+## Alteracoes
 
-### 2. Adicionar log no formulário público (`submit_client_data_public` RPC)
-Adicionar um INSERT na tabela `activity_logs` dentro da própria função SQL, registrando:
-- **user_name**: `"Cliente (público)"`
-- **action**: `create`
-- **module**: `contracts`
-- **entity_type**: `client_data`
-- **entity_id**: o ID do request
-- **entity_name**: nome extraído do `_client_data->>'nome'`
-- **details**: `{ source: "public_form", event_id }`
+### 1. Atualizar `useFinancialConsent.ts` — enriquecer dados pendentes
+Na funcao `fetchPending`, fazer joins para buscar dados do evento e do banco:
+- Join `event_payments` para pegar `event_id`
+- Join `company_events` para pegar `title`, `event_type`, `event_date`
+- Join `company_bank_accounts` para pegar o nome do banco a partir do `payload->bank_account_id`
+- Adicionar campos `event_title`, `event_type`, `event_date`, `bank_account_name` na interface `FinancialConsent`
 
-Isso requer uma **migração** para atualizar a função RPC `submit_client_data_public`.
+### 2. Atualizar `ConsentCard.tsx` — seção expandível
+- Adicionar estado `expanded` (toggle ao clicar no card)
+- Quando expandido, mostrar seção com:
+  - Nome da festa (ex: "Antonella 2 anos")
+  - Tipo do evento (ex: "Aniversário")
+  - Data da festa (ex: "26/04/2026")
+  - Banco selecionado (ex: "Infinity Pay")
+- Icone de seta (chevron) indicando que é expansível
+- Animação suave de abertura/fechamento
 
-### 3. Arquivos modificados
-- `src/components/agenda/ManualClientDataForm.tsx` — importar `logActivity` e chamá-lo após save
-- Migração SQL — atualizar `submit_client_data_public` para inserir em `activity_logs`
-
-### Detalhes técnicos
-- A tabela `activity_logs` já existe e é usada pelo `ActivityLogPanel`
-- O `logActivity` standalone (`src/lib/activityLog.ts`) será usado no formulário manual, pois o componente não precisa de hook
-- No RPC público, o insert será direto pois não há usuário autenticado
+### Arquivos modificados
+- `src/hooks/useFinancialConsent.ts`
+- `src/components/financial/ConsentCard.tsx`
 
