@@ -484,13 +484,21 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
         .replace(/\{\{\s*data_evento\s*\}\}/gi, formattedDate)
         .replace(/\{\{\s*empresa\s*\}\}/gi, company.name || "");
 
+      // Find existing conversation to avoid duplicates
+      const { findExistingConversation } = await import("@/lib/whatsappConversationHelper");
+      const existingConv = await findExistingConversation(leadId, lead.whatsapp);
+
       // Send via WhatsApp
       const { error } = await supabase.functions.invoke("wapi-send", {
         body: {
           action: "send-text",
           phone: lead.whatsapp,
           message,
-          instanceId: instance.instance_id,
+          instanceId: existingConv?.instanceId || instance.instance_id,
+          ...(existingConv && {
+            conversationId: existingConv.conversationId,
+            companyId: existingConv.companyId,
+          }),
         },
       });
 
