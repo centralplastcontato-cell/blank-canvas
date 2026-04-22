@@ -34,9 +34,9 @@ interface EventFormsStatusPanelProps {
 }
 
 const FORM_TYPES = [
-  { type: "prefesta", label: "Pré-Festa", icon: ClipboardList, responseTable: "prefesta_responses", publicPath: "prefesta", templateTable: "prefesta_templates" },
+  { type: "prefesta", label: "Pré-Festa", icon: ClipboardList, responseTable: "prefesta_responses", publicPath: "pre-festa", templateTable: "prefesta_templates" },
   { type: "cardapio", label: "Cardápio", icon: UtensilsCrossed, responseTable: "cardapio_responses", publicPath: "cardapio", templateTable: "cardapio_templates" },
-  { type: "contrato", label: "Dados Complementares", icon: FileText, responseTable: "contrato_responses", publicPath: "dados-complementares", templateTable: "contrato_templates" },
+  { type: "contrato", label: "Dados Complementares", icon: FileText, responseTable: "contrato_responses", publicPath: "contrato", templateTable: "contrato_templates" },
   { type: "avaliacao", label: "Avaliação", icon: Star, responseTable: "evaluation_responses", publicPath: "avaliacao", templateTable: "evaluation_templates" },
 ];
 
