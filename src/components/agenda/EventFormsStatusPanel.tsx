@@ -9,6 +9,7 @@ import {
   User, MapPin, Phone, Mail, Calendar, Users, Baby, CreditCard, Hash, MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { buildPublicFormUrl } from "@/lib/publicFormRoutes";
 import { format } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 
@@ -460,11 +461,14 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
         return;
       }
 
-      // Build form link using slug route when available, otherwise fallback to legacy templateId route
-      const basePath = fs.templateSlug
-        ? `${window.location.origin}/${fs.publicPath}/${company.slug}/${fs.templateSlug}`
-        : `${window.location.origin}/${fs.publicPath}/${fs.templateId}`;
-      const link = `${basePath}?event_id=${eventId}`;
+      const link = buildPublicFormUrl({
+        type: fs.type as "prefesta" | "cardapio" | "contrato" | "avaliacao",
+        templateId: fs.templateId,
+        templateSlug: fs.templateSlug,
+        companySlug: company.slug,
+        baseUrl: window.location.origin,
+        eventId,
+      });
 
       // Get configured template
       const { data: automationSettings } = await supabase

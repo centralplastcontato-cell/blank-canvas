@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { buildPublicFormPath } from "@/lib/publicFormRoutes";
 import {
   Loader2, Check, AlertTriangle, PartyPopper,
   ChevronRight, Shield, Zap, ArrowRight
@@ -211,9 +212,9 @@ export default function PublicPartyControl() {
       case "monitoring": return status.monitoring.id ? `/acompanhamento/${status.monitoring.id}` : null;
       case "attendance": return status.attendance.id ? `/lista-presenca/${status.attendance.id}` : null;
       case "info": return status.info.id ? `/informacoes/${status.info.id}` : null;
-      case "avaliacao": return evalTemplates[0] ? `/avaliacao/${companySlug}/${evalTemplates[0].slug || evalTemplates[0].id}` : null;
-      case "prefesta": return prefestTemplates[0] ? `/pre-festa/${companySlug}/${prefestTemplates[0].slug || prefestTemplates[0].id}` : null;
-      case "cardapio": return cardapioTemplates[0] ? `/cardapio/${companySlug}/${cardapioTemplates[0].slug || cardapioTemplates[0].id}` : null;
+      case "avaliacao": return evalTemplates[0] ? buildPublicFormPath({ type: "avaliacao", templateId: evalTemplates[0].id, templateSlug: evalTemplates[0].slug, companySlug }) : null;
+      case "prefesta": return prefestTemplates[0] ? buildPublicFormPath({ type: "prefesta", templateId: prefestTemplates[0].id, templateSlug: prefestTemplates[0].slug, companySlug }) : null;
+      case "cardapio": return cardapioTemplates[0] ? buildPublicFormPath({ type: "cardapio", templateId: cardapioTemplates[0].id, templateSlug: cardapioTemplates[0].slug, companySlug }) : null;
       default: return null;
     }
   };

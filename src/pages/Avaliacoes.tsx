@@ -16,6 +16,7 @@ import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { ClipboardCheck, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, Star, User, Calendar, BarChart3, ThumbsUp, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { buildPublicFormPath, buildPublicFormUrl } from "@/lib/publicFormRoutes";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -292,15 +293,22 @@ export function AvaliacoesContent() {
   };
 
   const getTemplateUrl = (t: EvaluationTemplate & { slug?: string | null }) => {
-    const companySlug = currentCompany?.slug;
-    if (companySlug && t.slug) return `/avaliacao/${companySlug}/${t.slug}`;
-    return `/avaliacao/${t.id}`;
+    return buildPublicFormPath({
+      type: "avaliacao",
+      templateId: t.id,
+      templateSlug: t.slug,
+      companySlug: currentCompany?.slug,
+    });
   };
 
   const copyLink = (t: EvaluationTemplate & { slug?: string | null }) => {
-    const domain = currentCompany?.custom_domain || '';
-    const path = getTemplateUrl(t);
-    const fullUrl = domain ? `${domain}${path}` : `${window.location.origin}${path}`;
+    const fullUrl = buildPublicFormUrl({
+      type: "avaliacao",
+      templateId: t.id,
+      templateSlug: t.slug,
+      companySlug: currentCompany?.slug,
+      baseUrl: currentCompany?.custom_domain || window.location.origin,
+    });
     navigator.clipboard.writeText(fullUrl);
     toast({ title: "Link copiado!" });
   };
