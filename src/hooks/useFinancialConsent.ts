@@ -20,6 +20,11 @@ export interface FinancialConsent {
   reviewed_by_name: string | null;
   reviewed_at: string | null;
   review_notes: string | null;
+  // Enriched fields
+  event_title?: string | null;
+  event_type?: string | null;
+  event_date?: string | null;
+  bank_account_name?: string | null;
 }
 
 export function useFinancialConsent() {
@@ -49,7 +54,7 @@ export function useFinancialConsent() {
     })();
   }, []);
 
-  // Fetch pending consents for this company
+  // Fetch pending consents for this company (enriched with event + bank data)
   const fetchPending = useCallback(async () => {
     if (!companyId) return;
     const { data } = await (supabase as any)
@@ -58,9 +63,65 @@ export function useFinancialConsent() {
       .eq('company_id', companyId)
       .eq('status', 'pending')
       .order('requested_at', { ascending: false });
-    
-    setPendingConsents(data || []);
-    setPendingCount(data?.length || 0);
+
+    if (!data || data.length === 0) {
+      setPendingConsents([]);
+      setPendingCount(0);
+      return;
+    }
+
+    // Enrich with event and bank data
+    const paymentEntityIds = data
+      .filter((c: any) => c.entity_table === 'event_payments')
+      .map((c: any) => c.entity_id);
+
+    const expenseEntityIds = data
+      .filter((c: any) => c.entity_table === 'company_expenses')
+      .map((c: any) => c.entity_id);
+
+    // Fetch event info via payments
+    let paymentEventMap: Record<string, { event_title: string; event_type: string; event_date: string }> = {};
+    if (paymentEntityIds.length > 0) {
+      const { data: payments } = await supabase
+        .from('event_payments')
+        .select('id, event_id, company_events(title, event_type, event_date)')
+        .in('id', paymentEntityIds);
+      if (payments) {
+        for (const p of payments as any[]) {
+          const ev = p.company_events;
+          if (ev) {
+            paymentEventMap[p.id] = { event_title: ev.title, event_type: ev.event_type, event_date: ev.event_date };
+          }
+        }
+      }
+    }
+
+    // Fetch bank account names
+    const bankIds = data
+      .map((c: any) => c.payload?.bank_account_id)
+      .filter(Boolean);
+    let bankMap: Record<string, string> = {};
+    if (bankIds.length > 0) {
+      const { data: banks } = await supabase
+        .from('company_bank_accounts')
+        .select('id, name')
+        .in('id', bankIds);
+      if (banks) {
+        for (const b of banks) { bankMap[b.id] = b.name; }
+      }
+    }
+
+    const enriched: FinancialConsent[] = data.map((c: any) => ({
+      ...c,
+      payload: c.payload || {},
+      event_title: paymentEventMap[c.entity_id]?.event_title || null,
+      event_type: paymentEventMap[c.entity_id]?.event_type || null,
+      event_date: paymentEventMap[c.entity_id]?.event_date || null,
+      bank_account_name: bankMap[c.payload?.bank_account_id] || null,
+    }));
+
+    setPendingConsents(enriched);
+    setPendingCount(enriched.length);
   }, [companyId]);
 
   useEffect(() => { fetchPending(); }, [fetchPending]);

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Clock, DollarSign, Receipt, User } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { CheckCircle, XCircle, Clock, DollarSign, Receipt, User, ChevronDown, CalendarDays, PartyPopper, Landmark } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { FinancialConsent } from '@/hooks/useFinancialConsent';
@@ -23,7 +24,10 @@ interface Props {
 
 export function ConsentCard({ consent, onApprove, onReject }: Props) {
   const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const actionInfo = ACTION_LABELS[consent.action_type] || { label: consent.action_type, icon: <Clock className="h-4 w-4" />, color: 'text-muted-foreground' };
+
+  const hasDetails = !!(consent.event_title || consent.event_type || consent.event_date || consent.bank_account_name);
 
   const handleApprove = async () => {
     setLoading(true);
@@ -39,23 +43,60 @@ export function ConsentCard({ consent, onApprove, onReject }: Props) {
 
   return (
     <Card className="p-4 space-y-3 border-amber-500/20 bg-amber-500/[0.03]">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div className={`p-1.5 rounded-lg bg-muted ${actionInfo.color}`}>
-            {actionInfo.icon}
+      <Collapsible open={expanded} onOpenChange={setExpanded}>
+        <CollapsibleTrigger asChild disabled={!hasDetails}>
+          <div className={`flex items-start justify-between gap-2 ${hasDetails ? 'cursor-pointer' : ''}`}>
+            <div className="flex items-center gap-2">
+              <div className={`p-1.5 rounded-lg bg-muted ${actionInfo.color}`}>
+                {actionInfo.icon}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">{actionInfo.label}</p>
+                {consent.description && (
+                  <p className="text-xs text-muted-foreground truncate max-w-[200px]">{consent.description}</p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-[10px]">
+                <Clock className="h-3 w-3 mr-1" />
+                Pendente
+              </Badge>
+              {hasDetails && (
+                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
+              )}
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-semibold text-foreground">{actionInfo.label}</p>
-            {consent.description && (
-              <p className="text-xs text-muted-foreground truncate max-w-[200px]">{consent.description}</p>
+        </CollapsibleTrigger>
+
+        <CollapsibleContent className="mt-2">
+          <div className="rounded-lg bg-muted/50 p-3 space-y-1.5 text-xs">
+            {consent.event_title && (
+              <div className="flex items-center gap-2 text-foreground">
+                <PartyPopper className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="font-medium">{consent.event_title}</span>
+              </div>
+            )}
+            {consent.event_type && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <span className="ml-5.5">Tipo: {consent.event_type}</span>
+              </div>
+            )}
+            {consent.event_date && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                <span>{format(new Date(consent.event_date + 'T12:00:00'), "dd/MM/yyyy", { locale: ptBR })}</span>
+              </div>
+            )}
+            {consent.bank_account_name && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Landmark className="h-3.5 w-3.5 shrink-0" />
+                <span>{consent.bank_account_name}</span>
+              </div>
             )}
           </div>
-        </div>
-        <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-[10px] shrink-0">
-          <Clock className="h-3 w-3 mr-1" />
-          Pendente
-        </Badge>
-      </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       {consent.amount != null && consent.amount > 0 && (
         <div className="text-lg font-bold text-foreground">
