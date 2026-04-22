@@ -266,7 +266,7 @@ export function EventComplementaryTab({
 
       setSections(
         typeConfigs.map((c) => ({
-          type: c.type,
+          type: c.type as FormSection["type"],
           label: c.label,
           icon: iconMap[c.type] || FileText,
           templates: templatesMap[c.type] || [],
