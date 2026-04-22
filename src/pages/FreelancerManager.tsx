@@ -14,6 +14,7 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/component
 import { HardHat, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, ChevronDown, ChevronRight, MessageCircle, ShieldAlert, Search, X, CheckCircle2, XCircle, Clock, RefreshCw, AlertTriangle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/hooks/use-toast";
+import { buildPublicFormPath, buildPublicFormUrl } from "@/lib/publicFormRoutes";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { FreelancerEvaluationHistory, FreelancerAvgBadge } from "@/components/freelancer/FreelancerEvaluationHistory";
@@ -1028,20 +1029,22 @@ export function FreelancerManagerContent() {
   };
 
   const getTemplateUrl = (t: FreelancerTemplate) => {
-    const companySlug = currentCompany?.slug;
-    if (companySlug && t.slug) return `/freelancer/${companySlug}/${t.slug}`;
-    return `/freelancer/${t.id}`;
+    return buildPublicFormPath({
+      type: "freelancer",
+      templateId: t.id,
+      templateSlug: t.slug,
+      companySlug: currentCompany?.slug,
+    });
   };
 
   const copyLink = (t: FreelancerTemplate) => {
-    let domain: string;
-    if (currentCompany?.custom_domain) {
-      domain = currentCompany.custom_domain;
-    } else {
-      domain = window.location.origin;
-    }
-    const path = getTemplateUrl(t);
-    const fullUrl = `${domain}${path}`;
+    const fullUrl = buildPublicFormUrl({
+      type: "freelancer",
+      templateId: t.id,
+      templateSlug: t.slug,
+      companySlug: currentCompany?.slug,
+      baseUrl: currentCompany?.custom_domain || window.location.origin,
+    });
     navigator.clipboard.writeText(fullUrl);
     toast({ title: "Link copiado!" });
   };

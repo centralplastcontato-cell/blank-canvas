@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { UtensilsCrossed, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, Calendar, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { buildPublicFormPath, buildPublicFormUrl } from "@/lib/publicFormRoutes";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -366,17 +367,22 @@ export function CardapioContent() {
   };
 
   const getTemplateUrl = (t: CardapioTemplate) => {
-    const companySlug = currentCompany?.slug;
-    if (companySlug && t.slug) {
-      return `/cardapio/${companySlug}/${t.slug}`;
-    }
-    return `/cardapio/${t.id}`;
+    return buildPublicFormPath({
+      type: "cardapio",
+      templateId: t.id,
+      templateSlug: t.slug,
+      companySlug: currentCompany?.slug,
+    });
   };
 
   const copyLink = (t: CardapioTemplate) => {
-    const domain = currentCompany?.custom_domain || '';
-    const path = getTemplateUrl(t);
-    const fullUrl = domain ? `${domain}${path}` : `${window.location.origin}${path}`;
+    const fullUrl = buildPublicFormUrl({
+      type: "cardapio",
+      templateId: t.id,
+      templateSlug: t.slug,
+      companySlug: currentCompany?.slug,
+      baseUrl: currentCompany?.custom_domain || window.location.origin,
+    });
     navigator.clipboard.writeText(fullUrl);
     toast({ title: "Link copiado!" });
   };
