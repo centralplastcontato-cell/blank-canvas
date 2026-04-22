@@ -402,7 +402,7 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
           responseCount: responses.length,
           responses,
           templateId: tmpl?.id,
-          templateSlug: tmpl?.slug || tmpl?.id,
+          templateSlug: tmpl?.slug || undefined,
           publicPath: ft.publicPath,
         });
       }
@@ -460,8 +460,11 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
         return;
       }
 
-      // Build form link
-      const link = `${window.location.origin}/${fs.publicPath}/${company.slug}/${fs.templateSlug}?event_id=${eventId}`;
+      // Build form link using slug route when available, otherwise fallback to legacy templateId route
+      const basePath = fs.templateSlug
+        ? `${window.location.origin}/${fs.publicPath}/${company.slug}/${fs.templateSlug}`
+        : `${window.location.origin}/${fs.publicPath}/${fs.templateId}`;
+      const link = `${basePath}?event_id=${eventId}`;
 
       // Get configured template
       const { data: automationSettings } = await supabase
