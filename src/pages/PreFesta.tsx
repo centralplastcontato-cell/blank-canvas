@@ -55,13 +55,27 @@ function PreFestaResponseCards({ responses, template }: { responses: any[]; temp
                   </div>
                   <div className="divide-y divide-border">
                     {answersArr.map((a: any, idx: number) => {
-                      const question = template?.questions.find(q => q.id === a.questionId);
+                      // Match by exact id OR by prefix (pf1 matches pf1, pf1775...)
+                      const question = template?.questions.find(q => q.id === a.questionId)
+                        || template?.questions.find(q => a.questionId?.startsWith(q.id));
+                      
+                      // Format display value
+                      let displayValue: string;
+                      if (a.value === true) displayValue = "👍 Sim";
+                      else if (a.value === false) displayValue = "👎 Não";
+                      else if (typeof a.value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(a.value)) {
+                        try { displayValue = format(new Date(a.value), "dd/MM/yyyy", { locale: ptBR }); } catch { displayValue = String(a.value); }
+                      } else {
+                        displayValue = String(a.value ?? "—");
+                      }
+
+                      // Build a readable label instead of raw questionId
+                      const label = question?.text || `Pergunta ${idx + 1}`;
+
                       return (
                         <div key={idx} className="px-4 py-2.5">
-                          <p className="text-muted-foreground text-xs mb-0.5">{question?.text || a.questionId}</p>
-                          <p className="font-medium text-sm">
-                            {a.value === true ? "👍 Sim" : a.value === false ? "👎 Não" : String(a.value || "—")}
-                          </p>
+                          <p className="text-muted-foreground text-xs mb-0.5">{label}</p>
+                          <p className="font-medium text-sm">{displayValue}</p>
                         </div>
                       );
                     })}

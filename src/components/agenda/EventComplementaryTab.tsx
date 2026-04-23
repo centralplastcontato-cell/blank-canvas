@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { buildPublicFormUrl } from "@/lib/publicFormRoutes";
 import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import type { EventFormData } from "./EventFormDialog";
 
 interface FormTemplate {
@@ -470,19 +471,37 @@ export function EventComplementaryTab({
 
     // For prefesta and contrato (questions-based)
     const questions = Array.isArray(template.questions) ? template.questions : [];
+
+    const formatAnswerValue = (val: any): string => {
+      if (val === true) return "👍 Sim";
+      if (val === false) return "👎 Não";
+      if (typeof val === "string" && /^\d{4}-\d{2}-\d{2}T/.test(val)) {
+        try { return format(new Date(val), "dd/MM/yyyy", { locale: ptBR }); } catch { return val; }
+      }
+      if (typeof val === "object" && val !== null) return JSON.stringify(val);
+      return String(val ?? "—");
+    };
+
     if (Array.isArray(answers)) {
       return (
         <div className="space-y-2">
           {answers.map((answer: any, i: number) => {
-            const question = questions[i];
+            // Support {questionId, value} format
+            const isObj = answer && typeof answer === "object" && "questionId" in answer;
+            const qId = isObj ? answer.questionId : null;
+            const val = isObj ? answer.value : answer;
+
+            // Match by exact id, prefix, or index fallback
+            const question = qId
+              ? (questions.find((q: any) => q.id === qId) || questions.find((q: any) => qId.startsWith(q.id)))
+              : questions[i];
+
+            const label = question?.text || question?.label || question?.title || `Pergunta ${i + 1}`;
+
             return (
               <div key={i} className="space-y-0.5">
-                <p className="text-xs font-medium text-foreground/70">
-                  {question?.label || question?.title || `Pergunta ${i + 1}`}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {typeof answer === "object" ? JSON.stringify(answer) : String(answer || "—")}
-                </p>
+                <p className="text-xs font-medium text-foreground/70">{label}</p>
+                <p className="text-xs text-muted-foreground">{formatAnswerValue(val)}</p>
               </div>
             );
           })}
@@ -494,15 +513,14 @@ export function EventComplementaryTab({
     return (
       <div className="space-y-2">
         {Object.entries(answers).map(([key, value]) => {
-          const question = questions.find((q: any) => q.id === key || q.label === key);
+          const question = questions.find((q: any) => q.id === key || q.label === key)
+            || questions.find((q: any) => key.startsWith(q.id));
           return (
             <div key={key} className="space-y-0.5">
               <p className="text-xs font-medium text-foreground/70">
-                {question?.label || question?.title || key.replace(/_/g, " ")}
+                {question?.text || question?.label || question?.title || key.replace(/_/g, " ")}
               </p>
-              <p className="text-xs text-muted-foreground">
-                {typeof value === "object" ? JSON.stringify(value) : String(value || "—")}
-              </p>
+              <p className="text-xs text-muted-foreground">{formatAnswerValue(value)}</p>
             </div>
           );
         })}
