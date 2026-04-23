@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UtensilsCrossed, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, Calendar, ChevronDown, ChevronRight, PartyPopper, FileText, Printer } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { buildPublicFormPath, buildPublicFormUrl } from "@/lib/publicFormRoutes";
@@ -131,11 +132,58 @@ const DEFAULT_SECTIONS: CardapioSection[] = [
   },
 ];
 
-function CardapioResponseCards({ responses, template, onDelete, company }: { responses: any[]; template: CardapioTemplate | null; onDelete?: (id: string) => Promise<void> | void; company?: { name: string; logo_url?: string | null } | null }) {
+function CardapioResponseCards({ responses, template, onDelete, company, allTemplates }: { responses: any[]; template: CardapioTemplate | null; onDelete?: (id: string) => Promise<void> | void; company?: { name: string; logo_url?: string | null } | null; allTemplates?: CardapioTemplate[] }) {
   const [selectedResponse, setSelectedResponse] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
   const [pdfPreview, setPdfPreview] = useState<{ url: string; fileName: string; blob: Blob } | null>(null);
+  const [eventResponses, setEventResponses] = useState<any[]>([]);
+  const [pdfTemplateId, setPdfTemplateId] = useState<string | null>(null);
+  const [pdfResponseId, setPdfResponseId] = useState<string | null>(null);
+
+  // When opening a response, look up other responses for the same event (other templates).
+  useEffect(() => {
+    if (!selectedResponse?.event_id || !company) {
+      setEventResponses([]);
+      setPdfTemplateId(selectedResponse?.template_id ?? null);
+      setPdfResponseId(selectedResponse?.id ?? null);
+      return;
+    }
+    setPdfTemplateId(selectedResponse.template_id);
+    setPdfResponseId(selectedResponse.id);
+    (async () => {
+      const { data } = await supabase
+        .from("cardapio_responses")
+        .select("id, template_id, respondent_name, created_at, answers, company_events(event_date, title)")
+        .eq("event_id", selectedResponse.event_id)
+        .order("created_at", { ascending: false });
+      setEventResponses(data || []);
+    })();
+  }, [selectedResponse, company]);
+
+  // Templates available for this event = templates that have a response for the event
+  const availablePdfChoices = (() => {
+    const choices: { templateId: string; responseId: string; templateName: string }[] = [];
+    const seen = new Set<string>();
+    for (const r of eventResponses) {
+      if (seen.has(r.template_id)) continue;
+      seen.add(r.template_id);
+      const tpl = allTemplates?.find((t) => t.id === r.template_id);
+      choices.push({
+        templateId: r.template_id,
+        responseId: r.id,
+        templateName: tpl?.name || "Cardápio",
+      });
+    }
+    if (choices.length === 0 && selectedResponse) {
+      choices.push({
+        templateId: selectedResponse.template_id,
+        responseId: selectedResponse.id,
+        templateName: template?.name || "Cardápio",
+      });
+    }
+    return choices;
+  })();
 
   const renderAnswers = (r: any) => {
     const answersArr = Array.isArray(r.answers) ? r.answers : [];
@@ -228,19 +276,55 @@ function CardapioResponseCards({ responses, template, onDelete, company }: { res
                 {renderAnswers(selectedResponse)}
               </div>
 
+              {availablePdfChoices.length > 1 && (
+                <div className="pt-4 space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Template para o PDF</Label>
+                  <Select
+                    value={pdfTemplateId ?? undefined}
+                    onValueChange={(val) => {
+                      const choice = availablePdfChoices.find((c) => c.templateId === val);
+                      if (choice) {
+                        setPdfTemplateId(choice.templateId);
+                        setPdfResponseId(choice.responseId);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder="Selecione o template" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availablePdfChoices.map((c) => (
+                        <SelectItem key={c.templateId} value={c.templateId}>
+                          {c.templateName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div className="pt-4 flex flex-col sm:flex-row gap-2 sm:justify-between">
                 <Button
                   variant="default"
                   size="sm"
                   className="gap-1.5"
-                  disabled={printing || !template}
+                  disabled={printing || !pdfTemplateId}
                   onClick={async () => {
-                    if (!template) return;
+                    const tpl =
+                      allTemplates?.find((t) => t.id === pdfTemplateId) ||
+                      (pdfTemplateId === template?.id ? template : null);
+                    const resp =
+                      eventResponses.find((r) => r.id === pdfResponseId) ||
+                      (pdfResponseId === selectedResponse.id ? selectedResponse : selectedResponse);
+                    if (!tpl || !resp) {
+                      toast({ title: "Template não encontrado", variant: "destructive" });
+                      return;
+                    }
                     setPrinting(true);
                     try {
                       const result = await generateCardapioPrintPDF(
-                        selectedResponse,
-                        template,
+                        resp,
+                        tpl,
                         { name: company?.name || "Buffet", logo_url: company?.logo_url || null },
                         { save: false },
                       );
@@ -656,7 +740,7 @@ export function CardapioContent() {
                               <p className="text-sm text-muted-foreground">Nenhuma resposta recebida ainda.</p>
                             </div>
                           ) : (
-                            <CardapioResponseCards responses={responses} template={selectedTemplateForResponses} onDelete={handleDeleteResponse} company={currentCompany ? { name: currentCompany.name, logo_url: (currentCompany as any).logo_url } : null} />
+                            <CardapioResponseCards responses={responses} template={selectedTemplateForResponses} onDelete={handleDeleteResponse} company={currentCompany ? { name: currentCompany.name, logo_url: (currentCompany as any).logo_url } : null} allTemplates={templates} />
                           )}
                         </div>
                       </CollapsibleContent>
