@@ -55,6 +55,8 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
   const [countdown, setCountdown] = useState<number | null>(null);
   const [result, setResult] = useState<{ success: number; errors: number } | null>(null);
   const [statuses, setStatuses] = useState<Map<string, string>>(new Map());
+  const [instances, setInstances] = useState<InstanceOption[]>([]);
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string>("");
   const isSendingRef = useRef(false);
   const pauseRequestedRef = useRef(false);
   const [paused, setPaused] = useState(false);
@@ -68,6 +70,7 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
   useEffect(() => {
     if (!open) return;
     loadRecipients();
+    loadInstances();
   }, [open]);
 
   const loadRecipients = async () => {
@@ -85,19 +88,22 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
     setLoading(false);
   };
 
-  const getInstanceId = async (): Promise<string | null> => {
+  const loadInstances = async () => {
     const { data } = await supabase
       .from("wapi_instances")
-      .select("instance_id")
+      .select("id, instance_id, unit, phone_number")
       .eq("company_id", companyId)
       .eq("status", "connected")
-      .limit(1)
-      .single();
-    return data?.instance_id || null;
+      .order("unit", { ascending: true });
+    const list = (data as InstanceOption[]) || [];
+    setInstances(list);
+    if (list.length > 0 && !selectedInstanceId) {
+      setSelectedInstanceId(list[0].instance_id);
+    }
   };
 
   const handleSend = async () => {
-    const instanceId = await getInstanceId();
+    const instanceId = selectedInstanceId || instances[0]?.instance_id || null;
     if (!instanceId) {
       toast.error("Nenhuma instância de WhatsApp conectada!");
       return;
