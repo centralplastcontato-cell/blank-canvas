@@ -1,47 +1,50 @@
 
 
-## Mover "Resumo da Festa" para dentro do card do Checklist
+## Resumo da Festa como módulo no Controle da Festa (público)
 
 ### O que será feito
 
-O painel "Resumo da Festa" será removido como card separado e inserido **dentro** do card do Checklist, aparecendo acima dos itens do checklist. Isso unifica visualmente as informações da festa com as tarefas operacionais, ideal para uso no Controle da Festa.
+Adicionar uma nova aba "Resumo" no `PublicPartyControl.tsx` que exibe as informações consolidadas da festa (aniversariante, pais, pacote, convidados, opcionais, observações). Isso torna o resumo acessível diretamente na Central de Controle da Festa, não apenas no card lateral interno.
 
-### Estrutura visual resultante
+### Estrutura visual
 
+A bottom nav passará de 3 para 4 abas:
 ```text
-┌─────────────────────────────────┐
-│  📋 RESUMO DA FESTA             │
-│  Aniversariante: MANUELLA — 1   │
-│  Pais: Beatriz                  │
-│  Pacote: CASTELO                │
-│  Convidados: 50 pessoas         │
-│  Horário: 19:00 até 23:00       │
-│  Unidade: Castelo da Diversão   │
-│  Opcionais / Observações        │
-│  [Anotações internas textarea]  │
-│─────────────────────────────────│
-│  CHECKLIST (3/5) — 60%          │
-│  ☑ Tarefa 1                     │
-│  ☐ Tarefa 2                     │
-│  [Nova tarefa...]          [+]  │
-└─────────────────────────────────┘
+🏠 Início  |  📋 Resumo  |  ⏳ Pendentes  |  ✅ Checklist
 ```
+
+A aba "Resumo" exibirá:
+- Aniversariante(s) — nome e idade
+- Pais / Contratante
+- Pacote
+- Convidados
+- Horário
+- Unidade
+- Opcionais (nome + valor)
+- Observações do evento
 
 ### Etapas técnicas
 
-#### 1. Modificar `EventDetailSheet.tsx`
-- Remover o bloco standalone do `<EventSummaryPanel />` (linhas 580-587).
-- Dentro do card do Checklist (linhas 589-596), adicionar o `<EventSummaryPanel />` antes do `<EventChecklist />`, com um separador visual (`border-b`) entre eles.
+#### 1. Criar/atualizar RPC `get_event_public_info` (migração SQL)
+Adicionar os campos que faltam na RPC pública:
+- `child_name`, `child_age`, `birthday_children`, `parent_names`, `event_optionals`, `notes`
 
-#### 2. Ajustar `EventSummaryPanel.tsx`
-- Remover o wrapper externo (`rounded-xl border bg-card shadow-sm`) e o header com fundo — o componente agora vive dentro do card do Checklist.
-- Manter apenas o conteúdo interno (linhas de info + textarea).
-- O header "Resumo da Festa" passa a ser um label simples (`text-xs uppercase`) consistente com o label "Checklist".
+Isso permite que a página pública acesse esses dados sem RLS.
+
+#### 2. Atualizar `PublicPartyControl.tsx`
+- Expandir a interface `PartyEvent` com os novos campos.
+- Adicionar tab type `"summary"` ao `TabType`.
+- Adicionar a aba "Resumo" na bottom nav (entre Início e Pendentes).
+- Renderizar a aba com as informações da festa no mesmo estilo visual dark/neon da página.
+- Exibir cada campo com ícone/emoji e label, seguindo o padrão visual existente.
+
+#### 3. Adicionar módulo "Resumo" na grid de módulos (Home)
+- Adicionar um card "Resumo" na home que navega para a aba de resumo (como o Checklist faz).
 
 ### Arquivos alterados
-- `src/components/agenda/EventDetailSheet.tsx` — mover o panel para dentro do card do Checklist
-- `src/components/agenda/EventSummaryPanel.tsx` — remover wrapper externo, simplificar para conteúdo inline
+- `src/pages/PublicPartyControl.tsx` — nova aba + card de módulo
+- Nova migração SQL — expandir RPC `get_event_public_info`
 
 ### Resultado esperado
-Ao abrir o painel lateral de uma festa, o card único mostrará primeiro o resumo completo da festa e logo abaixo o checklist operacional — tudo integrado no mesmo bloco visual, pronto para uso no Controle da Festa.
+Ao abrir o Controle da Festa (público), o operador pode clicar em "Resumo" e ver todas as informações da festa consolidadas, sem precisar acessar o painel interno.
 
