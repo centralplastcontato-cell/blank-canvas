@@ -636,10 +636,11 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       .reduce((s, p) => s + (Number(p.gross_amount) - p.amount), 0);
 
     const unaccountedFees = Math.max(0, cardFeeLoss.totalLoss - alreadyAccountedFees);
-    if (unaccountedFees <= 0.01) return summary;
+    if (unaccountedFees <= 0) return summary;
 
-    const adjustedPending = Math.max(0, summary.pendingAmount - unaccountedFees);
-    const isPago = adjustedPending <= 0.01 && financial.payments.length > 0;
+    const rawPending = Math.max(0, summary.pendingAmount - unaccountedFees);
+    const adjustedPending = Math.round(rawPending * 100) / 100 <= 0.01 ? 0 : Math.round(rawPending * 100) / 100;
+    const isPago = adjustedPending === 0 && financial.payments.length > 0;
     const hasLate = financial.payments.some(p => p.status === 'late');
     const hasPartial = financial.payments.some(p => p.status === 'partial');
 
