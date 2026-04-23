@@ -669,6 +669,7 @@ export type Database = {
       }
       campaigns: {
         Row: {
+          auto_reply_message: string | null
           company_id: string
           completed_at: string | null
           created_at: string
@@ -681,6 +682,7 @@ export type Database = {
           image_url: string | null
           message_variations: Json
           name: string
+          pause_bot_on_reply: boolean
           scheduled_at: string | null
           sent_count: number
           started_at: string | null
@@ -689,6 +691,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_reply_message?: string | null
           company_id: string
           completed_at?: string | null
           created_at?: string
@@ -701,6 +704,7 @@ export type Database = {
           image_url?: string | null
           message_variations?: Json
           name: string
+          pause_bot_on_reply?: boolean
           scheduled_at?: string | null
           sent_count?: number
           started_at?: string | null
@@ -709,6 +713,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_reply_message?: string | null
           company_id?: string
           completed_at?: string | null
           created_at?: string
@@ -721,6 +726,7 @@ export type Database = {
           image_url?: string | null
           message_variations?: Json
           name?: string
+          pause_bot_on_reply?: boolean
           scheduled_at?: string | null
           sent_count?: number
           started_at?: string | null
