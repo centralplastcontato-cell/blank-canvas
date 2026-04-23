@@ -1343,6 +1343,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
   // Stable callback for handling new messages from realtime - OPTIMIZED for low latency
   const handleNewRealtimeMessage = useCallback((newMessage: Message & { _realtimeReceivedAt?: number }) => {
+    // Guard: ignore messages from a different conversation (race condition on fast switching)
+    if (newMessage.conversation_id !== selectedConversationRef.current) {
+      return;
+    }
+
     // Minimal processing - append directly without expensive operations
     setMessages((prev) => {
       // Fast duplicate check by ID only
@@ -1380,7 +1385,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   }, []);
 
   // Handle realtime UPDATE events (e.g. media_url updated after async download)
-  const handleRealtimeMessageUpdate = useCallback((updatedMessage: Message & { media_url?: string | null }) => {
+  const handleRealtimeMessageUpdate = useCallback((updatedMessage: Message & { media_url?: string | null; conversation_id?: string }) => {
+    // Guard: ignore updates from a different conversation
+    if (updatedMessage.conversation_id && updatedMessage.conversation_id !== selectedConversationRef.current) {
+      return;
+    }
+
     setMessages((prev) => {
       const idx = prev.findIndex(m => m.id === updatedMessage.id);
       if (idx === -1) return prev;
@@ -2396,6 +2406,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
       // === PHASE 3: Check for provider/app-level graceful errors ===
       if (response.data?.errorType === 'SESSION_INCOMPLETE' || response.data?.blocked) {
+        if (selectedConversationRef.current !== convId) return;
         setMessages(prev => prev.map(m => 
           m.id === optimisticId ? { ...m, status: 'failed' } : m
         ));
@@ -2411,13 +2422,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         throw new Error(response.data?.error || "Não foi possível enviar a mensagem.");
       }
 
-      setMessages(prev => prev.map(m => 
-        m.id === optimisticId ? { ...m, status: 'sent' } : m
-      ));
+      if (selectedConversationRef.current === convId) {
+        setMessages(prev => prev.map(m => 
+          m.id === optimisticId ? { ...m, status: 'sent' } : m
+        ));
+      }
     } catch (error: unknown) {
       // Remove optimistic message on error
-      setMessages(prev => prev.filter(m => m.id !== optimisticId));
-      setNewMessage(messageToSend); // Restore message to input
+      if (selectedConversationRef.current === convId) {
+        setMessages(prev => prev.filter(m => m.id !== optimisticId));
+        setNewMessage(messageToSend);
+      }
       
       toast({
         title: "Erro ao enviar",
