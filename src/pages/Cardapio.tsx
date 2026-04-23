@@ -12,11 +12,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { UtensilsCrossed, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, Calendar, ChevronDown, ChevronRight, PartyPopper, FileText } from "lucide-react";
+import { UtensilsCrossed, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, Calendar, ChevronDown, ChevronRight, PartyPopper, FileText, Printer } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { buildPublicFormPath, buildPublicFormUrl } from "@/lib/publicFormRoutes";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { generateCardapioPrintPDF } from "@/lib/cardapioPrintPDF";
 
 interface CardapioSection {
   id: string;
@@ -130,9 +131,10 @@ const DEFAULT_SECTIONS: CardapioSection[] = [
   },
 ];
 
-function CardapioResponseCards({ responses, template, onDelete }: { responses: any[]; template: CardapioTemplate | null; onDelete?: (id: string) => Promise<void> | void }) {
+function CardapioResponseCards({ responses, template, onDelete, company }: { responses: any[]; template: CardapioTemplate | null; onDelete?: (id: string) => Promise<void> | void; company?: { name: string; logo_url?: string | null } | null }) {
   const [selectedResponse, setSelectedResponse] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [printing, setPrinting] = useState(false);
 
   const renderAnswers = (r: any) => {
     const answersArr = Array.isArray(r.answers) ? r.answers : [];
@@ -225,8 +227,34 @@ function CardapioResponseCards({ responses, template, onDelete }: { responses: a
                 {renderAnswers(selectedResponse)}
               </div>
 
-              {onDelete && (
-                <div className="pt-4 flex justify-end">
+              <div className="pt-4 flex flex-col sm:flex-row gap-2 sm:justify-between">
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={printing || !template}
+                  onClick={async () => {
+                    if (!template) return;
+                    setPrinting(true);
+                    try {
+                      await generateCardapioPrintPDF(
+                        selectedResponse,
+                        template,
+                        { name: company?.name || "Buffet", logo_url: company?.logo_url || null },
+                      );
+                    } catch (err) {
+                      console.error(err);
+                      toast({ title: "Erro ao gerar PDF", variant: "destructive" });
+                    } finally {
+                      setPrinting(false);
+                    }
+                  }}
+                >
+                  {printing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />}
+                  Imprimir para Cozinha
+                </Button>
+
+                {onDelete && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5">
@@ -259,8 +287,8 @@ function CardapioResponseCards({ responses, template, onDelete }: { responses: a
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
-                </div>
-              )}
+                )}
+              </div>
             </>
           )}
         </SheetContent>
@@ -567,7 +595,7 @@ export function CardapioContent() {
                               <p className="text-sm text-muted-foreground">Nenhuma resposta recebida ainda.</p>
                             </div>
                           ) : (
-                            <CardapioResponseCards responses={responses} template={selectedTemplateForResponses} onDelete={handleDeleteResponse} />
+                            <CardapioResponseCards responses={responses} template={selectedTemplateForResponses} onDelete={handleDeleteResponse} company={currentCompany ? { name: currentCompany.name, logo_url: (currentCompany as any).logo_url } : null} />
                           )}
                         </div>
                       </CollapsibleContent>
