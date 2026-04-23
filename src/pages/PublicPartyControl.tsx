@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { buildPublicFormPath } from "@/lib/publicFormRoutes";
 import {
   Loader2, Check, AlertTriangle, PartyPopper,
-  ChevronRight, Shield, Zap, ArrowRight
+  ChevronRight, Shield, Zap, ArrowRight,
+  Cake, Users2, Package, Users, Clock, MapPin, Star, StickyNote
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
