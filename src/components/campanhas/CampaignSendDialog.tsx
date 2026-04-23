@@ -379,14 +379,47 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
             </div>
           ) : (
             <div className="space-y-4 py-2">
+              {instances.length > 1 && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Smartphone className="w-3.5 h-3.5" />
+                    Enviar pelo WhatsApp
+                  </Label>
+                  <Select value={selectedInstanceId} onValueChange={setSelectedInstanceId}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecione a instância" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {instances.map((inst) => (
+                        <SelectItem key={inst.instance_id} value={inst.instance_id}>
+                          {inst.unit || "Sem unidade"}
+                          {inst.phone_number ? ` — ${inst.phone_number}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground">
+                    Escolha por qual número os disparos serão feitos.
+                  </p>
+                </div>
+              )}
+              {instances.length === 1 && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 text-xs text-muted-foreground">
+                  <Smartphone className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">
+                    Enviando por: <strong className="text-foreground">{instances[0].unit || "WhatsApp"}</strong>
+                    {instances[0].phone_number ? ` (${instances[0].phone_number})` : ""}
+                  </span>
+                </div>
+              )}
               <div className="text-center">
                 <p className="text-sm text-muted-foreground mb-4">
                   {recipients.length} mensagens serão enviadas com intervalo de {campaign.delay_seconds}s.
                   Tempo estimado: ~{Math.ceil((recipients.length * campaign.delay_seconds) / 60)} minutos.
                 </p>
-                <Button onClick={handleSend} className="w-full" size="lg">
+                <Button onClick={handleSend} className="w-full" size="lg" disabled={instances.length === 0}>
                   <Send className="w-4 h-4 mr-2" />
-                  Iniciar Envio
+                  {instances.length === 0 ? "Nenhum WhatsApp conectado" : "Iniciar Envio"}
                 </Button>
               </div>
             </div>
