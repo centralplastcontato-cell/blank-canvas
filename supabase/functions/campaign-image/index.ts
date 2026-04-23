@@ -12,11 +12,27 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { base_image_url, logo_url, company_id, position, campaign_theme, context } = await req.json();
+    const { base_image_url, logo_url, company_id, position, campaign_theme, context, generation_mode } = await req.json();
 
-    if (!base_image_url || !company_id) {
+    if (!company_id) {
       return new Response(
-        JSON.stringify({ error: "base_image_url e company_id são obrigatórios" }),
+        JSON.stringify({ error: "company_id é obrigatório" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const isThemeOnly = generation_mode === "theme_only";
+
+    if (!isThemeOnly && !base_image_url) {
+      return new Response(
+        JSON.stringify({ error: "base_image_url é obrigatório no modo com foto" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (isThemeOnly && !campaign_theme && !context) {
+      return new Response(
+        JSON.stringify({ error: "Informe um tema ou descrição para gerar a arte" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -34,18 +50,51 @@ Deno.serve(async (req) => {
     };
     const posLabel = positionMap[position] || "canto inferior direito";
 
-    // Build composition prompt - professional agency style
-    const themeHint = campaign_theme
-      ? `O tema visual da campanha e "${campaign_theme}". Use elementos decorativos sutis relacionados a esse tema (confetes, baloes, estrelas, fitas, flores, etc) nas bordas e cantos da imagem.`
-      : "Adicione elementos decorativos festivos e alegres (confetes, baloes, estrelas) sutilmente nas bordas.";
+    let promptText: string;
+    let imageContent: any[] = [];
 
-    const contextHint = context ? ` Contexto da campanha: ${context}.` : "";
+    if (isThemeOnly) {
+      // Theme-only mode: generate art from scratch
+      const themeDesc = campaign_theme || "festa infantil";
+      const contextHint = context ? ` Contexto da campanha: ${context}.` : "";
 
-    const logoInstruction = logo_url
-      ? `Posicione o logotipo fornecido no ${posLabel} da imagem, com um fundo semi-transparente arredondado por tras para garantir legibilidade. O logotipo deve ocupar cerca de 15-20% da largura da imagem e manter suas proporcoes originais.`
-      : "";
+      const logoInstruction = logo_url
+        ? `Posicione o logotipo fornecido no ${posLabel} da imagem, com um fundo semi-transparente arredondado por tras para garantir legibilidade. O logotipo deve ocupar cerca de 15-20% da largura da imagem e manter suas proporcoes originais.`
+        : "";
 
-    const promptText = `Voce e um designer grafico profissional especializado em marketing de buffet infantil.
+      promptText = `Voce e um designer grafico profissional especializado em marketing de buffet infantil.
+Crie do ZERO uma arte promocional de alto impacto visual para compartilhamento no WhatsApp.
+
+Tema da campanha: "${themeDesc}".${contextHint}
+
+Instrucoes OBRIGATORIAS:
+- Crie uma composicao visual ORIGINAL e impactante baseada no tema "${themeDesc}".
+- Use cores vibrantes, saturadas e convidativas que remetam ao tema.
+- Inclua elementos decorativos festivos e alegres relacionados ao tema (confetes, baloes, estrelas, fitas, brinquedos, doces, bolos, etc).
+- A arte deve ter um visual profissional de agencia de marketing, com boa composicao visual.
+- Formato quadrado, alta resolucao.
+- ${logoInstruction}
+- O fundo deve ser atrativo e colorido, nunca branco puro ou sem graça.
+- Use gradientes, formas geometricas e elementos que criem profundidade e interesse visual.
+
+REGRA ABSOLUTA: NAO adicione NENHUM texto, letra, palavra, numero, faixa com texto, placa ou caractere escrito de qualquer tipo em qualquer idioma. Apenas elementos visuais decorativos. ZERO texto.`;
+
+      if (logo_url) {
+        imageContent.push({ type: "image_url", image_url: { url: logo_url } });
+      }
+    } else {
+      // Photo-based mode (existing logic)
+      const themeHint = campaign_theme
+        ? `O tema visual da campanha e "${campaign_theme}". Use elementos decorativos sutis relacionados a esse tema (confetes, baloes, estrelas, fitas, flores, etc) nas bordas e cantos da imagem.`
+        : "Adicione elementos decorativos festivos e alegres (confetes, baloes, estrelas) sutilmente nas bordas.";
+
+      const contextHint = context ? ` Contexto da campanha: ${context}.` : "";
+
+      const logoInstruction = logo_url
+        ? `Posicione o logotipo fornecido no ${posLabel} da imagem, com um fundo semi-transparente arredondado por tras para garantir legibilidade. O logotipo deve ocupar cerca de 15-20% da largura da imagem e manter suas proporcoes originais.`
+        : "";
+
+      promptText = `Voce e um designer grafico profissional especializado em marketing de buffet infantil.
 Transforme esta foto em uma arte promocional de alto impacto para compartilhamento no WhatsApp.
 
 Instrucoes OBRIGATORIAS:
@@ -59,15 +108,21 @@ Instrucoes OBRIGATORIAS:
 
 REGRA ABSOLUTA: NAO adicione NENHUM texto, letra, palavra, numero, faixa com texto, placa ou caractere escrito de qualquer tipo em qualquer idioma. Apenas elementos visuais decorativos. ZERO texto.`;
 
-    // Build image content array
-    const imageContent: any[] = [
-      { type: "image_url", image_url: { url: base_image_url } },
-    ];
-    if (logo_url) {
-      imageContent.push({ type: "image_url", image_url: { url: logo_url } });
+      imageContent = [
+        { type: "image_url", image_url: { url: base_image_url } },
+      ];
+      if (logo_url) {
+        imageContent.push({ type: "image_url", image_url: { url: logo_url } });
+      }
     }
 
-    // Call Gemini Pro Image for higher quality composition
+    // Build message content
+    const messageContent: any[] = [
+      { type: "text", text: promptText },
+      ...imageContent,
+    ];
+
+    // Call Gemini Pro Image
     const MAX_RETRIES = 2;
     let response: Response | null = null;
 
@@ -83,10 +138,7 @@ REGRA ABSOLUTA: NAO adicione NENHUM texto, letra, palavra, numero, faixa com tex
           messages: [
             {
               role: "user",
-              content: [
-                { type: "text", text: promptText },
-                ...imageContent,
-              ],
+              content: messageContent,
             },
           ],
           modalities: ["image", "text"],
@@ -177,7 +229,7 @@ REGRA ABSOLUTA: NAO adicione NENHUM texto, letra, palavra, numero, faixa com tex
         const resizeData = await resizeResp.json();
         thumbnailUrl = resizeData.thumbnail_url || null;
       } else {
-        await resizeResp.text(); // consume body
+        await resizeResp.text();
       }
     } catch (thumbErr) {
       console.error("Thumbnail generation failed:", thumbErr);
