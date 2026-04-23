@@ -227,8 +227,34 @@ function CardapioResponseCards({ responses, template, onDelete, company }: { res
                 {renderAnswers(selectedResponse)}
               </div>
 
-              {onDelete && (
-                <div className="pt-4 flex justify-end">
+              <div className="pt-4 flex flex-col sm:flex-row gap-2 sm:justify-between">
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={printing || !template}
+                  onClick={async () => {
+                    if (!template) return;
+                    setPrinting(true);
+                    try {
+                      await generateCardapioPrintPDF(
+                        selectedResponse,
+                        template,
+                        { name: company?.name || "Buffet", logo_url: company?.logo_url || null },
+                      );
+                    } catch (err) {
+                      console.error(err);
+                      toast({ title: "Erro ao gerar PDF", variant: "destructive" });
+                    } finally {
+                      setPrinting(false);
+                    }
+                  }}
+                >
+                  {printing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />}
+                  Imprimir para Cozinha
+                </Button>
+
+                {onDelete && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5">
@@ -261,8 +287,8 @@ function CardapioResponseCards({ responses, template, onDelete, company }: { res
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
-                </div>
-              )}
+                )}
+              </div>
             </>
           )}
         </SheetContent>
