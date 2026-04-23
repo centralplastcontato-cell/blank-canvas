@@ -1148,14 +1148,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Keep activeConversationIdRef in sync (used by async guards)
   activeConversationIdRef.current = selectedConversation?.id ?? null;
 
-  // Save/restore drafts when switching conversations
+  // Save/restore drafts when switching conversations (uses its own ref to avoid conflicting with fetch effect)
+  const draftPrevConvIdRef = useRef<string | null>(null);
   useEffect(() => {
-    const prevId = prevConversationIdRef.current;
+    const prevId = draftPrevConvIdRef.current;
     const newId = selectedConversation?.id ?? null;
 
     // Save draft for previous conversation
     if (prevId && prevId !== newId) {
-      // Read current message from state synchronously via ref trick
       setNewMessageRaw(prev => {
         saveDraft(prevId, prev);
         return prev;
@@ -1173,7 +1173,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       }
     }
 
-    prevConversationIdRef.current = newId;
+    draftPrevConvIdRef.current = newId;
   }, [selectedConversation?.id]);
 
   // Debounced save on every keystroke
