@@ -184,6 +184,7 @@ export default function Agenda() {
 
   const [events, setEvents] = useState<CompanyEvent[]>([]);
   const [checklistProgress, setChecklistProgress] = useState<Record<string, { total: number; completed: number }>>({});
+  const [paymentStatus, setPaymentStatus] = useState<Record<string, { total: number; paid: number; pending: number; late: number }>>({});
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -471,7 +472,7 @@ export default function Agenda() {
     if (!initialLoadDone.current) setLoading(true);
     const start = format(startOfMonth(month), "yyyy-MM-dd");
     const end = format(endOfMonth(month), "yyyy-MM-dd");
-    const [eventsRes, checklistRes, closedResult, preResRes, allPreResRes] = await Promise.all([
+    const [eventsRes, checklistRes, closedResult, preResRes, allPreResRes, paymentsRes] = await Promise.all([
       supabase
         .from("company_events")
         .select("*")
@@ -497,6 +498,10 @@ export default function Agenda() {
         .select("*")
         .eq("company_id", currentCompany.id)
         .order("event_date", { ascending: true }),
+      supabase
+        .from("event_payments")
+        .select("event_id, status, due_date")
+        .eq("company_id", currentCompany.id),
     ]);
 
     if (!eventsRes.error && eventsRes.data) setEvents(eventsRes.data as CompanyEvent[]);
@@ -514,6 +519,22 @@ export default function Agenda() {
       if (item.is_completed) progressMap[item.event_id].completed++;
     });
     setChecklistProgress(progressMap);
+
+    // Build payment status map
+    const today = format(new Date(), "yyyy-MM-dd");
+    const pmMap: Record<string, { total: number; paid: number; pending: number; late: number }> = {};
+    (paymentsRes.data || []).forEach((p: any) => {
+      if (!pmMap[p.event_id]) pmMap[p.event_id] = { total: 0, paid: 0, pending: 0, late: 0 };
+      pmMap[p.event_id].total++;
+      if (p.status === "paid") {
+        pmMap[p.event_id].paid++;
+      } else if (p.due_date && p.due_date < today) {
+        pmMap[p.event_id].late++;
+      } else {
+        pmMap[p.event_id].pending++;
+      }
+    });
+    setPaymentStatus(pmMap);
 
     setLoading(false);
     initialLoadDone.current = true;
@@ -1864,6 +1885,29 @@ export default function Agenda() {
                                 {checklistProgress[ev.id].completed}/{checklistProgress[ev.id].total} tarefas
                               </div>
                             )}
+                            {/* Payment status indicator */}
+                            {showRevenue && paymentStatus[ev.id] && paymentStatus[ev.id].total > 0 && (() => {
+                              const ps = paymentStatus[ev.id];
+                              if (ps.late > 0) return (
+                                <div className="flex items-center gap-1 text-xs text-red-600 font-medium mt-1">
+                                  <DollarSign className="h-3 w-3" />
+                                  {ps.late} parcela{ps.late > 1 ? "s" : ""} em atraso
+                                </div>
+                              );
+                              if (ps.pending > 0) return (
+                                <div className="flex items-center gap-1 text-xs text-amber-600 font-medium mt-1">
+                                  <DollarSign className="h-3 w-3" />
+                                  {ps.pending} parcela{ps.pending > 1 ? "s" : ""} pendente{ps.pending > 1 ? "s" : ""}
+                                </div>
+                              );
+                              if (ps.paid === ps.total) return (
+                                <div className="flex items-center gap-1 text-xs text-emerald-600 mt-1">
+                                  <DollarSign className="h-3 w-3" />
+                                  Pago
+                                </div>
+                              );
+                              return null;
+                            })()}
                           </button>
                         );
                       })}
