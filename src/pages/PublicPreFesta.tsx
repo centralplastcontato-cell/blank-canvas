@@ -145,6 +145,7 @@ export default function PublicPreFesta() {
       template_id: template.id,
       company_id: template.company_id,
       respondent_name: respondentName.trim() || null,
+      event_id: eventId || null,
       answers: Object.entries(answers).map(([questionId, value]) => ({ questionId, value })),
     });
 
