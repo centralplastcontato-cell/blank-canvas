@@ -304,7 +304,6 @@ export default function Campanhas() {
                               <Switch
                                 checked={campaign.status !== "cancelled"}
                                 onCheckedChange={(v) => handleToggleActive(campaign, v)}
-                                disabled={campaign.status === "completed"}
                               />
                               <span className="text-[10px] text-muted-foreground">
                                 {campaign.status === "cancelled" ? "Inativa" : "Ativa"}
