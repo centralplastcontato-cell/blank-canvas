@@ -577,19 +577,15 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
             </div>
           </div>
 
-          {/* Resumo da Festa */}
-          {event.company_id && (
-            <EventSummaryPanel
-              event={event}
-              leadName={leadName}
-              companyId={event.company_id}
-            />
-          )}
-
-          {/* Checklist */}
+          {/* Checklist + Resumo da Festa */}
           {event.company_id && (
             <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden">
-              <div className="p-4">
+              <EventSummaryPanel
+                event={event}
+                leadName={leadName}
+                companyId={event.company_id}
+              />
+              <div className="border-t border-border/30 p-4">
                 <EventChecklist eventId={event.id} companyId={event.company_id} />
               </div>
             </div>
