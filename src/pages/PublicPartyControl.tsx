@@ -10,6 +10,16 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
+interface BirthdayChild {
+  name?: string;
+  age?: string;
+}
+
+interface EventOptional {
+  name?: string;
+  value?: number;
+}
+
 interface PartyEvent {
   id: string;
   company_id: string;
@@ -23,6 +33,12 @@ interface PartyEvent {
   status: string;
   package_name: string | null;
   total_value: number | null;
+  child_name: string | null;
+  child_age: string | null;
+  birthday_children: BirthdayChild[] | null;
+  parent_names: string | null;
+  event_optionals: EventOptional[] | null;
+  notes: string | null;
 }
 
 interface PartyControlModules {
@@ -53,7 +69,7 @@ interface CompanyInfo {
   settings: Record<string, unknown> | null;
 }
 
-type TabType = "home" | "pending" | "checklist";
+type TabType = "home" | "summary" | "pending" | "checklist";
 
 function parsePartyControlModules(settings: Record<string, unknown> | null): PartyControlModules {
   const defaults: PartyControlModules = {
@@ -641,6 +657,7 @@ export default function PublicPartyControl() {
         <div className="flex items-stretch">
           {[
             { id: "home" as TabType, label: "Início", emoji: "🏠", badge: null },
+            { id: "summary" as TabType, label: "Resumo", emoji: "📋", badge: null },
             { id: "pending" as TabType, label: "Pendentes", emoji: "⏳", badge: pendingCount > 0 ? pendingCount : null },
             { id: "checklist" as TabType, label: "Checklist", emoji: "✅", badge: null },
           ].map(tab => {
