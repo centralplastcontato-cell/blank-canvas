@@ -3044,9 +3044,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       }
 
       // Update optimistic message to sent status
-      setMessages(prev => prev.map(m => 
-        m.id === optimisticId ? { ...m, status: 'sent', media_url: mediaUrl } : m
-      ));
+      if (activeConversationIdRef.current === convId) {
+        setMessages(prev => prev.map(m => 
+          m.id === optimisticId ? { ...m, status: 'sent', media_url: mediaUrl } : m
+        ));
+      }
 
       // Update media_url in database if not set
       if (response.data?.messageId) {
@@ -3062,7 +3064,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       });
     } catch (error: any) {
       // Remove optimistic message on error
-      setMessages(prev => prev.filter(m => m.id !== optimisticId));
+      if (activeConversationIdRef.current === convId) {
+        setMessages(prev => prev.filter(m => m.id !== optimisticId));
+      }
       
       toast({
         title: "Erro ao enviar áudio",
