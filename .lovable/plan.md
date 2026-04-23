@@ -1,50 +1,40 @@
 
 
-## Resumo da Festa como módulo no Controle da Festa (público)
+## Indicador de Pendência Financeira nos Cards da Agenda
 
 ### O que será feito
 
-Adicionar uma nova aba "Resumo" no `PublicPartyControl.tsx` que exibe as informações consolidadas da festa (aniversariante, pais, pacote, convidados, opcionais, observações). Isso torna o resumo acessível diretamente na Central de Controle da Festa, não apenas no card lateral interno.
+Adicionar um indicador visual compacto nos cards de evento do painel lateral da Agenda (sidebar do dia selecionado) que mostra se a festa possui parcelas pendentes ou em atraso, sem necessidade de abrir o detalhe do evento.
 
-### Estrutura visual
+### Como vai funcionar
 
-A bottom nav passará de 3 para 4 abas:
-```text
-🏠 Início  |  📋 Resumo  |  ⏳ Pendentes  |  ✅ Checklist
-```
+- Ao selecionar um dia no calendário, os cards de evento já exibem informações como horário, unidade, convidados, valor e checklist.
+- Será adicionado um novo indicador abaixo dessas informações mostrando:
+  - **Parcela em atraso**: ícone vermelho com texto "X parcela(s) em atraso"
+  - **Parcela pendente**: ícone laranja com texto "X parcela(s) pendente(s)"
+  - **Tudo pago**: ícone verde discreto com "Pago" (somente se existirem parcelas)
+- O indicador usa cores semânticas consistentes com o padrão visual do sistema.
 
-A aba "Resumo" exibirá:
-- Aniversariante(s) — nome e idade
-- Pais / Contratante
-- Pacote
-- Convidados
-- Horário
-- Unidade
-- Opcionais (nome + valor)
-- Observações do evento
+### Detalhes técnicos
 
-### Etapas técnicas
+#### 1. Buscar dados de pagamento para eventos do mês (`src/pages/Agenda.tsx`)
+- Após carregar os eventos (`fetchEvents`), fazer uma query complementar em `event_payments` para todos os `event_id`s do mês visível.
+- Agrupar por `event_id` e calcular: total de parcelas, quantas pagas, quantas pendentes, quantas em atraso (due_date < hoje e status != paid).
+- Armazenar em um `Record<string, { total: number; paid: number; pending: number; late: number }>` via `useState`.
 
-#### 1. Criar/atualizar RPC `get_event_public_info` (migração SQL)
-Adicionar os campos que faltam na RPC pública:
-- `child_name`, `child_age`, `birthday_children`, `parent_names`, `event_optionals`, `notes`
+#### 2. Renderizar indicador no card do evento (sidebar)
+- No bloco onde já são renderizados checklist progress e conflitos (linhas ~1856-1866), adicionar uma linha condicional:
+  - Se `late > 0`: badge vermelho "X em atraso"
+  - Senão se `pending > 0`: badge laranja "X pendente(s)"
+  - Senão se `paid > 0 && paid === total`: badge verde "Pago"
+- Usar ícone `DollarSign` ou `Banknote` para consistência.
 
-Isso permite que a página pública acesse esses dados sem RLS.
-
-#### 2. Atualizar `PublicPartyControl.tsx`
-- Expandir a interface `PartyEvent` com os novos campos.
-- Adicionar tab type `"summary"` ao `TabType`.
-- Adicionar a aba "Resumo" na bottom nav (entre Início e Pendentes).
-- Renderizar a aba com as informações da festa no mesmo estilo visual dark/neon da página.
-- Exibir cada campo com ícone/emoji e label, seguindo o padrão visual existente.
-
-#### 3. Adicionar módulo "Resumo" na grid de módulos (Home)
-- Adicionar um card "Resumo" na home que navega para a aba de resumo (como o Checklist faz).
+#### 3. Atualizar AgendaListView (opcional)
+- Aplicar a mesma lógica na visão de lista (`AgendaListView.tsx`), caso o mesmo padrão de exibição seja desejado.
 
 ### Arquivos alterados
-- `src/pages/PublicPartyControl.tsx` — nova aba + card de módulo
-- Nova migração SQL — expandir RPC `get_event_public_info`
+- `src/pages/Agenda.tsx` — fetch de payment status + renderização no card lateral
 
 ### Resultado esperado
-Ao abrir o Controle da Festa (público), o operador pode clicar em "Resumo" e ver todas as informações da festa consolidadas, sem precisar acessar o painel interno.
+O operador visualiza imediatamente no card da festa (sidebar do calendário) se há pendências financeiras, sem precisar abrir o detalhe do evento.
 
