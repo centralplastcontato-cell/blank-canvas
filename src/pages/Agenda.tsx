@@ -283,6 +283,7 @@ export default function Agenda() {
   const [searchLoading, setSearchLoading] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [searchStatusFilter, setSearchStatusFilter] = useState<"all" | "confirmado" | "pendente" | "cancelado">("all");
+  const [paymentFilter, setPaymentFilter] = useState<"all" | "pending" | "late">("all");
 
   const searchEvents = useCallback(async (term: string) => {
     if (!currentCompany?.id || term.trim().length < 2) {
@@ -618,8 +619,18 @@ export default function Agenda() {
     if (selectedUnit !== "all") {
       filtered = filtered.filter(e => e.unit === selectedUnit);
     }
+    // Payment filter
+    if (paymentFilter !== "all") {
+      filtered = filtered.filter(e => {
+        const ps = paymentStatus[e.id];
+        if (!ps) return false;
+        if (paymentFilter === "late") return ps.late > 0;
+        if (paymentFilter === "pending") return ps.pending > 0 || ps.late > 0;
+        return false;
+      });
+    }
     return filtered;
-  }, [events, selectedUnit, canViewAll, allowedUnits]);
+  }, [events, selectedUnit, canViewAll, allowedUnits, paymentFilter, paymentStatus]);
 
   // Filtered period events (same unit logic)
   const periodFilteredEvents = useMemo(() => {
@@ -1301,6 +1312,19 @@ export default function Agenda() {
                       </Select>
                     );
                   })()}
+                  {showRevenue && (
+                    <Select value={paymentFilter} onValueChange={(v) => setPaymentFilter(v as any)}>
+                      <SelectTrigger className={cn("w-[180px] h-10 bg-background/80 backdrop-blur-sm border-border/50 shadow-sm", paymentFilter !== "all" && "border-amber-400 text-amber-700")}>
+                        <DollarSign className="h-3.5 w-3.5 mr-1 shrink-0" />
+                        <SelectValue placeholder="Financeiro" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas as festas</SelectItem>
+                        <SelectItem value="pending">💰 Com pendências</SelectItem>
+                        <SelectItem value="late">⚠️ Em atraso</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <div className="flex items-center gap-2.5">
                   <Button variant="outline" size="icon" className="h-10 w-10 border-blue-300 text-blue-600 hover:bg-blue-50" onClick={() => setReportOpen(true)} title="Gerar Relatório">
