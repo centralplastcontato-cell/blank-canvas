@@ -22,7 +22,7 @@ interface CardapioResponse {
   respondent_name: string | null;
   created_at: string;
   answers: Array<{ sectionId: string; selected: string | string[] | null }>;
-  company_events?: { event_date?: string | null; title?: string | null } | null;
+  company_events?: { event_date?: string | null; title?: string | null; guest_count?: number | null } | null;
 }
 
 interface CompanyInfo {
