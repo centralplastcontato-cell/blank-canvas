@@ -47,6 +47,13 @@ interface EventData {
   data_fechamento_venda?: string | null;
   vendedor_responsavel_id?: string | null;
   payment_method?: string | null;
+  child_name?: string | null;
+  child_age?: string | null;
+  birthday_children?: any[] | null;
+  parent_names?: string | null;
+  event_optionals?: any[] | null;
+  internal_notes?: string | null;
+  gifts?: string | null;
 }
 
 interface EventDetailSheetProps {
