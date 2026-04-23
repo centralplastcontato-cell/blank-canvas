@@ -385,7 +385,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const { getDraft, saveDraft, clearDraft } = useDraftMessages();
   const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevConversationIdRef = useRef<string | null>(null);
-
+  // Dedicated ref for active conversation ID — used to guard async callbacks (fetch, send, realtime)
+  const activeConversationIdRef = useRef<string | null>(null);
   // Wrapper that also saves draft with debounce
   const setNewMessage = useCallback((valueOrFn: string | ((prev: string) => string)) => {
     setNewMessageRaw((prev) => {
@@ -1144,15 +1145,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Ref to track selected conversation ID inside realtime callbacks without re-triggering the effect
   const selectedConversationRef = useRef<string | null>(null);
   selectedConversationRef.current = selectedConversation?.id ?? null;
+  // Keep activeConversationIdRef in sync (used by async guards)
+  activeConversationIdRef.current = selectedConversation?.id ?? null;
 
-  // Save/restore drafts when switching conversations
+  // Save/restore drafts when switching conversations (uses its own ref to avoid conflicting with fetch effect)
+  const draftPrevConvIdRef = useRef<string | null>(null);
   useEffect(() => {
-    const prevId = prevConversationIdRef.current;
+    const prevId = draftPrevConvIdRef.current;
     const newId = selectedConversation?.id ?? null;
 
     // Save draft for previous conversation
     if (prevId && prevId !== newId) {
-      // Read current message from state synchronously via ref trick
       setNewMessageRaw(prev => {
         saveDraft(prevId, prev);
         return prev;
@@ -1170,7 +1173,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       }
     }
 
-    prevConversationIdRef.current = newId;
+    draftPrevConvIdRef.current = newId;
   }, [selectedConversation?.id]);
 
   // Debounced save on every keystroke
@@ -2050,6 +2053,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       
       const { data, error } = await query;
 
+      // Guard: if user switched to a different conversation while we were fetching, discard results
+      if (activeConversationIdRef.current !== conversationId) {
+        console.log('[fetchMessages] Discarding stale response for', conversationId);
+        return;
+      }
+
       if (error) {
         console.error("[fetchMessages] Error:", error);
         return;
@@ -2076,10 +2085,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           });
         } else {
           // Initial load - merge with any realtime messages that arrived during fetch
+          // IMPORTANT: only keep prev messages that belong to the SAME conversation
           setMessages(prev => {
             if (prev.length === 0) return orderedMessages;
             const fetchedIds = new Set(orderedMessages.map(m => m.id));
-            const realtimeOnly = prev.filter(m => !fetchedIds.has(m.id) && !m.id.startsWith('optimistic-'));
+            const realtimeOnly = prev.filter(m => 
+              !fetchedIds.has(m.id) && 
+              !m.id.startsWith('optimistic-') &&
+              m.conversation_id === conversationId
+            );
             if (realtimeOnly.length === 0) return orderedMessages;
             return [...orderedMessages, ...realtimeOnly].sort(
               (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
@@ -2087,9 +2101,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           });
         }
       } else if (!loadMore) {
-        // No messages found
-        setMessages([]);
-        setHasMoreMessages(false);
+        // No messages found — only clear if still on same conversation
+        if (activeConversationIdRef.current === conversationId) {
+          setMessages([]);
+          setHasMoreMessages(false);
+        }
       } else {
         // No more older messages
         setHasMoreMessages(false);
@@ -2449,12 +2465,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     if (!contactName.trim() || !contactPhone.trim() || !selectedConversation || !selectedInstance) return;
     
     setIsSendingContact(true);
+    const convId = selectedConversation.id;
     
     const contactContent = `[Contato] ${contactName.trim()} - ${contactPhone.trim()}`;
     const optimisticId = `optimistic-${Date.now()}`;
     const optimisticMessage: Message = {
       id: optimisticId,
-      conversation_id: selectedConversation.id,
+      conversation_id: convId,
       message_id: null,
       from_me: true,
       message_type: 'contact',
@@ -2474,7 +2491,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           phone: getConversationPhone(selectedConversation),
           contactName: contactName.trim(),
           contactPhone: contactPhone.trim(),
-          conversationId: selectedConversation.id,
+          conversationId: convId,
           instanceId: selectedInstance.instance_id,
       });
 
@@ -2482,14 +2499,18 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const responseData = response.data as { success?: boolean; error?: string } | undefined;
       if (responseData && responseData.success === false) throw new Error(responseData.error || "Falha ao enviar contato");
 
-      setMessages(prev => prev.map(m => 
-        m.id === optimisticId ? { ...m, status: 'sent' } : m
-      ));
+      if (activeConversationIdRef.current === convId) {
+        setMessages(prev => prev.map(m => 
+          m.id === optimisticId ? { ...m, status: 'sent' } : m
+        ));
+      }
       
       setContactName("");
       setContactPhone("");
     } catch (error: unknown) {
-      setMessages(prev => prev.filter(m => m.id !== optimisticId));
+      if (activeConversationIdRef.current === convId) {
+        setMessages(prev => prev.filter(m => m.id !== optimisticId));
+      }
       toast({
         title: "Erro ao enviar contato",
         description: error instanceof Error ? error.message : "Não foi possível enviar o contato.",
@@ -2935,6 +2956,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     if (!audioBlob || !selectedConversation || !selectedInstance || isUploading) return;
 
     setIsUploading(true);
+    const convId = selectedConversation.id;
     
     // Optimistic update - show audio message immediately
     const optimisticId = `optimistic-${Date.now()}`;
@@ -3022,9 +3044,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       }
 
       // Update optimistic message to sent status
-      setMessages(prev => prev.map(m => 
-        m.id === optimisticId ? { ...m, status: 'sent', media_url: mediaUrl } : m
-      ));
+      if (activeConversationIdRef.current === convId) {
+        setMessages(prev => prev.map(m => 
+          m.id === optimisticId ? { ...m, status: 'sent', media_url: mediaUrl } : m
+        ));
+      }
 
       // Update media_url in database if not set
       if (response.data?.messageId) {
@@ -3040,7 +3064,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       });
     } catch (error: any) {
       // Remove optimistic message on error
-      setMessages(prev => prev.filter(m => m.id !== optimisticId));
+      if (activeConversationIdRef.current === convId) {
+        setMessages(prev => prev.filter(m => m.id !== optimisticId));
+      }
       
       toast({
         title: "Erro ao enviar áudio",
@@ -3131,6 +3157,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     if (!mediaPreview || !selectedConversation || !selectedInstance || isUploading) return;
 
     setIsUploading(true);
+    const convId = selectedConversation.id;
     
     // Optimistic update - show media message immediately
     const { type, file, preview } = mediaPreview;
@@ -3212,9 +3239,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         }
         
         // Update optimistic message with final URL
-        setMessages(prev => prev.map(m => 
-          m.id === optimisticId ? { ...m, status: 'sent', media_url: mediaUrl || m.media_url } : m
-        ));
+        if (activeConversationIdRef.current === convId) {
+          setMessages(prev => prev.map(m => 
+            m.id === optimisticId ? { ...m, status: 'sent', media_url: mediaUrl || m.media_url } : m
+          ));
+        }
       } else if (type === 'document') {
         // For documents: upload to storage first (W-API needs URL)
         const { error: uploadError } = await supabase.storage
@@ -3250,9 +3279,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         }
         
         // Update optimistic message with final URL
-        setMessages(prev => prev.map(m => 
-          m.id === optimisticId ? { ...m, status: 'sent', media_url: mediaUrl } : m
-        ));
+        if (activeConversationIdRef.current === convId) {
+          setMessages(prev => prev.map(m => 
+            m.id === optimisticId ? { ...m, status: 'sent', media_url: mediaUrl } : m
+          ));
+        }
       } else if (type === 'video') {
         // For videos: upload to storage first (W-API needs URL)
         const { error: uploadError } = await supabase.storage
@@ -3290,9 +3321,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         }
         
         // Update optimistic message with final URL
-        setMessages(prev => prev.map(m => 
-          m.id === optimisticId ? { ...m, status: 'sent', media_url: mediaUrl } : m
-        ));
+        if (activeConversationIdRef.current === convId) {
+          setMessages(prev => prev.map(m => 
+            m.id === optimisticId ? { ...m, status: 'sent', media_url: mediaUrl } : m
+          ));
+        }
       }
 
       toast({
@@ -3301,7 +3334,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       });
     } catch (error: any) {
       // Remove optimistic message on error
-      setMessages(prev => prev.filter(m => m.id !== optimisticId));
+      if (activeConversationIdRef.current === convId) {
+        setMessages(prev => prev.filter(m => m.id !== optimisticId));
+      }
       
       toast({
         title: "Erro ao enviar mídia",
