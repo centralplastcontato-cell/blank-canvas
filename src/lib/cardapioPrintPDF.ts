@@ -99,7 +99,7 @@ export async function generateCardapioPrintPDF(
 
   doc.setFontSize(18);
   doc.setTextColor(180, 50, 80);
-  doc.text("CARDAPIO DA FESTA", pageWidth / 2, y, { align: "center" });
+  doc.text("CARDÁPIO DA FESTA", pageWidth / 2, y, { align: "center" });
   y += 4;
 
   doc.setDrawColor(180, 50, 80);
