@@ -1,31 +1,45 @@
 
 
-## Correção: Parcela fantasma pendente por taxa de cartão não registrada no gross_amount
+## Correção: Duplicação de parcelas ao editar evento com pagamentos já quitados
 
-### Problema
+### Problema identificado
 
-Quando uma parcela de cartão é paga mas foi criada **antes** do sistema salvar o `gross_amount` corretamente (registro legado), o campo `gross_amount` é igual ao `amount` (valor líquido). O cálculo de `pendingAmount` usa `totalAmount - clientPaidGross`, e como o `gross_amount` do pagamento legado não reflete o valor bruto real, sobra um saldo fantasma (ex: R$ 127,35 na festa Tayná).
+A função `syncPaymentDetails` em `Agenda.tsx` (linha 739) é chamada tanto na **criação** quanto na **edição** de eventos. Ao editar um evento que já possui pagamentos pagos:
 
-O painel de "Taxas de Cartão" calcula a perda corretamente (lendo de `payment_details`), mas essa informação não é usada para ajustar o pendente nos cards de resumo.
+1. O sistema mantém os pagamentos com `status === "paid"` (correto).
+2. Deleta os pendentes (correto).
+3. Recria **todas** as parcelas do `payment_details` como novos registros pendentes — **sem subtrair o valor já pago**.
+
+Isso gera duplicação: os pagamentos pagos continuam existindo + novas parcelas são criadas para o valor total.
+
+**Problema secundário:** A função não salva `gross_amount` nem `card_fee_percent` nos registros de `event_payments`, o que causa o problema de saldo fantasma já corrigido na camada de exibição.
 
 ### Solução
 
-Ajustar o `summary` na `EventFinancialTab.tsx` antes de passá-lo para `FinancialSummaryCards`, descontando do pendente a parcela de taxa de cartão que não está refletida no `gross_amount` dos pagamentos.
+Alterar `syncPaymentDetails` em `src/pages/Agenda.tsx` para:
 
-### Alteração técnica
+1. **Ao recriar parcelas com pagamentos pagos existentes**, buscar o `amount` (e `gross_amount`) dos pagamentos pagos e subtrair do total antes de criar novos registros pendentes.
+2. **Salvar `gross_amount` e `card_fee_percent`** nos registros de card payment, para que o cálculo do hook seja preciso sem necessidade de ajuste na exibição.
 
-**Arquivo:** `src/components/financial/EventFinancialTab.tsx`
+### Alterações técnicas
 
-Após o cálculo de `cardFeeLoss` (linha ~626) e antes do `return` (linha ~628), criar um `adjustedSummary`:
+**Arquivo:** `src/pages/Agenda.tsx`
 
-1. Calcular `alreadyAccountedFees` = soma de `(gross_amount - amount)` para todos os pagamentos pagos que têm `gross_amount > amount` (taxas já refletidas no cálculo do hook).
-2. Calcular `unaccountedFees` = `cardFeeLoss.totalLoss - alreadyAccountedFees` (taxas que o painel mostra mas que o hook não conseguiu deduzir por falta de `gross_amount` correto).
-3. Criar `adjustedSummary` com `pendingAmount = max(0, summary.pendingAmount - unaccountedFees)` e `status` recalculado.
-4. Passar `adjustedSummary` para `<FinancialSummaryCards>` ao invés de `financial.summary`.
+**1. Buscar dados completos dos pagamentos existentes (linha ~743-746)**
+- Alterar o `select` para incluir `amount, gross_amount, type, payment_method` além de `id, status`.
 
-Isso corrige tanto registros legados quanto futuros cenários onde `gross_amount` possa não estar preenchido.
+**2. Calcular valor já pago (após linha 754)**
+- Quando `hasPaidPayments`, somar o `gross_amount || amount` dos pagamentos pagos para obter `paidGrossTotal`.
+- Subtrair `paidGrossTotal` do valor total das novas parcelas antes de criá-las.
+- Se o saldo restante for ≤ 0, não criar nenhum registro novo (tudo já está pago).
+
+**3. Salvar `gross_amount` e `card_fee_percent` (linhas 782-815)**
+- Na entrada com taxa de cartão: adicionar `gross_amount: pd.entrada_valor` e `card_fee_percent: feeRate`.
+- Na parcela consolidada com taxa: adicionar `gross_amount: totalSaldo` e `card_fee_percent: saldoFeeRate`.
 
 ### Resultado esperado
 
-Na festa da Tayná: Pendente mostrará R$ 0,00 e status "Pago", pois ambas as parcelas estão pagas e a diferença de R$ 127,35 é explicada pela taxa de cartão da entrada.
+- Ao editar um evento com pagamentos já quitados, o sistema não cria parcelas duplicadas.
+- Novos registros de pagamento por cartão terão `gross_amount` correto, eliminando saldos fantasma para eventos futuros.
+- Funciona para todos os clientes automaticamente.
 
