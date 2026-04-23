@@ -19,8 +19,9 @@ import { buildPublicFormPath, buildPublicFormUrl } from "@/lib/publicFormRoutes"
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-function PreFestaResponseCards({ responses, template }: { responses: any[]; template: PreFestaTemplate | null }) {
+function PreFestaResponseCards({ responses, template, onDelete }: { responses: any[]; template: PreFestaTemplate | null; onDelete?: (id: string) => void }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   return (
     <div className="space-y-2">
       {responses.map((r) => {
@@ -80,6 +81,41 @@ function PreFestaResponseCards({ responses, template }: { responses: any[]; temp
                       );
                     })}
                   </div>
+                  {onDelete && (
+                    <div className="px-4 py-2.5 border-t border-border flex justify-end">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5">
+                            <Trash2 className="h-3.5 w-3.5" /> Apagar resposta
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Apagar resposta?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              A resposta de <strong>{r.respondent_name || "Anônimo"}</strong> será excluída permanentemente.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              disabled={deletingId === r.id}
+                              onClick={async (e) => {
+                                e.preventDefault();
+                                setDeletingId(r.id);
+                                await onDelete(r.id);
+                                setDeletingId(null);
+                              }}
+                            >
+                              {deletingId === r.id ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                              Apagar
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -414,7 +450,19 @@ export function PreFestaContent() {
                               <p className="text-sm text-muted-foreground">Nenhuma resposta recebida ainda.</p>
                             </div>
                           ) : (
-                            <PreFestaResponseCards responses={responses} template={selectedTemplateForResponses} />
+                            <PreFestaResponseCards
+                              responses={responses}
+                              template={selectedTemplateForResponses}
+                              onDelete={async (id) => {
+                                const { error } = await supabase.from("prefesta_responses").delete().eq("id", id);
+                                if (error) {
+                                  toast({ title: "Erro ao apagar", description: error.message, variant: "destructive" });
+                                } else {
+                                  setResponses(prev => prev.filter(r => r.id !== id));
+                                  toast({ title: "Resposta apagada ✅" });
+                                }
+                              }}
+                            />
                           )}
                         </div>
                       </CollapsibleContent>
