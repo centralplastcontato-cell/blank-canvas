@@ -128,6 +128,7 @@ const PartnerConfig = lazy(lazyImports["/parceiro/config"]);
 const PublicPartyControl = lazy(() => import("./pages/PublicPartyControl"));
 const PublicClientData = lazy(() => import("./pages/PublicClientData"));
 const PublicContractSign = lazy(() => import("./pages/PublicContractSign"));
+const AdminFixPrefestaResponses = lazy(() => import("./pages/AdminFixPrefestaResponses"));
 
 const SupportChatbot = lazy(() => import("./components/support/SupportChatbot").then(m => ({ default: m.SupportChatbot })));
 
@@ -209,6 +210,7 @@ const App = () => (
               <Route path="/cardapio/:templateId" element={<PublicCardapio />} />
               <Route path="/cardapio" element={<Cardapio />} />
               <Route path="/financeiro" element={<Financeiro />} />
+              <Route path="/admin/fix-prefesta" element={<AdminFixPrefestaResponses />} />
               {/* Partner (Empresa Parceira) */}
               <Route path="/parceiro" element={<PartnerDashboard />} />
               <Route path="/parceiro/catalogo" element={<PartnerCatalog />} />
