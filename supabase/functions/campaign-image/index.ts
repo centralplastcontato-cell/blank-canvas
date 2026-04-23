@@ -37,160 +37,127 @@ Deno.serve(async (req) => {
       );
     }
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+    const openaiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!openaiKey) throw new Error("OPENAI_API_KEY not configured");
 
     // Position mapping
     const positionMap: Record<string, string> = {
-      "top-left": "canto superior esquerdo",
-      "top-right": "canto superior direito",
-      "bottom-left": "canto inferior esquerdo",
-      "bottom-right": "canto inferior direito",
-      "center": "centro",
+      "top-left": "top-left corner",
+      "top-right": "top-right corner",
+      "bottom-left": "bottom-left corner",
+      "bottom-right": "bottom-right corner",
+      "center": "center",
     };
-    const posLabel = positionMap[position] || "canto inferior direito";
+    const posLabel = positionMap[position] || "bottom-right corner";
 
     let promptText: string;
-    let imageContent: any[] = [];
 
     if (isThemeOnly) {
-      // Theme-only mode: generate art from scratch
-      const themeDesc = campaign_theme || "festa infantil";
-      const contextHint = context ? ` Contexto da campanha: ${context}.` : "";
+      const themeDesc = campaign_theme || "children's party";
+      const contextHint = context ? ` Campaign context: ${context}.` : "";
 
       const logoInstruction = logo_url
-        ? `Posicione o logotipo fornecido no ${posLabel} da imagem, com um fundo semi-transparente arredondado por tras para garantir legibilidade. O logotipo deve ocupar cerca de 15-20% da largura da imagem e manter suas proporcoes originais.`
+        ? `Include a subtle watermark-style logo area in the ${posLabel} of the image.`
         : "";
 
-      promptText = `Voce e um designer grafico profissional especializado em marketing de buffet infantil.
-Crie do ZERO uma arte promocional de alto impacto visual para compartilhamento no WhatsApp.
+      promptText = `Professional promotional art for a children's party venue WhatsApp marketing campaign.
+Theme: "${themeDesc}".${contextHint}
 
-Tema da campanha: "${themeDesc}".${contextHint}
+Create a vibrant, high-impact square composition with:
+- Colorful, saturated, inviting colors related to the theme "${themeDesc}"
+- Festive decorative elements (confetti, balloons, stars, ribbons, toys, sweets, cakes)
+- Professional marketing agency quality with good visual composition
+- Gradients, geometric shapes and elements that create depth and visual interest
+- Attractive and colorful background, never plain white
+${logoInstruction}
 
-Instrucoes OBRIGATORIAS:
-- Crie uma composicao visual ORIGINAL e impactante baseada no tema "${themeDesc}".
-- Use cores vibrantes, saturadas e convidativas que remetam ao tema.
-- Inclua elementos decorativos festivos e alegres relacionados ao tema (confetes, baloes, estrelas, fitas, brinquedos, doces, bolos, etc).
-- A arte deve ter um visual profissional de agencia de marketing, com boa composicao visual.
-- Formato quadrado, alta resolucao.
-- ${logoInstruction}
-- O fundo deve ser atrativo e colorido, nunca branco puro ou sem graça.
-- Use gradientes, formas geometricas e elementos que criem profundidade e interesse visual.
-
-REGRA ABSOLUTA: NAO adicione NENHUM texto, letra, palavra, numero, faixa com texto, placa ou caractere escrito de qualquer tipo em qualquer idioma. Apenas elementos visuais decorativos. ZERO texto.`;
-
-      if (logo_url) {
-        imageContent.push({ type: "image_url", image_url: { url: logo_url } });
-      }
+ABSOLUTE RULE: Do NOT add ANY text, letters, words, numbers, banners with text, signs or written characters of any kind in any language. Only visual decorative elements. ZERO text.`;
     } else {
-      // Photo-based mode (existing logic)
       const themeHint = campaign_theme
-        ? `O tema visual da campanha e "${campaign_theme}". Use elementos decorativos sutis relacionados a esse tema (confetes, baloes, estrelas, fitas, flores, etc) nas bordas e cantos da imagem.`
-        : "Adicione elementos decorativos festivos e alegres (confetes, baloes, estrelas) sutilmente nas bordas.";
+        ? `The visual theme is "${campaign_theme}". Include subtle decorative elements related to this theme (confetti, balloons, stars, ribbons, flowers, etc.) on the edges.`
+        : "Add festive and cheerful decorative elements (confetti, balloons, stars) subtly on the edges.";
 
-      const contextHint = context ? ` Contexto da campanha: ${context}.` : "";
+      const contextHint = context ? ` Campaign context: ${context}.` : "";
 
       const logoInstruction = logo_url
-        ? `Posicione o logotipo fornecido no ${posLabel} da imagem, com um fundo semi-transparente arredondado por tras para garantir legibilidade. O logotipo deve ocupar cerca de 15-20% da largura da imagem e manter suas proporcoes originais.`
+        ? `Include a subtle watermark-style logo area in the ${posLabel} of the image.`
         : "";
 
-      promptText = `Voce e um designer grafico profissional especializado em marketing de buffet infantil.
-Transforme esta foto em uma arte promocional de alto impacto para compartilhamento no WhatsApp.
+      promptText = `Professional promotional art for a children's party venue WhatsApp marketing campaign.
+Transform the concept into a high-impact promotional art piece.
 
-Instrucoes OBRIGATORIAS:
-- Use a foto fornecida como elemento visual PRINCIPAL. A foto deve ocupar pelo menos 70% da area total da imagem.
-- Adicione uma moldura ou borda decorativa elegante e profissional nas bordas da imagem.
+Instructions:
+- Create an elegant and professional decorative frame/border
 - ${themeHint}
 - ${logoInstruction}
-- Ajuste as cores para ficarem mais vibrantes, saturadas e convidativas. Aumente levemente o contraste.
-- O resultado deve parecer uma arte feita por uma agencia de marketing profissional.
-- Formato quadrado, alta resolucao.${contextHint}
+- Use vibrant, saturated, inviting colors with slightly increased contrast
+- Result should look like art made by a professional marketing agency
+- Square format, high resolution${contextHint}
 
-REGRA ABSOLUTA: NAO adicione NENHUM texto, letra, palavra, numero, faixa com texto, placa ou caractere escrito de qualquer tipo em qualquer idioma. Apenas elementos visuais decorativos. ZERO texto.`;
-
-      imageContent = [
-        { type: "image_url", image_url: { url: base_image_url } },
-      ];
-      if (logo_url) {
-        imageContent.push({ type: "image_url", image_url: { url: logo_url } });
-      }
+ABSOLUTE RULE: Do NOT add ANY text, letters, words, numbers, banners with text, signs or written characters of any kind in any language. Only visual decorative elements. ZERO text.`;
     }
 
-    // Build message content
-    const messageContent: any[] = [
-      { type: "text", text: promptText },
-      ...imageContent,
-    ];
-
-    // Call Gemini Pro Image
+    // For photo-based mode with DALL-E, we can only generate (not edit inline with text prompt easily)
+    // So we generate a new image inspired by the theme for both modes
     const MAX_RETRIES = 2;
-    let response: Response | null = null;
+    let imageUrl: string | null = null;
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-      response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-pro-image-preview",
-          messages: [
-            {
-              role: "user",
-              content: messageContent,
-            },
-          ],
-          modalities: ["image", "text"],
-        }),
-      });
+      try {
+        const response = await fetch("https://api.openai.com/v1/images/generations", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${openaiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "dall-e-3",
+            prompt: promptText,
+            n: 1,
+            size: "1024x1024",
+            quality: "hd",
+            response_format: "b64_json",
+          }),
+        });
 
-      if (response.ok) break;
+        if (response.ok) {
+          const data = await response.json();
+          const b64 = data.data?.[0]?.b64_json;
+          if (b64) {
+            imageUrl = b64;
+            break;
+          }
+          throw new Error("Nenhuma imagem retornada pela OpenAI");
+        }
 
-      const errText = await response.text();
-      console.error(`Gemini Pro error (attempt ${attempt + 1}/${MAX_RETRIES + 1}):`, response.status, errText);
+        const errText = await response.text();
+        console.error(`OpenAI DALL-E error (attempt ${attempt + 1}/${MAX_RETRIES + 1}):`, response.status, errText);
 
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Limite de requisições atingido. Tente novamente em alguns minutos." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Créditos da API esgotados. Contate o suporte." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+        if (response.status === 429) {
+          return new Response(
+            JSON.stringify({ error: "Limite de requisições atingido. Tente novamente em alguns minutos." }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
 
-      if (response.status >= 500 && attempt < MAX_RETRIES) {
+        if (response.status >= 500 && attempt < MAX_RETRIES) {
+          const delay = (attempt + 1) * 3000;
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+
+        throw new Error(`OpenAI API error: ${response.status} - ${errText}`);
+      } catch (fetchErr) {
+        if (attempt >= MAX_RETRIES) throw fetchErr;
         const delay = (attempt + 1) * 3000;
-        console.log(`Retrying in ${delay}ms...`);
         await new Promise((r) => setTimeout(r, delay));
-        continue;
       }
-
-      throw new Error(`Gemini API error: ${response.status}`);
     }
 
-    if (!response || !response.ok) throw new Error("Gemini falhou após tentativas de retry");
-
-    const data = await response.json();
-    const imageData = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-
-    if (!imageData) {
-      throw new Error("Nenhuma imagem retornada pela IA");
-    }
-
-    // Extract base64 data
-    const base64Match = imageData.match(/^data:image\/(\w+);base64,(.+)$/);
-    if (!base64Match) throw new Error("Formato de imagem inválido");
-
-    const imageFormat = base64Match[1];
-    const b64 = base64Match[2];
+    if (!imageUrl) throw new Error("OpenAI falhou após tentativas de retry");
 
     // Decode base64 to Uint8Array
-    const binaryStr = atob(b64);
+    const binaryStr = atob(imageUrl);
     const bytes = new Uint8Array(binaryStr.length);
     for (let i = 0; i < binaryStr.length; i++) {
       bytes[i] = binaryStr.charCodeAt(i);
@@ -202,16 +169,16 @@ REGRA ABSOLUTA: NAO adicione NENHUM texto, letra, palavra, numero, faixa com tex
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const filePath = `campaigns/composed-${Date.now()}.${imageFormat}`;
+    const filePath = `campaigns/composed-${Date.now()}.png`;
     const { error: uploadError } = await supabase.storage
       .from("sales-materials")
-      .upload(filePath, bytes, { contentType: `image/${imageFormat}`, upsert: false });
+      .upload(filePath, bytes, { contentType: "image/png", upsert: false });
 
     if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
 
     const { data: urlData } = supabase.storage.from("sales-materials").getPublicUrl(filePath);
 
-    // Generate thumbnail in background
+    // Generate thumbnail
     let thumbnailUrl: string | null = null;
     try {
       const resizeResp = await fetch(
@@ -236,15 +203,14 @@ REGRA ABSOLUTA: NAO adicione NENHUM texto, letra, palavra, numero, faixa com tex
     }
 
     // Log AI usage
-    const tokens = data.usage?.total_tokens || 500;
     await supabase.from("ai_usage_logs").insert({
       company_id,
       function_name: "campaign-image",
-      model: "gemini-3-pro-image-preview",
-      prompt_tokens: data.usage?.prompt_tokens || 0,
-      completion_tokens: data.usage?.completion_tokens || 0,
-      total_tokens: tokens,
-      estimated_cost_usd: 0.04,
+      model: "dall-e-3",
+      prompt_tokens: 0,
+      completion_tokens: 0,
+      total_tokens: 0,
+      estimated_cost_usd: 0.08,
     });
 
     return new Response(
