@@ -129,7 +129,19 @@ const filterCardapioTemplatesByPackage = (templates: FormTemplate[], packageName
     return packageTokens.every((token) => templateTokens.includes(token));
   });
 
-  return strictMatches.length > 0 ? [strictMatches[0]] : [bestTemplates[0]];
+  if (strictMatches.length > 0) return [strictMatches[0]];
+
+  // Tiebreaker: prefer the template that contains the LAST significant token of
+  // the package name (usually the differentiator, e.g. "PREMIUM" in "CASTELO PREMIUM").
+  for (let i = packageTokens.length - 1; i >= 0; i--) {
+    const token = packageTokens[i];
+    const match = bestTemplates.find((template) =>
+      tokenizeTemplateName(template.name).includes(token),
+    );
+    if (match) return [match];
+  }
+
+  return [bestTemplates[0]];
 };
 
 interface EventComplementaryTabProps {
