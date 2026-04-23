@@ -595,7 +595,7 @@ export function CardapioContent() {
                               <p className="text-sm text-muted-foreground">Nenhuma resposta recebida ainda.</p>
                             </div>
                           ) : (
-                            <CardapioResponseCards responses={responses} template={selectedTemplateForResponses} onDelete={handleDeleteResponse} />
+                            <CardapioResponseCards responses={responses} template={selectedTemplateForResponses} onDelete={handleDeleteResponse} company={currentCompany ? { name: currentCompany.name, logo_url: (currentCompany as any).logo_url } : null} />
                           )}
                         </div>
                       </CollapsibleContent>
