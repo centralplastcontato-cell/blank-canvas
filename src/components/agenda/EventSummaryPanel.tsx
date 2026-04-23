@@ -111,28 +111,15 @@ export function EventSummaryPanel({ event, leadName, companyId }: EventSummaryPa
       return raw;
     }
   };
-  const contractorDisplay = parseContractorName();
 
-  const InfoRow = ({ icon: Icon, label, children: content, className }: { icon: any; label: string; children?: React.ReactNode; className?: string; value?: never }) => (
-    <div className="flex items-start gap-2.5">
-      <div className="p-1 rounded-md bg-primary/10 mt-0.5 shrink-0">
-        <Icon className="h-3.5 w-3.5 text-primary" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{label}</p>
-        <div className={`text-xs text-foreground ${className || ""}`}>{content}</div>
-      </div>
-    </div>
-  );
-
-  const InfoRowSimple = ({ icon: Icon, label, value, className }: { icon: any; label: string; value: string; className?: string }) => (
+  const InfoRow = ({ icon: Icon, label, value, className }: { icon: any; label: string; value: string; className?: string }) => (
     <div className="flex items-start gap-2.5">
       <div className="p-1 rounded-md bg-primary/10 mt-0.5 shrink-0">
         <Icon className="h-3.5 w-3.5 text-primary" />
       </div>
       <div className="min-w-0">
         <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{label}</p>
-        <p className={`text-xs text-foreground ${className || ""}`}>{value}</p>
+        <p className={`text-xs text-foreground whitespace-pre-wrap ${className || ""}`}>{value}</p>
       </div>
     </div>
   );
