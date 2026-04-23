@@ -255,7 +255,7 @@ export function PreFestaContent() {
     setLoadingResponses(true);
     const { data } = await supabase
       .from("prefesta_responses")
-      .select("*")
+      .select("*, company_events(event_date, title)")
       .eq("template_id", t.id)
       .order("created_at", { ascending: false });
     setResponses(data || []);
