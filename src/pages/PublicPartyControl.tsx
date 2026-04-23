@@ -614,11 +614,33 @@ export default function PublicPartyControl() {
                     </SummaryRow>
                   )}
 
-                  {event.parent_names && (
-                    <SummaryRow emoji="👨‍👩‍👧" label="Pais / Contratante">
-                      <p>{event.parent_names}</p>
-                    </SummaryRow>
-                  )}
+                  {(() => {
+                    const raw = event.parent_names;
+                    if (!raw) return null;
+                    let display = raw;
+                    try {
+                      const parsed = JSON.parse(raw);
+                      if (Array.isArray(parsed)) {
+                        display = parsed
+                          .filter((p: any) => p?.name)
+                          .map((p: any) => {
+                            const parts = [p.name];
+                            if (p.relation) parts.push(`(${p.relation})`);
+                            if (p.phone) parts.push(`— ${p.phone}`);
+                            return parts.join(" ");
+                          })
+                          .join("\n");
+                      } else if (typeof parsed === "object" && parsed?.name) {
+                        display = parsed.name;
+                      }
+                    } catch { /* plain text */ }
+                    if (!display) return null;
+                    return (
+                      <SummaryRow emoji="👨‍👩‍👧" label="Pais / Contratante">
+                        <p className="whitespace-pre-wrap">{display}</p>
+                      </SummaryRow>
+                    );
+                  })()}
 
                   {event.package_name && (
                     <SummaryRow emoji="📦" label="Pacote">
