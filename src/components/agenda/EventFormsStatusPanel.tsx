@@ -264,6 +264,39 @@ function FormattedResponseView({ answers, formType, questions }: { answers: any;
   }
 
   if (Array.isArray(answers)) {
+    // Check if it's a questions-based format ({questionId, value})
+    const isQuestionFormat = answers.length > 0 && answers[0] && typeof answers[0] === "object" && "questionId" in answers[0];
+    
+    if (isQuestionFormat && questions && questions.length > 0) {
+      const formatVal = (val: any): string => {
+        if (val === true) return "👍 Sim";
+        if (val === false) return "👎 Não";
+        if (typeof val === "string" && /^\d{4}-\d{2}-\d{2}T/.test(val)) {
+          try { return format(new Date(val), "dd/MM/yyyy"); } catch { return val; }
+        }
+        if (typeof val === "object" && val !== null) return JSON.stringify(val);
+        return String(val ?? "—");
+      };
+
+      return (
+        <div className="space-y-2">
+          {answers.map((answer: any, i: number) => {
+            const qId = answer.questionId;
+            const question = qId
+              ? (questions.find((q: any) => q.id === qId) || questions.find((q: any) => qId.startsWith(q.id)))
+              : questions[i];
+            const label = question?.text || question?.label || question?.title || `Pergunta ${i + 1}`;
+            return (
+              <div key={i} className="space-y-0.5">
+                <p className="text-xs text-muted-foreground">{label}</p>
+                <p className="text-sm font-medium text-foreground">{formatVal(answer.value)}</p>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-2">
         {answers.map((item: any, idx: number) => (
