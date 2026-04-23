@@ -51,7 +51,7 @@ const TYPE_DOT: Record<string, string> = {
   tarefa: "bg-amber-500 shadow-[0_0_4px_rgba(245,158,11,0.4)]",
 };
 
-export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selectedDate, checklistProgress = {}, preReservations = [], showTypeLegend = false }: AgendaCalendarProps) {
+export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selectedDate, checklistProgress = {}, preReservations = [], showTypeLegend = false, paymentStatus = {} }: AgendaCalendarProps) {
   const eventsByDate = new Map<string, CalendarEvent[]>();
   events.forEach((ev) => {
     const key = ev.event_date;

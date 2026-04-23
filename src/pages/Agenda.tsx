@@ -1808,6 +1808,7 @@ export default function Agenda() {
                         selectedDate={selectedDate}
                         checklistProgress={checklistProgress}
                         preReservations={filteredPreReservations}
+                        paymentStatus={paymentStatus}
                       />
                     )}
                   </CardContent>
