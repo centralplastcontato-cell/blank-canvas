@@ -406,6 +406,7 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
           templateId: tmpl?.id,
           templateSlug: tmpl?.slug || undefined,
           publicPath: ft.publicPath,
+          templateQuestions: Array.isArray(tmpl?.questions) ? tmpl.questions : undefined,
         });
       }
 
