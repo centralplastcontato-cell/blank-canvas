@@ -4823,6 +4823,78 @@ async function processWebhookEvent(body: Record<string, unknown>) {
             conv = freshConv;
           }
 
+          // === CAMPAIGN AUTO-REPLY: lead is responding to a campaign that pauses the bot ===
+          const campaignPendingId = (conv.bot_data as Record<string, unknown> | null)?.campaign_pending_reply as string | undefined;
+          if (campaignPendingId) {
+            console.log(`[Campaign Auto-Reply] Lead replied to campaign ${campaignPendingId}, conv ${conv.id}`);
+            try {
+              const { data: campaign } = await supabase
+                .from('campaigns')
+                .select('id, name, auto_reply_message')
+                .eq('id', campaignPendingId)
+                .maybeSingle();
+
+              // Send the auto-reply message (if configured)
+              if (campaign?.auto_reply_message && campaign.auto_reply_message.trim()) {
+                const replyText = campaign.auto_reply_message.trim();
+                const sentId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, replyText);
+                if (sentId) {
+                  await supabase.from('wapi_messages').insert({
+                    conversation_id: conv.id,
+                    message_id: sentId,
+                    from_me: true,
+                    message_type: 'text',
+                    company_id: instance.company_id,
+                    content: replyText,
+                    status: 'sent',
+                    timestamp: new Date().toISOString(),
+                    metadata: { source: 'campaign_auto_reply', campaign_id: campaignPendingId },
+                  });
+                }
+              }
+
+              // Notify all users of the company that a campaign lead is awaiting human attention
+              const { data: companyUsers } = await supabase
+                .from('user_companies')
+                .select('user_id')
+                .eq('company_id', instance.company_id);
+
+              const leadName = ((conv.bot_data as Record<string, unknown> | null)?.campaign_lead_name as string) || 'Lead';
+              const notifications = (companyUsers || []).map((u: { user_id: string }) => ({
+                user_id: u.user_id,
+                company_id: instance.company_id,
+                type: 'campaign_reply',
+                title: '📣 Resposta de campanha!',
+                message: `${leadName} respondeu à campanha "${campaign?.name || 'Promoção'}" e aguarda atendimento.`,
+                data: {
+                  campaign_id: campaignPendingId,
+                  conversation_id: conv.id,
+                  lead_id: conv.lead_id,
+                  lead_name: leadName,
+                },
+              }));
+              if (notifications.length > 0) {
+                await supabase.from('notifications').insert(notifications);
+              }
+
+              // Clear the pending flag (one-shot) but KEEP human_takeover so bot stays paused
+              const cleanedBotData = { ...(conv.bot_data as Record<string, unknown> | null || {}) };
+              delete (cleanedBotData as Record<string, unknown>).campaign_pending_reply;
+              delete (cleanedBotData as Record<string, unknown>).campaign_lead_name;
+              delete (cleanedBotData as Record<string, unknown>).campaign_marked_at;
+              (cleanedBotData as Record<string, unknown>).campaign_replied_at = new Date().toISOString();
+              (cleanedBotData as Record<string, unknown>).campaign_replied_id = campaignPendingId;
+
+              await supabase.from('wapi_conversations').update({
+                bot_data: cleanedBotData,
+              }).eq('id', conv.id);
+            } catch (campErr) {
+              console.error('[Campaign Auto-Reply] Error:', campErr);
+            }
+            // Skip standard bot processing entirely
+            break;
+          }
+
           const recoveredStep = shouldRecoverAccidentalHumanTakeover(instance.provider, conv);
           if (recoveredStep) {
             console.warn(`[Bot] Recovering accidental human_takeover for conv ${conv.id}; resuming at step ${recoveredStep}`);
