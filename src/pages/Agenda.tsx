@@ -742,9 +742,15 @@ export default function Agenda() {
       // Check if there are already manually-managed payments (paid ones should not be wiped)
       const { data: existing } = await supabase
         .from("event_payments")
-        .select("id, status")
+        .select("id, status, amount, gross_amount, type, payment_method")
         .eq("event_id", eventId);
-      const hasPaidPayments = (existing || []).some((p: any) => p.status === "paid");
+      const paidPayments = (existing || []).filter((p: any) => p.status === "paid");
+      const hasPaidPayments = paidPayments.length > 0;
+
+      // Calculate total gross already paid (use gross_amount if available, fallback to amount)
+      const paidGrossTotal = paidPayments.reduce((sum: number, p: any) => {
+        return sum + (Number(p.gross_amount) || Number(p.amount) || 0);
+      }, 0);
 
       if (hasPaidPayments) {
         // Only delete pending payments, keep paid ones intact
@@ -774,20 +780,45 @@ export default function Agenda() {
         return Math.round((amount * (1 - rate / 100)) * 100) / 100;
       };
 
+      // Calculate total gross value of new rows before subtracting paid amounts
+      let totalNewGross = 0;
+      if (pd.entrada_valor && pd.entrada_valor > 0) totalNewGross += pd.entrada_valor;
+      if (pd.parcelas_details && pd.parcelas_details.length > 0) {
+        totalNewGross += pd.parcelas_details.reduce((s: number, p: any) => s + (Number(p.valor) || 0), 0);
+      } else if (pd.saldo_valor && pd.saldo_valor > 0) {
+        totalNewGross += pd.saldo_valor;
+      }
+
+      // If everything is already paid, skip creating new rows
+      const remainingGross = totalNewGross - paidGrossTotal;
+      if (hasPaidPayments && remainingGross <= 0) {
+        // All paid, nothing to create
+        return;
+      }
+
       const rows: any[] = [];
 
       // Entrada
       if (pd.entrada_valor && pd.entrada_valor > 0) {
-        const feeRate = getCardFeeRate(pd.entrada_forma || "", Number(pd.entrada_parcelas) || 1);
-        rows.push({
-          event_id: eventId,
-          company_id: companyId,
-          type: "entrada",
-          amount: applyFee(pd.entrada_valor, feeRate),
-          due_date: pd.entrada_data || new Date().toISOString().split("T")[0],
-          payment_method: pd.entrada_forma || null,
-          status: "pending",
-        });
+        // Check if entrada was already paid (by type match)
+        const entradaAlreadyPaid = paidPayments.some((p: any) => p.type === "entrada");
+        if (!entradaAlreadyPaid) {
+          const feeRate = getCardFeeRate(pd.entrada_forma || "", Number(pd.entrada_parcelas) || 1);
+          const entradaRow: any = {
+            event_id: eventId,
+            company_id: companyId,
+            type: "entrada",
+            amount: applyFee(pd.entrada_valor, feeRate),
+            due_date: pd.entrada_data || new Date().toISOString().split("T")[0],
+            payment_method: pd.entrada_forma || null,
+            status: "pending",
+          };
+          if (feeRate > 0) {
+            entradaRow.gross_amount = pd.entrada_valor;
+            entradaRow.card_fee_percent = feeRate;
+          }
+          rows.push(entradaRow);
+        }
       }
 
       // Parcelas — for card payments, store as a single net row (don't split)
@@ -795,51 +826,58 @@ export default function Agenda() {
       const saldoIsCard = saldoForma === "cartao" || saldoForma === "cartao_credito" || saldoForma === "cartao_debito";
       const saldoFeeRate = getCardFeeRate(saldoForma, Number(pd.parcelas) || 1);
 
-      if (saldoIsCard && saldoFeeRate > 0) {
-        // Card: consolidate all parcelas into single net-value row
-        let totalSaldo = 0;
-        if (pd.parcelas_details && pd.parcelas_details.length > 0) {
-          totalSaldo = pd.parcelas_details.reduce((s: number, p: any) => s + (Number(p.valor) || 0), 0);
-        } else if (pd.saldo_valor && pd.saldo_valor > 0) {
-          totalSaldo = pd.saldo_valor;
-        }
-        if (totalSaldo > 0) {
-          rows.push({
-            event_id: eventId,
-            company_id: companyId,
-            type: "parcela",
-            amount: applyFee(totalSaldo, saldoFeeRate),
-            due_date: pd.saldo_data || new Date().toISOString().split("T")[0],
-            payment_method: saldoForma,
-            status: "pending",
-          });
-        }
-      } else {
-        // Non-card: keep individual parcelas
-        if (pd.parcelas_details && pd.parcelas_details.length > 0) {
-          pd.parcelas_details.forEach((p: any) => {
-            if (p.valor && p.valor > 0) {
-              rows.push({
-                event_id: eventId,
-                company_id: companyId,
-                type: "parcela",
-                amount: p.valor,
-                due_date: p.vencimento || pd.saldo_data || new Date().toISOString().split("T")[0],
-                payment_method: saldoForma || null,
-                status: "pending",
-              });
-            }
-          });
-        } else if (pd.saldo_valor && pd.saldo_valor > 0) {
-          rows.push({
-            event_id: eventId,
-            company_id: companyId,
-            type: "parcela",
-            amount: pd.saldo_valor,
-            due_date: pd.saldo_data || new Date().toISOString().split("T")[0],
-            payment_method: saldoForma || null,
-            status: "pending",
-          });
+      // Check if parcela was already paid
+      const parcelaAlreadyPaid = paidPayments.some((p: any) => p.type === "parcela");
+
+      if (!parcelaAlreadyPaid) {
+        if (saldoIsCard && saldoFeeRate > 0) {
+          // Card: consolidate all parcelas into single net-value row
+          let totalSaldo = 0;
+          if (pd.parcelas_details && pd.parcelas_details.length > 0) {
+            totalSaldo = pd.parcelas_details.reduce((s: number, p: any) => s + (Number(p.valor) || 0), 0);
+          } else if (pd.saldo_valor && pd.saldo_valor > 0) {
+            totalSaldo = pd.saldo_valor;
+          }
+          if (totalSaldo > 0) {
+            rows.push({
+              event_id: eventId,
+              company_id: companyId,
+              type: "parcela",
+              amount: applyFee(totalSaldo, saldoFeeRate),
+              gross_amount: totalSaldo,
+              card_fee_percent: saldoFeeRate,
+              due_date: pd.saldo_data || new Date().toISOString().split("T")[0],
+              payment_method: saldoForma,
+              status: "pending",
+            });
+          }
+        } else {
+          // Non-card: keep individual parcelas
+          if (pd.parcelas_details && pd.parcelas_details.length > 0) {
+            pd.parcelas_details.forEach((p: any) => {
+              if (p.valor && p.valor > 0) {
+                rows.push({
+                  event_id: eventId,
+                  company_id: companyId,
+                  type: "parcela",
+                  amount: p.valor,
+                  due_date: p.vencimento || pd.saldo_data || new Date().toISOString().split("T")[0],
+                  payment_method: saldoForma || null,
+                  status: "pending",
+                });
+              }
+            });
+          } else if (pd.saldo_valor && pd.saldo_valor > 0) {
+            rows.push({
+              event_id: eventId,
+              company_id: companyId,
+              type: "parcela",
+              amount: pd.saldo_valor,
+              due_date: pd.saldo_data || new Date().toISOString().split("T")[0],
+              payment_method: saldoForma || null,
+              status: "pending",
+            });
+          }
         }
       }
 
