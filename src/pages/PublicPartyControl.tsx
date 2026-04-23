@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { buildPublicFormPath } from "@/lib/publicFormRoutes";
 import {
   Loader2, Check, AlertTriangle, PartyPopper,
-  ChevronRight, Shield, Zap, ArrowRight
+  ChevronRight, Shield, Zap, ArrowRight, ExternalLink
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -669,6 +669,23 @@ export default function PublicPartyControl() {
                       <p className="whitespace-pre-wrap" style={{ color: "#cbd5e1" }}>{event.notes}</p>
                     </SummaryRow>
                   )}
+
+                  {/* Botão editar evento */}
+                  <button
+                    onClick={() => {
+                      const baseUrl = window.location.origin;
+                      window.open(`${baseUrl}/agenda?event_id=${event.id}`, "_blank");
+                    }}
+                    className="w-full mt-2 flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all active:scale-[0.97]"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15))",
+                      border: "1px solid rgba(99,102,241,0.3)",
+                      color: "#a5b4fc",
+                    }}
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Editar Evento no Painel
+                  </button>
 
                   {children.length === 0 && !event.parent_names && !event.package_name && !event.guest_count && !event.notes && optionals.length === 0 && (
                     <div className="text-center py-16">
