@@ -1885,6 +1885,29 @@ export default function Agenda() {
                                 {checklistProgress[ev.id].completed}/{checklistProgress[ev.id].total} tarefas
                               </div>
                             )}
+                            {/* Payment status indicator */}
+                            {showRevenue && paymentStatus[ev.id] && paymentStatus[ev.id].total > 0 && (() => {
+                              const ps = paymentStatus[ev.id];
+                              if (ps.late > 0) return (
+                                <div className="flex items-center gap-1 text-xs text-red-600 font-medium mt-1">
+                                  <DollarSign className="h-3 w-3" />
+                                  {ps.late} parcela{ps.late > 1 ? "s" : ""} em atraso
+                                </div>
+                              );
+                              if (ps.pending > 0) return (
+                                <div className="flex items-center gap-1 text-xs text-amber-600 font-medium mt-1">
+                                  <DollarSign className="h-3 w-3" />
+                                  {ps.pending} parcela{ps.pending > 1 ? "s" : ""} pendente{ps.pending > 1 ? "s" : ""}
+                                </div>
+                              );
+                              if (ps.paid === ps.total) return (
+                                <div className="flex items-center gap-1 text-xs text-emerald-600 mt-1">
+                                  <DollarSign className="h-3 w-3" />
+                                  Pago
+                                </div>
+                              );
+                              return null;
+                            })()}
                           </button>
                         );
                       })}
