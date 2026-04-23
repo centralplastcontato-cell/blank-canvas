@@ -60,6 +60,24 @@ const CAMPAIGN_TYPE_OPTIONS = [
   ]},
 ];
 
+const ART_THEME_PRESETS = [
+  { value: "Festa Neon", emoji: "🌈" },
+  { value: "Princesas", emoji: "👑" },
+  { value: "Super-heróis", emoji: "🦸" },
+  { value: "Safari / Animais", emoji: "🦁" },
+  { value: "Fundo do Mar", emoji: "🐠" },
+  { value: "Circo", emoji: "🎪" },
+  { value: "Unicórnio", emoji: "🦄" },
+  { value: "Espaço / Astronauta", emoji: "🚀" },
+  { value: "Dinossauros", emoji: "🦕" },
+  { value: "Festa Junina", emoji: "🌽" },
+  { value: "Fazendinha", emoji: "🐔" },
+  { value: "Doces / Candy", emoji: "🍭" },
+  { value: "Futebol", emoji: "⚽" },
+  { value: "Balada Teen", emoji: "🎧" },
+  { value: "Tropical / Havaí", emoji: "🌺" },
+];
+
 const TONE_LABELS: Record<string, string> = {
   profissional: "🏢 Profissional",
   "amigável": "😊 Amigável",
