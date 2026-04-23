@@ -143,6 +143,10 @@ function CardapioResponseCards({ responses, template, onDelete, company, allTemp
   const [eventResponses, setEventResponses] = useState<any[]>([]);
   const [pdfTemplateId, setPdfTemplateId] = useState<string | null>(null);
   const [pdfResponseId, setPdfResponseId] = useState<string | null>(null);
+  const [printPrefs, setPrintPrefs] = useCardapioPrintPrefs();
+  const [eventResponses, setEventResponses] = useState<any[]>([]);
+  const [pdfTemplateId, setPdfTemplateId] = useState<string | null>(null);
+  const [pdfResponseId, setPdfResponseId] = useState<string | null>(null);
 
   // When opening a response, look up other responses for the same event (other templates).
   useEffect(() => {
