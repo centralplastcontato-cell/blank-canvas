@@ -71,6 +71,12 @@ function PreFestaResponseCards({ responses, template, onDelete }: { responses: a
                         <Calendar className="h-3 w-3" />
                         {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                       </p>
+                      {r.company_events?.event_date && (
+                        <p className="text-xs text-primary flex items-center gap-1 mt-0.5">
+                          <PartyPopper className="h-3 w-3" />
+                          Festa: {format(new Date(r.company_events.event_date + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
