@@ -2406,6 +2406,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
       // === PHASE 3: Check for provider/app-level graceful errors ===
       if (response.data?.errorType === 'SESSION_INCOMPLETE' || response.data?.blocked) {
+        if (selectedConversationRef.current !== convId) return;
         setMessages(prev => prev.map(m => 
           m.id === optimisticId ? { ...m, status: 'failed' } : m
         ));
@@ -2421,13 +2422,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         throw new Error(response.data?.error || "Não foi possível enviar a mensagem.");
       }
 
-      setMessages(prev => prev.map(m => 
-        m.id === optimisticId ? { ...m, status: 'sent' } : m
-      ));
+      if (selectedConversationRef.current === convId) {
+        setMessages(prev => prev.map(m => 
+          m.id === optimisticId ? { ...m, status: 'sent' } : m
+        ));
+      }
     } catch (error: unknown) {
       // Remove optimistic message on error
-      setMessages(prev => prev.filter(m => m.id !== optimisticId));
-      setNewMessage(messageToSend); // Restore message to input
+      if (selectedConversationRef.current === convId) {
+        setMessages(prev => prev.filter(m => m.id !== optimisticId));
+        setNewMessage(messageToSend);
+      }
       
       toast({
         title: "Erro ao enviar",
