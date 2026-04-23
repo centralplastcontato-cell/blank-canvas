@@ -166,12 +166,13 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
 
         {/* Preview + Recipient list */}
         <ScrollArea className="flex-1 min-h-0 w-full">
+          <div className="w-full max-w-full overflow-hidden">
           {/* Prévia da campanha */}
-          <div className="p-4 sm:px-6 border-b border-border">
+          <div className="p-4 sm:px-6 border-b border-border max-w-full overflow-hidden">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
               <MessageSquare className="w-3.5 h-3.5" /> Prévia da campanha
             </p>
-            <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3 min-w-0 overflow-hidden">
+            <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3 min-w-0 max-w-full overflow-hidden">
               {campaign.image_url && (
                 <div className="rounded-lg overflow-hidden bg-card shadow-sm max-w-[280px] border border-border">
                   <img
@@ -188,13 +189,13 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
                   const tone = typeof v === "object" ? v?.tone : null;
                   if (!text) return null;
                   return (
-                    <div key={idx} className="space-y-1 min-w-0">
-                      <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
+                    <div key={idx} className="space-y-1 min-w-0 max-w-full">
+                      <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground flex-wrap">
                         <span className="px-1.5 py-0.5 rounded bg-card border border-border">Variação {idx + 1}</span>
                         {tone && <span className="italic">{tone}</span>}
                       </div>
-                       <div className="bg-card rounded-lg rounded-tl-none px-3 py-2 shadow-sm border border-border w-[92%] max-w-[92%] min-w-0 overflow-hidden">
-                         <p className="text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-foreground leading-relaxed">{text}</p>
+                      <div className="bg-card rounded-lg rounded-tl-none px-3 py-2 shadow-sm border border-border w-full max-w-full min-w-0 overflow-hidden">
+                        <p className="text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-foreground leading-relaxed">{text}</p>
                         <p className="text-[9px] text-muted-foreground text-right mt-1">prévia</p>
                       </div>
                     </div>
@@ -206,10 +207,11 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
                   Nenhuma mensagem configurada
                 </div>
               )}
-              <p className="text-[10px] text-muted-foreground pt-2 border-t border-border/50">
+              <p className="text-[10px] text-muted-foreground pt-2 border-t border-border/50 break-words">
                 💡 Variáveis <code className="px-1 bg-card rounded">{"{nome}"}</code> e <code className="px-1 bg-card rounded">{"{empresa}"}</code> serão substituídas no envio.
               </p>
             </div>
+          </div>
           </div>
 
           <div className="p-4 sm:px-6 space-y-1.5">
