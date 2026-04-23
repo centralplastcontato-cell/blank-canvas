@@ -23,6 +23,10 @@ interface PreReservationCalendar {
   status: string;
 }
 
+interface PaymentStatusMap {
+  [eventId: string]: { total: number; paid: number; pending: number; late: number };
+}
+
 interface AgendaCalendarProps {
   events: CalendarEvent[];
   month: Date;
@@ -32,6 +36,7 @@ interface AgendaCalendarProps {
   checklistProgress?: ChecklistProgress;
   preReservations?: PreReservationCalendar[];
   showTypeLegend?: boolean;
+  paymentStatus?: PaymentStatusMap;
 }
 
 const STATUS_DOT: Record<string, string> = {
@@ -46,7 +51,7 @@ const TYPE_DOT: Record<string, string> = {
   tarefa: "bg-amber-500 shadow-[0_0_4px_rgba(245,158,11,0.4)]",
 };
 
-export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selectedDate, checklistProgress = {}, preReservations = [], showTypeLegend = false }: AgendaCalendarProps) {
+export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selectedDate, checklistProgress = {}, preReservations = [], showTypeLegend = false, paymentStatus = {} }: AgendaCalendarProps) {
   const eventsByDate = new Map<string, CalendarEvent[]>();
   events.forEach((ev) => {
     const key = ev.event_date;
@@ -125,6 +130,14 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
             return p && p.total > 0 && p.completed < p.total;
           });
 
+          // Aggregate payment status for the day
+          let dayLate = 0, dayPayPending = 0;
+          dayEvents.forEach((ev) => {
+            const ps = paymentStatus[ev.id];
+            if (ps) { dayLate += ps.late; dayPayPending += ps.pending; }
+          });
+          const hasPaymentIssue = dayLate > 0 || dayPayPending > 0;
+
           return (
             <div className="flex flex-col items-center gap-0.5 lg:gap-1.5 w-full h-full justify-center relative">
               <span className={cn(
@@ -167,6 +180,16 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
               {/* Checklist pending indicator */}
               {hasPending && (
                 <span className="text-[6px] lg:text-[7px] text-amber-500/70 leading-none">📋</span>
+              )}
+
+              {/* Payment status badge */}
+              {hasPaymentIssue && (
+                <span className={cn(
+                  "text-[6px] lg:text-[7px] font-bold leading-none",
+                  dayLate > 0 ? "text-red-500" : "text-amber-500"
+                )}>
+                  💰{dayLate > 0 ? dayLate : dayPayPending}
+                </span>
               )}
 
               {/* Event count badge for days with many events */}
