@@ -678,7 +678,7 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
                     {format(new Date(resp.created_at), "dd/MM/yyyy 'às' HH:mm")}
                   </Badge>
                 </div>
-                <FormattedResponseView answers={resp.answers} formType={viewingResponses.type} />
+                <FormattedResponseView answers={resp.answers} formType={viewingResponses.type} questions={viewingResponses.templateQuestions} />
               </div>
             ))}
             {viewingResponses?.responses.length === 0 && (
