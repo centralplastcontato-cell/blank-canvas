@@ -56,7 +56,7 @@ function PreFestaResponseCards({ responses, template, onDelete }: { responses: a
           return (
             <Card
               key={r.id}
-              className="bg-card border-border cursor-pointer hover:border-primary/30 transition-all"
+              className="bg-card border border-border cursor-pointer hover:border-primary/30 transition-all"
               onClick={() => setSelectedResponse(r)}
             >
               <CardContent className="p-4 space-y-2">
