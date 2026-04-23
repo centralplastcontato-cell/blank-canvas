@@ -84,10 +84,14 @@ export function PriceGridConfigDialog({ open, onOpenChange, companyId, currentSe
   };
 
   const toggleDayMapping = (idx: number, token: DayMappingToken) => {
+    const currentColShift = dayTypes[idx]?.shift || "any";
     setDayTypes(dayTypes.map((d, i) => {
       if (i !== idx) {
-        // Remove this token from any other column to keep mapping exclusive
-        if (d.days?.includes(token)) {
+        // Only remove token from other columns with the SAME shift
+        const otherShift = d.shift || "any";
+        const sameShift = currentColShift === otherShift
+          || currentColShift === "any" || otherShift === "any";
+        if (sameShift && d.days?.includes(token)) {
           return { ...d, days: d.days.filter((t) => t !== token) };
         }
         return d;
