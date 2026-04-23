@@ -1,45 +1,27 @@
 
 
-## Correção: Duplicação de parcelas ao editar evento com pagamentos já quitados
+## Correção: Pendente de R$ 0,01 residual por arredondamento
 
-### Problema identificado
+### Problema
 
-A função `syncPaymentDetails` em `Agenda.tsx` (linha 739) é chamada tanto na **criação** quanto na **edição** de eventos. Ao editar um evento que já possui pagamentos pagos:
+O ajuste de taxas de cartão em `EventFinancialTab.tsx` tem dois pontos que permitem centavos residuais:
 
-1. O sistema mantém os pagamentos com `status === "paid"` (correto).
-2. Deleta os pendentes (correto).
-3. Recria **todas** as parcelas do `payment_details` como novos registros pendentes — **sem subtrair o valor já pago**.
-
-Isso gera duplicação: os pagamentos pagos continuam existindo + novas parcelas são criadas para o valor total.
-
-**Problema secundário:** A função não salva `gross_amount` nem `card_fee_percent` nos registros de `event_payments`, o que causa o problema de saldo fantasma já corrigido na camada de exibição.
+1. **Linha 639**: Se `unaccountedFees <= 0.01`, retorna o summary original sem ajustar — mas isso significa que R$ 0,01 de diferença nunca é corrigido.
+2. **Linha 648**: O `adjustedPending` não é arredondado, então diferenças de ponto flutuante (ex: 0.0099999) podem aparecer como R$ 0,01.
 
 ### Solução
 
-Alterar `syncPaymentDetails` em `src/pages/Agenda.tsx` para:
+No `useMemo` do `adjustedSummary`:
 
-1. **Ao recriar parcelas com pagamentos pagos existentes**, buscar o `amount` (e `gross_amount`) dos pagamentos pagos e subtrair do total antes de criar novos registros pendentes.
-2. **Salvar `gross_amount` e `card_fee_percent`** nos registros de card payment, para que o cálculo do hook seja preciso sem necessidade de ajuste na exibição.
+1. Remover o early-return `if (unaccountedFees <= 0.01)` — permitir que qualquer diferença seja processada.
+2. Arredondar `adjustedPending` para 2 casas decimais com `Math.round(x * 100) / 100`.
+3. Se o resultado for ≤ 0.01, forçar para 0 e marcar como "pago".
 
-### Alterações técnicas
+### Arquivo alterado
 
-**Arquivo:** `src/pages/Agenda.tsx`
-
-**1. Buscar dados completos dos pagamentos existentes (linha ~743-746)**
-- Alterar o `select` para incluir `amount, gross_amount, type, payment_method` além de `id, status`.
-
-**2. Calcular valor já pago (após linha 754)**
-- Quando `hasPaidPayments`, somar o `gross_amount || amount` dos pagamentos pagos para obter `paidGrossTotal`.
-- Subtrair `paidGrossTotal` do valor total das novas parcelas antes de criá-las.
-- Se o saldo restante for ≤ 0, não criar nenhum registro novo (tudo já está pago).
-
-**3. Salvar `gross_amount` e `card_fee_percent` (linhas 782-815)**
-- Na entrada com taxa de cartão: adicionar `gross_amount: pd.entrada_valor` e `card_fee_percent: feeRate`.
-- Na parcela consolidada com taxa: adicionar `gross_amount: totalSaldo` e `card_fee_percent: saldoFeeRate`.
+`src/components/financial/EventFinancialTab.tsx` — somente o bloco `adjustedSummary` (linhas 629–651).
 
 ### Resultado esperado
 
-- Ao editar um evento com pagamentos já quitados, o sistema não cria parcelas duplicadas.
-- Novos registros de pagamento por cartão terão `gross_amount` correto, eliminando saldos fantasma para eventos futuros.
-- Funciona para todos os clientes automaticamente.
+Festa da Tayná: Pendente mostrará R$ 0,00 e status "Pago", sem centavos residuais.
 
