@@ -472,7 +472,7 @@ export default function Agenda() {
     if (!initialLoadDone.current) setLoading(true);
     const start = format(startOfMonth(month), "yyyy-MM-dd");
     const end = format(endOfMonth(month), "yyyy-MM-dd");
-    const [eventsRes, checklistRes, closedResult, preResRes, allPreResRes] = await Promise.all([
+    const [eventsRes, checklistRes, closedResult, preResRes, allPreResRes, paymentsRes] = await Promise.all([
       supabase
         .from("company_events")
         .select("*")
@@ -498,6 +498,10 @@ export default function Agenda() {
         .select("*")
         .eq("company_id", currentCompany.id)
         .order("event_date", { ascending: true }),
+      supabase
+        .from("event_payments")
+        .select("event_id, status, due_date")
+        .eq("company_id", currentCompany.id),
     ]);
 
     if (!eventsRes.error && eventsRes.data) setEvents(eventsRes.data as CompanyEvent[]);
