@@ -297,6 +297,63 @@ function CardapioResponseCards({ responses, template, onDelete, company }: { res
           )}
         </SheetContent>
       </Sheet>
+
+      <Dialog
+        open={!!pdfPreview}
+        onOpenChange={(open) => {
+          if (!open && pdfPreview) {
+            URL.revokeObjectURL(pdfPreview.url);
+            setPdfPreview(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-5xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 py-4 border-b shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-4 w-4 text-primary" />
+              Pré-visualização do PDF
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden bg-muted/30">
+            {pdfPreview && (
+              <iframe
+                src={pdfPreview.url}
+                title="Pré-visualização do cardápio"
+                className="w-full h-full border-0"
+              />
+            )}
+          </div>
+          <DialogFooter className="px-6 py-3 border-t shrink-0 gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (pdfPreview) {
+                  URL.revokeObjectURL(pdfPreview.url);
+                  setPdfPreview(null);
+                }
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                if (!pdfPreview) return;
+                const a = document.createElement("a");
+                a.href = pdfPreview.url;
+                a.download = pdfPreview.fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                toast({ title: "PDF baixado", description: pdfPreview.fileName });
+              }}
+              className="gap-1.5"
+            >
+              <Printer className="h-4 w-4" />
+              Baixar PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
