@@ -238,11 +238,14 @@ function CardapioResponseCards({ responses, template, onDelete, company }: { res
                     if (!template) return;
                     setPrinting(true);
                     try {
-                      await generateCardapioPrintPDF(
+                      const result = await generateCardapioPrintPDF(
                         selectedResponse,
                         template,
                         { name: company?.name || "Buffet", logo_url: company?.logo_url || null },
+                        { save: false },
                       );
+                      const url = URL.createObjectURL(result.blob);
+                      setPdfPreview({ url, fileName: result.fileName, blob: result.blob });
                     } catch (err) {
                       console.error(err);
                       toast({ title: "Erro ao gerar PDF", variant: "destructive" });
@@ -251,8 +254,8 @@ function CardapioResponseCards({ responses, template, onDelete, company }: { res
                     }
                   }}
                 >
-                  {printing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />}
-                  Imprimir para Cozinha
+                  {printing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
+                  Pré-visualizar PDF
                 </Button>
 
                 {onDelete && (
