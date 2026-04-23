@@ -6179,6 +6179,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                 )}
                               </>
                             ) : null}
+                            {msg.message_type !== 'text' && msg.message_type !== 'contact' && msg.content && msg.content !== '[Imagem]' && msg.content !== '[Áudio]' && (
+                              <p className={cn("whitespace-pre-wrap break-words [overflow-wrap:anywhere] mt-1", (msg.message_type === 'image' || msg.message_type === 'video') && "px-2")}>{formatMessageContent(msg.content)}</p>
+                            )}
                             <div className={cn(
                               "flex items-center gap-1 mt-1",
                               msg.from_me ? "justify-end" : "justify-start",
