@@ -24,6 +24,7 @@ interface FormStatus {
   templateId?: string;
   templateSlug?: string;
   publicPath?: string;
+  templateQuestions?: any[];
 }
 
 interface EventFormsStatusPanelProps {
