@@ -11,8 +11,10 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Loader2, Send, Minus, CheckCircle2, XCircle, Clock, Megaphone, Pause } from "lucide-react";
+import { Loader2, Send, Minus, CheckCircle2, XCircle, Clock, Megaphone, Pause, Smartphone } from "lucide-react";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 interface Recipient {
   id: string;
@@ -20,6 +22,13 @@ interface Recipient {
   phone: string;
   variation_index: number;
   status: string;
+}
+
+interface InstanceOption {
+  id: string;
+  instance_id: string;
+  unit: string | null;
+  phone_number: string | null;
 }
 
 interface CampaignSendDialogProps {
