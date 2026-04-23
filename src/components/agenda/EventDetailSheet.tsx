@@ -577,6 +577,15 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
             </div>
           </div>
 
+          {/* Resumo da Festa */}
+          {event.company_id && (
+            <EventSummaryPanel
+              event={event}
+              leadName={leadName}
+              companyId={event.company_id}
+            />
+          )}
+
           {/* Checklist */}
           {event.company_id && (
             <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden">
