@@ -9,6 +9,16 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
+interface BirthdayChild {
+  name?: string;
+  age?: string;
+}
+
+interface EventOptional {
+  name?: string;
+  value?: number;
+}
+
 interface PartyEvent {
   id: string;
   company_id: string;
@@ -22,6 +32,12 @@ interface PartyEvent {
   status: string;
   package_name: string | null;
   total_value: number | null;
+  child_name: string | null;
+  child_age: string | null;
+  birthday_children: BirthdayChild[] | null;
+  parent_names: string | null;
+  event_optionals: EventOptional[] | null;
+  notes: string | null;
 }
 
 interface PartyControlModules {
@@ -52,7 +68,7 @@ interface CompanyInfo {
   settings: Record<string, unknown> | null;
 }
 
-type TabType = "home" | "pending" | "checklist";
+type TabType = "home" | "summary" | "pending" | "checklist";
 
 function parsePartyControlModules(settings: Record<string, unknown> | null): PartyControlModules {
   const defaults: PartyControlModules = {
@@ -265,6 +281,7 @@ export default function PublicPartyControl() {
   const timeStr = event.start_time ? `${event.start_time.slice(0, 5)}${event.end_time ? `–${event.end_time.slice(0, 5)}` : ""}` : null;
 
   const moduleDefinitions = [
+    { key: "summary", label: "Resumo", emoji: "📋", glow: "rgba(99,102,241,0.38)", border: "rgba(129,140,248,0.60)", bg: "linear-gradient(160deg, rgba(99,102,241,0.32) 0%, rgba(67,56,202,0.12) 50%, rgba(20,10,80,0.08) 100%)", enabled: true, statusText: "Ver detalhes", isOk: true, isWarning: false, isEmpty: false },
     { key: "checklist", label: "Checklist", emoji: "✅", glow: "rgba(16,185,129,0.38)", border: "rgba(52,211,153,0.60)", bg: "linear-gradient(160deg, rgba(16,185,129,0.32) 0%, rgba(5,150,105,0.12) 50%, rgba(1,28,18,0.08) 100%)", enabled: modules?.checklist ?? true, statusText: status.checklist.total === 0 ? "Sem itens" : `${status.checklist.completed}/${status.checklist.total} itens`, isOk: status.checklist.total > 0 && status.checklist.completed === status.checklist.total, isWarning: status.checklist.total > 0 && status.checklist.completed < status.checklist.total, isEmpty: status.checklist.total === 0 },
     { key: "staff", label: "Equipe", emoji: "👥", glow: "rgba(59,130,246,0.38)", border: "rgba(99,155,255,0.60)", bg: "linear-gradient(160deg, rgba(59,130,246,0.32) 0%, rgba(37,99,235,0.12) 50%, rgba(8,20,60,0.08) 100%)", enabled: modules?.staff ?? true, statusText: status.staff.id ? "Registrado" : "Não criado", isOk: !!status.staff.id, isWarning: !status.staff.id, isEmpty: false, url: getModuleUrl("staff") },
     { key: "maintenance", label: "Manutenção", emoji: "🔧", glow: "rgba(139,92,246,0.38)", border: "rgba(167,139,250,0.60)", bg: "linear-gradient(160deg, rgba(139,92,246,0.32) 0%, rgba(109,40,217,0.12) 50%, rgba(30,8,70,0.08) 100%)", enabled: modules?.maintenance ?? true, statusText: status.maintenance.id ? "Registrado" : "Não criado", isOk: !!status.maintenance.id, isWarning: !status.maintenance.id, isEmpty: false, url: getModuleUrl("maintenance") },
@@ -469,12 +486,13 @@ export default function PublicPartyControl() {
           <div className="px-3">
             <div className="grid grid-cols-2 gap-3">
               {moduleDefinitions.map(mod => {
-                const isClickable = mod.key === "checklist" || !!(mod as any).url;
+                const isClickable = mod.key === "checklist" || mod.key === "summary" || !!(mod as any).url;
                 return (
                   <button
                     key={mod.key}
                     onClick={() => {
                       if (mod.key === "checklist") setActiveTab("checklist");
+                      else if (mod.key === "summary") setActiveTab("summary");
                       else if ((mod as any).url) openModule((mod as any).url);
                     }}
                     disabled={!isClickable}
@@ -553,6 +571,109 @@ export default function PublicPartyControl() {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* SUMMARY TAB */}
+        {activeTab === "summary" && (
+          <div className="px-4 space-y-3">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">📋</span>
+              <h2 className="text-white font-bold text-base">Resumo da Festa</h2>
+            </div>
+
+            {(() => {
+              const children: { name: string; age: string }[] = [];
+              if (event.birthday_children && Array.isArray(event.birthday_children) && event.birthday_children.length > 0) {
+                for (const c of event.birthday_children) {
+                  if (c.name) children.push({ name: c.name, age: c.age || "" });
+                }
+              } else if (event.child_name) {
+                children.push({ name: event.child_name, age: event.child_age || "" });
+              }
+              const optionals = Array.isArray(event.event_optionals) ? event.event_optionals.filter(o => o?.name) : [];
+
+              const SummaryRow = ({ emoji, label, children: content }: { emoji: string; label: string; children: React.ReactNode }) => (
+                <div className="rounded-xl px-4 py-3 flex items-start gap-3"
+                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)" }}>
+                  <span className="text-lg shrink-0 mt-0.5">{emoji}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[9px] font-bold uppercase tracking-widest mb-0.5" style={{ color: "#475569" }}>{label}</p>
+                    {content}
+                  </div>
+                </div>
+              );
+
+              return (
+                <>
+                  {children.length > 0 && (
+                    <SummaryRow emoji="🎂" label={children.length > 1 ? "Aniversariantes" : "Aniversariante"}>
+                      {children.map((c, i) => (
+                        <p key={i} className="text-sm font-medium" style={{ color: "#e2e8f0" }}>
+                          {c.name}{c.age ? ` — ${c.age} anos` : ""}
+                        </p>
+                      ))}
+                    </SummaryRow>
+                  )}
+
+                  {event.parent_names && (
+                    <SummaryRow emoji="👨‍👩‍👧" label="Pais / Contratante">
+                      <p className="text-sm font-medium" style={{ color: "#e2e8f0" }}>{event.parent_names}</p>
+                    </SummaryRow>
+                  )}
+
+                  {event.package_name && (
+                    <SummaryRow emoji="📦" label="Pacote">
+                      <p className="text-sm font-medium" style={{ color: "#e2e8f0" }}>{event.package_name}</p>
+                    </SummaryRow>
+                  )}
+
+                  {event.guest_count && (
+                    <SummaryRow emoji="👥" label="Convidados">
+                      <p className="text-sm font-medium" style={{ color: "#e2e8f0" }}>{event.guest_count} pessoas</p>
+                    </SummaryRow>
+                  )}
+
+                  {(event.start_time || event.end_time) && (
+                    <SummaryRow emoji="🕐" label="Horário">
+                      <p className="text-sm font-medium" style={{ color: "#e2e8f0" }}>
+                        {event.start_time?.slice(0, 5) || "–"} até {event.end_time?.slice(0, 5) || "–"}
+                      </p>
+                    </SummaryRow>
+                  )}
+
+                  {event.unit && (
+                    <SummaryRow emoji="📍" label="Unidade">
+                      <p className="text-sm font-medium" style={{ color: "#e2e8f0" }}>{event.unit}</p>
+                    </SummaryRow>
+                  )}
+
+                  {optionals.length > 0 && (
+                    <SummaryRow emoji="⭐" label="Opcionais">
+                      {optionals.map((opt, i) => (
+                        <p key={i} className="text-sm font-medium" style={{ color: "#e2e8f0" }}>
+                          {opt.name}
+                          {opt.value ? ` — ${Number(opt.value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}` : ""}
+                        </p>
+                      ))}
+                    </SummaryRow>
+                  )}
+
+                  {event.notes && (
+                    <SummaryRow emoji="📝" label="Observações">
+                      <p className="text-sm font-medium whitespace-pre-wrap" style={{ color: "#cbd5e1" }}>{event.notes}</p>
+                    </SummaryRow>
+                  )}
+
+                  {children.length === 0 && !event.parent_names && !event.package_name && !event.guest_count && !event.notes && optionals.length === 0 && (
+                    <div className="text-center py-16">
+                      <div className="text-5xl mb-4">📋</div>
+                      <p className="text-slate-500 text-sm">Nenhuma informação registrada</p>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
 
@@ -640,6 +761,7 @@ export default function PublicPartyControl() {
         <div className="flex items-stretch">
           {[
             { id: "home" as TabType, label: "Início", emoji: "🏠", badge: null },
+            { id: "summary" as TabType, label: "Resumo", emoji: "📋", badge: null },
             { id: "pending" as TabType, label: "Pendentes", emoji: "⏳", badge: pendingCount > 0 ? pendingCount : null },
             { id: "checklist" as TabType, label: "Checklist", emoji: "✅", badge: null },
           ].map(tab => {

@@ -6379,14 +6379,20 @@ export type Database = {
       get_event_public_info: {
         Args: { _event_id: string }
         Returns: {
+          birthday_children: Json
+          child_age: string
+          child_name: string
           company_id: string
           end_time: string
           event_date: string
+          event_optionals: Json
           event_type: string
           guest_count: number
           id: string
           lead_id: string
+          notes: string
           package_name: string
+          parent_names: string
           start_time: string
           status: string
           title: string
