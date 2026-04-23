@@ -11,8 +11,10 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Loader2, Send, Minus, CheckCircle2, XCircle, Clock, Megaphone, Pause } from "lucide-react";
+import { Loader2, Send, Minus, CheckCircle2, XCircle, Clock, Megaphone, Pause, Smartphone } from "lucide-react";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 interface Recipient {
   id: string;
@@ -20,6 +22,13 @@ interface Recipient {
   phone: string;
   variation_index: number;
   status: string;
+}
+
+interface InstanceOption {
+  id: string;
+  instance_id: string;
+  unit: string | null;
+  phone_number: string | null;
 }
 
 interface CampaignSendDialogProps {
@@ -46,6 +55,8 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
   const [countdown, setCountdown] = useState<number | null>(null);
   const [result, setResult] = useState<{ success: number; errors: number } | null>(null);
   const [statuses, setStatuses] = useState<Map<string, string>>(new Map());
+  const [instances, setInstances] = useState<InstanceOption[]>([]);
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string>("");
   const isSendingRef = useRef(false);
   const pauseRequestedRef = useRef(false);
   const [paused, setPaused] = useState(false);
@@ -59,6 +70,7 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
   useEffect(() => {
     if (!open) return;
     loadRecipients();
+    loadInstances();
   }, [open]);
 
   const loadRecipients = async () => {
@@ -76,19 +88,22 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
     setLoading(false);
   };
 
-  const getInstanceId = async (): Promise<string | null> => {
+  const loadInstances = async () => {
     const { data } = await supabase
       .from("wapi_instances")
-      .select("instance_id")
+      .select("id, instance_id, unit, phone_number")
       .eq("company_id", companyId)
       .eq("status", "connected")
-      .limit(1)
-      .single();
-    return data?.instance_id || null;
+      .order("unit", { ascending: true });
+    const list = (data as InstanceOption[]) || [];
+    setInstances(list);
+    if (list.length > 0 && !selectedInstanceId) {
+      setSelectedInstanceId(list[0].instance_id);
+    }
   };
 
   const handleSend = async () => {
-    const instanceId = await getInstanceId();
+    const instanceId = selectedInstanceId || instances[0]?.instance_id || null;
     if (!instanceId) {
       toast.error("Nenhuma instância de WhatsApp conectada!");
       return;
@@ -364,14 +379,47 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
             </div>
           ) : (
             <div className="space-y-4 py-2">
+              {instances.length > 1 && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Smartphone className="w-3.5 h-3.5" />
+                    Enviar pelo WhatsApp
+                  </Label>
+                  <Select value={selectedInstanceId} onValueChange={setSelectedInstanceId}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecione a instância" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {instances.map((inst) => (
+                        <SelectItem key={inst.instance_id} value={inst.instance_id}>
+                          {inst.unit || "Sem unidade"}
+                          {inst.phone_number ? ` — ${inst.phone_number}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground">
+                    Escolha por qual número os disparos serão feitos.
+                  </p>
+                </div>
+              )}
+              {instances.length === 1 && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 text-xs text-muted-foreground">
+                  <Smartphone className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">
+                    Enviando por: <strong className="text-foreground">{instances[0].unit || "WhatsApp"}</strong>
+                    {instances[0].phone_number ? ` (${instances[0].phone_number})` : ""}
+                  </span>
+                </div>
+              )}
               <div className="text-center">
                 <p className="text-sm text-muted-foreground mb-4">
                   {recipients.length} mensagens serão enviadas com intervalo de {campaign.delay_seconds}s.
                   Tempo estimado: ~{Math.ceil((recipients.length * campaign.delay_seconds) / 60)} minutos.
                 </p>
-                <Button onClick={handleSend} className="w-full" size="lg">
+                <Button onClick={handleSend} className="w-full" size="lg" disabled={instances.length === 0}>
                   <Send className="w-4 h-4 mr-2" />
-                  Iniciar Envio
+                  {instances.length === 0 ? "Nenhum WhatsApp conectado" : "Iniciar Envio"}
                 </Button>
               </div>
             </div>
