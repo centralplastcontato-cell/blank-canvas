@@ -619,8 +619,18 @@ export default function Agenda() {
     if (selectedUnit !== "all") {
       filtered = filtered.filter(e => e.unit === selectedUnit);
     }
+    // Payment filter
+    if (paymentFilter !== "all") {
+      filtered = filtered.filter(e => {
+        const ps = paymentStatus[e.id];
+        if (!ps) return false;
+        if (paymentFilter === "late") return ps.late > 0;
+        if (paymentFilter === "pending") return ps.pending > 0 || ps.late > 0;
+        return false;
+      });
+    }
     return filtered;
-  }, [events, selectedUnit, canViewAll, allowedUnits]);
+  }, [events, selectedUnit, canViewAll, allowedUnits, paymentFilter, paymentStatus]);
 
   // Filtered period events (same unit logic)
   const periodFilteredEvents = useMemo(() => {
