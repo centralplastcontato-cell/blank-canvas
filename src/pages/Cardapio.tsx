@@ -307,12 +307,12 @@ function CardapioResponseCards({ responses, template, onDelete, company, allTemp
                 </div>
               )}
 
-              <div className="pt-4 flex flex-col sm:flex-row gap-2 sm:justify-between">
-                <div className="flex items-center gap-2">
+              <div className="pt-4 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                   <Button
                     variant="default"
                     size="sm"
-                    className="gap-1.5"
+                    className="gap-1.5 w-full sm:w-auto justify-center"
                     disabled={printing || !pdfTemplateId}
                     onClick={async () => {
                       const tpl =
@@ -352,7 +352,7 @@ function CardapioResponseCards({ responses, template, onDelete, company, allTemp
                       <Button
                         variant="outline"
                         size="sm"
-                        className="gap-1.5"
+                        className="gap-1.5 w-full sm:w-auto justify-center"
                         title="Preferências de impressão"
                       >
                         <Settings2 className="h-3.5 w-3.5" />
@@ -426,7 +426,7 @@ function CardapioResponseCards({ responses, template, onDelete, company, allTemp
                 {onDelete && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5">
+                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 w-full sm:w-auto justify-center">
                         <Trash2 className="h-3.5 w-3.5" /> Apagar resposta
                       </Button>
                     </AlertDialogTrigger>
