@@ -158,7 +158,7 @@ function CardapioResponseCards({ responses, template, onDelete, company, allTemp
     (async () => {
       const { data } = await supabase
         .from("cardapio_responses")
-        .select("id, template_id, respondent_name, created_at, answers, company_events(event_date, title)")
+        .select("id, template_id, respondent_name, created_at, answers, company_events(event_date, title, guest_count)")
         .eq("event_id", selectedResponse.event_id)
         .order("created_at", { ascending: false });
       setEventResponses(data || []);
