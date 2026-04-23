@@ -486,12 +486,13 @@ export default function PublicPartyControl() {
           <div className="px-3">
             <div className="grid grid-cols-2 gap-3">
               {moduleDefinitions.map(mod => {
-                const isClickable = mod.key === "checklist" || !!(mod as any).url;
+                const isClickable = mod.key === "checklist" || mod.key === "summary" || !!(mod as any).url;
                 return (
                   <button
                     key={mod.key}
                     onClick={() => {
                       if (mod.key === "checklist") setActiveTab("checklist");
+                      else if (mod.key === "summary") setActiveTab("summary");
                       else if ((mod as any).url) openModule((mod as any).url);
                     }}
                     disabled={!isClickable}
