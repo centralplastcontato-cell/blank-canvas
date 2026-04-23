@@ -1373,13 +1373,11 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
             <div className="rounded-xl border overflow-hidden bg-muted/20">
               <canvas
                 ref={canvasRef}
-                className="w-full h-auto block touch-none"
+                className="w-full h-auto block touch-none select-none"
+                style={{ touchAction: "none" }}
                 onMouseDown={handleCanvasPointerDown}
                 onMouseMove={handleCanvasPointerMove}
                 onMouseUp={handleCanvasPointerUp}
-                onTouchStart={handleCanvasPointerDown}
-                onTouchMove={handleCanvasPointerMove}
-                onTouchEnd={handleCanvasPointerUp}
               />
             </div>
             <div className="flex items-center justify-between mt-1.5 px-1">
