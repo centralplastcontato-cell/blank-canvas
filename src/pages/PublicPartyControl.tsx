@@ -670,6 +670,23 @@ export default function PublicPartyControl() {
                     </SummaryRow>
                   )}
 
+                  {/* Botão editar evento */}
+                  <button
+                    onClick={() => {
+                      const baseUrl = window.location.origin;
+                      window.open(`${baseUrl}/agenda?event_id=${event.id}`, "_blank");
+                    }}
+                    className="w-full mt-2 flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all active:scale-[0.97]"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15))",
+                      border: "1px solid rgba(99,102,241,0.3)",
+                      color: "#a5b4fc",
+                    }}
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Editar Evento no Painel
+                  </button>
+
                   {children.length === 0 && !event.parent_names && !event.package_name && !event.guest_count && !event.notes && optionals.length === 0 && (
                     <div className="text-center py-16">
                       <div className="text-5xl mb-4">📋</div>
