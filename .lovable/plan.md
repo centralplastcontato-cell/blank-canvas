@@ -1,25 +1,41 @@
 
 
-## Respostas Pré-Festa: Cards maiores + Sheet lateral
+## Objetivo
+Refazer a visualização das respostas do **Cardápio** para ficar **idêntica** à do **Pré-Festa**: cards em grid 3 colunas com nome, data de envio, data da festa e contador de respostas, e ao clicar abrir um **Sheet lateral** com todas as respostas formatadas.
 
-### O que muda
+## Como está hoje (Cardápio)
+- Lista vertical em formato "accordion": botão fino expande um card inline mostrando as respostas.
+- Sem foto/avatar, sem data da festa, sem contador de respostas, sem visual em grid.
 
-1. **Cards de resposta maiores**: Cada resposta terá um card mais alto com mais informações visíveis (nome, data, quantidade de respostas preenchidas), em vez do botão fino atual.
+## Como ficará (igual ao Pré-Festa)
+Cards em grid (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`) contendo:
+- Avatar circular com ícone de usuário
+- Nome do respondente
+- 📅 Data e hora do envio
+- 🎉 Data da festa (quando houver `event_id`)
+- 📄 Contador "X respostas preenchidas"
 
-2. **Detalhes abrem em Sheet lateral (padrão da plataforma)**: Ao clicar em um card de resposta, os detalhes abrem em um `Sheet` (painel lateral direito), seguindo o mesmo padrão usado em Leads, Visitas, Campanhas etc. O comportamento atual de expandir para baixo será removido.
+Ao clicar no card → abre **Sheet lateral direito** com:
+- Cabeçalho com nome, data de envio e data da festa
+- Lista de seções (emoji + título) com as opções escolhidas
+- Botão "Apagar resposta" (com confirmação) — adicionando também a função de delete que hoje não existe no Cardápio
 
-### Detalhes técnicos
+## Mudanças técnicas
 
-**Arquivo: `src/pages/PreFesta.tsx`**
+**Arquivo único:** `src/pages/Cardapio.tsx`
 
-- Refatorar `PreFestaResponseCards`:
-  - Substituir o botão compacto por um `Card` com padding maior (`p-4`), exibindo nome em fonte maior, data formatada, e um contador de respostas preenchidas (ex: "12 respostas").
-  - Remover a lógica de expandir inline (`isOpen`, conteúdo condicional abaixo do botão).
-  - Ao clicar no card, abrir um `Sheet` lateral (`side="right"`) com os detalhes.
+1. **Refatorar `CardapioResponseCards`**: substituir o accordion por estrutura de cards em grid + Sheet lateral, espelhando o componente `PreFestaResponseCards`. Manter a lógica específica de Cardápio (mapear `a.sectionId` → seção com emoji e título; renderizar `a.selected` que pode ser array).
 
-- Criar seção de Sheet dentro do componente:
-  - Header com nome do respondente e data.
-  - Lista de perguntas/respostas formatadas (mesmo conteúdo atual mas dentro do Sheet).
-  - Botão "Apagar resposta" no rodapé do Sheet (mantendo o `AlertDialog` de confirmação).
-  - Usar `SheetContent`, `SheetHeader`, `SheetTitle` dos componentes UI existentes.
+2. **Ajustar `toggleResponses`** (linhas 232–244): incluir join com `company_events` para trazer a data da festa:
+   ```ts
+   .select("*, company_events(event_date)")
+   ```
+
+3. **Adicionar handler `handleDeleteResponse(id)`**: nova função que remove um único registro de `cardapio_responses` por id e recarrega a lista (passada como prop `onDelete` ao componente).
+
+4. **Imports a adicionar**: `Sheet, SheetContent, SheetHeader, SheetTitle` (já existe no PreFesta), `PartyPopper`, `FileText`, `Trash2`, `Loader2`, `AlertDialog*`.
+
+## Fora de escopo
+- Layout da listagem de templates (cards "Cardápio Festa Premium" etc.) permanece como está — a alteração é somente na visualização das **respostas** após clicar em "Respostas (N)".
+- Nenhuma mudança em rotas, RLS ou edge functions.
 
