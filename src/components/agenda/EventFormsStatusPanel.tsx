@@ -531,7 +531,7 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
       const existingConv = await findExistingConversation(leadId, lead.whatsapp, companyId);
 
       // Send via WhatsApp
-      const { error } = await supabase.functions.invoke("wapi-send", {
+      const { data: sendData, error } = await supabase.functions.invoke("wapi-send", {
         body: {
           action: "send-text",
           phone: lead.whatsapp,
@@ -544,7 +544,11 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("[sendForm] wapi-send error:", error, "response data:", sendData);
+        const errMsg = typeof sendData === "object" && sendData?.error ? sendData.error : error.message;
+        throw new Error(errMsg);
+      }
 
       // Log the send
       await supabase.from("lead_history").insert({
