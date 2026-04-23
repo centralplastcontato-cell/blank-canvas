@@ -147,7 +147,7 @@ function getFieldIcon(key: string) {
   return Hash;
 }
 
-function FormattedResponseView({ answers, formType }: { answers: any; formType: string }) {
+function FormattedResponseView({ answers, formType, questions }: { answers: any; formType: string; questions?: any[] }) {
   if (!answers || typeof answers !== "object") {
     return <span className="text-xs text-muted-foreground italic">Sem dados</span>;
   }
