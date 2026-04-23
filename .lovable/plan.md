@@ -1,40 +1,25 @@
 
 
-## Indicador de Pendência Financeira nos Cards da Agenda
+## Respostas Pré-Festa: Cards maiores + Sheet lateral
 
-### O que será feito
+### O que muda
 
-Adicionar um indicador visual compacto nos cards de evento do painel lateral da Agenda (sidebar do dia selecionado) que mostra se a festa possui parcelas pendentes ou em atraso, sem necessidade de abrir o detalhe do evento.
+1. **Cards de resposta maiores**: Cada resposta terá um card mais alto com mais informações visíveis (nome, data, quantidade de respostas preenchidas), em vez do botão fino atual.
 
-### Como vai funcionar
-
-- Ao selecionar um dia no calendário, os cards de evento já exibem informações como horário, unidade, convidados, valor e checklist.
-- Será adicionado um novo indicador abaixo dessas informações mostrando:
-  - **Parcela em atraso**: ícone vermelho com texto "X parcela(s) em atraso"
-  - **Parcela pendente**: ícone laranja com texto "X parcela(s) pendente(s)"
-  - **Tudo pago**: ícone verde discreto com "Pago" (somente se existirem parcelas)
-- O indicador usa cores semânticas consistentes com o padrão visual do sistema.
+2. **Detalhes abrem em Sheet lateral (padrão da plataforma)**: Ao clicar em um card de resposta, os detalhes abrem em um `Sheet` (painel lateral direito), seguindo o mesmo padrão usado em Leads, Visitas, Campanhas etc. O comportamento atual de expandir para baixo será removido.
 
 ### Detalhes técnicos
 
-#### 1. Buscar dados de pagamento para eventos do mês (`src/pages/Agenda.tsx`)
-- Após carregar os eventos (`fetchEvents`), fazer uma query complementar em `event_payments` para todos os `event_id`s do mês visível.
-- Agrupar por `event_id` e calcular: total de parcelas, quantas pagas, quantas pendentes, quantas em atraso (due_date < hoje e status != paid).
-- Armazenar em um `Record<string, { total: number; paid: number; pending: number; late: number }>` via `useState`.
+**Arquivo: `src/pages/PreFesta.tsx`**
 
-#### 2. Renderizar indicador no card do evento (sidebar)
-- No bloco onde já são renderizados checklist progress e conflitos (linhas ~1856-1866), adicionar uma linha condicional:
-  - Se `late > 0`: badge vermelho "X em atraso"
-  - Senão se `pending > 0`: badge laranja "X pendente(s)"
-  - Senão se `paid > 0 && paid === total`: badge verde "Pago"
-- Usar ícone `DollarSign` ou `Banknote` para consistência.
+- Refatorar `PreFestaResponseCards`:
+  - Substituir o botão compacto por um `Card` com padding maior (`p-4`), exibindo nome em fonte maior, data formatada, e um contador de respostas preenchidas (ex: "12 respostas").
+  - Remover a lógica de expandir inline (`isOpen`, conteúdo condicional abaixo do botão).
+  - Ao clicar no card, abrir um `Sheet` lateral (`side="right"`) com os detalhes.
 
-#### 3. Atualizar AgendaListView (opcional)
-- Aplicar a mesma lógica na visão de lista (`AgendaListView.tsx`), caso o mesmo padrão de exibição seja desejado.
-
-### Arquivos alterados
-- `src/pages/Agenda.tsx` — fetch de payment status + renderização no card lateral
-
-### Resultado esperado
-O operador visualiza imediatamente no card da festa (sidebar do calendário) se há pendências financeiras, sem precisar abrir o detalhe do evento.
+- Criar seção de Sheet dentro do componente:
+  - Header com nome do respondente e data.
+  - Lista de perguntas/respostas formatadas (mesmo conteúdo atual mas dentro do Sheet).
+  - Botão "Apagar resposta" no rodapé do Sheet (mantendo o `AlertDialog` de confirmação).
+  - Usar `SheetContent`, `SheetHeader`, `SheetTitle` dos componentes UI existentes.
 
