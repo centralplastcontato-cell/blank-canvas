@@ -38,6 +38,8 @@ export interface CampaignDraft {
   selectedLeadIds: string[];
   leads: { id: string; name: string; whatsapp: string }[];
   delaySeconds: number;
+  pauseBotOnReply: boolean;
+  autoReplyMessage: string;
 }
 
 const STEPS = [
