@@ -120,22 +120,105 @@ export async function generateCardapioPrintPDF(
           .replace(/[^\x00-\xFF]/g, "")}`,
       );
     }
-    lines.push(
-      `Preenchido em: ${format(new Date(response.created_at), "dd/MM/yyyy 'as' HH:mm", { locale: ptBR })}`,
-    );
+    const guestCount = response.company_events?.guest_count;
+    if (guestCount != null && guestCount > 0) {
+      lines.push(`Quantidade de pessoas: ${guestCount}`);
+    }
     lines.push(`Cardapio: ${sanitize(template.name)}`);
 
-    const blockH = lines.length * 6 + 6;
+    const blockH = lines.length * 5.2 + 5;
     doc.roundedRect(marginX, infoStartY, contentWidth, blockH, 2, 2, "F");
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setTextColor(40, 40, 40);
-    let infoY = infoStartY + 6;
+    let infoY = infoStartY + 5;
     lines.forEach((line) => {
       doc.text(line, marginX + 4, infoY);
-      infoY += 6;
+      infoY += 5.2;
     });
-    y = infoStartY + blockH + 8;
+    y = infoStartY + blockH + 5;
+  }
+
+  // ===== Sections (auto-fit single page) =====
+  // Pre-collect non-empty sections to compute density
+  const answersBySection: Record<string, string[]> = {};
+  (response.answers || []).forEach((a) => {
+    const arr = Array.isArray(a.selected)
+      ? a.selected
+      : a.selected
+      ? [String(a.selected)]
+      : [];
+    answersBySection[a.sectionId] = arr;
+  });
+  const visibleSections = template.sections.filter(
+    (s) => (answersBySection[s.id] || []).length > 0,
+  );
+  const totalItems = visibleSections.reduce(
+    (acc, s) => acc + (answersBySection[s.id] || []).length,
+    0,
+  );
+
+  // Available vertical space until footer
+  const availableH = pageHeight - 18 - y;
+  // Estimated overhead per section (header + spacing)
+  const sectionOverhead = 12 + 4;
+  const overheadTotal = visibleSections.length * sectionOverhead;
+  const itemsBudget = Math.max(20, availableH - overheadTotal);
+  // Compute compact item row height to fit single page
+  const idealRowH = totalItems > 0 ? itemsBudget / totalItems : 7;
+  // Clamp into a comfortable readable range
+  const rowH = Math.max(4.6, Math.min(7.2, idealRowH));
+  // Derive font sizes proportionally to row height
+  const itemFontSize = rowH >= 6.2 ? 11 : rowH >= 5.4 ? 10 : 9;
+  const sectionTitleSize = rowH >= 6 ? 12 : 11;
+  const boxSize = Math.min(4, Math.max(2.8, rowH - 2));
+
+  for (const section of visibleSections) {
+    const items = answersBySection[section.id] || [];
+
+    // Section header bar (compact)
+    const headerH = 7.5;
+    doc.setFillColor(245, 230, 235);
+    doc.rect(marginX, y, contentWidth, headerH, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(sectionTitleSize);
+    doc.setTextColor(150, 30, 60);
+    const titleText = sanitize(section.title) || section.id.toUpperCase();
+    doc.text(titleText, marginX + 4, y + headerH - 2);
+    y += headerH + 1.5;
+
+    // Items
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(itemFontSize);
+    doc.setTextColor(30, 30, 30);
+
+    const textX = marginX + 4 + boxSize + 3;
+
+    items.forEach((item, idx) => {
+      const cleanItem = sanitize(item);
+
+      // Zebra background
+      if (idx % 2 === 0) {
+        doc.setFillColor(252, 247, 249);
+        doc.rect(marginX, y, contentWidth, rowH, "F");
+      }
+
+      // Empty checkbox (for user to fill after printing)
+      const boxX = marginX + 4;
+      const boxY = y + (rowH - boxSize) / 2;
+      doc.setDrawColor(120, 30, 50);
+      doc.setLineWidth(0.4);
+      doc.roundedRect(boxX, boxY, boxSize, boxSize, 0.5, 0.5, "S");
+
+      // Item text (centered vertically in row)
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(35, 35, 35);
+      doc.text(cleanItem, textX, y + rowH / 2 + itemFontSize * 0.12);
+
+      y += rowH;
+    });
+
+    y += 3;
   }
 
   // ===== Sections =====
