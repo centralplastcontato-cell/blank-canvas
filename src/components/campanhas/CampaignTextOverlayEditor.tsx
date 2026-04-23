@@ -1069,6 +1069,74 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
     };
   }, []);
 
+  // Native non-passive touch listeners (React touch events are passive on iOS,
+  // so preventDefault inside onTouchMove is ignored and the page scrolls instead of dragging)
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const getCoords = (e: TouchEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const t = e.touches[0] || e.changedTouches[0];
+      return {
+        x: (t.clientX - rect.left) / rect.width,
+        y: (t.clientY - rect.top) / rect.height,
+      };
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      const { x, y } = getCoords(e);
+      const target = findClosestDraggable(x, y);
+      if (!target) return;
+      e.preventDefault();
+      if (target.type === "logo") {
+        draggingRef.current = { type: "logo", id: "logo", startMouseY: y, startCustomY: logoLayer.y, startMouseX: x, startCustomX: logoLayer.x };
+      } else if (target.type === "sticker") {
+        const s = stickers.find((st) => st.id === target.id)!;
+        draggingRef.current = { type: "sticker", id: s.id, startMouseY: y, startCustomY: s.y, startMouseX: x, startCustomX: s.x };
+      } else {
+        const layer = layers.find((l) => l.id === target.id)!;
+        const currentY = layer.customY ?? POS_MAP[positionY][layer.id as keyof (typeof POS_MAP)["top"]] ?? 0.5;
+        const currentX = layer.customX ?? POS_X_MAP[positionX];
+        draggingRef.current = { type: "layer", id: layer.id, startMouseY: y, startCustomY: currentY, startMouseX: x, startCustomX: currentX };
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!draggingRef.current) return;
+      e.preventDefault();
+      const { x, y } = getCoords(e);
+      const deltaY = y - draggingRef.current.startMouseY;
+      const deltaX = x - draggingRef.current.startMouseX;
+      const newY = Math.max(0.05, Math.min(0.95, draggingRef.current.startCustomY + deltaY));
+      const newX = Math.max(0.05, Math.min(0.95, draggingRef.current.startCustomX + deltaX));
+
+      if (draggingRef.current.type === "logo") {
+        setLogoLayer((prev) => ({ ...prev, x: newX, y: newY }));
+      } else if (draggingRef.current.type === "sticker") {
+        setStickers((prev) => prev.map((s) => s.id === draggingRef.current!.id ? { ...s, x: newX, y: newY } : s));
+      } else {
+        setLayers((prev) => prev.map((l) => l.id === draggingRef.current!.id ? { ...l, customY: newY, customX: newX } : l));
+      }
+    };
+
+    const onTouchEnd = () => {
+      draggingRef.current = null;
+    };
+
+    canvas.addEventListener("touchstart", onTouchStart, { passive: false });
+    canvas.addEventListener("touchmove", onTouchMove, { passive: false });
+    canvas.addEventListener("touchend", onTouchEnd, { passive: false });
+    canvas.addEventListener("touchcancel", onTouchEnd, { passive: false });
+
+    return () => {
+      canvas.removeEventListener("touchstart", onTouchStart);
+      canvas.removeEventListener("touchmove", onTouchMove);
+      canvas.removeEventListener("touchend", onTouchEnd);
+      canvas.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, [findClosestDraggable, logoLayer, stickers, layers, positionY, positionX]);
+
   const resetPositions = useCallback(() => {
     setLayers((prev) => prev.map((l) => ({ ...l, customY: undefined, customX: undefined })));
   }, []);
@@ -1305,13 +1373,11 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
             <div className="rounded-xl border overflow-hidden bg-muted/20">
               <canvas
                 ref={canvasRef}
-                className="w-full h-auto block touch-none"
+                className="w-full h-auto block touch-none select-none"
+                style={{ touchAction: "none" }}
                 onMouseDown={handleCanvasPointerDown}
                 onMouseMove={handleCanvasPointerMove}
                 onMouseUp={handleCanvasPointerUp}
-                onTouchStart={handleCanvasPointerDown}
-                onTouchMove={handleCanvasPointerMove}
-                onTouchEnd={handleCanvasPointerUp}
               />
             </div>
             <div className="flex items-center justify-between mt-1.5 px-1">

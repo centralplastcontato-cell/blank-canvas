@@ -54,47 +54,51 @@ Deno.serve(async (req) => {
 
     if (isThemeOnly) {
       const themeDesc = campaign_theme || "children's party";
-      const contextHint = context ? ` Campaign context: ${context}.` : "";
+      const contextHint = context ? ` Additional context: ${context}.` : "";
 
       const logoInstruction = logo_url
-        ? `Include a subtle watermark-style logo area in the ${posLabel} of the image.`
+        ? `Reserve a small clean area in the ${posLabel} of the image for a logo (no text rendered).`
         : "";
 
-      promptText = `Professional promotional art for a children's party venue WhatsApp marketing campaign.
-Theme: "${themeDesc}".${contextHint}
+      promptText = `Professional promotional artwork for a children's party venue marketing campaign on WhatsApp.
+Main theme: "${themeDesc}".${contextHint}
 
-Create a vibrant, high-impact square composition with:
-- Colorful, saturated, inviting colors related to the theme "${themeDesc}"
-- Festive decorative elements (confetti, balloons, stars, ribbons, toys, sweets, cakes)
-- Professional marketing agency quality with good visual composition
-- Gradients, geometric shapes and elements that create depth and visual interest
-- Attractive and colorful background, never plain white
+Composition requirements:
+- The artwork must be CLEARLY and INSTANTLY recognizable as the theme "${themeDesc}" — the theme is the hero of the image, not a side element.
+- Focus on 2 or 3 ICONIC, well-rendered hero objects that represent the theme (for example: a soccer ball and trophy for "Copa do Mundo"; pumpkins and spider webs for Halloween; Christmas tree and gift boxes for Natal). Render these objects large, well-lit and beautifully designed.
+- Clean, intentional composition with breathing room. AVOID cluttered scenes packed with random toys, candies, cakes, sweets or food unless the theme is specifically about food/sweets.
+- Use a cohesive color palette directly inspired by the theme (e.g. green field + gold for World Cup; orange + black for Halloween).
+- Add subtle festive accents (a few balloons, confetti, light particles, soft bokeh) only as supporting background — never overpowering the hero theme.
+- Modern editorial / premium advertising aesthetic, soft depth of field, professional lighting, polished gradients, rich but balanced colors.
+- Negative space is encouraged so text can be added later on top.
+- Square 1:1 format. Background must complement the theme — never plain white, never visually noisy.
 ${logoInstruction}
 
-ABSOLUTE RULE: Do NOT add ANY text, letters, words, numbers, banners with text, signs or written characters of any kind in any language. Only visual decorative elements. ZERO text.`;
+ABSOLUTE RULE: Do NOT add ANY text, letters, words, numbers, banners with text, signs, logos with text or written characters of any kind in any language. Only visual decorative elements. ZERO text rendered in the image.`;
     } else {
       const themeHint = campaign_theme
-        ? `The visual theme is "${campaign_theme}". Include subtle decorative elements related to this theme (confetti, balloons, stars, ribbons, flowers, etc.) on the edges.`
-        : "Add festive and cheerful decorative elements (confetti, balloons, stars) subtly on the edges.";
+        ? `Main theme: "${campaign_theme}". The decorative elements must clearly represent this theme (e.g. soccer ball + trophy for "Copa do Mundo"). Keep them refined and iconic, not cluttered.`
+        : "Add a few refined festive accents (subtle confetti, soft balloons or light particles) on the edges only.";
 
-      const contextHint = context ? ` Campaign context: ${context}.` : "";
+      const contextHint = context ? ` Additional context: ${context}.` : "";
 
       const logoInstruction = logo_url
-        ? `Include a subtle watermark-style logo area in the ${posLabel} of the image.`
+        ? `Reserve a small clean area in the ${posLabel} for a logo (no text rendered).`
         : "";
 
-      promptText = `Professional promotional art for a children's party venue WhatsApp marketing campaign.
-Transform the concept into a high-impact promotional art piece.
+      promptText = `Professional promotional artwork for a children's party venue marketing campaign on WhatsApp.
+Transform the concept into a polished, editorial-quality promotional piece.
 
-Instructions:
-- Create an elegant and professional decorative frame/border
+Composition requirements:
 - ${themeHint}
+- Create an elegant, minimal decorative frame/border that frames the central content without crowding it.
+- Use 2 or 3 iconic, well-rendered theme objects as hero accents — never a cluttered scene of random toys, candies or food.
+- Cohesive color palette inspired by the theme. Soft depth of field and premium lighting.
 - ${logoInstruction}
-- Use vibrant, saturated, inviting colors with slightly increased contrast
-- Result should look like art made by a professional marketing agency
-- Square format, high resolution${contextHint}
+- Leave generous negative space so text can be added on top later.
+- Square 1:1 format, modern editorial advertising aesthetic.${contextHint}
 
-ABSOLUTE RULE: Do NOT add ANY text, letters, words, numbers, banners with text, signs or written characters of any kind in any language. Only visual decorative elements. ZERO text.`;
+ABSOLUTE RULE: Do NOT add ANY text, letters, words, numbers, banners with text, signs or written characters of any kind in any language. Only visual decorative elements. ZERO text rendered in the image.`;
     }
 
     // For photo-based mode with DALL-E, we can only generate (not edit inline with text prompt easily)
