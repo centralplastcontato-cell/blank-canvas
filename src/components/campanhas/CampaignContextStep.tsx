@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, RefreshCw, Pencil, ImagePlus, ZoomIn, Trash2, Building2, Image, Wand2, Type } from "lucide-react";
+import { Loader2, Sparkles, RefreshCw, Pencil, ImagePlus, ZoomIn, Trash2, Building2, Image, Wand2, Type, Palette } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CampaignTextOverlayEditor } from "./CampaignTextOverlayEditor";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -59,6 +60,24 @@ const CAMPAIGN_TYPE_OPTIONS = [
   ]},
 ];
 
+const ART_THEME_PRESETS = [
+  { value: "Festa Neon", emoji: "🌈" },
+  { value: "Princesas", emoji: "👑" },
+  { value: "Super-heróis", emoji: "🦸" },
+  { value: "Safari / Animais", emoji: "🦁" },
+  { value: "Fundo do Mar", emoji: "🐠" },
+  { value: "Circo", emoji: "🎪" },
+  { value: "Unicórnio", emoji: "🦄" },
+  { value: "Espaço / Astronauta", emoji: "🚀" },
+  { value: "Dinossauros", emoji: "🦕" },
+  { value: "Festa Junina", emoji: "🌽" },
+  { value: "Fazendinha", emoji: "🐔" },
+  { value: "Doces / Candy", emoji: "🍭" },
+  { value: "Futebol", emoji: "⚽" },
+  { value: "Balada Teen", emoji: "🎧" },
+  { value: "Tropical / Havaí", emoji: "🌺" },
+];
+
 const TONE_LABELS: Record<string, string> = {
   profissional: "🏢 Profissional",
   "amigável": "😊 Amigável",
@@ -85,6 +104,8 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
   const [textEditorOpen, setTextEditorOpen] = useState(false);
   const [pendingArtUrl, setPendingArtUrl] = useState<string | null>(null);
   const [showArtReadyBanner, setShowArtReadyBanner] = useState(false);
+  const [artMode, setArtMode] = useState<"photo" | "theme">("photo");
+  const [themeText, setThemeText] = useState("");
 
   // Timer for composing elapsed
   useEffect(() => {
@@ -227,20 +248,28 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
   };
 
   const handleComposeArt = async () => {
-    if (!selectedPhoto) {
+    const isThemeMode = artMode === "theme";
+    
+    if (!isThemeMode && !selectedPhoto) {
       toast.error("Selecione uma foto base primeiro");
       return;
     }
+    if (isThemeMode && !themeText.trim() && !draft.campaignType) {
+      toast.error("Selecione ou descreva um tema");
+      return;
+    }
+
     setComposing(true);
     try {
       const { data, error } = await supabase.functions.invoke("campaign-image", {
         body: {
-          base_image_url: selectedPhoto,
+          base_image_url: isThemeMode ? null : selectedPhoto,
           logo_url: includeLogo && currentCompany?.logo_url ? currentCompany.logo_url : null,
           company_id: currentCompanyId,
           position: logoPosition,
-          campaign_theme: draft.campaignType || draft.name || null,
+          campaign_theme: isThemeMode ? (themeText.trim() || draft.campaignType || draft.name || null) : (draft.campaignType || draft.name || null),
           context: draft.description || null,
+          generation_mode: isThemeMode ? "theme_only" : "photo",
         },
       });
       if (error) throw error;
@@ -516,77 +545,129 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
               </DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-4">
-              {/* Step 1: Select photo */}
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  1. Escolha a foto base
-                </Label>
+            <Tabs value={artMode} onValueChange={(v) => setArtMode(v as "photo" | "theme")} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-3">
+                <TabsTrigger value="photo" className="gap-1.5 text-xs">
+                  <Image className="w-3.5 h-3.5" />
+                  Com Foto
+                </TabsTrigger>
+                <TabsTrigger value="theme" className="gap-1.5 text-xs">
+                  <Palette className="w-3.5 h-3.5" />
+                  Só pelo Tema
+                </TabsTrigger>
+              </TabsList>
 
-                {selectedPhoto ? (
-                  <div className="relative rounded-xl overflow-hidden border-2 border-primary shadow-md">
-                    <img src={selectedPhoto} alt="Foto selecionada" className="w-full h-48 object-contain bg-white" />
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="absolute top-2 right-2 h-7 text-xs gap-1"
-                      onClick={() => setSelectedPhoto(null)}
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      Trocar
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    {loadingPhotos ? (
-                      <div className="flex items-center justify-center py-8">
-                        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                      </div>
-                    ) : buffetPhotos.length > 0 ? (
-                      <ScrollArea className="h-52">
-                        <div className="grid grid-cols-3 gap-2 p-1">
-                          {buffetPhotos.map((url, i) => (
-                            <button
-                              key={i}
-                              type="button"
-                              className="relative group rounded-lg overflow-hidden border-2 border-border/40 hover:border-primary hover:shadow-md transition-all bg-white dark:bg-muted/30"
-                              onClick={() => setSelectedPhoto(url)}
-                            >
-                              <div className="w-full pt-[100%] relative">
-                                <img
-                                  src={url}
-                                  alt={`Foto ${i + 1}`}
-                                  className="absolute inset-0 w-full h-full object-contain p-0.5"
-                                  loading="lazy"
-                                />
-                              </div>
-                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                                <Image className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                              </div>
-                            </button>
-                          ))}
+              {/* Tab: Com Foto */}
+              <TabsContent value="photo" className="space-y-4 mt-0">
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    1. Escolha a foto base
+                  </Label>
+
+                  {selectedPhoto ? (
+                    <div className="relative rounded-xl overflow-hidden border-2 border-primary shadow-md">
+                      <img src={selectedPhoto} alt="Foto selecionada" className="w-full h-48 object-contain bg-white" />
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="absolute top-2 right-2 h-7 text-xs gap-1"
+                        onClick={() => setSelectedPhoto(null)}
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        Trocar
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      {loadingPhotos ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                         </div>
-                      </ScrollArea>
-                    ) : (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        Nenhuma foto encontrada nos materiais de venda.
-                      </p>
-                    )}
+                      ) : buffetPhotos.length > 0 ? (
+                        <ScrollArea className="h-52">
+                          <div className="grid grid-cols-3 gap-2 p-1">
+                            {buffetPhotos.map((url, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                className="relative group rounded-lg overflow-hidden border-2 border-border/40 hover:border-primary hover:shadow-md transition-all bg-white dark:bg-muted/30"
+                                onClick={() => setSelectedPhoto(url)}
+                              >
+                                <div className="w-full pt-[100%] relative">
+                                  <img
+                                    src={url}
+                                    alt={`Foto ${i + 1}`}
+                                    className="absolute inset-0 w-full h-full object-contain p-0.5"
+                                    loading="lazy"
+                                  />
+                                </div>
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                                  <Image className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          Nenhuma foto encontrada nos materiais de venda.
+                        </p>
+                      )}
 
-                    <label className="flex items-center justify-center gap-2 p-3 border border-dashed rounded-lg cursor-pointer hover:bg-muted/50 hover:border-primary/30 transition-all text-sm text-muted-foreground hover:text-foreground">
-                      {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
-                      {uploading ? "Enviando..." : "Fazer upload de outra foto"}
-                      <input type="file" accept="image/*" className="hidden" onChange={handleUploadForArt} disabled={uploading} />
-                    </label>
-                  </>
-                )}
-              </div>
+                      <label className="flex items-center justify-center gap-2 p-3 border border-dashed rounded-lg cursor-pointer hover:bg-muted/50 hover:border-primary/30 transition-all text-sm text-muted-foreground hover:text-foreground">
+                        {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+                        {uploading ? "Enviando..." : "Fazer upload de outra foto"}
+                        <input type="file" accept="image/*" className="hidden" onChange={handleUploadForArt} disabled={uploading} />
+                      </label>
+                    </>
+                  )}
+                </div>
+              </TabsContent>
 
-              {/* Step 2: Logo options */}
+              {/* Tab: Só pelo Tema */}
+              <TabsContent value="theme" className="space-y-4 mt-0">
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    1. Escolha um tema
+                  </Label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {ART_THEME_PRESETS.map((t) => (
+                      <button
+                        key={t.value}
+                        type="button"
+                        className={`p-2 text-xs rounded-lg border transition-all text-left ${
+                          themeText === t.value
+                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                            : "bg-muted/30 hover:bg-muted border-border hover:border-primary/40"
+                        }`}
+                        onClick={() => setThemeText(themeText === t.value ? "" : t.value)}
+                      >
+                        <span className="mr-1">{t.emoji}</span> {t.value}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Ou descreva o tema
+                  </Label>
+                  <Input
+                    placeholder="Ex: Festa tropical com flamingos e coqueiros..."
+                    value={themeText}
+                    onChange={(e) => setThemeText(e.target.value)}
+                    className="h-9 text-sm"
+                  />
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            <div className="space-y-4">
+              {/* Logo options */}
               {currentCompany?.logo_url && (
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    2. Logotipo
+                    {artMode === "photo" ? "2. Logotipo" : "2. Logotipo"}
                   </Label>
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -632,7 +713,7 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
               <Button
                 className="w-full h-11 gap-2 text-sm font-semibold"
                 onClick={handleComposeArt}
-                disabled={composing || !selectedPhoto}
+                disabled={composing || (artMode === "photo" ? !selectedPhoto : (!themeText.trim() && !draft.campaignType))}
               >
                 {composing ? (
                   <span className="flex items-center gap-2">
@@ -648,9 +729,14 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
                 )}
               </Button>
 
-              {!selectedPhoto && (
+              {artMode === "photo" && !selectedPhoto && (
                 <p className="text-[11px] text-muted-foreground text-center">
                   Selecione uma foto do buffet para a IA criar uma arte promocional profissional
+                </p>
+              )}
+              {artMode === "theme" && !themeText.trim() && (
+                <p className="text-[11px] text-muted-foreground text-center">
+                  Escolha um tema ou descreva o que deseja para a IA criar a arte do zero
                 </p>
               )}
             </div>
