@@ -38,6 +38,8 @@ export interface CampaignDraft {
   selectedLeadIds: string[];
   leads: { id: string; name: string; whatsapp: string }[];
   delaySeconds: number;
+  pauseBotOnReply: boolean;
+  autoReplyMessage: string;
 }
 
 const STEPS = [
@@ -61,6 +63,8 @@ const EMPTY_DRAFT: CampaignDraft = {
   selectedLeadIds: [],
   leads: [],
   delaySeconds: 60,
+  pauseBotOnReply: true,
+  autoReplyMessage: "Oi! Recebemos sua mensagem sobre a promoção 🎉\n\nUm atendente vai te responder em instantes 😊",
 };
 
 export function CampaignWizard({ open, onOpenChange, companyId, companyName, onCampaignCreated, editingCampaign }: CampaignWizardProps) {
@@ -119,6 +123,8 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
           delay_seconds: draft.delaySeconds,
           status: "draft",
           total_recipients: selectedLeads.length,
+          pause_bot_on_reply: draft.pauseBotOnReply,
+          auto_reply_message: draft.pauseBotOnReply ? (draft.autoReplyMessage.trim() || null) : null,
         })
         .select()
         .single();

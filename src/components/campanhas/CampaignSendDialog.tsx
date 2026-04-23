@@ -41,6 +41,8 @@ interface CampaignSendDialogProps {
     image_url: string | null;
     delay_seconds: number;
     total_recipients: number;
+    pause_bot_on_reply?: boolean | null;
+    auto_reply_message?: string | null;
   };
   companyId: string;
   onComplete: () => void;
@@ -190,6 +192,22 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
           successCount++;
           setStatuses((prev) => new Map(prev).set(r.id, "sent"));
           await supabase.from("campaign_recipients").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", r.id);
+
+          // Pause bot for this conversation if campaign requires it
+          if (campaign.pause_bot_on_reply) {
+            try {
+              await supabase.functions.invoke("campaign-mark-conversation", {
+                body: {
+                  campaign_id: campaign.id,
+                  phone: r.phone,
+                  instance_id: instanceId,
+                  lead_name: r.lead_name,
+                },
+              });
+            } catch (markErr) {
+              console.error("Error marking conversation for campaign pause:", markErr);
+            }
+          }
         }
 
         // Update campaign counts
