@@ -131,9 +131,10 @@ const DEFAULT_SECTIONS: CardapioSection[] = [
   },
 ];
 
-function CardapioResponseCards({ responses, template, onDelete }: { responses: any[]; template: CardapioTemplate | null; onDelete?: (id: string) => Promise<void> | void }) {
+function CardapioResponseCards({ responses, template, onDelete, company }: { responses: any[]; template: CardapioTemplate | null; onDelete?: (id: string) => Promise<void> | void; company?: { name: string; logo_url?: string | null } | null }) {
   const [selectedResponse, setSelectedResponse] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [printing, setPrinting] = useState(false);
 
   const renderAnswers = (r: any) => {
     const answersArr = Array.isArray(r.answers) ? r.answers : [];
