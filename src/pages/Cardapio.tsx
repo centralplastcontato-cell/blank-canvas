@@ -276,19 +276,55 @@ function CardapioResponseCards({ responses, template, onDelete, company, allTemp
                 {renderAnswers(selectedResponse)}
               </div>
 
+              {availablePdfChoices.length > 1 && (
+                <div className="pt-4 space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Template para o PDF</Label>
+                  <Select
+                    value={pdfTemplateId ?? undefined}
+                    onValueChange={(val) => {
+                      const choice = availablePdfChoices.find((c) => c.templateId === val);
+                      if (choice) {
+                        setPdfTemplateId(choice.templateId);
+                        setPdfResponseId(choice.responseId);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder="Selecione o template" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availablePdfChoices.map((c) => (
+                        <SelectItem key={c.templateId} value={c.templateId}>
+                          {c.templateName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div className="pt-4 flex flex-col sm:flex-row gap-2 sm:justify-between">
                 <Button
                   variant="default"
                   size="sm"
                   className="gap-1.5"
-                  disabled={printing || !template}
+                  disabled={printing || !pdfTemplateId}
                   onClick={async () => {
-                    if (!template) return;
+                    const tpl =
+                      allTemplates?.find((t) => t.id === pdfTemplateId) ||
+                      (pdfTemplateId === template?.id ? template : null);
+                    const resp =
+                      eventResponses.find((r) => r.id === pdfResponseId) ||
+                      (pdfResponseId === selectedResponse.id ? selectedResponse : selectedResponse);
+                    if (!tpl || !resp) {
+                      toast({ title: "Template não encontrado", variant: "destructive" });
+                      return;
+                    }
                     setPrinting(true);
                     try {
                       const result = await generateCardapioPrintPDF(
-                        selectedResponse,
-                        template,
+                        resp,
+                        tpl,
                         { name: company?.name || "Buffet", logo_url: company?.logo_url || null },
                         { save: false },
                       );
