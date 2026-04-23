@@ -625,10 +625,35 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
     return totalLoss > 0 ? { operator: operator.operator_name, totalLoss, details } : null;
   }, [cardFees, paymentDetails]);
 
+  // Adjust summary for unaccounted card fees (legacy records where gross_amount === amount)
+  const adjustedSummary = useMemo(() => {
+    const summary = financial.summary;
+    if (!cardFeeLoss || cardFeeLoss.totalLoss <= 0) return summary;
+
+    // Fees already reflected in gross_amount (gross > amount means fee was tracked)
+    const alreadyAccountedFees = financial.payments
+      .filter(p => p.status === 'paid' && p.gross_amount && p.gross_amount > p.amount)
+      .reduce((s, p) => s + (Number(p.gross_amount) - p.amount), 0);
+
+    const unaccountedFees = Math.max(0, cardFeeLoss.totalLoss - alreadyAccountedFees);
+    if (unaccountedFees <= 0.01) return summary;
+
+    const adjustedPending = Math.max(0, summary.pendingAmount - unaccountedFees);
+    const isPago = adjustedPending <= 0.01 && financial.payments.length > 0;
+    const hasLate = financial.payments.some(p => p.status === 'late');
+    const hasPartial = financial.payments.some(p => p.status === 'partial');
+
+    return {
+      ...summary,
+      pendingAmount: adjustedPending,
+      status: isPago ? 'pago' as const : hasLate ? 'atrasado' as const : (hasPartial || summary.receivedAmount > 0) ? 'parcial' as const : 'pendente' as const,
+    };
+  }, [financial.summary, financial.payments, cardFeeLoss]);
+
   return (
     <div className="space-y-4">
       {/* Summary Cards */}
-      <FinancialSummaryCards summary={financial.summary} showValues={showValues} />
+      <FinancialSummaryCards summary={adjustedSummary} showValues={showValues} />
 
       {/* Card Fee Loss Info */}
       {cardFeeLoss && showValues && (
