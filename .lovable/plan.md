@@ -1,24 +1,31 @@
 
 
-## Correção: Permitir mesmo dia em colunas com turnos diferentes
+## Correção: Parcela fantasma pendente por taxa de cartão não registrada no gross_amount
 
 ### Problema
-Na configuração da Grade de Preços, ao marcar "Sáb" na coluna "Sáb e Dom Almoço" (turno Almoço), o sistema remove "Sáb" da coluna "Sáb Jantar e Feriado" (turno Jantar), e vice-versa. Isso acontece porque a lógica atual trata o mapeamento de dias como exclusivo entre colunas, sem considerar que turnos diferentes permitem compartilhar o mesmo dia.
+
+Quando uma parcela de cartão é paga mas foi criada **antes** do sistema salvar o `gross_amount` corretamente (registro legado), o campo `gross_amount` é igual ao `amount` (valor líquido). O cálculo de `pendingAmount` usa `totalAmount - clientPaidGross`, e como o `gross_amount` do pagamento legado não reflete o valor bruto real, sobra um saldo fantasma (ex: R$ 127,35 na festa Tayná).
+
+O painel de "Taxas de Cartão" calcula a perda corretamente (lendo de `payment_details`), mas essa informação não é usada para ajustar o pendente nos cards de resumo.
 
 ### Solução
-Alterar a função `toggleDayMapping` no `PriceGridConfigDialog.tsx` para só remover um token de outra coluna quando ambas as colunas tiverem o **mesmo turno** (ou nenhum turno definido). Se os turnos forem diferentes (ex: uma é "almoco" e outra é "jantar"), o mesmo dia pode existir em ambas.
+
+Ajustar o `summary` na `EventFinancialTab.tsx` antes de passá-lo para `FinancialSummaryCards`, descontando do pendente a parcela de taxa de cartão que não está refletida no `gross_amount` dos pagamentos.
 
 ### Alteração técnica
 
-**Arquivo:** `src/components/admin/PriceGridConfigDialog.tsx`
+**Arquivo:** `src/components/financial/EventFinancialTab.tsx`
 
-Na função `toggleDayMapping` (linhas 86-101), a lógica de remoção exclusiva (linhas 88-91) será ajustada para comparar o turno da coluna sendo editada com o turno das outras colunas:
+Após o cálculo de `cardFeeLoss` (linha ~626) e antes do `return` (linha ~628), criar um `adjustedSummary`:
 
-- Se a coluna atual tem turno "almoco" e outra coluna tem turno "jantar" (ou vice-versa), **não** remove o token da outra coluna.
-- Se ambas as colunas têm o mesmo turno (ou ambas são "any"/indefinido), mantém o comportamento atual de exclusividade.
+1. Calcular `alreadyAccountedFees` = soma de `(gross_amount - amount)` para todos os pagamentos pagos que têm `gross_amount > amount` (taxas já refletidas no cálculo do hook).
+2. Calcular `unaccountedFees` = `cardFeeLoss.totalLoss - alreadyAccountedFees` (taxas que o painel mostra mas que o hook não conseguiu deduzir por falta de `gross_amount` correto).
+3. Criar `adjustedSummary` com `pendingAmount = max(0, summary.pendingAmount - unaccountedFees)` e `status` recalculado.
+4. Passar `adjustedSummary` para `<FinancialSummaryCards>` ao invés de `financial.summary`.
 
-Também será ajustada a lógica correspondente no `getDayType` em `brazilian-holidays.ts` para garantir que, ao resolver o tipo de dia para precificação, colunas com turno específico só sejam selecionadas quando o turno do evento corresponder.
+Isso corrige tanto registros legados quanto futuros cenários onde `gross_amount` possa não estar preenchido.
 
 ### Resultado esperado
-O admin poderá marcar "Sáb" tanto na coluna de Almoço quanto na de Jantar. O sistema usará o turno do evento para selecionar o preço correto.
+
+Na festa da Tayná: Pendente mostrará R$ 0,00 e status "Pago", pois ambas as parcelas estão pagas e a diferença de R$ 127,35 é explicada pela taxa de cartão da entrada.
 
