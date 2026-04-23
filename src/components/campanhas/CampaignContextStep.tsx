@@ -248,20 +248,28 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
   };
 
   const handleComposeArt = async () => {
-    if (!selectedPhoto) {
+    const isThemeMode = artMode === "theme";
+    
+    if (!isThemeMode && !selectedPhoto) {
       toast.error("Selecione uma foto base primeiro");
       return;
     }
+    if (isThemeMode && !themeText.trim() && !draft.campaignType) {
+      toast.error("Selecione ou descreva um tema");
+      return;
+    }
+
     setComposing(true);
     try {
       const { data, error } = await supabase.functions.invoke("campaign-image", {
         body: {
-          base_image_url: selectedPhoto,
+          base_image_url: isThemeMode ? null : selectedPhoto,
           logo_url: includeLogo && currentCompany?.logo_url ? currentCompany.logo_url : null,
           company_id: currentCompanyId,
           position: logoPosition,
-          campaign_theme: draft.campaignType || draft.name || null,
+          campaign_theme: isThemeMode ? (themeText.trim() || draft.campaignType || draft.name || null) : (draft.campaignType || draft.name || null),
           context: draft.description || null,
+          generation_mode: isThemeMode ? "theme_only" : "photo",
         },
       });
       if (error) throw error;
