@@ -2053,6 +2053,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       
       const { data, error } = await query;
 
+      // Guard: if user switched to a different conversation while we were fetching, discard results
+      if (activeConversationIdRef.current !== conversationId) {
+        console.log('[fetchMessages] Discarding stale response for', conversationId);
+        return;
+      }
+
       if (error) {
         console.error("[fetchMessages] Error:", error);
         return;
@@ -2079,10 +2085,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           });
         } else {
           // Initial load - merge with any realtime messages that arrived during fetch
+          // IMPORTANT: only keep prev messages that belong to the SAME conversation
           setMessages(prev => {
             if (prev.length === 0) return orderedMessages;
             const fetchedIds = new Set(orderedMessages.map(m => m.id));
-            const realtimeOnly = prev.filter(m => !fetchedIds.has(m.id) && !m.id.startsWith('optimistic-'));
+            const realtimeOnly = prev.filter(m => 
+              !fetchedIds.has(m.id) && 
+              !m.id.startsWith('optimistic-') &&
+              m.conversation_id === conversationId
+            );
             if (realtimeOnly.length === 0) return orderedMessages;
             return [...orderedMessages, ...realtimeOnly].sort(
               (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
@@ -2090,9 +2101,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           });
         }
       } else if (!loadMore) {
-        // No messages found
-        setMessages([]);
-        setHasMoreMessages(false);
+        // No messages found — only clear if still on same conversation
+        if (activeConversationIdRef.current === conversationId) {
+          setMessages([]);
+          setHasMoreMessages(false);
+        }
       } else {
         // No more older messages
         setHasMoreMessages(false);
