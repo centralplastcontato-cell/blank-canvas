@@ -130,6 +130,14 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
             return p && p.total > 0 && p.completed < p.total;
           });
 
+          // Aggregate payment status for the day
+          let dayLate = 0, dayPayPending = 0;
+          dayEvents.forEach((ev) => {
+            const ps = paymentStatus[ev.id];
+            if (ps) { dayLate += ps.late; dayPayPending += ps.pending; }
+          });
+          const hasPaymentIssue = dayLate > 0 || dayPayPending > 0;
+
           return (
             <div className="flex flex-col items-center gap-0.5 lg:gap-1.5 w-full h-full justify-center relative">
               <span className={cn(
@@ -172,6 +180,16 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
               {/* Checklist pending indicator */}
               {hasPending && (
                 <span className="text-[6px] lg:text-[7px] text-amber-500/70 leading-none">📋</span>
+              )}
+
+              {/* Payment status badge */}
+              {hasPaymentIssue && (
+                <span className={cn(
+                  "text-[6px] lg:text-[7px] font-bold leading-none",
+                  dayLate > 0 ? "text-red-500" : "text-amber-500"
+                )}>
+                  💰{dayLate > 0 ? dayLate : dayPayPending}
+                </span>
               )}
 
               {/* Event count badge for days with many events */}
