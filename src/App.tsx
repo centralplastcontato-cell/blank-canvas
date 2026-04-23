@@ -210,6 +210,7 @@ const App = () => (
               <Route path="/cardapio/:templateId" element={<PublicCardapio />} />
               <Route path="/cardapio" element={<Cardapio />} />
               <Route path="/financeiro" element={<Financeiro />} />
+              <Route path="/admin/fix-prefesta" element={<AdminFixPrefestaResponses />} />
               {/* Partner (Empresa Parceira) */}
               <Route path="/parceiro" element={<PartnerDashboard />} />
               <Route path="/parceiro/catalogo" element={<PartnerCatalog />} />
