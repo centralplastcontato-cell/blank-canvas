@@ -645,13 +645,22 @@ export default function PublicPartyControl() {
                   )}
 
                   {optionals.length > 0 && (
-                    <SummaryRow emoji="⭐" label="Opcionais">
-                      {optionals.map((opt, i) => (
-                        <p key={i}>
-                          {opt.name}
-                          {opt.value ? ` — ${Number(opt.value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}` : ""}
-                        </p>
-                      ))}
+                    <SummaryRow emoji="⭐" label={`Opcionais (${optionals.length})`}>
+                      <div className="space-y-1">
+                        {optionals.map((opt, i) => {
+                          const val = opt.value ? Number(opt.value) : 0;
+                          return (
+                            <div key={i} className="flex items-center justify-between gap-2">
+                              <span className="truncate">• {opt.name}</span>
+                              {val > 0 && (
+                                <span className="shrink-0 tabular-nums opacity-70">
+                                  {val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </SummaryRow>
                   )}
 
