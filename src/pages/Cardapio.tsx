@@ -132,11 +132,58 @@ const DEFAULT_SECTIONS: CardapioSection[] = [
   },
 ];
 
-function CardapioResponseCards({ responses, template, onDelete, company }: { responses: any[]; template: CardapioTemplate | null; onDelete?: (id: string) => Promise<void> | void; company?: { name: string; logo_url?: string | null } | null }) {
+function CardapioResponseCards({ responses, template, onDelete, company, allTemplates }: { responses: any[]; template: CardapioTemplate | null; onDelete?: (id: string) => Promise<void> | void; company?: { name: string; logo_url?: string | null } | null; allTemplates?: CardapioTemplate[] }) {
   const [selectedResponse, setSelectedResponse] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
   const [pdfPreview, setPdfPreview] = useState<{ url: string; fileName: string; blob: Blob } | null>(null);
+  const [eventResponses, setEventResponses] = useState<any[]>([]);
+  const [pdfTemplateId, setPdfTemplateId] = useState<string | null>(null);
+  const [pdfResponseId, setPdfResponseId] = useState<string | null>(null);
+
+  // When opening a response, look up other responses for the same event (other templates).
+  useEffect(() => {
+    if (!selectedResponse?.event_id || !company) {
+      setEventResponses([]);
+      setPdfTemplateId(selectedResponse?.template_id ?? null);
+      setPdfResponseId(selectedResponse?.id ?? null);
+      return;
+    }
+    setPdfTemplateId(selectedResponse.template_id);
+    setPdfResponseId(selectedResponse.id);
+    (async () => {
+      const { data } = await supabase
+        .from("cardapio_responses")
+        .select("id, template_id, respondent_name, created_at, answers, company_events(event_date, title)")
+        .eq("event_id", selectedResponse.event_id)
+        .order("created_at", { ascending: false });
+      setEventResponses(data || []);
+    })();
+  }, [selectedResponse, company]);
+
+  // Templates available for this event = templates that have a response for the event
+  const availablePdfChoices = (() => {
+    const choices: { templateId: string; responseId: string; templateName: string }[] = [];
+    const seen = new Set<string>();
+    for (const r of eventResponses) {
+      if (seen.has(r.template_id)) continue;
+      seen.add(r.template_id);
+      const tpl = allTemplates?.find((t) => t.id === r.template_id);
+      choices.push({
+        templateId: r.template_id,
+        responseId: r.id,
+        templateName: tpl?.name || "Cardápio",
+      });
+    }
+    if (choices.length === 0 && selectedResponse) {
+      choices.push({
+        templateId: selectedResponse.template_id,
+        responseId: selectedResponse.id,
+        templateName: template?.name || "Cardápio",
+      });
+    }
+    return choices;
+  })();
 
   const renderAnswers = (r: any) => {
     const answersArr = Array.isArray(r.answers) ? r.answers : [];
