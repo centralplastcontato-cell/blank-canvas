@@ -41,6 +41,8 @@ interface CampaignSendDialogProps {
     image_url: string | null;
     delay_seconds: number;
     total_recipients: number;
+    pause_bot_on_reply?: boolean | null;
+    auto_reply_message?: string | null;
   };
   companyId: string;
   onComplete: () => void;
