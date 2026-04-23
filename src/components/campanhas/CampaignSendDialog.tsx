@@ -165,7 +165,7 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
               action: "send-image",
               instanceId,
               phone: r.phone,
-              imageUrl: campaign.image_url,
+              mediaUrl: campaign.image_url,
               caption: text,
             },
           });
