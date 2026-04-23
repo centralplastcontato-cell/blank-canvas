@@ -85,7 +85,32 @@ export function EventSummaryPanel({ event, leadName, companyId }: EventSummaryPa
   }
 
   const optionals = Array.isArray(event.event_optionals) ? event.event_optionals.filter((o) => o?.name) : [];
-  const contractorName = event.parent_names || leadName || null;
+
+  // Parse parent_names — pode ser JSON stringificado ou texto simples
+  const parseContractorName = (): string | null => {
+    const raw = event.parent_names || leadName || null;
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((p: any) => p?.name)
+          .map((p: any) => {
+            const parts = [p.name];
+            if (p.relation) parts.push(`(${p.relation})`);
+            if (p.phone) parts.push(`— ${p.phone}`);
+            return parts.join(" ");
+          })
+          .join("\n");
+      }
+      if (typeof parsed === "object" && parsed?.name) {
+        return parsed.name;
+      }
+      return raw;
+    } catch {
+      return raw;
+    }
+  };
 
   const InfoRow = ({ icon: Icon, label, value, className }: { icon: any; label: string; value: string; className?: string }) => (
     <div className="flex items-start gap-2.5">
@@ -94,7 +119,7 @@ export function EventSummaryPanel({ event, leadName, companyId }: EventSummaryPa
       </div>
       <div className="min-w-0">
         <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{label}</p>
-        <p className={`text-xs text-foreground ${className || ""}`}>{value}</p>
+        <p className={`text-xs text-foreground whitespace-pre-wrap ${className || ""}`}>{value}</p>
       </div>
     </div>
   );
@@ -125,8 +150,8 @@ export function EventSummaryPanel({ event, leadName, companyId }: EventSummaryPa
         </div>
       )}
 
-      {contractorName && (
-        <InfoRow icon={Users2} label="Pais / Contratante" value={contractorName} />
+      {parseContractorName() && (
+        <InfoRow icon={Users2} label="Pais / Contratante" value={parseContractorName()!} />
       )}
       {event.package_name && (
         <InfoRow icon={Package} label="Pacote" value={event.package_name} />
