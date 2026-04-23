@@ -571,7 +571,7 @@ export function CardapioContent() {
     setLoadingResponses(true);
     const { data } = await supabase
       .from("cardapio_responses")
-      .select("*, company_events(event_date, title)")
+      .select("*, company_events(event_date, title, guest_count)")
       .eq("template_id", t.id)
       .order("created_at", { ascending: false });
     setResponses(data || []);
