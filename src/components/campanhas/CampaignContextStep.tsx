@@ -86,6 +86,8 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
   const [textEditorOpen, setTextEditorOpen] = useState(false);
   const [pendingArtUrl, setPendingArtUrl] = useState<string | null>(null);
   const [showArtReadyBanner, setShowArtReadyBanner] = useState(false);
+  const [artMode, setArtMode] = useState<"photo" | "theme">("photo");
+  const [themeText, setThemeText] = useState("");
 
   // Timer for composing elapsed
   useEffect(() => {
