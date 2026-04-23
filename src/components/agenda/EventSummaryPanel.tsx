@@ -150,8 +150,8 @@ export function EventSummaryPanel({ event, leadName, companyId }: EventSummaryPa
         </div>
       )}
 
-      {contractorName && (
-        <InfoRow icon={Users2} label="Pais / Contratante" value={contractorName} />
+      {parseContractorName() && (
+        <InfoRow icon={Users2} label="Pais / Contratante" value={parseContractorName()!} />
       )}
       {event.package_name && (
         <InfoRow icon={Package} label="Pacote" value={event.package_name} />
