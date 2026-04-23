@@ -594,12 +594,12 @@ export default function PublicPartyControl() {
               const optionals = Array.isArray(event.event_optionals) ? event.event_optionals.filter(o => o?.name) : [];
 
               const SummaryRow = ({ emoji, label, children: content }: { emoji: string; label: string; children: React.ReactNode }) => (
-                <div className="rounded-xl px-4 py-3 flex items-start gap-3"
+                <div className="rounded-xl px-3 sm:px-4 py-3 flex items-start gap-2.5 sm:gap-3"
                   style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)" }}>
-                  <span className="text-lg shrink-0 mt-0.5">{emoji}</span>
+                  <span className="text-base sm:text-lg shrink-0 mt-0.5 w-6 sm:w-7 text-center">{emoji}</span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[9px] font-bold uppercase tracking-widest mb-0.5" style={{ color: "#475569" }}>{label}</p>
-                    {content}
+                    <p className="text-[10px] sm:text-[9px] font-bold uppercase tracking-wider sm:tracking-widest mb-0.5" style={{ color: "#64748b" }}>{label}</p>
+                    <div className="text-[13px] sm:text-sm font-medium break-words" style={{ color: "#e2e8f0" }}>{content}</div>
                   </div>
                 </div>
               );
@@ -609,49 +609,45 @@ export default function PublicPartyControl() {
                   {children.length > 0 && (
                     <SummaryRow emoji="🎂" label={children.length > 1 ? "Aniversariantes" : "Aniversariante"}>
                       {children.map((c, i) => (
-                        <p key={i} className="text-sm font-medium" style={{ color: "#e2e8f0" }}>
-                          {c.name}{c.age ? ` — ${c.age} anos` : ""}
-                        </p>
+                        <p key={i}>{c.name}{c.age ? ` — ${c.age} anos` : ""}</p>
                       ))}
                     </SummaryRow>
                   )}
 
                   {event.parent_names && (
                     <SummaryRow emoji="👨‍👩‍👧" label="Pais / Contratante">
-                      <p className="text-sm font-medium" style={{ color: "#e2e8f0" }}>{event.parent_names}</p>
+                      <p>{event.parent_names}</p>
                     </SummaryRow>
                   )}
 
                   {event.package_name && (
                     <SummaryRow emoji="📦" label="Pacote">
-                      <p className="text-sm font-medium" style={{ color: "#e2e8f0" }}>{event.package_name}</p>
+                      <p>{event.package_name}</p>
                     </SummaryRow>
                   )}
 
                   {event.guest_count && (
                     <SummaryRow emoji="👥" label="Convidados">
-                      <p className="text-sm font-medium" style={{ color: "#e2e8f0" }}>{event.guest_count} pessoas</p>
+                      <p>{event.guest_count} pessoas</p>
                     </SummaryRow>
                   )}
 
                   {(event.start_time || event.end_time) && (
                     <SummaryRow emoji="🕐" label="Horário">
-                      <p className="text-sm font-medium" style={{ color: "#e2e8f0" }}>
-                        {event.start_time?.slice(0, 5) || "–"} até {event.end_time?.slice(0, 5) || "–"}
-                      </p>
+                      <p>{event.start_time?.slice(0, 5) || "–"} até {event.end_time?.slice(0, 5) || "–"}</p>
                     </SummaryRow>
                   )}
 
                   {event.unit && (
                     <SummaryRow emoji="📍" label="Unidade">
-                      <p className="text-sm font-medium" style={{ color: "#e2e8f0" }}>{event.unit}</p>
+                      <p>{event.unit}</p>
                     </SummaryRow>
                   )}
 
                   {optionals.length > 0 && (
                     <SummaryRow emoji="⭐" label="Opcionais">
                       {optionals.map((opt, i) => (
-                        <p key={i} className="text-sm font-medium" style={{ color: "#e2e8f0" }}>
+                        <p key={i}>
                           {opt.name}
                           {opt.value ? ` — ${Number(opt.value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}` : ""}
                         </p>
@@ -661,7 +657,7 @@ export default function PublicPartyControl() {
 
                   {event.notes && (
                     <SummaryRow emoji="📝" label="Observações">
-                      <p className="text-sm font-medium whitespace-pre-wrap" style={{ color: "#cbd5e1" }}>{event.notes}</p>
+                      <p className="whitespace-pre-wrap" style={{ color: "#cbd5e1" }}>{event.notes}</p>
                     </SummaryRow>
                   )}
 
