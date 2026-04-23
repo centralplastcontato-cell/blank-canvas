@@ -450,7 +450,19 @@ export function PreFestaContent() {
                               <p className="text-sm text-muted-foreground">Nenhuma resposta recebida ainda.</p>
                             </div>
                           ) : (
-                            <PreFestaResponseCards responses={responses} template={selectedTemplateForResponses} />
+                            <PreFestaResponseCards
+                              responses={responses}
+                              template={selectedTemplateForResponses}
+                              onDelete={async (id) => {
+                                const { error } = await supabase.from("prefesta_responses").delete().eq("id", id);
+                                if (error) {
+                                  toast({ title: "Erro ao apagar", description: error.message, variant: "destructive" });
+                                } else {
+                                  setResponses(prev => prev.filter(r => r.id !== id));
+                                  toast({ title: "Resposta apagada ✅" });
+                                }
+                              }}
+                            />
                           )}
                         </div>
                       </CollapsibleContent>
