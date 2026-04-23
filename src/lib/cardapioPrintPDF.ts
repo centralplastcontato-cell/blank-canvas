@@ -49,11 +49,18 @@ async function loadImage(url: string): Promise<HTMLImageElement | null> {
   return null;
 }
 
+export interface CardapioPdfResult {
+  blob: Blob;
+  dataUri: string;
+  fileName: string;
+}
+
 export async function generateCardapioPrintPDF(
   response: CardapioResponse,
   template: CardapioTemplate,
   company: CompanyInfo,
-) {
+  options: { save?: boolean } = { save: true },
+): Promise<CardapioPdfResult> {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -189,7 +196,7 @@ export async function generateCardapioPrintPDF(
     doc.text(`Pagina ${i} de ${total}`, pageWidth - marginX, pageHeight - 7, { align: "right" });
   }
 
-  // ===== Save =====
+  // ===== Output =====
   const safeName = (response.respondent_name || "Cliente")
     .replace(/[^\w\s-]/g, "")
     .replace(/\s+/g, "_")
@@ -197,5 +204,13 @@ export async function generateCardapioPrintPDF(
   const datePart = response.company_events?.event_date
     ? format(new Date(response.company_events.event_date + "T12:00:00"), "dd-MM-yyyy")
     : format(new Date(), "dd-MM-yyyy");
-  doc.save(`Cardapio_${safeName}_${datePart}.pdf`);
+  const fileName = `Cardapio_${safeName}_${datePart}.pdf`;
+
+  if (options.save) {
+    doc.save(fileName);
+  }
+
+  const blob = doc.output("blob");
+  const dataUri = doc.output("datauristring");
+  return { blob, dataUri, fileName };
 }

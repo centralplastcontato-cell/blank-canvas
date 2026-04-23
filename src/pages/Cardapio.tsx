@@ -135,6 +135,7 @@ function CardapioResponseCards({ responses, template, onDelete, company }: { res
   const [selectedResponse, setSelectedResponse] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; fileName: string; blob: Blob } | null>(null);
 
   const renderAnswers = (r: any) => {
     const answersArr = Array.isArray(r.answers) ? r.answers : [];
@@ -237,11 +238,14 @@ function CardapioResponseCards({ responses, template, onDelete, company }: { res
                     if (!template) return;
                     setPrinting(true);
                     try {
-                      await generateCardapioPrintPDF(
+                      const result = await generateCardapioPrintPDF(
                         selectedResponse,
                         template,
                         { name: company?.name || "Buffet", logo_url: company?.logo_url || null },
+                        { save: false },
                       );
+                      const url = URL.createObjectURL(result.blob);
+                      setPdfPreview({ url, fileName: result.fileName, blob: result.blob });
                     } catch (err) {
                       console.error(err);
                       toast({ title: "Erro ao gerar PDF", variant: "destructive" });
@@ -250,8 +254,8 @@ function CardapioResponseCards({ responses, template, onDelete, company }: { res
                     }
                   }}
                 >
-                  {printing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />}
-                  Imprimir para Cozinha
+                  {printing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
+                  Pré-visualizar PDF
                 </Button>
 
                 {onDelete && (
@@ -293,6 +297,63 @@ function CardapioResponseCards({ responses, template, onDelete, company }: { res
           )}
         </SheetContent>
       </Sheet>
+
+      <Dialog
+        open={!!pdfPreview}
+        onOpenChange={(open) => {
+          if (!open && pdfPreview) {
+            URL.revokeObjectURL(pdfPreview.url);
+            setPdfPreview(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-5xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 py-4 border-b shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-4 w-4 text-primary" />
+              Pré-visualização do PDF
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden bg-muted/30">
+            {pdfPreview && (
+              <iframe
+                src={pdfPreview.url}
+                title="Pré-visualização do cardápio"
+                className="w-full h-full border-0"
+              />
+            )}
+          </div>
+          <DialogFooter className="px-6 py-3 border-t shrink-0 gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (pdfPreview) {
+                  URL.revokeObjectURL(pdfPreview.url);
+                  setPdfPreview(null);
+                }
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                if (!pdfPreview) return;
+                const a = document.createElement("a");
+                a.href = pdfPreview.url;
+                a.download = pdfPreview.fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                toast({ title: "PDF baixado", description: pdfPreview.fileName });
+              }}
+              className="gap-1.5"
+            >
+              <Printer className="h-4 w-4" />
+              Baixar PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
