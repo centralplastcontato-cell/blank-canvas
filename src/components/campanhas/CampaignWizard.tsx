@@ -63,6 +63,8 @@ const EMPTY_DRAFT: CampaignDraft = {
   selectedLeadIds: [],
   leads: [],
   delaySeconds: 60,
+  pauseBotOnReply: true,
+  autoReplyMessage: "Oi! Recebemos sua mensagem sobre a promoção 🎉\n\nUm atendente vai te responder em instantes 😊",
 };
 
 export function CampaignWizard({ open, onOpenChange, companyId, companyName, onCampaignCreated, editingCampaign }: CampaignWizardProps) {
