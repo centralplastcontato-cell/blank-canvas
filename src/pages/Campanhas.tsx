@@ -263,9 +263,9 @@ export default function Campanhas() {
                     const StatusIcon = sc.icon;
                     return (
                       <Card key={campaign.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setDetailCampaign(campaign)}>
-                        <CardContent className="p-4 flex items-center gap-4">
+                        <CardContent className="p-3 sm:p-4 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-4">
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <p className="font-semibold truncate">{campaign.name}</p>
                               <Badge variant={sc.variant} className="shrink-0 text-[10px]">
                                 <StatusIcon className={`w-3 h-3 mr-1 ${campaign.status === "sending" ? "animate-spin" : ""}`} />
@@ -279,73 +279,75 @@ export default function Campanhas() {
                               {format(new Date(campaign.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                             </p>
                           </div>
-                          <div className="flex items-center gap-3 shrink-0">
+                          <div className="flex items-center justify-between gap-2 lg:gap-3 lg:shrink-0 flex-wrap">
                             <div className="flex items-center gap-3 text-sm">
                               <div className="text-center">
-                                <p className="font-bold text-lg">{campaign.total_recipients}</p>
+                                <p className="font-bold text-base sm:text-lg leading-tight">{campaign.total_recipients}</p>
                                 <p className="text-[10px] text-muted-foreground">Total</p>
                               </div>
                               <div className="text-center">
-                                <p className="font-bold text-lg text-green-600">{campaign.sent_count}</p>
+                                <p className="font-bold text-base sm:text-lg text-green-600 leading-tight">{campaign.sent_count}</p>
                                 <p className="text-[10px] text-muted-foreground">Enviados</p>
                               </div>
                               {campaign.error_count > 0 && (
                                 <div className="text-center">
-                                  <p className="font-bold text-lg text-destructive">{campaign.error_count}</p>
+                                  <p className="font-bold text-base sm:text-lg text-destructive leading-tight">{campaign.error_count}</p>
                                   <p className="text-[10px] text-muted-foreground">Erros</p>
                                 </div>
                               )}
                             </div>
-                            <div
-                              className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-border bg-card"
-                              onClick={(e) => e.stopPropagation()}
-                              title={campaign.status === "cancelled" ? "Campanha desativada" : "Campanha ativa"}
-                            >
-                              <Switch
-                                checked={campaign.status !== "cancelled"}
-                                onCheckedChange={(v) => handleToggleActive(campaign, v)}
-                              />
-                              <span className="text-[10px] text-muted-foreground">
-                                {campaign.status === "cancelled" ? "Inativa" : "Ativa"}
-                              </span>
-                            </div>
-                            {(campaign.status === "draft" || campaign.status === "sending") && (
+                            <div className="flex items-center gap-2 flex-wrap justify-end">
+                              <div
+                                className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-border bg-card"
+                                onClick={(e) => e.stopPropagation()}
+                                title={campaign.status === "cancelled" ? "Campanha desativada" : "Campanha ativa"}
+                              >
+                                <Switch
+                                  checked={campaign.status !== "cancelled"}
+                                  onCheckedChange={(v) => handleToggleActive(campaign, v)}
+                                />
+                                <span className="text-[10px] text-muted-foreground">
+                                  {campaign.status === "cancelled" ? "Inativa" : "Ativa"}
+                                </span>
+                              </div>
+                              {(campaign.status === "draft" || campaign.status === "sending") && (
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  className="h-8"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (campaign.status === "sending") {
+                                      setCampaignToReset(campaign);
+                                    } else {
+                                      setSendCampaign(campaign);
+                                    }
+                                  }}
+                                >
+                                  {campaign.status === "sending" ? (
+                                    <><RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Retomar</>
+                                  ) : (
+                                    <><Play className="h-3.5 w-3.5 mr-1.5" /> Iniciar</>
+                                  )}
+                                </Button>
+                              )}
                               <Button
-                                variant="default"
+                                variant="outline"
                                 size="sm"
                                 className="h-8"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (campaign.status === "sending") {
-                                    setCampaignToReset(campaign);
-                                  } else {
-                                    setSendCampaign(campaign);
-                                  }
-                                }}
+                                onClick={(e) => { e.stopPropagation(); setDetailCampaign(campaign); }}
                               >
-                                {campaign.status === "sending" ? (
-                                  <><RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Retomar</>
-                                ) : (
-                                  <><Play className="h-3.5 w-3.5 mr-1.5" /> Iniciar</>
-                                )}
+                                <Eye className="h-3.5 w-3.5 mr-1.5" /> Prévia
                               </Button>
-                            )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8"
-                              onClick={(e) => { e.stopPropagation(); setDetailCampaign(campaign); }}
-                            >
-                              <Eye className="h-3.5 w-3.5 mr-1.5" /> Prévia
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                              onClick={(e) => { e.stopPropagation(); setCampaignToDelete(campaign); }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                onClick={(e) => { e.stopPropagation(); setCampaignToDelete(campaign); }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
