@@ -1,23 +1,24 @@
 
 
-# Plano: Corrigir links de formulários com path incorreto
+## Correção: Permitir mesmo dia em colunas com turnos diferentes
 
-## Problema
-O `EventFormsStatusPanel.tsx` gera links com paths incorretos que nao correspondem as rotas definidas no `App.tsx`, causando 404:
+### Problema
+Na configuração da Grade de Preços, ao marcar "Sáb" na coluna "Sáb e Dom Almoço" (turno Almoço), o sistema remove "Sáb" da coluna "Sáb Jantar e Feriado" (turno Jantar), e vice-versa. Isso acontece porque a lógica atual trata o mapeamento de dias como exclusivo entre colunas, sem considerar que turnos diferentes permitem compartilhar o mesmo dia.
 
-| Formulario | Path gerado (errado) | Rota real (App.tsx) |
-|---|---|---|
-| Pre-Festa | `/prefesta/...` | `/pre-festa/:slug/:slug` |
-| Dados Complementares | `/dados-complementares/...` | `/contrato/:slug/:slug` |
+### Solução
+Alterar a função `toggleDayMapping` no `PriceGridConfigDialog.tsx` para só remover um token de outra coluna quando ambas as colunas tiverem o **mesmo turno** (ou nenhum turno definido). Se os turnos forem diferentes (ex: uma é "almoco" e outra é "jantar"), o mesmo dia pode existir em ambas.
 
-O `EventComplementaryTab.tsx` tem os paths corretos (`pre-festa`, `contrato`). O problema esta apenas no `EventFormsStatusPanel.tsx`.
+### Alteração técnica
 
-## Correcao
+**Arquivo:** `src/components/admin/PriceGridConfigDialog.tsx`
 
-### Arquivo: `src/components/agenda/EventFormsStatusPanel.tsx`
-Corrigir o array `FORM_TYPES` (linha 37-40):
-- `prefesta` → mudar `publicPath` de `"prefesta"` para `"pre-festa"`
-- `contrato` → mudar `publicPath` de `"dados-complementares"` para `"contrato"`
+Na função `toggleDayMapping` (linhas 86-101), a lógica de remoção exclusiva (linhas 88-91) será ajustada para comparar o turno da coluna sendo editada com o turno das outras colunas:
 
-Sao apenas 2 strings a alterar. Nenhum outro arquivo precisa ser modificado.
+- Se a coluna atual tem turno "almoco" e outra coluna tem turno "jantar" (ou vice-versa), **não** remove o token da outra coluna.
+- Se ambas as colunas têm o mesmo turno (ou ambas são "any"/indefinido), mantém o comportamento atual de exclusividade.
+
+Também será ajustada a lógica correspondente no `getDayType` em `brazilian-holidays.ts` para garantir que, ao resolver o tipo de dia para precificação, colunas com turno específico só sejam selecionadas quando o turno do evento corresponder.
+
+### Resultado esperado
+O admin poderá marcar "Sáb" tanto na coluna de Almoço quanto na de Jantar. O sistema usará o turno do evento para selecionar o preço correto.
 
