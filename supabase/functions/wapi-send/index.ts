@@ -926,20 +926,32 @@ Deno.serve(async (req) => {
             });
           }
           const messageId = extractZapiMessageId(zapiRes.data);
-          if (conversationId) {
+
+          // Resolve or create conversation for DB tracking (campaigns/outbound)
+          let resolvedConvId = conversationId;
+          let resolvedCompanyId = companyId;
+          if (!resolvedConvId && phone) {
+            const convResult = await findOrCreateConversation(supabase, phone, instance_id, body.lpMode, body.contactName);
+            if (convResult) {
+              resolvedConvId = convResult.conversationId;
+              resolvedCompanyId = convResult.companyId;
+            }
+          }
+
+          if (resolvedConvId) {
             await supabase.from('wapi_messages').insert({
-              conversation_id: conversationId, message_id: messageId, from_me: true,
+              conversation_id: resolvedConvId, message_id: messageId, from_me: true,
               message_type: 'image', content: caption || '[Imagem]', media_url: mediaUrl || null,
-              status: 'sent', timestamp: new Date().toISOString(), company_id: companyId,
+              status: 'sent', timestamp: new Date().toISOString(), company_id: resolvedCompanyId,
               metadata: { source: 'platform', provider: 'zapi' },
             });
             await supabase.from('wapi_conversations').update({ 
               last_message_at: new Date().toISOString(),
               last_message_content: caption ? `📷 ${caption.substring(0, 90)}` : '📷 Imagem',
               last_message_from_me: true,
-            }).eq('id', conversationId);
+            }).eq('id', resolvedConvId);
           }
-          return new Response(JSON.stringify({ success: true, messageId }), {
+          return new Response(JSON.stringify({ success: true, messageId, conversationId: resolvedConvId }), {
             status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
