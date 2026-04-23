@@ -19,8 +19,9 @@ import { buildPublicFormPath, buildPublicFormUrl } from "@/lib/publicFormRoutes"
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-function PreFestaResponseCards({ responses, template }: { responses: any[]; template: PreFestaTemplate | null }) {
+function PreFestaResponseCards({ responses, template, onDelete }: { responses: any[]; template: PreFestaTemplate | null; onDelete?: (id: string) => void }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   return (
     <div className="space-y-2">
       {responses.map((r) => {
