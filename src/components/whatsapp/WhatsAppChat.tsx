@@ -385,7 +385,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const { getDraft, saveDraft, clearDraft } = useDraftMessages();
   const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevConversationIdRef = useRef<string | null>(null);
-
+  // Dedicated ref for active conversation ID — used to guard async callbacks (fetch, send, realtime)
+  const activeConversationIdRef = useRef<string | null>(null);
   // Wrapper that also saves draft with debounce
   const setNewMessage = useCallback((valueOrFn: string | ((prev: string) => string)) => {
     setNewMessageRaw((prev) => {
