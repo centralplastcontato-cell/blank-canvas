@@ -95,7 +95,8 @@ function ResponseCards({ responses, template }: { responses: any[]; template: Co
                   </div>
                   <div className="divide-y divide-border">
                     {answersArr.map((a: any, idx: number) => {
-                      const question = template?.questions.find(q => q.id === a.questionId);
+                      const question = template?.questions.find(q => q.id === a.questionId)
+                        || template?.questions.find(q => a.questionId?.startsWith(q.id));
                       let displayValue = a.value;
                       if (a.value === true) displayValue = "👍 Sim";
                       else if (a.value === false) displayValue = "👎 Não";
@@ -104,9 +105,10 @@ function ResponseCards({ responses, template }: { responses: any[]; template: Co
                       } else if (typeof a.value === "string" && a.value.match(/^\d{4}-\d{2}-\d{2}/)) {
                         try { displayValue = format(new Date(a.value), "dd/MM/yyyy", { locale: ptBR }); } catch {}
                       }
+                      const label = question?.text || `Pergunta ${idx + 1}`;
                       return (
                         <div key={idx} className="px-4 py-2.5">
-                          <p className="text-muted-foreground text-xs mb-0.5">{question?.text || a.questionId}</p>
+                          <p className="text-muted-foreground text-xs mb-0.5">{label}</p>
                           <p className="font-medium text-sm">{String(displayValue || "—")}</p>
                         </div>
                       );
