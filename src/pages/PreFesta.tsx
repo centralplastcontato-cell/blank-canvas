@@ -12,117 +12,141 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
-import { PartyPopper, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, Calendar, ChevronDown, ChevronRight } from "lucide-react";
+import { PartyPopper, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, User, Calendar, ChevronDown, ChevronRight, FileText } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { buildPublicFormPath, buildPublicFormUrl } from "@/lib/publicFormRoutes";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 function PreFestaResponseCards({ responses, template, onDelete }: { responses: any[]; template: PreFestaTemplate | null; onDelete?: (id: string) => void }) {
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [selectedResponse, setSelectedResponse] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const renderAnswers = (r: any) => {
+    const answersArr = Array.isArray(r.answers) ? r.answers : [];
+    return answersArr.map((a: any, idx: number) => {
+      const question = template?.questions.find(q => q.id === a.questionId)
+        || template?.questions.find(q => a.questionId?.startsWith(q.id));
+      let displayValue: string;
+      if (a.value === true) displayValue = "👍 Sim";
+      else if (a.value === false) displayValue = "👎 Não";
+      else if (typeof a.value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(a.value)) {
+        try { displayValue = format(new Date(a.value), "dd/MM/yyyy", { locale: ptBR }); } catch { displayValue = String(a.value); }
+      } else {
+        displayValue = String(a.value ?? "—");
+      }
+      const label = question?.text || `Pergunta ${idx + 1}`;
+      return (
+        <div key={idx} className="px-4 py-2.5">
+          <p className="text-muted-foreground text-xs mb-0.5">{label}</p>
+          <p className="font-medium text-sm">{displayValue}</p>
+        </div>
+      );
+    });
+  };
+
   return (
-    <div className="space-y-2">
-      {responses.map((r) => {
-        const isOpen = openId === r.id;
-        const answersArr = Array.isArray(r.answers) ? r.answers : [];
-        return (
-          <div key={r.id}>
-            <button
-              onClick={() => setOpenId(isOpen ? null : r.id)}
-              className="w-full flex items-center justify-between gap-2 px-4 py-3 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors text-left"
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {responses.map((r) => {
+          const answersArr = Array.isArray(r.answers) ? r.answers : [];
+          const filledCount = answersArr.filter((a: any) => a.value !== null && a.value !== "" && a.value !== undefined).length;
+          return (
+            <Card
+              key={r.id}
+              className="bg-card border-border cursor-pointer hover:border-primary/30 transition-all"
+              onClick={() => setSelectedResponse(r)}
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <User className="h-4 w-4 text-primary shrink-0" />
-                <span className="font-semibold text-sm truncate">{r.respondent_name || "Anônimo"}</span>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  {format(new Date(r.created_at), "dd/MM/yyyy", { locale: ptBR })}
-                </span>
-                <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? "rotate-90" : ""}`} />
-              </div>
-            </button>
-            {isOpen && (
-              <Card className="mt-1 bg-card border-border overflow-hidden">
-                <CardContent className="p-0">
-                  <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30">
-                    <span className="font-semibold text-sm">{r.respondent_name || "Anônimo"}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                    </span>
-                  </div>
-                  <div className="divide-y divide-border">
-                    {answersArr.map((a: any, idx: number) => {
-                      // Match by exact id OR by prefix (pf1 matches pf1, pf1775...)
-                      const question = template?.questions.find(q => q.id === a.questionId)
-                        || template?.questions.find(q => a.questionId?.startsWith(q.id));
-                      
-                      // Format display value
-                      let displayValue: string;
-                      if (a.value === true) displayValue = "👍 Sim";
-                      else if (a.value === false) displayValue = "👎 Não";
-                      else if (typeof a.value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(a.value)) {
-                        try { displayValue = format(new Date(a.value), "dd/MM/yyyy", { locale: ptBR }); } catch { displayValue = String(a.value); }
-                      } else {
-                        displayValue = String(a.value ?? "—");
-                      }
-
-                      // Build a readable label instead of raw questionId
-                      const label = question?.text || `Pergunta ${idx + 1}`;
-
-                      return (
-                        <div key={idx} className="px-4 py-2.5">
-                          <p className="text-muted-foreground text-xs mb-0.5">{label}</p>
-                          <p className="font-medium text-sm">{displayValue}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {onDelete && (
-                    <div className="px-4 py-2.5 border-t border-border flex justify-end">
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5">
-                            <Trash2 className="h-3.5 w-3.5" /> Apagar resposta
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Apagar resposta?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              A resposta de <strong>{r.respondent_name || "Anônimo"}</strong> será excluída permanentemente.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              disabled={deletingId === r.id}
-                              onClick={async (e) => {
-                                e.preventDefault();
-                                setDeletingId(r.id);
-                                await onDelete(r.id);
-                                setDeletingId(null);
-                              }}
-                            >
-                              {deletingId === r.id ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-                              Apagar
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+              <CardContent className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <User className="h-4 w-4 text-primary" />
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        );
-      })}
-    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm truncate">{r.respondent_name || "Anônimo"}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-1">
+                  <FileText className="h-3.5 w-3.5" />
+                  <span>{filledCount} respostas preenchidas</span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      <Sheet open={!!selectedResponse} onOpenChange={(open) => { if (!open) setSelectedResponse(null); }}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+          {selectedResponse && (
+            <>
+              <SheetHeader className="pb-4">
+                <SheetTitle className="flex items-center gap-2">
+                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <User className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-base font-semibold">{selectedResponse.respondent_name || "Anônimo"}</p>
+                    <p className="text-xs text-muted-foreground font-normal">
+                      {format(new Date(selectedResponse.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </p>
+                  </div>
+                </SheetTitle>
+              </SheetHeader>
+
+              <div className="divide-y divide-border rounded-xl border border-border bg-muted/20">
+                {renderAnswers(selectedResponse)}
+              </div>
+
+              {onDelete && (
+                <div className="pt-4 flex justify-end">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5">
+                        <Trash2 className="h-3.5 w-3.5" /> Apagar resposta
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Apagar resposta?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          A resposta de <strong>{selectedResponse.respondent_name || "Anônimo"}</strong> será excluída permanentemente.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          disabled={deletingId === selectedResponse.id}
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            setDeletingId(selectedResponse.id);
+                            await onDelete(selectedResponse.id);
+                            setDeletingId(null);
+                            setSelectedResponse(null);
+                          }}
+                        >
+                          {deletingId === selectedResponse.id ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                          Apagar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              )}
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
 
