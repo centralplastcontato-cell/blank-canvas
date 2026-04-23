@@ -403,19 +403,21 @@ export function EventComplementaryTab({
 
       toast({ title: `Enviando via ${selectedInstance?.unit || 'WhatsApp'}...` });
 
-      // Find existing conversation to avoid duplicates
+      // Reuse a conversa existente apenas se ela pertencer à instância atualmente selecionada.
+      // Isso evita tentar enviar por uma instância antiga/desconectada e disparar erro na Edge Function.
       const { findExistingConversation } = await import("@/lib/whatsappConversationHelper");
       const existingConv = await findExistingConversation(form.lead_id, leadPhone, companyId);
+      const matchingConversation = existingConv?.instanceId === selectedInstanceId ? existingConv : null;
 
       const { data: sendData, error } = await supabase.functions.invoke("wapi-send", {
         body: {
           action: "send-text",
           phone: leadPhone,
           message,
-          instanceId: existingConv?.instanceId || selectedInstanceId,
-          ...(existingConv && {
-            conversationId: existingConv.conversationId,
-            companyId: existingConv.companyId,
+          instanceId: selectedInstanceId,
+          ...(matchingConversation && {
+            conversationId: matchingConversation.conversationId,
+            companyId: matchingConversation.companyId,
           }),
         },
       });
