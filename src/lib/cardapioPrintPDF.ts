@@ -164,19 +164,59 @@ export async function generateCardapioPrintPDF(
     doc.setFontSize(12);
     doc.setTextColor(30, 30, 30);
 
-    for (const item of items) {
+    const boxSize = 4.2; // mm
+    const textX = marginX + 4 + boxSize + 4;
+    const textWidth = contentWidth - (textX - marginX) - 4;
+    const lineGap = 6.2;
+    const rowPadV = 2.2;
+
+    items.forEach((item, idx) => {
       const cleanItem = sanitize(item);
-      const wrapped = doc.splitTextToSize(cleanItem, contentWidth - 12);
-      const rowH = wrapped.length * 6 + 1;
+      const wrapped = doc.splitTextToSize(cleanItem, textWidth);
+      const textH = wrapped.length * lineGap;
+      const rowH = textH + rowPadV * 2;
       ensureSpace(rowH);
-      doc.setTextColor(150, 30, 60);
-      doc.setFont("helvetica", "bold");
-      doc.text("v", marginX + 4, y + 4.5); // checkmark substitute
+
+      // Zebra background
+      if (idx % 2 === 0) {
+        doc.setFillColor(252, 247, 249);
+        doc.rect(marginX, y, contentWidth, rowH, "F");
+      }
+
+      // Checkbox (filled rounded square)
+      const boxX = marginX + 4;
+      const boxY = y + (rowH - boxSize) / 2;
+      doc.setDrawColor(150, 30, 60);
+      doc.setFillColor(150, 30, 60);
+      doc.setLineWidth(0.4);
+      doc.roundedRect(boxX, boxY, boxSize, boxSize, 0.6, 0.6, "FD");
+
+      // White vector checkmark inside the box
+      doc.setDrawColor(255, 255, 255);
+      doc.setLineWidth(0.7);
+      doc.setLineCap("round");
+      doc.setLineJoin("round");
+      doc.line(
+        boxX + 0.9,
+        boxY + boxSize * 0.55,
+        boxX + boxSize * 0.42,
+        boxY + boxSize * 0.78,
+      );
+      doc.line(
+        boxX + boxSize * 0.42,
+        boxY + boxSize * 0.78,
+        boxX + boxSize - 0.7,
+        boxY + boxSize * 0.28,
+      );
+
+      // Item text
       doc.setFont("helvetica", "normal");
-      doc.setTextColor(30, 30, 30);
-      doc.text(wrapped, marginX + 10, y + 4.5);
+      doc.setTextColor(35, 35, 35);
+      doc.text(wrapped, textX, y + rowPadV + 4.2);
+
       y += rowH;
-    }
+    });
+
 
     y += 6;
   }
