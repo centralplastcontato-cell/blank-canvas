@@ -1,125 +1,49 @@
 
-## Correção: vazamento de mensagens entre conversas ainda persiste
 
-### O que está acontecendo de verdade
+## Resumo da Festa — Painel consolidado no lateral do evento
 
-O problema principal agora não é mais o realtime puro. A proteção adicionada em `handleNewRealtimeMessage` e `handleRealtimeMessageUpdate` ajuda, mas o vazamento continua por causa de **contaminação de estado local** em `src/components/whatsapp/WhatsAppChat.tsx`.
+### O que será feito
 
-### Causa raiz identificada
+Criar um novo componente `EventSummaryPanel` que aparecerá no painel lateral do evento (`EventDetailSheet`), logo acima do Checklist existente. Ele consolida todas as informações-chave da festa em um único card visual, incluindo um campo editável para anotações adicionais.
 
-Há 3 pontos combinados:
+### Informações exibidas no painel
 
-1. **`prevConversationIdRef` está sendo reutilizado para duas responsabilidades**
-   - Ele é atualizado no efeito de rascunho (`1148-1174`) antes do efeito de carregamento (`1417-1468`).
-   - Resultado: na troca de conversa, a condição `prevConversationIdRef.current !== selectedConversation.id` quase nunca detecta a troca.
-   - Consequência: o chat anterior não é limpo de forma confiável.
+1. **Aniversariante(s)** — nome e idade (de `birthday_children` ou `child_name`/`child_age`)
+2. **Pais / Contratante** — `parent_names` ou nome do lead vinculado
+3. **Pacote** — `package_name`
+4. **Convidados** — `guest_count`
+5. **Horário** — `start_time` / `end_time`
+6. **Unidade** — `unit`
+7. **Opcionais** — lista de `event_optionals` (nome + valor)
+8. **Observações do evento** — `notes` (campo existente do modal)
+9. **Observações internas** — `internal_notes`
+10. **Campo editável** — textarea para o usuário escrever anotações rápidas diretamente no painel (salva em `internal_notes` do evento)
 
-2. **`fetchMessages()` mistura mensagens antigas com a nova conversa**
-   - No carregamento inicial (`2078-2087`), ele faz merge com `prev`.
-   - Esse merge foi pensado para preservar mensagens realtime durante o fetch, mas como `prev` ainda pode conter mensagens da conversa anterior, elas entram no chat novo.
-   - Como o filtro usa apenas `id` e não `conversation_id`, mensagens de outra conversa sobrevivem no array.
+### Etapas técnicas
 
-3. **Outros envios assíncronos ainda atualizam o chat sem validar a conversa ativa**
-   - A correção anterior protegeu o envio de texto.
-   - Mas ainda existem fluxos como **contato, áudio, imagem, vídeo, documento** que fazem `setMessages(...)` depois de `await` sem checar se o usuário continua na mesma conversa.
-   - Isso permite que mensagens/status “vazem” quando o usuário troca rápido de chat.
+#### 1. Expandir a interface `EventData` em `EventDetailSheet.tsx`
+Adicionar os campos que faltam: `child_name`, `child_age`, `birthday_children`, `parent_names`, `event_optionals`, `internal_notes`, `gifts`.
 
-### Por que a correção anterior não resolveu totalmente
+#### 2. Criar o componente `src/components/agenda/EventSummaryPanel.tsx`
+- Recebe `event` (com os campos expandidos), `leadName`, e `companyId`
+- Renderiza um card `rounded-xl` com header "Resumo da Festa" e ícone `FileText`
+- Seções com ícones: aniversariante, pais, pacote, convidados, opcionais, observações
+- Textarea para anotações internas com auto-save (debounce 2s para `company_events.internal_notes`)
+- Visual consistente com os outros cards do painel (mesmo padrão de `bg-muted/30`, `border-border/40`)
 
-Porque ela atacou apenas a entrada via realtime e parte do envio de texto.  
-O bug restante vem principalmente do **carregamento assíncrono da conversa** e de **outros handlers de envio** que continuam escrevendo no mesmo estado visual depois que o usuário já mudou de contato.
+#### 3. Inserir o `EventSummaryPanel` no `EventDetailSheet.tsx`
+- Posicionar entre "Informações Adicionais" e o Checklist
+- Passar os dados do evento expandido
 
----
+#### 4. Nenhuma alteração necessária em `Agenda.tsx` ou `AgendaTudoTab.tsx`
+Os campos já são carregados do banco e passados via `CompanyEvent` — o TypeScript só precisa que `EventData` aceite os mesmos campos.
 
-## Plano de correção
+### Arquivo novo
+- `src/components/agenda/EventSummaryPanel.tsx`
 
-### Etapa 1 — separar refs de responsabilidade
-No `WhatsAppChat.tsx`:
+### Arquivos alterados
+- `src/components/agenda/EventDetailSheet.tsx` — expandir interface + inserir o painel
 
-- Manter um ref exclusivo para rascunho/anterior, por exemplo `draftConversationRef`.
-- Criar outro ref exclusivo para controle de conversa ativa/render atual, por exemplo `activeConversationIdRef`.
-- Parar de usar `prevConversationIdRef` ao mesmo tempo para:
-  - salvar draft
-  - detectar troca de conversa
-  - controlar limpeza do chat
+### Resultado esperado
+Ao abrir o painel lateral de qualquer festa, o usuário verá um card "Resumo da Festa" com todas as informações consolidadas, incluindo um campo para escrever anotações que salva automaticamente.
 
-### Etapa 2 — limpar o chat corretamente ao trocar de conversa
-No efeito de mudança de conversa (`1417+`):
-
-- Detectar a troca usando o ref correto.
-- Limpar imediatamente:
-  - `messages`
-  - `linkedLead`
-  - `replyingTo`
-  - flags de loading/paginação
-- Só depois iniciar o carregamento da nova conversa.
-
-Isso evita que o estado visual da conversa anterior permaneça vivo.
-
-### Etapa 3 — blindar `fetchMessages()` contra resposta atrasada
-Em `fetchMessages(conversationId, loadMore)`:
-
-- Capturar o `conversationId` da requisição.
-- Antes de qualquer `setMessages`, validar:
-  - se essa resposta ainda pertence à conversa ativa.
-- Se o usuário já trocou de conversa, descartar silenciosamente o resultado.
-
-Além disso:
-
-- No carregamento inicial, não permitir merge com mensagens de outra conversa.
-- Filtrar sempre por `message.conversation_id === conversationId`.
-- O merge de preservação deve aceitar apenas:
-  - mensagens otimistas da mesma conversa
-  - mensagens realtime da mesma conversa
-
-### Etapa 4 — proteger todos os envios assíncronos
-Aplicar o mesmo padrão de validação aos outros fluxos de envio que ainda estão sem guarda:
-
-- envio de contato
-- envio de áudio gravado
-- envio de imagem
-- envio de vídeo
-- envio de documento
-- qualquer outro `setMessages(...)` executado após `await`
-
-Regra:
-- se `activeConversationIdRef.current !== convId`, não atualizar o array visual atual.
-
-### Etapa 5 — revisar branches de “sem mensagens” e paginação
-Também proteger:
-
-- branch de `setMessages([])` quando a query volta vazia
-- `loadMore`
-- atualizações de cursor/paginação
-
-Para evitar que uma resposta atrasada de uma conversa antiga apague ou misture a conversa nova.
-
----
-
-## Arquivo que será alterado
-
-- `src/components/whatsapp/WhatsAppChat.tsx`
-
----
-
-## Resultado esperado
-
-Depois dessa correção:
-
-- mensagens do Victor não aparecerão na Bianca
-- mensagens da Bianca não aparecerão no Victor
-- trocar rapidamente entre contatos não contaminará o chat atual
-- respostas atrasadas de fetch/realtime/envio serão ignoradas se pertencerem à conversa anterior
-
----
-
-## Resumo técnico
-
-O problema restante é um **race condition de estado no frontend**, não do WhatsApp em si.  
-A conversa ativa muda, mas callbacks e fetches antigos ainda escrevem no mesmo `messages`.  
-A correção definitiva é isolar rigorosamente o estado por `conversation_id` em:
-- troca de conversa
-- carregamento inicial
-- paginação
-- realtime
-- pós-envio
