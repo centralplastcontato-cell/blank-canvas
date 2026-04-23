@@ -742,9 +742,15 @@ export default function Agenda() {
       // Check if there are already manually-managed payments (paid ones should not be wiped)
       const { data: existing } = await supabase
         .from("event_payments")
-        .select("id, status")
+        .select("id, status, amount, gross_amount, type, payment_method")
         .eq("event_id", eventId);
-      const hasPaidPayments = (existing || []).some((p: any) => p.status === "paid");
+      const paidPayments = (existing || []).filter((p: any) => p.status === "paid");
+      const hasPaidPayments = paidPayments.length > 0;
+
+      // Calculate total gross already paid (use gross_amount if available, fallback to amount)
+      const paidGrossTotal = paidPayments.reduce((sum: number, p: any) => {
+        return sum + (Number(p.gross_amount) || Number(p.amount) || 0);
+      }, 0);
 
       if (hasPaidPayments) {
         // Only delete pending payments, keep paid ones intact
