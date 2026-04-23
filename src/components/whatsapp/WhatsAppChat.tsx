@@ -2465,12 +2465,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     if (!contactName.trim() || !contactPhone.trim() || !selectedConversation || !selectedInstance) return;
     
     setIsSendingContact(true);
+    const convId = selectedConversation.id;
     
     const contactContent = `[Contato] ${contactName.trim()} - ${contactPhone.trim()}`;
     const optimisticId = `optimistic-${Date.now()}`;
     const optimisticMessage: Message = {
       id: optimisticId,
-      conversation_id: selectedConversation.id,
+      conversation_id: convId,
       message_id: null,
       from_me: true,
       message_type: 'contact',
@@ -2490,7 +2491,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           phone: getConversationPhone(selectedConversation),
           contactName: contactName.trim(),
           contactPhone: contactPhone.trim(),
-          conversationId: selectedConversation.id,
+          conversationId: convId,
           instanceId: selectedInstance.instance_id,
       });
 
@@ -2498,14 +2499,18 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const responseData = response.data as { success?: boolean; error?: string } | undefined;
       if (responseData && responseData.success === false) throw new Error(responseData.error || "Falha ao enviar contato");
 
-      setMessages(prev => prev.map(m => 
-        m.id === optimisticId ? { ...m, status: 'sent' } : m
-      ));
+      if (activeConversationIdRef.current === convId) {
+        setMessages(prev => prev.map(m => 
+          m.id === optimisticId ? { ...m, status: 'sent' } : m
+        ));
+      }
       
       setContactName("");
       setContactPhone("");
     } catch (error: unknown) {
-      setMessages(prev => prev.filter(m => m.id !== optimisticId));
+      if (activeConversationIdRef.current === convId) {
+        setMessages(prev => prev.filter(m => m.id !== optimisticId));
+      }
       toast({
         title: "Erro ao enviar contato",
         description: error instanceof Error ? error.message : "Não foi possível enviar o contato.",
