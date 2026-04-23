@@ -350,7 +350,7 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
       const templatePromises = FORM_TYPES.map(async (ft) => {
         const { data } = await (supabase as any)
           .from(ft.templateTable)
-          .select("id, slug")
+          .select("id, slug, questions")
           .eq("company_id", companyId)
           .eq("is_active", true)
           .limit(1);
