@@ -522,16 +522,20 @@ export default function Agenda() {
 
     // Build payment status map
     const today = format(new Date(), "yyyy-MM-dd");
-    const pmMap: Record<string, { total: number; paid: number; pending: number; late: number }> = {};
+    const pmMap: Record<string, { total: number; paid: number; pending: number; late: number; details: { amount: number; due_date: string; status: string }[] }> = {};
     (paymentsRes.data || []).forEach((p: any) => {
-      if (!pmMap[p.event_id]) pmMap[p.event_id] = { total: 0, paid: 0, pending: 0, late: 0 };
+      if (!pmMap[p.event_id]) pmMap[p.event_id] = { total: 0, paid: 0, pending: 0, late: 0, details: [] };
       pmMap[p.event_id].total++;
+      const isLate = p.status !== "paid" && p.due_date && p.due_date < today;
       if (p.status === "paid") {
         pmMap[p.event_id].paid++;
-      } else if (p.due_date && p.due_date < today) {
+      } else if (isLate) {
         pmMap[p.event_id].late++;
       } else {
         pmMap[p.event_id].pending++;
+      }
+      if (p.status !== "paid") {
+        pmMap[p.event_id].details.push({ amount: p.amount || 0, due_date: p.due_date || "", status: isLate ? "late" : "pending" });
       }
     });
     setPaymentStatus(pmMap);
