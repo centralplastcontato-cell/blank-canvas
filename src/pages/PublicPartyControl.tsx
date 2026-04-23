@@ -594,12 +594,12 @@ export default function PublicPartyControl() {
               const optionals = Array.isArray(event.event_optionals) ? event.event_optionals.filter(o => o?.name) : [];
 
               const SummaryRow = ({ emoji, label, children: content }: { emoji: string; label: string; children: React.ReactNode }) => (
-                <div className="rounded-xl px-4 py-3 flex items-start gap-3"
+                <div className="rounded-xl px-3 sm:px-4 py-3 flex items-start gap-2.5 sm:gap-3"
                   style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)" }}>
-                  <span className="text-lg shrink-0 mt-0.5">{emoji}</span>
+                  <span className="text-base sm:text-lg shrink-0 mt-0.5 w-6 sm:w-7 text-center">{emoji}</span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[9px] font-bold uppercase tracking-widest mb-0.5" style={{ color: "#475569" }}>{label}</p>
-                    {content}
+                    <p className="text-[10px] sm:text-[9px] font-bold uppercase tracking-wider sm:tracking-widest mb-0.5" style={{ color: "#64748b" }}>{label}</p>
+                    <div className="text-[13px] sm:text-sm font-medium break-words" style={{ color: "#e2e8f0" }}>{content}</div>
                   </div>
                 </div>
               );
