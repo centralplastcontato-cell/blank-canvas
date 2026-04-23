@@ -482,16 +482,14 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
         return;
       }
 
-      // Get connected WhatsApp instance
-      const { data: instances } = await (supabase as any)
+      // Get connected WhatsApp instances
+      const { data: connectedInstances } = await (supabase as any)
         .from("wapi_instances")
         .select("instance_id, unit, status")
         .eq("company_id", companyId)
-        .eq("status", "connected")
-        .limit(1);
+        .eq("status", "connected");
 
-      const instance = instances?.[0];
-      if (!instance) {
+      if (!connectedInstances?.length) {
         toast({ title: "Nenhuma instância WhatsApp conectada", variant: "destructive" });
         return;
       }
@@ -526,9 +524,11 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
         .replace(/\{\{\s*data_evento\s*\}\}/gi, formattedDate)
         .replace(/\{\{\s*empresa\s*\}\}/gi, company.name || "");
 
-      // Find existing conversation to avoid duplicates
+      // Reuse a conversa existente apenas se a instância dela ainda estiver conectada.
       const { findExistingConversation } = await import("@/lib/whatsappConversationHelper");
       const existingConv = await findExistingConversation(leadId, lead.whatsapp, companyId);
+      const matchingInstance = connectedInstances.find((item: any) => item.instance_id === existingConv?.instanceId) || connectedInstances[0];
+      const matchingConversation = existingConv?.instanceId === matchingInstance.instance_id ? existingConv : null;
 
       // Send via WhatsApp
       const { data: sendData, error } = await supabase.functions.invoke("wapi-send", {
@@ -536,10 +536,10 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
           action: "send-text",
           phone: lead.whatsapp,
           message,
-          instanceId: existingConv?.instanceId || instance.instance_id,
-          ...(existingConv && {
-            conversationId: existingConv.conversationId,
-            companyId: existingConv.companyId,
+          instanceId: matchingInstance.instance_id,
+          ...(matchingConversation && {
+            conversationId: matchingConversation.conversationId,
+            companyId: matchingConversation.companyId,
           }),
         },
       });
