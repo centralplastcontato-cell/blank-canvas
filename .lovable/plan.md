@@ -1,39 +1,125 @@
 
+## Correção: vazamento de mensagens entre conversas ainda persiste
 
-## Correção: Mensagem fantasma ao trocar de conversa rapidamente
+### O que está acontecendo de verdade
 
-### Problema identificado
+O problema principal agora não é mais o realtime puro. A proteção adicionada em `handleNewRealtimeMessage` e `handleRealtimeMessageUpdate` ajuda, mas o vazamento continua por causa de **contaminação de estado local** em `src/components/whatsapp/WhatsAppChat.tsx`.
 
-Quando o usuário envia uma mensagem para o contato X e rapidamente abre a conversa do contato Y, a mensagem enviada para X aparece dentro do chat de Y.
+### Causa raiz identificada
 
-**Causa raiz:** O callback `handleNewRealtimeMessage` (linha 1345) **não valida** se a mensagem pertence à conversa atualmente selecionada. Ele simplesmente faz `setMessages(prev => [...prev, newMessage])` sem checar `newMessage.conversation_id`.
+Há 3 pontos combinados:
 
-**Cenário da race condition:**
-1. Usuário envia mensagem para conversa X → mensagem otimista adicionada.
-2. Usuário troca para conversa Y → `setMessages([])` limpa o estado e carrega mensagens de Y.
-3. O webhook do WhatsApp entrega a mensagem real de X via realtime. O canal antigo (filtrado por conv X) pode ainda estar ativo por milissegundos antes do cleanup do React executar.
-4. `handleNewRealtimeMessage` é chamado com a mensagem de X, mas adiciona ao estado atual (que agora contém mensagens de Y).
+1. **`prevConversationIdRef` está sendo reutilizado para duas responsabilidades**
+   - Ele é atualizado no efeito de rascunho (`1148-1174`) antes do efeito de carregamento (`1417-1468`).
+   - Resultado: na troca de conversa, a condição `prevConversationIdRef.current !== selectedConversation.id` quase nunca detecta a troca.
+   - Consequência: o chat anterior não é limpo de forma confiável.
 
-O mesmo problema pode ocorrer com o **polling fallback** — embora o `conversationId` no closure seja atualizado, o `onNewMessageRef` aponta para o handler que não verifica o conversation_id.
+2. **`fetchMessages()` mistura mensagens antigas com a nova conversa**
+   - No carregamento inicial (`2078-2087`), ele faz merge com `prev`.
+   - Esse merge foi pensado para preservar mensagens realtime durante o fetch, mas como `prev` ainda pode conter mensagens da conversa anterior, elas entram no chat novo.
+   - Como o filtro usa apenas `id` e não `conversation_id`, mensagens de outra conversa sobrevivem no array.
 
-### Solução
+3. **Outros envios assíncronos ainda atualizam o chat sem validar a conversa ativa**
+   - A correção anterior protegeu o envio de texto.
+   - Mas ainda existem fluxos como **contato, áudio, imagem, vídeo, documento** que fazem `setMessages(...)` depois de `await` sem checar se o usuário continua na mesma conversa.
+   - Isso permite que mensagens/status “vazem” quando o usuário troca rápido de chat.
 
-**Arquivo:** `src/components/whatsapp/WhatsAppChat.tsx`
+### Por que a correção anterior não resolveu totalmente
 
-**1. Criar um ref para o conversation_id ativo (junto às outras refs)**
-- Adicionar `const activeConversationIdRef = useRef<string | null>(null);`
-- Atualizar esse ref sempre que `selectedConversation` mudar.
+Porque ela atacou apenas a entrada via realtime e parte do envio de texto.  
+O bug restante vem principalmente do **carregamento assíncrono da conversa** e de **outros handlers de envio** que continuam escrevendo no mesmo estado visual depois que o usuário já mudou de contato.
 
-**2. Validar conversation_id em `handleNewRealtimeMessage` (linha 1345)**
-- No início do callback, verificar: se `newMessage.conversation_id !== activeConversationIdRef.current`, ignorar a mensagem (return prev sem alteração).
+---
 
-**3. Validar conversation_id em `handleRealtimeMessageUpdate` (linha 1383)**
-- Mesma verificação: ignorar updates de conversas que não são a ativa.
+## Plano de correção
 
-**4. Proteger a resposta do envio (linhas 2399, 2414, 2419)**
-- Nos `setMessages` pós-envio (sucesso e erro), verificar se ainda estamos na mesma conversa antes de atualizar o estado. Se não, ignorar silenciosamente (a mensagem já será visível quando o usuário voltar à conversa X).
+### Etapa 1 — separar refs de responsabilidade
+No `WhatsAppChat.tsx`:
 
-### Resultado esperado
+- Manter um ref exclusivo para rascunho/anterior, por exemplo `draftConversationRef`.
+- Criar outro ref exclusivo para controle de conversa ativa/render atual, por exemplo `activeConversationIdRef`.
+- Parar de usar `prevConversationIdRef` ao mesmo tempo para:
+  - salvar draft
+  - detectar troca de conversa
+  - controlar limpeza do chat
 
-Mensagens de uma conversa nunca aparecerão na outra, mesmo trocando rapidamente. A validação por `conversation_id` garante isolamento total.
+### Etapa 2 — limpar o chat corretamente ao trocar de conversa
+No efeito de mudança de conversa (`1417+`):
 
+- Detectar a troca usando o ref correto.
+- Limpar imediatamente:
+  - `messages`
+  - `linkedLead`
+  - `replyingTo`
+  - flags de loading/paginação
+- Só depois iniciar o carregamento da nova conversa.
+
+Isso evita que o estado visual da conversa anterior permaneça vivo.
+
+### Etapa 3 — blindar `fetchMessages()` contra resposta atrasada
+Em `fetchMessages(conversationId, loadMore)`:
+
+- Capturar o `conversationId` da requisição.
+- Antes de qualquer `setMessages`, validar:
+  - se essa resposta ainda pertence à conversa ativa.
+- Se o usuário já trocou de conversa, descartar silenciosamente o resultado.
+
+Além disso:
+
+- No carregamento inicial, não permitir merge com mensagens de outra conversa.
+- Filtrar sempre por `message.conversation_id === conversationId`.
+- O merge de preservação deve aceitar apenas:
+  - mensagens otimistas da mesma conversa
+  - mensagens realtime da mesma conversa
+
+### Etapa 4 — proteger todos os envios assíncronos
+Aplicar o mesmo padrão de validação aos outros fluxos de envio que ainda estão sem guarda:
+
+- envio de contato
+- envio de áudio gravado
+- envio de imagem
+- envio de vídeo
+- envio de documento
+- qualquer outro `setMessages(...)` executado após `await`
+
+Regra:
+- se `activeConversationIdRef.current !== convId`, não atualizar o array visual atual.
+
+### Etapa 5 — revisar branches de “sem mensagens” e paginação
+Também proteger:
+
+- branch de `setMessages([])` quando a query volta vazia
+- `loadMore`
+- atualizações de cursor/paginação
+
+Para evitar que uma resposta atrasada de uma conversa antiga apague ou misture a conversa nova.
+
+---
+
+## Arquivo que será alterado
+
+- `src/components/whatsapp/WhatsAppChat.tsx`
+
+---
+
+## Resultado esperado
+
+Depois dessa correção:
+
+- mensagens do Victor não aparecerão na Bianca
+- mensagens da Bianca não aparecerão no Victor
+- trocar rapidamente entre contatos não contaminará o chat atual
+- respostas atrasadas de fetch/realtime/envio serão ignoradas se pertencerem à conversa anterior
+
+---
+
+## Resumo técnico
+
+O problema restante é um **race condition de estado no frontend**, não do WhatsApp em si.  
+A conversa ativa muda, mas callbacks e fetches antigos ainda escrevem no mesmo `messages`.  
+A correção definitiva é isolar rigorosamente o estado por `conversation_id` em:
+- troca de conversa
+- carregamento inicial
+- paginação
+- realtime
+- pós-envio
