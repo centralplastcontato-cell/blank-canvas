@@ -395,7 +395,7 @@ export function EventComplementaryTab({
       const { findExistingConversation } = await import("@/lib/whatsappConversationHelper");
       const existingConv = await findExistingConversation(form.lead_id, leadPhone, companyId);
 
-      const { error } = await supabase.functions.invoke("wapi-send", {
+      const { data: sendData, error } = await supabase.functions.invoke("wapi-send", {
         body: {
           action: "send-text",
           phone: leadPhone,
@@ -408,7 +408,11 @@ export function EventComplementaryTab({
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("[sendForm] wapi-send error:", error, "response data:", sendData);
+        const errMsg = typeof sendData === "object" && sendData?.error ? sendData.error : error.message;
+        throw new Error(errMsg);
+      }
 
       // Persist sent status
       setSentForms(prev => new Set(prev).add(key));
