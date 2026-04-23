@@ -573,6 +573,109 @@ export default function PublicPartyControl() {
           </div>
         )}
 
+        {/* SUMMARY TAB */}
+        {activeTab === "summary" && (
+          <div className="px-4 space-y-3">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">📋</span>
+              <h2 className="text-white font-bold text-base">Resumo da Festa</h2>
+            </div>
+
+            {(() => {
+              const children: { name: string; age: string }[] = [];
+              if (event.birthday_children && Array.isArray(event.birthday_children) && event.birthday_children.length > 0) {
+                for (const c of event.birthday_children) {
+                  if (c.name) children.push({ name: c.name, age: c.age || "" });
+                }
+              } else if (event.child_name) {
+                children.push({ name: event.child_name, age: event.child_age || "" });
+              }
+              const optionals = Array.isArray(event.event_optionals) ? event.event_optionals.filter(o => o?.name) : [];
+
+              const SummaryRow = ({ emoji, label, children: content }: { emoji: string; label: string; children: React.ReactNode }) => (
+                <div className="rounded-xl px-4 py-3 flex items-start gap-3"
+                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)" }}>
+                  <span className="text-lg shrink-0 mt-0.5">{emoji}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[9px] font-bold uppercase tracking-widest mb-0.5" style={{ color: "#475569" }}>{label}</p>
+                    {content}
+                  </div>
+                </div>
+              );
+
+              return (
+                <>
+                  {children.length > 0 && (
+                    <SummaryRow emoji="🎂" label={children.length > 1 ? "Aniversariantes" : "Aniversariante"}>
+                      {children.map((c, i) => (
+                        <p key={i} className="text-sm font-medium" style={{ color: "#e2e8f0" }}>
+                          {c.name}{c.age ? ` — ${c.age} anos` : ""}
+                        </p>
+                      ))}
+                    </SummaryRow>
+                  )}
+
+                  {event.parent_names && (
+                    <SummaryRow emoji="👨‍👩‍👧" label="Pais / Contratante">
+                      <p className="text-sm font-medium" style={{ color: "#e2e8f0" }}>{event.parent_names}</p>
+                    </SummaryRow>
+                  )}
+
+                  {event.package_name && (
+                    <SummaryRow emoji="📦" label="Pacote">
+                      <p className="text-sm font-medium" style={{ color: "#e2e8f0" }}>{event.package_name}</p>
+                    </SummaryRow>
+                  )}
+
+                  {event.guest_count && (
+                    <SummaryRow emoji="👥" label="Convidados">
+                      <p className="text-sm font-medium" style={{ color: "#e2e8f0" }}>{event.guest_count} pessoas</p>
+                    </SummaryRow>
+                  )}
+
+                  {(event.start_time || event.end_time) && (
+                    <SummaryRow emoji="🕐" label="Horário">
+                      <p className="text-sm font-medium" style={{ color: "#e2e8f0" }}>
+                        {event.start_time?.slice(0, 5) || "–"} até {event.end_time?.slice(0, 5) || "–"}
+                      </p>
+                    </SummaryRow>
+                  )}
+
+                  {event.unit && (
+                    <SummaryRow emoji="📍" label="Unidade">
+                      <p className="text-sm font-medium" style={{ color: "#e2e8f0" }}>{event.unit}</p>
+                    </SummaryRow>
+                  )}
+
+                  {optionals.length > 0 && (
+                    <SummaryRow emoji="⭐" label="Opcionais">
+                      {optionals.map((opt, i) => (
+                        <p key={i} className="text-sm font-medium" style={{ color: "#e2e8f0" }}>
+                          {opt.name}
+                          {opt.value ? ` — ${Number(opt.value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}` : ""}
+                        </p>
+                      ))}
+                    </SummaryRow>
+                  )}
+
+                  {event.notes && (
+                    <SummaryRow emoji="📝" label="Observações">
+                      <p className="text-sm font-medium whitespace-pre-wrap" style={{ color: "#cbd5e1" }}>{event.notes}</p>
+                    </SummaryRow>
+                  )}
+
+                  {children.length === 0 && !event.parent_names && !event.package_name && !event.guest_count && !event.notes && optionals.length === 0 && (
+                    <div className="text-center py-16">
+                      <div className="text-5xl mb-4">📋</div>
+                      <p className="text-slate-500 text-sm">Nenhuma informação registrada</p>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        )}
+
         {/* PENDING TAB */}
         {activeTab === "pending" && (
           <div className="px-4 space-y-2">
