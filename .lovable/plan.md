@@ -1,49 +1,47 @@
 
 
-## Resumo da Festa — Painel consolidado no lateral do evento
+## Mover "Resumo da Festa" para dentro do card do Checklist
 
 ### O que será feito
 
-Criar um novo componente `EventSummaryPanel` que aparecerá no painel lateral do evento (`EventDetailSheet`), logo acima do Checklist existente. Ele consolida todas as informações-chave da festa em um único card visual, incluindo um campo editável para anotações adicionais.
+O painel "Resumo da Festa" será removido como card separado e inserido **dentro** do card do Checklist, aparecendo acima dos itens do checklist. Isso unifica visualmente as informações da festa com as tarefas operacionais, ideal para uso no Controle da Festa.
 
-### Informações exibidas no painel
+### Estrutura visual resultante
 
-1. **Aniversariante(s)** — nome e idade (de `birthday_children` ou `child_name`/`child_age`)
-2. **Pais / Contratante** — `parent_names` ou nome do lead vinculado
-3. **Pacote** — `package_name`
-4. **Convidados** — `guest_count`
-5. **Horário** — `start_time` / `end_time`
-6. **Unidade** — `unit`
-7. **Opcionais** — lista de `event_optionals` (nome + valor)
-8. **Observações do evento** — `notes` (campo existente do modal)
-9. **Observações internas** — `internal_notes`
-10. **Campo editável** — textarea para o usuário escrever anotações rápidas diretamente no painel (salva em `internal_notes` do evento)
+```text
+┌─────────────────────────────────┐
+│  📋 RESUMO DA FESTA             │
+│  Aniversariante: MANUELLA — 1   │
+│  Pais: Beatriz                  │
+│  Pacote: CASTELO                │
+│  Convidados: 50 pessoas         │
+│  Horário: 19:00 até 23:00       │
+│  Unidade: Castelo da Diversão   │
+│  Opcionais / Observações        │
+│  [Anotações internas textarea]  │
+│─────────────────────────────────│
+│  CHECKLIST (3/5) — 60%          │
+│  ☑ Tarefa 1                     │
+│  ☐ Tarefa 2                     │
+│  [Nova tarefa...]          [+]  │
+└─────────────────────────────────┘
+```
 
 ### Etapas técnicas
 
-#### 1. Expandir a interface `EventData` em `EventDetailSheet.tsx`
-Adicionar os campos que faltam: `child_name`, `child_age`, `birthday_children`, `parent_names`, `event_optionals`, `internal_notes`, `gifts`.
+#### 1. Modificar `EventDetailSheet.tsx`
+- Remover o bloco standalone do `<EventSummaryPanel />` (linhas 580-587).
+- Dentro do card do Checklist (linhas 589-596), adicionar o `<EventSummaryPanel />` antes do `<EventChecklist />`, com um separador visual (`border-b`) entre eles.
 
-#### 2. Criar o componente `src/components/agenda/EventSummaryPanel.tsx`
-- Recebe `event` (com os campos expandidos), `leadName`, e `companyId`
-- Renderiza um card `rounded-xl` com header "Resumo da Festa" e ícone `FileText`
-- Seções com ícones: aniversariante, pais, pacote, convidados, opcionais, observações
-- Textarea para anotações internas com auto-save (debounce 2s para `company_events.internal_notes`)
-- Visual consistente com os outros cards do painel (mesmo padrão de `bg-muted/30`, `border-border/40`)
-
-#### 3. Inserir o `EventSummaryPanel` no `EventDetailSheet.tsx`
-- Posicionar entre "Informações Adicionais" e o Checklist
-- Passar os dados do evento expandido
-
-#### 4. Nenhuma alteração necessária em `Agenda.tsx` ou `AgendaTudoTab.tsx`
-Os campos já são carregados do banco e passados via `CompanyEvent` — o TypeScript só precisa que `EventData` aceite os mesmos campos.
-
-### Arquivo novo
-- `src/components/agenda/EventSummaryPanel.tsx`
+#### 2. Ajustar `EventSummaryPanel.tsx`
+- Remover o wrapper externo (`rounded-xl border bg-card shadow-sm`) e o header com fundo — o componente agora vive dentro do card do Checklist.
+- Manter apenas o conteúdo interno (linhas de info + textarea).
+- O header "Resumo da Festa" passa a ser um label simples (`text-xs uppercase`) consistente com o label "Checklist".
 
 ### Arquivos alterados
-- `src/components/agenda/EventDetailSheet.tsx` — expandir interface + inserir o painel
+- `src/components/agenda/EventDetailSheet.tsx` — mover o panel para dentro do card do Checklist
+- `src/components/agenda/EventSummaryPanel.tsx` — remover wrapper externo, simplificar para conteúdo inline
 
 ### Resultado esperado
-Ao abrir o painel lateral de qualquer festa, o usuário verá um card "Resumo da Festa" com todas as informações consolidadas, incluindo um campo para escrever anotações que salva automaticamente.
+Ao abrir o painel lateral de uma festa, o card único mostrará primeiro o resumo completo da festa e logo abaixo o checklist operacional — tudo integrado no mesmo bloco visual, pronto para uso no Controle da Festa.
 
