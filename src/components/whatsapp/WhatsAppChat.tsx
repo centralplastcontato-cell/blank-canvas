@@ -2956,6 +2956,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     if (!audioBlob || !selectedConversation || !selectedInstance || isUploading) return;
 
     setIsUploading(true);
+    const convId = selectedConversation.id;
     
     // Optimistic update - show audio message immediately
     const optimisticId = `optimistic-${Date.now()}`;
