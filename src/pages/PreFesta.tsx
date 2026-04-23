@@ -102,8 +102,14 @@ function PreFestaResponseCards({ responses, template, onDelete }: { responses: a
                   <div>
                     <p className="text-base font-semibold">{selectedResponse.respondent_name || "Anônimo"}</p>
                     <p className="text-xs text-muted-foreground font-normal">
-                      {format(new Date(selectedResponse.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      Preenchido em {format(new Date(selectedResponse.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     </p>
+                    {selectedResponse.company_events?.event_date && (
+                      <p className="text-xs text-primary font-normal flex items-center gap-1">
+                        <PartyPopper className="h-3 w-3" />
+                        Festa: {format(new Date(selectedResponse.company_events.event_date + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}
+                      </p>
+                    )}
                   </div>
                 </SheetTitle>
               </SheetHeader>
