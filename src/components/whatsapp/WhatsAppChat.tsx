@@ -3157,6 +3157,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     if (!mediaPreview || !selectedConversation || !selectedInstance || isUploading) return;
 
     setIsUploading(true);
+    const convId = selectedConversation.id;
     
     // Optimistic update - show media message immediately
     const { type, file, preview } = mediaPreview;
