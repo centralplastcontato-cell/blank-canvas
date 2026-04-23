@@ -308,43 +308,120 @@ function CardapioResponseCards({ responses, template, onDelete, company, allTemp
               )}
 
               <div className="pt-4 flex flex-col sm:flex-row gap-2 sm:justify-between">
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="gap-1.5"
-                  disabled={printing || !pdfTemplateId}
-                  onClick={async () => {
-                    const tpl =
-                      allTemplates?.find((t) => t.id === pdfTemplateId) ||
-                      (pdfTemplateId === template?.id ? template : null);
-                    const resp =
-                      eventResponses.find((r) => r.id === pdfResponseId) ||
-                      (pdfResponseId === selectedResponse.id ? selectedResponse : selectedResponse);
-                    if (!tpl || !resp) {
-                      toast({ title: "Template não encontrado", variant: "destructive" });
-                      return;
-                    }
-                    setPrinting(true);
-                    try {
-                      const result = await generateCardapioPrintPDF(
-                        resp,
-                        tpl,
-                        { name: company?.name || "Buffet", logo_url: company?.logo_url || null },
-                        { save: false },
-                      );
-                      const url = URL.createObjectURL(result.blob);
-                      setPdfPreview({ url, fileName: result.fileName, blob: result.blob });
-                    } catch (err) {
-                      console.error(err);
-                      toast({ title: "Erro ao gerar PDF", variant: "destructive" });
-                    } finally {
-                      setPrinting(false);
-                    }
-                  }}
-                >
-                  {printing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
-                  Pré-visualizar PDF
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={printing || !pdfTemplateId}
+                    onClick={async () => {
+                      const tpl =
+                        allTemplates?.find((t) => t.id === pdfTemplateId) ||
+                        (pdfTemplateId === template?.id ? template : null);
+                      const resp =
+                        eventResponses.find((r) => r.id === pdfResponseId) ||
+                        (pdfResponseId === selectedResponse.id ? selectedResponse : selectedResponse);
+                      if (!tpl || !resp) {
+                        toast({ title: "Template não encontrado", variant: "destructive" });
+                        return;
+                      }
+                      setPrinting(true);
+                      try {
+                        const result = await generateCardapioPrintPDF(
+                          resp,
+                          tpl,
+                          { name: company?.name || "Buffet", logo_url: company?.logo_url || null },
+                          { save: false, prefs: printPrefs },
+                        );
+                        const url = URL.createObjectURL(result.blob);
+                        setPdfPreview({ url, fileName: result.fileName, blob: result.blob });
+                      } catch (err) {
+                        console.error(err);
+                        toast({ title: "Erro ao gerar PDF", variant: "destructive" });
+                      } finally {
+                        setPrinting(false);
+                      }
+                    }}
+                  >
+                    {printing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
+                    Pré-visualizar PDF
+                  </Button>
+
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        title="Preferências de impressão"
+                      >
+                        <Settings2 className="h-3.5 w-3.5" />
+                        Preferências
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72 space-y-4" align="start">
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold">Preferências de impressão</p>
+                        <p className="text-xs text-muted-foreground">
+                          Salvas neste navegador para os próximos PDFs.
+                        </p>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Tamanho da página</Label>
+                        <RadioGroup
+                          value={printPrefs.pageSize}
+                          onValueChange={(v) =>
+                            setPrintPrefs({ ...printPrefs, pageSize: v as "a4" | "letter" })
+                          }
+                          className="flex gap-4"
+                        >
+                          <div className="flex items-center gap-2">
+                            <RadioGroupItem value="a4" id="ps-a4" />
+                            <Label htmlFor="ps-a4" className="text-sm font-normal cursor-pointer">A4</Label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <RadioGroupItem value="letter" id="ps-letter" />
+                            <Label htmlFor="ps-letter" className="text-sm font-normal cursor-pointer">Carta</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Orientação</Label>
+                        <RadioGroup
+                          value={printPrefs.orientation}
+                          onValueChange={(v) =>
+                            setPrintPrefs({ ...printPrefs, orientation: v as "portrait" | "landscape" })
+                          }
+                          className="flex gap-4"
+                        >
+                          <div className="flex items-center gap-2">
+                            <RadioGroupItem value="portrait" id="or-p" />
+                            <Label htmlFor="or-p" className="text-sm font-normal cursor-pointer">Retrato</Label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <RadioGroupItem value="landscape" id="or-l" />
+                            <Label htmlFor="or-l" className="text-sm font-normal cursor-pointer">Paisagem</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t">
+                        <Label htmlFor="inc-client" className="text-sm font-normal cursor-pointer flex-1">
+                          Incluir dados do cliente
+                        </Label>
+                        <Switch
+                          id="inc-client"
+                          checked={printPrefs.includeClientInfo}
+                          onCheckedChange={(checked) =>
+                            setPrintPrefs({ ...printPrefs, includeClientInfo: checked })
+                          }
+                        />
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
                 {onDelete && (
                   <AlertDialog>
