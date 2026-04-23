@@ -100,110 +100,96 @@ export function EventSummaryPanel({ event, leadName, companyId }: EventSummaryPa
   );
 
   return (
-    <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden">
-      <div className="px-4 py-2.5 bg-muted/30 border-b border-border/30 flex items-center gap-2">
+    <div className="p-4 space-y-3">
+      <div className="flex items-center gap-2 mb-1">
         <FileText className="h-3.5 w-3.5 text-primary" />
         <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Resumo da Festa</p>
       </div>
 
-      <div className="p-4 space-y-3">
-        {/* Aniversariante(s) */}
-        {children.length > 0 && (
-          <div className="flex items-start gap-2.5">
-            <div className="p-1 rounded-md bg-primary/10 mt-0.5 shrink-0">
-              <Cake className="h-3.5 w-3.5 text-primary" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
-                {children.length > 1 ? "Aniversariantes" : "Aniversariante"}
+      {/* Aniversariante(s) */}
+      {children.length > 0 && (
+        <div className="flex items-start gap-2.5">
+          <div className="p-1 rounded-md bg-primary/10 mt-0.5 shrink-0">
+            <Cake className="h-3.5 w-3.5 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+              {children.length > 1 ? "Aniversariantes" : "Aniversariante"}
+            </p>
+            {children.map((c, i) => (
+              <p key={i} className="text-xs text-foreground">
+                {c.name}{c.age ? ` — ${c.age} anos` : ""}
               </p>
-              {children.map((c, i) => (
-                <p key={i} className="text-xs text-foreground">
-                  {c.name}{c.age ? ` — ${c.age} anos` : ""}
-                </p>
-              ))}
-            </div>
+            ))}
           </div>
-        )}
-
-        {/* Pais / Contratante */}
-        {contractorName && (
-          <InfoRow icon={Users2} label="Pais / Contratante" value={contractorName} />
-        )}
-
-        {/* Pacote */}
-        {event.package_name && (
-          <InfoRow icon={Package} label="Pacote" value={event.package_name} />
-        )}
-
-        {/* Convidados */}
-        {event.guest_count && (
-          <InfoRow icon={Users} label="Convidados" value={`${event.guest_count} pessoas`} />
-        )}
-
-        {/* Horário */}
-        {(event.start_time || event.end_time) && (
-          <InfoRow
-            icon={Clock}
-            label="Horário"
-            value={`${event.start_time?.slice(0, 5) || "–"} até ${event.end_time?.slice(0, 5) || "–"}`}
-          />
-        )}
-
-        {/* Unidade */}
-        {event.unit && (
-          <InfoRow icon={MapPin} label="Unidade" value={event.unit} />
-        )}
-
-        {/* Opcionais */}
-        {optionals.length > 0 && (
-          <div className="flex items-start gap-2.5">
-            <div className="p-1 rounded-md bg-primary/10 mt-0.5 shrink-0">
-              <Star className="h-3.5 w-3.5 text-primary" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Opcionais</p>
-              {optionals.map((opt, i) => (
-                <p key={i} className="text-xs text-foreground">
-                  {opt.name}
-                  {opt.value ? ` — ${Number(opt.value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}` : ""}
-                </p>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Observações do evento */}
-        {event.notes && (
-          <div className="flex items-start gap-2.5">
-            <div className="p-1 rounded-md bg-primary/10 mt-0.5 shrink-0">
-              <StickyNote className="h-3.5 w-3.5 text-primary" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Observações</p>
-              <p className="text-xs text-foreground/80 whitespace-pre-wrap leading-relaxed">{event.notes}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Anotações internas (editável) */}
-        <div className="pt-1 border-t border-border/30">
-          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mb-1.5">Anotações Internas</p>
-          <Textarea
-            value={internalNotes}
-            onChange={(e) => handleNotesChange(e.target.value)}
-            onBlur={() => {
-              if (debounceRef.current) {
-                clearTimeout(debounceRef.current);
-                debounceRef.current = null;
-              }
-              saveNotes(internalNotes);
-            }}
-            placeholder="Escreva anotações rápidas sobre esta festa..."
-            className="min-h-[60px] text-xs resize-none bg-muted/20 border-border/30 focus-visible:ring-1"
-            rows={3}
-          />
         </div>
+      )}
+
+      {contractorName && (
+        <InfoRow icon={Users2} label="Pais / Contratante" value={contractorName} />
+      )}
+      {event.package_name && (
+        <InfoRow icon={Package} label="Pacote" value={event.package_name} />
+      )}
+      {event.guest_count && (
+        <InfoRow icon={Users} label="Convidados" value={`${event.guest_count} pessoas`} />
+      )}
+      {(event.start_time || event.end_time) && (
+        <InfoRow
+          icon={Clock}
+          label="Horário"
+          value={`${event.start_time?.slice(0, 5) || "–"} até ${event.end_time?.slice(0, 5) || "–"}`}
+        />
+      )}
+      {event.unit && (
+        <InfoRow icon={MapPin} label="Unidade" value={event.unit} />
+      )}
+
+      {optionals.length > 0 && (
+        <div className="flex items-start gap-2.5">
+          <div className="p-1 rounded-md bg-primary/10 mt-0.5 shrink-0">
+            <Star className="h-3.5 w-3.5 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Opcionais</p>
+            {optionals.map((opt, i) => (
+              <p key={i} className="text-xs text-foreground">
+                {opt.name}
+                {opt.value ? ` — ${Number(opt.value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}` : ""}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {event.notes && (
+        <div className="flex items-start gap-2.5">
+          <div className="p-1 rounded-md bg-primary/10 mt-0.5 shrink-0">
+            <StickyNote className="h-3.5 w-3.5 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Observações</p>
+            <p className="text-xs text-foreground/80 whitespace-pre-wrap leading-relaxed">{event.notes}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="pt-1 border-t border-border/30">
+        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mb-1.5">Anotações Internas</p>
+        <Textarea
+          value={internalNotes}
+          onChange={(e) => handleNotesChange(e.target.value)}
+          onBlur={() => {
+            if (debounceRef.current) {
+              clearTimeout(debounceRef.current);
+              debounceRef.current = null;
+            }
+            saveNotes(internalNotes);
+          }}
+          placeholder="Escreva anotações rápidas sobre esta festa..."
+          className="min-h-[60px] text-xs resize-none bg-muted/20 border-border/30 focus-visible:ring-1"
+          rows={3}
+        />
       </div>
     </div>
   );
