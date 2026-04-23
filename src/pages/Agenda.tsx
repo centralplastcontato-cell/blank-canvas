@@ -1830,6 +1830,37 @@ export default function Agenda() {
                     {selectedDate && dayEvents.length === 0 && (
                       <p className="text-xs text-muted-foreground/50 mt-1">Nenhuma festa neste dia.</p>
                     )}
+                    {/* Day financial summary */}
+                    {showRevenue && selectedDate && dayEvents.length > 0 && (() => {
+                      let dayLate = 0, dayPending = 0, dayPaid = 0, dayTotal = 0;
+                      dayEvents.forEach(ev => {
+                        const ps = paymentStatus[ev.id];
+                        if (ps) { dayLate += ps.late; dayPending += ps.pending; dayPaid += ps.paid; dayTotal += ps.total; }
+                      });
+                      if (dayTotal === 0) return null;
+                      return (
+                        <div className="flex items-center gap-3 flex-wrap text-[11px] font-medium mb-1">
+                          {dayLate > 0 && (
+                            <span className="flex items-center gap-1 text-red-600">
+                              <DollarSign className="h-3 w-3" />
+                              {dayLate} em atraso
+                            </span>
+                          )}
+                          {dayPending > 0 && (
+                            <span className="flex items-center gap-1 text-amber-600">
+                              <DollarSign className="h-3 w-3" />
+                              {dayPending} pendente{dayPending > 1 ? "s" : ""}
+                            </span>
+                          )}
+                          {dayLate === 0 && dayPending === 0 && dayPaid === dayTotal && (
+                            <span className="flex items-center gap-1 text-emerald-600">
+                              <DollarSign className="h-3 w-3" />
+                              Tudo pago
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                     <div className="space-y-2.5 mt-3">
                       {dayEvents.map((ev) => {
                         const conflicts = getConflicts(ev);
