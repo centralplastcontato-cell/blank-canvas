@@ -128,6 +128,7 @@ const PartnerConfig = lazy(lazyImports["/parceiro/config"]);
 const PublicPartyControl = lazy(() => import("./pages/PublicPartyControl"));
 const PublicClientData = lazy(() => import("./pages/PublicClientData"));
 const PublicContractSign = lazy(() => import("./pages/PublicContractSign"));
+const AdminFixPrefestaResponses = lazy(() => import("./pages/AdminFixPrefestaResponses"));
 
 const SupportChatbot = lazy(() => import("./components/support/SupportChatbot").then(m => ({ default: m.SupportChatbot })));
 
