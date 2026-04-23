@@ -49,11 +49,18 @@ async function loadImage(url: string): Promise<HTMLImageElement | null> {
   return null;
 }
 
+export interface CardapioPdfResult {
+  blob: Blob;
+  dataUri: string;
+  fileName: string;
+}
+
 export async function generateCardapioPrintPDF(
   response: CardapioResponse,
   template: CardapioTemplate,
   company: CompanyInfo,
-) {
+  options: { save?: boolean } = { save: true },
+): Promise<CardapioPdfResult> {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
