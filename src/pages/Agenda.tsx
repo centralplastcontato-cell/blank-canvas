@@ -1892,25 +1892,53 @@ export default function Agenda() {
                             {/* Payment status indicator */}
                             {showRevenue && paymentStatus[ev.id] && paymentStatus[ev.id].total > 0 && (() => {
                               const ps = paymentStatus[ev.id];
-                              if (ps.late > 0) return (
-                                <div className="flex items-center gap-1 text-xs text-red-600 font-medium mt-1">
-                                  <DollarSign className="h-3 w-3" />
-                                  {ps.late} parcela{ps.late > 1 ? "s" : ""} em atraso
-                                </div>
+                              const tooltipLines = ps.details
+                                .sort((a, b) => a.due_date.localeCompare(b.due_date))
+                                .slice(0, 5)
+                                .map(d => {
+                                  const dateStr = d.due_date ? new Date(d.due_date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "—";
+                                  const amountStr = d.amount > 0 ? `R$ ${d.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "";
+                                  const label = d.status === "late" ? "⚠️" : "⏳";
+                                  return `${label} ${dateStr}${amountStr ? ` · ${amountStr}` : ""}`;
+                                });
+                              if (ps.details.length > 5) tooltipLines.push(`... +${ps.details.length - 5} parcela(s)`);
+
+                              const tooltipContent = tooltipLines.length > 0 ? tooltipLines.join("\n") : "";
+
+                              const badge = (() => {
+                                if (ps.late > 0) return (
+                                  <div className="flex items-center gap-1 text-xs text-red-600 font-medium mt-1 cursor-default">
+                                    <DollarSign className="h-3 w-3" />
+                                    {ps.late} parcela{ps.late > 1 ? "s" : ""} em atraso
+                                  </div>
+                                );
+                                if (ps.pending > 0) return (
+                                  <div className="flex items-center gap-1 text-xs text-amber-600 font-medium mt-1 cursor-default">
+                                    <DollarSign className="h-3 w-3" />
+                                    {ps.pending} parcela{ps.pending > 1 ? "s" : ""} pendente{ps.pending > 1 ? "s" : ""}
+                                  </div>
+                                );
+                                if (ps.paid === ps.total) return (
+                                  <div className="flex items-center gap-1 text-xs text-emerald-600 mt-1">
+                                    <DollarSign className="h-3 w-3" />
+                                    Pago
+                                  </div>
+                                );
+                                return null;
+                              })();
+
+                              if (!badge) return null;
+
+                              if (!tooltipContent) return badge;
+
+                              return (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>{badge}</TooltipTrigger>
+                                  <TooltipContent side="bottom" className="whitespace-pre-line text-xs max-w-[220px]">
+                                    {tooltipContent}
+                                  </TooltipContent>
+                                </Tooltip>
                               );
-                              if (ps.pending > 0) return (
-                                <div className="flex items-center gap-1 text-xs text-amber-600 font-medium mt-1">
-                                  <DollarSign className="h-3 w-3" />
-                                  {ps.pending} parcela{ps.pending > 1 ? "s" : ""} pendente{ps.pending > 1 ? "s" : ""}
-                                </div>
-                              );
-                              if (ps.paid === ps.total) return (
-                                <div className="flex items-center gap-1 text-xs text-emerald-600 mt-1">
-                                  <DollarSign className="h-3 w-3" />
-                                  Pago
-                                </div>
-                              );
-                              return null;
                             })()}
                           </button>
                         );
