@@ -55,13 +55,24 @@ export interface CardapioPdfResult {
   fileName: string;
 }
 
+export interface CardapioPdfPrefs {
+  pageSize?: "a4" | "letter";
+  orientation?: "portrait" | "landscape";
+  includeClientInfo?: boolean;
+}
+
 export async function generateCardapioPrintPDF(
   response: CardapioResponse,
   template: CardapioTemplate,
   company: CompanyInfo,
-  options: { save?: boolean } = { save: true },
+  options: { save?: boolean; prefs?: CardapioPdfPrefs } = { save: true },
 ): Promise<CardapioPdfResult> {
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const prefs = options.prefs ?? {};
+  const pageSize = prefs.pageSize ?? "a4";
+  const orientation = prefs.orientation ?? "portrait";
+  const includeClientInfo = prefs.includeClientInfo !== false;
+
+  const doc = new jsPDF({ orientation, unit: "mm", format: pageSize });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const marginX = 15;
@@ -97,33 +108,35 @@ export async function generateCardapioPrintPDF(
   y += 8;
 
   // ===== Event info block =====
-  doc.setFillColor(248, 240, 244);
-  const infoStartY = y;
-  const lines: string[] = [];
-  lines.push(`Cliente: ${sanitize(response.respondent_name || "Anonimo")}`);
-  if (response.company_events?.event_date) {
-    const dt = new Date(response.company_events.event_date + "T12:00:00");
+  if (includeClientInfo) {
+    doc.setFillColor(248, 240, 244);
+    const infoStartY = y;
+    const lines: string[] = [];
+    lines.push(`Cliente: ${sanitize(response.respondent_name || "Anonimo")}`);
+    if (response.company_events?.event_date) {
+      const dt = new Date(response.company_events.event_date + "T12:00:00");
+      lines.push(
+        `Data da Festa: ${format(dt, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })
+          .replace(/[^\x00-\xFF]/g, "")}`,
+      );
+    }
     lines.push(
-      `Data da Festa: ${format(dt, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })
-        .replace(/[^\x00-\xFF]/g, "")}`,
+      `Preenchido em: ${format(new Date(response.created_at), "dd/MM/yyyy 'as' HH:mm", { locale: ptBR })}`,
     );
-  }
-  lines.push(
-    `Preenchido em: ${format(new Date(response.created_at), "dd/MM/yyyy 'as' HH:mm", { locale: ptBR })}`,
-  );
-  lines.push(`Cardapio: ${sanitize(template.name)}`);
+    lines.push(`Cardapio: ${sanitize(template.name)}`);
 
-  const blockH = lines.length * 6 + 6;
-  doc.roundedRect(marginX, infoStartY, contentWidth, blockH, 2, 2, "F");
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.setTextColor(40, 40, 40);
-  let infoY = infoStartY + 6;
-  lines.forEach((line) => {
-    doc.text(line, marginX + 4, infoY);
-    infoY += 6;
-  });
-  y = infoStartY + blockH + 8;
+    const blockH = lines.length * 6 + 6;
+    doc.roundedRect(marginX, infoStartY, contentWidth, blockH, 2, 2, "F");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(40, 40, 40);
+    let infoY = infoStartY + 6;
+    lines.forEach((line) => {
+      doc.text(line, marginX + 4, infoY);
+      infoY += 6;
+    });
+    y = infoStartY + blockH + 8;
+  }
 
   // ===== Sections =====
   const ensureSpace = (needed: number) => {
