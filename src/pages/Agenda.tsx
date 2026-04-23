@@ -520,6 +520,22 @@ export default function Agenda() {
     });
     setChecklistProgress(progressMap);
 
+    // Build payment status map
+    const today = format(new Date(), "yyyy-MM-dd");
+    const pmMap: Record<string, { total: number; paid: number; pending: number; late: number }> = {};
+    (paymentsRes.data || []).forEach((p: any) => {
+      if (!pmMap[p.event_id]) pmMap[p.event_id] = { total: 0, paid: 0, pending: 0, late: 0 };
+      pmMap[p.event_id].total++;
+      if (p.status === "paid") {
+        pmMap[p.event_id].paid++;
+      } else if (p.due_date && p.due_date < today) {
+        pmMap[p.event_id].late++;
+      } else {
+        pmMap[p.event_id].pending++;
+      }
+    });
+    setPaymentStatus(pmMap);
+
     setLoading(false);
     initialLoadDone.current = true;
   }, [currentCompany?.id, month, selectedUnit, permUnitLoading, canViewAll, allowedUnits, fetchClosedInPeriod]);
