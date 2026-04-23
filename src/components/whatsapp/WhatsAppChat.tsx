@@ -3279,9 +3279,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         }
         
         // Update optimistic message with final URL
-        setMessages(prev => prev.map(m => 
-          m.id === optimisticId ? { ...m, status: 'sent', media_url: mediaUrl } : m
-        ));
+        if (activeConversationIdRef.current === convId) {
+          setMessages(prev => prev.map(m => 
+            m.id === optimisticId ? { ...m, status: 'sent', media_url: mediaUrl } : m
+          ));
+        }
       } else if (type === 'video') {
         // For videos: upload to storage first (W-API needs URL)
         const { error: uploadError } = await supabase.storage
