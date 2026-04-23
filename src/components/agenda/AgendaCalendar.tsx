@@ -23,6 +23,10 @@ interface PreReservationCalendar {
   status: string;
 }
 
+interface PaymentStatusMap {
+  [eventId: string]: { total: number; paid: number; pending: number; late: number };
+}
+
 interface AgendaCalendarProps {
   events: CalendarEvent[];
   month: Date;
@@ -32,6 +36,7 @@ interface AgendaCalendarProps {
   checklistProgress?: ChecklistProgress;
   preReservations?: PreReservationCalendar[];
   showTypeLegend?: boolean;
+  paymentStatus?: PaymentStatusMap;
 }
 
 const STATUS_DOT: Record<string, string> = {
