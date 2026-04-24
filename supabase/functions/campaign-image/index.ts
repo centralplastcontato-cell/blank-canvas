@@ -222,9 +222,10 @@ ABSOLUTE RULE: Do NOT add ANY text, letters, words, numbers, banners with text, 
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Erro ao compor arte";
     console.error("campaign-image error:", err);
     return new Response(
-      JSON.stringify({ error: err.message || "Erro ao compor arte" }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
