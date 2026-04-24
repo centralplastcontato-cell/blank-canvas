@@ -492,32 +492,6 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
             </div>
           </div>
 
-          {/* Lead vinculado + Observações */}
-          {(event.lead_id && leadName || event.notes) && (
-            <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden">
-              <div className="px-4 py-2.5 bg-muted/30 border-b border-border/30">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Informações Adicionais</p>
-              </div>
-              <div className="p-4 space-y-4">
-                {event.lead_id && leadName && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <div className="p-1.5 rounded-lg bg-primary/10"><UserCheck className="h-4 w-4 text-primary" /></div>
-                    <div>
-                      <p className="text-[11px] text-muted-foreground font-medium">Lead vinculado</p>
-                      <p className="font-medium text-foreground">{leadName}</p>
-                    </div>
-                  </div>
-                )}
-                {event.lead_id && leadName && event.notes && <Separator className="opacity-40" />}
-                {event.notes && (
-                  <div>
-                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Observações</p>
-                    <p className="text-sm whitespace-pre-wrap text-foreground/80 leading-relaxed">{event.notes}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Dados Comerciais */}
           <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden">
