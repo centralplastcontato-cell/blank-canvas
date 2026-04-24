@@ -380,10 +380,14 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
       });
 
       // Fetch first active template for each form type to enable sending
+      // Note: cardapio_templates uses "sections" instead of "questions"
       const templatePromises = FORM_TYPES.map(async (ft) => {
+        const selectFields = ft.templateTable === "cardapio_templates"
+          ? "id, slug, sections"
+          : "id, slug, questions";
         const { data } = await (supabase as any)
           .from(ft.templateTable)
-          .select("id, slug, questions")
+          .select(selectFields)
           .eq("company_id", companyId)
           .eq("is_active", true)
           .limit(1);
