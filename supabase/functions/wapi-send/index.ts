@@ -321,6 +321,36 @@ async function zapiConfigureWebhooks(instanceId: string, token: string, clientTo
   });
 }
 
+async function tryWapiWebhookRequest(
+  endpoint: { url: string; method: string; body?: unknown },
+  instanceToken: string,
+): Promise<{ ok: boolean; status: number; data?: unknown; text?: string; error?: string }> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    const res = await fetch(endpoint.url, {
+      method: endpoint.method,
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instanceToken}` },
+      body: endpoint.body !== undefined ? JSON.stringify(endpoint.body) : undefined,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const data = await res.json();
+      return { ok: res.ok && !data?.error, status: res.status, data, error: data?.message || data?.error };
+    }
+
+    const text = await res.text();
+    return { ok: res.ok, status: res.status, text };
+  } catch (e) {
+    return { ok: false, status: 0, error: e instanceof Error ? e.message : 'Erro de comunicação' };
+  }
+}
+
 function extractZapiMessageId(payload: unknown): string | null {
   const data = payload as Record<string, unknown> | undefined;
   const id = data?.zapiMessageId || data?.messageId || data?.id;
@@ -1888,12 +1918,18 @@ Deno.serve(async (req) => {
           onMessageReceived: webhookUrl,
           onMessageStatus: webhookUrl,
         };
-        
-        // Try multiple endpoint variants for compatibility across W-API plans
+
+        // Try multiple endpoint/body variants for compatibility across W-API plans
         const webhookEndpoints = [
-          { url: `${WAPI_BASE_URL}/instance/webhooks?instanceId=${instance_id}`, method: 'PUT' },
-          { url: `${WAPI_BASE_URL}/instance/webhooks?instanceId=${instance_id}`, method: 'POST' },
-          { url: `${WAPI_BASE_URL}/instance/set-webhooks?instanceId=${instance_id}`, method: 'POST' },
+          { url: `${WAPI_BASE_URL}/instance/webhooks?instanceId=${instance_id}`, method: 'PUT', body: config },
+          { url: `${WAPI_BASE_URL}/instance/webhooks?instanceId=${instance_id}`, method: 'POST', body: config },
+          { url: `${WAPI_BASE_URL}/instance/set-webhooks?instanceId=${instance_id}`, method: 'POST', body: config },
+          { url: `${WAPI_BASE_URL}/instance/webhook?instanceId=${instance_id}`, method: 'PUT', body: config },
+          { url: `${WAPI_BASE_URL}/instance/webhook?instanceId=${instance_id}`, method: 'POST', body: config },
+          { url: `${WAPI_BASE_URL}/instance/update-webhook?instanceId=${instance_id}`, method: 'PUT', body: config },
+          { url: `${WAPI_BASE_URL}/instance/update-webhook?instanceId=${instance_id}`, method: 'POST', body: config },
+          { url: `${WAPI_BASE_URL}/instance/webhook?instanceId=${instance_id}`, method: 'PUT', body: { url: webhookUrl, webhookUrl } },
+          { url: `${WAPI_BASE_URL}/instance/webhook?instanceId=${instance_id}`, method: 'POST', body: { url: webhookUrl, webhookUrl } },
         ];
 
         let lastError = '';
@@ -1901,17 +1937,7 @@ Deno.serve(async (req) => {
 
         for (const endpoint of webhookEndpoints) {
           try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 10000);
-            
-            const res = await fetch(endpoint.url, {
-              method: endpoint.method,
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${instance_token}` },
-              body: JSON.stringify(config),
-              signal: controller.signal,
-            });
-            clearTimeout(timeout);
-            
+            const res = await tryWapiWebhookRequest(endpoint, instance_token);
             lastStatus = res.status;
             
             // Gateway/timeout errors — do NOT disconnect, just try next
@@ -1920,35 +1946,29 @@ Deno.serve(async (req) => {
               lastError = `Timeout/gateway (${res.status})`;
               continue;
             }
-            
-            const contentType = res.headers.get('content-type');
-            
+
             // 404 — try next endpoint variant
             if (res.status === 404) {
               console.warn(`configure-webhooks: 404 on ${endpoint.method} ${endpoint.url.split('?')[0].split('/').pop()}`);
               lastError = 'Endpoint não encontrado';
               continue;
             }
-            
-            // Non-JSON response — do NOT disconnect, could be gateway issue
-            if (contentType && !contentType.includes('application/json')) {
-              const textBody = await res.text();
-              console.warn('configure-webhooks: non-JSON response:', res.status, textBody.substring(0, 200));
+
+            if (res.text && !res.ok) {
+              console.warn('configure-webhooks: non-JSON response:', res.status, res.text.substring(0, 200));
               lastError = 'Resposta inesperada da W-API';
               continue;
             }
 
-            const data = await res.json();
-            
-            if (res.ok && !data.error) {
+            if (res.ok) {
               console.log(`configure-webhooks: SUCCESS via ${endpoint.method} ${endpoint.url.split('?')[0].split('/').pop()}`);
-              return new Response(JSON.stringify({ success: true, result: data, variant: endpoint.method }), {
+              return new Response(JSON.stringify({ success: true, result: res.data ?? res.text ?? null, variant: endpoint.method }), {
                 status: 200,
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
               });
             }
-            
-            lastError = data.message || data.error || 'Erro desconhecido';
+
+            lastError = res.error || 'Erro desconhecido';
           } catch (e) {
             console.warn(`configure-webhooks: fetch error on ${endpoint.method}:`, e instanceof Error ? e.message : String(e));
             lastError = e instanceof Error ? e.message : 'Erro de comunicação';
@@ -1979,44 +1999,46 @@ Deno.serve(async (req) => {
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 8000);
           
-          const res = await fetch(`${WAPI_BASE_URL}/instance/webhooks?instanceId=${instance_id}`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${instance_token}` },
-            signal: controller.signal,
-          });
-          clearTimeout(timeout);
+          const checkEndpoints = [
+            { url: `${WAPI_BASE_URL}/instance/webhooks?instanceId=${instance_id}`, method: 'GET' },
+            { url: `${WAPI_BASE_URL}/instance/webhook?instanceId=${instance_id}`, method: 'GET' },
+            { url: `${WAPI_BASE_URL}/instance/webhook/${instance_id}`, method: 'GET' },
+          ];
 
-          if (res.status === 502 || res.status === 503 || res.status === 504) {
+          let data: any = null;
+          let checkError = 'Erro ao consultar webhooks';
+
+          for (const endpoint of checkEndpoints) {
+            const res = await tryWapiWebhookRequest(endpoint, instance_token);
+            clearTimeout(timeout);
+
+            if (res.status === 502 || res.status === 503 || res.status === 504) {
+              return new Response(JSON.stringify({ 
+                success: false, 
+                error: 'W-API instável. Tente novamente.',
+                errorType: 'TIMEOUT_OR_GATEWAY',
+              }), {
+                status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              });
+            }
+
+            if (res.ok && res.data) {
+              data = res.data;
+              console.log('check-webhooks data:', JSON.stringify(data));
+              break;
+            }
+
+            checkError = res.error || (res.status ? `Erro ${res.status} ao consultar webhooks` : 'Erro ao consultar webhooks');
+          }
+
+          if (!data) {
             return new Response(JSON.stringify({ 
               success: false, 
-              error: 'W-API instável. Tente novamente.',
-              errorType: 'TIMEOUT_OR_GATEWAY',
+              error: checkError,
             }), {
               status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
           }
-          
-          if (!res.ok) {
-            return new Response(JSON.stringify({ 
-              success: false, 
-              error: `Erro ${res.status} ao consultar webhooks`,
-            }), {
-              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            });
-          }
-
-          const ct = res.headers.get('content-type');
-          if (!ct?.includes('application/json')) {
-            return new Response(JSON.stringify({ 
-              success: false, 
-              error: 'Resposta inesperada da W-API',
-            }), {
-              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            });
-          }
-
-          const data = await res.json();
-          console.log('check-webhooks data:', JSON.stringify(data));
           
           const webhookUrl = `https://rsezgnkfhodltrsewlhz.supabase.co/functions/v1/wapi-webhook`;
           
