@@ -589,7 +589,19 @@ export function AvaliacoesContent() {
                               </TabsContent>
 
                               <TabsContent value="respostas" className="mt-3 space-y-2">
-                                <EvalResponseCards responses={responses} template={selectedTemplateForResponses} />
+                                <EvalResponseCards
+                                  responses={responses}
+                                  template={selectedTemplateForResponses}
+                                  onDelete={async (id) => {
+                                    const { error } = await supabase.from("evaluation_responses").delete().eq("id", id);
+                                    if (error) {
+                                      toast({ title: "Erro ao apagar", description: error.message, variant: "destructive" });
+                                    } else {
+                                      setResponses(prev => prev.filter(r => r.id !== id));
+                                      toast({ title: "Resposta apagada ✅" });
+                                    }
+                                  }}
+                                />
                               </TabsContent>
                             </Tabs>
                           )}
