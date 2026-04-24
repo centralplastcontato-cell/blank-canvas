@@ -17,7 +17,7 @@ import { PreFestaContent } from "./PreFesta";
 import { ContratoContent } from "./Contrato";
 import { CardapioContent } from "./Cardapio";
 import { EventStaffManager } from "@/components/agenda/EventStaffManager";
-import { ChecklistTemplateManager } from "@/components/agenda/ChecklistTemplateManager";
+
 import { PackagesManager } from "@/components/admin/PackagesManager";
 import { OptionalsManager } from "@/components/admin/OptionalsManager";
 import { MaintenanceManager } from "@/components/agenda/MaintenanceManager";
@@ -287,7 +287,7 @@ export default function Formularios() {
                           { value: "acompanhamento", icon: ClipboardCheck, label: "Acompanhamento" },
                           { value: "presenca", icon: Users, label: "Presença" },
                           { value: "informacoes", icon: FileText, label: "Informações" },
-                          { value: "templates", icon: LayoutTemplate, label: "Templates" },
+                          
                         ].map(t => (
                           <TabsTrigger key={t.value} value={t.value} className="gap-2.5 !rounded-xl !px-6 !py-2.5 !text-sm font-semibold border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-md data-[state=inactive]:bg-card data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground transition-all">
                             <t.icon className="h-[18px] w-[18px]" />
@@ -311,9 +311,6 @@ export default function Formularios() {
                     </TabsContent>
                     <TabsContent value="informacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
                       <div className="max-w-7xl mx-auto"><EventInfoManager /></div>
-                    </TabsContent>
-                    <TabsContent value="templates" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <div className="max-w-7xl mx-auto"><ChecklistTemplateManager /></div>
                     </TabsContent>
                   </Tabs>
                 </TabsContent>
