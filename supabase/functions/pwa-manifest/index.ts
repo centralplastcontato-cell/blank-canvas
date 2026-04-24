@@ -65,15 +65,16 @@ Deno.serve(async (req) => {
       return jsonResponse(FALLBACK_MANIFEST);
     }
 
-    const settings = (data.settings ?? {}) as Record<string, unknown>;
+    const d = data as any;
+    const settings = (d.settings ?? {}) as Record<string, unknown>;
     const appearance = (settings.partner_appearance ?? {}) as Record<string, string>;
     const brandColor = appearance.brand_color || "#7c3aed";
-    const logoUrl = data.logo_url || FALLBACK_MANIFEST.icons[0].src;
+    const logoUrl = d.logo_url || FALLBACK_MANIFEST.icons[0].src;
 
     const manifest = {
-      name: data.name,
-      short_name: data.name.length > 12 ? data.name.substring(0, 12) : data.name,
-      description: `Bem-vindo ao ${data.name}`,
+      name: d.name,
+      short_name: d.name.length > 12 ? d.name.substring(0, 12) : d.name,
+      description: `Bem-vindo ao ${d.name}`,
       start_url: "/",
       scope: "/",
       display: "standalone",

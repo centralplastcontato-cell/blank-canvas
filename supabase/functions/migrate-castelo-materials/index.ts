@@ -18,7 +18,7 @@ function extractStoragePath(url: string): string | null {
 }
 
 async function migrateFile(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   url: string
 ): Promise<{ newUrl: string | null; error: string | null }> {
   if (!url.includes(OLD_DOMAIN)) {
