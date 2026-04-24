@@ -269,22 +269,24 @@ export function AttendanceManager() {
           </DialogHeader>
 
           <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-4" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
-            <div>
-              <Label className="mb-1.5 block">Festa <span className="text-muted-foreground font-normal">(opcional)</span></Label>
-              <Select value={selectedEventId} onValueChange={setSelectedEventId}>
-                <SelectTrigger className="h-12">
-                  <SelectValue placeholder="Vincular a uma festa..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {events.map(ev => (
-                    <SelectItem key={ev.event_id} value={ev.event_id}>
-                      {ev.event_title} — {format(new Date(ev.event_date + "T12:00:00"), "dd/MM/yyyy")}
-                      {ev.lead_name ? ` (${ev.lead_name})` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {editingId && (
+              <div>
+                <Label className="mb-1.5 block">Festa <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+                <Select value={selectedEventId} onValueChange={setSelectedEventId}>
+                  <SelectTrigger className="h-12">
+                    <SelectValue placeholder="Vincular a uma festa..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {events.map(ev => (
+                      <SelectItem key={ev.event_id} value={ev.event_id}>
+                        {ev.event_title} — {format(new Date(ev.event_date + "T12:00:00"), "dd/MM/yyyy")}
+                        {ev.lead_name ? ` (${ev.lead_name})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div>
               <Label className="mb-1.5 block">Observações</Label>
