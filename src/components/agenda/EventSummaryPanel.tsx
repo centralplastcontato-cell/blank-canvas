@@ -40,7 +40,7 @@ interface EventSummaryPanelProps {
   onInternalNotesChange?: (value: string) => void;
 }
 
-export function EventSummaryPanel({ event, leadName, companyId, onInternalNotesChange }: EventSummaryPanelProps) {
+export function EventSummaryPanel({ event, leadName, companyId: _companyId, onInternalNotesChange }: EventSummaryPanelProps) {
   const [internalNotes, setInternalNotes] = useState(event.internal_notes || "");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef(event.internal_notes || "");

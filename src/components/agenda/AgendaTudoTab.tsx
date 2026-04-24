@@ -374,6 +374,7 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
         onEdit={() => {}}
         onDelete={() => {}}
         userId={userId}
+        onEventPatch={(eventId, updates) => setSelectedEvent((prev: any) => (prev?.id === eventId ? { ...prev, ...updates } : prev))}
       />
 
       <VisitDetailSheet
