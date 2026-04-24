@@ -401,8 +401,8 @@ export default function Agenda() {
     setClosedEvents((prev) => replaceEvent(prev));
     setPeriodEvents((prev) => replaceEvent(prev));
     setSearchResults((prev) => prev.map((event) => (event.id === updatedEvent.id ? { ...event, ...updatedEvent } : event)));
-    setDetailEvent((prev) => (prev?.id === updatedEvent.id ? updatedEvent : prev));
-    setEditingEvent((prev) => (prev?.id === updatedEvent.id ? mapEventToFormData(updatedEvent) : prev));
+    setDetailEvent((prev) => (prev?.id === updatedEvent.id ? { ...prev, ...updatedEvent } : prev));
+    setEditingEvent((prev) => (prev?.id === updatedEvent.id ? mapEventToFormData({ ...updatedEvent }) : prev));
   }, []);
 
   // Auth check
@@ -2080,6 +2080,7 @@ export default function Agenda() {
         onDelete={(id) => setDeleteConfirmId(id)}
         conflicts={detailEvent ? getConflicts(detailEvent) : []}
         userId={currentUser?.id}
+        onEventPatch={(eventId, updates) => setDetailEvent((prev) => (prev?.id === eventId ? { ...prev, ...updates } : prev))}
       />
 
       <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>
