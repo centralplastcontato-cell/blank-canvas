@@ -13,7 +13,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { EventChecklist } from "./EventChecklist";
+
 import { EventSummaryPanel } from "./EventSummaryPanel";
 import { EventTasksSection } from "./EventTasksSection";
 import { EventFormsStatusPanel } from "./EventFormsStatusPanel";
