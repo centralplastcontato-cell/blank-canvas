@@ -94,6 +94,23 @@ function ResponseCards({ responses, template, onDelete }: { responses: any[]; te
         {responses.map((r) => {
           const answersArr = Array.isArray(r.answers) ? r.answers : [];
           const filledCount = answersArr.filter((a: any) => a.value !== null && a.value !== "" && a.value !== undefined).length;
+          // Tenta obter data da festa: 1) do evento vinculado, 2) de uma resposta tipo "date" no array
+          let partyDate: Date | null = r.company_events?.event_date
+            ? new Date(r.company_events.event_date + "T12:00:00")
+            : null;
+          if (!partyDate) {
+            const template = templates.find((t) => t.id === r.template_id);
+            const dateQuestion = template?.questions?.find(
+              (q: any) => q.type === "date" && /festa|evento/i.test(q.label || "")
+            );
+            const dateAnswer = dateQuestion
+              ? answersArr.find((a: any) => a.questionId === dateQuestion.id)
+              : null;
+            if (dateAnswer?.value && typeof dateAnswer.value === "string") {
+              const d = new Date(dateAnswer.value);
+              if (!isNaN(d.getTime())) partyDate = d;
+            }
+          }
           return (
             <Card
               key={r.id}
