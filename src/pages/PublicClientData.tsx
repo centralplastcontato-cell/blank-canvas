@@ -326,7 +326,7 @@ export default function PublicClientData() {
                     type="date"
                     value={form.nascimento}
                     onChange={(e) => setForm({ ...form, nascimento: e.target.value })}
-                    className="bg-muted/30 border-border/50 focus:bg-background"
+                    className="bg-muted/30 border-border/50 focus:bg-background h-10 text-sm text-left appearance-none [&::-webkit-date-and-time-value]:text-left [&::-webkit-date-and-time-value]:min-h-[1.25rem]"
                   />
                 </div>
                 <div className="space-y-2">
