@@ -43,35 +43,63 @@ export function EventSummaryPanel({ event, leadName, companyId }: EventSummaryPa
   const [internalNotes, setInternalNotes] = useState(event.internal_notes || "");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef(event.internal_notes || "");
+  const currentEventIdRef = useRef(event.id);
+  const internalNotesRef = useRef(internalNotes);
 
+  // Keep ref in sync with latest value (used by unmount save)
   useEffect(() => {
-    setInternalNotes(event.internal_notes || "");
-    lastSavedRef.current = event.internal_notes || "";
+    internalNotesRef.current = internalNotes;
+  }, [internalNotes]);
+
+  // Reset state ONLY when the event changes (avoid wiping user input on parent refetch)
+  useEffect(() => {
+    if (currentEventIdRef.current !== event.id) {
+      currentEventIdRef.current = event.id;
+      setInternalNotes(event.internal_notes || "");
+      lastSavedRef.current = event.internal_notes || "";
+    } else if ((event.internal_notes || "") !== lastSavedRef.current && !debounceRef.current) {
+      // Same event but server has newer value AND we have no pending edit → sync
+      setInternalNotes(event.internal_notes || "");
+      lastSavedRef.current = event.internal_notes || "";
+    }
   }, [event.id, event.internal_notes]);
 
   const saveNotes = useCallback(async (value: string) => {
     if (value === lastSavedRef.current) return;
+    const eventId = currentEventIdRef.current;
     lastSavedRef.current = value;
     const { error } = await supabase
       .from("company_events")
       .update({ internal_notes: value || null })
-      .eq("id", event.id);
+      .eq("id", eventId);
     if (error) {
       toast({ title: "Erro ao salvar anotações", description: error.message, variant: "destructive" });
     }
-  }, [event.id]);
+  }, []);
 
   const handleNotesChange = (value: string) => {
     setInternalNotes(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => saveNotes(value), 2000);
+    debounceRef.current = setTimeout(() => {
+      debounceRef.current = null;
+      saveNotes(value);
+    }, 1000);
   };
 
-  // Cleanup debounce on unmount
+  // On unmount: flush any pending edit so closing the sheet doesn't lose data
   useEffect(() => {
     return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+      const pending = internalNotesRef.current;
+      if (pending !== lastSavedRef.current) {
+        // Fire-and-forget save; eventId captured via ref
+        saveNotes(pending);
+      }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Build birthday children list
