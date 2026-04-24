@@ -94,6 +94,22 @@ function ResponseCards({ responses, template, onDelete }: { responses: any[]; te
         {responses.map((r) => {
           const answersArr = Array.isArray(r.answers) ? r.answers : [];
           const filledCount = answersArr.filter((a: any) => a.value !== null && a.value !== "" && a.value !== undefined).length;
+          // Tenta obter data da festa: 1) do evento vinculado, 2) de uma resposta tipo "date" no array
+          let partyDate: Date | null = r.company_events?.event_date
+            ? new Date(r.company_events.event_date + "T12:00:00")
+            : null;
+          if (!partyDate) {
+            const dateQuestion = template?.questions?.find(
+              (q: any) => q.type === "date" && /festa|evento/i.test(q.label || "")
+            );
+            const dateAnswer = dateQuestion
+              ? answersArr.find((a: any) => a.questionId === dateQuestion.id)
+              : null;
+            if (dateAnswer?.value && typeof dateAnswer.value === "string") {
+              const d = new Date(dateAnswer.value);
+              if (!isNaN(d.getTime())) partyDate = d;
+            }
+          }
           return (
             <Card
               key={r.id}
@@ -112,10 +128,10 @@ function ResponseCards({ responses, template, onDelete }: { responses: any[]; te
                         <Calendar className="h-3 w-3" />
                         {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                       </p>
-                      {r.company_events?.event_date && (
+                      {partyDate && (
                         <p className="text-xs text-primary flex items-center gap-1 mt-0.5">
                           <PartyPopper className="h-3 w-3" />
-                          Festa: {format(new Date(r.company_events.event_date + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}
+                          Festa: {format(partyDate, "dd/MM/yyyy", { locale: ptBR })}
                         </p>
                       )}
                     </div>
