@@ -13,7 +13,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { EventChecklist } from "./EventChecklist";
+
 import { EventSummaryPanel } from "./EventSummaryPanel";
 import { EventTasksSection } from "./EventTasksSection";
 import { EventFormsStatusPanel } from "./EventFormsStatusPanel";
@@ -588,9 +588,6 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                 companyId={event.company_id}
                 onInternalNotesChange={(value) => onEventPatch?.(event.id, { internal_notes: value })}
               />
-              <div className="border-t border-border/30 p-4">
-                <EventChecklist eventId={event.id} companyId={event.company_id} />
-              </div>
             </div>
           )}
 
