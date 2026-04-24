@@ -20,6 +20,7 @@ export const KNOWN_BUFFET_DOMAINS: Record<string, string> = {
   "buffetplanetadivertido.online": "buffetplanetadivertido.online",
   "aventurakids.online": "aventurakids.online",
   "buffetmegamagic.com.br": "buffetmegamagic.com.br",
+  "espacocarrossel.online": "espacocarrossel.online",
 };
 
 /**
