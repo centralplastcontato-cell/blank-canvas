@@ -1,0 +1,1 @@
+UPDATE public.companies SET slug = 'espaco-carrossel' WHERE id = 'b81fca0b-6cd8-41c6-9cad-9590f1ed5f39' AND slug = 'espaco-carrosel';
