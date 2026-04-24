@@ -1,5 +1,8 @@
 project_id = "rsezgnkfhodltrsewlhz"
 
+[functions.temp-upload-carrossel]
+verify_jwt = false
+
 [functions.wapi-send]
 verify_jwt = false
 
