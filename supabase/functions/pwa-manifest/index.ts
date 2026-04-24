@@ -65,7 +65,8 @@ Deno.serve(async (req) => {
       return jsonResponse(FALLBACK_MANIFEST);
     }
 
-    const settings = (data.settings ?? {}) as Record<string, unknown>;
+    const d = data as any;
+    const settings = (d.settings ?? {}) as Record<string, unknown>;
     const appearance = (settings.partner_appearance ?? {}) as Record<string, string>;
     const brandColor = appearance.brand_color || "#7c3aed";
     const logoUrl = data.logo_url || FALLBACK_MANIFEST.icons[0].src;
