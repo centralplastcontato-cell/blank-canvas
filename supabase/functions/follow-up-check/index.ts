@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+type SupabaseAdmin = any;
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -124,7 +126,7 @@ const QUARANTINE_MINUTES = 60; // Minutes after connected_at before automations 
 const instanceHealthCache = new Map<string, { healthy: boolean; reason?: string }>();
 
 async function checkInstanceHealth(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseAdmin,
   instanceDbId: string,
   options?: { allowRecentActivityBypass?: boolean; recentActivityMinutes?: number },
 ): Promise<{ healthy: boolean; reason?: string }> {
@@ -455,7 +457,7 @@ Deno.serve(async (req) => {
 // ============= NEXT STEP REMINDER (sends reminder when lead doesn't respond to proximo_passo question) =============
 
 interface NextStepReminderParams {
-  supabase: ReturnType<typeof createClient>;
+  supabase: SupabaseAdmin;
   settings: FollowUpSettings;
 }
 
@@ -585,7 +587,7 @@ async function processNextStepReminder({
 // ============= FOLLOW-UP AFTER "ANALISAR COM CALMA" =============
 
 interface ProcessFollowUpParams {
-  supabase: ReturnType<typeof createClient>;
+  supabase: SupabaseAdmin;
   settings: FollowUpSettings;
   followUpNumber: number;
   delayHours: number;
@@ -961,7 +963,7 @@ Posso reservar um horário para você conhecer nosso espaço?`;
 // ============= BOT INACTIVE FOLLOW-UP (leads who stopped responding during bot flow) =============
 
 interface BotInactiveFollowUpParams {
-  supabase: ReturnType<typeof createClient>;
+  supabase: SupabaseAdmin;
   settings: FollowUpSettings;
 }
 
@@ -1154,7 +1156,7 @@ Podemos continuar de onde paramos?`;
 // ============= AUTO-LOST AFTER 4TH FOLLOW-UP =============
 
 interface ProcessAutoLostParams {
-  supabase: ReturnType<typeof createClient>;
+  supabase: SupabaseAdmin;
   settings: FollowUpSettings;
 }
 
@@ -1472,7 +1474,7 @@ async function providerSendDocument(
 }
 
 interface FlowTimerParams {
-  supabase: ReturnType<typeof createClient>;
+  supabase: SupabaseAdmin;
 }
 
 async function processFlowTimerTimeouts({
@@ -1699,7 +1701,7 @@ async function processFlowTimerTimeouts({
 
 async function processStaleRemindedAlerts({
   supabase,
-}: { supabase: ReturnType<typeof createClient> }): Promise<void> {
+}: { supabase: SupabaseAdmin }): Promise<void> {
   const STALE_HOURS = 2;
   const cutoff = new Date(Date.now() - STALE_HOURS * 60 * 60 * 1000).toISOString();
 
@@ -1955,7 +1957,7 @@ function recoveryReplaceVariables(text: string, data: Record<string, string>): s
 
 async function processStuckBotRecovery({
   supabase,
-}: { supabase: ReturnType<typeof createClient> }): Promise<{ successCount: number; errors: string[] }> {
+}: { supabase: SupabaseAdmin }): Promise<{ successCount: number; errors: string[] }> {
   const errors: string[] = [];
   let successCount = 0;
 
@@ -2409,7 +2411,7 @@ async function processStuckBotRecovery({
 // ============= RECOVERY: SEND MATERIALS (photos, videos, PDFs) =============
 
 async function recoverySendMaterials(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseAdmin,
   instance: { id: string; instance_id: string; instance_token: string; unit: string | null; company_id: string },
   conv: { id: string; remote_jid: string },
   botData: Record<string, string>,
@@ -2618,7 +2620,7 @@ async function recoverySendMaterials(
 // ============= INSTANCE HEALTH CHECK (Auto-Recovery) =============
 
 async function processInstanceHealthCheck(
-  supabase: ReturnType<typeof createClient>
+  supabase: SupabaseAdmin
 ): Promise<void> {
   console.log("[health-check] Starting instance health check...");
 
@@ -2877,7 +2879,7 @@ async function processInstanceHealthCheck(
 // (typically because EdgeRuntime.waitUntil background task timed out)
 async function processStuckSendingMaterials({
   supabase,
-}: { supabase: ReturnType<typeof createClient> }): Promise<{ successCount: number; errors: string[] }> {
+}: { supabase: SupabaseAdmin }): Promise<{ successCount: number; errors: string[] }> {
   const now = new Date();
   const threeMinutesAgo = new Date(now.getTime() - 3 * 60 * 1000).toISOString();
   const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
