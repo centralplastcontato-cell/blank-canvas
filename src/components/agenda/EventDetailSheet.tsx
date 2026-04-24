@@ -493,6 +493,29 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
           </div>
 
 
+          {/* Checklist + Resumo da Festa */}
+          {event.company_id && (
+            <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden">
+              <EventSummaryPanel
+                event={event}
+                leadName={leadName}
+                companyId={event.company_id}
+                onInternalNotesChange={(value) => onEventPatch?.(event.id, { internal_notes: value })}
+              />
+            </div>
+          )}
+
+          {/* Formulários Complementares */}
+          {event.company_id && (
+            <EventFormsStatusPanel
+              eventId={event.id}
+              companyId={event.company_id}
+              leadId={event.lead_id}
+              eventDate={event.event_date}
+              parentNames={leadName}
+            />
+          )}
+
           {/* Dados Comerciais */}
           <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden">
             <div className="px-4 py-2.5 bg-muted/30 border-b border-border/30 flex items-center gap-2">
@@ -578,29 +601,6 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
               </div>
             </div>
           </div>
-
-          {/* Checklist + Resumo da Festa */}
-          {event.company_id && (
-            <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden">
-              <EventSummaryPanel
-                event={event}
-                leadName={leadName}
-                companyId={event.company_id}
-                onInternalNotesChange={(value) => onEventPatch?.(event.id, { internal_notes: value })}
-              />
-            </div>
-          )}
-
-          {/* Formulários Complementares */}
-          {event.company_id && (
-            <EventFormsStatusPanel
-              eventId={event.id}
-              companyId={event.company_id}
-              leadId={event.lead_id}
-              eventDate={event.event_date}
-              parentNames={leadName}
-            />
-          )}
 
           {/* Contract Readiness Panel */}
           {event.company_id && userId && (
