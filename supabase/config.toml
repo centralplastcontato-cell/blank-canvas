@@ -90,3 +90,6 @@ verify_jwt = false
 [functions.generate-recurring-tasks]
 verify_jwt = false
 
+[functions.temp-upload-carrossel-internos]
+verify_jwt = false
+
