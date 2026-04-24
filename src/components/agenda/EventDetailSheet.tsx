@@ -516,6 +516,92 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
             />
           )}
 
+          {/* Dados Comerciais */}
+          <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden">
+            <div className="px-4 py-2.5 bg-muted/30 border-b border-border/30 flex items-center gap-2">
+              <Briefcase className="h-3.5 w-3.5 text-primary" />
+              <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Dados Comerciais</p>
+            </div>
+            <div className="p-4 space-y-3">
+              {(!localFechamento || !localVendedor) && (
+                <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">Dados comerciais incompletos</p>
+                    <ul className="text-[11px] text-amber-600 dark:text-amber-500 mt-0.5 space-y-0.5">
+                      {!localFechamento && <li>• Data de fechamento não definida</li>}
+                      {!localVendedor && <li>• Vendedor não definido</li>}
+                    </ul>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Data de fechamento</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        "h-7 text-xs gap-1.5 rounded-lg px-2",
+                        localFechamento ? "font-medium" : "text-muted-foreground/60"
+                      )}
+                      disabled={savingField === 'data_fechamento_venda'}
+                    >
+                      {savingField === 'data_fechamento_venda' ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <CalendarIcon className="h-3 w-3" />
+                      )}
+                      {localFechamento
+                        ? format(new Date(localFechamento + "T12:00:00"), "dd/MM/yyyy")
+                        : "Selecionar"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 rounded-xl shadow-lg" align="end">
+                    <Calendar
+                      mode="single"
+                      selected={localFechamento ? new Date(localFechamento + "T12:00:00") : undefined}
+                      onSelect={(date) => {
+                        if (date) {
+                          const formatted = format(date, "yyyy-MM-dd");
+                          saveCommercialField('data_fechamento_venda', formatted);
+                        }
+                      }}
+                      locale={ptBR}
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Vendedor</span>
+                <Select
+                  value={localVendedor || "none"}
+                  onValueChange={(v) => saveCommercialField('vendedor_responsavel_id', v === "none" ? null : v)}
+                  disabled={savingField === 'vendedor_responsavel_id'}
+                >
+                  <SelectTrigger className={cn(
+                    "h-7 w-auto min-w-[120px] max-w-[180px] text-xs rounded-lg border-0 bg-transparent hover:bg-muted/50 gap-1.5 px-2",
+                    localVendedor ? "font-medium" : "text-muted-foreground/60"
+                  )}>
+                    {savingField === 'vendedor_responsavel_id' ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <SelectValue placeholder="Selecionar" />
+                    )}
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {teamMembers.map((m) => (
+                      <SelectItem key={m.user_id} value={m.user_id}>{m.full_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
           {/* Contract Readiness Panel */}
           {event.company_id && userId && (
             <ContractReadinessPanel
