@@ -14,83 +14,170 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { ClipboardCheck, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, Star, User, Calendar, BarChart3, ThumbsUp, ChevronDown, ChevronRight } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { ClipboardCheck, Plus, Loader2, Pencil, Copy, Trash2, Link2, Eye, MessageSquareText, Star, User, Calendar, BarChart3, ThumbsUp, ChevronDown, ChevronRight, FileText, PartyPopper } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { buildPublicFormPath, buildPublicFormUrl } from "@/lib/publicFormRoutes";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-function EvalResponseCards({ responses, template }: { responses: any[]; template: EvaluationTemplate | null }) {
-  const [openId, setOpenId] = useState<string | null>(null);
+function EvalResponseCards({ responses, template, onDelete }: { responses: any[]; template: EvaluationTemplate | null; onDelete?: (id: string) => Promise<void> | void }) {
+  const [selectedResponse, setSelectedResponse] = useState<any | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const renderAnswers = (r: any) => {
+    const answersArr = Array.isArray(r.answers) ? r.answers : [];
+    return answersArr.map((a: any, idx: number) => {
+      const question = template?.questions.find(q => q.id === a.questionId)
+        || template?.questions.find(q => a.questionId?.startsWith(q.id));
+      let displayValue: string;
+      if (a.value === true) displayValue = "👍 Sim";
+      else if (a.value === false) displayValue = "👎 Não";
+      else if (question?.type === "stars" && typeof a.value === "number") displayValue = "⭐".repeat(a.value);
+      else if (question?.type === "nps" && typeof a.value === "number") displayValue = `${a.value}/10`;
+      else if (typeof a.value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(a.value)) {
+        try { displayValue = format(new Date(a.value), "dd/MM/yyyy", { locale: ptBR }); } catch { displayValue = String(a.value); }
+      } else {
+        displayValue = String(a.value ?? "—");
+      }
+      const label = question?.text || `Pergunta ${idx + 1}`;
+      return (
+        <div key={idx} className="px-4 py-2.5">
+          <p className="text-muted-foreground text-xs mb-0.5">{label}</p>
+          <p className="font-medium text-sm">{displayValue}</p>
+        </div>
+      );
+    });
+  };
+
   return (
-    <div className="space-y-2">
-      {responses.map((r) => {
-        const isOpen = openId === r.id;
-        const answersArr = Array.isArray(r.answers) ? r.answers : [];
-        return (
-          <div key={r.id}>
-            <button
-              onClick={() => setOpenId(isOpen ? null : r.id)}
-              className="w-full flex items-center justify-between gap-2 px-4 py-3 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors text-left"
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {responses.map((r) => {
+          const answersArr = Array.isArray(r.answers) ? r.answers : [];
+          const filledCount = answersArr.filter((a: any) => a.value !== null && a.value !== "" && a.value !== undefined).length;
+          return (
+            <Card
+              key={r.id}
+              className="bg-card border border-border cursor-pointer hover:border-primary/30 transition-all"
+              onClick={() => setSelectedResponse(r)}
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <User className="h-4 w-4 text-primary shrink-0" />
-                <span className="font-semibold text-sm truncate">{r.respondent_name || "Anônimo"}</span>
-                {r.overall_score != null && (
-                  <span className="text-xs text-muted-foreground flex items-center gap-0.5">
-                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                    {Number(r.overall_score).toFixed(1)}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  {format(new Date(r.created_at), "dd/MM/yyyy", { locale: ptBR })}
-                </span>
-                <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? "rotate-90" : ""}`} />
-              </div>
-            </button>
-            {isOpen && (
-              <Card className="mt-1 bg-card border-border overflow-hidden">
-                <CardContent className="p-0">
-                  <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30">
-                    <span className="font-semibold text-sm">{r.respondent_name || "Anônimo"}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                    </span>
+              <CardContent className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <User className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm truncate">{r.respondent_name || "Anônimo"}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </p>
+                      {r.company_events?.event_date && (
+                        <p className="text-xs text-primary flex items-center gap-1 mt-0.5">
+                          <PartyPopper className="h-3 w-3" />
+                          Festa: {format(new Date(r.company_events.event_date + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}
+                        </p>
+                      )}
+                    </div>
                   </div>
                   {r.overall_score != null && (
-                    <div className="px-4 py-2 bg-primary/5 flex items-center gap-2 text-sm">
-                      <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
-                      <span className="font-medium">Nota geral: {Number(r.overall_score).toFixed(1)}</span>
+                    <div className="flex items-center gap-1 shrink-0 px-2 py-1 rounded-full bg-primary/10">
+                      <Star className="h-3 w-3 fill-primary text-primary" />
+                      <span className="text-xs font-semibold text-primary">{Number(r.overall_score).toFixed(1)}</span>
                     </div>
                   )}
-                  <div className="divide-y divide-border">
-                    {answersArr.map((a: any, idx: number) => {
-                      const question = template?.questions.find(q => q.id === a.questionId);
-                      const renderValue = () => {
-                        if (a.value === true) return "👍 Sim";
-                        if (a.value === false) return "👎 Não";
-                        if (question?.type === "stars" && typeof a.value === "number") return "⭐".repeat(a.value);
-                        if (question?.type === "nps" && typeof a.value === "number") return `${a.value}/10`;
-                        return String(a.value || "—");
-                      };
-                      return (
-                        <div key={idx} className="px-4 py-2.5">
-                          <p className="text-muted-foreground text-xs mb-0.5">{question?.text || a.questionId}</p>
-                          <p className="font-medium text-sm">{renderValue()}</p>
-                        </div>
-                      );
-                    })}
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-1">
+                  <FileText className="h-3.5 w-3.5" />
+                  <span>{filledCount} respostas preenchidas</span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      <Sheet open={!!selectedResponse} onOpenChange={(open) => { if (!open) setSelectedResponse(null); }}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+          {selectedResponse && (
+            <>
+              <SheetHeader className="pb-4">
+                <SheetTitle className="flex items-center gap-2">
+                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <User className="h-4 w-4 text-primary" />
                   </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        );
-      })}
-    </div>
+                  <div>
+                    <p className="text-base font-semibold">{selectedResponse.respondent_name || "Anônimo"}</p>
+                    <p className="text-xs text-muted-foreground font-normal">
+                      Preenchido em {format(new Date(selectedResponse.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </p>
+                    {selectedResponse.company_events?.event_date && (
+                      <p className="text-xs text-primary font-normal flex items-center gap-1">
+                        <PartyPopper className="h-3 w-3" />
+                        Festa: {format(new Date(selectedResponse.company_events.event_date + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}
+                      </p>
+                    )}
+                  </div>
+                </SheetTitle>
+              </SheetHeader>
+
+              {selectedResponse.overall_score != null && (
+                <div className="mb-3 px-4 py-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center justify-between">
+                  <span className="text-sm font-medium text-foreground">Nota geral</span>
+                  <div className="flex items-center gap-1">
+                    <Star className="h-4 w-4 fill-primary text-primary" />
+                    <span className="text-base font-bold text-primary">{Number(selectedResponse.overall_score).toFixed(1)}</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="divide-y divide-border rounded-xl border border-border bg-muted/20">
+                {renderAnswers(selectedResponse)}
+              </div>
+
+              {onDelete && (
+                <div className="pt-4 flex justify-end">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5">
+                        <Trash2 className="h-3.5 w-3.5" /> Apagar resposta
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Apagar resposta?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          A resposta de <strong>{selectedResponse.respondent_name || "Anônimo"}</strong> será excluída permanentemente.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          disabled={deletingId === selectedResponse.id}
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            setDeletingId(selectedResponse.id);
+                            await onDelete(selectedResponse.id);
+                            setDeletingId(null);
+                            setSelectedResponse(null);
+                          }}
+                        >
+                          {deletingId === selectedResponse.id ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                          Apagar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              )}
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
 
@@ -183,7 +270,7 @@ export function AvaliacoesContent() {
     setLoadingResponses(true);
     const { data } = await supabase
       .from("evaluation_responses")
-      .select("*")
+      .select("*, company_events(event_date, title)")
       .eq("template_id", t.id)
       .order("created_at", { ascending: false });
     setResponses(data || []);
@@ -502,7 +589,19 @@ export function AvaliacoesContent() {
                               </TabsContent>
 
                               <TabsContent value="respostas" className="mt-3 space-y-2">
-                                <EvalResponseCards responses={responses} template={selectedTemplateForResponses} />
+                                <EvalResponseCards
+                                  responses={responses}
+                                  template={selectedTemplateForResponses}
+                                  onDelete={async (id) => {
+                                    const { error } = await supabase.from("evaluation_responses").delete().eq("id", id);
+                                    if (error) {
+                                      toast({ title: "Erro ao apagar", description: error.message, variant: "destructive" });
+                                    } else {
+                                      setResponses(prev => prev.filter(r => r.id !== id));
+                                      toast({ title: "Resposta apagada ✅" });
+                                    }
+                                  }}
+                                />
                               </TabsContent>
                             </Tabs>
                           )}
