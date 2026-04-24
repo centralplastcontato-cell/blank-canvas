@@ -37,9 +37,10 @@ interface EventSummaryPanelProps {
   event: EventSummaryData;
   leadName?: string | null;
   companyId: string;
+  onInternalNotesChange?: (value: string) => void;
 }
 
-export function EventSummaryPanel({ event, leadName, companyId }: EventSummaryPanelProps) {
+export function EventSummaryPanel({ event, leadName, companyId, onInternalNotesChange }: EventSummaryPanelProps) {
   const [internalNotes, setInternalNotes] = useState(event.internal_notes || "");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef(event.internal_notes || "");
@@ -67,18 +68,23 @@ export function EventSummaryPanel({ event, leadName, companyId }: EventSummaryPa
   const saveNotes = useCallback(async (value: string) => {
     if (value === lastSavedRef.current) return;
     const eventId = currentEventIdRef.current;
-    lastSavedRef.current = value;
     const { error } = await supabase
       .from("company_events")
       .update({ internal_notes: value || null })
       .eq("id", eventId);
+
     if (error) {
       toast({ title: "Erro ao salvar anotações", description: error.message, variant: "destructive" });
+      return;
     }
+
+    lastSavedRef.current = value;
   }, []);
 
   const handleNotesChange = (value: string) => {
     setInternalNotes(value);
+    internalNotesRef.current = value;
+    onInternalNotesChange?.(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       debounceRef.current = null;

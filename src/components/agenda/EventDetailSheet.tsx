@@ -64,6 +64,7 @@ interface EventDetailSheetProps {
   onDelete: (id: string) => void;
   conflicts?: EventData[];
   userId?: string;
+  onEventPatch?: (eventId: string, updates: Partial<EventData>) => void;
 }
 
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -72,7 +73,7 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
   cancelado: { label: "Cancelado", variant: "destructive" },
 };
 
-export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, conflicts = [], userId }: EventDetailSheetProps) {
+export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, conflicts = [], userId, onEventPatch }: EventDetailSheetProps) {
   const financialPerms = useFinancialPermissions(userId);
   const consentHook = useFinancialConsent();
   
@@ -584,6 +585,7 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                 event={event}
                 leadName={leadName}
                 companyId={event.company_id}
+                onInternalNotesChange={(value) => onEventPatch?.(event.id, { internal_notes: value })}
               />
               <div className="border-t border-border/30 p-4">
                 <EventChecklist eventId={event.id} companyId={event.company_id} />
