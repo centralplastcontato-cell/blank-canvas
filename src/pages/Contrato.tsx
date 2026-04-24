@@ -63,6 +63,30 @@ function ResponseCards({ responses, template, onDelete }: { responses: any[]; te
   const [selectedResponse, setSelectedResponse] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const getPartyDate = (response: any) => {
+    const answersArr = Array.isArray(response.answers) ? response.answers : [];
+
+    if (response.company_events?.event_date) {
+      const eventDate = new Date(response.company_events.event_date + "T12:00:00");
+      if (!isNaN(eventDate.getTime())) return eventDate;
+    }
+
+    const dateQuestion = template?.questions?.find(
+      (q) => q.type === "date" && /festa|evento/i.test(q.text || "")
+    );
+
+    const dateAnswer = dateQuestion
+      ? answersArr.find((a: any) => a.questionId === dateQuestion.id || a.questionId?.startsWith(dateQuestion.id))
+      : null;
+
+    if (dateAnswer?.value && typeof dateAnswer.value === "string") {
+      const answerDate = new Date(dateAnswer.value);
+      if (!isNaN(answerDate.getTime())) return answerDate;
+    }
+
+    return null;
+  };
+
   const renderAnswers = (r: any) => {
     const answersArr = Array.isArray(r.answers) ? r.answers : [];
     return answersArr.map((a: any, idx: number) => {
@@ -94,22 +118,8 @@ function ResponseCards({ responses, template, onDelete }: { responses: any[]; te
         {responses.map((r) => {
           const answersArr = Array.isArray(r.answers) ? r.answers : [];
           const filledCount = answersArr.filter((a: any) => a.value !== null && a.value !== "" && a.value !== undefined).length;
-          // Tenta obter data da festa: 1) do evento vinculado, 2) de uma resposta tipo "date" no array
-          let partyDate: Date | null = r.company_events?.event_date
-            ? new Date(r.company_events.event_date + "T12:00:00")
-            : null;
-          if (!partyDate) {
-            const dateQuestion = template?.questions?.find(
-              (q: any) => q.type === "date" && /festa|evento/i.test(q.label || "")
-            );
-            const dateAnswer = dateQuestion
-              ? answersArr.find((a: any) => a.questionId === dateQuestion.id)
-              : null;
-            if (dateAnswer?.value && typeof dateAnswer.value === "string") {
-              const d = new Date(dateAnswer.value);
-              if (!isNaN(d.getTime())) partyDate = d;
-            }
-          }
+          const partyDate = getPartyDate(r);
+
           return (
             <Card
               key={r.id}
@@ -161,10 +171,10 @@ function ResponseCards({ responses, template, onDelete }: { responses: any[]; te
                     <p className="text-xs text-muted-foreground font-normal">
                       Preenchido em {format(new Date(selectedResponse.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     </p>
-                    {selectedResponse.company_events?.event_date && (
+                    {getPartyDate(selectedResponse) && (
                       <p className="text-xs text-primary font-normal flex items-center gap-1">
                         <PartyPopper className="h-3 w-3" />
-                        Festa: {format(new Date(selectedResponse.company_events.event_date + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}
+                        Festa: {format(getPartyDate(selectedResponse)!, "dd/MM/yyyy", { locale: ptBR })}
                       </p>
                     )}
                   </div>
