@@ -588,9 +588,6 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                 companyId={event.company_id}
                 onInternalNotesChange={(value) => onEventPatch?.(event.id, { internal_notes: value })}
               />
-              <div className="border-t border-border/30 p-4">
-                <EventChecklist eventId={event.id} companyId={event.company_id} />
-              </div>
             </div>
           )}
 
