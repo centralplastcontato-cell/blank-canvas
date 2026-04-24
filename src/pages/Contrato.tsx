@@ -99,7 +99,6 @@ function ResponseCards({ responses, template, onDelete }: { responses: any[]; te
             ? new Date(r.company_events.event_date + "T12:00:00")
             : null;
           if (!partyDate) {
-            const template = templates.find((t) => t.id === r.template_id);
             const dateQuestion = template?.questions?.find(
               (q: any) => q.type === "date" && /festa|evento/i.test(q.label || "")
             );
