@@ -316,7 +316,7 @@ export default function PublicClientData() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
@@ -364,8 +364,8 @@ export default function PublicClientData() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div className="col-span-2 space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="sm:col-span-2 space-y-2">
                   <Label className="text-xs font-semibold text-foreground">Endereço</Label>
                   <Input
                     value={form.endereco}
@@ -392,7 +392,7 @@ export default function PublicClientData() {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold text-foreground">Bairro</Label>
                   <Input
