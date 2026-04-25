@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
   } catch (err) {
     console.error("resize-image error:", err);
     return new Response(
-      JSON.stringify({ error: err.message || "Erro ao redimensionar imagem" }),
+      JSON.stringify({ error: (err as Error).message || "Erro ao redimensionar imagem" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

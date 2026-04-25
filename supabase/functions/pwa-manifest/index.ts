@@ -58,8 +58,8 @@ Deno.serve(async (req) => {
     );
 
     const { data } = await supabase
-      .rpc("get_company_by_domain", { _domain: domain })
-      .maybeSingle();
+      .rpc("get_company_by_domain", { _domain: domain } as any)
+      .maybeSingle<any>();
 
     if (!data) {
       return jsonResponse(FALLBACK_MANIFEST);
