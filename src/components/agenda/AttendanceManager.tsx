@@ -347,20 +347,37 @@ export function AttendanceManager() {
         </div>
       )}
 
-      {/* Dialog criar/editar */}
+      {/* Dialog criar/editar — layout idêntico à página pública */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[85dvh] flex flex-col p-0 gap-0 overflow-hidden">
-          <DialogHeader className="p-4 pb-2 shrink-0">
-            <DialogTitle>{editingId ? "Editar Lista" : "Nova Lista de Presença"}</DialogTitle>
+        <DialogContent className="max-w-lg max-h-[90dvh] flex flex-col p-0 gap-0 overflow-hidden">
+          <DialogHeader className="p-4 pb-2 shrink-0 border-b">
+            <DialogTitle>{editingId ? "Editar Lista de Presença" : "Nova Lista de Presença"}</DialogTitle>
           </DialogHeader>
 
-          <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-4" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
-            {editingId && (
-              <div>
-                <Label className="mb-1.5 block">Festa <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+          <div
+            className="flex-1 min-h-0 overflow-y-auto bg-gradient-to-b from-primary/5 via-background to-background px-4 py-5 space-y-5"
+            style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
+          >
+            {/* Nome da Recepcionista */}
+            <Card className="shadow-sm border-border/50">
+              <CardContent className="p-4 space-y-2">
+                <Label className="text-sm font-semibold text-foreground">Nome da Recepcionista</Label>
+                <Input
+                  placeholder="Seu nome..."
+                  value={receptionistName}
+                  onChange={e => setReceptionistName(e.target.value)}
+                  className="h-12 bg-background"
+                />
+              </CardContent>
+            </Card>
+
+            {/* Festa */}
+            <Card className="shadow-sm border-border/50">
+              <CardContent className="p-4 space-y-2">
+                <Label className="text-sm font-semibold text-foreground">Festa</Label>
                 <Select value={selectedEventId} onValueChange={setSelectedEventId}>
-                  <SelectTrigger className="h-12">
-                    <SelectValue placeholder="Vincular a uma festa..." />
+                  <SelectTrigger className="h-12 bg-background">
+                    <SelectValue placeholder="Selecione a festa..." />
                   </SelectTrigger>
                   <SelectContent>
                     {events.map(ev => (
@@ -371,22 +388,151 @@ export function AttendanceManager() {
                     ))}
                   </SelectContent>
                 </Select>
+              </CardContent>
+            </Card>
+
+            <Separator />
+
+            {/* Lista de convidados já adicionados */}
+            {guests.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Convidados registrados ({guests.length})</Label>
+                {guests.map((guest, i) => (
+                  <Card key={i} className="shadow-sm border-border/40">
+                    <CardContent className="py-2 px-3">
+                      {editingGuestIdx === i && editGuest ? (
+                        <div className="space-y-2">
+                          <Input placeholder="Nome *" value={editGuest.name} onChange={e => setEditGuest({ ...editGuest, name: e.target.value })} className="h-10 bg-background" />
+                          <div className="grid grid-cols-2 gap-2">
+                            <Input placeholder="Idade" value={editGuest.age} onChange={e => setEditGuest({ ...editGuest, age: e.target.value })} className="h-10 bg-background" />
+                            <Input placeholder="Telefone" value={editGuest.phone} onChange={e => setEditGuest({ ...editGuest, phone: e.target.value })} className="h-10 bg-background" />
+                          </div>
+                          <div className="flex items-center justify-between rounded-lg border border-border p-2">
+                            <span className="text-xs">Criança desacompanhada</span>
+                            <Switch checked={editGuest.is_child_only} onCheckedChange={v => setEditGuest({ ...editGuest, is_child_only: v })} />
+                          </div>
+                          {editGuest.is_child_only && (
+                            <div className="grid grid-cols-2 gap-2 pl-2 border-l-2 border-primary/30">
+                              <Input placeholder="Responsável" value={editGuest.guardian_name} onChange={e => setEditGuest({ ...editGuest, guardian_name: e.target.value })} className="h-10 bg-background" />
+                              <Input placeholder="Tel. resp." value={editGuest.guardian_phone} onChange={e => setEditGuest({ ...editGuest, guardian_phone: e.target.value })} className="h-10 bg-background" />
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between rounded-lg border border-border p-2">
+                            <span className="text-xs">Quer receber info</span>
+                            <Switch checked={editGuest.wants_info} onCheckedChange={v => setEditGuest({ ...editGuest, wants_info: v })} />
+                          </div>
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={saveEditGuest} className="flex-1 gap-1">
+                              <Check className="h-3.5 w-3.5" /> Salvar
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={cancelEditGuest} className="gap-1">
+                              <X className="h-3.5 w-3.5" /> Cancelar
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium">
+                              <span className="text-muted-foreground">#{i + 1}</span> {guest.name}
+                              {guest.age && <span className="text-muted-foreground"> · {guest.age}</span>}
+                            </p>
+                            {guest.phone && <p className="text-xs text-muted-foreground">{guest.phone}</p>}
+                            {guest.is_child_only && (
+                              <p className="text-xs text-muted-foreground">👶 Resp: {guest.guardian_name} {guest.guardian_phone}</p>
+                            )}
+                            <div className="flex gap-2 mt-0.5">
+                              {guest.wants_info && <span className="text-xs text-primary">✅ Quer info</span>}
+                              {guest.is_child_only && <span className="text-xs text-muted-foreground">👶 Desacompanhada</span>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-0.5 shrink-0">
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => startEditGuest(i)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removeGuestAt(i)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             )}
 
-            <div>
-              <Label className="mb-1.5 block">Observações</Label>
-              <Textarea
-                placeholder="Anotações adicionais..."
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                rows={3}
-              />
-            </div>
+            <Separator />
 
-            <p className="text-xs text-muted-foreground">
-              Após criar, compartilhe o link público para a recepcionista registrar os convidados pelo celular.
-            </p>
+            {/* Adicionar Convidado */}
+            <Card className="shadow-sm border-border/50 border-l-4 border-l-primary/40">
+              <CardContent className="p-4 space-y-3.5">
+                <Label className="text-sm font-bold flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-primary/10">
+                    <UserPlus className="h-4 w-4 text-primary" />
+                  </div>
+                  Adicionar Convidado
+                </Label>
+
+                <Input
+                  placeholder="Nome do convidado *"
+                  value={guestName}
+                  onChange={e => setGuestName(e.target.value)}
+                  className="h-12 bg-background"
+                />
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Input placeholder="Idade" value={guestAge} onChange={e => setGuestAge(e.target.value)} className="h-12 bg-background" />
+                  <Input placeholder="Telefone" value={guestPhone} onChange={e => setGuestPhone(e.target.value)} className="h-12 bg-background" />
+                </div>
+
+                <div className="flex items-center justify-between rounded-xl border border-border/50 bg-muted/30 p-3.5">
+                  <div>
+                    <p className="text-sm font-medium">Criança desacompanhada</p>
+                    <p className="text-xs text-muted-foreground">Pais deixaram a criança na festa</p>
+                  </div>
+                  <Switch checked={isChildOnly} onCheckedChange={setIsChildOnly} />
+                </div>
+
+                {isChildOnly && (
+                  <div className="grid grid-cols-2 gap-2 pl-3 border-l-2 border-primary/30">
+                    <Input placeholder="Nome do responsável *" value={guardianName} onChange={e => setGuardianName(e.target.value)} className="h-12 bg-background" />
+                    <Input placeholder="Tel. responsável *" value={guardianPhone} onChange={e => setGuardianPhone(e.target.value)} className="h-12 bg-background" />
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between rounded-xl border border-border/50 bg-muted/30 p-3.5">
+                  <div>
+                    <p className="text-sm font-medium">Deseja receber informações</p>
+                    <p className="text-xs text-muted-foreground">Sobre o buffet e eventos</p>
+                  </div>
+                  <Switch checked={wantsInfo} onCheckedChange={setWantsInfo} />
+                </div>
+
+                <Button
+                  onClick={handleAddGuest}
+                  disabled={!guestName.trim()}
+                  className="w-full h-12 gap-2 rounded-xl text-base font-semibold shadow-md"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Adicionar Convidado
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Observações */}
+            <Card className="shadow-sm border-border/50">
+              <CardContent className="p-4 space-y-2">
+                <Label className="text-sm font-semibold text-foreground">Observações</Label>
+                <Textarea
+                  placeholder="Anotações adicionais..."
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                  rows={3}
+                  className="bg-background"
+                />
+              </CardContent>
+            </Card>
           </div>
 
           <DialogFooter className="p-4 pt-2 shrink-0 border-t">
