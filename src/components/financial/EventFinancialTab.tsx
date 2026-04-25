@@ -87,6 +87,30 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   const [partialPaymentTarget, setPartialPaymentTarget] = useState<any>(null);
   const [expandedPaymentIds, setExpandedPaymentIds] = useState<Set<string>>(new Set());
   const [deleteEntryTarget, setDeleteEntryTarget] = useState<{ id: string; amount: number } | null>(null);
+  const [eventContext, setEventContext] = useState<{ eventId: string; eventTitle: string; eventDate: string; clientName?: string | null } | null>(null);
+
+  // Carrega contexto do evento (título, data, cliente) para exibir nos dialogs de pagamento
+  useEffect(() => {
+    if (!eventId) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("company_events")
+        .select("id, title, event_date, child_name, lead_id, campaign_leads(name)")
+        .eq("id", eventId)
+        .maybeSingle();
+      if (cancelled || !data) return;
+      const lead = (data as any).campaign_leads;
+      const clientName = (data as any).child_name || lead?.name || null;
+      setEventContext({
+        eventId: data.id,
+        eventTitle: data.title,
+        eventDate: data.event_date,
+        clientName,
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [eventId]);
 
   // Auto-sync: if no payments exist but event has payment_details, sync them
   useEffect(() => {
@@ -921,6 +945,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                         paymentAmount={p.amount}
                         paidSoFar={paidSum}
                         paymentLabel={`${p.type === 'entrada' ? 'Entrada' : 'Parcela'} — Venc. ${format(new Date(p.due_date + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}`}
+                        eventContext={eventContext || undefined}
                       />
                     )}
                   </motion.div>
@@ -1083,7 +1108,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       </div>
 
       {/* Dialogs */}
-      <PaymentFormDialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen} onSubmit={financial.addPayment} />
+      <PaymentFormDialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen} onSubmit={financial.addPayment} eventContext={eventContext || undefined} />
 
       {/* Extra Dialog */}
       <Dialog open={extraDialogOpen} onOpenChange={setExtraDialogOpen}>
