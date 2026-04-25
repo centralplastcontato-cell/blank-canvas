@@ -630,7 +630,7 @@ async function processFollowUp({
     return { successCount: 0, errors: [String(choicesError)] };
   }
 
-  const via1LeadIds = (analysisChoices || []).map(c => c.lead_id);
+  const via1LeadIds = (analysisChoices || []).map((c: any) => c.lead_id);
 
   // === VIA 2: inactive leads (bot/agent sent last, no reply) in this instance ===
   const { data: inactiveConvs, error: inactiveError } = await supabase
