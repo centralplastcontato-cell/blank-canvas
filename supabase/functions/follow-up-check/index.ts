@@ -1377,7 +1377,7 @@ async function providerSendText(
       });
     }
     if (!res.ok) {
-      const errText = await sendRes.error || 'unknown error';
+      const errText = await res.text();
       return { ok: false, messageId: null, error: errText };
     }
     const data = await res.json();
