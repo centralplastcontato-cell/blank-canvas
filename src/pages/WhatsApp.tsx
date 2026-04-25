@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { showLogoutToast } from "@/lib/logoutToast";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -81,10 +82,7 @@ export default function WhatsApp() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    toast({
-      title: "Logout realizado",
-      description: "Você saiu da sua conta.",
-    });
+    showLogoutToast();
     navigate("/auth");
   };
 

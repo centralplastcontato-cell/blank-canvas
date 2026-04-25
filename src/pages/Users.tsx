@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { showLogoutToast } from "@/lib/logoutToast";
 import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
@@ -471,10 +472,7 @@ export default function UsersPage() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    toast({
-      title: "Logout realizado",
-      description: "Você saiu da sua conta.",
-    });
+    showLogoutToast();
     navigate("/auth");
   };
 
