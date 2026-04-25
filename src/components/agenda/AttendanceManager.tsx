@@ -58,7 +58,31 @@ export function AttendanceManager() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState("");
   const [notes, setNotes] = useState("");
+  const [receptionistName, setReceptionistName] = useState("");
+  const [guests, setGuests] = useState<Guest[]>([]);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+  // Add guest form
+  const [guestName, setGuestName] = useState("");
+  const [guestAge, setGuestAge] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [isChildOnly, setIsChildOnly] = useState(false);
+  const [guardianName, setGuardianName] = useState("");
+  const [guardianPhone, setGuardianPhone] = useState("");
+  const [wantsInfo, setWantsInfo] = useState(false);
+  // Editing guest inline
+  const [editingGuestIdx, setEditingGuestIdx] = useState<number | null>(null);
+  const [editGuest, setEditGuest] = useState<Guest | null>(null);
+
+  const resetGuestForm = () => {
+    setGuestName("");
+    setGuestAge("");
+    setGuestPhone("");
+    setIsChildOnly(false);
+    setGuardianName("");
+    setGuardianPhone("");
+    setWantsInfo(false);
+  };
 
   const fetchData = useCallback(async () => {
     if (!companyId) return;
@@ -101,6 +125,11 @@ export function AttendanceManager() {
     setEditingId(null);
     setSelectedEventId("");
     setNotes("");
+    setReceptionistName("");
+    setGuests([]);
+    setEditingGuestIdx(null);
+    setEditGuest(null);
+    resetGuestForm();
     setDialogOpen(true);
   };
 
@@ -108,7 +137,60 @@ export function AttendanceManager() {
     setEditingId(record.id);
     setSelectedEventId(record.event_id || "");
     setNotes(record.notes || "");
+    setReceptionistName(record.receptionist_name || "");
+    setGuests(record.guests || []);
+    setEditingGuestIdx(null);
+    setEditGuest(null);
+    resetGuestForm();
     setDialogOpen(true);
+  };
+
+  const handleAddGuest = () => {
+    if (!guestName.trim()) {
+      toast({ title: "Informe o nome do convidado", variant: "destructive" });
+      return;
+    }
+    if (isChildOnly && (!guardianName.trim() || !guardianPhone.trim())) {
+      toast({ title: "Informe responsável e telefone", variant: "destructive" });
+      return;
+    }
+    const newGuest: Guest = {
+      name: guestName.trim(),
+      age: guestAge.trim(),
+      phone: guestPhone.trim(),
+      is_child_only: isChildOnly,
+      guardian_name: isChildOnly ? guardianName.trim() : "",
+      guardian_phone: isChildOnly ? guardianPhone.trim() : "",
+      wants_info: wantsInfo,
+    };
+    setGuests(prev => [...prev, newGuest]);
+    resetGuestForm();
+    toast({ title: `✅ ${newGuest.name} adicionado(a)!` });
+  };
+
+  const startEditGuest = (idx: number) => {
+    setEditingGuestIdx(idx);
+    setEditGuest({ ...guests[idx] });
+  };
+
+  const cancelEditGuest = () => {
+    setEditingGuestIdx(null);
+    setEditGuest(null);
+  };
+
+  const saveEditGuest = () => {
+    if (editingGuestIdx === null || !editGuest) return;
+    if (!editGuest.name.trim()) {
+      toast({ title: "Nome é obrigatório", variant: "destructive" });
+      return;
+    }
+    setGuests(prev => prev.map((g, i) => i === editingGuestIdx ? { ...editGuest, name: editGuest.name.trim() } : g));
+    setEditingGuestIdx(null);
+    setEditGuest(null);
+  };
+
+  const removeGuestAt = (idx: number) => {
+    setGuests(prev => prev.filter((_, i) => i !== idx));
   };
 
   const handleSave = async () => {
@@ -124,13 +206,14 @@ export function AttendanceManager() {
       company_id: companyId,
       filled_by: user?.id || null,
       notes: notes || null,
+      receptionist_name: receptionistName || null,
+      guests: guests as any,
     };
 
     let error;
     if (editingId) {
       ({ error } = await supabase.from("attendance_entries").update(payload).eq("id", editingId));
     } else {
-      payload.guests = [];
       ({ error } = await supabase.from("attendance_entries").insert(payload));
     }
 
