@@ -70,10 +70,7 @@ export function VisitAlertBanner({ userId, onOpenConversation }: VisitAlertBanne
             data: n.data as unknown as VisitNotificationData,
           }));
         setAlerts(validAlerts);
-        // Play sound if there are unread visit alerts on load
-        if (validAlerts.length > 0 && notificationsEnabledRef.current) {
-          playVisitSound();
-        }
+        // NOTA: Não tocar som no carregamento inicial — apenas em INSERT realtime.
       }
     };
 

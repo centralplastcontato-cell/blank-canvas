@@ -78,9 +78,7 @@ export function QuestionsAlertBanner({ userId, onOpenConversation }: QuestionsAl
             data: n.data as unknown as QuestionsNotificationData,
           }));
         setAlerts(validAlerts);
-        if (validAlerts.length > 0 && notificationsEnabledRef.current) {
-          playQuestionsSound();
-        }
+        // NOTA: Não tocar som no carregamento inicial — apenas em INSERT realtime.
       }
     };
 
