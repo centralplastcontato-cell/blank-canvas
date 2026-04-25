@@ -69,10 +69,8 @@ export function ClientAlertBanner({ userId, onOpenConversation }: ClientAlertBan
             data: n.data as unknown as ClientNotificationData,
           }));
         setAlerts(validAlerts);
-        // Play sound if there are unread client alerts on load
-        if (validAlerts.length > 0 && notificationsEnabledRef.current) {
-          playClientSound();
-        }
+        // NOTA: Não tocar som no carregamento inicial — apenas quando chegar notificação NOVA via realtime.
+        // Isso evita que o som toque sempre que o usuário entra/atualiza a página.
       }
     };
 
