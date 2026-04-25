@@ -667,6 +667,62 @@ export type Database = {
           },
         ]
       }
+      campaign_response_settings: {
+        Row: {
+          company_id: string
+          created_at: string
+          followup_days: number
+          id: string
+          is_enabled: boolean
+          main_message: string
+          option_1_action: string
+          option_1_label: string
+          option_2_action: string
+          option_2_label: string
+          option_3_action: string
+          option_3_label: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          followup_days?: number
+          id?: string
+          is_enabled?: boolean
+          main_message?: string
+          option_1_action?: string
+          option_1_label?: string
+          option_2_action?: string
+          option_2_label?: string
+          option_3_action?: string
+          option_3_label?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          followup_days?: number
+          id?: string
+          is_enabled?: boolean
+          main_message?: string
+          option_1_action?: string
+          option_1_label?: string
+          option_2_action?: string
+          option_2_label?: string
+          option_3_action?: string
+          option_3_label?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_response_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           auto_reply_message: string | null
