@@ -33,9 +33,15 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: PaymentFormSubmitData) => void;
   defaultValues?: { type?: string; amount?: number; due_date?: string; payment_method?: string; notes?: string; bank_account_id?: string };
+  eventContext?: {
+    eventId: string;
+    eventTitle: string;
+    eventDate: string;
+    clientName?: string | null;
+  };
 }
 
-export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues }: Props) {
+export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues, eventContext }: Props) {
   const { currentCompany } = useCompany();
   const [type, setType] = useState(defaultValues?.type || "parcela");
   const [amount, setAmount] = useState(defaultValues?.amount ? numberToCurrencyDisplay(defaultValues.amount) : "");
@@ -46,6 +52,10 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues 
   const [installments, setInstallments] = useState<number>(1);
   const [operatorId, setOperatorId] = useState<string>("");
   const [cardFees, setCardFees] = useState<CardFeeRow[]>([]);
+  const [duplicateMatches, setDuplicateMatches] = useState<DuplicateMatch[]>([]);
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState<PaymentFormSubmitData | null>(null);
+  const [checking, setChecking] = useState(false);
 
   // Load card fee operators
   useEffect(() => {
