@@ -10,6 +10,10 @@ import { formatCurrencyInput, parseCurrencyInput, numberToCurrencyDisplay } from
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { calcCardFee, isCardMethod, isDebitMethod, type CardFeeRow } from "@/lib/cardFees";
+import { checkDuplicatePayment, type DuplicateMatch } from "@/hooks/useDuplicatePaymentCheck";
+import { DuplicatePaymentWarningDialog } from "./DuplicatePaymentWarningDialog";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export interface PaymentFormSubmitData {
   type: string;
