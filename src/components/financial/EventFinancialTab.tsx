@@ -945,6 +945,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                         paymentAmount={p.amount}
                         paidSoFar={paidSum}
                         paymentLabel={`${p.type === 'entrada' ? 'Entrada' : 'Parcela'} — Venc. ${format(new Date(p.due_date + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}`}
+                        eventContext={eventContext || undefined}
                       />
                     )}
                   </motion.div>
