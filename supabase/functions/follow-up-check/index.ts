@@ -1344,7 +1344,7 @@ interface InstanceInfo {
   provider?: Provider | string | null;
   client_token?: string | null;
   id?: string;
-  unit?: string;
+  unit?: string | null;
 }
 
 /**
