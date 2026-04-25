@@ -255,9 +255,23 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues,
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSubmit}>Salvar</Button>
+          <Button onClick={handleSubmit} disabled={checking}>
+            {checking ? "Verificando..." : "Salvar"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <DuplicatePaymentWarningDialog
+      open={duplicateDialogOpen}
+      onOpenChange={(open) => {
+        setDuplicateDialogOpen(open);
+        if (!open) setPendingSubmit(null);
+      }}
+      matches={duplicateMatches}
+      amount={pendingSubmit?.amount || 0}
+      onConfirm={() => { if (pendingSubmit) finalizeSubmit(pendingSubmit); }}
+    />
+    </>
   );
 }
