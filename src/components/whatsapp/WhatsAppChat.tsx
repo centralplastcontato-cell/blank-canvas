@@ -78,13 +78,21 @@ function convertAudioBufferToWavBlob(audioBuffer: AudioBuffer): Blob {
 }
 
 async function prepareAudioBlobForWhatsApp(blob: Blob): Promise<Blob> {
-  // WhatsApp voice notes need OGG/Opus. Browsers record webm/opus (same codec, different container).
-  // We re-label the blob as audio/ogg so W-API/WhatsApp treat it as a playable voice note.
+  // Never re-label WebM as OGG: WhatsApp may accept the send but later mark the media as unavailable.
+  // Convert browser-recorded WebM/Opus to a real WAV file so the container and MIME type match.
   const mimeBase = (blob.type || '').split(';')[0].trim().toLowerCase();
 
-  if (mimeBase === 'audio/webm' || mimeBase === '' || mimeBase === 'audio/ogg') {
-    const arrayBuffer = await blob.arrayBuffer();
-    return new Blob([arrayBuffer], { type: 'audio/ogg; codecs=opus' });
+  if (mimeBase === 'audio/webm' || mimeBase === '') {
+    const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextCtor) return blob;
+
+    const audioContext = new AudioContextCtor();
+    try {
+      const audioBuffer = await audioContext.decodeAudioData(await blob.arrayBuffer());
+      return convertAudioBufferToWavBlob(audioBuffer);
+    } finally {
+      void audioContext.close().catch(() => undefined);
+    }
   }
 
   return blob;
