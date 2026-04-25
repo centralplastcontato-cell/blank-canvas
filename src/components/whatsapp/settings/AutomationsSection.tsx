@@ -2396,6 +2396,11 @@ export function AutomationsSection() {
         <TabsContent value="formularios" className="mt-4">
           <FormAutomationSection />
         </TabsContent>
+
+        {/* ============ TAB: CAMPANHAS ============ */}
+        <TabsContent value="campanhas" className="mt-4">
+          <CampaignResponseSection />
+        </TabsContent>
       </Tabs>
     </div>
   );
