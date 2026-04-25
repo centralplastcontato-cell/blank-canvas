@@ -78,13 +78,21 @@ function convertAudioBufferToWavBlob(audioBuffer: AudioBuffer): Blob {
 }
 
 async function prepareAudioBlobForWhatsApp(blob: Blob): Promise<Blob> {
-  // WhatsApp voice notes need OGG/Opus. Browsers record webm/opus (same codec, different container).
-  // We re-label the blob as audio/ogg so W-API/WhatsApp treat it as a playable voice note.
+  // Never re-label WebM as OGG: WhatsApp may accept the send but later mark the media as unavailable.
+  // Convert browser-recorded WebM/Opus to a real WAV file so the container and MIME type match.
   const mimeBase = (blob.type || '').split(';')[0].trim().toLowerCase();
 
-  if (mimeBase === 'audio/webm' || mimeBase === '' || mimeBase === 'audio/ogg') {
-    const arrayBuffer = await blob.arrayBuffer();
-    return new Blob([arrayBuffer], { type: 'audio/ogg; codecs=opus' });
+  if (mimeBase === 'audio/webm' || mimeBase === '') {
+    const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextCtor) return blob;
+
+    const audioContext = new AudioContextCtor();
+    try {
+      const audioBuffer = await audioContext.decodeAudioData(await blob.arrayBuffer());
+      return convertAudioBufferToWavBlob(audioBuffer);
+    } finally {
+      void audioContext.close().catch(() => undefined);
+    }
   }
 
   return blob;
@@ -2989,6 +2997,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         preparedBlob = await prepareAudioBlobForWhatsApp(capturedBlob);
       } catch (conversionError) {
         console.warn('[sendRecordedAudio] Falha ao preparar áudio:', conversionError);
+        throw new Error('Falha ao preparar áudio para o WhatsApp. Tente gravar novamente.');
       }
 
       console.log('[sendRecordedAudio] Prepared blob:', { type: preparedBlob.type, size: preparedBlob.size });
@@ -2997,7 +3006,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const mimeBase = mimeType.split(';')[0].trim().toLowerCase();
       const storageExtension = mimeBase === 'audio/ogg'
         ? 'ogg'
-        : mimeBase === 'audio/mp4' || mimeBase === 'audio/aac'
+        : mimeBase === 'audio/webm'
+          ? 'webm'
+          : mimeBase === 'audio/mp4' || mimeBase === 'audio/aac'
           ? 'm4a'
           : mimeBase === 'audio/mpeg'
             ? 'mp3'
