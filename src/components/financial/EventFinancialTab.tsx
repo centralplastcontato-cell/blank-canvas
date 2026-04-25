@@ -1108,7 +1108,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       </div>
 
       {/* Dialogs */}
-      <PaymentFormDialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen} onSubmit={financial.addPayment} />
+      <PaymentFormDialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen} onSubmit={financial.addPayment} eventContext={eventContext || undefined} />
 
       {/* Extra Dialog */}
       <Dialog open={extraDialogOpen} onOpenChange={setExtraDialogOpen}>
