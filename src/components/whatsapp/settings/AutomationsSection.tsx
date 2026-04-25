@@ -26,6 +26,7 @@ import { VisitConfirmationSection } from "./VisitConfirmationSection";
 import { PreReservationAutomationSection } from "./PreReservationAutomationSection";
 import { PartyBotMessagesCard } from "./PartyBotMessagesCard";
 import { FormAutomationSection } from "./FormAutomationSection";
+import { CampaignResponseSection } from "./CampaignResponseSection";
 import {
   DndContext,
   closestCenter,
