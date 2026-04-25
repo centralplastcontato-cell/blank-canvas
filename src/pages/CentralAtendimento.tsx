@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { showLogoutToast } from "@/lib/logoutToast";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { Helmet } from "react-helmet-async";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -630,10 +631,7 @@ export default function CentralAtendimento() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    toast({
-      title: "Logout realizado",
-      description: "Você saiu da sua conta.",
-    });
+    showLogoutToast();
     navigate("/auth");
   };
 
