@@ -19,7 +19,7 @@ interface InstanceCredentials {
 
 // Helper to get instance credentials
 async function getInstanceCredentials(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   req: Request,
   body: { instanceId?: string; instanceToken?: string; unit?: string; companyId?: string }
 ): Promise<InstanceCredentials | Response> {
