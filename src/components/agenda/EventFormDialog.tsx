@@ -1137,11 +1137,16 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           try {
             const { data: existingPayments } = await supabase
               .from('event_payments')
-              .select('amount')
+              .select('amount, gross_amount')
               .eq('event_id', resultId);
-            const totalPayments = (existingPayments || []).reduce((s: number, p: any) => s + Number(p.amount), 0);
+            // Use gross_amount when available so card fees aren't mistaken for unpaid balance.
+            const totalPayments = (existingPayments || []).reduce(
+              (s: number, p: any) => s + Number(p.gross_amount ?? p.amount),
+              0,
+            );
             const diff = grandTotal - totalPayments;
-            if (diff > 0.01) {
+            // Tolerance of R$ 1,00 to absorb rounding/legacy fee residuals and avoid phantom installments.
+            if (diff > 1) {
               await supabase.from('event_payments').insert({
                 event_id: resultId,
                 company_id: currentCompany.id,
