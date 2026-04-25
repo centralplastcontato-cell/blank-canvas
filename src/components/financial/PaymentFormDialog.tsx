@@ -79,7 +79,17 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues,
   const isDebit = isDebitMethod(method);
   const calc = calcCardFee({ grossAmount, method, installments, operator });
 
-  const handleSubmit = () => {
+  const finalizeSubmit = (data: PaymentFormSubmitData) => {
+    onSubmit(data);
+    onOpenChange(false);
+    setAmount(""); setDueDate(""); setNotes(""); setBankAccountId("");
+    setInstallments(1);
+    setPendingSubmit(null);
+    setDuplicateMatches([]);
+    setDuplicateDialogOpen(false);
+  };
+
+  const handleSubmit = async () => {
     if (!grossAmount || !dueDate) return;
 
     const submitData: PaymentFormSubmitData = {
@@ -98,17 +108,51 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       submitData.gross_amount = grossAmount;
     }
 
-    onSubmit(submitData);
-    onOpenChange(false);
-    setAmount(""); setDueDate(""); setNotes(""); setBankAccountId("");
-    setInstallments(1);
+    // Nível 2: checa duplicidade em outras festas (mesmo valor + método nas últimas 24h)
+    if (eventContext && currentCompany?.id && !defaultValues) {
+      setChecking(true);
+      try {
+        const matches = await checkDuplicatePayment({
+          companyId: currentCompany.id,
+          currentEventId: eventContext.eventId,
+          amount: submitData.amount,
+          paymentMethod: submitData.payment_method,
+        });
+        if (matches.length > 0) {
+          setDuplicateMatches(matches);
+          setPendingSubmit(submitData);
+          setDuplicateDialogOpen(true);
+          setChecking(false);
+          return;
+        }
+      } catch (e) {
+        console.error("[duplicate-check]", e);
+      } finally {
+        setChecking(false);
+      }
+    }
+
+    finalizeSubmit(submitData);
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{defaultValues ? "Editar Parcela" : "Nova Parcela"}</DialogTitle>
+          {eventContext && (
+            <div className="mt-2 rounded-lg border-2 border-primary/30 bg-primary/5 p-2.5">
+              <p className="text-[10px] uppercase tracking-wide font-bold text-primary/70">Festa selecionada</p>
+              <p className="text-sm font-bold text-foreground leading-tight mt-0.5">
+                🎉 {eventContext.eventTitle}
+              </p>
+              <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-3">
+                {eventContext.clientName && <span>👤 {eventContext.clientName}</span>}
+                <span>📅 {format(new Date(eventContext.eventDate + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}</span>
+              </div>
+            </div>
+          )}
         </DialogHeader>
         <div className="space-y-4">
           <div>
