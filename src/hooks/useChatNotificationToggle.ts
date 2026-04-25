@@ -1,31 +1,44 @@
 import { useState, useCallback, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 
-const STORAGE_KEY = "whatsapp-notifications-enabled";
+export const WHATSAPP_NOTIFICATIONS_STORAGE_KEY = "whatsapp-notifications-enabled";
+export const WHATSAPP_NOTIFICATIONS_TOGGLE_EVENT = "whatsapp-notifications-toggle";
+
+export function areChatNotificationsEnabled() {
+  if (typeof window === "undefined") return true;
+  const saved = localStorage.getItem(WHATSAPP_NOTIFICATIONS_STORAGE_KEY);
+  return saved !== null ? saved === "true" : true;
+}
 
 export function useChatNotificationToggle() {
-  const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
-    if (typeof window === "undefined") return true;
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved !== null ? saved === "true" : true;
-  });
+  const [notificationsEnabled, setNotificationsEnabled] = useState(areChatNotificationsEnabled);
 
-  // Sync state across tabs/windows
+  // Sync state across hook instances in the same tab and across tabs/windows.
   useEffect(() => {
+    const syncNotificationsState = () => {
+      setNotificationsEnabled(areChatNotificationsEnabled());
+    };
+
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY && e.newValue !== null) {
-        setNotificationsEnabled(e.newValue === "true");
+      if (e.key === WHATSAPP_NOTIFICATIONS_STORAGE_KEY) {
+        syncNotificationsState();
       }
     };
 
     window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+    window.addEventListener(WHATSAPP_NOTIFICATIONS_TOGGLE_EVENT, syncNotificationsState);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener(WHATSAPP_NOTIFICATIONS_TOGGLE_EVENT, syncNotificationsState);
+    };
   }, []);
 
   const toggleNotifications = useCallback(async () => {
-    const newValue = !notificationsEnabled;
+    const newValue = !areChatNotificationsEnabled();
     setNotificationsEnabled(newValue);
-    localStorage.setItem(STORAGE_KEY, String(newValue));
+    localStorage.setItem(WHATSAPP_NOTIFICATIONS_STORAGE_KEY, String(newValue));
+    window.dispatchEvent(new Event(WHATSAPP_NOTIFICATIONS_TOGGLE_EVENT));
 
     // Request browser permission if enabling
     if (newValue && "Notification" in window && Notification.permission === "default") {
@@ -38,7 +51,7 @@ export function useChatNotificationToggle() {
         ? "Você receberá alertas de novas mensagens."
         : "Você não receberá mais alertas de novas mensagens.",
     });
-  }, [notificationsEnabled]);
+  }, []);
 
   return {
     notificationsEnabled,

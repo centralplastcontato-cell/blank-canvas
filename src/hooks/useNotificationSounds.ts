@@ -1,4 +1,8 @@
 import { useCallback, useRef, useEffect } from "react";
+import {
+  areChatNotificationsEnabled,
+  WHATSAPP_NOTIFICATIONS_TOGGLE_EVENT,
+} from "@/hooks/useChatNotificationToggle";
 
 type SoundType = "message" | "lead" | "client" | "visit" | "questions" | "generic";
 
@@ -47,38 +51,86 @@ const SOUND_CONFIGS: Record<SoundType, SoundConfig> = {
 
 export function useNotificationSounds() {
   const audioContextRef = useRef<AudioContext | null>(null);
-  const soundEnabledRef = useRef(true);
+  const soundEnabledRef = useRef(areChatNotificationsEnabled());
+  const activeOscillatorsRef = useRef<OscillatorNode[]>([]);
 
-  // Initialize audio context on first user interaction
+  const stopAllSounds = useCallback(() => {
+    activeOscillatorsRef.current.forEach((oscillator) => {
+      try {
+        oscillator.stop(0);
+      } catch {
+        // Oscillator may already be stopped.
+      }
+      try {
+        oscillator.disconnect();
+      } catch {
+        // Oscillator may already be disconnected.
+      }
+    });
+    activeOscillatorsRef.current = [];
+
+    const ctx = audioContextRef.current;
+    if (ctx?.state === "running") {
+      ctx.suspend().catch(() => undefined);
+    }
+  }, []);
+
+  // Initialize audio context on first user interaction and react to global mute changes.
   useEffect(() => {
     const initContext = () => {
-      if (!audioContextRef.current) {
+      if (!audioContextRef.current && areChatNotificationsEnabled()) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
     };
 
-    // Initialize on user interaction
     const handleInteraction = () => {
       initContext();
       document.removeEventListener("click", handleInteraction);
       document.removeEventListener("keydown", handleInteraction);
     };
 
+    const handleToggle = () => {
+      const enabled = areChatNotificationsEnabled();
+      soundEnabledRef.current = enabled;
+      if (!enabled) {
+        stopAllSounds();
+      }
+    };
+
     document.addEventListener("click", handleInteraction);
     document.addEventListener("keydown", handleInteraction);
+    window.addEventListener(WHATSAPP_NOTIFICATIONS_TOGGLE_EVENT, handleToggle);
+    window.addEventListener("storage", handleToggle);
 
     return () => {
       document.removeEventListener("click", handleInteraction);
       document.removeEventListener("keydown", handleInteraction);
+      window.removeEventListener(WHATSAPP_NOTIFICATIONS_TOGGLE_EVENT, handleToggle);
+      window.removeEventListener("storage", handleToggle);
+      stopAllSounds();
     };
-  }, []);
+  }, [stopAllSounds]);
 
   const playTone = useCallback((frequency: number, duration: number, startTime: number = 0) => {
+    if (!soundEnabledRef.current || !areChatNotificationsEnabled()) return;
+
     const ctx = audioContextRef.current;
     if (!ctx) return;
 
     const oscillator = ctx.createOscillator();
     const gainNode = ctx.createGain();
+
+    activeOscillatorsRef.current.push(oscillator);
+
+    oscillator.onended = () => {
+      activeOscillatorsRef.current = activeOscillatorsRef.current.filter((item) => item !== oscillator);
+      try {
+        oscillator.disconnect();
+        gainNode.disconnect();
+      } catch {
+        // Already disconnected.
+      }
+    };
 
     oscillator.connect(gainNode);
     gainNode.connect(ctx.destination);
@@ -101,7 +153,10 @@ export function useNotificationSounds() {
   }, []);
 
   const playSound = useCallback((type: SoundType = "generic") => {
-    if (!soundEnabledRef.current) return;
+    if (!soundEnabledRef.current || !areChatNotificationsEnabled()) {
+      stopAllSounds();
+      return;
+    }
 
     const config = SOUND_CONFIGS[type];
     
@@ -148,7 +203,7 @@ export function useNotificationSounds() {
     } catch (err) {
       console.warn("Could not play notification sound:", err);
     }
-  }, [playTone]);
+  }, [playTone, stopAllSounds]);
 
   const playMessageSound = useCallback(() => {
     playSound("message");
@@ -171,8 +226,11 @@ export function useNotificationSounds() {
   }, [playSound]);
 
   const setSoundEnabled = useCallback((enabled: boolean) => {
-    soundEnabledRef.current = enabled;
-  }, []);
+    soundEnabledRef.current = enabled && areChatNotificationsEnabled();
+    if (!soundEnabledRef.current) {
+      stopAllSounds();
+    }
+  }, [stopAllSounds]);
 
   return {
     playSound,
@@ -182,5 +240,6 @@ export function useNotificationSounds() {
     playVisitSound,
     playQuestionsSound,
     setSoundEnabled,
+    stopAllSounds,
   };
 }
