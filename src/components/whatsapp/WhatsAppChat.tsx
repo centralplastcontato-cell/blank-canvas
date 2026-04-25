@@ -2997,6 +2997,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         preparedBlob = await prepareAudioBlobForWhatsApp(capturedBlob);
       } catch (conversionError) {
         console.warn('[sendRecordedAudio] Falha ao preparar áudio:', conversionError);
+        throw new Error('Falha ao preparar áudio para o WhatsApp. Tente gravar novamente.');
       }
 
       console.log('[sendRecordedAudio] Prepared blob:', { type: preparedBlob.type, size: preparedBlob.size });
@@ -3005,7 +3006,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const mimeBase = mimeType.split(';')[0].trim().toLowerCase();
       const storageExtension = mimeBase === 'audio/ogg'
         ? 'ogg'
-        : mimeBase === 'audio/mp4' || mimeBase === 'audio/aac'
+        : mimeBase === 'audio/webm'
+          ? 'webm'
+          : mimeBase === 'audio/mp4' || mimeBase === 'audio/aac'
           ? 'm4a'
           : mimeBase === 'audio/mpeg'
             ? 'mp3'
