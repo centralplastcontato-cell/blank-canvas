@@ -150,8 +150,32 @@ export function useAppNotifications() {
               return updated;
             });
 
-            // Play different sound based on notification type (respects mute toggle)
-            if (notificationsEnabledRef.current) {
+            // Tipos que devem ser SILENCIOSOS (apenas visuais na sininha):
+            // lead sem resposta, follow-ups, alertas de IC, tarefas, mudanças de temperatura, etc.
+            const SILENT_TYPES = new Set([
+              "lead_no_reply",
+              "lead_unanswered",
+              "follow_up_reminder",
+              "follow_up",
+              "followup_reminder",
+              "smart_alert",
+              "system_alert",
+              "tarefa_vencendo",
+              "tarefa_vencida",
+              "tarefa_atribuida",
+              "task_due",
+              "task_overdue",
+              "task_assigned",
+              "temperature_change",
+              "temperature_drop",
+              "lead_at_risk",
+              "lead_priority",
+            ]);
+
+            const isSilent = SILENT_TYPES.has(newNotification.type);
+
+            // Play sound + browser push apenas para tipos críticos (respeitando mute toggle)
+            if (notificationsEnabledRef.current && !isSilent) {
               if (newNotification.type === "visit_scheduled") {
                 playVisitSound();
               } else if (newNotification.type === "existing_client") {
