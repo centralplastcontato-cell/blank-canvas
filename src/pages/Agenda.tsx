@@ -184,7 +184,7 @@ export default function Agenda() {
 
   const [events, setEvents] = useState<CompanyEvent[]>([]);
   const [checklistProgress, setChecklistProgress] = useState<Record<string, { total: number; completed: number }>>({});
-  const [paymentStatus, setPaymentStatus] = useState<Record<string, { total: number; paid: number; pending: number; late: number; details: { amount: number; due_date: string; status: string }[] }>>({});
+  const [paymentStatus, setPaymentStatus] = useState<Record<string, { total: number; paid: number; pending: number; late: number; paidAmount: number; outstandingAmount: number; details: { amount: number; due_date: string; status: string }[] }>>({});
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -501,7 +501,7 @@ export default function Agenda() {
         .order("event_date", { ascending: true }),
       supabase
         .from("event_payments")
-        .select("event_id, status, due_date, amount")
+        .select("id, event_id, status, due_date, amount")
         .eq("company_id", currentCompany.id),
     ]);
 
@@ -511,6 +511,19 @@ export default function Agenda() {
     setClosedInPeriod(closedResult?.count || 0);
     setClosedRevenue(closedResult?.revenue || 0);
     setClosedEvents(closedResult?.events || []);
+
+    // Fetch partial entries (entradas parciais) for all parcelas in scope
+    const paymentIds = (paymentsRes.data || []).map((p: any) => p.id);
+    let entriesByPayment: Record<string, number> = {};
+    if (paymentIds.length > 0) {
+      const { data: entriesData } = await (supabase as any)
+        .from("event_payment_entries")
+        .select("payment_id, amount")
+        .in("payment_id", paymentIds);
+      (entriesData || []).forEach((e: any) => {
+        entriesByPayment[e.payment_id] = (entriesByPayment[e.payment_id] || 0) + Number(e.amount || 0);
+      });
+    }
 
     // Build checklist progress map
     const progressMap: Record<string, { total: number; completed: number }> = {};
@@ -523,20 +536,53 @@ export default function Agenda() {
 
     // Build payment status map
     const today = format(new Date(), "yyyy-MM-dd");
-    const pmMap: Record<string, { total: number; paid: number; pending: number; late: number; details: { amount: number; due_date: string; status: string }[] }> = {};
+    const pmMap: Record<string, { total: number; paid: number; pending: number; late: number; paidAmount: number; outstandingAmount: number; details: { amount: number; due_date: string; status: string }[] }> = {};
     (paymentsRes.data || []).forEach((p: any) => {
-      if (!pmMap[p.event_id]) pmMap[p.event_id] = { total: 0, paid: 0, pending: 0, late: 0, details: [] };
+      if (!pmMap[p.event_id]) pmMap[p.event_id] = { total: 0, paid: 0, pending: 0, late: 0, paidAmount: 0, outstandingAmount: 0, details: [] };
       pmMap[p.event_id].total++;
       const isLate = p.status !== "paid" && p.due_date && p.due_date < today;
       if (p.status === "paid") {
         pmMap[p.event_id].paid++;
+        pmMap[p.event_id].paidAmount += Number(p.amount || 0);
       } else if (isLate) {
         pmMap[p.event_id].late++;
+        pmMap[p.event_id].paidAmount += entriesByPayment[p.id] || 0;
       } else {
         pmMap[p.event_id].pending++;
+        pmMap[p.event_id].paidAmount += entriesByPayment[p.id] || 0;
       }
       if (p.status !== "paid") {
         pmMap[p.event_id].details.push({ amount: p.amount || 0, due_date: p.due_date || "", status: isLate ? "late" : "pending" });
+      }
+    });
+
+    // Compare against event total_value to detect uncovered balance (parcelas faltando)
+    const eventsList = (eventsRes.data || []) as CompanyEvent[];
+    eventsList.forEach((ev: any) => {
+      const totalValue = Number(ev.total_value || 0);
+      if (totalValue <= 0) return;
+      if (!pmMap[ev.id]) pmMap[ev.id] = { total: 0, paid: 0, pending: 0, late: 0, paidAmount: 0, outstandingAmount: 0, details: [] };
+      const entry = pmMap[ev.id];
+      const outstanding = Math.round((totalValue - entry.paidAmount) * 100) / 100;
+      entry.outstandingAmount = outstanding > 0 ? outstanding : 0;
+      // If there is uncovered balance not represented by any parcela, surface it
+      if (entry.outstandingAmount > 0.01) {
+        const sumOfPendingDetails = entry.details.reduce((s, d) => s + Number(d.amount || 0), 0);
+        const uncovered = Math.round((entry.outstandingAmount - sumOfPendingDetails) * 100) / 100;
+        if (uncovered > 0.01) {
+          const eventPassed = ev.event_date && ev.event_date < today;
+          if (eventPassed) {
+            entry.late++;
+          } else {
+            entry.pending++;
+          }
+          entry.total++;
+          entry.details.push({
+            amount: uncovered,
+            due_date: ev.event_date || "",
+            status: eventPassed ? "late" : "pending",
+          });
+        }
       }
     });
     setPaymentStatus(pmMap);
