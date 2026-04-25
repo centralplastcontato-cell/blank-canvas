@@ -184,7 +184,7 @@ export default function Agenda() {
 
   const [events, setEvents] = useState<CompanyEvent[]>([]);
   const [checklistProgress, setChecklistProgress] = useState<Record<string, { total: number; completed: number }>>({});
-  const [paymentStatus, setPaymentStatus] = useState<Record<string, { total: number; paid: number; pending: number; late: number; details: { amount: number; due_date: string; status: string }[] }>>({});
+  const [paymentStatus, setPaymentStatus] = useState<Record<string, { total: number; paid: number; pending: number; late: number; paidAmount: number; outstandingAmount: number; details: { amount: number; due_date: string; status: string }[] }>>({});
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
