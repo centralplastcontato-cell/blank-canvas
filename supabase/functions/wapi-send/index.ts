@@ -487,7 +487,7 @@ function getExtensionFromMimeType(mimeType: string | null | undefined): string {
 
 // Helper to find or create a conversation for LP/bot outbound messages
 async function findOrCreateConversation(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   phone: string,
   instanceExternalId: string,
   lpMode?: boolean,
@@ -646,7 +646,7 @@ function isZapiSessionConnected(statusData: Record<string, unknown> | null | und
 }
 
 async function hasRecentVerifiedActivity(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   instanceRecordId: string,
   windowMinutes = 30,
 ): Promise<boolean> {
@@ -678,7 +678,7 @@ async function hasRecentVerifiedActivity(
 }
 
 async function persistBlockedMessage(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   conversationId?: string,
   companyId?: string | null,
   messageContent?: string,
@@ -706,7 +706,7 @@ async function persistBlockedMessage(
 async function checkSessionHealth(
   instanceExternalId: string,
   instanceToken: string,
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   action: string,
   conversationId?: string,
   companyId?: string | null,
