@@ -689,7 +689,7 @@ async function processFollowUp({
     return { successCount: 0, errors: [String(followUpError)] };
   }
 
-  const alreadyFollowedUp = new Set((existingFollowUps || []).map(f => f.lead_id));
+  const alreadyFollowedUp = new Set((existingFollowUps || []).map((f: any) => f.lead_id));
   let leadsNeedingFollowUp = leadIds.filter(id => !alreadyFollowedUp.has(id));
 
   // For second follow-up: only process leads that received the first follow-up
@@ -706,7 +706,7 @@ async function processFollowUp({
       return { successCount: 0, errors: [String(prevError)] };
     }
 
-    const receivedPrevious = new Set((previousFollowUps || []).map(f => f.lead_id));
+    const receivedPrevious = new Set((previousFollowUps || []).map((f: any) => f.lead_id));
     leadsNeedingFollowUp = leadsNeedingFollowUp.filter(id => receivedPrevious.has(id));
   }
 
@@ -719,7 +719,7 @@ async function processFollowUp({
       .eq("last_message_from_me", false);
 
     // If the last message is from the contact, they replied - skip follow-up
-    const repliedLeads = new Set((conversations || []).map(c => c.lead_id));
+    const repliedLeads = new Set((conversations || []).map((c: any) => c.lead_id));
     leadsNeedingFollowUp = leadsNeedingFollowUp.filter(id => !repliedLeads.has(id));
     
     console.log(`[follow-up-check] After filtering replied leads: ${leadsNeedingFollowUp.length} leads need follow-up #${followUpNumber}`);
@@ -1213,7 +1213,7 @@ async function processAutoLost({
     return { successCount: 0, errors: [] };
   }
 
-  const leadIds = lastFollowUps.map(f => f.lead_id);
+  const leadIds = lastFollowUps.map((f: any) => f.lead_id);
 
   // Check which leads already have been auto-lost
   const { data: alreadyLost } = await supabase
@@ -1222,8 +1222,8 @@ async function processAutoLost({
     .in("lead_id", leadIds)
     .eq("action", "Lead movido para perdido automaticamente");
 
-  const alreadyLostSet = new Set((alreadyLost || []).map(l => l.lead_id));
-  const eligibleLeadIds = leadIds.filter(id => !alreadyLostSet.has(id));
+  const alreadyLostSet = new Set((alreadyLost || []).map((l: any) => l.lead_id));
+  const eligibleLeadIds = leadIds.filter((id: any) => !alreadyLostSet.has(id));
 
   if (eligibleLeadIds.length === 0) {
     console.log(`[follow-up-check] All leads already processed for auto-lost`);
@@ -1248,7 +1248,7 @@ async function processAutoLost({
   }
 
   // Filter: only leads whose conversation belongs to this instance AND last_message_from_me = true (no reply)
-  const activeLeadIds = activeLeads.map(l => l.id);
+  const activeLeadIds = activeLeads.map((l: any) => l.id);
   const { data: conversations } = await supabase
     .from("wapi_conversations")
     .select("lead_id")
@@ -1258,7 +1258,7 @@ async function processAutoLost({
     .not("remote_jid", "like", "%@g.us%");
 
   const leadsInInstance = new Set((conversations || []).map((c: { lead_id: string }) => c.lead_id));
-  const leadsToMark = activeLeads.filter(l => leadsInInstance.has(l.id));
+  const leadsToMark = activeLeads.filter((l: any) => leadsInInstance.has(l.id));
 
   console.log(`[follow-up-check] ${leadsToMark.length} leads will be marked as perdido (auto-lost)`);
 
@@ -1377,7 +1377,7 @@ async function providerSendText(
       });
     }
     if (!res.ok) {
-      const errText = await res.text();
+      const errText = await sendRes.error || 'unknown error';
       return { ok: false, messageId: null, error: errText };
     }
     const data = await res.json();
@@ -1648,7 +1648,7 @@ async function processFlowTimerTimeouts({
             last_message_from_me: true,
           }).eq('id', conv.id);
         } else {
-          const errText = await res.text();
+          const errText = await sendRes.error || 'unknown error';
           console.error(`[follow-up-check] Failed to send timer timeout message: ${errText}`);
         }
       }
@@ -1722,7 +1722,7 @@ async function processStaleRemindedAlerts({
   console.log(`[follow-up-check] Found ${staleConvs.length} leads stale at proximo_passo_reminded (2h+)`);
 
   // Check which leads already have this alert (avoid duplicates)
-  const leadIds = staleConvs.map(c => c.lead_id).filter(Boolean);
+  const leadIds = staleConvs.map((c: any) => c.lead_id).filter(Boolean);
   if (leadIds.length === 0) return;
 
   // Paginate to bypass Supabase's 1000-row default limit (otherwise leads beyond
@@ -1737,9 +1737,9 @@ async function processStaleRemindedAlerts({
       .in("lead_id", slice)
       .eq("action", "alerta_reminded_2h")
       .limit(slice.length);
-    (existingAlerts || []).forEach(a => a.lead_id && alreadyAlerted.add(a.lead_id));
+    (existingAlerts || []).forEach((a: any) => a.lead_id && alreadyAlerted.add(a.lead_id));
   }
-  const newStale = staleConvs.filter(c => c.lead_id && !alreadyAlerted.has(c.lead_id));
+  const newStale = staleConvs.filter((c: any) => c.lead_id && !alreadyAlerted.has(c.lead_id));
 
   if (newStale.length === 0) return;
 
@@ -1776,7 +1776,7 @@ async function processStaleRemindedAlerts({
       .eq("company_id", conv.company_id);
 
     if (companyUsers) {
-      const notifications = companyUsers.map(u => ({
+      const notifications = companyUsers.map((u: any) => ({
         user_id: u.user_id,
         company_id: conv.company_id,
         type: "stale_reminded",
