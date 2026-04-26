@@ -668,7 +668,7 @@ async function hasRecentVerifiedActivity(
 
   if (convError) return false;
 
-  const conversationIds = (recentConversations || []).map((conversation) => conversation.id);
+  const conversationIds = (recentConversations || []).map((conversation: { id: string }) => conversation.id);
   if (conversationIds.length === 0) return false;
 
   const { data: verifiedMessages, error: msgError } = await supabase
