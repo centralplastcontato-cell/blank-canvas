@@ -17,6 +17,16 @@ const MEGA_MAGIC_INSTANCE_ID = 'fff981eb-ebdd-49b6-9643-0251e252b586';
 const MEGA_MAGIC_PILOT_PHONE = '15981121710';
 
 type Provider = 'wapi' | 'zapi';
+type JsonRecord = Record<string, any>;
+
+function waitUntil(promise: Promise<unknown>): void {
+  const runtime = (globalThis as JsonRecord).EdgeRuntime as { waitUntil?: (promise: Promise<unknown>) => void } | undefined;
+  if (runtime?.waitUntil) {
+    runtime.waitUntil(promise);
+    return;
+  }
+  promise.catch((err) => console.error('[Background task] Unhandled error:', err));
+}
 
 function isMegaMagicPilotPhone(instanceId: string, contactPhone: string): boolean {
   if (instanceId !== MEGA_MAGIC_INSTANCE_ID) return false;
@@ -187,7 +197,7 @@ function extractZapiInteractiveText(value: unknown): string {
     return '';
   }
 
-  const record = value as Record<string, unknown>;
+  const record = value as JsonRecord;
 
   const directText = getFirstString([
     record.selectedDisplayText,
@@ -250,7 +260,7 @@ function extractZapiInteractiveId(value: unknown): string {
     return '';
   }
 
-  const record = value as Record<string, unknown>;
+  const record = value as JsonRecord;
 
   const directId = getFirstString([
     record.selectedButtonId,
@@ -520,8 +530,8 @@ function isClassicBotStepActive(step: string | null | undefined): boolean {
   return ACTIVE_CLASSIC_BOT_STEPS.includes(step || '');
 }
 
-function inferPendingClassicBotStep(botData: Record<string, unknown> | null | undefined): string | null {
-  const data = (botData || {}) as Record<string, unknown>;
+function inferPendingClassicBotStep(botData: JsonRecord | null | undefined): string | null {
+  const data = (botData || {}) as JsonRecord;
 
   if (!data.nome) return 'nome';
   if (!data.tipo) return 'tipo';
@@ -535,7 +545,7 @@ function inferPendingClassicBotStep(botData: Record<string, unknown> | null | un
 
 function shouldRecoverAccidentalHumanTakeover(
   provider: string | null | undefined,
-  conv: { bot_enabled: boolean | null; bot_step: string | null; bot_data: Record<string, unknown> | null; lead_id: string | null },
+  conv: { bot_enabled: boolean | null; bot_step: string | null; bot_data: JsonRecord | null; lead_id: string | null },
 ): string | null {
   if (provider !== 'zapi') return null;
   if (conv.bot_enabled !== false || conv.bot_step !== 'human_takeover') return null;
@@ -714,7 +724,7 @@ async function sendTextViaWapiWithFallback(
   delayTyping = 1
 ): Promise<{ messageId: string | null; attempt: string | null }> {
   const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
-  const attempts: Array<{ name: string; body: Record<string, unknown> }> = [
+  const attempts: Array<{ name: string; body: JsonRecord }> = [
     { name: 'phone+message', body: { phone, message, delayTyping } },
     { name: 'phone+text', body: { phone, text: message, delayTyping } },
     { name: 'phoneNumber+message', body: { phoneNumber: phone, message, delayTyping } },
@@ -771,7 +781,7 @@ async function sendBotMessage(instanceId: string, instanceToken: string, remoteJ
 
     if (_activeProvider === 'zapi') {
       const res = await zapiRequest(instanceId, instanceToken, _activeClientToken, 'send-text', 'POST', { phone, message });
-      const msgId = res.data ? ((res.data as Record<string, unknown>).zapiMessageId || (res.data as Record<string, unknown>).messageId) as string || null : null;
+      const msgId = res.data ? ((res.data as JsonRecord).zapiMessageId || (res.data as JsonRecord).messageId) as string || null : null;
       console.log(`[Bot] Z-API send-text response: msgId=${msgId}`);
       return msgId;
     }
@@ -834,6 +844,18 @@ function parseNumberedOptions(text: string): { body: string; options: { id: stri
 }
 
 /** Send interactive message (buttons or list) for Mega Magic Z-API, fallback to text. */
+
+async function sendWithDelay(
+  instance: { id: string; instance_id: string; instance_token: string; provider?: string },
+  remoteJid: string,
+  message: string,
+  delaySeconds?: number | null
+): Promise<string | null> {
+  const waitMs = Math.max(0, delaySeconds ?? 0) * 1000;
+  if (waitMs > 0) await delay(waitMs);
+  return sendInteractiveOrText(instance.instance_id, instance.instance_token, remoteJid, message, instance);
+}
+
 async function sendInteractiveOrText(
   instanceId: string,
   instanceToken: string,
@@ -868,7 +890,7 @@ async function sendInteractiveOrText(
         })),
       });
       if (res.ok) {
-        const msgId = res.data ? ((res.data as Record<string, unknown>).zaapId || (res.data as Record<string, unknown>).zapiMessageId || (res.data as Record<string, unknown>).messageId) as string || null : null;
+        const msgId = res.data ? ((res.data as JsonRecord).zaapId || (res.data as JsonRecord).zapiMessageId || (res.data as JsonRecord).messageId) as string || null : null;
         console.log(`[Bot-Interactive] Button send OK, msgId=${msgId}`);
         return msgId;
       }
@@ -889,7 +911,7 @@ async function sendInteractiveOrText(
         },
       });
       if (res.ok) {
-        const msgId = res.data ? ((res.data as Record<string, unknown>).zaapId || (res.data as Record<string, unknown>).zapiMessageId || (res.data as Record<string, unknown>).messageId) as string || null : null;
+        const msgId = res.data ? ((res.data as JsonRecord).zaapId || (res.data as JsonRecord).zapiMessageId || (res.data as JsonRecord).messageId) as string || null : null;
         console.log(`[Bot-Interactive] List send OK, msgId=${msgId}`);
         return msgId;
       }
@@ -909,7 +931,7 @@ async function sendBotImage(instanceId: string, instanceToken: string, remoteJid
 
     if (_activeProvider === 'zapi') {
       const res = await zapiRequest(instanceId, instanceToken, _activeClientToken, 'send-image', 'POST', { phone, image: imageUrl, caption: caption || '' });
-      const msgId = res.data ? ((res.data as Record<string, unknown>).zapiMessageId || (res.data as Record<string, unknown>).messageId) as string || null : null;
+      const msgId = res.data ? ((res.data as JsonRecord).zapiMessageId || (res.data as JsonRecord).messageId) as string || null : null;
       return msgId;
     }
 
@@ -945,7 +967,7 @@ async function sendBotVideo(instanceId: string, instanceToken: string, remoteJid
 
     if (_activeProvider === 'zapi') {
       const res = await zapiRequest(instanceId, instanceToken, _activeClientToken, 'send-video', 'POST', { phone, video: videoUrl, caption: caption || '' });
-      const msgId = res.data ? ((res.data as Record<string, unknown>).zapiMessageId || (res.data as Record<string, unknown>).messageId) as string || null : null;
+      const msgId = res.data ? ((res.data as JsonRecord).zapiMessageId || (res.data as JsonRecord).messageId) as string || null : null;
       return msgId;
     }
 
@@ -970,7 +992,7 @@ async function sendBotDocument(instanceId: string, instanceToken: string, remote
 
     if (_activeProvider === 'zapi') {
       const res = await zapiRequest(instanceId, instanceToken, _activeClientToken, `send-document/${ext}`, 'POST', { phone, document: docUrl, fileName });
-      const msgId = res.data ? ((res.data as Record<string, unknown>).zapiMessageId || (res.data as Record<string, unknown>).messageId) as string || null : null;
+      const msgId = res.data ? ((res.data as JsonRecord).zapiMessageId || (res.data as JsonRecord).messageId) as string || null : null;
       return msgId;
     }
 
@@ -992,7 +1014,7 @@ async function sendBotDocument(instanceId: string, instanceToken: string, remote
 async function processFlowBuilderMessage(
   supabase: SupabaseClient,
   instance: { id: string; instance_id: string; instance_token: string; unit: string | null; company_id: string; provider?: string; client_token?: string | null },
-  conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: Record<string, unknown> | null; lead_id: string | null },
+  conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: JsonRecord | null; lead_id: string | null },
   content: string,
   contactPhone: string,
   contactName: string | null
@@ -1196,7 +1218,7 @@ async function processFlowBuilderMessage(
 
       // Build options list for OpenAI
       const optionsList = qualifyOptions.map((o, i) => `${i + 1}. value="${o.value}" label="${o.label}"`).join('\n');
-      const qualifyContext = (currentNode.action_config as Record<string, unknown>)?.qualify_context as string || '';
+      const qualifyContext = (currentNode.action_config as JsonRecord)?.qualify_context as string || '';
       
       console.log(`[FlowBuilder] 🧠 Qualifying response via OpenAI. Options: ${qualifyOptions.map(o => o.label).join(', ')}`);
 
@@ -1451,7 +1473,7 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
         if (currentNode.allow_ai_interpretation) {
           // Use real LLM classification (same logic as qualify node)
           const optionsList = nodeOptions.map((o: any, i: number) => `${i + 1}. value="${o.value}" label="${o.label}"`).join('\n');
-          const qualifyContext = (currentNode.action_config as Record<string, unknown>)?.qualify_context as string || '';
+          const qualifyContext = (currentNode.action_config as JsonRecord)?.qualify_context as string || '';
 
           let aiMatchedValue: string | null = null;
           let aiMatchedLabel: string | null = null;
@@ -1627,7 +1649,7 @@ function validateFreeText(input: string): { valid: boolean; error?: string } {
 async function advanceFlowFromNode(
   supabase: SupabaseClient,
   instance: { id: string; instance_id: string; instance_token: string; unit: string | null; company_id: string },
-  conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: Record<string, unknown> | null; lead_id: string | null },
+  conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: JsonRecord | null; lead_id: string | null },
   state: { id: string; collected_data: unknown },
   currentNode: { id: string; node_type: string; title: string; message_template: string | null; action_type: string | null; action_config: unknown; extract_field: string | null; require_extraction: boolean | null },
   allNodes: typeof currentNode[],
@@ -1786,7 +1808,7 @@ async function advanceFlowFromNode(
     
     case 'action': {
       const actionType = currentNode.action_type;
-      const actionConfig = (currentNode.action_config || {}) as Record<string, unknown>;
+      const actionConfig = (currentNode.action_config || {}) as JsonRecord;
       
       console.log(`[FlowBuilder] Executing action: ${actionType}`);
       
@@ -2174,7 +2196,7 @@ async function advanceFlowFromNode(
     
     case 'delay': {
       // Wait for configured seconds, then auto-advance
-      const delaySec = ((currentNode.action_config as Record<string, unknown>)?.delay_seconds as number) || 5;
+      const delaySec = ((currentNode.action_config as JsonRecord)?.delay_seconds as number) || 5;
       console.log(`[FlowBuilder] ⏳ Delay node: waiting ${delaySec}s`);
       await new Promise(r => setTimeout(r, delaySec * 1000));
       
@@ -2190,7 +2212,7 @@ async function advanceFlowFromNode(
     
     case 'timer': {
       // Send optional message and wait for reply with timeout
-      console.log(`[FlowBuilder] ⏱️ Timer node: waiting for reply (timeout: ${((currentNode.action_config as Record<string, unknown>)?.timeout_minutes as number) || 10}min)`);
+      console.log(`[FlowBuilder] ⏱️ Timer node: waiting for reply (timeout: ${((currentNode.action_config as JsonRecord)?.timeout_minutes as number) || 10}min)`);
       
       if (currentNode.message_template) {
         const msg = replaceVars(currentNode.message_template);
@@ -2280,7 +2302,7 @@ async function syncCollectedDataToLead(
   contactName: string | null
 ) {
   const n = normalizePhone(contactPhone);
-  const leadData: Record<string, unknown> = {};
+  const leadData: JsonRecord = {};
   
   // Map both legacy bot field names and Flow Builder extract field names
   if (data.nome || data.customer_name) leadData.name = data.customer_name || data.nome;
@@ -2325,7 +2347,7 @@ async function syncCollectedDataToLead(
 async function processBotQualification(
   supabase: SupabaseClient,
   instance: { id: string; instance_id: string; instance_token: string; unit: string | null; company_id: string },
-  conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: Record<string, unknown> | null; lead_id: string | null },
+  conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: JsonRecord | null; lead_id: string | null },
   content: string, contactPhone: string, contactName: string | null
 ) {
   // ── SANDBOX: número-piloto sempre vai para o Flow Builder V2 ─────
@@ -2600,7 +2622,7 @@ async function processBotQualification(
           const defaultNextStepQuestion = `E agora, como você gostaria de continuar? 🤔\n\nResponda com o *número*:\n\n${buildMenuText(PROXIMO_PASSO_OPTIONS)}`;
           const nextStepQuestion = settings.next_step_question || defaultNextStepQuestion;
           
-          EdgeRuntime.waitUntil(
+          waitUntil(
             sendQualificationMaterialsThenQuestion(
               supabase,
               instance,
@@ -2664,9 +2686,9 @@ async function processBotQualification(
   let msg: string = '';
   const updated = { ...botData };
   // Clear inactive reminder flag so follow-up can re-trigger if lead stops again at next step
-  delete (updated as Record<string, unknown>)._inactive_reminded;
-  delete (updated as Record<string, unknown>)._claimed_step;
-  delete (updated as Record<string, unknown>)._claimed_at;
+  delete (updated as JsonRecord)._inactive_reminded;
+  delete (updated as JsonRecord)._claimed_step;
+  delete (updated as JsonRecord)._claimed_at;
 
   // Buscar nome da empresa para variáveis de template
   let companyName = '';
@@ -2693,7 +2715,7 @@ async function processBotQualification(
   } else if (questions[step] || step === 'proximo_passo' || step === 'proximo_passo_reminded') {
     // Check if lead is responding "1" to the inactive follow-up "Responda *1* para continuar"
     // In that case, re-send the current question instead of validating "1" as an answer
-    const wasInactiveReminded = (conv.bot_data as Record<string, unknown>)?._inactive_reminded === true;
+    const wasInactiveReminded = (conv.bot_data as JsonRecord)?._inactive_reminded === true;
     if (wasInactiveReminded && content.trim() === '1' && step !== 'proximo_passo' && step !== 'proximo_passo_reminded') {
       const currentQ = questions[step];
       msg = currentQ?.question || (DEFAULT_QUESTIONS as Record<string, { question: string }>)[step]?.question || 'Por favor, responda a pergunta acima:';
@@ -3251,7 +3273,7 @@ async function processBotQualification(
     const nextStepQuestion = settings.next_step_question || defaultNextStepQuestion;
     
     // Use background task to send materials, then send the next step question
-    EdgeRuntime.waitUntil(
+    waitUntil(
       sendQualificationMaterialsThenQuestion(
         supabase,
         instance,
@@ -3298,7 +3320,7 @@ async function sendBotActionViaWapiSend(
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const body: Record<string, unknown> = {
+    const body: JsonRecord = {
       action,
       phone,
       instanceId: instance.instance_id,
@@ -3323,11 +3345,11 @@ async function sendBotActionViaWapiSend(
     });
 
     const rawText = await response.text();
-    let parsed: Record<string, unknown> | null = null;
+    let parsed: JsonRecord | null = null;
 
     if (rawText) {
       try {
-        parsed = JSON.parse(rawText) as Record<string, unknown>;
+        parsed = JSON.parse(rawText) as JsonRecord;
       } catch (_) {
         parsed = null;
       }
@@ -3343,7 +3365,7 @@ async function sendBotActionViaWapiSend(
       return null;
     }
 
-    const nestedData = parsed?.data as Record<string, unknown> | undefined;
+    const nestedData = parsed?.data as JsonRecord | undefined;
     const messageId = typeof parsed?.messageId === 'string'
       ? parsed.messageId
       : typeof nestedData?.messageId === 'string'
@@ -3878,15 +3900,15 @@ async function fetchAndUpdateProfilePicture(
   }
 }
 
-function extractMsgContent(mc: Record<string, unknown>, msg: Record<string, unknown>) {
+function extractMsgContent(mc: JsonRecord, msg: JsonRecord) {
   let type = 'text', content = '', url: string | null = null, key: string | null = null, path: string | null = null, fn: string | undefined, download = false, mime: string | null = null;
   
-  if (mc.locationMessage) { type = 'location'; const l = mc.locationMessage as Record<string, unknown>; content = `📍 Localização: ${(l.degreesLatitude as number)?.toFixed(6) || '?'}, ${(l.degreesLongitude as number)?.toFixed(6) || '?'}`; }
+  if (mc.locationMessage) { type = 'location'; const l = mc.locationMessage as JsonRecord; content = `📍 Localização: ${(l.degreesLatitude as number)?.toFixed(6) || '?'}, ${(l.degreesLongitude as number)?.toFixed(6) || '?'}`; }
   else if (mc.liveLocationMessage) { type = 'location'; content = '📍 Localização ao vivo'; }
   else if (mc.contactMessage || mc.contactsArrayMessage) {
     type = 'contact';
     if (mc.contactsArrayMessage) {
-      const arr = (mc.contactsArrayMessage as Record<string, unknown>).contacts as Array<Record<string, unknown>> | undefined;
+      const arr = (mc.contactsArrayMessage as JsonRecord).contacts as Array<JsonRecord> | undefined;
       console.log(`[Contact] contactsArrayMessage received, contacts count: ${arr?.length || 0}`);
       if (arr && arr.length > 0) {
         const parts = arr.map((c) => {
@@ -3901,7 +3923,7 @@ function extractMsgContent(mc: Record<string, unknown>, msg: Record<string, unkn
         content = '👤 Contato';
       }
     } else {
-      const cm = mc.contactMessage as Record<string, unknown>;
+      const cm = mc.contactMessage as JsonRecord;
       const displayName = cm?.displayName || 'Contato';
       const vcard = cm?.vcard as string | undefined;
       console.log(`[Contact] contactMessage received for "${displayName}", vCard:`, vcard?.substring(0, 300));
@@ -3913,7 +3935,7 @@ function extractMsgContent(mc: Record<string, unknown>, msg: Record<string, unkn
   else if (mc.stickerMessage) { type = 'sticker'; content = '🎭 Figurinha'; }
   // Z-API interactive response: button click
   else if (mc.buttonsResponseMessage) {
-    const br = mc.buttonsResponseMessage as Record<string, unknown>;
+    const br = mc.buttonsResponseMessage as JsonRecord;
     const replyText = extractZapiInteractiveText(br);
     const replyId = extractZapiInteractiveId(br);
     content = replyText || replyId;
@@ -3921,7 +3943,7 @@ function extractMsgContent(mc: Record<string, unknown>, msg: Record<string, unkn
   }
   // Z-API interactive response: list selection
   else if (mc.listResponseMessage) {
-    const lr = mc.listResponseMessage as Record<string, unknown>;
+    const lr = mc.listResponseMessage as JsonRecord;
     const replyText = extractZapiInteractiveText(lr);
     const replyId = extractZapiInteractiveId(lr);
     content = replyText || replyId;
@@ -3929,26 +3951,26 @@ function extractMsgContent(mc: Record<string, unknown>, msg: Record<string, unkn
   }
   else if (mc.reactionMessage) return null;
   else if (mc.pollCreationMessage || mc.pollUpdateMessage) { type = 'poll'; content = '📊 Enquete'; }
-  else if ((mc as Record<string, unknown>).conversation) content = (mc as Record<string, string>).conversation;
-  else if ((mc.extendedTextMessage as Record<string, unknown>)?.text) content = ((mc.extendedTextMessage as Record<string, unknown>).text as string);
-  else if (mc.imageMessage) { const m = mc.imageMessage as Record<string, unknown>; type = 'image'; content = (m.caption as string) || '[Imagem]'; url = m.url as string || null; key = m.mediaKey as string || null; path = m.directPath as string || null; download = true; mime = m.mimetype as string || null; }
-  else if (mc.videoMessage) { const m = mc.videoMessage as Record<string, unknown>; type = 'video'; content = (m.caption as string) || '[Vídeo]'; url = m.url as string || null; key = m.mediaKey as string || null; path = m.directPath as string || null; download = true; mime = m.mimetype as string || null; }
-  else if (mc.audioMessage) { const m = mc.audioMessage as Record<string, unknown>; type = 'audio'; content = '[Áudio]'; url = m.url as string || null; key = m.mediaKey as string || null; path = m.directPath as string || null; download = true; mime = m.mimetype as string || null; }
-  else if (mc.documentMessage) { const m = mc.documentMessage as Record<string, unknown>; type = 'document'; content = (m.fileName as string) || '[Documento]'; fn = m.fileName as string; url = m.url as string || null; key = m.mediaKey as string || null; path = m.directPath as string || null; download = true; mime = m.mimetype as string || null; }
-  else if (mc.documentWithCaptionMessage) { const d = ((mc.documentWithCaptionMessage as Record<string, unknown>).message as Record<string, unknown>)?.documentMessage as Record<string, unknown>; if (d) { type = 'document'; content = (d.caption as string) || (d.fileName as string) || '[Documento]'; fn = d.fileName as string; url = d.url as string || null; key = d.mediaKey as string || null; path = d.directPath as string || null; download = true; mime = d.mimetype as string || null; } }
+  else if ((mc as JsonRecord).conversation) content = (mc as Record<string, string>).conversation;
+  else if ((mc.extendedTextMessage as JsonRecord)?.text) content = ((mc.extendedTextMessage as JsonRecord).text as string);
+  else if (mc.imageMessage) { const m = mc.imageMessage as JsonRecord; type = 'image'; content = (m.caption as string) || '[Imagem]'; url = m.url as string || null; key = m.mediaKey as string || null; path = m.directPath as string || null; download = true; mime = m.mimetype as string || null; }
+  else if (mc.videoMessage) { const m = mc.videoMessage as JsonRecord; type = 'video'; content = (m.caption as string) || '[Vídeo]'; url = m.url as string || null; key = m.mediaKey as string || null; path = m.directPath as string || null; download = true; mime = m.mimetype as string || null; }
+  else if (mc.audioMessage) { const m = mc.audioMessage as JsonRecord; type = 'audio'; content = '[Áudio]'; url = m.url as string || null; key = m.mediaKey as string || null; path = m.directPath as string || null; download = true; mime = m.mimetype as string || null; }
+  else if (mc.documentMessage) { const m = mc.documentMessage as JsonRecord; type = 'document'; content = (m.fileName as string) || '[Documento]'; fn = m.fileName as string; url = m.url as string || null; key = m.mediaKey as string || null; path = m.directPath as string || null; download = true; mime = m.mimetype as string || null; }
+  else if (mc.documentWithCaptionMessage) { const d = ((mc.documentWithCaptionMessage as JsonRecord).message as JsonRecord)?.documentMessage as JsonRecord; if (d) { type = 'document'; content = (d.caption as string) || (d.fileName as string) || '[Documento]'; fn = d.fileName as string; url = d.url as string || null; key = d.mediaKey as string || null; path = d.directPath as string || null; download = true; mime = d.mimetype as string || null; } }
   else if ((msg as Record<string, string>).body || (msg as Record<string, string>).text) content = (msg as Record<string, string>).body || (msg as Record<string, string>).text;
   
   return { type, content, url, key, path, fn, download, mime };
 }
 
-function getPreview(mc: Record<string, unknown>, msg: Record<string, unknown>): string {
-  if ((mc as Record<string, unknown>).conversation) return (mc as Record<string, string>).conversation;
-  if ((mc.extendedTextMessage as Record<string, unknown>)?.text) return ((mc.extendedTextMessage as Record<string, unknown>).text as string);
+function getPreview(mc: JsonRecord, msg: JsonRecord): string {
+  if ((mc as JsonRecord).conversation) return (mc as Record<string, string>).conversation;
+  if ((mc.extendedTextMessage as JsonRecord)?.text) return ((mc.extendedTextMessage as JsonRecord).text as string);
   if (mc.imageMessage) return '📷 Imagem';
   if (mc.videoMessage) return '🎥 Vídeo';
   if (mc.audioMessage) return '🎤 Áudio';
-  if (mc.documentMessage) return '📄 ' + ((mc.documentMessage as Record<string, unknown>).fileName || 'Documento');
-  if (mc.documentWithCaptionMessage) return '📄 ' + (((mc.documentWithCaptionMessage as Record<string, unknown>).message as Record<string, unknown>)?.documentMessage as Record<string, unknown>)?.fileName || 'Documento';
+  if (mc.documentMessage) return '📄 ' + ((mc.documentMessage as JsonRecord).fileName || 'Documento');
+  if (mc.documentWithCaptionMessage) return '📄 ' + (((mc.documentWithCaptionMessage as JsonRecord).message as JsonRecord)?.documentMessage as JsonRecord)?.fileName || 'Documento';
   if (mc.locationMessage) return '📍 Localização';
   if (mc.contactMessage || mc.contactsArrayMessage) return '👤 Contato';
   if (mc.stickerMessage) return '🎭 Figurinha';
@@ -3960,7 +3982,7 @@ function getPreview(mc: Record<string, unknown>, msg: Record<string, unknown>): 
 async function handleVisitConfirmationResponse(
   supabase: SupabaseClient,
   instance: { id: string; instance_id: string; instance_token: string; unit: string | null; company_id: string },
-  conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: Record<string, unknown> | null; lead_id: string | null },
+  conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: JsonRecord | null; lead_id: string | null },
   content: string
 ): Promise<boolean> {
   if (!conv.lead_id) return false;
@@ -4123,7 +4145,7 @@ async function handleVisitConfirmationResponse(
 async function handleReactivationResponse(
   supabase: SupabaseClient,
   instance: { id: string; instance_id: string; instance_token: string; unit: string | null; company_id: string },
-  conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: Record<string, unknown> | null; lead_id: string | null },
+  conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: JsonRecord | null; lead_id: string | null },
   content: string
 ): Promise<boolean> {
   // Only handle if conversation has a lead
@@ -4208,7 +4230,7 @@ async function handleReactivationResponse(
       .limit(5);
     
     const hasHumanMsg = (humanReply2 || []).some(m => {
-      const meta = m.metadata as Record<string, unknown> | null;
+      const meta = m.metadata as JsonRecord | null;
       return !meta || meta.source !== 'reactivation_engine';
     });
     if (hasHumanMsg) {
@@ -4397,7 +4419,7 @@ async function handleReactivationResponse(
 }
 
 // Background processor - runs after response is sent
-async function processWebhookEvent(body: Record<string, unknown>) {
+async function processWebhookEvent(body: JsonRecord) {
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
   
   const { event, instanceId, data } = body;
@@ -4425,7 +4447,7 @@ async function processWebhookEvent(body: Record<string, unknown>) {
 
   // If event is undefined but body contains message-like data, treat as message
   if (!evt) {
-    const rawD = data as Record<string, unknown> | undefined;
+    const rawD = data as JsonRecord | undefined;
     const hasKey = rawD?.key || body.key;
     const hasRemoteJid = rawD?.key?.remoteJid || rawD?.remoteJid || rawD?.from || body.key?.remoteJid || body.remoteJid || body.from;
     const hasMessageContent = rawD?.message || rawD?.msgContent || rawD?.body || rawD?.text || body.message || body.body || body.text || body.msgContent;
@@ -4470,8 +4492,8 @@ async function processWebhookEvent(body: Record<string, unknown>) {
 
   switch (evt) {
     case 'connection': case 'webhookConnected': {
-      const c = (data as Record<string, unknown>)?.connected ?? body.connected ?? false;
-      const connPhone = (data as Record<string, unknown>)?.phone || body.connectedPhone || null;
+      const c = (data as JsonRecord)?.connected ?? body.connected ?? false;
+      const connPhone = (data as JsonRecord)?.phone || body.connectedPhone || null;
       
       // === PHASE 2: Don't mark as 'connected' without a phone number ===
       if (c && !connPhone) {
@@ -4521,15 +4543,15 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       
        // For messages.upsert, the message data is directly in `data` (with key, pushName, message, etc.)
       // For other events, message may be nested in data.message
-      const rawData = data as Record<string, unknown>;
+      const rawData = data as JsonRecord;
       console.log(`[Debug-0] evt=${evt}, rawData keys: [${rawData ? Object.keys(rawData).join(',') : 'null'}], body keys: [${Object.keys(body).join(',')}]`);
-      const msg = rawData?.key ? rawData : (rawData?.message as Record<string, unknown>) || rawData || body;
+      const msg = rawData?.key ? rawData : (rawData?.message as JsonRecord) || rawData || body;
       if (!msg) { console.log('[Debug-0] msg is null, breaking'); break; }
-      const mc = (msg as Record<string, unknown>).message || (msg as Record<string, unknown>).msgContent || {};
+      const mc = (msg as JsonRecord).message || (msg as JsonRecord).msgContent || {};
       console.log(`[Debug-0] msg keys: [${Object.keys(msg as object).join(',')}], mc keys: [${Object.keys(mc as object).join(',')}], mc type: ${typeof mc}`);
-      if ((mc as Record<string, unknown>).protocolMessage) break;
+      if ((mc as JsonRecord).protocolMessage) break;
       
-      let rj = (msg as Record<string, unknown>).key?.remoteJid || (msg as Record<string, unknown>).from || (msg as Record<string, unknown>).remoteJid || ((msg as Record<string, unknown>).chat?.id ? `${(msg as Record<string, unknown>).chat?.id}` : null) || ((msg as Record<string, unknown>).sender?.id ? `${(msg as Record<string, unknown>).sender?.id}@s.whatsapp.net` : null);
+      let rj = (msg as JsonRecord).key?.remoteJid || (msg as JsonRecord).from || (msg as JsonRecord).remoteJid || ((msg as JsonRecord).chat?.id ? `${(msg as JsonRecord).chat?.id}` : null) || ((msg as JsonRecord).sender?.id ? `${(msg as JsonRecord).sender?.id}@s.whatsapp.net` : null);
       if (!rj) break;
       const isGrp = (rj as string).includes('@g.us');
       if (!isGrp && !(rj as string).includes('@')) rj = `${rj}@s.whatsapp.net`;
@@ -4541,15 +4563,15 @@ async function processWebhookEvent(body: Record<string, unknown>) {
         break;
       }
       
-      const fromMe = (msg as Record<string, unknown>).key?.fromMe || (msg as Record<string, unknown>).fromMe || false;
-      const msgId = (msg as Record<string, unknown>).key?.id || (msg as Record<string, unknown>).id || (msg as Record<string, unknown>).messageId;
+      const fromMe = (msg as JsonRecord).key?.fromMe || (msg as JsonRecord).fromMe || false;
+      const msgId = (msg as JsonRecord).key?.id || (msg as JsonRecord).id || (msg as JsonRecord).messageId;
       const phone = (rj as string).replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace('@lid', '');
       
-      let cName = isGrp ? ((msg as Record<string, unknown>).chat?.name || (msg as Record<string, unknown>).groupName || (msg as Record<string, unknown>).subject || null) : ((msg as Record<string, unknown>).pushName || (msg as Record<string, unknown>).verifiedBizName || (msg as Record<string, unknown>).sender?.pushName || phone);
-      const cPic = (msg as Record<string, unknown>).chat?.profilePicture || (msg as Record<string, unknown>).sender?.profilePicture || null;
+      let cName = isGrp ? ((msg as JsonRecord).chat?.name || (msg as JsonRecord).groupName || (msg as JsonRecord).subject || null) : ((msg as JsonRecord).pushName || (msg as JsonRecord).verifiedBizName || (msg as JsonRecord).sender?.pushName || phone);
+      const cPic = (msg as JsonRecord).chat?.profilePicture || (msg as JsonRecord).sender?.profilePicture || null;
 
-      if (Object.keys(mc as object).length === 0 && !(msg as Record<string, unknown>).body && !(msg as Record<string, unknown>).text) { console.log(`[Debug-0] mc empty + no body/text, breaking. msg sample: ${JSON.stringify(msg).substring(0, 400)}`); break; }
-      if ((mc as Record<string, unknown>).call || (mc as Record<string, unknown>).callLogMessage || (mc as Record<string, unknown>).bcallMessage || (mc as Record<string, unknown>).missedCallMessage || (msg as Record<string, unknown>).type === 'call' || (msg as Record<string, unknown>).callId) break;
+      if (Object.keys(mc as object).length === 0 && !(msg as JsonRecord).body && !(msg as JsonRecord).text) { console.log(`[Debug-0] mc empty + no body/text, breaking. msg sample: ${JSON.stringify(msg).substring(0, 400)}`); break; }
+      if ((mc as JsonRecord).call || (mc as JsonRecord).callLogMessage || (mc as JsonRecord).bcallMessage || (mc as JsonRecord).missedCallMessage || (msg as JsonRecord).type === 'call' || (msg as JsonRecord).callId) break;
 
        // Extract message content early (no DB call)
       const mcKeys = Object.keys(mc as object);
@@ -4559,7 +4581,7 @@ async function processWebhookEvent(body: Record<string, unknown>) {
         console.log(`[Debug] msg.body: ${(msg as Record<string,unknown>).body}, msg.text: ${(msg as Record<string,unknown>).text}, msg.type: ${(msg as Record<string,unknown>).type}`);
         console.log(`[Debug] Full msg sample: ${JSON.stringify(msg).substring(0, 500)}`);
       }
-      const ext = extractMsgContent(mc as Record<string, unknown>, msg as Record<string, unknown>);
+      const ext = extractMsgContent(mc as JsonRecord, msg as JsonRecord);
       if (!ext) break;
       let { type, content, url, key, path, fn, download, mime } = ext;
 
@@ -4571,11 +4593,11 @@ async function processWebhookEvent(body: Record<string, unknown>) {
 
       console.log(`[Debug] Extracted: type=${type}, download=${download}, hasUrl=${!!url}, hasKey=${!!key}, hasPath=${!!path}, msgId=${msgId}`);
       
-      const preview = getPreview(mc as Record<string, unknown>, msg as Record<string, unknown>);
-      const messageTimestamp = (msg as Record<string, unknown>).messageTimestamp 
-        ? new Date(((msg as Record<string, unknown>).messageTimestamp as number) * 1000).toISOString() 
-        : (msg as Record<string, unknown>).moment 
-          ? new Date(((msg as Record<string, unknown>).moment as number) * 1000).toISOString() 
+      const preview = getPreview(mc as JsonRecord, msg as JsonRecord);
+      const messageTimestamp = (msg as JsonRecord).messageTimestamp 
+        ? new Date(((msg as JsonRecord).messageTimestamp as number) * 1000).toISOString() 
+        : (msg as JsonRecord).moment 
+          ? new Date(((msg as JsonRecord).moment as number) * 1000).toISOString() 
           : new Date().toISOString();
       
       // ⏱️ LATENCY: Log after parsing, before DB operations
@@ -4583,7 +4605,7 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       
       // Fetch existing conversation (single DB call) - use maybeSingle to handle 0 or 1 rows
       const { data: ex, error: exErr } = await supabase.from('wapi_conversations')
-        .select('id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, lead_id')
+        .select('id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id')
         .eq('instance_id', instance.id)
         .eq('remote_jid', rj)
         .maybeSingle();
@@ -4594,12 +4616,12 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       
       console.log(`[Latency] conversation_fetch: ${Date.now() - processingStartAt}ms, found: ${!!ex}`);
       
-      let conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: Record<string, unknown> | null; lead_id: string | null };
+      let conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: JsonRecord | null; lead_id: string | null };
       
       if (ex) {
         conv = ex;
         // Build update object
-        const upd: Record<string, unknown> = { 
+        const upd: JsonRecord = { 
           last_message_at: new Date().toISOString(), 
           unread_count: fromMe ? ex.unread_count : (ex.unread_count || 0) + 1, 
           last_message_content: preview.substring(0, 100), 
@@ -4629,7 +4651,7 @@ async function processWebhookEvent(body: Record<string, unknown>) {
           }
         }
         if (isGrp) { 
-          const gn = (msg as Record<string, unknown>).chat?.name || (msg as Record<string, unknown>).groupName || (msg as Record<string, unknown>).subject; 
+          const gn = (msg as JsonRecord).chat?.name || (msg as JsonRecord).groupName || (msg as JsonRecord).subject; 
           if (gn && gn !== ex.contact_name) upd.contact_name = gn; 
         } else if (!fromMe && cName && cName !== ex.contact_name) {
           // Only update contact_name from INCOMING messages — outgoing messages
@@ -4733,8 +4755,8 @@ async function processWebhookEvent(body: Record<string, unknown>) {
           console.log(`[Bot] Skipping duplicate outgoing message ${msgId} - already saved`);
         } else {
           const grpMeta1 = isGrp ? {
-            participant: ((msg as Record<string, unknown>).key?.participant || (msg as Record<string, unknown>).participant || '').replace('@s.whatsapp.net',''),
-            sender_name: (msg as Record<string, unknown>).pushName || (msg as Record<string, unknown>).sender?.pushName || null
+            participant: ((msg as JsonRecord).key?.participant || (msg as JsonRecord).participant || '').replace('@s.whatsapp.net',''),
+            sender_name: (msg as JsonRecord).pushName || (msg as JsonRecord).sender?.pushName || null
           } : null;
           await supabase.from('wapi_messages').insert({
             conversation_id: conv.id, message_id: msgId, from_me: fromMe, message_type: type, content,
@@ -4759,8 +4781,8 @@ async function processWebhookEvent(body: Record<string, unknown>) {
           }
         }
         const grpMeta2 = isGrp ? {
-          participant: ((msg as Record<string, unknown>).key?.participant || (msg as Record<string, unknown>).participant || '').replace('@s.whatsapp.net',''),
-          sender_name: (msg as Record<string, unknown>).pushName || (msg as Record<string, unknown>).sender?.pushName || null
+          participant: ((msg as JsonRecord).key?.participant || (msg as JsonRecord).participant || '').replace('@s.whatsapp.net',''),
+          sender_name: (msg as JsonRecord).pushName || (msg as JsonRecord).sender?.pushName || null
         } : null;
         await supabase.from('wapi_messages').insert({
           conversation_id: conv.id, message_id: msgId, from_me: fromMe, message_type: type, content,
@@ -4824,7 +4846,7 @@ async function processWebhookEvent(body: Record<string, unknown>) {
           }
 
           // === CAMPAIGN AUTO-REPLY: lead is responding to a campaign that pauses the bot ===
-          const campaignPendingId = (conv.bot_data as Record<string, unknown> | null)?.campaign_pending_reply as string | undefined;
+          const campaignPendingId = (conv.bot_data as JsonRecord | null)?.campaign_pending_reply as string | undefined;
           if (campaignPendingId) {
             console.log(`[Campaign Auto-Reply] Lead replied to campaign ${campaignPendingId}, conv ${conv.id}`);
             try {
@@ -4859,7 +4881,7 @@ async function processWebhookEvent(body: Record<string, unknown>) {
                 .select('user_id')
                 .eq('company_id', instance.company_id);
 
-              const leadName = ((conv.bot_data as Record<string, unknown> | null)?.campaign_lead_name as string) || 'Lead';
+              const leadName = ((conv.bot_data as JsonRecord | null)?.campaign_lead_name as string) || 'Lead';
               const notifications = (companyUsers || []).map((u: { user_id: string }) => ({
                 user_id: u.user_id,
                 company_id: instance.company_id,
@@ -4878,12 +4900,12 @@ async function processWebhookEvent(body: Record<string, unknown>) {
               }
 
               // Clear the pending flag (one-shot) but KEEP human_takeover so bot stays paused
-              const cleanedBotData = { ...(conv.bot_data as Record<string, unknown> | null || {}) };
-              delete (cleanedBotData as Record<string, unknown>).campaign_pending_reply;
-              delete (cleanedBotData as Record<string, unknown>).campaign_lead_name;
-              delete (cleanedBotData as Record<string, unknown>).campaign_marked_at;
-              (cleanedBotData as Record<string, unknown>).campaign_replied_at = new Date().toISOString();
-              (cleanedBotData as Record<string, unknown>).campaign_replied_id = campaignPendingId;
+              const cleanedBotData = { ...(conv.bot_data as JsonRecord | null || {}) };
+              delete (cleanedBotData as JsonRecord).campaign_pending_reply;
+              delete (cleanedBotData as JsonRecord).campaign_lead_name;
+              delete (cleanedBotData as JsonRecord).campaign_marked_at;
+              (cleanedBotData as JsonRecord).campaign_replied_at = new Date().toISOString();
+              (cleanedBotData as JsonRecord).campaign_replied_id = campaignPendingId;
 
               await supabase.from('wapi_conversations').update({
                 bot_data: cleanedBotData,
@@ -4920,8 +4942,8 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       break;
     }
     case 'message-status': case 'message_ack': case 'webhookStatus': case 'webhookDelivery': {
-      const sd = data || body, mId = (sd as Record<string, unknown>)?.messageId || body?.messageId, st = (sd as Record<string, unknown>)?.status, ack = (sd as Record<string, unknown>)?.ack;
-      const fm = body?.fromMe || (sd as Record<string, unknown>)?.fromMe || false, mcd = body?.msgContent || (sd as Record<string, unknown>)?.msgContent;
+      const sd = data || body, mId = (sd as JsonRecord)?.messageId || body?.messageId, st = (sd as JsonRecord)?.status, ack = (sd as JsonRecord)?.ack;
+      const fm = body?.fromMe || (sd as JsonRecord)?.fromMe || false, mcd = body?.msgContent || (sd as JsonRecord)?.msgContent;
       
       // Track whether the message already existed BEFORE we (potentially) insert it from physical-phone payload.
       // Only existing messages should have their status updated — newly inserted ones start at 'sent' and wait
@@ -4935,23 +4957,23 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       if (fm && mcd && mId) {
         const { data: em } = await supabase.from('wapi_messages').select('id').eq('message_id', mId).single();
         if (!em) {
-          const cId = (body?.chat as Record<string, unknown>)?.id || (sd as Record<string, unknown>)?.chat?.id;
+          const cId = (body?.chat as JsonRecord)?.id || (sd as JsonRecord)?.chat?.id;
           if (cId) {
             let rj = (cId as string).includes('@') ? cId : `${cId}@s.whatsapp.net`;
             const p = (rj as string).replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace('@lid', '');
             if (!(rj as string).includes('@g.us')) {
               const { data: ec } = await supabase.from('wapi_conversations').select('*').eq('instance_id', instance.id).eq('remote_jid', rj).maybeSingle();
               let pv = '';
-              if ((mcd as Record<string, unknown>).conversation) pv = (mcd as Record<string, unknown>).conversation as string;
-              else if ((mcd as Record<string, unknown>).extendedTextMessage?.text) pv = (mcd as Record<string, unknown>).extendedTextMessage?.text as string;
-              else if ((mcd as Record<string, unknown>).imageMessage) pv = '📷 Imagem';
-              else if ((mcd as Record<string, unknown>).documentMessage) pv = '📄 ' + ((mcd as Record<string, unknown>).documentMessage?.fileName || 'Documento');
+              if ((mcd as JsonRecord).conversation) pv = (mcd as JsonRecord).conversation as string;
+              else if ((mcd as JsonRecord).extendedTextMessage?.text) pv = (mcd as JsonRecord).extendedTextMessage?.text as string;
+              else if ((mcd as JsonRecord).imageMessage) pv = '📷 Imagem';
+              else if ((mcd as JsonRecord).documentMessage) pv = '📄 ' + ((mcd as JsonRecord).documentMessage?.fileName || 'Documento');
               
               let cv;
               if (ec) {
                 // Check if this outgoing message was sent by a human from the phone
                 // by checking if message_id already exists in wapi_messages
-                const statusMsgId = (sd as Record<string, unknown>)?.key?.id || (body as Record<string, unknown>)?.key?.id;
+                const statusMsgId = (sd as JsonRecord)?.key?.id || (body as JsonRecord)?.key?.id;
                 let shouldDisableBot = false;
                 if (ec.bot_enabled === true && statusMsgId) {
                   // Don't disable bot during active bot steps — the bot's own outgoing messages
@@ -4973,26 +4995,26 @@ async function processWebhookEvent(body: Record<string, unknown>) {
                 }
                 cv = ec; await supabase.from('wapi_conversations').update({ last_message_at: new Date().toISOString(), last_message_content: pv.substring(0, 100), last_message_from_me: true, ...(shouldDisableBot ? { bot_enabled: false, bot_step: null } : {}) }).eq('id', ec.id);
               }
-              else { const { data: nc } = await supabase.from('wapi_conversations').insert({ instance_id: instance.id, remote_jid: rj, contact_phone: p, contact_name: (body?.chat as Record<string, unknown>)?.name || p, last_message_at: new Date().toISOString(), last_message_content: pv.substring(0, 100), last_message_from_me: true, bot_enabled: false, company_id: instance.company_id }).select().single(); cv = nc; }
+              else { const { data: nc } = await supabase.from('wapi_conversations').insert({ instance_id: instance.id, remote_jid: rj, contact_phone: p, contact_name: (body?.chat as JsonRecord)?.name || p, last_message_at: new Date().toISOString(), last_message_content: pv.substring(0, 100), last_message_from_me: true, bot_enabled: false, company_id: instance.company_id }).select().single(); cv = nc; }
               
                if (cv) {
                 let ct = '', tp = 'text', mu: string | null = null, mk: string | null = null, dp: string | null = null, mm: string | null = null;
-                if ((mcd as Record<string, unknown>).conversation) ct = (mcd as Record<string, unknown>).conversation as string;
-                else if ((mcd as Record<string, unknown>).extendedTextMessage?.text) ct = (mcd as Record<string, unknown>).extendedTextMessage?.text as string;
-                else if ((mcd as Record<string, unknown>).imageMessage) { 
-                  const im = (mcd as Record<string, unknown>).imageMessage as Record<string, unknown>;
+                if ((mcd as JsonRecord).conversation) ct = (mcd as JsonRecord).conversation as string;
+                else if ((mcd as JsonRecord).extendedTextMessage?.text) ct = (mcd as JsonRecord).extendedTextMessage?.text as string;
+                else if ((mcd as JsonRecord).imageMessage) { 
+                  const im = (mcd as JsonRecord).imageMessage as JsonRecord;
                   tp = 'image'; ct = (im.caption as string) || '[Imagem]'; mu = im.url as string || null; mk = im.mediaKey as string || null; dp = im.directPath as string || null; mm = im.mimetype as string || null;
                 }
-                else if ((mcd as Record<string, unknown>).videoMessage) {
-                  const vm = (mcd as Record<string, unknown>).videoMessage as Record<string, unknown>;
+                else if ((mcd as JsonRecord).videoMessage) {
+                  const vm = (mcd as JsonRecord).videoMessage as JsonRecord;
                   tp = 'video'; ct = (vm.caption as string) || '[Vídeo]'; mu = vm.url as string || null; mk = vm.mediaKey as string || null; dp = vm.directPath as string || null; mm = vm.mimetype as string || null;
                 }
-                else if ((mcd as Record<string, unknown>).audioMessage) {
-                  const am = (mcd as Record<string, unknown>).audioMessage as Record<string, unknown>;
+                else if ((mcd as JsonRecord).audioMessage) {
+                  const am = (mcd as JsonRecord).audioMessage as JsonRecord;
                   tp = 'audio'; ct = '[Áudio]'; mu = am.url as string || null; mk = am.mediaKey as string || null; dp = am.directPath as string || null; mm = am.mimetype as string || null;
                 }
-                else if ((mcd as Record<string, unknown>).documentMessage) { 
-                  const dm = (mcd as Record<string, unknown>).documentMessage as Record<string, unknown>;
+                else if ((mcd as JsonRecord).documentMessage) { 
+                  const dm = (mcd as JsonRecord).documentMessage as JsonRecord;
                   tp = 'document'; ct = (dm.fileName as string) || '[Documento]'; mu = dm.url as string || null; mk = dm.mediaKey as string || null; dp = dm.directPath as string || null; mm = dm.mimetype as string || null;
                 }
                 
@@ -5051,17 +5073,17 @@ async function processWebhookEvent(body: Record<string, unknown>) {
       const bodyKeys = Object.keys(body).join(', ');
       console.log(`Unhandled event: ${evt}, body keys: [${bodyKeys}]`);
       if (body.msgContent) console.log(`[Unknown] Has msgContent keys: [${Object.keys(body.msgContent).join(', ')}]`);
-      if (body.chat) console.log(`[Unknown] Has chat.id: ${(body.chat as Record<string, unknown>)?.id}`);
+      if (body.chat) console.log(`[Unknown] Has chat.id: ${(body.chat as JsonRecord)?.id}`);
       
       // Try to extract message from unknown events - W-API sometimes sends messages with different event names
-      const unknownMsg = (data as Record<string, unknown>)?.message || data || body;
-      const unknownMc = (unknownMsg as Record<string, unknown>)?.message || (unknownMsg as Record<string, unknown>)?.msgContent || {};
-      const unknownFromMe = (unknownMsg as Record<string, unknown>)?.key?.fromMe || (unknownMsg as Record<string, unknown>)?.fromMe || false;
+      const unknownMsg = (data as JsonRecord)?.message || data || body;
+      const unknownMc = (unknownMsg as JsonRecord)?.message || (unknownMsg as JsonRecord)?.msgContent || {};
+      const unknownFromMe = (unknownMsg as JsonRecord)?.key?.fromMe || (unknownMsg as JsonRecord)?.fromMe || false;
       
       // If this looks like a message we haven't handled, log details
-      if (unknownFromMe || (unknownMsg as Record<string, unknown>)?.key?.id || (unknownMsg as Record<string, unknown>)?.messageId) {
-        const msgId = (unknownMsg as Record<string, unknown>)?.key?.id || (unknownMsg as Record<string, unknown>)?.messageId;
-        const rj = (unknownMsg as Record<string, unknown>)?.key?.remoteJid || (unknownMsg as Record<string, unknown>)?.from || (unknownMsg as Record<string, unknown>)?.remoteJid;
+      if (unknownFromMe || (unknownMsg as JsonRecord)?.key?.id || (unknownMsg as JsonRecord)?.messageId) {
+        const msgId = (unknownMsg as JsonRecord)?.key?.id || (unknownMsg as JsonRecord)?.messageId;
+        const rj = (unknownMsg as JsonRecord)?.key?.remoteJid || (unknownMsg as JsonRecord)?.from || (unknownMsg as JsonRecord)?.remoteJid;
         console.log(`[Unknown event with message data] fromMe: ${unknownFromMe}, msgId: ${msgId}, remoteJid: ${rj}`);
         
         // If it's a fromMe message we haven't seen, process it like a regular message
@@ -5086,12 +5108,12 @@ async function processWebhookEvent(body: Record<string, unknown>) {
               let type = 'text';
               let mediaUrl = null;
               
-              if ((unknownMc as Record<string, unknown>).conversation) content = (unknownMc as Record<string, string>).conversation;
-              else if ((unknownMc as Record<string, unknown>).extendedTextMessage?.text) content = ((unknownMc as Record<string, unknown>).extendedTextMessage as Record<string, unknown>).text as string;
-              else if ((unknownMc as Record<string, unknown>).imageMessage) { type = 'image'; content = ((unknownMc as Record<string, unknown>).imageMessage as Record<string, unknown>).caption as string || '[Imagem]'; mediaUrl = ((unknownMc as Record<string, unknown>).imageMessage as Record<string, unknown>).url as string; }
-              else if ((unknownMc as Record<string, unknown>).documentMessage) { type = 'document'; content = ((unknownMc as Record<string, unknown>).documentMessage as Record<string, unknown>).fileName as string || '[Documento]'; mediaUrl = ((unknownMc as Record<string, unknown>).documentMessage as Record<string, unknown>).url as string; }
-              else if ((unknownMc as Record<string, unknown>).videoMessage) { type = 'video'; content = ((unknownMc as Record<string, unknown>).videoMessage as Record<string, unknown>).caption as string || '[Vídeo]'; mediaUrl = ((unknownMc as Record<string, unknown>).videoMessage as Record<string, unknown>).url as string; }
-              else if ((unknownMc as Record<string, unknown>).audioMessage) { type = 'audio'; content = '[Áudio]'; mediaUrl = ((unknownMc as Record<string, unknown>).audioMessage as Record<string, unknown>).url as string; }
+              if ((unknownMc as JsonRecord).conversation) content = (unknownMc as Record<string, string>).conversation;
+              else if ((unknownMc as JsonRecord).extendedTextMessage?.text) content = ((unknownMc as JsonRecord).extendedTextMessage as JsonRecord).text as string;
+              else if ((unknownMc as JsonRecord).imageMessage) { type = 'image'; content = ((unknownMc as JsonRecord).imageMessage as JsonRecord).caption as string || '[Imagem]'; mediaUrl = ((unknownMc as JsonRecord).imageMessage as JsonRecord).url as string; }
+              else if ((unknownMc as JsonRecord).documentMessage) { type = 'document'; content = ((unknownMc as JsonRecord).documentMessage as JsonRecord).fileName as string || '[Documento]'; mediaUrl = ((unknownMc as JsonRecord).documentMessage as JsonRecord).url as string; }
+              else if ((unknownMc as JsonRecord).videoMessage) { type = 'video'; content = ((unknownMc as JsonRecord).videoMessage as JsonRecord).caption as string || '[Vídeo]'; mediaUrl = ((unknownMc as JsonRecord).videoMessage as JsonRecord).url as string; }
+              else if ((unknownMc as JsonRecord).audioMessage) { type = 'audio'; content = '[Áudio]'; mediaUrl = ((unknownMc as JsonRecord).audioMessage as JsonRecord).url as string; }
               else if ((unknownMsg as Record<string, string>).body) content = (unknownMsg as Record<string, string>).body;
               else if ((unknownMsg as Record<string, string>).text) content = (unknownMsg as Record<string, string>).text;
               
@@ -5099,8 +5121,8 @@ async function processWebhookEvent(body: Record<string, unknown>) {
                 console.log(`[Unknown event] Saving fromMe message (isGroup: ${isGrp}): ${content.substring(0, 50)}...`);
                 
                 const grpMeta = isGrp ? {
-                  participant: ((unknownMsg as Record<string, unknown>).key?.participant || (unknownMsg as Record<string, unknown>).participant || '').replace('@s.whatsapp.net',''),
-                  sender_name: (unknownMsg as Record<string, unknown>).pushName || null
+                  participant: ((unknownMsg as JsonRecord).key?.participant || (unknownMsg as JsonRecord).participant || '').replace('@s.whatsapp.net',''),
+                  sender_name: (unknownMsg as JsonRecord).pushName || null
                 } : { source: 'platform' };
                 
                 await supabase.from('wapi_messages').insert({
@@ -5111,8 +5133,8 @@ async function processWebhookEvent(body: Record<string, unknown>) {
                   content,
                   media_url: mediaUrl,
                   status: 'sent',
-                  timestamp: (unknownMsg as Record<string, unknown>).messageTimestamp 
-                    ? new Date(((unknownMsg as Record<string, unknown>).messageTimestamp as number) * 1000).toISOString() 
+                  timestamp: (unknownMsg as JsonRecord).messageTimestamp 
+                    ? new Date(((unknownMsg as JsonRecord).messageTimestamp as number) * 1000).toISOString() 
                     : new Date().toISOString(),
                   company_id: instance.company_id,
                   metadata: grpMeta,
@@ -5141,11 +5163,11 @@ async function processWebhookEvent(body: Record<string, unknown>) {
 }
 
 // Extract Z-API interactive response from any known field name
-function extractZapiInteractiveResponse(body: Record<string, unknown>): { type: 'button' | 'list'; data: Record<string, unknown>; text: string; replyId: string } | null {
+function extractZapiInteractiveResponse(body: JsonRecord): { type: 'button' | 'list'; data: JsonRecord; text: string; replyId: string } | null {
   // Z-API button response - try all known field names
   const btnFields = ['buttonsResponseMessage', 'buttonResponseMessage', 'interactiveResponseMessage', 'buttonReply'];
   for (const field of btnFields) {
-    const obj = body[field] as Record<string, unknown> | undefined;
+    const obj = body[field] as JsonRecord | undefined;
     if (obj) {
       const text = extractZapiInteractiveText(obj);
       const replyId = extractZapiInteractiveId(obj);
@@ -5157,7 +5179,7 @@ function extractZapiInteractiveResponse(body: Record<string, unknown>): { type: 
   // Z-API list response
   const listFields = ['listResponseMessage', 'listMessage', 'listReply'];
   for (const field of listFields) {
-    const obj = body[field] as Record<string, unknown> | undefined;
+    const obj = body[field] as JsonRecord | undefined;
     if (obj) {
       const text = extractZapiInteractiveText(obj);
       const replyId = extractZapiInteractiveId(obj);
@@ -5170,7 +5192,7 @@ function extractZapiInteractiveResponse(body: Record<string, unknown>): { type: 
 }
 
 // Normalize Z-API webhook payload to W-API format
-function normalizeZapiPayload(body: Record<string, unknown>): Record<string, unknown> {
+function normalizeZapiPayload(body: JsonRecord): JsonRecord {
   const phone = body.phone as string || '';
   const remoteJid = `${phone}@s.whatsapp.net`;
   const msgId = body.messageId as string || `zapi_${Date.now()}`;
@@ -5178,16 +5200,16 @@ function normalizeZapiPayload(body: Record<string, unknown>): Record<string, unk
   const senderName = (body.senderName || body.chatName || phone) as string;
 
   // Extract content from Z-API nested structure
-  const textObj = body.text as Record<string, unknown> | undefined;
-  const imageObj = body.image as Record<string, unknown> | undefined;
-  const audioObj = body.audio as Record<string, unknown> | undefined;
-  const videoObj = body.video as Record<string, unknown> | undefined;
-  const documentObj = body.document as Record<string, unknown> | undefined;
+  const textObj = body.text as JsonRecord | undefined;
+  const imageObj = body.image as JsonRecord | undefined;
+  const audioObj = body.audio as JsonRecord | undefined;
+  const videoObj = body.video as JsonRecord | undefined;
+  const documentObj = body.document as JsonRecord | undefined;
 
   // Z-API interactive responses (button clicks / list selections) - comprehensive check
   const interactive = extractZapiInteractiveResponse(body);
 
-  let message: Record<string, unknown> = {};
+  let message: JsonRecord = {};
   if (interactive) {
     const normalizedText = interactive.text || interactive.replyId;
     // Put interactive response AND set conversation to the extracted text
@@ -5260,7 +5282,7 @@ Deno.serve(async (req) => {
     // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
     if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
       // @ts-ignore
-      EdgeRuntime.waitUntil(processWebhookEvent(body));
+      waitUntil(processWebhookEvent(body));
     } else {
       // Fallback for environments without waitUntil - process async but don't await
       processWebhookEvent(body).catch(e => console.error('Background processing error:', e));
