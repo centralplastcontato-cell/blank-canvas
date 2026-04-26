@@ -23,17 +23,24 @@ async function getInstanceCredentials(
   req: Request,
   body: { instanceId?: string; instanceToken?: string; unit?: string; companyId?: string }
 ): Promise<InstanceCredentials | Response> {
-  const { instanceId, instanceToken, unit, companyId } = body;
+  const { unit, companyId } = body;
+  const instanceId = typeof body.instanceId === 'string' ? body.instanceId.trim() : body.instanceId;
+  const instanceToken = typeof body.instanceToken === 'string' ? body.instanceToken.trim() : body.instanceToken;
   
   // Direct credentials provided (backward compat for webhook/config flows)
   if (instanceId && instanceToken) {
-    // Try to fetch provider info from DB
+    // Prefer server-side credentials to avoid stale/cached frontend tokens or hidden whitespace.
     const { data: providerInfo } = await supabase
       .from('wapi_instances')
-      .select('provider, client_token')
+      .select('instance_token, provider, client_token')
       .eq('instance_id', instanceId)
       .maybeSingle();
-    return { instance_id: instanceId, instance_token: instanceToken, provider: (providerInfo?.provider as Provider) || 'wapi', client_token: providerInfo?.client_token || null };
+    return {
+      instance_id: instanceId,
+      instance_token: (providerInfo?.instance_token || instanceToken).trim(),
+      provider: (providerInfo?.provider as Provider) || 'wapi',
+      client_token: providerInfo?.client_token || null,
+    };
   }
 
   // Fetch by unit (public chatbot flow)
