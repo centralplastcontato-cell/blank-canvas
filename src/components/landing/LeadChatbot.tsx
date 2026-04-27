@@ -390,16 +390,18 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         || `Nossa capacidade máxima é de ${redirectInfo?.limit || 0} convidados.`;
 
       const dateStr = `${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}`;
-      const defaultNormalMsg = `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Local: ${displayName}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n1️⃣ - 📩 Receber agora o orçamento\n2️⃣ - 💬 Falar com um atendente`;
+      const interestLine = interestContext ? `\n🏛️ Interesse: ${interestContext}` : '';
+      const defaultNormalMsg = `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Local: ${displayName}${interestLine}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n1️⃣ - 📩 Receber agora o orçamento\n2️⃣ - 💬 Falar com um atendente`;
       
       const applyTemplate = (template: string) => template
         .replace(/\{nome\}/g, leadInfo.name || '')
         .replace(/\{unidade\}/g, unit)
         .replace(/\{data\}/g, dateStr)
         .replace(/\{convidados\}/g, leadInfo.guests || '')
-        .replace(/\{empresa\}/g, displayName);
+        .replace(/\{empresa\}/g, displayName)
+        .replace(/\{interesse\}/g, interestContext || '');
 
-      const redirectDefaultMsg = `Olá! 👋✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Local: ${displayName}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\n${redirectText}\n\nObrigado pelo interesse! 💜`;
+      const redirectDefaultMsg = `Olá! 👋✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Local: ${displayName}${interestLine}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\n${redirectText}\n\nObrigado pelo interesse! 💜`;
 
       const message = redirectInfo
         ? redirectDefaultMsg
