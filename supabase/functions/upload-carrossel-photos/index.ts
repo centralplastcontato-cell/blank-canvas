@@ -26,15 +26,17 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { files, folder } = await req.json() as { files: Array<{ name: string; base64: string }>; folder?: string };
+    const { files, folder, basePath } = await req.json() as { files: Array<{ name: string; base64: string; contentType?: string }>; folder?: string; basePath?: string };
     const sub = folder || "internal";
     const uploaded: string[] = [];
 
     for (const f of files) {
-      const path = `${COMPANY_ID}/gallery/${sub}/${f.name}`;
+      const path = basePath
+        ? `${basePath}/${f.name}`
+        : `${COMPANY_ID}/gallery/${sub}/${f.name}`;
       const bytes = base64ToBytes(f.base64);
       const { error } = await supabase.storage.from(BUCKET).upload(path, bytes, {
-        contentType: "image/jpeg",
+        contentType: f.contentType || "image/jpeg",
         upsert: true,
       });
       if (error) throw new Error(`${f.name}: ${error.message}`);
