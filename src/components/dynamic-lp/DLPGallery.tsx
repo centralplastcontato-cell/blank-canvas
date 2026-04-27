@@ -57,16 +57,17 @@ function normalizePhotos(value: unknown): string[] {
 }
 
 function normalizeUnits(gallery: LPGallery, companyName: string): GalleryUnit[] {
-  const unitPhotos = Array.isArray(gallery.units)
+  const rawUnits = Array.isArray(gallery.units)
     ? gallery.units
         .map((unit) => ({
           name: isNonEmptyString(unit?.name) ? unit.name : companyName,
           photos: normalizePhotos(unit?.photos),
         }))
-        .filter((unit) => unit.photos.length > 0)
     : [];
 
-  if (unitPhotos.length > 0) return unitPhotos;
+  // Keep ALL declared units (even empty ones) so tabs render — only valuable when at least one has photos
+  const hasAnyPhotos = rawUnits.some((u) => u.photos.length > 0);
+  if (rawUnits.length > 0 && hasAnyPhotos) return rawUnits;
 
   const flatPhotos = normalizePhotos(gallery.photos);
   if (flatPhotos.length > 0) {
