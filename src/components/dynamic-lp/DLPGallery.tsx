@@ -66,7 +66,7 @@ function normalizeUnits(gallery: LPGallery, companyName: string): GalleryUnit[] 
   return [];
 }
 
-export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
+export function DLPGallery({ gallery, theme, companyName, onActiveUnitChange }: DLPGalleryProps) {
   const [activeUnit, setActiveUnit] = useState(0);
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
@@ -75,12 +75,19 @@ export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
     setFailedImages((prev) => new Set(prev).add(src));
   }, []);
 
-  if (!gallery?.enabled) return null;
+  const units = !gallery?.enabled ? [] : normalizeUnits(gallery, companyName);
+  const safeActiveUnit = units.length === 0 ? 0 : Math.min(activeUnit, units.length - 1);
+  const currentUnitName = units[safeActiveUnit]?.name;
 
-  const units = normalizeUnits(gallery, companyName);
+  useEffect(() => {
+    if (currentUnitName && onActiveUnitChange) {
+      onActiveUnitChange(currentUnitName);
+    }
+  }, [currentUnitName, onActiveUnitChange]);
+
+  if (!gallery?.enabled) return null;
   if (units.length === 0) return null;
 
-  const safeActiveUnit = Math.min(activeUnit, units.length - 1);
   const currentUnit = units[safeActiveUnit];
   const visiblePhotos = currentUnit.photos.filter((src) => !failedImages.has(src));
   const hasMultipleUnits = units.length >= 2;
