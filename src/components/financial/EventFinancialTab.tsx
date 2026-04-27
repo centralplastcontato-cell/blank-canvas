@@ -280,9 +280,20 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   const handleAddExtra = () => {
     const val = parseFloat(extraAmount);
     if (!extraDesc || !val) return;
-    financial.addExtra({ description: extraDesc, amount: val });
+    if (extraAlreadyReceived && !extraBankId) {
+      toast({ title: "Selecione a conta bancária", description: "Informe em qual conta o valor entrou.", variant: "destructive" });
+      return;
+    }
+    financial.addExtra({
+      description: extraDesc,
+      amount: val,
+      alreadyReceived: extraAlreadyReceived,
+      payment_method: extraAlreadyReceived ? extraMethod : undefined,
+      bank_account_id: extraAlreadyReceived ? extraBankId : undefined,
+    });
     setExtraDialogOpen(false);
     setExtraDesc(""); setExtraAmount("");
+    setExtraAlreadyReceived(false); setExtraMethod("pix"); setExtraBankId("");
   };
 
   const handleAddDiscount = () => {
