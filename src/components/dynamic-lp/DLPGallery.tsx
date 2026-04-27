@@ -144,25 +144,28 @@ export function DLPGallery({ gallery, theme, companyName, onActiveUnitChange }: 
 
         {hasMultipleUnits && (
           <div className="flex justify-center gap-3 mb-8">
-            {units.map((unit, idx) => (
-              <button
-                key={`${unit.name}-${idx}`}
-                onClick={() => setActiveUnit(idx)}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold transition-all duration-300"
-                style={{
-                  backgroundColor:
-                    safeActiveUnit === idx ? theme.primary_color : theme.text_color + "10",
-                  color:
-                    safeActiveUnit === idx ? "#fff" : theme.text_color + "99",
-                  transform: safeActiveUnit === idx ? "scale(1.05)" : "scale(1)",
-                  boxShadow: safeActiveUnit === idx ? `0 4px 15px ${theme.primary_color}40` : "none",
-                  fontFamily: theme.font_body,
-                }}
-              >
-                <MapPin className="w-4 h-4" />
-                {unit.name}
-              </button>
-            ))}
+            {units.map((unit, idx) => {
+              const Icon = getUnitIcon(unit.name);
+              return (
+                <button
+                  key={`${unit.name}-${idx}`}
+                  onClick={() => setActiveUnit(idx)}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold transition-all duration-300"
+                  style={{
+                    backgroundColor:
+                      safeActiveUnit === idx ? theme.primary_color : theme.text_color + "10",
+                    color:
+                      safeActiveUnit === idx ? "#fff" : theme.text_color + "99",
+                    transform: safeActiveUnit === idx ? "scale(1.05)" : "scale(1)",
+                    boxShadow: safeActiveUnit === idx ? `0 4px 15px ${theme.primary_color}40` : "none",
+                    fontFamily: theme.font_body,
+                  }}
+                >
+                  <Icon className="w-4 h-4" />
+                  {unit.name}
+                </button>
+              );
+            })}
           </div>
         )}
 
