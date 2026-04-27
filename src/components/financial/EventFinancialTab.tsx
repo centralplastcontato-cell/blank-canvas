@@ -1131,7 +1131,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
           <DialogHeader><DialogTitle>Adicionar Extra</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div><Label>Descrição</Label><Input value={extraDesc} onChange={e => setExtraDesc(e.target.value)} placeholder="Ex: Convidado extra" /></div>
-            <div><Label>Valor (R$)</Label><Input type="number" step="0.01" value={extraAmount} onChange={e => setExtraAmount(e.target.value)} /></div>
+            <div><Label>Valor (R$)</Label><Input inputMode="numeric" value={extraAmount} onChange={e => setExtraAmount(formatCurrencyInput(e.target.value))} placeholder="0,00" /></div>
 
             <label className="flex items-center gap-2 text-sm cursor-pointer select-none rounded-lg border border-border/40 p-2.5 bg-card hover:bg-muted/30 transition">
               <input
