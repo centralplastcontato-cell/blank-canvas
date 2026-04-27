@@ -66,6 +66,7 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [interestContext, setInterestContext] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchLP() {
@@ -230,8 +231,8 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
       />
       <DLPSocialProof socialProof={data.social_proof} theme={data.theme} />
       <DLPBenefits theme={data.theme} companyName={data.company_name} benefits={data.benefits} />
-      <DLPGallery gallery={data.gallery} theme={data.theme} companyName={data.company_name} />
-      <DLPVideo video={data.video} theme={data.theme} companyName={data.company_name} />
+      <DLPGallery gallery={data.gallery} theme={data.theme} companyName={data.company_name} onActiveUnitChange={setInterestContext} />
+      <DLPVideo video={data.video} theme={data.theme} companyName={data.company_name} onActiveUnitChange={setInterestContext} />
       <DLPHowItWorks howItWorks={data.how_it_works} theme={data.theme} />
       <DLPTestimonials testimonials={data.testimonials} theme={data.theme} />
       <DLPOffer offer={data.offer} theme={data.theme} onCtaClick={openChat} />
@@ -247,6 +248,7 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
         companyWhatsApp={data.company_whatsapp || undefined}
         lpBotConfig={data.lpBotConfig}
         unitOptions={data.unitNames}
+        interestContext={interestContext}
       />
     </div>
   );

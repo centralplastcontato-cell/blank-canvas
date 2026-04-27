@@ -1,12 +1,20 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { Play } from "lucide-react";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Play, MapPin, Home, Trees } from "lucide-react";
 import type { LPVideo, LPTheme } from "@/types/landing-page";
 
 interface DLPVideoProps {
   video: LPVideo;
   theme: LPTheme;
   companyName: string;
+  onActiveUnitChange?: (unitName: string) => void;
+}
+
+function getUnitIcon(name: string) {
+  const lower = name.toLowerCase();
+  if (lower.includes("interno") || lower.includes("intern")) return Home;
+  if (lower.includes("externo") || lower.includes("extern")) return Trees;
+  return MapPin;
 }
 
 function getYouTubeEmbedUrl(url: string): string | null {
@@ -32,14 +40,14 @@ interface VideoItem {
   location?: string;
 }
 
-export function DLPVideo({ video, theme, companyName }: DLPVideoProps) {
-  if (!video.enabled) return null;
+export function DLPVideo({ video, theme, companyName, onActiveUnitChange }: DLPVideoProps) {
+  const [activeIdx, setActiveIdx] = useState(0);
 
   let items: VideoItem[] = [];
 
-  if (video.videos && video.videos.length > 0) {
+  if (video?.videos && video.videos.length > 0) {
     items = video.videos;
-  } else if (video.video_url) {
+  } else if (video?.video_url) {
     items = [
       {
         name: companyName,
@@ -51,9 +59,22 @@ export function DLPVideo({ video, theme, companyName }: DLPVideoProps) {
     ];
   }
 
+  const isMultiple = items.length >= 2;
+  const safeIdx = items.length === 0 ? 0 : Math.min(activeIdx, items.length - 1);
+  const currentName = items[safeIdx]?.name;
+
+  useEffect(() => {
+    if (isMultiple && currentName && onActiveUnitChange) {
+      onActiveUnitChange(currentName);
+    }
+  }, [isMultiple, currentName, onActiveUnitChange]);
+
+  if (!video?.enabled) return null;
   if (items.length === 0) return null;
 
-  const isMultiple = items.length >= 2;
+  const current = items[safeIdx];
+  const embedUrl =
+    current.video_type === "youtube" ? getYouTubeEmbedUrl(current.video_url) : null;
 
   return (
     <section className="py-20 relative overflow-hidden">
@@ -66,7 +87,7 @@ export function DLPVideo({ video, theme, companyName }: DLPVideoProps) {
 
       <div className="container mx-auto px-4 relative z-10">
         <motion.div
-          className="text-center mb-12"
+          className="text-center mb-10"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
@@ -90,63 +111,76 @@ export function DLPVideo({ video, theme, companyName }: DLPVideoProps) {
             className="text-3xl md:text-5xl font-bold mb-4"
             style={{ color: theme.text_color, fontFamily: theme.font_heading }}
           >
-            {video.title || (isMultiple ? "Nossas Unidades" : "Conheça Nosso Espaço")}
+            {video.title || (isMultiple ? "Nossos Espaços em Vídeo" : "Conheça Nosso Espaço")}
           </h2>
           <p
             className="text-lg max-w-2xl mx-auto"
             style={{ color: theme.text_color + "99", fontFamily: theme.font_body }}
           >
-            Descubra os espaços incríveis onde realizamos festas inesquecíveis para crianças de todas as idades
+            Descubra os espaços incríveis onde realizamos festas inesquecíveis
           </p>
         </motion.div>
 
-        <div
-          className={`grid gap-8 max-w-5xl mx-auto ${
-            isMultiple ? "md:grid-cols-2" : "md:grid-cols-1 max-w-4xl"
-          }`}
-        >
-          {items.map((item, index) => {
-            const embedUrl =
-              item.video_type === "youtube"
-                ? getYouTubeEmbedUrl(item.video_url)
-                : null;
-
-            return (
-              <motion.div
-                key={index}
-                className="group"
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.2 }}
-                viewport={{ once: true }}
-              >
-                <div
-                  className="relative rounded-2xl overflow-hidden shadow-2xl border-2"
+        {isMultiple && (
+          <div className="flex justify-center gap-3 mb-8 flex-wrap">
+            {items.map((item, idx) => {
+              const Icon = getUnitIcon(item.name);
+              return (
+                <button
+                  key={`${item.name}-${idx}`}
+                  onClick={() => setActiveIdx(idx)}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold transition-all duration-300"
                   style={{
-                    borderColor: theme.primary_color + "30",
-                    backgroundColor: theme.background_color,
-                    boxShadow: `0 20px 50px ${theme.primary_color}15`,
+                    backgroundColor:
+                      safeIdx === idx ? theme.secondary_color : theme.text_color + "10",
+                    color: safeIdx === idx ? "#fff" : theme.text_color + "99",
+                    transform: safeIdx === idx ? "scale(1.05)" : "scale(1)",
+                    boxShadow:
+                      safeIdx === idx ? `0 4px 15px ${theme.secondary_color}40` : "none",
+                    fontFamily: theme.font_body,
                   }}
                 >
-                  {embedUrl ? (
-                    <div className="aspect-video">
-                      <iframe
-                        src={embedUrl}
-                        title={item.name}
-                        className="w-full h-full"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      />
-                    </div>
-                  ) : (
-                    <VideoWithPoster item={item} theme={theme} />
-                  )}
+                  <Icon className="w-4 h-4" />
+                  {item.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={safeIdx}
+            className="max-w-4xl mx-auto"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4 }}
+          >
+            <div
+              className="relative rounded-2xl overflow-hidden shadow-2xl border-2"
+              style={{
+                borderColor: theme.primary_color + "30",
+                backgroundColor: theme.background_color,
+                boxShadow: `0 20px 50px ${theme.primary_color}15`,
+              }}
+            >
+              {embedUrl ? (
+                <div className="aspect-video">
+                  <iframe
+                    src={embedUrl}
+                    title={current.name}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
                 </div>
-              </motion.div>
-            );
-          })}
-        </div>
+              ) : (
+                <VideoWithPoster item={current} theme={theme} />
+              )}
+            </div>
+          </motion.div>
+        </AnimatePresence>
       </div>
     </section>
   );

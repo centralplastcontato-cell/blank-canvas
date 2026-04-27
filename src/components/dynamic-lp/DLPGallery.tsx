@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Sparkles, MapPin } from "lucide-react";
+import { Camera, Sparkles, MapPin, Home, Trees } from "lucide-react";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
 import type { LPGallery, LPTheme } from "@/types/landing-page";
 
@@ -8,6 +8,14 @@ interface DLPGalleryProps {
   gallery: LPGallery;
   theme: LPTheme;
   companyName: string;
+  onActiveUnitChange?: (unitName: string) => void;
+}
+
+function getUnitIcon(name: string) {
+  const lower = name.toLowerCase();
+  if (lower.includes("interno") || lower.includes("intern")) return Home;
+  if (lower.includes("externo") || lower.includes("extern")) return Trees;
+  return MapPin;
 }
 
 interface GalleryUnit {
@@ -58,7 +66,7 @@ function normalizeUnits(gallery: LPGallery, companyName: string): GalleryUnit[] 
   return [];
 }
 
-export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
+export function DLPGallery({ gallery, theme, companyName, onActiveUnitChange }: DLPGalleryProps) {
   const [activeUnit, setActiveUnit] = useState(0);
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
@@ -67,12 +75,19 @@ export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
     setFailedImages((prev) => new Set(prev).add(src));
   }, []);
 
-  if (!gallery?.enabled) return null;
+  const units = !gallery?.enabled ? [] : normalizeUnits(gallery, companyName);
+  const safeActiveUnit = units.length === 0 ? 0 : Math.min(activeUnit, units.length - 1);
+  const currentUnitName = units[safeActiveUnit]?.name;
 
-  const units = normalizeUnits(gallery, companyName);
+  useEffect(() => {
+    if (currentUnitName && onActiveUnitChange) {
+      onActiveUnitChange(currentUnitName);
+    }
+  }, [currentUnitName, onActiveUnitChange]);
+
+  if (!gallery?.enabled) return null;
   if (units.length === 0) return null;
 
-  const safeActiveUnit = Math.min(activeUnit, units.length - 1);
   const currentUnit = units[safeActiveUnit];
   const visiblePhotos = currentUnit.photos.filter((src) => !failedImages.has(src));
   const hasMultipleUnits = units.length >= 2;
@@ -129,25 +144,28 @@ export function DLPGallery({ gallery, theme, companyName }: DLPGalleryProps) {
 
         {hasMultipleUnits && (
           <div className="flex justify-center gap-3 mb-8">
-            {units.map((unit, idx) => (
-              <button
-                key={`${unit.name}-${idx}`}
-                onClick={() => setActiveUnit(idx)}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold transition-all duration-300"
-                style={{
-                  backgroundColor:
-                    safeActiveUnit === idx ? theme.primary_color : theme.text_color + "10",
-                  color:
-                    safeActiveUnit === idx ? "#fff" : theme.text_color + "99",
-                  transform: safeActiveUnit === idx ? "scale(1.05)" : "scale(1)",
-                  boxShadow: safeActiveUnit === idx ? `0 4px 15px ${theme.primary_color}40` : "none",
-                  fontFamily: theme.font_body,
-                }}
-              >
-                <MapPin className="w-4 h-4" />
-                {unit.name}
-              </button>
-            ))}
+            {units.map((unit, idx) => {
+              const Icon = getUnitIcon(unit.name);
+              return (
+                <button
+                  key={`${unit.name}-${idx}`}
+                  onClick={() => setActiveUnit(idx)}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold transition-all duration-300"
+                  style={{
+                    backgroundColor:
+                      safeActiveUnit === idx ? theme.primary_color : theme.text_color + "10",
+                    color:
+                      safeActiveUnit === idx ? "#fff" : theme.text_color + "99",
+                    transform: safeActiveUnit === idx ? "scale(1.05)" : "scale(1)",
+                    boxShadow: safeActiveUnit === idx ? `0 4px 15px ${theme.primary_color}40` : "none",
+                    fontFamily: theme.font_body,
+                  }}
+                >
+                  <Icon className="w-4 h-4" />
+                  {unit.name}
+                </button>
+              );
+            })}
           </div>
         )}
 
