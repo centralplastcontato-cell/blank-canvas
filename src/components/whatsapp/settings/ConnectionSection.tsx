@@ -4,6 +4,7 @@ import { useUnitPermissions } from "@/hooks/useUnitPermissions";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { useWhatsAppConnection } from "@/hooks/useWhatsAppConnection";
 import { insertWithCompany } from "@/lib/supabase-helpers";
+import { configureWapiWebhooks, WAPI_WEBHOOK_URL } from "@/lib/wapi-webhook-config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,7 +58,7 @@ interface ConnectionSectionProps {
 
 // UNITS are now loaded dynamically from useCompanyUnits
 
-const webhookUrl = `https://rsezgnkfhodltrsewlhz.supabase.co/functions/v1/wapi-webhook`;
+const webhookUrl = WAPI_WEBHOOK_URL;
 
 export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   const { unitOptions: UNITS, isLoading: isLoadingUnits } = useCompanyUnits();
