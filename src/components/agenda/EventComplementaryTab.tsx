@@ -405,14 +405,18 @@ export function EventComplementaryTab({
 
       // Reuse a conversa existente apenas se ela pertencer à instância atualmente selecionada.
       // Isso evita tentar enviar por uma instância antiga/desconectada e disparar erro na Edge Function.
-      const { findExistingConversation } = await import("@/lib/whatsappConversationHelper");
+      const { findExistingConversation, toCanonicalBrazilianPhone } = await import("@/lib/whatsappConversationHelper");
       const existingConv = await findExistingConversation(form.lead_id, leadPhone, companyId);
       const matchingConversation = existingConv?.instanceId === selectedInstanceId ? existingConv : null;
+
+      // Sempre envia o telefone no formato canônico (com 55) para que a edge
+      // não crie um chat duplicado caso o lead esteja salvo sem código do país.
+      const canonicalPhone = toCanonicalBrazilianPhone(leadPhone);
 
       const { data: sendData, error } = await supabase.functions.invoke("wapi-send", {
         body: {
           action: "send-text",
-          phone: leadPhone,
+          phone: canonicalPhone,
           message,
           instanceId: selectedInstanceId,
           ...(matchingConversation && {

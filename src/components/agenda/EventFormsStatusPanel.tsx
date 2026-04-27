@@ -529,16 +529,20 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
         .replace(/\{\{\s*empresa\s*\}\}/gi, company.name || "");
 
       // Reuse a conversa existente apenas se a instância dela ainda estiver conectada.
-      const { findExistingConversation } = await import("@/lib/whatsappConversationHelper");
+      const { findExistingConversation, toCanonicalBrazilianPhone } = await import("@/lib/whatsappConversationHelper");
       const existingConv = await findExistingConversation(leadId, lead.whatsapp, companyId);
       const matchingInstance = connectedInstances.find((item: any) => item.instance_id === existingConv?.instanceId) || connectedInstances[0];
       const matchingConversation = existingConv?.instanceId === matchingInstance.instance_id ? existingConv : null;
+
+      // Sempre envia o telefone no formato canônico (com 55) para que a edge
+      // não crie um chat duplicado caso o lead esteja salvo sem código do país.
+      const canonicalPhone = toCanonicalBrazilianPhone(lead.whatsapp);
 
       // Send via WhatsApp
       const { data: sendData, error } = await supabase.functions.invoke("wapi-send", {
         body: {
           action: "send-text",
-          phone: lead.whatsapp,
+          phone: canonicalPhone,
           message,
           instanceId: matchingInstance.instance_id,
           ...(matchingConversation && {
