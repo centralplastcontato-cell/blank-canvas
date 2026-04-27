@@ -1115,22 +1115,11 @@ Deno.serve(async (req) => {
           }
           console.log('send-audio: using provided audio payload mimeType:', resolvedAudioMimeType);
         } else if (audioMediaUrl) {
-          console.log('send-audio: fetching and converting to base64:', audioMediaUrl.substring(0, 80));
-          const audioRes = await fetch(audioMediaUrl);
-          if (!audioRes.ok) throw new Error('Falha ao baixar audio: ' + audioRes.status);
-          const fetchedMimeType = audioRes.headers.get('content-type')?.split(';')[0].trim().toLowerCase() || resolvedAudioMimeType;
-          const buf = await audioRes.arrayBuffer();
-          const bytes = new Uint8Array(buf);
-          let bin = '';
-          const chunkSize = 8192;
-          for (let i = 0; i < bytes.length; i += chunkSize) {
-            const end = Math.min(i + chunkSize, bytes.length);
-            for (let j = i; j < end; j++) {
-              bin += String.fromCharCode(bytes[j]);
-            }
-          }
-          audioPayload.audio = `data:${fetchedMimeType};base64,${btoa(bin)}`;
-          console.log('send-audio: fetched media mimeType:', fetchedMimeType);
+          // W-API accepts a public URL directly. Send the URL as-is to avoid
+          // re-encoding issues (especially when the source is audio/wav, which
+          // W-API rejects when wrapped as data: URI).
+          console.log('send-audio: sending direct URL:', audioMediaUrl.substring(0, 80));
+          audioPayload.audio = audioMediaUrl;
         } else {
           return new Response(JSON.stringify({ error: 'Áudio é obrigatório' }), {
             status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
