@@ -568,9 +568,12 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           {isEntrega && <Package className="h-4 w-4 text-violet-500 shrink-0" />}
-                          <p className="font-bold text-[15px] truncate">{visit.lead_name}</p>
+                          <p className="font-bold text-[15px] truncate">
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70 mr-1.5">Cliente:</span>
+                            {visit.lead_name}
+                          </p>
                         </div>
-                        <div className="flex items-center gap-3 mt-1.5">
+                        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                           {visit.horario_visita && (
                             <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
                               <Clock className="h-3.5 w-3.5 text-primary/60" /> {visit.horario_visita}
@@ -578,7 +581,9 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
                           )}
                           {responsavel && (
                             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <UserIcon className="h-3 w-3" /> {responsavel.full_name?.split(" ")[0]}
+                              <UserIcon className="h-3 w-3" />
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">Resp.:</span>
+                              {responsavel.full_name?.split(" ")[0]}
                             </span>
                           )}
                           {visit.unit && (
