@@ -594,15 +594,16 @@ async function findOrCreateConversation(
       return { conversationId: existing.id, companyId: existing.company_id };
     }
 
-    // Create new conversation
+    // Create new conversation — always use the canonical jid (with 55) so future
+    // lookups by either format hit the same row.
     const { data: newConv, error: createError } = await supabase
       .from('wapi_conversations')
       .insert({
         instance_id: instanceRecord.id,
         company_id: instanceRecord.company_id,
-        remote_jid: remoteJid,
-        contact_phone: cleanPhone,
-        contact_name: contactName || cleanPhone,
+        remote_jid: canonicalJid,
+        contact_phone: canonicalPhone,
+        contact_name: contactName || canonicalPhone,
         bot_enabled: true,
         bot_step: 'lp_sent',
         last_message_from_me: true,
@@ -618,8 +619,10 @@ async function findOrCreateConversation(
           .from('wapi_conversations')
           .select('id, company_id')
           .eq('instance_id', instanceRecord.id)
-          .eq('remote_jid', remoteJid)
-          .single();
+          .in('remote_jid', remoteJids)
+          .order('last_message_at', { ascending: false, nullsFirst: false })
+          .limit(1)
+          .maybeSingle();
         if (retry) {
           console.log('findOrCreateConversation: found after conflict', retry.id);
           return { conversationId: retry.id, companyId: retry.company_id };
