@@ -20,6 +20,7 @@ import { FinancialTimeline } from "./FinancialTimeline";
 import { BankAccountSelect } from "./BankAccountSelect";
 import { useBankAccounts } from "@/hooks/useBankAccounts";
 import { supabase } from "@/integrations/supabase/client";
+import { formatCurrencyInput, parseCurrencyInput } from "@/lib/currency-input";
 
 const METHOD_LABELS: Record<string, string> = {
   pix: "PIX",
