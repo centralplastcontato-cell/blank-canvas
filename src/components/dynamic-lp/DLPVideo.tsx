@@ -1,12 +1,20 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { Play } from "lucide-react";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Play, MapPin, Home, Trees } from "lucide-react";
 import type { LPVideo, LPTheme } from "@/types/landing-page";
 
 interface DLPVideoProps {
   video: LPVideo;
   theme: LPTheme;
   companyName: string;
+  onActiveUnitChange?: (unitName: string) => void;
+}
+
+function getUnitIcon(name: string) {
+  const lower = name.toLowerCase();
+  if (lower.includes("interno") || lower.includes("intern")) return Home;
+  if (lower.includes("externo") || lower.includes("extern")) return Trees;
+  return MapPin;
 }
 
 function getYouTubeEmbedUrl(url: string): string | null {
