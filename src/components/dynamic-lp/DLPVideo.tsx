@@ -151,26 +151,29 @@ export function DLPVideo({ video, theme, companyName, onActiveUnitChange }: DLPV
         </motion.div>
 
         {isMultiple && (
-          <div className="flex justify-center gap-3 mb-8 flex-wrap">
+          <div className="flex justify-center gap-4 mb-10 flex-wrap">
             {groups.map((group, idx) => {
               const Icon = getUnitIcon(group.name);
+              const unitColor = getUnitColor(group.name, theme);
+              const isActive = safeGroupIdx === idx;
               return (
                 <button
                   key={`${group.name}-${idx}`}
                   onClick={() => setActiveGroupIdx(idx)}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold transition-all duration-300"
+                  className="flex flex-col items-center gap-2 px-7 py-4 rounded-2xl font-bold transition-all duration-300 min-w-[150px]"
                   style={{
-                    backgroundColor:
-                      safeGroupIdx === idx ? theme.secondary_color : theme.text_color + "10",
-                    color: safeGroupIdx === idx ? "#fff" : theme.text_color + "99",
-                    transform: safeGroupIdx === idx ? "scale(1.05)" : "scale(1)",
-                    boxShadow:
-                      safeGroupIdx === idx ? `0 4px 15px ${theme.secondary_color}40` : "none",
+                    backgroundColor: isActive ? unitColor : "#fff",
+                    color: isActive ? "#fff" : unitColor,
+                    border: `2px solid ${unitColor}`,
+                    transform: isActive ? "scale(1.08)" : "scale(1)",
+                    boxShadow: isActive
+                      ? `0 10px 30px ${unitColor}50`
+                      : `0 2px 8px ${unitColor}15`,
                     fontFamily: theme.font_body,
                   }}
                 >
-                  <Icon className="w-4 h-4" />
-                  {group.name}
+                  <Icon className="w-8 h-8" strokeWidth={2.2} />
+                  <span className="text-base leading-tight">{group.name}</span>
                 </button>
               );
             })}
