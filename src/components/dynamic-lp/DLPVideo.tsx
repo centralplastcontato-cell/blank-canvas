@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, MapPin, Home, Trees } from "lucide-react";
+import { Play, MapPin, Home, Truck } from "lucide-react";
 import type { LPVideo, LPTheme } from "@/types/landing-page";
 
 interface DLPVideoProps {
@@ -10,11 +10,26 @@ interface DLPVideoProps {
   onActiveUnitChange?: (unitName: string) => void;
 }
 
-function getUnitIcon(name: string) {
+type UnitKind = "internal" | "external" | "default";
+
+function getUnitKind(name: string): UnitKind {
   const lower = name.toLowerCase();
-  if (lower.includes("interno") || lower.includes("intern")) return Home;
-  if (lower.includes("externo") || lower.includes("extern")) return Trees;
+  if (lower.includes("externa") || lower.includes("externo") || lower.includes("extern")) return "external";
+  if (lower.includes("nosso") || lower.includes("interno") || lower.includes("intern") || lower.includes("buffet")) return "internal";
+  return "default";
+}
+
+function getUnitIcon(name: string) {
+  const kind = getUnitKind(name);
+  if (kind === "internal") return Home;
+  if (kind === "external") return Truck;
   return MapPin;
+}
+
+function getUnitColor(name: string, theme: LPTheme): string {
+  const kind = getUnitKind(name);
+  if (kind === "external") return theme.secondary_color;
+  return theme.primary_color;
 }
 
 function getYouTubeEmbedUrl(url: string): string | null {
@@ -136,26 +151,29 @@ export function DLPVideo({ video, theme, companyName, onActiveUnitChange }: DLPV
         </motion.div>
 
         {isMultiple && (
-          <div className="flex justify-center gap-3 mb-8 flex-wrap">
+          <div className="flex justify-center gap-4 mb-10 flex-wrap">
             {groups.map((group, idx) => {
               const Icon = getUnitIcon(group.name);
+              const unitColor = getUnitColor(group.name, theme);
+              const isActive = safeGroupIdx === idx;
               return (
                 <button
                   key={`${group.name}-${idx}`}
                   onClick={() => setActiveGroupIdx(idx)}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold transition-all duration-300"
+                  className="flex flex-col items-center gap-2 px-7 py-4 rounded-2xl font-bold transition-all duration-300 min-w-[150px]"
                   style={{
-                    backgroundColor:
-                      safeGroupIdx === idx ? theme.secondary_color : theme.text_color + "10",
-                    color: safeGroupIdx === idx ? "#fff" : theme.text_color + "99",
-                    transform: safeGroupIdx === idx ? "scale(1.05)" : "scale(1)",
-                    boxShadow:
-                      safeGroupIdx === idx ? `0 4px 15px ${theme.secondary_color}40` : "none",
+                    backgroundColor: isActive ? unitColor : "#fff",
+                    color: isActive ? "#fff" : unitColor,
+                    border: `2px solid ${unitColor}`,
+                    transform: isActive ? "scale(1.08)" : "scale(1)",
+                    boxShadow: isActive
+                      ? `0 10px 30px ${unitColor}50`
+                      : `0 2px 8px ${unitColor}15`,
                     fontFamily: theme.font_body,
                   }}
                 >
-                  <Icon className="w-4 h-4" />
-                  {group.name}
+                  <Icon className="w-8 h-8" strokeWidth={2.2} />
+                  <span className="text-base leading-tight">{group.name}</span>
                 </button>
               );
             })}

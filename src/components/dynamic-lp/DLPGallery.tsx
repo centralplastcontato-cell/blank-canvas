@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Sparkles, MapPin, Home, Trees } from "lucide-react";
+import { Camera, Sparkles, MapPin, Home, Truck, ImageOff } from "lucide-react";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
 import type { LPGallery, LPTheme } from "@/types/landing-page";
 
@@ -11,11 +11,26 @@ interface DLPGalleryProps {
   onActiveUnitChange?: (unitName: string) => void;
 }
 
-function getUnitIcon(name: string) {
+type UnitKind = "internal" | "external" | "default";
+
+function getUnitKind(name: string): UnitKind {
   const lower = name.toLowerCase();
-  if (lower.includes("interno") || lower.includes("intern")) return Home;
-  if (lower.includes("externo") || lower.includes("extern")) return Trees;
+  if (lower.includes("externa") || lower.includes("externo") || lower.includes("extern")) return "external";
+  if (lower.includes("nosso") || lower.includes("interno") || lower.includes("intern") || lower.includes("buffet")) return "internal";
+  return "default";
+}
+
+function getUnitIcon(name: string) {
+  const kind = getUnitKind(name);
+  if (kind === "internal") return Home;
+  if (kind === "external") return Truck;
   return MapPin;
+}
+
+function getUnitColor(name: string, theme: LPTheme): string {
+  const kind = getUnitKind(name);
+  if (kind === "external") return theme.secondary_color;
+  return theme.primary_color;
 }
 
 interface GalleryUnit {
@@ -42,16 +57,17 @@ function normalizePhotos(value: unknown): string[] {
 }
 
 function normalizeUnits(gallery: LPGallery, companyName: string): GalleryUnit[] {
-  const unitPhotos = Array.isArray(gallery.units)
+  const rawUnits = Array.isArray(gallery.units)
     ? gallery.units
         .map((unit) => ({
           name: isNonEmptyString(unit?.name) ? unit.name : companyName,
           photos: normalizePhotos(unit?.photos),
         }))
-        .filter((unit) => unit.photos.length > 0)
     : [];
 
-  if (unitPhotos.length > 0) return unitPhotos;
+  // Keep ALL declared units (even empty ones) so tabs render — only valuable when at least one has photos
+  const hasAnyPhotos = rawUnits.some((u) => u.photos.length > 0);
+  if (rawUnits.length > 0 && hasAnyPhotos) return rawUnits;
 
   const flatPhotos = normalizePhotos(gallery.photos);
   if (flatPhotos.length > 0) {
@@ -143,71 +159,111 @@ export function DLPGallery({ gallery, theme, companyName, onActiveUnitChange }: 
         </motion.div>
 
         {hasMultipleUnits && (
-          <div className="flex justify-center gap-3 mb-8">
+          <div className="flex justify-center gap-4 mb-10 flex-wrap">
             {units.map((unit, idx) => {
               const Icon = getUnitIcon(unit.name);
+              const unitColor = getUnitColor(unit.name, theme);
+              const isActive = safeActiveUnit === idx;
               return (
                 <button
                   key={`${unit.name}-${idx}`}
                   onClick={() => setActiveUnit(idx)}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold transition-all duration-300"
+                  className="flex flex-col items-center gap-2 px-7 py-4 rounded-2xl font-bold transition-all duration-300 min-w-[150px]"
                   style={{
-                    backgroundColor:
-                      safeActiveUnit === idx ? theme.primary_color : theme.text_color + "10",
-                    color:
-                      safeActiveUnit === idx ? "#fff" : theme.text_color + "99",
-                    transform: safeActiveUnit === idx ? "scale(1.05)" : "scale(1)",
-                    boxShadow: safeActiveUnit === idx ? `0 4px 15px ${theme.primary_color}40` : "none",
+                    backgroundColor: isActive ? unitColor : "#fff",
+                    color: isActive ? "#fff" : unitColor,
+                    border: `2px solid ${unitColor}`,
+                    transform: isActive ? "scale(1.08)" : "scale(1)",
+                    boxShadow: isActive
+                      ? `0 10px 30px ${unitColor}50`
+                      : `0 2px 8px ${unitColor}15`,
                     fontFamily: theme.font_body,
                   }}
                 >
-                  <Icon className="w-4 h-4" />
-                  {unit.name}
+                  <Icon className="w-8 h-8" strokeWidth={2.2} />
+                  <span className="text-base leading-tight">{unit.name}</span>
                 </button>
               );
             })}
           </div>
         )}
 
-        <AnimatePresence mode="wait">
+        {visiblePhotos.length === 0 ? (
           <motion.div
-            key={safeActiveUnit}
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 max-w-5xl mx-auto"
+            key={`empty-${safeActiveUnit}`}
+            className="max-w-xl mx-auto text-center py-16 px-8 rounded-2xl"
+            style={{
+              backgroundColor: getUnitColor(currentUnit.name, theme) + "08",
+              border: `2px dashed ${getUnitColor(currentUnit.name, theme)}40`,
+            }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.4 }}
           >
-            {visiblePhotos.map((src, index) => (
-              <motion.div
-                key={src}
-                className="group relative rounded-xl overflow-hidden shadow-lg hover:shadow-2xl aspect-square cursor-pointer transition-shadow duration-300"
-                onClick={() => setSelectedImage(index)}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
-              >
-                <img
-                  src={src}
-                  alt={`${currentUnit.name} - Foto ${index + 1}`}
-                  className="w-full h-full object-cover group-hover:scale-[1.15] transition-transform duration-500"
-                  loading="lazy"
-                  onError={() => handleImageError(src)}
-                />
-                <div
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                  style={{
-                    background: `linear-gradient(to top, ${theme.primary_color}80, transparent 60%)`,
-                  }}
-                />
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <Camera className="w-8 h-8 drop-shadow-lg" style={{ color: "#fff" }} />
-                </div>
-              </motion.div>
-            ))}
+            <div
+              className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: getUnitColor(currentUnit.name, theme) + "20" }}
+            >
+              <ImageOff
+                className="w-8 h-8"
+                style={{ color: getUnitColor(currentUnit.name, theme) }}
+              />
+            </div>
+            <h3
+              className="text-xl font-bold mb-2"
+              style={{ color: theme.text_color, fontFamily: theme.font_heading }}
+            >
+              Em breve, novas fotos!
+            </h3>
+            <p
+              className="text-sm"
+              style={{ color: theme.text_color + "99", fontFamily: theme.font_body }}
+            >
+              {getUnitKind(currentUnit.name) === "external"
+                ? "Levamos a magia da nossa festa até o local que você escolher. Em breve fotos das festas que realizamos em outros locais."
+                : "Estamos preparando novas fotos deste espaço."}
+            </p>
           </motion.div>
-        </AnimatePresence>
-
+        ) : (
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={safeActiveUnit}
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 max-w-5xl mx-auto"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+            >
+              {visiblePhotos.map((src, index) => (
+                <motion.div
+                  key={src}
+                  className="group relative rounded-xl overflow-hidden shadow-lg hover:shadow-2xl aspect-square cursor-pointer transition-shadow duration-300"
+                  onClick={() => setSelectedImage(index)}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                >
+                  <img
+                    src={src}
+                    alt={`${currentUnit.name} - Foto ${index + 1}`}
+                    className="w-full h-full object-cover group-hover:scale-[1.15] transition-transform duration-500"
+                    loading="lazy"
+                    onError={() => handleImageError(src)}
+                  />
+                  <div
+                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                    style={{
+                      background: `linear-gradient(to top, ${getUnitColor(currentUnit.name, theme)}80, transparent 60%)`,
+                    }}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <Camera className="w-8 h-8 drop-shadow-lg" style={{ color: "#fff" }} />
+                  </div>
+                </motion.div>
+              ))}
+            </motion.div>
+          </AnimatePresence>
+        )}
         {selectedImage !== null && visiblePhotos.length > 0 && (
           <ImageLightbox
             images={visiblePhotos}
