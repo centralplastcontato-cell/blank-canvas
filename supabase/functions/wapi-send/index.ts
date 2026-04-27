@@ -492,6 +492,31 @@ function getExtensionFromMimeType(mimeType: string | null | undefined): string {
   }
 }
 
+// Generate Brazilian phone variants (with/without 55, with/without 9th digit)
+// Used to find an existing conversation regardless of how the phone was stored.
+function getBrazilianPhoneVariants(rawPhone: string): string[] {
+  const clean = (rawPhone || '').replace(/\D/g, '');
+  const variants = new Set<string>();
+  if (!clean) return [];
+  variants.add(clean);
+
+  if (!clean.startsWith('55') && clean.length >= 10) variants.add('55' + clean);
+  if (clean.startsWith('55') && clean.length >= 12) variants.add(clean.slice(2));
+
+  const withoutCountry = clean.startsWith('55') ? clean.slice(2) : clean;
+  if (withoutCountry.length === 10) {
+    const withNine = withoutCountry.slice(0, 2) + '9' + withoutCountry.slice(2);
+    variants.add(withNine);
+    variants.add('55' + withNine);
+  }
+  if (withoutCountry.length === 11 && withoutCountry[2] === '9') {
+    const withoutNine = withoutCountry.slice(0, 2) + withoutCountry.slice(3);
+    variants.add(withoutNine);
+    variants.add('55' + withoutNine);
+  }
+  return Array.from(variants);
+}
+
 // Helper to find or create a conversation for LP/bot outbound messages
 async function findOrCreateConversation(
   supabase: any,
@@ -503,7 +528,11 @@ async function findOrCreateConversation(
   try {
     // Normalize phone for remote_jid format
     const cleanPhone = phone.replace(/\D/g, '');
-    const remoteJid = `${cleanPhone}@s.whatsapp.net`;
+    // Canonical Brazilian format always carries the country code (55).
+    // We always INSERT with this canonical jid to avoid creating "ghost" duplicates
+    // when the front-end happens to send the phone without the leading 55.
+    const canonicalPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+    const canonicalJid = `${canonicalPhone}@s.whatsapp.net`;
 
     // Find the internal instance record
     const { data: instanceRecord } = await supabase
@@ -517,13 +546,29 @@ async function findOrCreateConversation(
       return null;
     }
 
-    // Check if conversation already exists
-    const { data: existing } = await supabase
+    // Check if conversation already exists — search ALL phone variants so we
+    // reuse the existing chat even if it was originally stored with/without 55
+    // or with/without the 9th digit.
+    const variants = getBrazilianPhoneVariants(cleanPhone);
+    const remoteJids = variants.map((v) => `${v}@s.whatsapp.net`);
+
+    const { data: existingList } = await supabase
       .from('wapi_conversations')
-      .select('id, company_id, contact_name, bot_data')
+      .select('id, company_id, contact_name, bot_data, remote_jid, lead_id, last_message_at')
       .eq('instance_id', instanceRecord.id)
-      .eq('remote_jid', remoteJid)
-      .maybeSingle();
+      .in('remote_jid', remoteJids)
+      .order('last_message_at', { ascending: false, nullsFirst: false })
+      .limit(5);
+
+    // Prefer the conversation that already has a lead linked, then most recent.
+    const existing = (existingList || []).sort((a: any, b: any) => {
+      const aHasLead = a.lead_id ? 1 : 0;
+      const bHasLead = b.lead_id ? 1 : 0;
+      if (aHasLead !== bHasLead) return bHasLead - aHasLead;
+      const aTs = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+      const bTs = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+      return bTs - aTs;
+    })[0];
 
     if (existing) {
       // If lpMode, reset bot state so returning leads can re-engage
