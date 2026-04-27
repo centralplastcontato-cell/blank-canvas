@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, MapPin, Home, Trees } from "lucide-react";
+import { Play, MapPin, Home, Truck } from "lucide-react";
 import type { LPVideo, LPTheme } from "@/types/landing-page";
 
 interface DLPVideoProps {
@@ -10,11 +10,26 @@ interface DLPVideoProps {
   onActiveUnitChange?: (unitName: string) => void;
 }
 
-function getUnitIcon(name: string) {
+type UnitKind = "internal" | "external" | "default";
+
+function getUnitKind(name: string): UnitKind {
   const lower = name.toLowerCase();
-  if (lower.includes("interno") || lower.includes("intern")) return Home;
-  if (lower.includes("externo") || lower.includes("extern")) return Trees;
+  if (lower.includes("externa") || lower.includes("externo") || lower.includes("extern")) return "external";
+  if (lower.includes("nosso") || lower.includes("interno") || lower.includes("intern") || lower.includes("buffet")) return "internal";
+  return "default";
+}
+
+function getUnitIcon(name: string) {
+  const kind = getUnitKind(name);
+  if (kind === "internal") return Home;
+  if (kind === "external") return Truck;
   return MapPin;
+}
+
+function getUnitColor(name: string, theme: LPTheme): string {
+  const kind = getUnitKind(name);
+  if (kind === "external") return theme.secondary_color;
+  return theme.primary_color;
 }
 
 function getYouTubeEmbedUrl(url: string): string | null {
