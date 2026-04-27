@@ -1159,7 +1159,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                 </div>
                 <div>
                   <Label>Conta bancária</Label>
-                  <BankAccountSelect value={extraBankId} onChange={(v) => setExtraBankId(v || "")} />
+                  <BankAccountSelect value={extraBankId} onValueChange={(v) => setExtraBankId(v || "")} />
                 </div>
               </div>
             )}
