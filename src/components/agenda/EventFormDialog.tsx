@@ -2194,11 +2194,21 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
                 <div className="space-y-2.5">
                   <Label className="text-sm font-medium text-foreground/70">Parcelas</Label>
-                  <Input type="number" min={1} max={24} placeholder="1" value={payment.parcelas ?? ""} onChange={(e) => {
-                    const num = e.target.value ? Math.max(1, Math.min(24, Number(e.target.value))) : null;
-                    const details = buildParcelasDetails(num, payment.saldo_valor, payment.parcelas_details || []);
-                    setPayment({ ...payment, parcelas: num, parcelas_details: details });
-                  }} />
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={24}
+                    placeholder="1"
+                    value={payment.parcelas ?? ""}
+                    onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                    onKeyDown={(e) => { if (e.key === "ArrowUp" || e.key === "ArrowDown") e.preventDefault(); }}
+                    onChange={(e) => {
+                      const num = e.target.value ? Math.max(1, Math.min(24, Number(e.target.value))) : null;
+                      const details = buildParcelasDetails(num, payment.saldo_valor, payment.parcelas_details || []);
+                      setPayment({ ...payment, parcelas: num, parcelas_details: details });
+                    }}
+                  />
                 </div>
                 {(payment.parcelas ?? 0) > 1 && payment.saldo_forma !== "cartao" && (
                   <div className="space-y-2.5">
