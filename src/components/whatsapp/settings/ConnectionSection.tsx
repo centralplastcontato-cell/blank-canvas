@@ -168,6 +168,10 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
               if (previousPhone && wapiPhone && previousPhone !== wapiPhone && !detectedNumberChange) {
                 detectedNumberChange = { instance, oldPhone: previousPhone, newPhone: wapiPhone };
               }
+
+              // Reconexão detectada (status anterior != connected): re-aplica webhooks
+              // para garantir que mensagens recebidas voltem a chegar ao backend.
+              void configureWapiWebhooks(instance.instance_id, instance.instance_token, "sync-reconnected");
             } else if (wapiStatus === 'disconnected' || wapiStatus === 'instance_not_found') {
               updateData.connected_at = null;
             }
