@@ -1115,36 +1115,53 @@ Deno.serve(async (req) => {
           }
           console.log('send-audio: using provided audio payload mimeType:', resolvedAudioMimeType);
         } else if (audioMediaUrl) {
-          console.log('send-audio: fetching and converting to base64:', audioMediaUrl.substring(0, 80));
-          const audioRes = await fetch(audioMediaUrl);
-          if (!audioRes.ok) throw new Error('Falha ao baixar audio: ' + audioRes.status);
-          const fetchedMimeType = audioRes.headers.get('content-type')?.split(';')[0].trim().toLowerCase() || resolvedAudioMimeType;
-          const buf = await audioRes.arrayBuffer();
-          const bytes = new Uint8Array(buf);
-          let bin = '';
-          const chunkSize = 8192;
-          for (let i = 0; i < bytes.length; i += chunkSize) {
-            const end = Math.min(i + chunkSize, bytes.length);
-            for (let j = i; j < end; j++) {
-              bin += String.fromCharCode(bytes[j]);
-            }
-          }
-          audioPayload.audio = `data:${fetchedMimeType};base64,${btoa(bin)}`;
-          console.log('send-audio: fetched media mimeType:', fetchedMimeType);
+          // W-API accepts a public URL directly. Send the URL as-is to avoid
+          // re-encoding issues (especially when the source is audio/wav, which
+          // W-API rejects when wrapped as data: URI).
+          console.log('send-audio: sending direct URL:', audioMediaUrl.substring(0, 80));
+          audioPayload.audio = audioMediaUrl;
         } else {
           return new Response(JSON.stringify({ error: 'Áudio é obrigatório' }), {
             status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
-        const res = await sendMediaWithGroupFallback(
+        let res = await sendMediaWithGroupFallback(
           `${WAPI_BASE_URL}/message/send-audio?instanceId=${instance_id}`,
           instance_token,
           phone,
           audioPayload,
           'send-audio'
         );
-        
+
+        // Fallback: if W-API rejected the URL/payload, fetch the audio and retry
+        // with raw base64 (no data: prefix) — some W-API versions require this.
+        if (!res.ok && audioMediaUrl && !audioBase64) {
+          try {
+            console.log('send-audio: URL rejected, retrying as raw base64');
+            const audioRes = await fetch(audioMediaUrl);
+            if (audioRes.ok) {
+              const buf = await audioRes.arrayBuffer();
+              const bytes = new Uint8Array(buf);
+              let bin = '';
+              for (let i = 0; i < bytes.length; i += 8192) {
+                const end = Math.min(i + 8192, bytes.length);
+                for (let j = i; j < end; j++) bin += String.fromCharCode(bytes[j]);
+              }
+              const rawB64 = btoa(bin);
+              res = await sendMediaWithGroupFallback(
+                `${WAPI_BASE_URL}/message/send-audio?instanceId=${instance_id}`,
+                instance_token,
+                phone,
+                { audio: rawB64 },
+                'send-audio'
+              );
+            }
+          } catch (retryErr) {
+            console.error('send-audio retry failed:', retryErr);
+          }
+        }
+
         if (!res.ok) {
           console.error('send-audio failed:', res.error, 'hadBase64:', !!audioBase64, 'mediaUrl:', audioMediaUrl?.substring(0, 80));
           return new Response(JSON.stringify({ success: false, error: res.error || 'Falha ao enviar áudio' }), {
