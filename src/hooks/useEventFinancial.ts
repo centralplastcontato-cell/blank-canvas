@@ -316,16 +316,59 @@ export function useEventFinancial(eventId: string | undefined, companyId: string
     fetchAll();
   };
 
-  const addExtra = async (data: { description: string; amount: number }) => {
+  const addExtra = async (data: {
+    description: string;
+    amount: number;
+    alreadyReceived?: boolean;
+    payment_method?: string;
+    bank_account_id?: string;
+    due_date?: string;
+  }) => {
     if (!eventId || !companyId) return;
-    const { error } = await supabase.from('event_extras').insert({ event_id: eventId, company_id: companyId, ...data });
+    // 1) Insert extra
+    const { data: extraRow, error } = await supabase
+      .from('event_extras')
+      .insert({ event_id: eventId, company_id: companyId, description: data.description, amount: data.amount })
+      .select('id')
+      .single();
     if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
-    await addTimeline('extra_added', `Extra "${data.description}" de R$ ${data.amount.toFixed(2)} adicionado`);
-    toast({ title: 'Extra adicionado' });
+
+    // 2) Create a linked payment (parcela) so it can be received with bank/method/receipt
+    const today = new Date().toISOString().split('T')[0];
+    const isPaid = !!data.alreadyReceived;
+    const paymentInsert: any = {
+      event_id: eventId,
+      company_id: companyId,
+      type: 'parcela',
+      amount: data.amount,
+      due_date: data.due_date || today,
+      status: isPaid ? 'paid' : 'pending',
+      payment_method: data.payment_method || null,
+      bank_account_id: data.bank_account_id || null,
+      paid_at: isPaid ? new Date().toISOString() : null,
+      notes: `[extra:${extraRow.id}] Extra: ${data.description}`,
+    };
+    const { error: pErr } = await supabase.from('event_payments').insert(paymentInsert);
+    if (pErr) {
+      // Rollback extra to keep state consistent
+      await supabase.from('event_extras').delete().eq('id', extraRow.id);
+      toast({ title: 'Erro', description: pErr.message, variant: 'destructive' });
+      return;
+    }
+
+    await addTimeline('extra_added', `Extra "${data.description}" de R$ ${data.amount.toFixed(2)} adicionado${isPaid ? ' (já recebido)' : ''}`);
+    toast({ title: isPaid ? 'Extra adicionado e recebido' : 'Extra adicionado' });
     fetchAll();
   };
 
   const deleteExtra = async (id: string) => {
+    // Remove linked payment(s) first (matched by notes prefix)
+    await supabase
+      .from('event_payments')
+      .delete()
+      .eq('event_id', eventId)
+      .like('notes', `[extra:${id}]%`);
+
     const { error } = await supabase.from('event_extras').delete().eq('id', id);
     if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
     await addTimeline('extra_removed', 'Extra removido');

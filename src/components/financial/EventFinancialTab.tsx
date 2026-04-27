@@ -68,6 +68,9 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
   const [extraDesc, setExtraDesc] = useState("");
   const [extraAmount, setExtraAmount] = useState("");
+  const [extraAlreadyReceived, setExtraAlreadyReceived] = useState(false);
+  const [extraMethod, setExtraMethod] = useState<string>("pix");
+  const [extraBankId, setExtraBankId] = useState<string>("");
   const [discountType, setDiscountType] = useState<"fixed" | "percentage">("fixed");
   const [discountValue, setDiscountValue] = useState("");
   const [discountReason, setDiscountReason] = useState("");
@@ -277,9 +280,20 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   const handleAddExtra = () => {
     const val = parseFloat(extraAmount);
     if (!extraDesc || !val) return;
-    financial.addExtra({ description: extraDesc, amount: val });
+    if (extraAlreadyReceived && !extraBankId) {
+      toast({ title: "Selecione a conta bancária", description: "Informe em qual conta o valor entrou.", variant: "destructive" });
+      return;
+    }
+    financial.addExtra({
+      description: extraDesc,
+      amount: val,
+      alreadyReceived: extraAlreadyReceived,
+      payment_method: extraAlreadyReceived ? extraMethod : undefined,
+      bank_account_id: extraAlreadyReceived ? extraBankId : undefined,
+    });
     setExtraDialogOpen(false);
     setExtraDesc(""); setExtraAmount("");
+    setExtraAlreadyReceived(false); setExtraMethod("pix"); setExtraBankId("");
   };
 
   const handleAddDiscount = () => {
@@ -1117,6 +1131,44 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
           <div className="space-y-4">
             <div><Label>Descrição</Label><Input value={extraDesc} onChange={e => setExtraDesc(e.target.value)} placeholder="Ex: Convidado extra" /></div>
             <div><Label>Valor (R$)</Label><Input type="number" step="0.01" value={extraAmount} onChange={e => setExtraAmount(e.target.value)} /></div>
+
+            <label className="flex items-center gap-2 text-sm cursor-pointer select-none rounded-lg border border-border/40 p-2.5 bg-card hover:bg-muted/30 transition">
+              <input
+                type="checkbox"
+                checked={extraAlreadyReceived}
+                onChange={e => setExtraAlreadyReceived(e.target.checked)}
+                className="h-4 w-4 accent-primary"
+              />
+              <span className="font-medium">Já recebi este valor</span>
+            </label>
+
+            {extraAlreadyReceived && (
+              <div className="space-y-3 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.04] p-3">
+                <div>
+                  <Label>Forma de pagamento</Label>
+                  <Select value={extraMethod} onValueChange={setExtraMethod}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pix">PIX</SelectItem>
+                      <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                      <SelectItem value="cartao_credito">Cartão Crédito</SelectItem>
+                      <SelectItem value="cartao_debito">Cartão Débito</SelectItem>
+                      <SelectItem value="transferencia">Transferência</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Conta bancária</Label>
+                  <BankAccountSelect value={extraBankId} onValueChange={(v) => setExtraBankId(v || "")} />
+                </div>
+              </div>
+            )}
+
+            {!extraAlreadyReceived && (
+              <p className="text-xs text-muted-foreground">
+                Será criada uma cobrança pendente que aparecerá em <strong>Parcelas</strong> para você dar baixa quando receber.
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setExtraDialogOpen(false)}>Cancelar</Button>
