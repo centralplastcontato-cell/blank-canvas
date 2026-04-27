@@ -586,6 +586,13 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
         if (wapiStatus === 'connected') {
           updateData.phone_number = newPhone;
           updateData.connected_at = new Date().toISOString();
+
+          // Se a instância acabou de transicionar para 'connected' (ex.: usuário
+          // reconectou via QR em outro dispositivo), reaplica os webhooks na
+          // W-API/Z-API para que mensagens recebidas voltem a chegar.
+          if (instance.status !== 'connected') {
+            void configureWapiWebhooks(instance.instance_id, instance.instance_token, "manual-refresh-reconnected");
+          }
         } else if (wapiStatus === 'disconnected' || wapiStatus === 'instance_not_found') {
           updateData.connected_at = null;
         }
