@@ -66,6 +66,7 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [interestContext, setInterestContext] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchLP() {
