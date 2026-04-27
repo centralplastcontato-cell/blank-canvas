@@ -20,6 +20,7 @@ import { FinancialTimeline } from "./FinancialTimeline";
 import { BankAccountSelect } from "./BankAccountSelect";
 import { useBankAccounts } from "@/hooks/useBankAccounts";
 import { supabase } from "@/integrations/supabase/client";
+import { formatCurrencyInput, parseCurrencyInput } from "@/lib/currency-input";
 
 const METHOD_LABELS: Record<string, string> = {
   pix: "PIX",
@@ -278,7 +279,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   };
 
   const handleAddExtra = () => {
-    const val = parseFloat(extraAmount);
+    const val = parseCurrencyInput(extraAmount);
     if (!extraDesc || !val) return;
     if (extraAlreadyReceived && !extraBankId) {
       toast({ title: "Selecione a conta bancária", description: "Informe em qual conta o valor entrou.", variant: "destructive" });
@@ -1130,7 +1131,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
           <DialogHeader><DialogTitle>Adicionar Extra</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div><Label>Descrição</Label><Input value={extraDesc} onChange={e => setExtraDesc(e.target.value)} placeholder="Ex: Convidado extra" /></div>
-            <div><Label>Valor (R$)</Label><Input type="number" step="0.01" value={extraAmount} onChange={e => setExtraAmount(e.target.value)} /></div>
+            <div><Label>Valor (R$)</Label><Input inputMode="numeric" value={extraAmount} onChange={e => setExtraAmount(formatCurrencyInput(e.target.value))} placeholder="0,00" /></div>
 
             <label className="flex items-center gap-2 text-sm cursor-pointer select-none rounded-lg border border-border/40 p-2.5 bg-card hover:bg-muted/30 transition">
               <input
