@@ -279,7 +279,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
   };
 
   const handleAddExtra = () => {
-    const val = parseFloat(extraAmount);
+    const val = parseCurrencyInput(extraAmount);
     if (!extraDesc || !val) return;
     if (extraAlreadyReceived && !extraBankId) {
       toast({ title: "Selecione a conta bancária", description: "Informe em qual conta o valor entrou.", variant: "destructive" });
