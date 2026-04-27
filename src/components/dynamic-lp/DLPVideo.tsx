@@ -40,8 +40,13 @@ interface VideoItem {
   location?: string;
 }
 
+interface VideoGroup {
+  name: string;
+  videos: VideoItem[];
+}
+
 export function DLPVideo({ video, theme, companyName, onActiveUnitChange }: DLPVideoProps) {
-  const [activeIdx, setActiveIdx] = useState(0);
+  const [activeGroupIdx, setActiveGroupIdx] = useState(0);
 
   let items: VideoItem[] = [];
 
@@ -59,22 +64,31 @@ export function DLPVideo({ video, theme, companyName, onActiveUnitChange }: DLPV
     ];
   }
 
-  const isMultiple = items.length >= 2;
-  const safeIdx = items.length === 0 ? 0 : Math.min(activeIdx, items.length - 1);
-  const currentName = items[safeIdx]?.name;
+  // Group videos by name (so duplicates with the same name become a single tab with multiple videos)
+  const groups: VideoGroup[] = (() => {
+    const map = new Map<string, VideoItem[]>();
+    for (const it of items) {
+      const key = (it.name || companyName).trim();
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(it);
+    }
+    return Array.from(map.entries()).map(([name, videos]) => ({ name, videos }));
+  })();
+
+  const isMultiple = groups.length >= 2;
+  const safeGroupIdx = groups.length === 0 ? 0 : Math.min(activeGroupIdx, groups.length - 1);
+  const currentGroupName = groups[safeGroupIdx]?.name;
 
   useEffect(() => {
-    if (isMultiple && currentName && onActiveUnitChange) {
-      onActiveUnitChange(currentName);
+    if (isMultiple && currentGroupName && onActiveUnitChange) {
+      onActiveUnitChange(currentGroupName);
     }
-  }, [isMultiple, currentName, onActiveUnitChange]);
+  }, [isMultiple, currentGroupName, onActiveUnitChange]);
 
   if (!video?.enabled) return null;
-  if (items.length === 0) return null;
+  if (groups.length === 0) return null;
 
-  const current = items[safeIdx];
-  const embedUrl =
-    current.video_type === "youtube" ? getYouTubeEmbedUrl(current.video_url) : null;
+  const currentVideos = groups[safeGroupIdx].videos;
 
   return (
     <section className="py-20 relative overflow-hidden">
@@ -123,25 +137,25 @@ export function DLPVideo({ video, theme, companyName, onActiveUnitChange }: DLPV
 
         {isMultiple && (
           <div className="flex justify-center gap-3 mb-8 flex-wrap">
-            {items.map((item, idx) => {
-              const Icon = getUnitIcon(item.name);
+            {groups.map((group, idx) => {
+              const Icon = getUnitIcon(group.name);
               return (
                 <button
-                  key={`${item.name}-${idx}`}
-                  onClick={() => setActiveIdx(idx)}
+                  key={`${group.name}-${idx}`}
+                  onClick={() => setActiveGroupIdx(idx)}
                   className="flex items-center gap-2 px-6 py-2.5 rounded-full font-semibold transition-all duration-300"
                   style={{
                     backgroundColor:
-                      safeIdx === idx ? theme.secondary_color : theme.text_color + "10",
-                    color: safeIdx === idx ? "#fff" : theme.text_color + "99",
-                    transform: safeIdx === idx ? "scale(1.05)" : "scale(1)",
+                      safeGroupIdx === idx ? theme.secondary_color : theme.text_color + "10",
+                    color: safeGroupIdx === idx ? "#fff" : theme.text_color + "99",
+                    transform: safeGroupIdx === idx ? "scale(1.05)" : "scale(1)",
                     boxShadow:
-                      safeIdx === idx ? `0 4px 15px ${theme.secondary_color}40` : "none",
+                      safeGroupIdx === idx ? `0 4px 15px ${theme.secondary_color}40` : "none",
                     fontFamily: theme.font_body,
                   }}
                 >
                   <Icon className="w-4 h-4" />
-                  {item.name}
+                  {group.name}
                 </button>
               );
             })}
@@ -150,35 +164,44 @@ export function DLPVideo({ video, theme, companyName, onActiveUnitChange }: DLPV
 
         <AnimatePresence mode="wait">
           <motion.div
-            key={safeIdx}
-            className="max-w-4xl mx-auto"
+            key={safeGroupIdx}
+            className={`grid gap-6 max-w-5xl mx-auto ${
+              currentVideos.length >= 2 ? "md:grid-cols-2" : "md:grid-cols-1 max-w-4xl"
+            }`}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.4 }}
           >
-            <div
-              className="relative rounded-2xl overflow-hidden shadow-2xl border-2"
-              style={{
-                borderColor: theme.primary_color + "30",
-                backgroundColor: theme.background_color,
-                boxShadow: `0 20px 50px ${theme.primary_color}15`,
-              }}
-            >
-              {embedUrl ? (
-                <div className="aspect-video">
-                  <iframe
-                    src={embedUrl}
-                    title={current.name}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
+            {currentVideos.map((current, vIdx) => {
+              const embedUrl =
+                current.video_type === "youtube" ? getYouTubeEmbedUrl(current.video_url) : null;
+              return (
+                <div
+                  key={`${current.video_url}-${vIdx}`}
+                  className="relative rounded-2xl overflow-hidden shadow-2xl border-2"
+                  style={{
+                    borderColor: theme.primary_color + "30",
+                    backgroundColor: theme.background_color,
+                    boxShadow: `0 20px 50px ${theme.primary_color}15`,
+                  }}
+                >
+                  {embedUrl ? (
+                    <div className="aspect-video">
+                      <iframe
+                        src={embedUrl}
+                        title={current.name}
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  ) : (
+                    <VideoWithPoster item={current} theme={theme} />
+                  )}
                 </div>
-              ) : (
-                <VideoWithPoster item={current} theme={theme} />
-              )}
-            </div>
+              );
+            })}
           </motion.div>
         </AnimatePresence>
       </div>
