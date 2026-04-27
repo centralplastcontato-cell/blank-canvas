@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { configureWapiWebhooks } from "@/lib/wapi-webhook-config";
 
 export interface ConnectableInstance {
   id: string;
@@ -89,6 +90,8 @@ export function useWhatsAppConnection(onConnected?: () => void) {
           .from("wapi_instances")
           .update({ status: "connected", connected_at: new Date().toISOString() })
           .eq("id", instance.id);
+        // Re-aplica os webhooks para garantir o recebimento de mensagens após reconexão
+        void configureWapiWebhooks(instance.instance_id, instance.instance_token, "qr-already-connected");
         closeDialog();
         onConnected?.();
         isFetchingQrRef.current = false;
@@ -169,6 +172,10 @@ export function useWhatsAppConnection(onConnected?: () => void) {
             connected_at: new Date().toISOString(),
           })
           .eq("id", instance.id);
+
+        // Reconexão via QR detectada: re-aplica webhooks na W-API/Z-API
+        // para evitar que mensagens recebidas deixem de chegar ao backend.
+        void configureWapiWebhooks(instance.instance_id, instance.instance_token, "qr-poll-connected");
 
         setQrPolling(false);
         setQrDialogOpen(false);

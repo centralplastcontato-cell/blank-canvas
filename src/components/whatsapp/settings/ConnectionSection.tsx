@@ -4,6 +4,7 @@ import { useUnitPermissions } from "@/hooks/useUnitPermissions";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { useWhatsAppConnection } from "@/hooks/useWhatsAppConnection";
 import { insertWithCompany } from "@/lib/supabase-helpers";
+import { configureWapiWebhooks, WAPI_WEBHOOK_URL } from "@/lib/wapi-webhook-config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,7 +58,7 @@ interface ConnectionSectionProps {
 
 // UNITS are now loaded dynamically from useCompanyUnits
 
-const webhookUrl = `https://rsezgnkfhodltrsewlhz.supabase.co/functions/v1/wapi-webhook`;
+const webhookUrl = WAPI_WEBHOOK_URL;
 
 export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   const { unitOptions: UNITS, isLoading: isLoadingUnits } = useCompanyUnits();
@@ -167,6 +168,10 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
               if (previousPhone && wapiPhone && previousPhone !== wapiPhone && !detectedNumberChange) {
                 detectedNumberChange = { instance, oldPhone: previousPhone, newPhone: wapiPhone };
               }
+
+              // Reconexão detectada (status anterior != connected): re-aplica webhooks
+              // para garantir que mensagens recebidas voltem a chegar ao backend.
+              void configureWapiWebhooks(instance.instance_id, instance.instance_token, "sync-reconnected");
             } else if (wapiStatus === 'disconnected' || wapiStatus === 'instance_not_found') {
               updateData.connected_at = null;
             }
@@ -581,6 +586,13 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
         if (wapiStatus === 'connected') {
           updateData.phone_number = newPhone;
           updateData.connected_at = new Date().toISOString();
+
+          // Se a instância acabou de transicionar para 'connected' (ex.: usuário
+          // reconectou via QR em outro dispositivo), reaplica os webhooks na
+          // W-API/Z-API para que mensagens recebidas voltem a chegar.
+          if (instance.status !== 'connected') {
+            void configureWapiWebhooks(instance.instance_id, instance.instance_token, "manual-refresh-reconnected");
+          }
         } else if (wapiStatus === 'disconnected' || wapiStatus === 'instance_not_found') {
           updateData.connected_at = null;
         }
