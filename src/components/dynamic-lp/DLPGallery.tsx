@@ -228,7 +228,7 @@ export function DLPGallery({ gallery, theme, companyName, onActiveUnitChange }: 
           <AnimatePresence mode="wait">
             <motion.div
               key={safeActiveUnit}
-              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 max-w-5xl mx-auto"
+              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 max-w-6xl mx-auto"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
