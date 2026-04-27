@@ -845,9 +845,12 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                             </span>
                           )}
                         </div>
-                        {p.notes && (
-                          <p className="text-[11px] text-muted-foreground/70 italic mt-0.5">{p.notes}</p>
-                        )}
+                        {(() => {
+                          const cleanNotes = p.notes?.replace(/\[extra:[^\]]+\]\s*/g, "").trim();
+                          return cleanNotes ? (
+                            <p className="text-[11px] text-muted-foreground/70 italic mt-0.5">{cleanNotes}</p>
+                          ) : null;
+                        })()}
                       </div>
                       <div className="flex gap-1 shrink-0">
                         {canPay && p.status !== "paid" && (
