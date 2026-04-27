@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Sparkles, MapPin } from "lucide-react";
+import { Camera, Sparkles, MapPin, Home, Trees } from "lucide-react";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
 import type { LPGallery, LPTheme } from "@/types/landing-page";
 
@@ -8,6 +8,14 @@ interface DLPGalleryProps {
   gallery: LPGallery;
   theme: LPTheme;
   companyName: string;
+  onActiveUnitChange?: (unitName: string) => void;
+}
+
+function getUnitIcon(name: string) {
+  const lower = name.toLowerCase();
+  if (lower.includes("interno") || lower.includes("intern")) return Home;
+  if (lower.includes("externo") || lower.includes("extern")) return Trees;
+  return MapPin;
 }
 
 interface GalleryUnit {
