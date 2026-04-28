@@ -424,7 +424,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const statusDiff = statusScore(b) - statusScore(a);
       if (statusDiff !== 0) return statusDiff;
 
-      return a.provider === 'zapi' && b.provider !== 'zapi' ? 1 : 0;
+      // Prefer Z-API over W-API as last tiebreaker (newer provider, usually the active one)
+      if (a.provider === 'zapi' && b.provider !== 'zapi') return -1;
+      if (b.provider === 'zapi' && a.provider !== 'zapi') return 1;
+      return 0;
     })[0] || null;
   }, [instanceConversationCounts]);
 
