@@ -424,7 +424,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const statusDiff = statusScore(b) - statusScore(a);
       if (statusDiff !== 0) return statusDiff;
 
-      return a.provider === 'zapi' && b.provider !== 'zapi' ? 1 : 0;
+      // Prefer Z-API over W-API as last tiebreaker (newer provider, usually the active one)
+      if (a.provider === 'zapi' && b.provider !== 'zapi') return -1;
+      if (b.provider === 'zapi' && a.provider !== 'zapi') return 1;
+      return 0;
     })[0] || null;
   }, [instanceConversationCounts]);
 
@@ -3822,9 +3825,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   }
 
   const connectedInstances = instances.filter(i => i.status === 'connected' || i.status === 'degraded');
-  const hasDisconnectedInstances = instances.some(i => i.status !== 'connected' && i.status !== 'degraded');
-
   const allDisconnected = connectedInstances.length === 0;
+
+  // Consider the unit connected if ANY instance of the same unit is connected
+  // (a single unit can have both W-API and Z-API instances representing the same WhatsApp)
+  const selectedUnitHasConnection = selectedInstance
+    ? instances.some(i => i.unit === selectedInstance.unit && (i.status === 'connected' || i.status === 'degraded'))
+    : false;
+  const showDisconnectedBanner = allDisconnected || (!selectedUnitHasConnection && selectedInstance?.status !== 'connected' && selectedInstance?.status !== 'degraded');
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -3864,7 +3872,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       )}
 
       {/* Disconnected warning - Premium styled */}
-      {(allDisconnected || (hasDisconnectedInstances && selectedInstance?.status !== 'connected' && selectedInstance?.status !== 'degraded')) && (
+      {showDisconnectedBanner && (
         <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-3 mb-3 text-sm text-center shrink-0 shadow-sm backdrop-blur-sm flex items-center justify-center gap-3 flex-wrap">
           <span>
             <WifiOff className="w-4 h-4 inline mr-2" />
