@@ -23,6 +23,12 @@ interface LeadData {
   whatsapp?: string;
 }
 
+interface VenueOption {
+  id: string;
+  label: string;
+  emoji?: string;
+}
+
 interface LPBotConfig {
   welcome_message?: string;
   month_question?: string;
@@ -37,6 +43,11 @@ interface LPBotConfig {
   guest_limit_redirect_name?: string | null;
   redirect_completion_message?: string | null;
   whatsapp_welcome_template?: string | null;
+  venue_question_enabled?: boolean;
+  venue_question_text?: string;
+  venue_options?: VenueOption[];
+  external_location_question?: string;
+  external_location_required?: boolean;
 }
 
 interface LeadChatbotProps {
@@ -59,12 +70,22 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
   const [currentStep, setCurrentStep] = useState(0);
   const [leadData, setLeadData] = useState<LeadData>({});
   const [inputValue, setInputValue] = useState("");
-  const [inputType, setInputType] = useState<"name" | "whatsapp" | null>(null);
+  const [inputType, setInputType] = useState<"name" | "whatsapp" | "external_location" | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showEmojis, setShowEmojis] = useState(false);
   const [redirectAccepted, setRedirectAccepted] = useState<boolean | null>(null);
+  const [venueChoice, setVenueChoice] = useState<VenueOption | null>(null);
+  const [externalLocation, setExternalLocation] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Build dynamic interest context: prop > venue choice
+  const venueInterestText = venueChoice
+    ? venueChoice.id === 'externo'
+      ? `${venueChoice.emoji || '🌳'} Festa externa${externalLocation ? ` em ${externalLocation}` : ''}`
+      : `${venueChoice.emoji || '🏛️'} ${venueChoice.label}`
+    : null;
+  const effectiveInterestContext = interestContext || venueInterestText;
 
   // Detect if we're in dynamic (multi-company) mode
   const isDynamic = !!companyName;
@@ -189,11 +210,66 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     scrollToBottom();
   }, [messages]);
 
+  // Continues the flow after the optional venue (Espaço x Externa) step.
+  // If `venue` is provided, it represents the user choice for venueChoice (state may not be updated yet).
+  const proceedAfterVenue = (venue?: VenueOption | null) => {
+    const venueIsExternal = (venue?.id || venueChoice?.id) === 'externo';
+
+    if (isDynamic) {
+      // Dynamic mode: check if multiple units exist
+      if (unitOptions && unitOptions.length >= 2) {
+        // For external venue we skip unit selection (festa não é em uma unidade nossa)
+        if (venueIsExternal) {
+          setLeadData((prev) => ({ ...prev, unit: unitOptions[0] }));
+          const monthQ = lpBotConfig?.month_question || "Para qual mês você pretende realizar a festa?";
+          setMessages((prev) => [
+            ...prev,
+            { id: "month", type: "bot", content: monthQ, options: dynamicMonthOptions },
+          ]);
+          setCurrentStep(1);
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: "unit",
+              type: "bot",
+              content: "Em qual unidade você deseja fazer sua festa?",
+              options: [...unitOptions, "As duas"],
+            },
+          ]);
+          setCurrentStep(0); // unit step
+        }
+      } else {
+        setLeadData((prev) => ({ ...prev, unit: (unitOptions && unitOptions.length === 1) ? unitOptions[0] : (companyName || '') }));
+        const monthQ = lpBotConfig?.month_question || "Para qual mês você pretende realizar a festa?";
+        setMessages((prev) => [
+          ...prev,
+          { id: "month", type: "bot", content: monthQ, options: dynamicMonthOptions },
+        ]);
+        setCurrentStep(1);
+      }
+    } else {
+      setLeadData((prev) => ({ ...prev, unit: "Trujillo" }));
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: "month",
+          type: "bot",
+          content: "Para qual mês você pretende realizar a festa?",
+          options: campaignConfig.chatbot.monthOptions,
+        },
+      ]);
+      setCurrentStep(1);
+    }
+  };
+
   useEffect(() => {
     if (isOpen && messages.length === 0) {
       const welcomeMsg = isDynamic
         ? (lpBotConfig?.welcome_message || `Oi 👋 Que bom te ver por aqui!\n\nVou te fazer algumas perguntas rápidas para montar seu orçamento 😉`)
         : "Oi 👋 Que bom te ver por aqui!\n\nVou te fazer algumas perguntas rápidas para montar seu orçamento 😉";
+
+      const venueEnabled = isDynamic && lpBotConfig?.venue_question_enabled === true && Array.isArray(lpBotConfig?.venue_options) && (lpBotConfig.venue_options?.length || 0) > 0;
 
       setTimeout(() => {
         setMessages([
@@ -204,53 +280,27 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
           },
         ]);
         setTimeout(() => {
-          if (isDynamic) {
-            // Dynamic mode: check if multiple units exist
-            if (unitOptions && unitOptions.length >= 2) {
-              // Ask unit selection as step 0
-              setMessages((prev) => [
-                ...prev,
-                {
-                  id: "unit",
-                  type: "bot",
-                  content: "Em qual unidade você deseja fazer sua festa?",
-                  options: [...unitOptions, "As duas"],
-                },
-              ]);
-              setCurrentStep(0); // unit step
-            } else {
-              // Single unit or no units: skip unit selection
-              setLeadData((prev) => ({ ...prev, unit: (unitOptions && unitOptions.length === 1) ? unitOptions[0] : companyName }));
-              const monthQ = lpBotConfig?.month_question || "Para qual mês você pretende realizar a festa?";
-              setMessages((prev) => [
-                ...prev,
-                {
-                  id: "month",
-                  type: "bot",
-                  content: monthQ,
-                  options: dynamicMonthOptions,
-                },
-              ]);
-              setCurrentStep(1); // month step
-            }
-          } else {
-            // Default Castelo mode: auto-assign Trujillo, skip unit selection
-            setLeadData((prev) => ({ ...prev, unit: "Trujillo" }));
+          if (venueEnabled) {
+            // Step 0: Venue (Espaço vs Externa)
+            const opts = (lpBotConfig!.venue_options as VenueOption[]).map(o => `${o.emoji ? o.emoji + ' ' : ''}${o.label}`);
             setMessages((prev) => [
               ...prev,
               {
-                id: "month",
+                id: "venue",
                 type: "bot",
-                content: "Para qual mês você pretende realizar a festa?",
-                options: campaignConfig.chatbot.monthOptions,
+                content: lpBotConfig?.venue_question_text || "Onde você quer fazer a festa?",
+                options: opts,
               },
             ]);
-            setCurrentStep(1);
+            setCurrentStep(-1); // venue step
+          } else {
+            proceedAfterVenue(null);
           }
         }, 800);
       }, 500);
     }
   }, [isOpen, messages.length, isDynamic, companyName, lpBotConfig, unitOptions]);
+
 
   const handleOptionSelect = (option: string) => {
     const userMessage: Message = {
@@ -261,6 +311,30 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     setMessages((prev) => [...prev, userMessage]);
 
     setTimeout(() => {
+      // Step -1 (venue) is shared across modes
+      if (currentStep === -1) {
+        const venueOpts = (lpBotConfig?.venue_options as VenueOption[]) || [];
+        const matched = venueOpts.find(o => option.includes(o.label));
+        const chosen = matched || venueOpts[0] || null;
+        setVenueChoice(chosen);
+        if (chosen?.id === 'externo' && (lpBotConfig?.external_location_required !== false)) {
+          // Ask for bairro+cidade as free text input
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: "external-location",
+              type: "bot",
+              content: lpBotConfig?.external_location_question || "Perfeito! Em qual *bairro e cidade* será a festa? 📍",
+              isInput: true,
+            },
+          ]);
+          setInputType("external_location");
+        } else {
+          proceedAfterVenue(chosen);
+        }
+        return;
+      }
+
       if (isDynamic) {
         // Dynamic mode flow: unit(0) -> month(1) -> day(day-of-month) -> guests(2) -> capture(3)
         switch (currentStep) {
@@ -390,7 +464,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         || `Nossa capacidade máxima é de ${redirectInfo?.limit || 0} convidados.`;
 
       const dateStr = `${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}`;
-      const interestLine = interestContext ? `\n🏛️ Interesse: ${interestContext}` : '';
+      const interestLine = effectiveInterestContext ? `\n🎯 Interesse: ${effectiveInterestContext}` : '';
       const defaultNormalMsg = `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Local: ${displayName}${interestLine}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n1️⃣ - 📩 Receber agora o orçamento\n2️⃣ - 💬 Falar com um atendente`;
       
       const applyTemplate = (template: string) => template
@@ -399,7 +473,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         .replace(/\{data\}/g, dateStr)
         .replace(/\{convidados\}/g, leadInfo.guests || '')
         .replace(/\{empresa\}/g, displayName)
-        .replace(/\{interesse\}/g, interestContext || '');
+        .replace(/\{interesse\}/g, effectiveInterestContext || '');
 
       const redirectDefaultMsg = `Olá! 👋✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Local: ${displayName}${interestLine}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\n${redirectText}\n\nObrigado pelo interesse! 💜`;
 
@@ -440,7 +514,15 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     };
     setMessages((prev) => [...prev, userMessage]);
 
-    if (inputType === "name") {
+    if (inputType === "external_location") {
+      const loc = inputValue.trim();
+      setExternalLocation(loc);
+      setInputValue("");
+      setInputType(null);
+      // Continue flow after a small delay so the bot message renders
+      setTimeout(() => proceedAfterVenue(venueChoice), 400);
+      return;
+    } else if (inputType === "name") {
       setLeadData((prev) => ({ ...prev, name: inputValue }));
       setInputValue("");
       setInputType("whatsapp");
@@ -547,6 +629,8 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     setIsComplete(false);
     setIsSaving(false);
     setRedirectAccepted(null);
+    setVenueChoice(null);
+    setExternalLocation("");
   };
 
   useEffect(() => {
@@ -679,7 +763,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
               className="p-4 border-t border-border"
             >
               <p className="text-sm text-muted-foreground mb-2">
-                {inputType === "name" ? "Digite seu nome:" : "Digite seu WhatsApp:"}
+                {inputType === "name" ? "Digite seu nome:" : inputType === "whatsapp" ? "Digite seu WhatsApp:" : "Digite o bairro e cidade:"}
               </p>
               {/* Emoji Picker */}
               <AnimatePresence>
@@ -721,7 +805,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && handleInputSubmit()}
-                  placeholder={inputType === "name" ? "Seu nome completo" : "(11) 99999-9999"}
+                  placeholder={inputType === "name" ? "Seu nome completo" : inputType === "whatsapp" ? "(11) 99999-9999" : "Ex: Vila Mariana, São Paulo"}
                   className="flex-1 bg-muted border border-border rounded-full px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
                 <button
