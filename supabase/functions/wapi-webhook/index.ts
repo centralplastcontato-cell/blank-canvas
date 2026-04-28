@@ -1451,8 +1451,20 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
     if (nodeOptions && nodeOptions.length > 0) {
       // Try to match by number (e.g., user types "1", "2", etc.)
       const userChoice = content.trim();
-      const numMatch = userChoice.match(/^\d+$/);
-      
+      // Collapse digits+separators (e.g. "1 1" → "11", "1-2" → "12") to handle
+      // months like Nov/Dez represented as two keycap emojis (1️⃣1️⃣ / 1️⃣2️⃣).
+      let normalizedChoice = userChoice;
+      if (/^[\d][\d\s\-,./]*$/.test(userChoice)) {
+        const collapsed = userChoice.replace(/[\s\-,./]+/g, '');
+        if (/^\d+$/.test(collapsed) && collapsed !== userChoice) {
+          console.log(`[FlowBuilder] Collapsed digits "${userChoice}" → "${collapsed}"`);
+          normalizedChoice = collapsed;
+        } else if (/^\d+$/.test(collapsed)) {
+          normalizedChoice = collapsed;
+        }
+      }
+      const numMatch = normalizedChoice.match(/^\d+$/);
+
       if (numMatch) {
         const choiceNum = parseInt(numMatch[0]);
         console.log(`[FlowBuilder] User chose number: ${choiceNum} (valid range: 1-${nodeOptions.length})`);
