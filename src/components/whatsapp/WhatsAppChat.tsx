@@ -3873,15 +3873,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     );
   }
 
-  const connectedInstances = visibleInstances.filter(i => i.status === 'connected' || i.status === 'degraded');
+  const connectedInstances = visibleInstances.filter(i => i.is_active !== false && isConnectedStatus(i.status));
   const allDisconnected = connectedInstances.length === 0;
 
   // Consider the unit connected if ANY instance of the same unit is connected
   // (a single unit can have both W-API and Z-API instances representing the same WhatsApp)
-  const selectedUnitHasConnection = selectedInstance
-    ? instances.some(i => i.unit === selectedInstance.unit && (i.status === 'connected' || i.status === 'degraded'))
-    : false;
-  const showDisconnectedBanner = allDisconnected || (!selectedUnitHasConnection && selectedInstance?.status !== 'connected' && selectedInstance?.status !== 'degraded');
+  const selectedUnitHasConnection = !!selectedSendInstance;
+  const showDisconnectedBanner = allDisconnected || !selectedUnitHasConnection;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
