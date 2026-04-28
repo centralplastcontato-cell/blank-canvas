@@ -1,0 +1,1 @@
+UPDATE public.companies SET custom_domain = 'www.espacocarrossel.online' WHERE slug = 'espaco-carrossel';
