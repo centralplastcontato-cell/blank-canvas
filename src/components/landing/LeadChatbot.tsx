@@ -311,6 +311,30 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     setMessages((prev) => [...prev, userMessage]);
 
     setTimeout(() => {
+      // Step -1 (venue) is shared across modes
+      if (currentStep === -1) {
+        const venueOpts = (lpBotConfig?.venue_options as VenueOption[]) || [];
+        const matched = venueOpts.find(o => option.includes(o.label));
+        const chosen = matched || venueOpts[0] || null;
+        setVenueChoice(chosen);
+        if (chosen?.id === 'externo' && (lpBotConfig?.external_location_required !== false)) {
+          // Ask for bairro+cidade as free text input
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: "external-location",
+              type: "bot",
+              content: lpBotConfig?.external_location_question || "Perfeito! Em qual *bairro e cidade* será a festa? 📍",
+              isInput: true,
+            },
+          ]);
+          setInputType("external_location");
+        } else {
+          proceedAfterVenue(chosen);
+        }
+        return;
+      }
+
       if (isDynamic) {
         // Dynamic mode flow: unit(0) -> month(1) -> day(day-of-month) -> guests(2) -> capture(3)
         switch (currentStep) {
