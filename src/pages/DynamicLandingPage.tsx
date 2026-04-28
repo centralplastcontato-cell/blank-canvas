@@ -126,6 +126,11 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
           guest_limit_redirect_name: botSettings.guest_limit_redirect_name,
           redirect_completion_message: (botSettings as any).redirect_completion_message || null,
           whatsapp_welcome_template: (botSettings as any).whatsapp_welcome_template ?? null,
+          venue_question_enabled: (botSettings as any).venue_question_enabled === true,
+          venue_question_text: (botSettings as any).venue_question_text || undefined,
+          venue_options: Array.isArray((botSettings as any).venue_options) ? (botSettings as any).venue_options : undefined,
+          external_location_question: (botSettings as any).external_location_question || undefined,
+          external_location_required: (botSettings as any).external_location_required !== false,
         } : null;
 
         const defaultSocialProof: LPSocialProof = { enabled: false, items: [], text: "" };
