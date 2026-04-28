@@ -1059,9 +1059,20 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                       )}
                     </div>
                     <div>
-                      <p className="font-medium flex items-center gap-2">
+                      <p className="font-medium flex items-center gap-2 flex-wrap">
                         <Building2 className="w-4 h-4" />
                         {instance.unit}
+                        {instance.provider === 'zapi' ? (
+                          <Badge className="bg-blue-600 hover:bg-blue-600 text-white border-0 text-[10px] px-2 py-0.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-white mr-1.5 inline-block" />
+                            Z-API
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white border-0 text-[10px] px-2 py-0.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-white mr-1.5 inline-block" />
+                            W-API
+                          </Badge>
+                        )}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {instance.status === 'connected' ? 'Conectado' : 'Desconectado'}
