@@ -3857,7 +3857,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     );
   }
 
-  const connectedInstances = instances.filter(i => i.status === 'connected' || i.status === 'degraded');
+  const connectedInstances = visibleInstances.filter(i => i.status === 'connected' || i.status === 'degraded');
   const allDisconnected = connectedInstances.length === 0;
 
   // Consider the unit connected if ANY instance of the same unit is connected
@@ -3872,14 +3872,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       {/* Header with Unit Tabs - only show if multiple instances AND no external control */}
       {!externalSelectedUnit && (
         <div className="flex items-center justify-between gap-2 mt-3 mb-3 px-1 shrink-0">
-          {instances.length > 1 ? (
+          {visibleInstances.length > 1 ? (
             <Tabs 
               value={selectedInstance?.id || ""} 
               onValueChange={handleInstanceChange}
               className="flex-1"
             >
               <TabsList className="bg-card/80 backdrop-blur-sm border border-border/60 shadow-sm w-full overflow-x-auto flex justify-start">
-                {instances.map((instance) => (
+                {visibleInstances.map((instance) => (
                   <TabsTrigger 
                     key={instance.id} 
                     value={instance.id}
