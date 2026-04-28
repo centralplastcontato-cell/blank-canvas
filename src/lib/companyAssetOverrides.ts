@@ -48,13 +48,19 @@ export function getCompanyLogoOverride(slug?: string | null, fallback?: string |
 export function applyHeroAssetOverrides(hero: LPHero, slug?: string | null): LPHero {
   const override = getCompanyAssetOverride(slug);
 
-  if (!override?.mascot) {
+  if (!override?.mascot && !override?.heroBackgroundImage) {
     return hero;
   }
 
   return {
     ...hero,
-    mascot_image_url: override.mascot,
+    ...(override.mascot ? { mascot_image_url: override.mascot } : {}),
+    ...(override.heroBackgroundImage
+      ? {
+          background_image_url: override.heroBackgroundImage,
+          background_images: [override.heroBackgroundImage],
+        }
+      : {}),
   };
 }
 
