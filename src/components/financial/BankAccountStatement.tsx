@@ -540,25 +540,25 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
   return (
     <div className="space-y-4">
       {/* Balance summary */}
-      <div className="grid grid-cols-3 gap-3">
-        <Card className="p-3 text-center">
-          <p className="text-[10px] text-muted-foreground uppercase">Saldo Inicial</p>
-          <p className="text-sm font-bold">{fmt(account.initial_balance)}</p>
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <Card className="p-2 sm:p-3 text-center min-w-0">
+          <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase truncate">Saldo Inicial</p>
+          <p className="text-[11px] sm:text-sm font-bold tabular-nums break-words leading-tight mt-0.5">{fmt(account.initial_balance)}</p>
         </Card>
-        <Card className="p-3 text-center">
-          <p className="text-[10px] text-emerald-500 uppercase">Entradas</p>
-          <p className="text-sm font-bold text-emerald-500">+{fmt(liveTotals.totalEntries)}</p>
+        <Card className="p-2 sm:p-3 text-center min-w-0">
+          <p className="text-[9px] sm:text-[10px] text-emerald-500 uppercase truncate">Entradas</p>
+          <p className="text-[11px] sm:text-sm font-bold text-emerald-500 tabular-nums break-words leading-tight mt-0.5 whitespace-nowrap">+{fmt(liveTotals.totalEntries)}</p>
         </Card>
-        <Card className="p-3 text-center">
-          <p className="text-[10px] text-red-400 uppercase">Saídas</p>
-          <p className="text-sm font-bold text-red-400">-{fmt(liveTotals.totalExits)}</p>
+        <Card className="p-2 sm:p-3 text-center min-w-0">
+          <p className="text-[9px] sm:text-[10px] text-red-400 uppercase truncate">Saídas</p>
+          <p className="text-[11px] sm:text-sm font-bold text-red-400 tabular-nums break-words leading-tight mt-0.5 whitespace-nowrap">-{fmt(liveTotals.totalExits)}</p>
         </Card>
       </div>
 
       {/* Current balance */}
-      <Card className={`p-4 text-center ${liveTotals.currentBalance >= 0 ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-red-500/30 bg-red-500/5'}`}>
+      <Card className={`p-3 sm:p-4 text-center ${liveTotals.currentBalance >= 0 ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-red-500/30 bg-red-500/5'}`}>
         <p className="text-xs text-muted-foreground">Saldo Atual</p>
-        <p className={`text-2xl font-bold ${liveTotals.currentBalance >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
+        <p className={`text-xl sm:text-2xl font-bold tabular-nums ${liveTotals.currentBalance >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
           {fmt(liveTotals.currentBalance)}
         </p>
       </Card>
@@ -574,14 +574,14 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
       </Button>
 
       {/* Date filter */}
-      <div className="flex gap-3">
-        <div className="flex-1">
+      <div className="flex gap-2 sm:gap-3">
+        <div className="flex-1 min-w-0">
           <Label className="text-xs">De</Label>
-          <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-9 text-xs" />
+          <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-9 text-xs w-full" />
         </div>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <Label className="text-xs">Até</Label>
-          <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-9 text-xs" />
+          <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-9 text-xs w-full" />
         </div>
       </div>
 
