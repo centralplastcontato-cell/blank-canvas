@@ -118,6 +118,8 @@ export function ConversationFilters({
   }), [conversations, closedLeadCount, orcamentoEnviadoCount, visitasCount]);
 
   const hasActiveFilter = filter !== 'all';
+  const hasActiveMonthFilter = monthFilter && monthFilter !== 'all';
+  const hasAnyActiveFilter = hasActiveFilter || hasActiveMonthFilter;
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
