@@ -23,6 +23,12 @@ interface LeadData {
   whatsapp?: string;
 }
 
+interface VenueOption {
+  id: string;
+  label: string;
+  emoji?: string;
+}
+
 interface LPBotConfig {
   welcome_message?: string;
   month_question?: string;
@@ -37,6 +43,11 @@ interface LPBotConfig {
   guest_limit_redirect_name?: string | null;
   redirect_completion_message?: string | null;
   whatsapp_welcome_template?: string | null;
+  venue_question_enabled?: boolean;
+  venue_question_text?: string;
+  venue_options?: VenueOption[];
+  external_location_question?: string;
+  external_location_required?: boolean;
 }
 
 interface LeadChatbotProps {
