@@ -210,11 +210,66 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     scrollToBottom();
   }, [messages]);
 
+  // Continues the flow after the optional venue (Espaço x Externa) step.
+  // If `venue` is provided, it represents the user choice for venueChoice (state may not be updated yet).
+  const proceedAfterVenue = (venue?: VenueOption | null) => {
+    const venueIsExternal = (venue?.id || venueChoice?.id) === 'externo';
+
+    if (isDynamic) {
+      // Dynamic mode: check if multiple units exist
+      if (unitOptions && unitOptions.length >= 2) {
+        // For external venue we skip unit selection (festa não é em uma unidade nossa)
+        if (venueIsExternal) {
+          setLeadData((prev) => ({ ...prev, unit: unitOptions[0] }));
+          const monthQ = lpBotConfig?.month_question || "Para qual mês você pretende realizar a festa?";
+          setMessages((prev) => [
+            ...prev,
+            { id: "month", type: "bot", content: monthQ, options: dynamicMonthOptions },
+          ]);
+          setCurrentStep(1);
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: "unit",
+              type: "bot",
+              content: "Em qual unidade você deseja fazer sua festa?",
+              options: [...unitOptions, "As duas"],
+            },
+          ]);
+          setCurrentStep(0); // unit step
+        }
+      } else {
+        setLeadData((prev) => ({ ...prev, unit: (unitOptions && unitOptions.length === 1) ? unitOptions[0] : (companyName || '') }));
+        const monthQ = lpBotConfig?.month_question || "Para qual mês você pretende realizar a festa?";
+        setMessages((prev) => [
+          ...prev,
+          { id: "month", type: "bot", content: monthQ, options: dynamicMonthOptions },
+        ]);
+        setCurrentStep(1);
+      }
+    } else {
+      setLeadData((prev) => ({ ...prev, unit: "Trujillo" }));
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: "month",
+          type: "bot",
+          content: "Para qual mês você pretende realizar a festa?",
+          options: campaignConfig.chatbot.monthOptions,
+        },
+      ]);
+      setCurrentStep(1);
+    }
+  };
+
   useEffect(() => {
     if (isOpen && messages.length === 0) {
       const welcomeMsg = isDynamic
         ? (lpBotConfig?.welcome_message || `Oi 👋 Que bom te ver por aqui!\n\nVou te fazer algumas perguntas rápidas para montar seu orçamento 😉`)
         : "Oi 👋 Que bom te ver por aqui!\n\nVou te fazer algumas perguntas rápidas para montar seu orçamento 😉";
+
+      const venueEnabled = isDynamic && lpBotConfig?.venue_question_enabled === true && Array.isArray(lpBotConfig?.venue_options) && (lpBotConfig.venue_options?.length || 0) > 0;
 
       setTimeout(() => {
         setMessages([
@@ -225,53 +280,27 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
           },
         ]);
         setTimeout(() => {
-          if (isDynamic) {
-            // Dynamic mode: check if multiple units exist
-            if (unitOptions && unitOptions.length >= 2) {
-              // Ask unit selection as step 0
-              setMessages((prev) => [
-                ...prev,
-                {
-                  id: "unit",
-                  type: "bot",
-                  content: "Em qual unidade você deseja fazer sua festa?",
-                  options: [...unitOptions, "As duas"],
-                },
-              ]);
-              setCurrentStep(0); // unit step
-            } else {
-              // Single unit or no units: skip unit selection
-              setLeadData((prev) => ({ ...prev, unit: (unitOptions && unitOptions.length === 1) ? unitOptions[0] : companyName }));
-              const monthQ = lpBotConfig?.month_question || "Para qual mês você pretende realizar a festa?";
-              setMessages((prev) => [
-                ...prev,
-                {
-                  id: "month",
-                  type: "bot",
-                  content: monthQ,
-                  options: dynamicMonthOptions,
-                },
-              ]);
-              setCurrentStep(1); // month step
-            }
-          } else {
-            // Default Castelo mode: auto-assign Trujillo, skip unit selection
-            setLeadData((prev) => ({ ...prev, unit: "Trujillo" }));
+          if (venueEnabled) {
+            // Step 0: Venue (Espaço vs Externa)
+            const opts = (lpBotConfig!.venue_options as VenueOption[]).map(o => `${o.emoji ? o.emoji + ' ' : ''}${o.label}`);
             setMessages((prev) => [
               ...prev,
               {
-                id: "month",
+                id: "venue",
                 type: "bot",
-                content: "Para qual mês você pretende realizar a festa?",
-                options: campaignConfig.chatbot.monthOptions,
+                content: lpBotConfig?.venue_question_text || "Onde você quer fazer a festa?",
+                options: opts,
               },
             ]);
-            setCurrentStep(1);
+            setCurrentStep(-1); // venue step
+          } else {
+            proceedAfterVenue(null);
           }
         }, 800);
       }, 500);
     }
   }, [isOpen, messages.length, isDynamic, companyName, lpBotConfig, unitOptions]);
+
 
   const handleOptionSelect = (option: string) => {
     const userMessage: Message = {
