@@ -4291,6 +4291,8 @@ export type Database = {
           company_id: string
           completion_message: string | null
           created_at: string
+          external_location_question: string
+          external_location_required: boolean
           guest_limit: number | null
           guest_limit_message: string | null
           guest_limit_redirect_name: string | null
@@ -4304,6 +4306,9 @@ export type Database = {
           name_question: string | null
           redirect_completion_message: string | null
           updated_at: string
+          venue_options: Json
+          venue_question_enabled: boolean
+          venue_question_text: string
           welcome_message: string | null
           whatsapp_question: string | null
           whatsapp_welcome_template: string | null
@@ -4313,6 +4318,8 @@ export type Database = {
           company_id: string
           completion_message?: string | null
           created_at?: string
+          external_location_question?: string
+          external_location_required?: boolean
           guest_limit?: number | null
           guest_limit_message?: string | null
           guest_limit_redirect_name?: string | null
@@ -4326,6 +4333,9 @@ export type Database = {
           name_question?: string | null
           redirect_completion_message?: string | null
           updated_at?: string
+          venue_options?: Json
+          venue_question_enabled?: boolean
+          venue_question_text?: string
           welcome_message?: string | null
           whatsapp_question?: string | null
           whatsapp_welcome_template?: string | null
@@ -4335,6 +4345,8 @@ export type Database = {
           company_id?: string
           completion_message?: string | null
           created_at?: string
+          external_location_question?: string
+          external_location_required?: boolean
           guest_limit?: number | null
           guest_limit_message?: string | null
           guest_limit_redirect_name?: string | null
@@ -4348,6 +4360,9 @@ export type Database = {
           name_question?: string | null
           redirect_completion_message?: string | null
           updated_at?: string
+          venue_options?: Json
+          venue_question_enabled?: boolean
+          venue_question_text?: string
           welcome_message?: string | null
           whatsapp_question?: string | null
           whatsapp_welcome_template?: string | null
