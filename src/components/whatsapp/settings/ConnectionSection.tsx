@@ -1185,8 +1185,10 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                             <Badge variant={instance.status === 'connected' ? 'default' : 'secondary'}>
                               {instance.status === 'connected' ? 'Online' : 'Offline'}
                             </Badge>
-                            {instance.provider === 'zapi' && (
-                              <Badge variant="outline" className="text-xs border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400">Z-API</Badge>
+                            {instance.provider === 'zapi' ? (
+                              <Badge variant="outline" className="text-xs border-blue-300 text-blue-700 bg-blue-50 dark:border-blue-700 dark:text-blue-400 dark:bg-blue-950/20">Z-API</Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs border-emerald-300 text-emerald-700 bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:bg-emerald-950/20">W-API</Badge>
                             )}
                           </p>
                           <p className="text-sm text-muted-foreground truncate">
