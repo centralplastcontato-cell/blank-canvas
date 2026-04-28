@@ -187,6 +187,7 @@ interface WapiInstance {
   status: string;
   unit: string | null;
   provider?: string | null;
+  is_active?: boolean | null;
 }
 
 interface Conversation {
@@ -416,6 +417,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
   const pickBestInstance = useCallback((list: WapiInstance[], countsMap = instanceConversationCounts) => {
     return [...list].sort((a, b) => {
+      const activeDiff = (b.is_active !== false ? 1 : 0) - (a.is_active !== false ? 1 : 0);
+      if (activeDiff !== 0) return activeDiff;
+
       const countDiff = (countsMap[b.id] || 0) - (countsMap[a.id] || 0);
       if (countDiff !== 0) return countDiff;
 
