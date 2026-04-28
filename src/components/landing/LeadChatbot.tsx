@@ -464,7 +464,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         || `Nossa capacidade máxima é de ${redirectInfo?.limit || 0} convidados.`;
 
       const dateStr = `${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}`;
-      const interestLine = interestContext ? `\n🏛️ Interesse: ${interestContext}` : '';
+      const interestLine = effectiveInterestContext ? `\n🎯 Interesse: ${effectiveInterestContext}` : '';
       const defaultNormalMsg = `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Local: ${displayName}${interestLine}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n1️⃣ - 📩 Receber agora o orçamento\n2️⃣ - 💬 Falar com um atendente`;
       
       const applyTemplate = (template: string) => template
