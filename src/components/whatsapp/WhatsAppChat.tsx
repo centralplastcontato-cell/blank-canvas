@@ -1725,11 +1725,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       }
     }
 
-    // Filter out inactive instances (is_active = false)
-    const activeData = data ? data.filter((d: any) => d.is_active !== false) : [];
+    // Keep inactive/hidden instances available for historical conversations.
+    // The Hub toggle should control visibility/connection preference, not erase old chats from the buffet panel.
+    const accessibleData = data || [];
 
-    if (activeData.length > 0) {
-      const activeInstances = activeData as WapiInstance[];
+    if (accessibleData.length > 0) {
+      const activeInstances = accessibleData as WapiInstance[];
       const counts: Record<string, number> = {};
 
       await Promise.all(activeInstances.map(async (instance) => {
@@ -1742,10 +1743,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
       setInstanceConversationCounts(counts);
       setInstances(activeInstances);
-      onInstancesLoaded?.(activeData.map((d: any) => ({ id: d.id, unit: d.unit, status: d.status })));
+      onInstancesLoaded?.(accessibleData.map((d: any) => ({ id: d.id, unit: d.unit, status: d.status })));
       setSelectedInstance(prev => {
         if (prev) {
-          const stillExists = activeData.some((inst: any) => inst.id === prev.id);
+          const stillExists = accessibleData.some((inst: any) => inst.id === prev.id);
           const betterSameUnit = pickBestInstance(activeInstances.filter(inst => inst.unit === prev.unit), counts);
           if (stillExists && (!betterSameUnit || betterSameUnit.id === prev.id)) return prev;
           if (betterSameUnit) return betterSameUnit;
@@ -1761,7 +1762,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       });
 
       // Background sync: check real status for instances that appear disconnected
-      const disconnected = activeData.filter((i: any) => i.status !== 'connected');
+      const disconnected = accessibleData.filter((i: any) => i.is_active !== false && i.status !== 'connected');
       if (disconnected.length > 0) {
         syncInstanceStatuses(disconnected as WapiInstance[]);
       }
