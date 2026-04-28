@@ -417,6 +417,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
   const pickBestInstance = useCallback((list: WapiInstance[], countsMap = instanceConversationCounts) => {
     return [...list].sort((a, b) => {
+      // Active instances first (is_active !== false)
+      const activeScore = (i: WapiInstance) => (i as any).is_active === false ? 0 : 1;
+      const activeDiff = activeScore(b) - activeScore(a);
+      if (activeDiff !== 0) return activeDiff;
+
       const countDiff = (countsMap[b.id] || 0) - (countsMap[a.id] || 0);
       if (countDiff !== 0) return countDiff;
 
@@ -430,6 +435,24 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       return 0;
     })[0] || null;
   }, [instanceConversationCounts]);
+
+  // Deduplicate instances by unit, keeping the best one per unit (for header/selector display).
+  // Inactive instances and W-API duplicates of the same unit are hidden, but the raw `instances`
+  // list still contains them so historical conversations remain accessible.
+  const visibleInstances = useMemo(() => {
+    const byUnit = new Map<string, WapiInstance[]>();
+    instances.forEach((inst) => {
+      const key = inst.unit || '__no_unit__';
+      if (!byUnit.has(key)) byUnit.set(key, []);
+      byUnit.get(key)!.push(inst);
+    });
+    const result: WapiInstance[] = [];
+    byUnit.forEach((list) => {
+      const best = pickBestInstance(list);
+      if (best) result.push(best);
+    });
+    return result.sort((a, b) => (a.unit || '').localeCompare(b.unit || ''));
+  }, [instances, pickBestInstance]);
 
   // Sync with external unit selection from header
   useEffect(() => {
