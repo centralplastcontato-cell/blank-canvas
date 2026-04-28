@@ -629,6 +629,8 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     setIsComplete(false);
     setIsSaving(false);
     setRedirectAccepted(null);
+    setVenueChoice(null);
+    setExternalLocation("");
   };
 
   useEffect(() => {
