@@ -503,12 +503,49 @@ export default function CentralAtendimento() {
         return q;
       };
 
+      // "Fechados" usa company_events.data_fechamento_venda (mesma fonte da Central de Agenda)
+      // para que o número bata com a aba "Fechadas" da Agenda. Respeita os mesmos filtros
+      // de unidade, responsável (vendedor_responsavel_id) e período.
+      const buildFechadosQuery = () => {
+        let q = supabase
+          .from("company_events")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", currentCompany.id)
+          .not("data_fechamento_venda", "is", null);
+
+        // Permissões de unidade
+        if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes('all')) {
+          const unitsFilter = [...allowedUnits, "As duas"];
+          q = q.in("unit", unitsFilter);
+        }
+        if (filters.unit && filters.unit !== "all") {
+          q = q.eq("unit", filters.unit);
+        }
+        if (filters.responsavel && filters.responsavel !== "all") {
+          if (filters.responsavel === "unassigned") {
+            q = q.is("vendedor_responsavel_id", null);
+          } else {
+            q = q.eq("vendedor_responsavel_id", filters.responsavel);
+          }
+        }
+        // Período: usa data_fechamento_venda (não created_at)
+        if (filters.startDate) {
+          const startDateOnly = filters.startDate.toISOString().slice(0, 10);
+          q = q.gte("data_fechamento_venda", startDateOnly);
+        }
+        if (filters.endDate) {
+          const endDateOnly = filters.endDate.toISOString().slice(0, 10);
+          q = q.lte("data_fechamento_venda", endDateOnly);
+        }
+        return q;
+      };
+
       const [totalRes, todayRes, novoRes, contatoRes, fechadoRes, perdidoRes] = await Promise.all([
         buildQuery(),
         buildQuery(undefined, todayISO),
         buildQuery("novo"),
         buildQuery("em_contato"),
-        buildQuery("fechado"),
+        buildFechadosQuery(),
         buildQuery("perdido"),
       ]);
 
