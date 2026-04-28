@@ -213,6 +213,8 @@ interface Conversation {
   pinned_message_id: string | null;
 }
 
+const isConnectedStatus = (status: string | null | undefined) => status === 'connected' || status === 'degraded';
+
 // Helper: check if a contact_name is a valid display name (not a placeholder)
 const isValidContactName = (name: string | null | undefined): name is string => {
   if (!name) return false;
@@ -422,16 +424,16 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const activeDiff = activeScore(b) - activeScore(a);
       if (activeDiff !== 0) return activeDiff;
 
-      const countDiff = (countsMap[b.id] || 0) - (countsMap[a.id] || 0);
-      if (countDiff !== 0) return countDiff;
-
       const statusScore = (instance: WapiInstance) => instance.status === 'connected' ? 2 : instance.status === 'degraded' ? 1 : 0;
       const statusDiff = statusScore(b) - statusScore(a);
       if (statusDiff !== 0) return statusDiff;
 
-      // Prefer Z-API over W-API as last tiebreaker (newer provider, usually the active one)
+      // Prefer Z-API over W-API before conversation volume (newer provider, usually the active sending connection)
       if (a.provider === 'zapi' && b.provider !== 'zapi') return -1;
       if (b.provider === 'zapi' && a.provider !== 'zapi') return 1;
+
+      const countDiff = (countsMap[b.id] || 0) - (countsMap[a.id] || 0);
+      if (countDiff !== 0) return countDiff;
       return 0;
     })[0] || null;
   }, [instanceConversationCounts]);
@@ -783,8 +785,21 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const canFavoriteConversations = isAdmin || hasUserPermission('whatsapp.favorite');
   const canToggleBot = isAdmin || hasUserPermission('whatsapp.bot.toggle');
   const canShareToGroup = isAdmin || hasUserPermission('whatsapp.share.group');
-  const isSelectedInstanceActive = selectedInstance?.is_active !== false;
-  const canUseSelectedInstanceForSending = isSelectedInstanceActive && (selectedInstance?.status === 'connected' || selectedInstance?.status === 'degraded');
+  const selectedUnitInstances = useMemo(() => {
+    if (!selectedInstance) return [];
+    return instances.filter((instance) => instance.unit === selectedInstance.unit);
+  }, [instances, selectedInstance?.unit]);
+  const selectedSendInstance = useMemo(() => {
+    if (!selectedInstance) return null;
+    const connectedSameUnit = selectedUnitInstances.filter((instance) => instance.is_active !== false && isConnectedStatus(instance.status));
+    return pickBestInstance(connectedSameUnit) || (selectedInstance.is_active !== false && isConnectedStatus(selectedInstance.status) ? selectedInstance : null);
+  }, [selectedInstance, selectedUnitInstances, pickBestInstance]);
+  const selectedUnitInstanceIds = useMemo(() => {
+    if (!selectedInstance) return [];
+    const ids = selectedUnitInstances.map((instance) => instance.id);
+    return ids.length > 0 ? ids : [selectedInstance.id];
+  }, [selectedInstance, selectedUnitInstances]);
+  const canUseSelectedInstanceForSending = !!selectedSendInstance;
 
   // Notifications hook - uses shared toggle state
   const { notificationsEnabled } = useChatNotificationToggle();
@@ -1283,15 +1298,16 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
       // Realtime channel for conversation updates
       
-      const conversationsChannel = supabase
-        .channel(`wapi_conversations_optimized_${selectedInstance.id}`)
-        .on(
+      const channelName = `wapi_conversations_unit_${selectedUnitInstanceIds.slice().sort().join('_')}`;
+      const conversationsChannel = supabase.channel(channelName);
+      selectedUnitInstanceIds.forEach((instanceId) => {
+        conversationsChannel.on(
           'postgres_changes',
           {
             event: '*',
             schema: 'public',
             table: 'wapi_conversations',
-            filter: `instance_id=eq.${selectedInstance.id}`,
+            filter: `instance_id=eq.${instanceId}`,
           },
           (payload) => {
             console.log('[Realtime] Conversation event:', payload.eventType, payload.new);
@@ -1384,14 +1400,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             // Inline updates above handle all cases. Full refresh removed
             // to prevent race conditions that switch the active conversation.
           }
-        )
-        .subscribe();
+        );
+      });
+      conversationsChannel.subscribe();
 
       return () => {
         supabase.removeChannel(conversationsChannel);
       };
     }
-  }, [selectedInstance, initialPhone, initialPhoneProcessed]);
+  }, [selectedInstance, selectedUnitInstanceIds, initialPhone, initialPhoneProcessed]);
 
   // Track if at bottom using ref for realtime callback access
   const isAtBottomRef = useRef(true);
@@ -1859,7 +1876,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const { data: batch, error } = await supabase
         .from("wapi_conversations")
         .select("id, instance_id, lead_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, pinned_message_id, created_at")
-        .eq("instance_id", selectedInstance.id)
+        .in("instance_id", selectedUnitInstanceIds)
         .order("last_message_at", { ascending: false, nullsFirst: true })
         .range(from, from + batchSize - 1);
 
@@ -2428,13 +2445,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || !selectedInstance || isSending) return;
 
-    if (selectedInstance.is_active === false) {
-      toast({ title: "Instância desativada", description: "O histórico fica visível, mas esta instância não está liberada para envio.", variant: "destructive" });
-      return;
-    }
-
-    if (selectedInstance.status !== 'connected' && selectedInstance.status !== 'degraded') {
-      toast({ title: "Unidade desconectada", description: "Não é possível enviar mensagens com esta unidade desconectada.", variant: "destructive" });
+    if (!selectedSendInstance) {
+      toast({ title: "Unidade desconectada", description: "Não há uma conexão ativa liberada para envio nesta unidade.", variant: "destructive" });
       return;
     }
 
@@ -2488,7 +2500,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     // Undo Send: delay actual sending by 5 seconds
     const convId = selectedConversation.id;
     const convPhone = getConversationPhone(selectedConversation);
-    const instId = selectedInstance.instance_id;
+    const instId = selectedSendInstance.instance_id;
 
     // Send message immediately (no undo delay)
     try {
@@ -2547,6 +2559,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Send contact (vCard) handler
   const handleSendContact = async () => {
     if (!contactName.trim() || !contactPhone.trim() || !selectedConversation || !selectedInstance) return;
+    if (!selectedSendInstance) {
+      toast({ title: "Unidade desconectada", description: "Não há uma conexão ativa liberada para envio nesta unidade.", variant: "destructive" });
+      return;
+    }
     
     setIsSendingContact(true);
     const convId = selectedConversation.id;
@@ -2576,7 +2592,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           contactName: contactName.trim(),
           contactPhone: contactPhone.trim(),
           conversationId: convId,
-          instanceId: selectedInstance.instance_id,
+          instanceId: selectedSendInstance.instance_id,
       });
 
       if (response.error) throw new Error(response.error.message);
@@ -2753,7 +2769,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     if (!message.trim() || !selectedConversation || !selectedInstance) return;
 
     if (!canUseSelectedInstanceForSending) {
-      throw new Error(selectedInstance.is_active === false ? "Instância desativada para envio." : "Unidade desconectada.");
+      throw new Error("Unidade desconectada.");
     }
 
     const response = await invokeWithRetry({
@@ -2761,7 +2777,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         phone: getConversationPhone(selectedConversation),
         message: message,
         conversationId: selectedConversation.id,
-        instanceId: selectedInstance.instance_id,
+        instanceId: selectedSendInstance!.instance_id,
     });
 
     if (response.error) {
@@ -3044,7 +3060,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     if (!audioBlob || !selectedConversation || !selectedInstance || isUploading) return;
 
     if (!canUseSelectedInstanceForSending) {
-      toast({ title: "Envio indisponível", description: selectedInstance.is_active === false ? "Esta instância está desativada para envio." : "A unidade está desconectada.", variant: "destructive" });
+      toast({ title: "Envio indisponível", description: "A unidade está desconectada.", variant: "destructive" });
       return;
     }
 
@@ -3126,7 +3142,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           action: 'send-audio',
           phone: getConversationPhone(selectedConversation),
           conversationId: selectedConversation.id,
-          instanceId: selectedInstance.instance_id,
+          instanceId: selectedSendInstance!.instance_id,
           mediaUrl,
           mimeType,
       });
@@ -3253,7 +3269,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     if (!mediaPreview || !selectedConversation || !selectedInstance || isUploading) return;
 
     if (!canUseSelectedInstanceForSending) {
-      toast({ title: "Envio indisponível", description: selectedInstance.is_active === false ? "Esta instância está desativada para envio." : "A unidade está desconectada.", variant: "destructive" });
+      toast({ title: "Envio indisponível", description: "A unidade está desconectada.", variant: "destructive" });
       return;
     }
 
@@ -3329,7 +3345,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             action: 'send-image',
             phone: getConversationPhone(selectedConversation),
             conversationId: selectedConversation.id,
-            instanceId: selectedInstance.instance_id,
+            instanceId: selectedSendInstance!.instance_id,
             base64: base64Data,
             caption: captionToSend,
             mediaUrl: mediaUrl,
@@ -3370,7 +3386,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             action: 'send-document',
             phone: getConversationPhone(selectedConversation),
             conversationId: selectedConversation.id,
-            instanceId: selectedInstance.instance_id,
+            instanceId: selectedSendInstance!.instance_id,
             mediaUrl,
             fileName: file.name,
         });
@@ -3412,7 +3428,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             action: 'send-video',
             phone: getConversationPhone(selectedConversation),
             conversationId: selectedConversation.id,
-            instanceId: selectedInstance.instance_id,
+            instanceId: selectedSendInstance!.instance_id,
             mediaUrl,
             caption: captionToSend,
         });
@@ -3456,7 +3472,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
 
     if (!canUseSelectedInstanceForSending) {
-      throw new Error(selectedInstance.is_active === false ? "Instância desativada para envio." : "Unidade desconectada.");
+      throw new Error("Unidade desconectada.");
     }
 
     let action = 'send-document';
@@ -3473,7 +3489,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           action,
           phone: getConversationPhone(selectedConversation),
           conversationId: selectedConversation.id,
-          instanceId: selectedInstance.instance_id,
+          instanceId: selectedSendInstance!.instance_id,
           mediaUrl: url,
           caption: caption || undefined,
           fileName: finalFileName,
@@ -3857,15 +3873,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     );
   }
 
-  const connectedInstances = visibleInstances.filter(i => i.status === 'connected' || i.status === 'degraded');
+  const connectedInstances = visibleInstances.filter(i => i.is_active !== false && isConnectedStatus(i.status));
   const allDisconnected = connectedInstances.length === 0;
 
   // Consider the unit connected if ANY instance of the same unit is connected
   // (a single unit can have both W-API and Z-API instances representing the same WhatsApp)
-  const selectedUnitHasConnection = selectedInstance
-    ? instances.some(i => i.unit === selectedInstance.unit && (i.status === 'connected' || i.status === 'degraded'))
-    : false;
-  const showDisconnectedBanner = allDisconnected || (!selectedUnitHasConnection && selectedInstance?.status !== 'connected' && selectedInstance?.status !== 'degraded');
+  const selectedUnitHasConnection = !!selectedSendInstance;
+  const showDisconnectedBanner = allDisconnected || !selectedUnitHasConnection;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
