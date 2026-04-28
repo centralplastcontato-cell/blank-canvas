@@ -738,10 +738,25 @@ export function AutomationsSection() {
     );
   }
 
+  // Deduplica instâncias pelo nome da unidade (várias instâncias da mesma unidade
+  // — ex.: W-API + Z-API — devem aparecer como UMA opção no seletor, pois as
+  // configurações são por empresa/unidade, não por instância).
+  const uniqueUnitInstances = (() => {
+    const seen = new Set<string>();
+    const result: typeof instances = [];
+    for (const inst of instances) {
+      const key = (inst.unit || "__sem_unidade__").trim().toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push(inst);
+    }
+    return result;
+  })();
+
   return (
     <div className="space-y-4">
       {/* Instance Selector */}
-      {instances.length > 1 && (
+      {uniqueUnitInstances.length > 1 && (
         <div className="flex items-center gap-3">
           <Label className="shrink-0">Unidade:</Label>
           <Select
@@ -758,7 +773,7 @@ export function AutomationsSection() {
               <SelectValue placeholder="Selecione a unidade" />
             </SelectTrigger>
             <SelectContent>
-              {instances.map((instance) => (
+              {uniqueUnitInstances.map((instance) => (
                 <SelectItem key={instance.id} value={instance.id}>
                   {instance.unit || "Sem unidade"}
                 </SelectItem>
