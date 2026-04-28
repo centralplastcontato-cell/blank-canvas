@@ -3,6 +3,7 @@ import megamagicLogo from "@/assets/megamagic-logo-transparent.png";
 import megamagicMascot from "@/assets/megamagic-mascot-transparent.png";
 import megamagicGalleryBaby from "@/assets/megamagic-gallery-baby.jpg";
 import espacoCarrosselLogo from "@/assets/espaco-carrossel-logo-transparent.png";
+import espacoCarrosselHero from "@/assets/espaco-carrossel-hero-fachada.jpg";
 import carrosselPosterInterna2 from "@/assets/espaco-carrossel-poster-interna-2.jpg";
 import carrosselPosterExterna1 from "@/assets/espaco-carrossel-poster-externa-1.jpg";
 import carrosselPosterExterna2 from "@/assets/espaco-carrossel-poster-externa-2.jpg";
@@ -11,6 +12,7 @@ import carrosselPosterExterna3 from "@/assets/espaco-carrossel-poster-externa-3.
 interface CompanyAssetOverride {
   logo?: string;
   mascot?: string;
+  heroBackgroundImage?: string;
   extraGalleryPhotos?: string[];
   /** Map of video file basename (last URL segment) -> override poster URL */
   videoPosters?: Record<string, string>;
@@ -24,6 +26,7 @@ const COMPANY_ASSET_OVERRIDES: Record<string, CompanyAssetOverride> = {
   },
   "espaco-carrossel": {
     logo: espacoCarrosselLogo,
+    heroBackgroundImage: espacoCarrosselHero,
     videoPosters: {
       "festa-interna-2.mp4": carrosselPosterInterna2,
       "carrossel-externa-1.mp4": carrosselPosterExterna1,
@@ -45,13 +48,19 @@ export function getCompanyLogoOverride(slug?: string | null, fallback?: string |
 export function applyHeroAssetOverrides(hero: LPHero, slug?: string | null): LPHero {
   const override = getCompanyAssetOverride(slug);
 
-  if (!override?.mascot) {
+  if (!override?.mascot && !override?.heroBackgroundImage) {
     return hero;
   }
 
   return {
     ...hero,
-    mascot_image_url: override.mascot,
+    ...(override.mascot ? { mascot_image_url: override.mascot } : {}),
+    ...(override.heroBackgroundImage
+      ? {
+          background_image_url: override.heroBackgroundImage,
+          background_images: [override.heroBackgroundImage],
+        }
+      : {}),
   };
 }
 
