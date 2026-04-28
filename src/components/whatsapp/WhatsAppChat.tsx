@@ -2445,13 +2445,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || !selectedInstance || isSending) return;
 
-    if (selectedInstance.is_active === false) {
-      toast({ title: "Instância desativada", description: "O histórico fica visível, mas esta instância não está liberada para envio.", variant: "destructive" });
-      return;
-    }
-
-    if (selectedInstance.status !== 'connected' && selectedInstance.status !== 'degraded') {
-      toast({ title: "Unidade desconectada", description: "Não é possível enviar mensagens com esta unidade desconectada.", variant: "destructive" });
+    if (!selectedSendInstance) {
+      toast({ title: "Unidade desconectada", description: "Não há uma conexão ativa liberada para envio nesta unidade.", variant: "destructive" });
       return;
     }
 
@@ -2505,7 +2500,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     // Undo Send: delay actual sending by 5 seconds
     const convId = selectedConversation.id;
     const convPhone = getConversationPhone(selectedConversation);
-    const instId = selectedInstance.instance_id;
+    const instId = selectedSendInstance.instance_id;
 
     // Send message immediately (no undo delay)
     try {
@@ -2770,7 +2765,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     if (!message.trim() || !selectedConversation || !selectedInstance) return;
 
     if (!canUseSelectedInstanceForSending) {
-      throw new Error(selectedInstance.is_active === false ? "Instância desativada para envio." : "Unidade desconectada.");
+      throw new Error("Unidade desconectada.");
     }
 
     const response = await invokeWithRetry({
@@ -2778,7 +2773,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         phone: getConversationPhone(selectedConversation),
         message: message,
         conversationId: selectedConversation.id,
-        instanceId: selectedInstance.instance_id,
+        instanceId: selectedSendInstance!.instance_id,
     });
 
     if (response.error) {
