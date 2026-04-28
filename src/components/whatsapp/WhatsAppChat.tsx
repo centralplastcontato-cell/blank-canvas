@@ -5474,7 +5474,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                               handleSendMessage();
                             }
                           }}
-                          disabled={!canSendMessages}
+                          disabled={!canSendMessages || !canUseSelectedInstanceForSending}
                           className="text-base sm:text-sm flex-1 min-h-[40px] max-h-32 resize-y py-2.5 rounded-xl border-border/50 bg-muted/30 focus:bg-background"
                           rows={1}
                           spellCheck={true}
@@ -5482,7 +5482,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         <Button 
                           type="submit" 
                           size="icon" 
-                          disabled={!newMessage.trim() || isSending || !canSendMessages}
+                          disabled={!newMessage.trim() || isSending || !canSendMessages || !canUseSelectedInstanceForSending}
                           className="shrink-0"
                         >
                           <Send className="w-4 h-4" />
@@ -5492,8 +5492,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           variant="secondary"
                           size="icon"
                           className="shrink-0"
-                          onClick={canSendAudio ? startRecording : undefined}
-                          disabled={!canSendAudio || !!newMessage.trim()}
+                          onClick={canSendAudio && canUseSelectedInstanceForSending ? startRecording : undefined}
+                          disabled={!canSendAudio || !canUseSelectedInstanceForSending || !!newMessage.trim()}
                         >
                           <Mic className="w-4 h-4" />
                         </Button>
