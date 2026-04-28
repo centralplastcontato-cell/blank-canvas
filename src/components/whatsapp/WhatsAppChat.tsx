@@ -2559,6 +2559,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Send contact (vCard) handler
   const handleSendContact = async () => {
     if (!contactName.trim() || !contactPhone.trim() || !selectedConversation || !selectedInstance) return;
+    if (!selectedSendInstance) {
+      toast({ title: "Unidade desconectada", description: "Não há uma conexão ativa liberada para envio nesta unidade.", variant: "destructive" });
+      return;
+    }
     
     setIsSendingContact(true);
     const convId = selectedConversation.id;
@@ -2588,7 +2592,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           contactName: contactName.trim(),
           contactPhone: contactPhone.trim(),
           conversationId: convId,
-          instanceId: selectedInstance.instance_id,
+          instanceId: selectedSendInstance.instance_id,
       });
 
       if (response.error) throw new Error(response.error.message);
@@ -3056,7 +3060,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     if (!audioBlob || !selectedConversation || !selectedInstance || isUploading) return;
 
     if (!canUseSelectedInstanceForSending) {
-      toast({ title: "Envio indisponível", description: selectedInstance.is_active === false ? "Esta instância está desativada para envio." : "A unidade está desconectada.", variant: "destructive" });
+      toast({ title: "Envio indisponível", description: "A unidade está desconectada.", variant: "destructive" });
       return;
     }
 
@@ -3138,7 +3142,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           action: 'send-audio',
           phone: getConversationPhone(selectedConversation),
           conversationId: selectedConversation.id,
-          instanceId: selectedInstance.instance_id,
+          instanceId: selectedSendInstance!.instance_id,
           mediaUrl,
           mimeType,
       });
