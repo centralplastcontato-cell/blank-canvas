@@ -794,6 +794,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const connectedSameUnit = selectedUnitInstances.filter((instance) => instance.is_active !== false && isConnectedStatus(instance.status));
     return pickBestInstance(connectedSameUnit) || (selectedInstance.is_active !== false && isConnectedStatus(selectedInstance.status) ? selectedInstance : null);
   }, [selectedInstance, selectedUnitInstances, pickBestInstance]);
+  const selectedUnitInstanceIds = useMemo(() => {
+    if (!selectedInstance) return [];
+    const ids = selectedUnitInstances.map((instance) => instance.id);
+    return ids.length > 0 ? ids : [selectedInstance.id];
+  }, [selectedInstance, selectedUnitInstances]);
   const canUseSelectedInstanceForSending = !!selectedSendInstance;
 
   // Notifications hook - uses shared toggle state
