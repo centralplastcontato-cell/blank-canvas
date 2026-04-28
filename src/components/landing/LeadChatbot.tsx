@@ -514,7 +514,15 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     };
     setMessages((prev) => [...prev, userMessage]);
 
-    if (inputType === "name") {
+    if (inputType === "external_location") {
+      const loc = inputValue.trim();
+      setExternalLocation(loc);
+      setInputValue("");
+      setInputType(null);
+      // Continue flow after a small delay so the bot message renders
+      setTimeout(() => proceedAfterVenue(venueChoice), 400);
+      return;
+    } else if (inputType === "name") {
       setLeadData((prev) => ({ ...prev, name: inputValue }));
       setInputValue("");
       setInputType("whatsapp");
