@@ -416,7 +416,24 @@ function validateName(input: string): { valid: boolean; value?: string; error?: 
 
 function validateMenuChoice(input: string, options: { num: number; value: string }[], stepName: string): { valid: boolean; value?: string; error?: string } {
   const normalized = input.trim();
-  
+
+  // 0. Special case: input is only digits + separators (space/hyphen/comma/dot/slash)
+  // between digits → treat as single number. Fixes "1 1" → 11, "1 2" → 12 (Nov/Dez).
+  // Only applies when the entire string is digits+separators (no letters/words after).
+  if (/^[\d][\d\s\-,./]*$/.test(normalized) && /^\D*\d[\d\s\-,./]*\d\D*$/.test(normalized)) {
+    const collapsed = normalized.replace(/[\s\-,./]+/g, '');
+    if (/^\d+$/.test(collapsed)) {
+      const num = parseInt(collapsed);
+      const option = options.find(opt => opt.num === num);
+      if (option) {
+        if (collapsed !== normalized) {
+          console.log(`[Bot] Collapsed digits "${normalized}" → "${collapsed}" → option ${num} (${option.value})`);
+        }
+        return { valid: true, value: option.value };
+      }
+    }
+  }
+
   // 1. Extract number from input - accept "3", "3 sábado", "3-sábado", etc.
   const numMatch = normalized.match(/^(\d+)/);
   if (numMatch) {
@@ -1434,8 +1451,20 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
     if (nodeOptions && nodeOptions.length > 0) {
       // Try to match by number (e.g., user types "1", "2", etc.)
       const userChoice = content.trim();
-      const numMatch = userChoice.match(/^\d+$/);
-      
+      // Collapse digits+separators (e.g. "1 1" → "11", "1-2" → "12") to handle
+      // months like Nov/Dez represented as two keycap emojis (1️⃣1️⃣ / 1️⃣2️⃣).
+      let normalizedChoice = userChoice;
+      if (/^[\d][\d\s\-,./]*$/.test(userChoice)) {
+        const collapsed = userChoice.replace(/[\s\-,./]+/g, '');
+        if (/^\d+$/.test(collapsed) && collapsed !== userChoice) {
+          console.log(`[FlowBuilder] Collapsed digits "${userChoice}" → "${collapsed}"`);
+          normalizedChoice = collapsed;
+        } else if (/^\d+$/.test(collapsed)) {
+          normalizedChoice = collapsed;
+        }
+      }
+      const numMatch = normalizedChoice.match(/^\d+$/);
+
       if (numMatch) {
         const choiceNum = parseInt(numMatch[0]);
         console.log(`[FlowBuilder] User chose number: ${choiceNum} (valid range: 1-${nodeOptions.length})`);
