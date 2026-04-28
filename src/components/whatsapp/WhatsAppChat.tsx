@@ -414,9 +414,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const externalSelectedUnitRef = useRef(externalSelectedUnit);
   externalSelectedUnitRef.current = externalSelectedUnit;
 
-  const pickBestInstance = useCallback((list: WapiInstance[]) => {
+  const pickBestInstance = useCallback((list: WapiInstance[], countsMap = instanceConversationCounts) => {
     return [...list].sort((a, b) => {
-      const countDiff = (instanceConversationCounts[b.id] || 0) - (instanceConversationCounts[a.id] || 0);
+      const countDiff = (countsMap[b.id] || 0) - (countsMap[a.id] || 0);
       if (countDiff !== 0) return countDiff;
 
       const statusScore = (instance: WapiInstance) => instance.status === 'connected' ? 2 : instance.status === 'degraded' ? 1 : 0;
@@ -1742,7 +1742,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       setSelectedInstance(prev => {
         if (prev) {
           const stillExists = activeData.some((inst: any) => inst.id === prev.id);
-          const betterSameUnit = pickBestInstance(activeInstances.filter(inst => inst.unit === prev.unit));
+          const betterSameUnit = pickBestInstance(activeInstances.filter(inst => inst.unit === prev.unit), counts);
           if (stillExists && (!betterSameUnit || betterSameUnit.id === prev.id)) return prev;
           if (betterSameUnit) return betterSameUnit;
         }
@@ -1750,10 +1750,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         const extUnit = externalSelectedUnitRef.current;
         if (extUnit) {
           const extMatches = activeInstances.filter((inst) => inst.unit === extUnit);
-          const bestExternal = pickBestInstance(extMatches);
+          const bestExternal = pickBestInstance(extMatches, counts);
           if (bestExternal) return bestExternal;
         }
-        return pickBestInstance(activeInstances);
+        return pickBestInstance(activeInstances, counts);
       });
 
       // Background sync: check real status for instances that appear disconnected
