@@ -3269,7 +3269,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     if (!mediaPreview || !selectedConversation || !selectedInstance || isUploading) return;
 
     if (!canUseSelectedInstanceForSending) {
-      toast({ title: "Envio indisponível", description: selectedInstance.is_active === false ? "Esta instância está desativada para envio." : "A unidade está desconectada.", variant: "destructive" });
+      toast({ title: "Envio indisponível", description: "A unidade está desconectada.", variant: "destructive" });
       return;
     }
 
@@ -3345,7 +3345,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             action: 'send-image',
             phone: getConversationPhone(selectedConversation),
             conversationId: selectedConversation.id,
-            instanceId: selectedInstance.instance_id,
+            instanceId: selectedSendInstance!.instance_id,
             base64: base64Data,
             caption: captionToSend,
             mediaUrl: mediaUrl,
@@ -3386,7 +3386,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             action: 'send-document',
             phone: getConversationPhone(selectedConversation),
             conversationId: selectedConversation.id,
-            instanceId: selectedInstance.instance_id,
+            instanceId: selectedSendInstance!.instance_id,
             mediaUrl,
             fileName: file.name,
         });
@@ -3428,7 +3428,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             action: 'send-video',
             phone: getConversationPhone(selectedConversation),
             conversationId: selectedConversation.id,
-            instanceId: selectedInstance.instance_id,
+            instanceId: selectedSendInstance!.instance_id,
             mediaUrl,
             caption: captionToSend,
         });
@@ -3472,7 +3472,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
 
     if (!canUseSelectedInstanceForSending) {
-      throw new Error(selectedInstance.is_active === false ? "Instância desativada para envio." : "Unidade desconectada.");
+      throw new Error("Unidade desconectada.");
     }
 
     let action = 'send-document';
@@ -3489,7 +3489,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           action,
           phone: getConversationPhone(selectedConversation),
           conversationId: selectedConversation.id,
-          instanceId: selectedInstance.instance_id,
+          instanceId: selectedSendInstance!.instance_id,
           mediaUrl: url,
           caption: caption || undefined,
           fileName: finalFileName,
