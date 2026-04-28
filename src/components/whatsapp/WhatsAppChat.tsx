@@ -1876,7 +1876,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const { data: batch, error } = await supabase
         .from("wapi_conversations")
         .select("id, instance_id, lead_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, pinned_message_id, created_at")
-        .eq("instance_id", selectedInstance.id)
+        .in("instance_id", selectedUnitInstanceIds)
         .order("last_message_at", { ascending: false, nullsFirst: true })
         .range(from, from + batchSize - 1);
 
