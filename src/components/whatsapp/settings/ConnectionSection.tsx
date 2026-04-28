@@ -1186,9 +1186,15 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                               {instance.status === 'connected' ? 'Online' : 'Offline'}
                             </Badge>
                             {instance.provider === 'zapi' ? (
-                              <Badge variant="outline" className="text-xs border-blue-300 text-blue-700 bg-blue-50 dark:border-blue-700 dark:text-blue-400 dark:bg-blue-950/20">Z-API</Badge>
+                              <Badge className="text-xs font-bold bg-blue-600 hover:bg-blue-600 text-white border-0 gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                                Z-API
+                              </Badge>
                             ) : (
-                              <Badge variant="outline" className="text-xs border-emerald-300 text-emerald-700 bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:bg-emerald-950/20">W-API</Badge>
+                              <Badge className="text-xs font-bold bg-emerald-600 hover:bg-emerald-600 text-white border-0 gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                                W-API
+                              </Badge>
                             )}
                           </p>
                           <p className="text-sm text-muted-foreground truncate">
