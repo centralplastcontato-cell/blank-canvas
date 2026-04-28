@@ -1769,7 +1769,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
       setInstanceConversationCounts(counts);
       setInstances(activeInstances);
-      onInstancesLoaded?.(accessibleData.map((d: any) => ({ id: d.id, unit: d.unit, status: d.status })));
+      // Deduplicate by unit before notifying parent (header should show 1 button per unit)
+      const dedupByUnit = new Map<string, any>();
+      activeInstances.forEach((inst) => {
+        const key = inst.unit || '__no_unit__';
+        const existing = dedupByUnit.get(key);
+        if (!existing) { dedupByUnit.set(key, inst); return; }
+        const score = (i: any) => (i.is_active === false ? 0 : 100) + (i.status === 'connected' ? 10 : i.status === 'degraded' ? 5 : 0) + (i.provider === 'zapi' ? 1 : 0);
+        if (score(inst) > score(existing)) dedupByUnit.set(key, inst);
+      });
+      const dedupedForParent = Array.from(dedupByUnit.values()).map((d: any) => ({ id: d.id, unit: d.unit, status: d.status }));
+      onInstancesLoaded?.(dedupedForParent);
       setSelectedInstance(prev => {
         if (prev) {
           const stillExists = accessibleData.some((inst: any) => inst.id === prev.id);
