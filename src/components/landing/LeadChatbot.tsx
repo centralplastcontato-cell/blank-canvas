@@ -473,7 +473,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         .replace(/\{data\}/g, dateStr)
         .replace(/\{convidados\}/g, leadInfo.guests || '')
         .replace(/\{empresa\}/g, displayName)
-        .replace(/\{interesse\}/g, interestContext || '');
+        .replace(/\{interesse\}/g, effectiveInterestContext || '');
 
       const redirectDefaultMsg = `Olá! 👋✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Local: ${displayName}${interestLine}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\n${redirectText}\n\nObrigado pelo interesse! 💜`;
 
