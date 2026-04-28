@@ -1028,6 +1028,10 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
               </Label>
               <Input
                 id="name"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
                 placeholder={
                   formData.type === "pdf_package" 
                     ? "Opcional — deixe em branco se não quiser texto" 
