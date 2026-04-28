@@ -6565,12 +6565,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           handleSendMessage();
                         }
                       }}
-                      disabled={!canSendMessages}
+                      disabled={!canSendMessages || !canUseSelectedInstanceForSending}
                       className="text-base flex-1 min-h-[40px] max-h-[50vh] resize-y py-2"
                       rows={1}
                       spellCheck={true}
                     />
-                    <Button type="submit" size="icon" disabled={!newMessage.trim() || isSending || !canSendMessages} className="shrink-0">
+                    <Button type="submit" size="icon" disabled={!newMessage.trim() || isSending || !canSendMessages || !canUseSelectedInstanceForSending} className="shrink-0">
                       <Send className="w-4 h-4" />
                     </Button>
                     <Button
@@ -6578,8 +6578,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                       variant="secondary"
                       size="icon"
                       className="shrink-0"
-                      onClick={canSendAudio ? startRecording : undefined}
-                      disabled={!canSendAudio || !!newMessage.trim()}
+                      onClick={canSendAudio && canUseSelectedInstanceForSending ? startRecording : undefined}
+                      disabled={!canSendAudio || !canUseSelectedInstanceForSending || !!newMessage.trim()}
                     >
                       <Mic className="w-4 h-4" />
                     </Button>
