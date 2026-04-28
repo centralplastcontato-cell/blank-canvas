@@ -70,12 +70,22 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
   const [currentStep, setCurrentStep] = useState(0);
   const [leadData, setLeadData] = useState<LeadData>({});
   const [inputValue, setInputValue] = useState("");
-  const [inputType, setInputType] = useState<"name" | "whatsapp" | null>(null);
+  const [inputType, setInputType] = useState<"name" | "whatsapp" | "external_location" | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showEmojis, setShowEmojis] = useState(false);
   const [redirectAccepted, setRedirectAccepted] = useState<boolean | null>(null);
+  const [venueChoice, setVenueChoice] = useState<VenueOption | null>(null);
+  const [externalLocation, setExternalLocation] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Build dynamic interest context: prop > venue choice
+  const venueInterestText = venueChoice
+    ? venueChoice.id === 'externo'
+      ? `${venueChoice.emoji || '🌳'} Festa externa${externalLocation ? ` em ${externalLocation}` : ''}`
+      : `${venueChoice.emoji || '🏛️'} ${venueChoice.label}`
+    : null;
+  const effectiveInterestContext = interestContext || venueInterestText;
 
   // Detect if we're in dynamic (multi-company) mode
   const isDynamic = !!companyName;
