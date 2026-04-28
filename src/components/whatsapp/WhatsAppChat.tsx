@@ -4024,6 +4024,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                     defaultOpen={false}
                     filterOrder={filterOrder}
                     onFilterOrderChange={saveFilterOrder}
+                    monthFilter={monthFilter}
+                    onMonthFilterChange={setMonthFilter}
                   />
                 </div>
               </CollapsibleContent>
