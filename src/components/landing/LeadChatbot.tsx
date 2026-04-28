@@ -761,7 +761,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
               className="p-4 border-t border-border"
             >
               <p className="text-sm text-muted-foreground mb-2">
-                {inputType === "name" ? "Digite seu nome:" : "Digite seu WhatsApp:"}
+                {inputType === "name" ? "Digite seu nome:" : inputType === "whatsapp" ? "Digite seu WhatsApp:" : "Digite o bairro e cidade:"}
               </p>
               {/* Emoji Picker */}
               <AnimatePresence>
