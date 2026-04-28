@@ -534,13 +534,13 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
                         </div>
 
                         <div className="flex items-center justify-between border-t pt-2 mt-1">
-                          <span className="text-xs text-muted-foreground">Visível para o buffet</span>
+                          <span className="text-xs text-muted-foreground">Ativa para conexão/envio</span>
                           <Switch
                             checked={inst.is_active !== false}
                             onCheckedChange={async (checked) => {
                               await supabase.from("wapi_instances").update({ is_active: checked } as any).eq("id", inst.id);
                               setInstances(prev => prev.map(i => i.id === inst.id ? { ...i, is_active: checked } : i));
-                              toast({ title: checked ? "Instância ativada" : "Instância desativada", description: checked ? "Agora visível para o buffet." : "Oculta do painel do buffet." });
+                              toast({ title: checked ? "Instância ativada" : "Instância desativada", description: checked ? "Pode ser usada para conexão e envio." : "Histórico continua visível; conexão e envio ficam desativados." });
                             }}
                           />
                         </div>
