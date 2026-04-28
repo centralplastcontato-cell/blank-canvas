@@ -16,6 +16,9 @@ const COMPANY_ASSET_OVERRIDES: Record<string, CompanyAssetOverride> = {
     mascot: megamagicMascot,
     extraGalleryPhotos: [megamagicGalleryBaby],
   },
+  "espaco-carrossel": {
+    logo: espacoCarrosselLogo,
+  },
 };
 
 export function getCompanyAssetOverride(slug?: string | null): CompanyAssetOverride | null {
