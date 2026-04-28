@@ -2,6 +2,7 @@ import type { LPHero } from "@/types/landing-page";
 import megamagicLogo from "@/assets/megamagic-logo-transparent.png";
 import megamagicMascot from "@/assets/megamagic-mascot-transparent.png";
 import megamagicGalleryBaby from "@/assets/megamagic-gallery-baby.jpg";
+import espacoCarrosselLogo from "@/assets/espaco-carrossel-logo-transparent.png";
 
 interface CompanyAssetOverride {
   logo?: string;
@@ -14,6 +15,9 @@ const COMPANY_ASSET_OVERRIDES: Record<string, CompanyAssetOverride> = {
     logo: megamagicLogo,
     mascot: megamagicMascot,
     extraGalleryPhotos: [megamagicGalleryBaby],
+  },
+  "espaco-carrossel": {
+    logo: espacoCarrosselLogo,
   },
 };
 
