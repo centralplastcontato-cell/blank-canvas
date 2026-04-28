@@ -56,7 +56,14 @@ interface ConversationFiltersProps {
   defaultOpen?: boolean;
   filterOrder: string[];
   onFilterOrderChange: (newOrder: string[]) => void;
+  monthFilter?: string;
+  onMonthFilterChange?: (month: string) => void;
 }
+
+const MONTHS = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+];
 
 const FILTER_LABELS: Record<string, string> = {
   all: 'Tudo',
