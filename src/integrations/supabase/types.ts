@@ -6558,6 +6558,8 @@ export type Database = {
         Args: { _company_id: string }
         Returns: {
           completion_message: string
+          external_location_question: string
+          external_location_required: boolean
           guest_limit: number
           guest_limit_message: string
           guest_limit_redirect_name: string
@@ -6568,6 +6570,9 @@ export type Database = {
           month_question: string
           name_question: string
           redirect_completion_message: string
+          venue_options: Json
+          venue_question_enabled: boolean
+          venue_question_text: string
           welcome_message: string
           whatsapp_question: string
           whatsapp_welcome_template: string
