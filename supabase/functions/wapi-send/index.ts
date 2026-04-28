@@ -323,9 +323,41 @@ async function zapiRequestPairingCode(instanceId: string, token: string, clientT
 
 // Z-API configure webhooks (all at once)
 async function zapiConfigureWebhooks(instanceId: string, token: string, clientToken: string | null, webhookUrl: string): Promise<{ ok: boolean; data?: unknown; error?: string }> {
-  return zapiRequest(instanceId, token, clientToken, 'update-webhook', 'PUT', {
-    value: webhookUrl,
-  });
+  // Z-API uses distinct endpoints per webhook type. Configure all relevant ones.
+  const endpoints = [
+    'update-webhook-received',           // mensagens recebidas
+    'update-webhook-delivery',           // status de entrega
+    'update-webhook-message-status',     // status da mensagem (legado)
+    'update-webhook-receive-all-notifications', // notificações gerais
+    'update-webhook-connected',          // instância conectada
+    'update-webhook-disconnected',       // instância desconectada
+    'update-webhook-chat-presence',      // presença
+  ];
+
+  const results: Array<{ endpoint: string; ok: boolean; error?: string }> = [];
+  let anyOk = false;
+  let lastError = '';
+
+  for (const ep of endpoints) {
+    const res = await zapiRequest(instanceId, token, clientToken, ep, 'PUT', { value: webhookUrl });
+    results.push({ endpoint: ep, ok: res.ok, error: res.error });
+    if (res.ok) {
+      anyOk = true;
+    } else if (res.error) {
+      lastError = res.error;
+    }
+    console.log(`[zapi-webhook] ${ep}: ${res.ok ? 'OK' : 'FAIL'}${res.error ? ` (${res.error})` : ''}`);
+  }
+
+  // Also enable "notify sent by me" so we receive our own outgoing messages
+  const notifyMe = await zapiRequest(instanceId, token, clientToken, 'update-every-private-message-call', 'PUT', { value: true }).catch(() => ({ ok: false }));
+  console.log(`[zapi-webhook] notify-sent-by-me: ${notifyMe.ok ? 'OK' : 'SKIP'}`);
+
+  return {
+    ok: anyOk,
+    data: results,
+    error: anyOk ? undefined : (lastError || 'Falha ao configurar webhooks Z-API'),
+  };
 }
 
 async function tryWapiWebhookRequest(
