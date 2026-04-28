@@ -213,6 +213,8 @@ interface Conversation {
   pinned_message_id: string | null;
 }
 
+const isConnectedStatus = (status: string | null | undefined) => status === 'connected' || status === 'degraded';
+
 // Helper: check if a contact_name is a valid display name (not a placeholder)
 const isValidContactName = (name: string | null | undefined): name is string => {
   if (!name) return false;
@@ -422,16 +424,16 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const activeDiff = activeScore(b) - activeScore(a);
       if (activeDiff !== 0) return activeDiff;
 
-      const countDiff = (countsMap[b.id] || 0) - (countsMap[a.id] || 0);
-      if (countDiff !== 0) return countDiff;
-
       const statusScore = (instance: WapiInstance) => instance.status === 'connected' ? 2 : instance.status === 'degraded' ? 1 : 0;
       const statusDiff = statusScore(b) - statusScore(a);
       if (statusDiff !== 0) return statusDiff;
 
-      // Prefer Z-API over W-API as last tiebreaker (newer provider, usually the active one)
+      // Prefer Z-API over W-API before conversation volume (newer provider, usually the active sending connection)
       if (a.provider === 'zapi' && b.provider !== 'zapi') return -1;
       if (b.provider === 'zapi' && a.provider !== 'zapi') return 1;
+
+      const countDiff = (countsMap[b.id] || 0) - (countsMap[a.id] || 0);
+      if (countDiff !== 0) return countDiff;
       return 0;
     })[0] || null;
   }, [instanceConversationCounts]);
