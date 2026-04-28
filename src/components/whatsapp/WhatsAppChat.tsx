@@ -1298,15 +1298,16 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
       // Realtime channel for conversation updates
       
-      const conversationsChannel = supabase
-        .channel(`wapi_conversations_optimized_${selectedInstance.id}`)
-        .on(
+      const channelName = `wapi_conversations_unit_${selectedUnitInstanceIds.slice().sort().join('_')}`;
+      const conversationsChannel = supabase.channel(channelName);
+      selectedUnitInstanceIds.forEach((instanceId) => {
+        conversationsChannel.on(
           'postgres_changes',
           {
             event: '*',
             schema: 'public',
             table: 'wapi_conversations',
-            filter: `instance_id=eq.${selectedInstance.id}`,
+            filter: `instance_id=eq.${instanceId}`,
           },
           (payload) => {
             console.log('[Realtime] Conversation event:', payload.eventType, payload.new);
@@ -1399,14 +1400,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             // Inline updates above handle all cases. Full refresh removed
             // to prevent race conditions that switch the active conversation.
           }
-        )
-        .subscribe();
+        );
+      });
+      conversationsChannel.subscribe();
 
       return () => {
         supabase.removeChannel(conversationsChannel);
       };
     }
-  }, [selectedInstance, initialPhone, initialPhoneProcessed]);
+  }, [selectedInstance, selectedUnitInstanceIds, initialPhone, initialPhoneProcessed]);
 
   // Track if at bottom using ref for realtime callback access
   const isAtBottomRef = useRef(true);
