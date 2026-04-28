@@ -111,32 +111,33 @@ export function DLPHowItWorks({ howItWorks, theme }: DLPHowItWorksProps) {
 
         {/* Desktop: horizontal cards with connector */}
         <div className="hidden md:block">
-          <div className="relative">
-            {/* Connector line */}
-            <div
-              className="absolute top-10 left-[12%] right-[12%] h-0.5 rounded-full"
-              style={{
-                background: `linear-gradient(90deg, transparent 0%, ${theme.primary_color}30 20%, ${theme.secondary_color}30 80%, transparent 100%)`,
-              }}
-            />
-
-            <div className="grid grid-cols-4 gap-8">
-              {howItWorks.steps.map((step, i) => {
-                const Icon = getIcon(step.icon);
-                return (
+          <div
+            className={`flex items-stretch justify-center gap-6 lg:gap-10 ${
+              howItWorks.steps.length === 2 ? "max-w-3xl mx-auto" : ""
+            }`}
+          >
+            {howItWorks.steps.map((step, i) => {
+              const Icon = getIcon(step.icon);
+              const isLast = i === howItWorks.steps.length - 1;
+              return (
+                <div key={i} className="flex items-stretch flex-1 min-w-0">
                   <motion.div
-                    key={i}
                     initial={{ opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.12, duration: 0.5 }}
-                    className="text-center relative"
+                    className="flex-1 text-center relative rounded-2xl px-5 py-7 transition-all hover:-translate-y-1"
+                    style={{
+                      background: `linear-gradient(180deg, ${theme.primary_color}08 0%, ${theme.background_color} 100%)`,
+                      border: `1px solid ${theme.primary_color}15`,
+                      boxShadow: `0 4px 20px ${theme.primary_color}10`,
+                    }}
                   >
                     <div
                       className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-xl relative z-10"
                       style={{
                         background: `linear-gradient(135deg, ${theme.primary_color}, ${theme.secondary_color})`,
-                        boxShadow: `0 12px 32px ${theme.primary_color}25`,
+                        boxShadow: `0 12px 32px ${theme.primary_color}30`,
                       }}
                     >
                       <Icon className="w-8 h-8 text-white" />
@@ -154,15 +155,51 @@ export function DLPHowItWorks({ howItWorks, theme }: DLPHowItWorksProps) {
                       {step.title}
                     </h3>
                     <p
-                      className="text-sm leading-relaxed max-w-[200px] mx-auto"
-                      style={{ color: theme.text_color + "80", fontFamily: theme.font_body }}
+                      className="text-sm leading-relaxed max-w-[240px] mx-auto"
+                      style={{ color: theme.text_color + "90", fontFamily: theme.font_body }}
                     >
                       {step.description}
                     </p>
                   </motion.div>
-                );
-              })}
-            </div>
+
+                  {/* Connector between cards */}
+                  {!isLast && (
+                    <motion.div
+                      initial={{ opacity: 0, scaleX: 0 }}
+                      whileInView={{ opacity: 1, scaleX: 1 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: i * 0.12 + 0.3, duration: 0.5 }}
+                      className="flex items-center justify-center px-1 lg:px-2"
+                      style={{ transformOrigin: "left center" }}
+                    >
+                      <div className="relative flex items-center">
+                        <div
+                          className="h-0.5 w-10 lg:w-16 rounded-full"
+                          style={{
+                            background: `linear-gradient(90deg, ${theme.primary_color}50, ${theme.secondary_color}50)`,
+                          }}
+                        />
+                        <div
+                          className="w-9 h-9 rounded-full flex items-center justify-center shadow-md -mx-1"
+                          style={{
+                            background: `linear-gradient(135deg, ${theme.primary_color}, ${theme.secondary_color})`,
+                            boxShadow: `0 6px 16px ${theme.primary_color}35`,
+                          }}
+                        >
+                          <LucideIcons.ArrowRight className="w-4 h-4 text-white" />
+                        </div>
+                        <div
+                          className="h-0.5 w-10 lg:w-16 rounded-full"
+                          style={{
+                            background: `linear-gradient(90deg, ${theme.secondary_color}50, ${theme.primary_color}50)`,
+                          }}
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
