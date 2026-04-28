@@ -66,7 +66,10 @@ export function DLPVideo({ video, theme, companyName, onActiveUnitChange }: DLPV
   let items: VideoItem[] = [];
 
   if (video?.videos && video.videos.length > 0) {
-    items = video.videos;
+    // Defensive: filter out null/invalid entries (DB may contain nulls in array)
+    items = (video.videos as Array<VideoItem | null | undefined>).filter(
+      (v): v is VideoItem => !!v && typeof v === "object" && !!v.video_url
+    );
   } else if (video?.video_url) {
     items = [
       {
