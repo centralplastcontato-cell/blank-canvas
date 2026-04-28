@@ -3006,6 +3006,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const sendRecordedAudio = async () => {
     if (!audioBlob || !selectedConversation || !selectedInstance || isUploading) return;
 
+    if (!canUseSelectedInstanceForSending) {
+      toast({ title: "Envio indisponível", description: selectedInstance.is_active === false ? "Esta instância está desativada para envio." : "A unidade está desconectada.", variant: "destructive" });
+      return;
+    }
+
     setIsUploading(true);
     const convId = selectedConversation.id;
     
@@ -3210,6 +3215,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const sendMedia = async () => {
     if (!mediaPreview || !selectedConversation || !selectedInstance || isUploading) return;
 
+    if (!canUseSelectedInstanceForSending) {
+      toast({ title: "Envio indisponível", description: selectedInstance.is_active === false ? "Esta instância está desativada para envio." : "A unidade está desconectada.", variant: "destructive" });
+      return;
+    }
+
     setIsUploading(true);
     const convId = selectedConversation.id;
     
@@ -3406,6 +3416,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const sendMaterialByUrl = async (url: string, type: "document" | "image" | "video", caption?: string, fileName?: string) => {
     if (!selectedConversation || !selectedInstance) {
       throw new Error("Nenhuma conversa selecionada");
+    }
+
+    if (!canUseSelectedInstanceForSending) {
+      throw new Error(selectedInstance.is_active === false ? "Instância desativada para envio." : "Unidade desconectada.");
     }
 
     let action = 'send-document';
