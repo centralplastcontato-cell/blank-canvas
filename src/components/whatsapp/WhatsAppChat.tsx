@@ -1717,13 +1717,21 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           const stillExists = activeData.some((inst: any) => inst.id === prev.id);
           if (stillExists) return prev;
         }
+        // Helper: when multiple instances share the same unit, prefer the connected one
+        const pickBest = (list: any[]) => {
+          const connected = list.find((i: any) => i.status === 'connected');
+          if (connected) return connected;
+          const degraded = list.find((i: any) => i.status === 'degraded');
+          if (degraded) return degraded;
+          return list[0];
+        };
         // Prefer the instance matching externalSelectedUnit (from localStorage persistence)
         const extUnit = externalSelectedUnitRef.current;
         if (extUnit) {
-          const extMatch = activeData.find((inst: any) => inst.unit === extUnit);
-          if (extMatch) return extMatch as WapiInstance;
+          const extMatches = activeData.filter((inst: any) => inst.unit === extUnit);
+          if (extMatches.length > 0) return pickBest(extMatches) as WapiInstance;
         }
-        return activeData[0] as WapiInstance;
+        return pickBest(activeData) as WapiInstance;
       });
 
       // Background sync: check real status for instances that appear disconnected
