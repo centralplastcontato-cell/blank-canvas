@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, MapPin, Home, Truck } from "lucide-react";
 import type { LPVideo, LPTheme } from "@/types/landing-page";
+import { getVideoPosterOverride } from "@/lib/companyAssetOverrides";
 
 interface DLPVideoProps {
   video: LPVideo;
   theme: LPTheme;
   companyName: string;
+  companySlug?: string | null;
   onActiveUnitChange?: (unitName: string) => void;
 }
 
@@ -60,7 +62,7 @@ interface VideoGroup {
   videos: VideoItem[];
 }
 
-export function DLPVideo({ video, theme, companyName, onActiveUnitChange }: DLPVideoProps) {
+export function DLPVideo({ video, theme, companyName, companySlug, onActiveUnitChange }: DLPVideoProps) {
   const [activeGroupIdx, setActiveGroupIdx] = useState(0);
 
   let items: VideoItem[] = [];
@@ -81,6 +83,12 @@ export function DLPVideo({ video, theme, companyName, onActiveUnitChange }: DLPV
       },
     ];
   }
+
+  // Apply per-company poster overrides (e.g. replace logo thumbnails with real video frames)
+  items = items.map((it) => {
+    const overridePoster = getVideoPosterOverride(companySlug, it.video_url);
+    return overridePoster ? { ...it, poster_url: overridePoster } : it;
+  });
 
   // Group videos by name (so duplicates with the same name become a single tab with multiple videos)
   const groups: VideoGroup[] = (() => {

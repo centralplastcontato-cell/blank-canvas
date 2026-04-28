@@ -3,11 +3,17 @@ import megamagicLogo from "@/assets/megamagic-logo-transparent.png";
 import megamagicMascot from "@/assets/megamagic-mascot-transparent.png";
 import megamagicGalleryBaby from "@/assets/megamagic-gallery-baby.jpg";
 import espacoCarrosselLogo from "@/assets/espaco-carrossel-logo-transparent.png";
+import carrosselPosterInterna2 from "@/assets/espaco-carrossel-poster-interna-2.jpg";
+import carrosselPosterExterna1 from "@/assets/espaco-carrossel-poster-externa-1.jpg";
+import carrosselPosterExterna2 from "@/assets/espaco-carrossel-poster-externa-2.jpg";
+import carrosselPosterExterna3 from "@/assets/espaco-carrossel-poster-externa-3.jpg";
 
 interface CompanyAssetOverride {
   logo?: string;
   mascot?: string;
   extraGalleryPhotos?: string[];
+  /** Map of video file basename (last URL segment) -> override poster URL */
+  videoPosters?: Record<string, string>;
 }
 
 const COMPANY_ASSET_OVERRIDES: Record<string, CompanyAssetOverride> = {
@@ -18,6 +24,12 @@ const COMPANY_ASSET_OVERRIDES: Record<string, CompanyAssetOverride> = {
   },
   "espaco-carrossel": {
     logo: espacoCarrosselLogo,
+    videoPosters: {
+      "festa-interna-2.mp4": carrosselPosterInterna2,
+      "carrossel-externa-1.mp4": carrosselPosterExterna1,
+      "carrossel-externa-2.mp4": carrosselPosterExterna2,
+      "carrossel-externa-3.mp4": carrosselPosterExterna3,
+    },
   },
 };
 
@@ -45,4 +57,19 @@ export function applyHeroAssetOverrides(hero: LPHero, slug?: string | null): LPH
 
 export function getExtraGalleryPhotos(slug?: string | null): string[] {
   return getCompanyAssetOverride(slug)?.extraGalleryPhotos ?? [];
+}
+
+export function getVideoPosterOverride(
+  slug: string | null | undefined,
+  videoUrl: string | null | undefined,
+): string | null {
+  if (!slug || !videoUrl) return null;
+  const map = getCompanyAssetOverride(slug)?.videoPosters;
+  if (!map) return null;
+  try {
+    const filename = videoUrl.split("/").pop()?.split("?")[0] ?? "";
+    return map[filename] ?? null;
+  } catch {
+    return null;
+  }
 }
