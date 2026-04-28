@@ -209,15 +209,21 @@ export function ConversationFilters({
           size="sm" 
           className={cn(
             "w-full justify-between h-8 text-xs",
-            hasActiveFilter && "border-primary/50 bg-primary/5"
+            hasAnyActiveFilter && "border-primary/50 bg-primary/5"
           )}
         >
-          <span className="flex items-center gap-1.5">
+          <span className="flex items-center gap-1.5 flex-wrap">
             <Filter className="w-3.5 h-3.5" />
             Filtros
             {hasActiveFilter && (
               <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-primary/20 text-primary">
                 {FILTER_LABELS[filter]}
+              </Badge>
+            )}
+            {hasActiveMonthFilter && (
+              <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-primary/20 text-primary">
+                <CalendarDays className="w-3 h-3 mr-1" />
+                {monthFilter === '__none__' ? 'Sem mês' : monthFilter}
               </Badge>
             )}
           </span>
