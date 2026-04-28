@@ -785,8 +785,16 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const canFavoriteConversations = isAdmin || hasUserPermission('whatsapp.favorite');
   const canToggleBot = isAdmin || hasUserPermission('whatsapp.bot.toggle');
   const canShareToGroup = isAdmin || hasUserPermission('whatsapp.share.group');
-  const isSelectedInstanceActive = selectedInstance?.is_active !== false;
-  const canUseSelectedInstanceForSending = isSelectedInstanceActive && (selectedInstance?.status === 'connected' || selectedInstance?.status === 'degraded');
+  const selectedUnitInstances = useMemo(() => {
+    if (!selectedInstance) return [];
+    return instances.filter((instance) => instance.unit === selectedInstance.unit);
+  }, [instances, selectedInstance?.unit]);
+  const selectedSendInstance = useMemo(() => {
+    if (!selectedInstance) return null;
+    const connectedSameUnit = selectedUnitInstances.filter((instance) => instance.is_active !== false && isConnectedStatus(instance.status));
+    return pickBestInstance(connectedSameUnit) || (selectedInstance.is_active !== false && isConnectedStatus(selectedInstance.status) ? selectedInstance : null);
+  }, [selectedInstance, selectedUnitInstances, pickBestInstance]);
+  const canUseSelectedInstanceForSending = !!selectedSendInstance;
 
   // Notifications hook - uses shared toggle state
   const { notificationsEnabled } = useChatNotificationToggle();
