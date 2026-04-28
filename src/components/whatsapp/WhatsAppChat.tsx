@@ -3495,6 +3495,16 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       // When searching, bypass filters to find leads across all conversations
       if (searchQuery.trim().length > 0) return matchesSearch;
       
+      // Apply month filter (mês desejado da festa pelo lead)
+      if (monthFilter && monthFilter !== 'all') {
+        const leadMonth = (conversationLeadsMap[conv.id]?.month || '').trim();
+        if (monthFilter === '__none__') {
+          if (leadMonth) return false;
+        } else {
+          if (leadMonth.toLowerCase() !== monthFilter.toLowerCase()) return false;
+        }
+      }
+      
       // Apply filter
       if (filter === 'unread') return conv.unread_count > 0;
       if (filter === 'closed') return conv.is_closed;
