@@ -186,6 +186,7 @@ interface WapiInstance {
   instance_id: string;
   status: string;
   unit: string | null;
+  provider?: string | null;
 }
 
 interface Conversation {
@@ -386,6 +387,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const { currentCompany } = useCompany();
   const [instances, setInstances] = useState<WapiInstance[]>([]);
   const [selectedInstance, setSelectedInstance] = useState<WapiInstance | null>(null);
+  const [instanceConversationCounts, setInstanceConversationCounts] = useState<Record<string, number>>({});
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -412,10 +414,23 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const externalSelectedUnitRef = useRef(externalSelectedUnit);
   externalSelectedUnitRef.current = externalSelectedUnit;
 
+  const pickBestInstance = useCallback((list: WapiInstance[], countsMap = instanceConversationCounts) => {
+    return [...list].sort((a, b) => {
+      const countDiff = (countsMap[b.id] || 0) - (countsMap[a.id] || 0);
+      if (countDiff !== 0) return countDiff;
+
+      const statusScore = (instance: WapiInstance) => instance.status === 'connected' ? 2 : instance.status === 'degraded' ? 1 : 0;
+      const statusDiff = statusScore(b) - statusScore(a);
+      if (statusDiff !== 0) return statusDiff;
+
+      return a.provider === 'zapi' && b.provider !== 'zapi' ? 1 : 0;
+    })[0] || null;
+  }, [instanceConversationCounts]);
+
   // Sync with external unit selection from header
   useEffect(() => {
     if (externalSelectedUnit && instances.length > 0) {
-      const match = instances.find(i => i.unit === externalSelectedUnit);
+      const match = pickBestInstance(instances.filter(i => i.unit === externalSelectedUnit));
       if (match && match.id !== selectedInstance?.id) {
         setSelectedInstance(match);
         setSelectedConversation(null);
@@ -423,7 +438,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         setConversations([]);
       }
     }
-  }, [externalSelectedUnit, instances]);
+  }, [externalSelectedUnit, instances, selectedInstance?.id, pickBestInstance]);
 
   const [hasUserScrolledToTop, setHasUserScrolledToTop] = useState(false); // Track if user manually scrolled to top
   const [isAtBottom, setIsAtBottom] = useState(true); // Track if scroll is at bottom (for scroll-to-bottom button visibility)
@@ -1679,7 +1694,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const companyId = localStorage.getItem('selected_company_id') || 'a0000000-0000-0000-0000-000000000001';
     let query = supabase
       .from("wapi_instances")
-      .select("id, instance_id, status, unit, is_active")
+      .select("id, instance_id, status, unit, is_active, provider")
       .eq("company_id", companyId);
 
     // Filter by allowed units - if empty, show nothing (user has no unit access)
@@ -1710,28 +1725,35 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const activeData = data ? data.filter((d: any) => d.is_active !== false) : [];
 
     if (activeData.length > 0) {
-      setInstances(activeData as WapiInstance[]);
+      const activeInstances = activeData as WapiInstance[];
+      const counts: Record<string, number> = {};
+
+      await Promise.all(activeInstances.map(async (instance) => {
+        const { count } = await supabase
+          .from("wapi_conversations")
+          .select("id", { count: "exact", head: true })
+          .eq("instance_id", instance.id);
+        counts[instance.id] = count || 0;
+      }));
+
+      setInstanceConversationCounts(counts);
+      setInstances(activeInstances);
       onInstancesLoaded?.(activeData.map((d: any) => ({ id: d.id, unit: d.unit, status: d.status })));
       setSelectedInstance(prev => {
         if (prev) {
           const stillExists = activeData.some((inst: any) => inst.id === prev.id);
-          if (stillExists) return prev;
+          const betterSameUnit = pickBestInstance(activeInstances.filter(inst => inst.unit === prev.unit), counts);
+          if (stillExists && (!betterSameUnit || betterSameUnit.id === prev.id)) return prev;
+          if (betterSameUnit) return betterSameUnit;
         }
-        // Helper: when multiple instances share the same unit, prefer the connected one
-        const pickBest = (list: any[]) => {
-          const connected = list.find((i: any) => i.status === 'connected');
-          if (connected) return connected;
-          const degraded = list.find((i: any) => i.status === 'degraded');
-          if (degraded) return degraded;
-          return list[0];
-        };
         // Prefer the instance matching externalSelectedUnit (from localStorage persistence)
         const extUnit = externalSelectedUnitRef.current;
         if (extUnit) {
-          const extMatches = activeData.filter((inst: any) => inst.unit === extUnit);
-          if (extMatches.length > 0) return pickBest(extMatches) as WapiInstance;
+          const extMatches = activeInstances.filter((inst) => inst.unit === extUnit);
+          const bestExternal = pickBestInstance(extMatches, counts);
+          if (bestExternal) return bestExternal;
         }
-        return pickBest(activeData) as WapiInstance;
+        return pickBestInstance(activeInstances, counts);
       });
 
       // Background sync: check real status for instances that appear disconnected
