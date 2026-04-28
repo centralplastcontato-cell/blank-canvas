@@ -603,7 +603,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
                   return (
                   <div
                     key={m.id}
-                    className={`flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-card ${hasDetail ? 'cursor-pointer hover:border-primary/40 hover:bg-accent/30 transition-colors' : ''}`}
+                    className={`flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-xl border border-border/40 bg-card ${hasDetail ? 'cursor-pointer hover:border-primary/40 hover:bg-accent/30 transition-colors' : ''}`}
                     onClick={() => {
                       if (m.eventId) {
                         setSelectedEvent({ id: m.eventId, title: m.eventTitle || 'Festa' });
@@ -624,24 +624,24 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
                       <p className="text-sm font-medium text-foreground truncate">
                         {m.expenseCategory === 'ajuste' ? 'Ajuste de saldo' : m.description}
                       </p>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                         <span className="text-[11px] text-muted-foreground">
                           {m.date ? format(new Date(m.date + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
                         </span>
-                        <Badge variant="secondary" className="text-[9px] h-4">{m.source}</Badge>
+                        <Badge variant="secondary" className="text-[9px] h-4 px-1.5">{m.source}</Badge>
                         {m.eventId && (
-                          <Badge variant="outline" className="text-[9px] h-4 text-primary border-primary/30">Ver festa</Badge>
+                          <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-primary border-primary/30">Ver festa</Badge>
                         )}
                         {!m.eventId && m.recordId && (
-                          <Badge variant="outline" className="text-[9px] h-4 text-muted-foreground border-border">Detalhes</Badge>
+                          <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-muted-foreground border-border">Detalhes</Badge>
                         )}
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className={`text-sm font-bold ${m.type === 'entry' ? 'text-emerald-500' : 'text-red-400'}`}>
+                    <div className="text-right shrink-0 max-w-[40%]">
+                      <p className={`text-xs sm:text-sm font-bold tabular-nums whitespace-nowrap ${m.type === 'entry' ? 'text-emerald-500' : 'text-red-400'}`}>
                         {m.type === 'entry' ? '+' : '-'}{fmt(m.amount)}
                       </p>
-                      <p className="text-[10px] text-muted-foreground">{fmt(m.balance)}</p>
+                      <p className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">{fmt(m.balance)}</p>
                     </div>
                   </div>
                   );
