@@ -540,25 +540,25 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
   return (
     <div className="space-y-4">
       {/* Balance summary */}
-      <div className="grid grid-cols-3 gap-3">
-        <Card className="p-3 text-center">
-          <p className="text-[10px] text-muted-foreground uppercase">Saldo Inicial</p>
-          <p className="text-sm font-bold">{fmt(account.initial_balance)}</p>
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <Card className="p-2 sm:p-3 text-center min-w-0">
+          <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase truncate">Saldo Inicial</p>
+          <p className="text-[11px] sm:text-sm font-bold tabular-nums break-words leading-tight mt-0.5">{fmt(account.initial_balance)}</p>
         </Card>
-        <Card className="p-3 text-center">
-          <p className="text-[10px] text-emerald-500 uppercase">Entradas</p>
-          <p className="text-sm font-bold text-emerald-500">+{fmt(liveTotals.totalEntries)}</p>
+        <Card className="p-2 sm:p-3 text-center min-w-0">
+          <p className="text-[9px] sm:text-[10px] text-emerald-500 uppercase truncate">Entradas</p>
+          <p className="text-[11px] sm:text-sm font-bold text-emerald-500 tabular-nums break-words leading-tight mt-0.5 whitespace-nowrap">+{fmt(liveTotals.totalEntries)}</p>
         </Card>
-        <Card className="p-3 text-center">
-          <p className="text-[10px] text-red-400 uppercase">Saídas</p>
-          <p className="text-sm font-bold text-red-400">-{fmt(liveTotals.totalExits)}</p>
+        <Card className="p-2 sm:p-3 text-center min-w-0">
+          <p className="text-[9px] sm:text-[10px] text-red-400 uppercase truncate">Saídas</p>
+          <p className="text-[11px] sm:text-sm font-bold text-red-400 tabular-nums break-words leading-tight mt-0.5 whitespace-nowrap">-{fmt(liveTotals.totalExits)}</p>
         </Card>
       </div>
 
       {/* Current balance */}
-      <Card className={`p-4 text-center ${liveTotals.currentBalance >= 0 ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-red-500/30 bg-red-500/5'}`}>
+      <Card className={`p-3 sm:p-4 text-center ${liveTotals.currentBalance >= 0 ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-red-500/30 bg-red-500/5'}`}>
         <p className="text-xs text-muted-foreground">Saldo Atual</p>
-        <p className={`text-2xl font-bold ${liveTotals.currentBalance >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
+        <p className={`text-xl sm:text-2xl font-bold tabular-nums ${liveTotals.currentBalance >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
           {fmt(liveTotals.currentBalance)}
         </p>
       </Card>
@@ -574,14 +574,14 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
       </Button>
 
       {/* Date filter */}
-      <div className="flex gap-3">
-        <div className="flex-1">
+      <div className="flex gap-2 sm:gap-3">
+        <div className="flex-1 min-w-0">
           <Label className="text-xs">De</Label>
-          <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-9 text-xs" />
+          <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-9 text-xs w-full" />
         </div>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <Label className="text-xs">Até</Label>
-          <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-9 text-xs" />
+          <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-9 text-xs w-full" />
         </div>
       </div>
 
@@ -603,7 +603,7 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
                   return (
                   <div
                     key={m.id}
-                    className={`flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-card ${hasDetail ? 'cursor-pointer hover:border-primary/40 hover:bg-accent/30 transition-colors' : ''}`}
+                    className={`flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-xl border border-border/40 bg-card ${hasDetail ? 'cursor-pointer hover:border-primary/40 hover:bg-accent/30 transition-colors' : ''}`}
                     onClick={() => {
                       if (m.eventId) {
                         setSelectedEvent({ id: m.eventId, title: m.eventTitle || 'Festa' });
@@ -624,24 +624,24 @@ export function BankAccountStatement({ account, onBalanceChanged }: Props) {
                       <p className="text-sm font-medium text-foreground truncate">
                         {m.expenseCategory === 'ajuste' ? 'Ajuste de saldo' : m.description}
                       </p>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                         <span className="text-[11px] text-muted-foreground">
                           {m.date ? format(new Date(m.date + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
                         </span>
-                        <Badge variant="secondary" className="text-[9px] h-4">{m.source}</Badge>
+                        <Badge variant="secondary" className="text-[9px] h-4 px-1.5">{m.source}</Badge>
                         {m.eventId && (
-                          <Badge variant="outline" className="text-[9px] h-4 text-primary border-primary/30">Ver festa</Badge>
+                          <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-primary border-primary/30">Ver festa</Badge>
                         )}
                         {!m.eventId && m.recordId && (
-                          <Badge variant="outline" className="text-[9px] h-4 text-muted-foreground border-border">Detalhes</Badge>
+                          <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-muted-foreground border-border">Detalhes</Badge>
                         )}
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className={`text-sm font-bold ${m.type === 'entry' ? 'text-emerald-500' : 'text-red-400'}`}>
+                    <div className="text-right shrink-0 max-w-[40%]">
+                      <p className={`text-xs sm:text-sm font-bold tabular-nums whitespace-nowrap ${m.type === 'entry' ? 'text-emerald-500' : 'text-red-400'}`}>
                         {m.type === 'entry' ? '+' : '-'}{fmt(m.amount)}
                       </p>
-                      <p className="text-[10px] text-muted-foreground">{fmt(m.balance)}</p>
+                      <p className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">{fmt(m.balance)}</p>
                     </div>
                   </div>
                   );
