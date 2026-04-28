@@ -803,7 +803,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && handleInputSubmit()}
-                  placeholder={inputType === "name" ? "Seu nome completo" : "(11) 99999-9999"}
+                  placeholder={inputType === "name" ? "Seu nome completo" : inputType === "whatsapp" ? "(11) 99999-9999" : "Ex: Vila Mariana, São Paulo"}
                   className="flex-1 bg-muted border border-border rounded-full px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
                 <button
