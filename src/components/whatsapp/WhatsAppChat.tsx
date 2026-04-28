@@ -186,6 +186,7 @@ interface WapiInstance {
   instance_id: string;
   status: string;
   unit: string | null;
+  provider?: string | null;
 }
 
 interface Conversation {
@@ -386,6 +387,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const { currentCompany } = useCompany();
   const [instances, setInstances] = useState<WapiInstance[]>([]);
   const [selectedInstance, setSelectedInstance] = useState<WapiInstance | null>(null);
+  const [instanceConversationCounts, setInstanceConversationCounts] = useState<Record<string, number>>({});
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -412,10 +414,23 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const externalSelectedUnitRef = useRef(externalSelectedUnit);
   externalSelectedUnitRef.current = externalSelectedUnit;
 
+  const pickBestInstance = useCallback((list: WapiInstance[]) => {
+    return [...list].sort((a, b) => {
+      const countDiff = (instanceConversationCounts[b.id] || 0) - (instanceConversationCounts[a.id] || 0);
+      if (countDiff !== 0) return countDiff;
+
+      const statusScore = (instance: WapiInstance) => instance.status === 'connected' ? 2 : instance.status === 'degraded' ? 1 : 0;
+      const statusDiff = statusScore(b) - statusScore(a);
+      if (statusDiff !== 0) return statusDiff;
+
+      return a.provider === 'zapi' && b.provider !== 'zapi' ? 1 : 0;
+    })[0] || null;
+  }, [instanceConversationCounts]);
+
   // Sync with external unit selection from header
   useEffect(() => {
     if (externalSelectedUnit && instances.length > 0) {
-      const match = instances.find(i => i.unit === externalSelectedUnit);
+      const match = pickBestInstance(instances.filter(i => i.unit === externalSelectedUnit));
       if (match && match.id !== selectedInstance?.id) {
         setSelectedInstance(match);
         setSelectedConversation(null);
@@ -423,7 +438,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         setConversations([]);
       }
     }
-  }, [externalSelectedUnit, instances]);
+  }, [externalSelectedUnit, instances, selectedInstance?.id, pickBestInstance]);
 
   const [hasUserScrolledToTop, setHasUserScrolledToTop] = useState(false); // Track if user manually scrolled to top
   const [isAtBottom, setIsAtBottom] = useState(true); // Track if scroll is at bottom (for scroll-to-bottom button visibility)
