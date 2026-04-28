@@ -417,6 +417,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
   const pickBestInstance = useCallback((list: WapiInstance[], countsMap = instanceConversationCounts) => {
     return [...list].sort((a, b) => {
+      // Active instances first (is_active !== false)
+      const activeScore = (i: WapiInstance) => (i as any).is_active === false ? 0 : 1;
+      const activeDiff = activeScore(b) - activeScore(a);
+      if (activeDiff !== 0) return activeDiff;
+
       const countDiff = (countsMap[b.id] || 0) - (countsMap[a.id] || 0);
       if (countDiff !== 0) return countDiff;
 
@@ -430,6 +435,24 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       return 0;
     })[0] || null;
   }, [instanceConversationCounts]);
+
+  // Deduplicate instances by unit, keeping the best one per unit (for header/selector display).
+  // Inactive instances and W-API duplicates of the same unit are hidden, but the raw `instances`
+  // list still contains them so historical conversations remain accessible.
+  const visibleInstances = useMemo(() => {
+    const byUnit = new Map<string, WapiInstance[]>();
+    instances.forEach((inst) => {
+      const key = inst.unit || '__no_unit__';
+      if (!byUnit.has(key)) byUnit.set(key, []);
+      byUnit.get(key)!.push(inst);
+    });
+    const result: WapiInstance[] = [];
+    byUnit.forEach((list) => {
+      const best = pickBestInstance(list);
+      if (best) result.push(best);
+    });
+    return result.sort((a, b) => (a.unit || '').localeCompare(b.unit || ''));
+  }, [instances, pickBestInstance]);
 
   // Sync with external unit selection from header
   useEffect(() => {
@@ -1746,7 +1769,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
       setInstanceConversationCounts(counts);
       setInstances(activeInstances);
-      onInstancesLoaded?.(accessibleData.map((d: any) => ({ id: d.id, unit: d.unit, status: d.status })));
+      // Deduplicate by unit before notifying parent (header should show 1 button per unit)
+      const dedupByUnit = new Map<string, any>();
+      activeInstances.forEach((inst) => {
+        const key = inst.unit || '__no_unit__';
+        const existing = dedupByUnit.get(key);
+        if (!existing) { dedupByUnit.set(key, inst); return; }
+        const score = (i: any) => (i.is_active === false ? 0 : 100) + (i.status === 'connected' ? 10 : i.status === 'degraded' ? 5 : 0) + (i.provider === 'zapi' ? 1 : 0);
+        if (score(inst) > score(existing)) dedupByUnit.set(key, inst);
+      });
+      const dedupedForParent = Array.from(dedupByUnit.values()).map((d: any) => ({ id: d.id, unit: d.unit, status: d.status }));
+      onInstancesLoaded?.(dedupedForParent);
       setSelectedInstance(prev => {
         if (prev) {
           const stillExists = accessibleData.some((inst: any) => inst.id === prev.id);
@@ -3824,7 +3857,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     );
   }
 
-  const connectedInstances = instances.filter(i => i.status === 'connected' || i.status === 'degraded');
+  const connectedInstances = visibleInstances.filter(i => i.status === 'connected' || i.status === 'degraded');
   const allDisconnected = connectedInstances.length === 0;
 
   // Consider the unit connected if ANY instance of the same unit is connected
@@ -3839,14 +3872,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       {/* Header with Unit Tabs - only show if multiple instances AND no external control */}
       {!externalSelectedUnit && (
         <div className="flex items-center justify-between gap-2 mt-3 mb-3 px-1 shrink-0">
-          {instances.length > 1 ? (
+          {visibleInstances.length > 1 ? (
             <Tabs 
               value={selectedInstance?.id || ""} 
               onValueChange={handleInstanceChange}
               className="flex-1"
             >
               <TabsList className="bg-card/80 backdrop-blur-sm border border-border/60 shadow-sm w-full overflow-x-auto flex justify-start">
-                {instances.map((instance) => (
+                {visibleInstances.map((instance) => (
                   <TabsTrigger 
                     key={instance.id} 
                     value={instance.id}
