@@ -1694,7 +1694,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const companyId = localStorage.getItem('selected_company_id') || 'a0000000-0000-0000-0000-000000000001';
     let query = supabase
       .from("wapi_instances")
-      .select("id, instance_id, status, unit, is_active")
+      .select("id, instance_id, status, unit, is_active, provider")
       .eq("company_id", companyId);
 
     // Filter by allowed units - if empty, show nothing (user has no unit access)
@@ -1725,28 +1725,35 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const activeData = data ? data.filter((d: any) => d.is_active !== false) : [];
 
     if (activeData.length > 0) {
-      setInstances(activeData as WapiInstance[]);
+      const activeInstances = activeData as WapiInstance[];
+      const counts: Record<string, number> = {};
+
+      await Promise.all(activeInstances.map(async (instance) => {
+        const { count } = await supabase
+          .from("wapi_conversations")
+          .select("id", { count: "exact", head: true })
+          .eq("instance_id", instance.id);
+        counts[instance.id] = count || 0;
+      }));
+
+      setInstanceConversationCounts(counts);
+      setInstances(activeInstances);
       onInstancesLoaded?.(activeData.map((d: any) => ({ id: d.id, unit: d.unit, status: d.status })));
       setSelectedInstance(prev => {
         if (prev) {
           const stillExists = activeData.some((inst: any) => inst.id === prev.id);
-          if (stillExists) return prev;
+          const betterSameUnit = pickBestInstance(activeInstances.filter(inst => inst.unit === prev.unit));
+          if (stillExists && (!betterSameUnit || betterSameUnit.id === prev.id)) return prev;
+          if (betterSameUnit) return betterSameUnit;
         }
-        // Helper: when multiple instances share the same unit, prefer the connected one
-        const pickBest = (list: any[]) => {
-          const connected = list.find((i: any) => i.status === 'connected');
-          if (connected) return connected;
-          const degraded = list.find((i: any) => i.status === 'degraded');
-          if (degraded) return degraded;
-          return list[0];
-        };
         // Prefer the instance matching externalSelectedUnit (from localStorage persistence)
         const extUnit = externalSelectedUnitRef.current;
         if (extUnit) {
-          const extMatches = activeData.filter((inst: any) => inst.unit === extUnit);
-          if (extMatches.length > 0) return pickBest(extMatches) as WapiInstance;
+          const extMatches = activeInstances.filter((inst) => inst.unit === extUnit);
+          const bestExternal = pickBestInstance(extMatches);
+          if (bestExternal) return bestExternal;
         }
-        return pickBest(activeData) as WapiInstance;
+        return pickBestInstance(activeInstances);
       });
 
       // Background sync: check real status for instances that appear disconnected
