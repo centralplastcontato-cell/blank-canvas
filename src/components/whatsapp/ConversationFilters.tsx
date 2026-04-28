@@ -89,6 +89,8 @@ export function ConversationFilters({
   defaultOpen = false,
   filterOrder,
   onFilterOrderChange,
+  monthFilter = 'all',
+  onMonthFilterChange,
 }: ConversationFiltersProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
