@@ -133,33 +133,68 @@ export function ConversationFilters({
   }
 
   const filterButtons = (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={handleDragEnd}
-    >
-      <SortableContext items={filterOrder} strategy={horizontalListSortingStrategy}>
-        <div className="flex gap-1 flex-wrap">
-          {filterOrder.map((filterId) => {
-            const config = FILTER_CONFIGS[filterId];
-            if (!config) return null;
+    <div className="flex flex-col gap-2">
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={filterOrder} strategy={horizontalListSortingStrategy}>
+          <div className="flex gap-1 flex-wrap">
+            {filterOrder.map((filterId) => {
+              const config = FILTER_CONFIGS[filterId];
+              if (!config) return null;
 
-            return (
-              <DraggableFilterButton
-                key={filterId}
-                filter={{
-                  id: filterId,
-                  ...config,
-                  count: counts[filterId as keyof typeof counts] ?? 0,
-                }}
-                isActive={filter === filterId}
-                onClick={() => onFilterChange(filterId as FilterType)}
-              />
-            );
-          })}
+              return (
+                <DraggableFilterButton
+                  key={filterId}
+                  filter={{
+                    id: filterId,
+                    ...config,
+                    count: counts[filterId as keyof typeof counts] ?? 0,
+                  }}
+                  isActive={filter === filterId}
+                  onClick={() => onFilterChange(filterId as FilterType)}
+                />
+              );
+            })}
+          </div>
+        </SortableContext>
+      </DndContext>
+
+      {onMonthFilterChange && (
+        <div className="flex items-center gap-1.5">
+          <CalendarDays className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          <span className="text-[11px] text-muted-foreground shrink-0">Mês da festa:</span>
+          <Select
+            value={monthFilter || 'all'}
+            onValueChange={(v) => onMonthFilterChange(v)}
+          >
+            <SelectTrigger className="h-7 text-xs flex-1 bg-white rounded-lg">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">Todos os meses</SelectItem>
+              <SelectItem value="__none__" className="text-xs">Sem mês definido</SelectItem>
+              {MONTHS.map((m) => (
+                <SelectItem key={m} value={m} className="text-xs">{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {hasActiveMonthFilter && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 shrink-0"
+              onClick={() => onMonthFilterChange('all')}
+              title="Limpar filtro de mês"
+            >
+              <X className="w-3 h-3" />
+            </Button>
+          )}
         </div>
-      </SortableContext>
-    </DndContext>
+      )}
+    </div>
   );
 
   if (!collapsible) {
