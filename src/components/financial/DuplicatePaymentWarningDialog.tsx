@@ -11,6 +11,7 @@ const METHOD_LABELS: Record<string, string> = {
   cartao_debito: "Cartão de Débito",
   cartao: "Cartão",
   transferencia: "Transferência",
+  cheque: "Cheque",
 };
 
 interface Props {

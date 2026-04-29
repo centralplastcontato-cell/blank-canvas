@@ -106,6 +106,7 @@ const PAYMENT_METHODS = [
   { value: "pix", label: "PIX" },
   { value: "dinheiro", label: "Dinheiro" },
   { value: "transferencia", label: "Transferência" },
+  { value: "cheque", label: "Cheque" },
   { value: "misto", label: "Misto" },
 ];
 
@@ -116,6 +117,7 @@ const PAYMENT_FORMS = [
   { value: "dinheiro", label: "Dinheiro" },
   { value: "boleto", label: "Boleto" },
   { value: "transferencia", label: "Transferência" },
+  { value: "cheque", label: "Cheque" },
 ];
 
 // Event types are now loaded dynamically from company settings

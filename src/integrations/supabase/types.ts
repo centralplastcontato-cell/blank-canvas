@@ -2781,6 +2781,7 @@ export type Database = {
           card_installments: number | null
           card_operator_id: string | null
           company_id: string
+          compensation_date: string | null
           created_at: string
           gross_amount: number | null
           id: string
@@ -2798,6 +2799,7 @@ export type Database = {
           card_installments?: number | null
           card_operator_id?: string | null
           company_id: string
+          compensation_date?: string | null
           created_at?: string
           gross_amount?: number | null
           id?: string
@@ -2815,6 +2817,7 @@ export type Database = {
           card_installments?: number | null
           card_operator_id?: string | null
           company_id?: string
+          compensation_date?: string | null
           created_at?: string
           gross_amount?: number | null
           id?: string
@@ -2864,6 +2867,7 @@ export type Database = {
           card_installments: number | null
           card_operator_id: string | null
           company_id: string
+          compensation_date: string | null
           created_at: string
           due_date: string
           event_id: string
@@ -2883,6 +2887,7 @@ export type Database = {
           card_installments?: number | null
           card_operator_id?: string | null
           company_id: string
+          compensation_date?: string | null
           created_at?: string
           due_date: string
           event_id: string
@@ -2902,6 +2907,7 @@ export type Database = {
           card_installments?: number | null
           card_operator_id?: string | null
           company_id?: string
+          compensation_date?: string | null
           created_at?: string
           due_date?: string
           event_id?: string

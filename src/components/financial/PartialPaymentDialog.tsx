@@ -23,6 +23,7 @@ interface SubmitPayload {
   receipt_url?: string;
   paid_by?: string;
   notes?: string;
+  compensation_date?: string;
 }
 
 interface Props {
@@ -48,6 +49,7 @@ export function PartialPaymentDialog({ open, onOpenChange, onSubmit, paymentAmou
   const [paidBy, setPaidBy] = useState("");
   const [notes, setNotes] = useState("");
   const [receiptUrl, setReceiptUrl] = useState("");
+  const [compensationDate, setCompensationDate] = useState("");
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [duplicateMatches, setDuplicateMatches] = useState<DuplicateMatch[]>([]);
@@ -84,7 +86,7 @@ export function PartialPaymentDialog({ open, onOpenChange, onSubmit, paymentAmou
       const success = await onSubmit(payload);
       if (success !== false) {
         onOpenChange(false);
-        setAmount(""); setPaidBy(""); setNotes(""); setReceiptUrl(""); setBankAccountId("");
+        setAmount(""); setPaidBy(""); setNotes(""); setReceiptUrl(""); setBankAccountId(""); setCompensationDate("");
         setDuplicateDialogOpen(false);
         setDuplicateMatches([]);
         setPendingSubmit(null);
@@ -103,6 +105,11 @@ export function PartialPaymentDialog({ open, onOpenChange, onSubmit, paymentAmou
       return;
     }
 
+    if (method === "cheque" && !compensationDate) {
+      toast({ title: "Informe a data de compensação", description: "Cheques precisam de uma data prevista de compensação.", variant: "destructive" });
+      return;
+    }
+
     const payload: SubmitPayload = {
       amount: val,
       payment_method: method || undefined,
@@ -110,6 +117,7 @@ export function PartialPaymentDialog({ open, onOpenChange, onSubmit, paymentAmou
       receipt_url: receiptUrl || undefined,
       paid_by: paidBy.trim() || undefined,
       notes: notes.trim() || undefined,
+      compensation_date: method === "cheque" ? compensationDate : undefined,
     };
 
     // Nível 2: checagem de duplicidade
@@ -197,9 +205,26 @@ export function PartialPaymentDialog({ open, onOpenChange, onSubmit, paymentAmou
                   <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
                   <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
                   <SelectItem value="transferencia">Transferência</SelectItem>
+                  <SelectItem value="cheque">Cheque</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            {method === "cheque" && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+                <Label className="text-xs font-semibold text-amber-600 uppercase tracking-wide">
+                  📅 Data de compensação do cheque
+                </Label>
+                <Input
+                  type="date"
+                  value={compensationDate}
+                  onChange={e => setCompensationDate(e.target.value)}
+                  className="bg-white"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Quando o cheque deve cair na conta. O pagamento só será considerado efetivo nessa data.
+                </p>
+              </div>
+            )}
             <BankAccountSelect
               value={bankAccountId || null}
               onValueChange={setBankAccountId}

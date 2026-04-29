@@ -26,6 +26,7 @@ export interface PaymentFormSubmitData {
   card_installments?: number;
   card_fee_percent?: number;
   gross_amount?: number;
+  compensation_date?: string;
 }
 
 interface Props {
@@ -50,6 +51,7 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues,
   const [notes, setNotes] = useState(defaultValues?.notes || "");
   const [bankAccountId, setBankAccountId] = useState(defaultValues?.bank_account_id || "");
   const [installments, setInstallments] = useState<number>(1);
+  const [compensationDate, setCompensationDate] = useState<string>("");
   const [operatorId, setOperatorId] = useState<string>("");
   const [cardFees, setCardFees] = useState<CardFeeRow[]>([]);
   const [duplicateMatches, setDuplicateMatches] = useState<DuplicateMatch[]>([]);
@@ -82,7 +84,7 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues,
   const finalizeSubmit = (data: PaymentFormSubmitData) => {
     onSubmit(data);
     onOpenChange(false);
-    setAmount(""); setDueDate(""); setNotes(""); setBankAccountId("");
+    setAmount(""); setDueDate(""); setNotes(""); setBankAccountId(""); setCompensationDate("");
     setInstallments(1);
     setPendingSubmit(null);
     setDuplicateMatches([]);
@@ -91,6 +93,10 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues,
 
   const handleSubmit = async () => {
     if (!grossAmount || !dueDate) return;
+    if (method === "cheque" && !compensationDate) {
+      // simple inline guard; UI shows the field below when method === cheque
+      return;
+    }
 
     const submitData: PaymentFormSubmitData = {
       type,
@@ -99,6 +105,7 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       payment_method: method,
       notes: notes.trim() || undefined,
       bank_account_id: bankAccountId || undefined,
+      compensation_date: method === "cheque" ? compensationDate : undefined,
     };
 
     if (isCard && operator && calc.feePercent > 0) {
@@ -183,9 +190,27 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues,
                 <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
                 <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
                 <SelectItem value="transferencia">Transferência</SelectItem>
+                <SelectItem value="cheque">Cheque</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {method === "cheque" && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+              <Label className="text-xs font-semibold text-amber-600 uppercase tracking-wide">
+                📅 Data de compensação do cheque
+              </Label>
+              <Input
+                type="date"
+                value={compensationDate}
+                onChange={e => setCompensationDate(e.target.value)}
+                className="bg-white"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Quando o cheque deve cair na conta. O pagamento só será considerado efetivo nessa data.
+              </p>
+            </div>
+          )}
 
           {isCard && (
             <div className="space-y-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">

@@ -202,6 +202,7 @@ export function useEventFinancial(eventId: string | undefined, companyId: string
     type: string; amount: number; due_date: string; payment_method: string;
     notes?: string; bank_account_id?: string;
     card_operator_id?: string; card_installments?: number; card_fee_percent?: number; gross_amount?: number;
+    compensation_date?: string;
   }) => {
     if (!eventId || !companyId) return;
     const { notes, ...rest } = data;
@@ -266,6 +267,7 @@ export function useEventFinancial(eventId: string | undefined, companyId: string
     receipt_url?: string;
     paid_by?: string;
     notes?: string;
+    compensation_date?: string;
   }) => {
     if (!companyId) return;
     const { error } = await (supabase as any).from('event_payment_entries').insert({
@@ -277,6 +279,7 @@ export function useEventFinancial(eventId: string | undefined, companyId: string
       receipt_url: data.receipt_url || null,
       paid_by: data.paid_by || null,
       notes: data.notes || null,
+      compensation_date: data.compensation_date || null,
     });
     if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return false; }
 
