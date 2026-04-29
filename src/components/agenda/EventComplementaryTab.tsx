@@ -578,6 +578,7 @@ export function EventComplementaryTab({
           />
           <p className="text-[10px] text-muted-foreground">
             Este campo é exclusivo para uso interno e não será incluído em contratos.
+            Após o cliente preencher o Pré-Festa, estas anotações também aparecem dentro do card de respostas do Pré-Festa, onde você pode continuar editando.
           </p>
         </div>
       </div>
