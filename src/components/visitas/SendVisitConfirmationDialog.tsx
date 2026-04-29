@@ -138,10 +138,10 @@ export function SendVisitConfirmationDialog({ open, onOpenChange, visit, onSent 
       const { data: sendData, error: sendErr } = await supabase.functions.invoke("wapi-send", {
         body: {
           action: "send-text",
-          instance_id: instance.instance_id,
+          instanceId: instance.instance_id,
           phone,
           message,
-          conversation_id: conv.id,
+          conversationId: conv.id,
           metadata: { source: "visit_confirmation", type: "manual", visit_id: visit.id },
         },
       });
