@@ -519,6 +519,7 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
           responseCount: responses.length,
           responses,
           templateId: tmpl?.id,
+          templateName: tmpl?.name || ft.label,
           templateSlug: tmpl?.slug || undefined,
           publicPath: ft.publicPath,
           templateQuestions: Array.isArray(tmpl?.questions) ? tmpl.questions : undefined,
