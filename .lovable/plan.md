@@ -1,53 +1,75 @@
-## Objetivo
+# Anotações internas: ponte entre Modal da Festa e Card do Pré-Festa
 
-Na LP do **Espaço Carrossel** (`espacocarrossel.online`), separar fotos e vídeos em duas seções dentro da MESMA página, com abas: **Espaço Interno** e **Espaço Externo**. O CTA do WhatsApp continua o mesmo número, mas a mensagem inicial muda conforme a aba ativa quando o cliente abre o chat.
+## Contexto
 
-## Como vai ficar (visual)
+Hoje já existe:
+- Campo `internal_notes` em `company_events` (textarea único), editável em **EventComplementaryTab** (modal da festa) e **EventSummaryPanel** (painel lateral).
+- Componente `PreFestaInternalAnswers` que mostra os campos `internal: true` do template do pré-festa, dentro do card de respostas (sheet do `EventFormsStatusPanel`).
+
+O que falta: enquanto o cliente **não** preencheu o pré-festa, esse `internal_notes` do modal precisa "migrar" visualmente para dentro do card do pré-festa assim que houver resposta — sem perder o conteúdo nem duplicar o lugar de edição.
+
+## Decisões aprovadas
+- **Campo no modal**: textarea único (já existe — `internal_notes`).
+- **Migração**: ao aparecer no card do pré-festa, mostrar **duas subseções visualmente separadas**:
+  1. *Anotações do cadastro da festa* (vindas de `company_events.internal_notes`)
+  2. *Campos internos do pré-festa* (perguntas com `internal: true` do template)
+
+Nada de novo no banco — reusamos colunas já existentes.
+
+## Mudanças
+
+### 1. `EventComplementaryTab.tsx` (modal da festa)
+- Manter o textarea `internal_notes` como está.
+- Adicionar uma legenda curta abaixo: *"Estas anotações ficam visíveis também no card do Pré-Festa quando o cliente preencher."*
+- Aplicar visual amber (mesma identidade do bloco interno do pré-festa) para reforçar que é interno.
+
+### 2. `PreFestaInternalAnswers.tsx`
+- Aceitar 2 novas props opcionais:
+  - `eventId: string`
+  - `eventInternalNotes: string | null`
+- Renderizar **duas subseções** dentro do mesmo card amber:
+  - **Subseção A — "Anotações do cadastro da festa"**: textarea único bound a `eventInternalNotes`. Auto-save (debounce 1s) + botão Salvar persistindo em `company_events.internal_notes` via `supabase.from("company_events").update(...).eq("id", eventId)`.
+  - **Subseção B — "Campos internos do pré-festa"**: renderização atual das perguntas `internal: true` (sem mudança de lógica).
+- Se `internalQs.length === 0` **e** `eventInternalNotes` vazio, não renderiza nada (mantém comportamento atual).
+- Se houver **só** uma das duas fontes, renderiza apenas a subseção correspondente (sem o título da outra).
+
+### 3. `EventFormsStatusPanel.tsx`
+- Buscar `internal_notes` do evento ao carregar (já temos `eventId`; adicionar select dedicado ou aproveitar fetch existente).
+- Passar para `PreFestaInternalAnswers`:
+  ```tsx
+  <PreFestaInternalAnswers
+    responseId={resp.id}
+    answers={resp.answers}
+    questions={viewingResponses.templateQuestions || []}
+    eventId={eventId}
+    eventInternalNotes={eventInternalNotes}
+  />
+  ```
+- Atualizar a condição de renderização para também mostrar quando `eventInternalNotes` tiver conteúdo (não depender mais só de `hasInternalQuestions`).
+
+## Comportamento resultante
 
 ```text
-[ Hero ]
-[ Benefícios ]
+Antes do cliente preencher pré-festa:
+  Modal da Festa → aba Complementar → "Anotações Internas" (textarea amber)
+  Card do Pré-Festa → ainda não existe (sem resposta)
 
-== Galeria ==
-( 🏛️ Espaço Interno )  ( 🌳 Espaço Externo )   <- abas
-[ grid de fotos da aba selecionada ]
-
-== Vídeos ==
-( 🏛️ Espaço Interno )  ( 🌳 Espaço Externo )   <- abas
-[ vídeo da aba selecionada ]
-
-[ Depoimentos / Oferta / Footer ]
-[ Botão flutuante WhatsApp ]
+Depois do cliente preencher pré-festa:
+  Modal da Festa → textarea continua editável (mesma fonte)
+  Card do Pré-Festa (sheet de respostas) → bloco amber com:
+     ┌─ Anotações do cadastro da festa ─────────┐
+     │ [textarea com internal_notes do evento]  │
+     ├─ Campos internos do pré-festa ───────────┤
+     │ [pergunta interna 1]                     │
+     │ [pergunta interna 2] ...                 │
+     └──────────────────────────────────────────┘
 ```
 
-Quando o usuário clica no CTA dentro da seção (ou no botão flutuante após navegar pelas abas), a mensagem inicial do chatbot já entra com o interesse: *"Olá! Tenho interesse no Espaço Interno do Carrossel..."* (ou Externo).
+Ambos os locais editam o **mesmo** campo `internal_notes` do evento, então qualquer alteração reflete nos dois sem duplicar dado.
 
-## O que vou fazer
+## Arquivos afetados
+- `src/components/agenda/PreFestaInternalAnswers.tsx` (adicionar subseção do evento)
+- `src/components/agenda/EventFormsStatusPanel.tsx` (buscar e passar `eventInternalNotes`)
+- `src/components/agenda/EventComplementaryTab.tsx` (legenda explicativa + visual amber leve)
 
-1. **Reaproveitar a estrutura `units` que já existe** nos componentes `DLPGallery` e `DLPVideo` — eles já suportam abas. Vou cadastrar no banco da LP do Carrossel duas "unidades virtuais" chamadas `Espaço Interno` e `Espaço Externo`, cada uma com suas próprias fotos e vídeo. Não é uma unidade real do buffet, é só o agrupador visual da LP.
-
-2. **Carregar os arquivos que você vai me enviar** para o storage e popular as duas abas (fotos + vídeo de cada espaço).
-
-3. **Mensagem de WhatsApp diferenciada por aba**:
-   - Adicionar um estado compartilhado na `DynamicLandingPage` que guarda o "espaço de interesse" (Interno/Externo) baseado na última aba que o usuário viu/clicou.
-   - Passar esse contexto para o `LeadChatbot`, que vai injetar no template da mensagem de boas-vindas: *"Olá! Vim pelo site do Espaço Carrossel e tenho interesse no **Espaço Interno** 🏛️ ..."* (ou Externo 🌳).
-   - O número de WhatsApp e o fluxo de perguntas (mês/convidados/nome) permanecem iguais.
-
-4. **Sem impacto em outras LPs**: como a separação por abas usa o campo `units` da galeria/vídeo que já existe, nenhuma outra LP é afetada — quem não tiver `units` continua mostrando a galeria flat.
-
-## Detalhes técnicos
-
-- **Componentes**: `DLPGallery.tsx` e `DLPVideo.tsx` já normalizam `units[]` com nome + fotos/vídeo. Vou apenas:
-  - Adicionar um callback `onActiveUnitChange(unitName)` em ambos para reportar a aba ativa pra `DynamicLandingPage`.
-  - Passar esse nome para o `LeadChatbot` como prop `interestContext`.
-- **Mensagem WhatsApp**: estender a montagem em `LeadChatbot.tsx` (linhas ~400) para incluir `🏛️ Interesse: {interestContext}` quando presente. Manter o `whatsapp_welcome_template` atual como fallback.
-- **Dados**: rodar UPDATE na linha de `company_landing_pages` do Carrossel ajustando `gallery.units` e `video.videos` com as duas abas. Isso preserva tudo o mais (tema, hero, depoimentos).
-- **Nomes das abas**: "Espaço Interno" e "Espaço Externo" (com ícones `Home` e `Trees` da lucide).
-
-## O que preciso de você (para a próxima etapa)
-
-Mande os arquivos separados em duas pastas/blocos:
-- **Espaço Interno**: fotos (até 12) + 1 vídeo (YouTube ou upload)
-- **Espaço Externo**: fotos (até 12) + 1 vídeo (YouTube ou upload)
-
-Pode me mandar tudo de uma vez na próxima mensagem. Assim que aprovar este plano, eu já preparo a estrutura e te aviso quando puder enviar.
+Sem migração de banco e sem novas RLS — `company_events` já tem políticas de update por `company_id`.
