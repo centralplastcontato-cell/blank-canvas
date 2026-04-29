@@ -21,11 +21,13 @@ interface FormStatus {
   sent: boolean;
   hasResponse: boolean;
   responseCount: number;
-  responses: Array<{ id: string; answers: any; respondent_name: string | null; created_at: string }>;
+  responses: Array<{ id: string; answers: any; respondent_name: string | null; created_at: string; event_id?: string; template_id?: string }>;
   templateId?: string;
   templateSlug?: string;
   publicPath?: string;
   templateQuestions?: any[];
+  templateSections?: any[];
+  cardapioTemplates?: Array<{ id: string; name: string; sections: any[] }>;
 }
 
 interface EventFormsStatusPanelProps {
