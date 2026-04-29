@@ -56,6 +56,11 @@ interface FollowUpRecord {
   created_at: string;
 }
 
+interface ClosedEventRecord {
+  company_id: string;
+  data_fechamento_venda: string;
+}
+
 export default function HubDashboard() {
   return (
     <HubLayout
