@@ -156,8 +156,9 @@ export default function PublicFreelancer() {
     setAnswers(prev => ({ ...prev, [questionId]: value }));
   };
 
-  const totalSteps = template ? Math.max(...template.questions.map(q => q.step), 1) : 1;
-  const questionsForStep = (step: number) => template?.questions.filter(q => q.step === step) || [];
+  const visibleQuestions = template ? template.questions.filter((q: any) => q.internal !== true) : [];
+  const totalSteps = template ? Math.max(...visibleQuestions.map(q => q.step), 1) : 1;
+  const questionsForStep = (step: number) => visibleQuestions.filter(q => q.step === step);
 
   const canAdvance = () => {
     const stepQuestions = questionsForStep(currentStep);
@@ -197,13 +198,13 @@ export default function PublicFreelancer() {
       }
     }
 
-    const answersArray = template.questions.map(q => ({
+    const answersArray = visibleQuestions.map(q => ({
       questionId: q.id,
       value: q.type === "photo" ? (photoUrl || null) : (answers[q.id] ?? null),
     }));
 
     // Try to find name from first text field
-    const nameQuestion = template.questions.find(q => q.type === "text");
+    const nameQuestion = visibleQuestions.find(q => q.type === "text");
     const respondentName = nameQuestion ? String(answers[nameQuestion.id] || "").trim() || null : null;
 
     // Extract PIX data from answers

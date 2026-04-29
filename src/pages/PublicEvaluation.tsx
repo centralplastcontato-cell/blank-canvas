@@ -105,8 +105,9 @@ export default function PublicEvaluation() {
     );
   }
 
-  const totalSteps = Math.max(...template.questions.map(q => q.step), 1);
-  const currentQuestions = template.questions.filter(q => q.step === currentStep);
+  const visibleQuestions = template.questions.filter((q: any) => q.internal !== true);
+  const totalSteps = Math.max(...visibleQuestions.map(q => q.step), 1);
+  const currentQuestions = visibleQuestions.filter(q => q.step === currentStep);
   const progress = nameStep ? 0 : ((currentStep) / (totalSteps + 1)) * 100;
 
   const canAdvance = () => {
@@ -135,7 +136,7 @@ export default function PublicEvaluation() {
     setSubmitting(true);
 
     // Calculate overall score from NPS/stars questions
-    const scorableAnswers = template.questions
+    const scorableAnswers = visibleQuestions
       .filter(q => (q.type === "nps" || q.type === "stars") && answers[q.id] !== undefined)
       .map(q => q.type === "nps" ? (answers[q.id] / 10) * 5 : answers[q.id]);
     const overallScore = scorableAnswers.length > 0
