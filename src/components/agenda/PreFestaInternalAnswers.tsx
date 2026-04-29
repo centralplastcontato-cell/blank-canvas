@@ -169,6 +169,22 @@ export function PreFestaInternalAnswers({ responseId, answers, questions, onSave
           );
         })}
       </div>
+
+      <div className="flex justify-end pt-1">
+        <Button
+          size="sm"
+          variant="default"
+          className="h-8 px-3 gap-1.5 text-xs"
+          disabled={savingState === "saving"}
+          onClick={() => {
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+            persist(draft);
+          }}
+        >
+          {savingState === "saving" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+          Salvar
+        </Button>
+      </div>
     </div>
   );
 }
