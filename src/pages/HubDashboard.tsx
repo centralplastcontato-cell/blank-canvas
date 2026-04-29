@@ -425,6 +425,8 @@ function HubDashboardContent({ userId }: { userId: string }) {
     { title: "Perdidos", value: totals.lost, icon: XCircle, gradient: "from-rose-500/20 via-rose-500/10 to-transparent", iconBg: "bg-rose-500/15", iconColor: "text-rose-600", borderColor: "border-rose-500/20" },
     { title: "Conversas Ativas", value: totals.activeConversations, icon: MessageSquare, gradient: "from-amber-500/20 via-amber-500/10 to-transparent", iconBg: "bg-amber-500/15", iconColor: "text-amber-600", borderColor: "border-amber-500/20" },
     { title: "Follow-ups", value: filteredFollowUps.length, icon: Send, gradient: "from-indigo-500/20 via-indigo-500/10 to-transparent", iconBg: "bg-indigo-500/15", iconColor: "text-indigo-600", borderColor: "border-indigo-500/20" },
+    { title: "Msgs Enviadas", value: isLoadingMessages ? "…" : messagesSent.toLocaleString("pt-BR"), icon: ArrowUpRight, gradient: "from-cyan-500/20 via-cyan-500/10 to-transparent", iconBg: "bg-cyan-500/15", iconColor: "text-cyan-600", borderColor: "border-cyan-500/20" },
+    { title: "Msgs Recebidas", value: isLoadingMessages ? "…" : messagesReceived.toLocaleString("pt-BR"), icon: ArrowDownLeft, gradient: "from-fuchsia-500/20 via-fuchsia-500/10 to-transparent", iconBg: "bg-fuchsia-500/15", iconColor: "text-fuchsia-600", borderColor: "border-fuchsia-500/20" },
   ];
 
   return (
