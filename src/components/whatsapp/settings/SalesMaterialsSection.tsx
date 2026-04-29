@@ -378,6 +378,102 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
     setFormData({ ...formData, photo_urls: newUrls });
   };
 
+  // ---------- Per-photo actions: replace / rotate / save ----------
+  const [photoActionIndex, setPhotoActionIndex] = useState<number | null>(null);
+  const [photoActionLoading, setPhotoActionLoading] = useState<{ index: number; action: "rotate" | "replace" | "save" } | null>(null);
+  const replacePhotoInputRef = useRef<HTMLInputElement>(null);
+
+  const uploadPhotoFile = async (file: File): Promise<string | null> => {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      toast({ title: "Formato inválido", description: "Use JPG, PNG ou WebP.", variant: "destructive" });
+      return null;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      toast({ title: "Arquivo muito grande", description: "Máx. 50MB.", variant: "destructive" });
+      return null;
+    }
+    const normalized = await normalizeImageOrientation(file);
+    const ext = (normalized.name.split(".").pop() || "jpg").toLowerCase();
+    const fileName = `${selectedUnit.toLowerCase()}/collections/${Date.now()}_edit.${ext}`;
+    const { error } = await supabase.storage
+      .from("sales-materials")
+      .upload(fileName, normalized, { cacheControl: "3600", upsert: false });
+    if (error) {
+      toast({ title: "Erro no upload", description: error.message, variant: "destructive" });
+      return null;
+    }
+    const { data: urlData } = supabase.storage.from("sales-materials").getPublicUrl(fileName);
+    return urlData.publicUrl;
+  };
+
+  const handleReplacePhoto = async (index: number, file: File) => {
+    setPhotoActionLoading({ index, action: "replace" });
+    const url = await uploadPhotoFile(file);
+    if (url) {
+      const newUrls = [...formData.photo_urls];
+      newUrls[index] = url;
+      setFormData({ ...formData, photo_urls: newUrls });
+      toast({ title: "Foto trocada", description: "Clique em 'Salvar' nesta foto para persistir." });
+    }
+    setPhotoActionLoading(null);
+  };
+
+  const handleRotatePhoto = async (index: number) => {
+    setPhotoActionLoading({ index, action: "rotate" });
+    try {
+      const srcUrl = formData.photo_urls[index];
+      // Load image (CORS friendly via fetch)
+      const resp = await fetch(srcUrl, { mode: "cors" });
+      const blob = await resp.blob();
+      const bitmap = await createImageBitmap(blob);
+      const canvas = document.createElement("canvas");
+      // Rotate 90° clockwise: swap dimensions
+      canvas.width = bitmap.height;
+      canvas.height = bitmap.width;
+      const ctx = canvas.getContext("2d")!;
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate(Math.PI / 2);
+      ctx.drawImage(bitmap, -bitmap.width / 2, -bitmap.height / 2);
+      const rotatedBlob: Blob = await new Promise((res) =>
+        canvas.toBlob((b) => res(b!), "image/jpeg", 0.92)
+      );
+      const file = new File([rotatedBlob], `rotated_${Date.now()}.jpg`, { type: "image/jpeg" });
+      const url = await uploadPhotoFile(file);
+      if (url) {
+        const newUrls = [...formData.photo_urls];
+        newUrls[index] = url;
+        setFormData({ ...formData, photo_urls: newUrls });
+        toast({ title: "Foto girada", description: "Clique em 'Salvar' nesta foto para persistir." });
+      }
+    } catch (err) {
+      toast({
+        title: "Erro ao girar",
+        description: err instanceof Error ? err.message : "Não foi possível girar a foto.",
+        variant: "destructive",
+      });
+    }
+    setPhotoActionLoading(null);
+  };
+
+  const handleSaveSinglePhoto = async (index: number) => {
+    if (!editingMaterial) {
+      toast({ title: "Salve a coleção primeiro", description: "Use o botão Salvar geral para criar a coleção.", variant: "destructive" });
+      return;
+    }
+    setPhotoActionLoading({ index, action: "save" });
+    const { error } = await supabase
+      .from("sales_materials")
+      .update({ photo_urls: formData.photo_urls })
+      .eq("id", editingMaterial.id);
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Foto salva", description: `Foto ${index + 1} atualizada.` });
+      fetchMaterials();
+    }
+    setPhotoActionLoading(null);
+  };
+
   // Drag and drop handlers for reordering photos
   const handleDragStart = (index: number) => {
     setDraggedIndex(index);
