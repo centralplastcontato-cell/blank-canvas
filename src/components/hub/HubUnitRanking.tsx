@@ -19,22 +19,25 @@ interface CompanyMetrics {
 interface HubUnitRankingProps {
   metrics: CompanyMetrics[];
   followUpsByCompany?: Map<string, number>;
+  closedByCompany?: Map<string, number>;
 }
 
 const MEDAL_COLORS = ["text-amber-500", "text-slate-400", "text-orange-700"];
 
-export function HubUnitRanking({ metrics, followUpsByCompany }: HubUnitRankingProps) {
+export function HubUnitRanking({ metrics, followUpsByCompany, closedByCompany }: HubUnitRankingProps) {
   const ranked = useMemo(() => {
     return metrics
       .map(m => {
-        const conversionRate = m.totalLeads > 0 ? (m.leadsClosed / m.totalLeads) * 100 : 0;
+        // Use period-filtered closed count when available; falls back to historical leadsClosed
+        const closedInPeriod = closedByCompany?.get(m.companyId) ?? m.leadsClosed;
+        const conversionRate = m.totalLeads > 0 ? (closedInPeriod / m.totalLeads) * 100 : 0;
         const lossRate = m.totalLeads > 0 ? (m.leadsLost / m.totalLeads) * 100 : 0;
         // Score: weighted by conversion, penalized by loss
-        const score = conversionRate * 2 + m.leadsClosed * 3 - lossRate;
-        return { ...m, conversionRate, lossRate, score };
+        const score = conversionRate * 2 + closedInPeriod * 3 - lossRate;
+        return { ...m, leadsClosed: closedInPeriod, conversionRate, lossRate, score };
       })
       .sort((a, b) => b.score - a.score);
-  }, [metrics]);
+  }, [metrics, closedByCompany]);
 
   if (!metrics.length) return null;
 
