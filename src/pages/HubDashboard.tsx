@@ -278,6 +278,23 @@ function HubDashboardContent({ userId }: { userId: string }) {
     });
   }, [allConvoRecords, filters]);
 
+  // Follow-ups filtrados (data + empresa)
+  const filteredFollowUps = useMemo(() => {
+    const fromISO = filters.dateRange.from.toISOString();
+    const toISO = filters.dateRange.to.toISOString();
+    return allFollowUps.filter(f => {
+      if (f.created_at < fromISO || f.created_at > toISO) return false;
+      if (filters.companyId && f.company_id !== filters.companyId) return false;
+      return true;
+    });
+  }, [allFollowUps, filters]);
+
+  const followUpsByCompany = useMemo(() => {
+    const map = new Map<string, number>();
+    filteredFollowUps.forEach(f => map.set(f.company_id, (map.get(f.company_id) || 0) + 1));
+    return map;
+  }, [filteredFollowUps]);
+
   // Today ISO para "Leads Hoje" (sempre hoje, independente do filtro de período)
   const todayISO = useMemo(() => {
     const t = new Date();
