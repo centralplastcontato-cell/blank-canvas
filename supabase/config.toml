@@ -93,3 +93,6 @@ verify_jwt = false
 [functions.upload-carrossel-photos]
 verify_jwt = false
 
+[functions.fix-exif-rotation]
+verify_jwt = false
+
