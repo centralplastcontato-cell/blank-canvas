@@ -112,8 +112,9 @@ export default function PublicPreFesta() {
     );
   }
 
-  const totalSteps = Math.max(...template.questions.map(q => q.step), 1);
-  const currentQuestions = template.questions.filter(q => q.step === currentStep);
+  const visibleQuestions = template.questions.filter((q: any) => q.internal !== true);
+  const totalSteps = Math.max(...visibleQuestions.map(q => q.step), 1);
+  const currentQuestions = visibleQuestions.filter(q => q.step === currentStep);
   const progress = nameStep ? 0 : ((currentStep) / (totalSteps + 1)) * 100;
 
   const canAdvance = () => {
