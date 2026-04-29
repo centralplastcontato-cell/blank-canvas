@@ -716,6 +716,15 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
                       Pendente
                     </Badge>
                   )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                    onClick={() => handleEditTemplate(fs.type)}
+                    title="Editar template do formulário"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
                 </div>
 
                 {/* Send button row - show when form has a template and lead is linked */}
