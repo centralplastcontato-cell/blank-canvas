@@ -644,49 +644,53 @@ export function AvaliacoesContent() {
                 <Label className="text-base font-semibold">Perguntas</Label>
                 <Button variant="outline" size="sm" onClick={addQuestion}><Plus className="h-3 w-3 mr-1" /> Pergunta</Button>
               </div>
-              {formQuestions.map((q, idx) => (
-                <Card key={q.id} className="bg-muted/50 border-border">
-                  <CardContent className="p-3 space-y-2">
-                    <div className="flex items-start gap-2">
-                      <span className="text-xs text-muted-foreground font-mono mt-2 shrink-0">#{idx + 1}</span>
-                      <div className="flex-1 space-y-2">
-                        <Input
-                          value={q.text}
-                          onChange={(e) => updateQuestion(idx, { text: e.target.value })}
-                          placeholder="Texto da pergunta..."
-                          className="text-sm"
-                        />
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Select value={q.type} onValueChange={(v) => updateQuestion(idx, { type: v as EvaluationQuestion["type"] })}>
-                            <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="nps">Nota (0-10)</SelectItem>
-                              <SelectItem value="stars">Estrelas (1-5)</SelectItem>
-                              <SelectItem value="text">Texto livre</SelectItem>
-                              <SelectItem value="yesno">Sim / Não</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Select value={String(q.step)} onValueChange={(v) => updateQuestion(idx, { step: parseInt(v) })}>
-                            <SelectTrigger className="w-[100px] h-8 text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="1">Etapa 1</SelectItem>
-                              <SelectItem value="2">Etapa 2</SelectItem>
-                              <SelectItem value="3">Etapa 3</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <label className="flex items-center gap-1 text-xs">
-                            <Switch checked={q.required !== false} onCheckedChange={(v) => updateQuestion(idx, { required: v })} className="scale-75" />
-                            Obrigatória
-                          </label>
+              <SortableList items={formQuestions} onReorder={(items) => setFormQuestions(items as any)}>
+                {formQuestions.map((q, idx) => (
+                  <SortableItem key={q.id} id={q.id}>
+                    <Card className="bg-muted/50 border-border mb-2">
+                      <CardContent className="p-3 space-y-2">
+                        <div className="flex items-start gap-2">
+                          <span className="text-xs text-muted-foreground font-mono mt-2 shrink-0">#{idx + 1}</span>
+                          <div className="flex-1 space-y-2">
+                            <Input
+                              value={q.text}
+                              onChange={(e) => updateQuestion(idx, { text: e.target.value })}
+                              placeholder="Texto da pergunta..."
+                              className="text-sm"
+                            />
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Select value={q.type} onValueChange={(v) => updateQuestion(idx, { type: v as EvaluationQuestion["type"] })}>
+                                <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="nps">Nota (0-10)</SelectItem>
+                                  <SelectItem value="stars">Estrelas (1-5)</SelectItem>
+                                  <SelectItem value="text">Texto livre</SelectItem>
+                                  <SelectItem value="yesno">Sim / Não</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Select value={String(q.step)} onValueChange={(v) => updateQuestion(idx, { step: parseInt(v) })}>
+                                <SelectTrigger className="w-[100px] h-8 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="1">Etapa 1</SelectItem>
+                                  <SelectItem value="2">Etapa 2</SelectItem>
+                                  <SelectItem value="3">Etapa 3</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <label className="flex items-center gap-1 text-xs">
+                                <Switch checked={q.required !== false} onCheckedChange={(v) => updateQuestion(idx, { required: v })} className="scale-75" />
+                                Obrigatória
+                              </label>
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeQuestion(idx)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </div>
-                      </div>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeQuestion(idx)}>
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      </CardContent>
+                    </Card>
+                  </SortableItem>
+                ))}
+              </SortableList>
             </div>
           </div>
           <DialogFooter>
