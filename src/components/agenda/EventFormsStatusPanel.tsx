@@ -307,6 +307,8 @@ function FormattedResponseView({ answers, formType, questions }: { answers: any;
             const question = qId
               ? (questions.find((q: any) => q.id === qId) || questions.find((q: any) => qId.startsWith(q.id)))
               : questions[i];
+            // Hide internal questions from the regular response list — they are shown in the dedicated buffet panel below.
+            if (question?.internal === true) return null;
             const label = question?.text || question?.label || question?.title || `Pergunta ${i + 1}`;
             return (
               <div key={i} className="space-y-0.5">
