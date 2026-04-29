@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Building2, Users, MessageSquare, UserPlus,
   CheckCircle, XCircle, BarChart3, Percent, Timer,
-  Phone
+  Phone, Send
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
