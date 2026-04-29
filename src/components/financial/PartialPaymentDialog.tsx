@@ -160,7 +160,8 @@ export function PartialPaymentDialog({ open, onOpenChange, onSubmit, paymentAmou
             )}
           </DialogHeader>
 
-          <div className="rounded-lg bg-muted/50 p-3 mb-2">
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+            <div className="rounded-lg bg-muted/50 p-3">
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>Valor total:</span>
               <span className="font-semibold text-foreground">{fmt(paymentAmount)}</span>
