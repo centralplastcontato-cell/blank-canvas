@@ -64,6 +64,7 @@ export function CardapioResponseSheet({
   allTemplates,
   onDelete,
   side = "right",
+  contentClassName,
 }: CardapioResponseSheetProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
