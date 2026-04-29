@@ -347,6 +347,7 @@ function HubDashboardContent({ userId }: { userId: string }) {
     { title: "Fechados", value: totals.closed, icon: CheckCircle, gradient: "from-teal-500/20 via-teal-500/10 to-transparent", iconBg: "bg-teal-500/15", iconColor: "text-teal-600", borderColor: "border-teal-500/20" },
     { title: "Perdidos", value: totals.lost, icon: XCircle, gradient: "from-rose-500/20 via-rose-500/10 to-transparent", iconBg: "bg-rose-500/15", iconColor: "text-rose-600", borderColor: "border-rose-500/20" },
     { title: "Conversas Ativas", value: totals.activeConversations, icon: MessageSquare, gradient: "from-amber-500/20 via-amber-500/10 to-transparent", iconBg: "bg-amber-500/15", iconColor: "text-amber-600", borderColor: "border-amber-500/20" },
+    { title: "Follow-ups", value: filteredFollowUps.length, icon: Send, gradient: "from-indigo-500/20 via-indigo-500/10 to-transparent", iconBg: "bg-indigo-500/15", iconColor: "text-indigo-600", borderColor: "border-indigo-500/20" },
   ];
 
   return (
@@ -356,15 +357,15 @@ function HubDashboardContent({ userId }: { userId: string }) {
 
       {/* Summary Cards */}
       {isLoadingMetrics ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-          {Array.from({ length: 7 }).map((_, i) => (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+          {Array.from({ length: 8 }).map((_, i) => (
             <Card key={i} className="border-border/50 overflow-hidden">
               <CardContent className="p-4"><Skeleton className="h-4 w-20 mb-3" /><Skeleton className="h-8 w-12" /></CardContent>
             </Card>
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
           {summaryCards.map((metric) => (
             <Card key={metric.title} className={`relative border ${metric.borderColor} overflow-hidden hover:shadow-lg hover:scale-[1.02] transition-all duration-300 bg-card`}>
               <div className={`absolute inset-0 bg-gradient-to-br ${metric.gradient} pointer-events-none`} />
