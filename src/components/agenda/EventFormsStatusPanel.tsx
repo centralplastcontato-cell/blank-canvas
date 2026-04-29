@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { buildPublicFormUrl } from "@/lib/publicFormRoutes";
 import { format } from "date-fns";
 import { toast } from "@/hooks/use-toast";
+import { CardapioResponseSheet } from "@/components/cardapio/CardapioResponseSheet";
 
 interface FormStatus {
   type: string;
@@ -20,11 +21,13 @@ interface FormStatus {
   sent: boolean;
   hasResponse: boolean;
   responseCount: number;
-  responses: Array<{ id: string; answers: any; respondent_name: string | null; created_at: string }>;
+  responses: Array<{ id: string; answers: any; respondent_name: string | null; created_at: string; event_id?: string; template_id?: string }>;
   templateId?: string;
   templateSlug?: string;
   publicPath?: string;
   templateQuestions?: any[];
+  templateSections?: any[];
+  cardapioTemplates?: Array<{ id: string; name: string; sections: any[] }>;
 }
 
 interface EventFormsStatusPanelProps {
@@ -360,6 +363,8 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
   const [formStatuses, setFormStatuses] = useState<FormStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewingResponses, setViewingResponses] = useState<FormStatus | null>(null);
+  const [viewingCardapio, setViewingCardapio] = useState<FormStatus | null>(null);
+  const [companyInfo, setCompanyInfo] = useState<{ name: string; logo_url: string | null } | null>(null);
   const [sendingForm, setSendingForm] = useState<string | null>(null);
 
   const fetchStatuses = useCallback(async () => {
@@ -396,6 +401,22 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
       const templateResults = await Promise.all(templatePromises);
       const templateMap = new Map(templateResults.map(r => [r.type, r.template]));
 
+      // Fetch all active cardapio templates for the lateral sheet (PDF template switcher)
+      const { data: allCardapioTpls } = await supabase
+        .from("cardapio_templates")
+        .select("id, name, sections")
+        .eq("company_id", companyId)
+        .eq("is_active", true);
+      const cardapioTemplates = (allCardapioTpls || []) as any[];
+
+      // Fetch company info for the PDF header
+      const { data: companyRow } = await supabase
+        .from("companies")
+        .select("name, logo_url")
+        .eq("id", companyId)
+        .maybeSingle();
+      if (companyRow) setCompanyInfo({ name: companyRow.name, logo_url: companyRow.logo_url });
+
       const statuses: FormStatus[] = [];
 
       for (const ft of FORM_TYPES) {
@@ -411,7 +432,7 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
         } else if (ft.responseTable === "cardapio_responses") {
           const { data } = await supabase
             .from("cardapio_responses")
-            .select("id, answers, respondent_name, created_at")
+            .select("id, answers, respondent_name, created_at, event_id, template_id, company_events(event_date, title, guest_count, child_name, parent_names, lead_id, campaign_leads(name))")
             .eq("event_id", eventId)
             .order("created_at", { ascending: false });
           responses = data || [];
@@ -444,6 +465,8 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
           templateSlug: tmpl?.slug || undefined,
           publicPath: ft.publicPath,
           templateQuestions: Array.isArray(tmpl?.questions) ? tmpl.questions : undefined,
+          templateSections: ft.type === "cardapio" && Array.isArray(tmpl?.sections) ? tmpl.sections : undefined,
+          cardapioTemplates: ft.type === "cardapio" ? cardapioTemplates : undefined,
         });
       }
 
@@ -626,7 +649,10 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
                         variant="ghost"
                         size="sm"
                         className="h-6 w-6 p-0 text-primary hover:text-primary/80"
-                        onClick={() => setViewingResponses(fs)}
+                        onClick={() => {
+                          if (fs.type === "cardapio") setViewingCardapio(fs);
+                          else setViewingResponses(fs);
+                        }}
                         title="Ver respostas"
                       >
                         <Eye className="h-3.5 w-3.5" />
@@ -699,6 +725,21 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Cardápio lateral sheet — same UX as Operações > Cardápio */}
+      <CardapioResponseSheet
+        open={!!viewingCardapio}
+        onOpenChange={(o) => { if (!o) setViewingCardapio(null); }}
+        response={viewingCardapio?.responses[0] ? { ...viewingCardapio.responses[0], event_id: viewingCardapio.responses[0].event_id || eventId, template_id: viewingCardapio.responses[0].template_id || viewingCardapio.templateId } : null}
+        template={viewingCardapio && viewingCardapio.templateSections ? { id: viewingCardapio.templateId || "", name: "Cardápio", sections: viewingCardapio.templateSections as any } : null}
+        company={companyInfo}
+        allTemplates={viewingCardapio?.cardapioTemplates as any}
+        onDelete={async (id) => {
+          await supabase.from("cardapio_responses").delete().eq("id", id);
+          toast({ title: "Resposta apagada" });
+          fetchStatuses();
+        }}
+      />
     </>
   );
 }
