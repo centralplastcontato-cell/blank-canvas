@@ -142,8 +142,8 @@ export function PartialPaymentDialog({ open, onOpenChange, onSubmit, paymentAmou
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-3 border-b shrink-0">
             <DialogTitle>Pagamento Parcial</DialogTitle>
             <p className="text-xs text-muted-foreground mt-1">{paymentLabel}</p>
             {eventContext && (
@@ -160,7 +160,8 @@ export function PartialPaymentDialog({ open, onOpenChange, onSubmit, paymentAmou
             )}
           </DialogHeader>
 
-          <div className="rounded-lg bg-muted/50 p-3 mb-2">
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+            <div className="rounded-lg bg-muted/50 p-3">
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>Valor total:</span>
               <span className="font-semibold text-foreground">{fmt(paymentAmount)}</span>
@@ -244,8 +245,9 @@ export function PartialPaymentDialog({ open, onOpenChange, onSubmit, paymentAmou
               <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Detalhes adicionais sobre o pagamento" rows={2} className="bg-background" />
             </div>
           </div>
+          </div>
 
-          <DialogFooter>
+          <DialogFooter className="px-6 py-4 border-t shrink-0 bg-background">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button onClick={handleSubmit} disabled={submitting || !parseCurrencyInput(amount)}>
               {submitting ? "Salvando..." : "Registrar Pagamento"}
