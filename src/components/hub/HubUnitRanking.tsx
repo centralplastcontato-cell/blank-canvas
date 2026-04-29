@@ -18,11 +18,12 @@ interface CompanyMetrics {
 
 interface HubUnitRankingProps {
   metrics: CompanyMetrics[];
+  followUpsByCompany?: Map<string, number>;
 }
 
 const MEDAL_COLORS = ["text-amber-500", "text-slate-400", "text-orange-700"];
 
-export function HubUnitRanking({ metrics }: HubUnitRankingProps) {
+export function HubUnitRanking({ metrics, followUpsByCompany }: HubUnitRankingProps) {
   const ranked = useMemo(() => {
     return metrics
       .map(m => {
@@ -86,6 +87,10 @@ export function HubUnitRanking({ metrics }: HubUnitRankingProps) {
                 <div className="text-center">
                   <p className="text-xs text-muted-foreground">Fechados</p>
                   <p className="text-sm font-bold text-emerald-600">{unit.leadsClosed}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground">Follow-ups</p>
+                  <p className="text-sm font-bold text-indigo-600">{followUpsByCompany?.get(unit.companyId) || 0}</p>
                 </div>
               </div>
             </div>

@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Building2, Users, MessageSquare, UserPlus,
   CheckCircle, XCircle, BarChart3, Percent, Timer,
-  Phone
+  Phone, Send
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -51,6 +51,11 @@ interface ConvoRecord {
   is_closed: boolean;
 }
 
+interface FollowUpRecord {
+  company_id: string;
+  created_at: string;
+}
+
 export default function HubDashboard() {
   return (
     <HubLayout
@@ -77,6 +82,7 @@ function HubDashboardContent({ userId }: { userId: string }) {
   const [conversationTimings, setConversationTimings] = useState<ConversationTiming[]>([]);
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [allConvoRecords, setAllConvoRecords] = useState<ConvoRecord[]>([]);
+  const [allFollowUps, setAllFollowUps] = useState<FollowUpRecord[]>([]);
   const [filters, setFilters] = useState<DashboardFilters>(getDefaultFilters);
 
   useEffect(() => {
@@ -123,6 +129,20 @@ function HubDashboardContent({ userId }: { userId: string }) {
           supabase.from("wapi_messages").select("id", { count: "exact", head: true }).in("company_id", companyIds),
           supabase.from("wapi_instances").select("status, phone_number, company_id, connected_at").in("company_id", companyIds).order("connected_at", { ascending: false }),
         ]);
+
+        // Fetch follow-ups (lead_history.action LIKE 'Follow-up%') and map by lead -> company
+        const leadIdToCompany = new Map<string, string>();
+        allLeads.forEach((l: any) => leadIdToCompany.set(l.id, l.company_id));
+        const followUpsRaw = await fetchAll<any>(
+          supabase
+            .from("lead_history")
+            .select("lead_id, created_at")
+            .ilike("action", "Follow-up%")
+            .in("lead_id", Array.from(leadIdToCompany.keys()))
+        );
+        const followUps: FollowUpRecord[] = followUpsRaw
+          .map(fu => ({ company_id: leadIdToCompany.get(fu.lead_id) || "", created_at: fu.created_at }))
+          .filter(fu => fu.company_id);
 
         const leadsByCompany = new Map<string, any[]>();
         allLeads.forEach(l => {
@@ -221,6 +241,7 @@ function HubDashboardContent({ userId }: { userId: string }) {
           created_at: c.created_at,
           is_closed: !!c.is_closed,
         })));
+        setAllFollowUps(followUps);
         setConversationTimings(timings);
       } catch (err) {
         console.error("Error fetching hub metrics:", err);
@@ -256,6 +277,23 @@ function HubDashboardContent({ userId }: { userId: string }) {
       return true;
     });
   }, [allConvoRecords, filters]);
+
+  // Follow-ups filtrados (data + empresa)
+  const filteredFollowUps = useMemo(() => {
+    const fromISO = filters.dateRange.from.toISOString();
+    const toISO = filters.dateRange.to.toISOString();
+    return allFollowUps.filter(f => {
+      if (f.created_at < fromISO || f.created_at > toISO) return false;
+      if (filters.companyId && f.company_id !== filters.companyId) return false;
+      return true;
+    });
+  }, [allFollowUps, filters]);
+
+  const followUpsByCompany = useMemo(() => {
+    const map = new Map<string, number>();
+    filteredFollowUps.forEach(f => map.set(f.company_id, (map.get(f.company_id) || 0) + 1));
+    return map;
+  }, [filteredFollowUps]);
 
   // Today ISO para "Leads Hoje" (sempre hoje, independente do filtro de período)
   const todayISO = useMemo(() => {
@@ -309,6 +347,7 @@ function HubDashboardContent({ userId }: { userId: string }) {
     { title: "Fechados", value: totals.closed, icon: CheckCircle, gradient: "from-teal-500/20 via-teal-500/10 to-transparent", iconBg: "bg-teal-500/15", iconColor: "text-teal-600", borderColor: "border-teal-500/20" },
     { title: "Perdidos", value: totals.lost, icon: XCircle, gradient: "from-rose-500/20 via-rose-500/10 to-transparent", iconBg: "bg-rose-500/15", iconColor: "text-rose-600", borderColor: "border-rose-500/20" },
     { title: "Conversas Ativas", value: totals.activeConversations, icon: MessageSquare, gradient: "from-amber-500/20 via-amber-500/10 to-transparent", iconBg: "bg-amber-500/15", iconColor: "text-amber-600", borderColor: "border-amber-500/20" },
+    { title: "Follow-ups", value: filteredFollowUps.length, icon: Send, gradient: "from-indigo-500/20 via-indigo-500/10 to-transparent", iconBg: "bg-indigo-500/15", iconColor: "text-indigo-600", borderColor: "border-indigo-500/20" },
   ];
 
   return (
@@ -318,15 +357,15 @@ function HubDashboardContent({ userId }: { userId: string }) {
 
       {/* Summary Cards */}
       {isLoadingMetrics ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-          {Array.from({ length: 7 }).map((_, i) => (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+          {Array.from({ length: 8 }).map((_, i) => (
             <Card key={i} className="border-border/50 overflow-hidden">
               <CardContent className="p-4"><Skeleton className="h-4 w-20 mb-3" /><Skeleton className="h-8 w-12" /></CardContent>
             </Card>
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
           {summaryCards.map((metric) => (
             <Card key={metric.title} className={`relative border ${metric.borderColor} overflow-hidden hover:shadow-lg hover:scale-[1.02] transition-all duration-300 bg-card`}>
               <div className={`absolute inset-0 bg-gradient-to-br ${metric.gradient} pointer-events-none`} />
@@ -348,7 +387,7 @@ function HubDashboardContent({ userId }: { userId: string }) {
       {!isLoadingMetrics && (
         <div className="grid gap-4 md:grid-cols-2">
           <HubSalesFunnel leads={filteredLeads} />
-          <HubUnitRanking metrics={filteredMetrics} />
+          <HubUnitRanking metrics={filteredMetrics} followUpsByCompany={followUpsByCompany} />
         </div>
       )}
 
