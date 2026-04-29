@@ -8,17 +8,26 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import {
   FileText, ClipboardList, UtensilsCrossed, Star, CheckCircle2, Clock, Eye, Loader2,
   User, MapPin, Phone, Mail, Calendar, Users, Baby, CreditCard, Hash, MessageCircle,
-  Pencil, Save, X,
+  Pencil, Save, X, Trash2, Settings2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buildPublicFormUrl } from "@/lib/publicFormRoutes";
 import { format } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { CardapioResponseSheet } from "@/components/cardapio/CardapioResponseSheet";
+import { generatePreFestaPrintPDF } from "@/lib/prefestaPrintPDF";
+import { useCardapioPrintPrefs } from "@/hooks/useCardapioPrintPrefs";
 
 
 
