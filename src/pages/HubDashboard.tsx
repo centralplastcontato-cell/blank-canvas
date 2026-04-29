@@ -82,6 +82,7 @@ function HubDashboardContent({ userId }: { userId: string }) {
   const [conversationTimings, setConversationTimings] = useState<ConversationTiming[]>([]);
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [allConvoRecords, setAllConvoRecords] = useState<ConvoRecord[]>([]);
+  const [allFollowUps, setAllFollowUps] = useState<FollowUpRecord[]>([]);
   const [filters, setFilters] = useState<DashboardFilters>(getDefaultFilters);
 
   useEffect(() => {
