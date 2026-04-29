@@ -461,15 +461,46 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
       return;
     }
     setPhotoActionLoading({ index, action: "save" });
-    const { error } = await supabase
-      .from("sales_materials")
-      .update({ photo_urls: formData.photo_urls })
-      .eq("id", editingMaterial.id);
-    if (error) {
-      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Foto salva", description: `Foto ${index + 1} atualizada.` });
-      fetchMaterials();
+    try {
+      let updatedPhotoUrls = [...formData.photo_urls];
+
+      const currentUrl = updatedPhotoUrls[index];
+      if (currentUrl) {
+        const response = await fetch(currentUrl, { mode: "cors" });
+        const blob = await response.blob();
+        const urlPath = currentUrl.toLowerCase().split("?")[0];
+        const sourceType = blob.type.startsWith("image/")
+          ? blob.type
+          : urlPath.endsWith(".png")
+            ? "image/png"
+            : urlPath.endsWith(".webp")
+              ? "image/webp"
+              : "image/jpeg";
+        const sourceExt = sourceType.includes("png") ? "png" : sourceType.includes("webp") ? "webp" : "jpg";
+        const sourceFile = new File([blob], `photo_${index + 1}.${sourceExt}`, { type: sourceType });
+        const normalizedUrl = await uploadPhotoFile(sourceFile);
+        if (normalizedUrl) {
+          updatedPhotoUrls[index] = normalizedUrl;
+          setFormData({ ...formData, photo_urls: updatedPhotoUrls });
+        }
+      }
+
+      const { error } = await supabase
+        .from("sales_materials")
+        .update({ photo_urls: updatedPhotoUrls })
+        .eq("id", editingMaterial.id);
+      if (error) {
+        toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      } else {
+        toast({ title: "Foto salva", description: `Foto ${index + 1} foi reprocessada e salva para envio no WhatsApp.` });
+        fetchMaterials();
+      }
+    } catch (error) {
+      toast({
+        title: "Erro ao salvar",
+        description: error instanceof Error ? error.message : "Não foi possível reprocessar esta foto.",
+        variant: "destructive",
+      });
     }
     setPhotoActionLoading(null);
   };
