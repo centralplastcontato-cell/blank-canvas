@@ -444,8 +444,8 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
       // Note: cardapio_templates uses "sections" instead of "questions"
       const templatePromises = FORM_TYPES.map(async (ft) => {
         const selectFields = ft.templateTable === "cardapio_templates"
-          ? "id, slug, sections"
-          : "id, slug, questions";
+          ? "id, slug, name, sections"
+          : "id, slug, name, questions";
         const { data } = await (supabase as any)
           .from(ft.templateTable)
           .select(selectFields)
