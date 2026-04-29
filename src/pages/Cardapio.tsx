@@ -192,9 +192,14 @@ function CardapioResponseCards({ responses, template, onDelete, company, allTemp
   const getDisplayName = (r: any) => {
     const name = (r?.respondent_name || "").trim();
     if (name) return name;
-    const leadName = r?.company_events?.leads?.name?.trim();
+    const ev = r?.company_events;
+    const leadName = ev?.campaign_leads?.name?.trim();
     if (leadName) return leadName;
-    const eventTitle = r?.company_events?.title?.trim();
+    const parents = ev?.parent_names?.trim();
+    if (parents) return parents;
+    const child = ev?.child_name?.trim();
+    if (child) return child;
+    const eventTitle = ev?.title?.trim();
     if (eventTitle) return eventTitle;
     return "Anônimo";
   };
