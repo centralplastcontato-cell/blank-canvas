@@ -37,6 +37,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { normalizeImageOrientation } from "@/lib/image-orientation";
 
 interface SalesMaterial {
   id: string;
