@@ -540,51 +540,55 @@ export function PreFestaContent() {
                 <Button variant="outline" size="sm" onClick={addQuestion}><Plus className="h-3.5 w-3.5 mr-1" /> Adicionar</Button>
               </div>
 
-              {formQuestions.map((q, idx) => (
-                <Card key={q.id} className="bg-muted/50">
-                  <CardContent className="p-3 space-y-2">
-                    <div className="flex items-start gap-2">
-                      <div className="flex-1 space-y-2">
-                        <Input
-                          value={q.text}
-                          onChange={(e) => updateQuestion(idx, { text: e.target.value })}
-                          placeholder="Texto da pergunta..."
-                          className="text-sm"
-                        />
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Select value={q.type} onValueChange={(v) => updateQuestion(idx, { type: v as any })}>
-                            <SelectTrigger className="w-32 h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="text">Texto curto</SelectItem>
-                              <SelectItem value="textarea">Texto longo</SelectItem>
-                              <SelectItem value="yesno">Sim / Não</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Select value={String(q.step)} onValueChange={(v) => updateQuestion(idx, { step: parseInt(v) })}>
-                            <SelectTrigger className="w-28 h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {[1, 2, 3, 4, 5].map(s => (
-                                <SelectItem key={s} value={String(s)}>Etapa {s}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <label className="flex items-center gap-1.5 text-xs">
-                            <input type="checkbox" checked={q.required !== false} onChange={(e) => updateQuestion(idx, { required: e.target.checked })} className="rounded" />
-                            Obrigatória
-                          </label>
+              <SortableList items={formQuestions} onReorder={(items) => setFormQuestions(items as any)}>
+                {formQuestions.map((q, idx) => (
+                  <SortableItem key={q.id} id={q.id}>
+                    <Card className="bg-muted/50 mb-2">
+                      <CardContent className="p-3 space-y-2">
+                        <div className="flex items-start gap-2">
+                          <div className="flex-1 space-y-2">
+                            <Input
+                              value={q.text}
+                              onChange={(e) => updateQuestion(idx, { text: e.target.value })}
+                              placeholder="Texto da pergunta..."
+                              className="text-sm"
+                            />
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Select value={q.type} onValueChange={(v) => updateQuestion(idx, { type: v as any })}>
+                                <SelectTrigger className="w-32 h-8 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="text">Texto curto</SelectItem>
+                                  <SelectItem value="textarea">Texto longo</SelectItem>
+                                  <SelectItem value="yesno">Sim / Não</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Select value={String(q.step)} onValueChange={(v) => updateQuestion(idx, { step: parseInt(v) })}>
+                                <SelectTrigger className="w-28 h-8 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {[1, 2, 3, 4, 5].map(s => (
+                                    <SelectItem key={s} value={String(s)}>Etapa {s}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <label className="flex items-center gap-1.5 text-xs">
+                                <input type="checkbox" checked={q.required !== false} onChange={(e) => updateQuestion(idx, { required: e.target.checked })} className="rounded" />
+                                Obrigatória
+                              </label>
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeQuestion(idx)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
-                      </div>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeQuestion(idx)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      </CardContent>
+                    </Card>
+                  </SortableItem>
+                ))}
+              </SortableList>
             </div>
           </div>
           <DialogFooter>
