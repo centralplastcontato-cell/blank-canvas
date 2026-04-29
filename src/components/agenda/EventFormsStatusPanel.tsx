@@ -734,6 +734,7 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
         template={viewingCardapio && viewingCardapio.templateSections ? { id: viewingCardapio.templateId || "", name: "Cardápio", sections: viewingCardapio.templateSections as any } : null}
         company={companyInfo}
         allTemplates={viewingCardapio?.cardapioTemplates as any}
+        side="left"
         onDelete={async (id) => {
           await supabase.from("cardapio_responses").delete().eq("id", id);
           toast({ title: "Resposta apagada" });
