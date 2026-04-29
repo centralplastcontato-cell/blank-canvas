@@ -40,6 +40,7 @@ interface FormStatus {
   responseCount: number;
   responses: Array<{ id: string; answers: any; respondent_name: string | null; created_at: string; event_id?: string; template_id?: string }>;
   templateId?: string;
+  templateName?: string;
   templateSlug?: string;
   publicPath?: string;
   templateQuestions?: any[];
