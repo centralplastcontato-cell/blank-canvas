@@ -266,6 +266,7 @@ export function useEventFinancial(eventId: string | undefined, companyId: string
     receipt_url?: string;
     paid_by?: string;
     notes?: string;
+    compensation_date?: string;
   }) => {
     if (!companyId) return;
     const { error } = await (supabase as any).from('event_payment_entries').insert({
@@ -277,6 +278,7 @@ export function useEventFinancial(eventId: string | undefined, companyId: string
       receipt_url: data.receipt_url || null,
       paid_by: data.paid_by || null,
       notes: data.notes || null,
+      compensation_date: data.compensation_date || null,
     });
     if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return false; }
 
