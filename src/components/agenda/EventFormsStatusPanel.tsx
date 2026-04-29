@@ -697,23 +697,26 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
         </div>
       </div>
 
-      {/* Response Viewer Dialog */}
-      <Dialog open={!!viewingResponses} onOpenChange={(o) => !o && setViewingResponses(null)}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base">
+      {/* Response Viewer Sheet — espelhado ao lado do painel do evento (efeito de livro) */}
+      <Sheet open={!!viewingResponses} onOpenChange={(o) => !o && setViewingResponses(null)}>
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-md overflow-y-auto overflow-x-hidden !right-[28rem] !left-auto border-l border-r shadow-2xl"
+        >
+          <SheetHeader className="pb-4">
+            <SheetTitle className="flex items-center gap-2 text-base">
               {viewingResponses && <viewingResponses.icon className="h-4 w-4 text-primary" />}
               Respostas — {viewingResponses?.label}
-            </DialogTitle>
-          </DialogHeader>
+            </SheetTitle>
+          </SheetHeader>
           <div className="space-y-4">
             {viewingResponses?.responses.map((resp) => (
               <div key={resp.id} className="rounded-xl border border-border/50 bg-muted/10 p-4 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   {resp.respondent_name && (
-                    <span className="text-xs font-semibold text-foreground">{resp.respondent_name}</span>
+                    <span className="text-xs font-semibold text-foreground truncate">{resp.respondent_name}</span>
                   )}
-                  <Badge variant="outline" className="text-[9px] font-normal">
+                  <Badge variant="outline" className="text-[9px] font-normal shrink-0">
                     {format(new Date(resp.created_at), "dd/MM/yyyy 'às' HH:mm")}
                   </Badge>
                 </div>
@@ -724,8 +727,8 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
               <p className="text-sm text-muted-foreground text-center py-4">Nenhuma resposta encontrada.</p>
             )}
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       {/* Cardápio lateral sheet — same UX as Operações > Cardápio */}
       <CardapioResponseSheet
