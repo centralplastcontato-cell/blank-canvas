@@ -859,7 +859,6 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
                     responseId={resp.id}
                     answers={resp.answers}
                     questions={viewingResponses.templateQuestions || []}
-                    onSaved={fetchStatuses}
                   />
                 )}
 
