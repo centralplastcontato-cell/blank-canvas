@@ -51,6 +51,8 @@ interface CardapioResponseSheetProps {
   onDelete?: (id: string) => Promise<void> | void;
   /** Estilo lateral — "right" abre da direita (padrão), use "left" se quiser espelhar. */
   side?: "right" | "left";
+  /** Classes adicionais para o SheetContent (permite reposicionar). */
+  contentClassName?: string;
 }
 
 export function CardapioResponseSheet({
