@@ -19,6 +19,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { FreelancerEvaluationHistory, FreelancerAvgBadge } from "@/components/freelancer/FreelancerEvaluationHistory";
 import { EditFreelancerDialog } from "@/components/freelancer/EditFreelancerDialog";
+import { SortableList, SortableItem } from "@/components/forms/SortableQuestionList";
 
 interface FreelancerQuestion {
   id: string;
@@ -1231,53 +1232,57 @@ export function FreelancerManagerContent() {
               </div>
 
               <div className="space-y-2">
-                {formQuestions.map((q, idx) => (
-                  <div key={q.id} className="rounded-xl border border-border/60 bg-card p-3 space-y-2.5 shadow-sm">
-                    <div className="flex items-start gap-2">
-                      <Input
-                        value={q.text}
-                        onChange={(e) => updateQuestion(idx, { text: e.target.value })}
-                        placeholder="Texto da pergunta..."
-                        className="text-sm font-medium border-0 bg-transparent px-0 h-8 shadow-none focus-visible:ring-0"
-                      />
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/60 hover:text-destructive shrink-0" onClick={() => removeQuestion(idx)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Select value={q.type} onValueChange={(v) => updateQuestion(idx, { type: v as any, ...(["select", "multiselect"].includes(v) && !q.options?.length ? { options: ["Opção 1"] } : {}) })}>
-                        <SelectTrigger className="w-[130px] h-7 text-[11px] rounded-lg bg-muted/40 border-border/40">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(TYPE_LABELS).map(([val, label]) => (
-                            <SelectItem key={val} value={val}>{label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select value={String(q.step)} onValueChange={(v) => updateQuestion(idx, { step: parseInt(v) })}>
-                        <SelectTrigger className="w-[100px] h-7 text-[11px] rounded-lg bg-muted/40 border-border/40">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[1, 2, 3, 4, 5].map(s => (
-                            <SelectItem key={s} value={String(s)}>Etapa {s}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer select-none ml-1">
-                        <input type="checkbox" checked={q.required !== false} onChange={(e) => updateQuestion(idx, { required: e.target.checked })} className="rounded h-3.5 w-3.5 accent-primary" />
-                        Obrigatória
-                      </label>
-                    </div>
-                    {(q.type === "select" || q.type === "multiselect") && (
-                      <OptionChipsEditor
-                        options={q.options || []}
-                        onChange={(newOptions) => updateQuestion(idx, { options: newOptions })}
-                      />
-                    )}
-                  </div>
-                ))}
+                <SortableList items={formQuestions} onReorder={(items) => setFormQuestions(items as any)}>
+                  {formQuestions.map((q, idx) => (
+                    <SortableItem key={q.id} id={q.id}>
+                      <div className="rounded-xl border border-border/60 bg-card p-3 space-y-2.5 shadow-sm mb-2">
+                        <div className="flex items-start gap-2">
+                          <Input
+                            value={q.text}
+                            onChange={(e) => updateQuestion(idx, { text: e.target.value })}
+                            placeholder="Texto da pergunta..."
+                            className="text-sm font-medium border-0 bg-transparent px-0 h-8 shadow-none focus-visible:ring-0"
+                          />
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/60 hover:text-destructive shrink-0" onClick={() => removeQuestion(idx)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Select value={q.type} onValueChange={(v) => updateQuestion(idx, { type: v as any, ...(["select", "multiselect"].includes(v) && !q.options?.length ? { options: ["Opção 1"] } : {}) })}>
+                            <SelectTrigger className="w-[130px] h-7 text-[11px] rounded-lg bg-muted/40 border-border/40">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(TYPE_LABELS).map(([val, label]) => (
+                                <SelectItem key={val} value={val}>{label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select value={String(q.step)} onValueChange={(v) => updateQuestion(idx, { step: parseInt(v) })}>
+                            <SelectTrigger className="w-[100px] h-7 text-[11px] rounded-lg bg-muted/40 border-border/40">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[1, 2, 3, 4, 5].map(s => (
+                                <SelectItem key={s} value={String(s)}>Etapa {s}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer select-none ml-1">
+                            <input type="checkbox" checked={q.required !== false} onChange={(e) => updateQuestion(idx, { required: e.target.checked })} className="rounded h-3.5 w-3.5 accent-primary" />
+                            Obrigatória
+                          </label>
+                        </div>
+                        {(q.type === "select" || q.type === "multiselect") && (
+                          <OptionChipsEditor
+                            options={q.options || []}
+                            onChange={(newOptions) => updateQuestion(idx, { options: newOptions })}
+                          />
+                        )}
+                      </div>
+                    </SortableItem>
+                  ))}
+                </SortableList>
               </div>
             </div>
           </div>
