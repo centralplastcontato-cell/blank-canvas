@@ -3567,8 +3567,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       if (filter === 'equipe') return conv.is_equipe;
       if (filter === 'favorites') return conv.is_favorite;
       if (filter === 'grupos') return conv.remote_jid?.endsWith('@g.us');
-      // 'all' filter - show ALL conversations (including closed)
-      return true;
+      // 'all' filter: hide closed by default, but include them when filtering by month
+      // (so the totals match between "Tudo" and "Encerradas" within the same month)
+      if (monthFilter && monthFilter !== 'all') return true;
+      return !conv.is_closed;
     })
     .sort((a, b) => {
       // Favorites first, then by last message
