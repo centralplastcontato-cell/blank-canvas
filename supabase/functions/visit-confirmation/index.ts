@@ -244,10 +244,11 @@ Deno.serve(async (req) => {
             const { data: sendData, error: sendErr } = await supabase.functions.invoke("wapi-send", {
               body: {
                 action: "send-text",
-                instance_id: instance.instance_id,
+                instanceId: instance.instance_id,
+                instanceToken: instance.instance_token,
                 phone,
                 message,
-                conversation_id: conv.id,
+                conversationId: conv.id,
                 metadata: { source: "visit_confirmation", type: messageType, visit_id: visit.id },
               },
             });
