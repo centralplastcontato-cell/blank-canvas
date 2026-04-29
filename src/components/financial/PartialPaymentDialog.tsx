@@ -245,8 +245,9 @@ export function PartialPaymentDialog({ open, onOpenChange, onSubmit, paymentAmou
               <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Detalhes adicionais sobre o pagamento" rows={2} className="bg-background" />
             </div>
           </div>
+          </div>
 
-          <DialogFooter>
+          <DialogFooter className="px-6 py-4 border-t shrink-0 bg-background">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button onClick={handleSubmit} disabled={submitting || !parseCurrencyInput(amount)}>
               {submitting ? "Salvando..." : "Registrar Pagamento"}
