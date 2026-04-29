@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Building2, Users, MessageSquare, UserPlus,
   CheckCircle, XCircle, BarChart3, Percent, Timer,
-  Phone, Send
+  Phone, Send, ArrowUpRight, ArrowDownLeft
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -89,6 +89,9 @@ function HubDashboardContent({ userId }: { userId: string }) {
   const [allConvoRecords, setAllConvoRecords] = useState<ConvoRecord[]>([]);
   const [allFollowUps, setAllFollowUps] = useState<FollowUpRecord[]>([]);
   const [allClosedEvents, setAllClosedEvents] = useState<ClosedEventRecord[]>([]);
+  const [messagesSent, setMessagesSent] = useState<number>(0);
+  const [messagesReceived, setMessagesReceived] = useState<number>(0);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [filters, setFilters] = useState<DashboardFilters>(getDefaultFilters);
 
   useEffect(() => {
@@ -268,6 +271,45 @@ function HubDashboardContent({ userId }: { userId: string }) {
     fetchMetrics();
   }, [userId]);
 
+  // Fetch sent/received message counts whenever filters or companies change
+  useEffect(() => {
+    if (companies.length === 0) return;
+    const fetchMessageCounts = async () => {
+      setIsLoadingMessages(true);
+      try {
+        const fromISO = filters.dateRange.from.toISOString();
+        const toISO = filters.dateRange.to.toISOString();
+        const companyIds = filters.companyId
+          ? [filters.companyId]
+          : companies.map(c => c.id);
+
+        const baseSent = supabase
+          .from("wapi_messages")
+          .select("id", { count: "exact", head: true })
+          .in("company_id", companyIds)
+          .eq("from_me", true)
+          .gte("created_at", fromISO)
+          .lte("created_at", toISO);
+
+        const baseReceived = supabase
+          .from("wapi_messages")
+          .select("id", { count: "exact", head: true })
+          .in("company_id", companyIds)
+          .eq("from_me", false)
+          .gte("created_at", fromISO)
+          .lte("created_at", toISO);
+
+        const [sentRes, recvRes] = await Promise.all([baseSent, baseReceived]);
+        setMessagesSent(sentRes.count || 0);
+        setMessagesReceived(recvRes.count || 0);
+      } catch (err) {
+        console.error("Error fetching message counts:", err);
+      }
+      setIsLoadingMessages(false);
+    };
+    fetchMessageCounts();
+  }, [companies, filters.companyId, filters.dateRange.from, filters.dateRange.to]);
+
   // Apply filters
   const filteredLeads = useMemo(() => {
     let result = allLeadRecords;
@@ -383,6 +425,8 @@ function HubDashboardContent({ userId }: { userId: string }) {
     { title: "Perdidos", value: totals.lost, icon: XCircle, gradient: "from-rose-500/20 via-rose-500/10 to-transparent", iconBg: "bg-rose-500/15", iconColor: "text-rose-600", borderColor: "border-rose-500/20" },
     { title: "Conversas Ativas", value: totals.activeConversations, icon: MessageSquare, gradient: "from-amber-500/20 via-amber-500/10 to-transparent", iconBg: "bg-amber-500/15", iconColor: "text-amber-600", borderColor: "border-amber-500/20" },
     { title: "Follow-ups", value: filteredFollowUps.length, icon: Send, gradient: "from-indigo-500/20 via-indigo-500/10 to-transparent", iconBg: "bg-indigo-500/15", iconColor: "text-indigo-600", borderColor: "border-indigo-500/20" },
+    { title: "Msgs Enviadas", value: isLoadingMessages ? "…" : messagesSent.toLocaleString("pt-BR"), icon: ArrowUpRight, gradient: "from-cyan-500/20 via-cyan-500/10 to-transparent", iconBg: "bg-cyan-500/15", iconColor: "text-cyan-600", borderColor: "border-cyan-500/20" },
+    { title: "Msgs Recebidas", value: isLoadingMessages ? "…" : messagesReceived.toLocaleString("pt-BR"), icon: ArrowDownLeft, gradient: "from-fuchsia-500/20 via-fuchsia-500/10 to-transparent", iconBg: "bg-fuchsia-500/15", iconColor: "text-fuchsia-600", borderColor: "border-fuchsia-500/20" },
   ];
 
   return (
@@ -392,7 +436,7 @@ function HubDashboardContent({ userId }: { userId: string }) {
 
       {/* Summary Cards */}
       {isLoadingMetrics ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-10 gap-3">
           {Array.from({ length: 8 }).map((_, i) => (
             <Card key={i} className="border-border/50 overflow-hidden">
               <CardContent className="p-4"><Skeleton className="h-4 w-20 mb-3" /><Skeleton className="h-8 w-12" /></CardContent>
@@ -400,7 +444,7 @@ function HubDashboardContent({ userId }: { userId: string }) {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-10 gap-3">
           {summaryCards.map((metric) => (
             <Card key={metric.title} className={`relative border ${metric.borderColor} overflow-hidden hover:shadow-lg hover:scale-[1.02] transition-all duration-300 bg-card`}>
               <div className={`absolute inset-0 bg-gradient-to-br ${metric.gradient} pointer-events-none`} />
