@@ -271,6 +271,45 @@ function HubDashboardContent({ userId }: { userId: string }) {
     fetchMetrics();
   }, [userId]);
 
+  // Fetch sent/received message counts whenever filters or companies change
+  useEffect(() => {
+    if (companies.length === 0) return;
+    const fetchMessageCounts = async () => {
+      setIsLoadingMessages(true);
+      try {
+        const fromISO = filters.dateRange.from.toISOString();
+        const toISO = filters.dateRange.to.toISOString();
+        const companyIds = filters.companyId
+          ? [filters.companyId]
+          : companies.map(c => c.id);
+
+        const baseSent = supabase
+          .from("wapi_messages")
+          .select("id", { count: "exact", head: true })
+          .in("company_id", companyIds)
+          .eq("from_me", true)
+          .gte("created_at", fromISO)
+          .lte("created_at", toISO);
+
+        const baseReceived = supabase
+          .from("wapi_messages")
+          .select("id", { count: "exact", head: true })
+          .in("company_id", companyIds)
+          .eq("from_me", false)
+          .gte("created_at", fromISO)
+          .lte("created_at", toISO);
+
+        const [sentRes, recvRes] = await Promise.all([baseSent, baseReceived]);
+        setMessagesSent(sentRes.count || 0);
+        setMessagesReceived(recvRes.count || 0);
+      } catch (err) {
+        console.error("Error fetching message counts:", err);
+      }
+      setIsLoadingMessages(false);
+    };
+    fetchMessageCounts();
+  }, [companies, filters.companyId, filters.dateRange.from, filters.dateRange.to]);
+
   // Apply filters
   const filteredLeads = useMemo(() => {
     let result = allLeadRecords;
