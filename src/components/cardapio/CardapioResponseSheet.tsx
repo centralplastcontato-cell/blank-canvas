@@ -51,6 +51,8 @@ interface CardapioResponseSheetProps {
   onDelete?: (id: string) => Promise<void> | void;
   /** Estilo lateral — "right" abre da direita (padrão), use "left" se quiser espelhar. */
   side?: "right" | "left";
+  /** Classes adicionais para o SheetContent (permite reposicionar). */
+  contentClassName?: string;
 }
 
 export function CardapioResponseSheet({
@@ -62,6 +64,7 @@ export function CardapioResponseSheet({
   allTemplates,
   onDelete,
   side = "right",
+  contentClassName,
 }: CardapioResponseSheetProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
@@ -144,7 +147,7 @@ export function CardapioResponseSheet({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side={side} className="w-full sm:max-w-md overflow-y-auto overflow-x-hidden">
+        <SheetContent side={side} className={`w-full sm:max-w-md overflow-y-auto overflow-x-hidden ${contentClassName ?? ""}`}>
           {response && (
             <>
               <SheetHeader className="pb-4">
