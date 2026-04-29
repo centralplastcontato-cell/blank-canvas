@@ -188,6 +188,7 @@ interface EvaluationQuestion {
   text: string;
   step: number;
   required?: boolean;
+  internal?: boolean;
 }
 
 interface EvaluationTemplate {
