@@ -130,6 +130,20 @@ function HubDashboardContent({ userId }: { userId: string }) {
           supabase.from("wapi_instances").select("status, phone_number, company_id, connected_at").in("company_id", companyIds).order("connected_at", { ascending: false }),
         ]);
 
+        // Fetch follow-ups (lead_history.action LIKE 'Follow-up%') and map by lead -> company
+        const leadIdToCompany = new Map<string, string>();
+        allLeads.forEach((l: any) => leadIdToCompany.set(l.id, l.company_id));
+        const followUpsRaw = await fetchAll<any>(
+          supabase
+            .from("lead_history")
+            .select("lead_id, created_at")
+            .ilike("action", "Follow-up%")
+            .in("lead_id", Array.from(leadIdToCompany.keys()))
+        );
+        const followUps: FollowUpRecord[] = followUpsRaw
+          .map(fu => ({ company_id: leadIdToCompany.get(fu.lead_id) || "", created_at: fu.created_at }))
+          .filter(fu => fu.company_id);
+
         const leadsByCompany = new Map<string, any[]>();
         allLeads.forEach(l => {
           const arr = leadsByCompany.get(l.company_id) || [];
