@@ -1301,6 +1301,20 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                   multiple
                   onChange={handleMultiFileUpload}
                 />
+
+                {/* Hidden input for single-photo replace */}
+                <input
+                  ref={replacePhotoInputRef}
+                  type="file"
+                  className="hidden"
+                  accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f && photoActionIndex !== null) handleReplacePhoto(photoActionIndex, f);
+                    if (replacePhotoInputRef.current) replacePhotoInputRef.current.value = "";
+                    setPhotoActionIndex(null);
+                  }}
+                />
               </div>
             )}
 
