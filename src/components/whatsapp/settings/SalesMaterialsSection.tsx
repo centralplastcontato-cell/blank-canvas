@@ -211,7 +211,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    let file = event.target.files?.[0];
     if (!file) return;
 
     // Validate file type
