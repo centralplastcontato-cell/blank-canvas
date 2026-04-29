@@ -19,6 +19,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { FreelancerEvaluationHistory, FreelancerAvgBadge } from "@/components/freelancer/FreelancerEvaluationHistory";
 import { EditFreelancerDialog } from "@/components/freelancer/EditFreelancerDialog";
+import { SortableList, SortableItem } from "@/components/forms/SortableQuestionList";
 
 interface FreelancerQuestion {
   id: string;
