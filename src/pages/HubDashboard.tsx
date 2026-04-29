@@ -148,6 +148,18 @@ function HubDashboardContent({ userId }: { userId: string }) {
           .filter((fu: any) => fu.company_id)
           .map((fu: any) => ({ company_id: fu.company_id, created_at: fu.created_at }));
 
+        // Fetch closed events (festas fechadas) by data_fechamento_venda
+        const closedEventsRaw = await fetchAll<any>(
+          supabase
+            .from("company_events")
+            .select("company_id, data_fechamento_venda")
+            .in("company_id", companyIds)
+            .not("data_fechamento_venda", "is", null)
+        );
+        const closedEvents: ClosedEventRecord[] = closedEventsRaw
+          .filter((e: any) => e.company_id && e.data_fechamento_venda)
+          .map((e: any) => ({ company_id: e.company_id, data_fechamento_venda: e.data_fechamento_venda }));
+
         const leadsByCompany = new Map<string, any[]>();
         allLeads.forEach(l => {
           const arr = leadsByCompany.get(l.company_id) || [];
