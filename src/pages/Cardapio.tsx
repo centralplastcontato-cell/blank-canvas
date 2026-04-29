@@ -444,7 +444,7 @@ function CardapioResponseCards({ responses, template, onDelete, company, allTemp
                       <AlertDialogHeader>
                         <AlertDialogTitle>Apagar resposta?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          A resposta de <strong>{selectedResponse.respondent_name || "Anônimo"}</strong> será excluída permanentemente.
+                          A resposta de <strong>{getDisplayName(selectedResponse)}</strong> será excluída permanentemente.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
