@@ -23,7 +23,7 @@ interface HubUnitRankingProps {
 
 const MEDAL_COLORS = ["text-amber-500", "text-slate-400", "text-orange-700"];
 
-export function HubUnitRanking({ metrics }: HubUnitRankingProps) {
+export function HubUnitRanking({ metrics, followUpsByCompany }: HubUnitRankingProps) {
   const ranked = useMemo(() => {
     return metrics
       .map(m => {
