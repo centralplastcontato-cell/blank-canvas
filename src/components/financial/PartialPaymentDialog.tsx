@@ -105,6 +105,11 @@ export function PartialPaymentDialog({ open, onOpenChange, onSubmit, paymentAmou
       return;
     }
 
+    if (method === "cheque" && !compensationDate) {
+      toast({ title: "Informe a data de compensação", description: "Cheques precisam de uma data prevista de compensação.", variant: "destructive" });
+      return;
+    }
+
     const payload: SubmitPayload = {
       amount: val,
       payment_method: method || undefined,
@@ -112,6 +117,7 @@ export function PartialPaymentDialog({ open, onOpenChange, onSubmit, paymentAmou
       receipt_url: receiptUrl || undefined,
       paid_by: paidBy.trim() || undefined,
       notes: notes.trim() || undefined,
+      compensation_date: method === "cheque" ? compensationDate : undefined,
     };
 
     // Nível 2: checagem de duplicidade
