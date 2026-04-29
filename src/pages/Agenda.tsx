@@ -501,7 +501,7 @@ export default function Agenda() {
         .order("event_date", { ascending: true }),
       supabase
         .from("event_payments")
-        .select("id, event_id, status, due_date, amount")
+        .select("id, event_id, status, due_date, amount, gross_amount")
         .eq("company_id", currentCompany.id),
     ]);
 
@@ -518,10 +518,12 @@ export default function Agenda() {
     if (paymentIds.length > 0) {
       const { data: entriesData } = await (supabase as any)
         .from("event_payment_entries")
-        .select("payment_id, amount")
+        .select("payment_id, amount, gross_amount")
         .in("payment_id", paymentIds);
       (entriesData || []).forEach((e: any) => {
-        entriesByPayment[e.payment_id] = (entriesByPayment[e.payment_id] || 0) + Number(e.amount || 0);
+        // Use gross_amount when available (what client actually paid), fallback to net amount
+        const grossValue = Number(e.gross_amount ?? e.amount ?? 0);
+        entriesByPayment[e.payment_id] = (entriesByPayment[e.payment_id] || 0) + grossValue;
       });
     }
 
@@ -541,9 +543,13 @@ export default function Agenda() {
       if (!pmMap[p.event_id]) pmMap[p.event_id] = { total: 0, paid: 0, pending: 0, late: 0, paidAmount: 0, outstandingAmount: 0, details: [] };
       pmMap[p.event_id].total++;
       const isLate = p.status !== "paid" && p.due_date && p.due_date < today;
+      // For comparing against event total_value (which is the gross/contracted value),
+      // we must accumulate the GROSS amount the client actually paid, not the net
+      // amount after card fees. Otherwise card fees create a fake "uncovered balance".
+      const grossAmount = Number(p.gross_amount ?? p.amount ?? 0);
       if (p.status === "paid") {
         pmMap[p.event_id].paid++;
-        pmMap[p.event_id].paidAmount += Number(p.amount || 0);
+        pmMap[p.event_id].paidAmount += grossAmount;
       } else if (isLate) {
         pmMap[p.event_id].late++;
         pmMap[p.event_id].paidAmount += entriesByPayment[p.id] || 0;
