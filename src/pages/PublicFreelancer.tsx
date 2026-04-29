@@ -156,8 +156,9 @@ export default function PublicFreelancer() {
     setAnswers(prev => ({ ...prev, [questionId]: value }));
   };
 
-  const totalSteps = template ? Math.max(...template.questions.map(q => q.step), 1) : 1;
-  const questionsForStep = (step: number) => template?.questions.filter(q => q.step === step) || [];
+  const visibleQuestions = template ? template.questions.filter((q: any) => q.internal !== true) : [];
+  const totalSteps = template ? Math.max(...visibleQuestions.map(q => q.step), 1) : 1;
+  const questionsForStep = (step: number) => visibleQuestions.filter(q => q.step === step);
 
   const canAdvance = () => {
     const stepQuestions = questionsForStep(currentStep);
