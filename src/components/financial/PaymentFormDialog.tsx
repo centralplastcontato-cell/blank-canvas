@@ -26,6 +26,7 @@ export interface PaymentFormSubmitData {
   card_installments?: number;
   card_fee_percent?: number;
   gross_amount?: number;
+  compensation_date?: string;
 }
 
 interface Props {
