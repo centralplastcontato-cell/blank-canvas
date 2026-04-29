@@ -27,6 +27,7 @@ interface ContratoQuestion {
   text: string;
   step: number;
   required?: boolean;
+  internal?: boolean;
   options?: string[];
 }
 
