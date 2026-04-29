@@ -401,6 +401,22 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
       const templateResults = await Promise.all(templatePromises);
       const templateMap = new Map(templateResults.map(r => [r.type, r.template]));
 
+      // Fetch all active cardapio templates for the lateral sheet (PDF template switcher)
+      const { data: allCardapioTpls } = await supabase
+        .from("cardapio_templates")
+        .select("id, name, sections")
+        .eq("company_id", companyId)
+        .eq("is_active", true);
+      const cardapioTemplates = (allCardapioTpls || []) as any[];
+
+      // Fetch company info for the PDF header
+      const { data: companyRow } = await supabase
+        .from("companies")
+        .select("name, logo_url")
+        .eq("id", companyId)
+        .maybeSingle();
+      if (companyRow) setCompanyInfo({ name: companyRow.name, logo_url: companyRow.logo_url });
+
       const statuses: FormStatus[] = [];
 
       for (const ft of FORM_TYPES) {
