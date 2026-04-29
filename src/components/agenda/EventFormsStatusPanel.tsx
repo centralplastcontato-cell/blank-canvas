@@ -649,7 +649,10 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
                         variant="ghost"
                         size="sm"
                         className="h-6 w-6 p-0 text-primary hover:text-primary/80"
-                        onClick={() => setViewingResponses(fs)}
+                        onClick={() => {
+                          if (fs.type === "cardapio") setViewingCardapio(fs);
+                          else setViewingResponses(fs);
+                        }}
                         title="Ver respostas"
                       >
                         <Eye className="h-3.5 w-3.5" />
