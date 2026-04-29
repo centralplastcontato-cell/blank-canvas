@@ -176,9 +176,9 @@ export function PartialPaymentDialog({ open, onOpenChange, onSubmit, paymentAmou
             </div>
           </div>
 
-            <div className="space-y-3">
-              <div>
-                <Label>Valor do pagamento (R$)</Label>
+          <div className="space-y-3">
+            <div>
+              <Label>Valor do pagamento (R$)</Label>
               <Input
                 inputMode="decimal"
                 value={amount}
