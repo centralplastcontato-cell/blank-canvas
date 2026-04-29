@@ -216,6 +216,11 @@ function HubDashboardContent({ userId }: { userId: string }) {
         }
         setCompanyMetrics(metrics);
         setAllLeadRecords(allLeadsRecords);
+        setAllConvoRecords(allConvos.map(c => ({
+          company_id: c.company_id,
+          created_at: c.created_at,
+          is_closed: !!c.is_closed,
+        })));
         setConversationTimings(timings);
       } catch (err) {
         console.error("Error fetching hub metrics:", err);
