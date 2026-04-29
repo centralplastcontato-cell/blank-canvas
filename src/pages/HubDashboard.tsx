@@ -89,6 +89,9 @@ function HubDashboardContent({ userId }: { userId: string }) {
   const [allConvoRecords, setAllConvoRecords] = useState<ConvoRecord[]>([]);
   const [allFollowUps, setAllFollowUps] = useState<FollowUpRecord[]>([]);
   const [allClosedEvents, setAllClosedEvents] = useState<ClosedEventRecord[]>([]);
+  const [messagesSent, setMessagesSent] = useState<number>(0);
+  const [messagesReceived, setMessagesReceived] = useState<number>(0);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [filters, setFilters] = useState<DashboardFilters>(getDefaultFilters);
 
   useEffect(() => {
