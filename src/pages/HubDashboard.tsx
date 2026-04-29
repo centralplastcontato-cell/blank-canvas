@@ -422,7 +422,7 @@ function HubDashboardContent({ userId }: { userId: string }) {
       {!isLoadingMetrics && (
         <div className="grid gap-4 md:grid-cols-2">
           <HubSalesFunnel leads={filteredLeads} />
-          <HubUnitRanking metrics={filteredMetrics} followUpsByCompany={followUpsByCompany} />
+          <HubUnitRanking metrics={filteredMetrics} followUpsByCompany={followUpsByCompany} closedByCompany={closedByCompany} />
         </div>
       )}
 
