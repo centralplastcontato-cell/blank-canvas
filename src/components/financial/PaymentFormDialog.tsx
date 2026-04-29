@@ -84,7 +84,7 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues,
   const finalizeSubmit = (data: PaymentFormSubmitData) => {
     onSubmit(data);
     onOpenChange(false);
-    setAmount(""); setDueDate(""); setNotes(""); setBankAccountId("");
+    setAmount(""); setDueDate(""); setNotes(""); setBankAccountId(""); setCompensationDate("");
     setInstallments(1);
     setPendingSubmit(null);
     setDuplicateMatches([]);
