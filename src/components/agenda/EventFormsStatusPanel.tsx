@@ -851,6 +851,15 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
                 </div>
                 <FormattedResponseView answers={resp.answers} formType={viewingResponses.type} questions={viewingResponses.templateQuestions} />
 
+                {viewingResponses?.type === "prefesta" && (viewingResponses.templateQuestions || []).some((q: any) => q?.internal === true) && (
+                  <PreFestaInternalAnswers
+                    responseId={resp.id}
+                    answers={resp.answers}
+                    questions={viewingResponses.templateQuestions || []}
+                    onSaved={fetchStatuses}
+                  />
+                )}
+
                 {viewingResponses?.type === "prefesta" && (
                   <div className="pt-2 flex flex-wrap gap-1.5 items-center justify-between border-t border-border/40">
                     <div className="flex flex-wrap gap-1.5">
