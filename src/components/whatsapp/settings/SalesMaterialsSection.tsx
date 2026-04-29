@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { FileText, Image, Video, Plus, Pencil, Trash2, Loader2, Upload, FolderOpen, Images, X, GripVertical } from "lucide-react";
+import { FileText, Image, Video, Plus, Pencil, Trash2, Loader2, Upload, FolderOpen, Images, X, GripVertical, ZoomIn, RotateCw, Replace, Save } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -376,6 +376,102 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
     const newUrls = [...formData.photo_urls];
     newUrls.splice(index, 1);
     setFormData({ ...formData, photo_urls: newUrls });
+  };
+
+  // ---------- Per-photo actions: replace / rotate / save ----------
+  const [photoActionIndex, setPhotoActionIndex] = useState<number | null>(null);
+  const [photoActionLoading, setPhotoActionLoading] = useState<{ index: number; action: "rotate" | "replace" | "save" } | null>(null);
+  const replacePhotoInputRef = useRef<HTMLInputElement>(null);
+
+  const uploadPhotoFile = async (file: File): Promise<string | null> => {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      toast({ title: "Formato inválido", description: "Use JPG, PNG ou WebP.", variant: "destructive" });
+      return null;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      toast({ title: "Arquivo muito grande", description: "Máx. 50MB.", variant: "destructive" });
+      return null;
+    }
+    const normalized = await normalizeImageOrientation(file);
+    const ext = (normalized.name.split(".").pop() || "jpg").toLowerCase();
+    const fileName = `${selectedUnit.toLowerCase()}/collections/${Date.now()}_edit.${ext}`;
+    const { error } = await supabase.storage
+      .from("sales-materials")
+      .upload(fileName, normalized, { cacheControl: "3600", upsert: false });
+    if (error) {
+      toast({ title: "Erro no upload", description: error.message, variant: "destructive" });
+      return null;
+    }
+    const { data: urlData } = supabase.storage.from("sales-materials").getPublicUrl(fileName);
+    return urlData.publicUrl;
+  };
+
+  const handleReplacePhoto = async (index: number, file: File) => {
+    setPhotoActionLoading({ index, action: "replace" });
+    const url = await uploadPhotoFile(file);
+    if (url) {
+      const newUrls = [...formData.photo_urls];
+      newUrls[index] = url;
+      setFormData({ ...formData, photo_urls: newUrls });
+      toast({ title: "Foto trocada", description: "Clique em 'Salvar' nesta foto para persistir." });
+    }
+    setPhotoActionLoading(null);
+  };
+
+  const handleRotatePhoto = async (index: number) => {
+    setPhotoActionLoading({ index, action: "rotate" });
+    try {
+      const srcUrl = formData.photo_urls[index];
+      // Load image (CORS friendly via fetch)
+      const resp = await fetch(srcUrl, { mode: "cors" });
+      const blob = await resp.blob();
+      const bitmap = await createImageBitmap(blob);
+      const canvas = document.createElement("canvas");
+      // Rotate 90° clockwise: swap dimensions
+      canvas.width = bitmap.height;
+      canvas.height = bitmap.width;
+      const ctx = canvas.getContext("2d")!;
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate(Math.PI / 2);
+      ctx.drawImage(bitmap, -bitmap.width / 2, -bitmap.height / 2);
+      const rotatedBlob: Blob = await new Promise((res) =>
+        canvas.toBlob((b) => res(b!), "image/jpeg", 0.92)
+      );
+      const file = new File([rotatedBlob], `rotated_${Date.now()}.jpg`, { type: "image/jpeg" });
+      const url = await uploadPhotoFile(file);
+      if (url) {
+        const newUrls = [...formData.photo_urls];
+        newUrls[index] = url;
+        setFormData({ ...formData, photo_urls: newUrls });
+        toast({ title: "Foto girada", description: "Clique em 'Salvar' nesta foto para persistir." });
+      }
+    } catch (err) {
+      toast({
+        title: "Erro ao girar",
+        description: err instanceof Error ? err.message : "Não foi possível girar a foto.",
+        variant: "destructive",
+      });
+    }
+    setPhotoActionLoading(null);
+  };
+
+  const handleSaveSinglePhoto = async (index: number) => {
+    if (!editingMaterial) {
+      toast({ title: "Salve a coleção primeiro", description: "Use o botão Salvar geral para criar a coleção.", variant: "destructive" });
+      return;
+    }
+    setPhotoActionLoading({ index, action: "save" });
+    const { error } = await supabase
+      .from("sales_materials")
+      .update({ photo_urls: formData.photo_urls })
+      .eq("id", editingMaterial.id);
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Foto salva", description: `Foto ${index + 1} atualizada.` });
+      fetchMaterials();
+    }
+    setPhotoActionLoading(null);
   };
 
   // Drag and drop handlers for reordering photos
@@ -1098,14 +1194,70 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                             alt={`Foto ${index + 1}`}
                             className="w-full h-full object-cover pointer-events-none"
                           />
+                          {/* Loading overlay during per-photo action */}
+                          {photoActionLoading?.index === index && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
+                              <Loader2 className="w-5 h-5 text-white animate-spin" />
+                            </div>
+                          )}
+
+                          {/* Top-right: remove */}
                           <button
                             type="button"
-                            onClick={() => removePhotoFromCollection(index)}
-                            className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 md:opacity-0 transition-opacity"
+                            onClick={(e) => { e.stopPropagation(); removePhotoFromCollection(index); }}
+                            className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
                             style={{ opacity: draggedIndex === null ? undefined : 0 }}
+                            title="Remover"
                           >
                             <X className="w-3 h-3" />
                           </button>
+
+                          {/* Action toolbar (hover) */}
+                          <div
+                            className="absolute inset-x-1 top-1 flex flex-wrap gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pr-7"
+                            style={{ opacity: draggedIndex === null ? undefined : 0 }}
+                            onPointerDown={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setPreviewImageUrl(url); }}
+                              className="bg-white/90 hover:bg-white text-foreground rounded-md p-1 shadow"
+                              title="Ampliar"
+                            >
+                              <ZoomIn className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPhotoActionIndex(index);
+                                replacePhotoInputRef.current?.click();
+                              }}
+                              className="bg-white/90 hover:bg-white text-foreground rounded-md p-1 shadow"
+                              title="Trocar foto"
+                            >
+                              <Replace className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleRotatePhoto(index); }}
+                              className="bg-white/90 hover:bg-white text-foreground rounded-md p-1 shadow"
+                              title="Girar 90°"
+                            >
+                              <RotateCw className="w-3 h-3" />
+                            </button>
+                            {editingMaterial && (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleSaveSinglePhoto(index); }}
+                                className="bg-primary/90 hover:bg-primary text-primary-foreground rounded-md p-1 shadow"
+                                title="Salvar esta foto"
+                              >
+                                <Save className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+
                           <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] text-center py-0.5">
                             {index + 1}
                           </span>
@@ -1148,6 +1300,20 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                   accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
                   multiple
                   onChange={handleMultiFileUpload}
+                />
+
+                {/* Hidden input for single-photo replace */}
+                <input
+                  ref={replacePhotoInputRef}
+                  type="file"
+                  className="hidden"
+                  accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f && photoActionIndex !== null) handleReplacePhoto(photoActionIndex, f);
+                    if (replacePhotoInputRef.current) replacePhotoInputRef.current.value = "";
+                    setPhotoActionIndex(null);
+                  }}
                 />
               </div>
             )}
