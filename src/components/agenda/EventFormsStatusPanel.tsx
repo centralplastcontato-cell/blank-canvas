@@ -388,6 +388,55 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
   const [editingResponse, setEditingResponse] = useState<{ resp: any; formType: string } | null>(null);
   const [editDraft, setEditDraft] = useState<Record<string, any>>({});
   const [savingEdit, setSavingEdit] = useState(false);
+  const [printPrefs, setPrintPrefs] = useCardapioPrintPrefs();
+  const [printingId, setPrintingId] = useState<string | null>(null);
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; fileName: string } | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDeleteResponse = async (resp: any, formType: string) => {
+    setDeletingId(resp.id);
+    try {
+      if (formType === "prefesta") {
+        await (supabase as any).from("prefesta_responses").delete().eq("id", resp.id);
+      } else if (formType === "avaliacao") {
+        await (supabase as any).from("evaluation_responses").delete().eq("id", resp.id);
+      } else if (formType === "contrato") {
+        await (supabase as any).from("client_data_requests").delete().eq("id", resp.id);
+      }
+      toast({ title: "Resposta apagada" });
+      setViewingResponses(null);
+      fetchStatuses();
+    } catch (err: any) {
+      toast({ title: "Erro ao apagar", description: err?.message, variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleGeneratePreFestaPDF = async (resp: any) => {
+    if (!viewingResponses) return;
+    setPrintingId(resp.id);
+    try {
+      const tpl = {
+        id: viewingResponses.templateId || "",
+        name: viewingResponses.templateName || "Pré-Festa",
+        questions: (viewingResponses.templateQuestions as any[]) || [],
+      };
+      const result = await generatePreFestaPrintPDF(
+        resp,
+        tpl,
+        { name: companyInfo?.name || "Buffet", logo_url: companyInfo?.logo_url || null },
+        { save: false, prefs: printPrefs },
+      );
+      const url = URL.createObjectURL(result.blob);
+      setPdfPreview({ url, fileName: result.fileName });
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Erro ao gerar PDF", variant: "destructive" });
+    } finally {
+      setPrintingId(null);
+    }
+  };
 
   const handleEditTemplate = (formType: string) => {
     navigate(`/formularios?section=formularios&tab=${formType}`);
