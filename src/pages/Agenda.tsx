@@ -501,7 +501,7 @@ export default function Agenda() {
         .order("event_date", { ascending: true }),
       supabase
         .from("event_payments")
-        .select("id, event_id, status, due_date, amount")
+        .select("id, event_id, status, due_date, amount, gross_amount")
         .eq("company_id", currentCompany.id),
     ]);
 
