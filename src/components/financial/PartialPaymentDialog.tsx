@@ -49,6 +49,7 @@ export function PartialPaymentDialog({ open, onOpenChange, onSubmit, paymentAmou
   const [paidBy, setPaidBy] = useState("");
   const [notes, setNotes] = useState("");
   const [receiptUrl, setReceiptUrl] = useState("");
+  const [compensationDate, setCompensationDate] = useState("");
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [duplicateMatches, setDuplicateMatches] = useState<DuplicateMatch[]>([]);
