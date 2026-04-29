@@ -51,6 +51,7 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues,
   const [notes, setNotes] = useState(defaultValues?.notes || "");
   const [bankAccountId, setBankAccountId] = useState(defaultValues?.bank_account_id || "");
   const [installments, setInstallments] = useState<number>(1);
+  const [compensationDate, setCompensationDate] = useState<string>("");
   const [operatorId, setOperatorId] = useState<string>("");
   const [cardFees, setCardFees] = useState<CardFeeRow[]>([]);
   const [duplicateMatches, setDuplicateMatches] = useState<DuplicateMatch[]>([]);
