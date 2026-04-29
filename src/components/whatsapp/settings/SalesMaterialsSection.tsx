@@ -1194,14 +1194,70 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                             alt={`Foto ${index + 1}`}
                             className="w-full h-full object-cover pointer-events-none"
                           />
+                          {/* Loading overlay during per-photo action */}
+                          {photoActionLoading?.index === index && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
+                              <Loader2 className="w-5 h-5 text-white animate-spin" />
+                            </div>
+                          )}
+
+                          {/* Top-right: remove */}
                           <button
                             type="button"
-                            onClick={() => removePhotoFromCollection(index)}
-                            className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 md:opacity-0 transition-opacity"
+                            onClick={(e) => { e.stopPropagation(); removePhotoFromCollection(index); }}
+                            className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
                             style={{ opacity: draggedIndex === null ? undefined : 0 }}
+                            title="Remover"
                           >
                             <X className="w-3 h-3" />
                           </button>
+
+                          {/* Action toolbar (hover) */}
+                          <div
+                            className="absolute inset-x-1 top-1 flex flex-wrap gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pr-7"
+                            style={{ opacity: draggedIndex === null ? undefined : 0 }}
+                            onPointerDown={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setPreviewImageUrl(url); }}
+                              className="bg-white/90 hover:bg-white text-foreground rounded-md p-1 shadow"
+                              title="Ampliar"
+                            >
+                              <ZoomIn className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPhotoActionIndex(index);
+                                replacePhotoInputRef.current?.click();
+                              }}
+                              className="bg-white/90 hover:bg-white text-foreground rounded-md p-1 shadow"
+                              title="Trocar foto"
+                            >
+                              <Replace className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleRotatePhoto(index); }}
+                              className="bg-white/90 hover:bg-white text-foreground rounded-md p-1 shadow"
+                              title="Girar 90°"
+                            >
+                              <RotateCw className="w-3 h-3" />
+                            </button>
+                            {editingMaterial && (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleSaveSinglePhoto(index); }}
+                                className="bg-primary/90 hover:bg-primary text-primary-foreground rounded-md p-1 shadow"
+                                title="Salvar esta foto"
+                              >
+                                <Save className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+
                           <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] text-center py-0.5">
                             {index + 1}
                           </span>
