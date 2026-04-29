@@ -23,6 +23,7 @@ interface SubmitPayload {
   receipt_url?: string;
   paid_by?: string;
   notes?: string;
+  compensation_date?: string;
 }
 
 interface Props {
