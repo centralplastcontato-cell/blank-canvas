@@ -725,6 +725,21 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Cardápio lateral sheet — same UX as Operações > Cardápio */}
+      <CardapioResponseSheet
+        open={!!viewingCardapio}
+        onOpenChange={(o) => { if (!o) setViewingCardapio(null); }}
+        response={viewingCardapio?.responses[0] ? { ...viewingCardapio.responses[0], event_id: viewingCardapio.responses[0].event_id || eventId, template_id: viewingCardapio.responses[0].template_id || viewingCardapio.templateId } : null}
+        template={viewingCardapio && viewingCardapio.templateSections ? { id: viewingCardapio.templateId || "", name: "Cardápio", sections: viewingCardapio.templateSections as any } : null}
+        company={companyInfo}
+        allTemplates={viewingCardapio?.cardapioTemplates as any}
+        onDelete={async (id) => {
+          await supabase.from("cardapio_responses").delete().eq("id", id);
+          toast({ title: "Resposta apagada" });
+          fetchStatuses();
+        }}
+      />
     </>
   );
 }
