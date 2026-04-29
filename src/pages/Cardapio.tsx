@@ -189,6 +189,16 @@ function CardapioResponseCards({ responses, template, onDelete, company, allTemp
     return choices;
   })();
 
+  const getDisplayName = (r: any) => {
+    const name = (r?.respondent_name || "").trim();
+    if (name) return name;
+    const leadName = r?.company_events?.leads?.name?.trim();
+    if (leadName) return leadName;
+    const eventTitle = r?.company_events?.title?.trim();
+    if (eventTitle) return eventTitle;
+    return "Anônimo";
+  };
+
   const renderAnswers = (r: any) => {
     const answersArr = Array.isArray(r.answers) ? r.answers : [];
     return answersArr.map((a: any, idx: number) => {
@@ -228,7 +238,7 @@ function CardapioResponseCards({ responses, template, onDelete, company, allTemp
                       <User className="h-4 w-4 text-primary" />
                     </div>
                     <div className="min-w-0">
-                      <p className="font-semibold text-sm truncate">{r.respondent_name || "Anônimo"}</p>
+                      <p className="font-semibold text-sm truncate">{getDisplayName(r)}</p>
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
@@ -262,7 +272,7 @@ function CardapioResponseCards({ responses, template, onDelete, company, allTemp
                     <User className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="text-base font-semibold">{selectedResponse.respondent_name || "Anônimo"}</p>
+                    <p className="text-base font-semibold">{getDisplayName(selectedResponse)}</p>
                     <p className="text-xs text-muted-foreground font-normal">
                       Preenchido em {format(new Date(selectedResponse.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     </p>
@@ -434,7 +444,7 @@ function CardapioResponseCards({ responses, template, onDelete, company, allTemp
                       <AlertDialogHeader>
                         <AlertDialogTitle>Apagar resposta?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          A resposta de <strong>{selectedResponse.respondent_name || "Anônimo"}</strong> será excluída permanentemente.
+                          A resposta de <strong>{getDisplayName(selectedResponse)}</strong> será excluída permanentemente.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -571,7 +581,7 @@ export function CardapioContent() {
     setLoadingResponses(true);
     const { data } = await supabase
       .from("cardapio_responses")
-      .select("*, company_events(event_date, title, guest_count)")
+      .select("*, company_events(event_date, title, guest_count, lead_id, leads(name))")
       .eq("template_id", t.id)
       .order("created_at", { ascending: false });
     setResponses(data || []);
