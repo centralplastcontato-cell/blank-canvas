@@ -363,6 +363,8 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
   const [formStatuses, setFormStatuses] = useState<FormStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewingResponses, setViewingResponses] = useState<FormStatus | null>(null);
+  const [viewingCardapio, setViewingCardapio] = useState<FormStatus | null>(null);
+  const [companyInfo, setCompanyInfo] = useState<{ name: string; logo_url: string | null } | null>(null);
   const [sendingForm, setSendingForm] = useState<string | null>(null);
 
   const fetchStatuses = useCallback(async () => {
