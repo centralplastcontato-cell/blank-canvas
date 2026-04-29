@@ -86,7 +86,7 @@ export function PartialPaymentDialog({ open, onOpenChange, onSubmit, paymentAmou
       const success = await onSubmit(payload);
       if (success !== false) {
         onOpenChange(false);
-        setAmount(""); setPaidBy(""); setNotes(""); setReceiptUrl(""); setBankAccountId("");
+        setAmount(""); setPaidBy(""); setNotes(""); setReceiptUrl(""); setBankAccountId(""); setCompensationDate("");
         setDuplicateDialogOpen(false);
         setDuplicateMatches([]);
         setPendingSubmit(null);
