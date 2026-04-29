@@ -56,6 +56,11 @@ interface FollowUpRecord {
   created_at: string;
 }
 
+interface ClosedEventRecord {
+  company_id: string;
+  data_fechamento_venda: string;
+}
+
 export default function HubDashboard() {
   return (
     <HubLayout
@@ -83,6 +88,7 @@ function HubDashboardContent({ userId }: { userId: string }) {
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [allConvoRecords, setAllConvoRecords] = useState<ConvoRecord[]>([]);
   const [allFollowUps, setAllFollowUps] = useState<FollowUpRecord[]>([]);
+  const [allClosedEvents, setAllClosedEvents] = useState<ClosedEventRecord[]>([]);
   const [filters, setFilters] = useState<DashboardFilters>(getDefaultFilters);
 
   useEffect(() => {
@@ -141,6 +147,18 @@ function HubDashboardContent({ userId }: { userId: string }) {
         const followUps: FollowUpRecord[] = followUpsRaw
           .filter((fu: any) => fu.company_id)
           .map((fu: any) => ({ company_id: fu.company_id, created_at: fu.created_at }));
+
+        // Fetch closed events (festas fechadas) by data_fechamento_venda
+        const closedEventsRaw = await fetchAll<any>(
+          supabase
+            .from("company_events")
+            .select("company_id, data_fechamento_venda")
+            .in("company_id", companyIds)
+            .not("data_fechamento_venda", "is", null)
+        );
+        const closedEvents: ClosedEventRecord[] = closedEventsRaw
+          .filter((e: any) => e.company_id && e.data_fechamento_venda)
+          .map((e: any) => ({ company_id: e.company_id, data_fechamento_venda: e.data_fechamento_venda }));
 
         const leadsByCompany = new Map<string, any[]>();
         allLeads.forEach(l => {
@@ -240,6 +258,7 @@ function HubDashboardContent({ userId }: { userId: string }) {
           is_closed: !!c.is_closed,
         })));
         setAllFollowUps(followUps);
+        setAllClosedEvents(closedEvents);
         setConversationTimings(timings);
       } catch (err) {
         console.error("Error fetching hub metrics:", err);
@@ -293,6 +312,24 @@ function HubDashboardContent({ userId }: { userId: string }) {
     return map;
   }, [filteredFollowUps]);
 
+  // Festas fechadas (eventos com data_fechamento_venda) filtradas pelo período + empresa
+  const filteredClosedEvents = useMemo(() => {
+    const fromYMD = filters.dateRange.from.toISOString().slice(0, 10);
+    const toYMD = filters.dateRange.to.toISOString().slice(0, 10);
+    return allClosedEvents.filter(e => {
+      const ymd = (e.data_fechamento_venda || "").slice(0, 10);
+      if (ymd < fromYMD || ymd > toYMD) return false;
+      if (filters.companyId && e.company_id !== filters.companyId) return false;
+      return true;
+    });
+  }, [allClosedEvents, filters]);
+
+  const closedByCompany = useMemo(() => {
+    const map = new Map<string, number>();
+    filteredClosedEvents.forEach(e => map.set(e.company_id, (map.get(e.company_id) || 0) + 1));
+    return map;
+  }, [filteredClosedEvents]);
+
   // Today ISO para "Leads Hoje" (sempre hoje, independente do filtro de período)
   const todayISO = useMemo(() => {
     const t = new Date();
@@ -306,14 +343,14 @@ function HubDashboardContent({ userId }: { userId: string }) {
     return {
       leads: leads.length,
       leadsToday: leads.filter(l => l.created_at >= todayISO).length,
-      closed: leads.filter(l => l.status === "fechado").length,
+      closed: filteredClosedEvents.length,
       lost: leads.filter(l => l.status === "perdido").length,
       newLeads: leads.filter(l => l.status === "novo").length,
       conversations: filteredConvos.length,
       activeConversations: filteredConvos.filter(c => !c.is_closed).length,
       messages: filteredMetrics.reduce((acc, m) => acc + m.totalMessages, 0),
     };
-  }, [filteredLeads, filteredConvos, filteredMetrics, todayISO]);
+  }, [filteredLeads, filteredConvos, filteredMetrics, filteredClosedEvents, todayISO]);
 
   const conversionRate = totals.leads > 0 ? ((totals.closed / totals.leads) * 100).toFixed(1) : "0";
 
@@ -385,7 +422,7 @@ function HubDashboardContent({ userId }: { userId: string }) {
       {!isLoadingMetrics && (
         <div className="grid gap-4 md:grid-cols-2">
           <HubSalesFunnel leads={filteredLeads} />
-          <HubUnitRanking metrics={filteredMetrics} followUpsByCompany={followUpsByCompany} />
+          <HubUnitRanking metrics={filteredMetrics} followUpsByCompany={followUpsByCompany} closedByCompany={closedByCompany} />
         </div>
       )}
 
