@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Lock, Loader2, Check } from "lucide-react";
+import { Lock, Loader2, Check, Save } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -167,6 +168,22 @@ export function PreFestaInternalAnswers({ responseId, answers, questions, onSave
             </div>
           );
         })}
+      </div>
+
+      <div className="flex justify-end pt-1">
+        <Button
+          size="sm"
+          variant="default"
+          className="h-8 px-3 gap-1.5 text-xs"
+          disabled={savingState === "saving"}
+          onClick={() => {
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+            persist(draft);
+          }}
+        >
+          {savingState === "saving" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+          Salvar
+        </Button>
       </div>
     </div>
   );
