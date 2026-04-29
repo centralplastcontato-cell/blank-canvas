@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { FileText, Image, Video, Plus, Pencil, Trash2, Loader2, Upload, FolderOpen, Images, X, GripVertical } from "lucide-react";
+import { FileText, Image, Video, Plus, Pencil, Trash2, Loader2, Upload, FolderOpen, Images, X, GripVertical, ZoomIn, RotateCw, Replace, Save } from "lucide-react";
 import {
   DndContext,
   closestCenter,
