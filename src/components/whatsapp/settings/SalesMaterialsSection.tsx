@@ -308,7 +308,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
 
     try {
       for (let i = 0; i < filesToUpload.length; i++) {
-        const file = filesToUpload[i];
+        let file = filesToUpload[i];
         
         // Validate file type
         if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
@@ -319,6 +319,9 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
         if (file.size > 50 * 1024 * 1024) {
           continue;
         }
+
+        // Normaliza orientação EXIF (evita fotos de lado no WhatsApp)
+        file = await normalizeImageOrientation(file);
 
         const fileExt = file.name.split(".").pop();
         const fileName = `${selectedUnit.toLowerCase()}/collections/${Date.now()}_${i}.${fileExt}`;
