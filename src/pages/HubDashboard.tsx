@@ -45,6 +45,12 @@ interface ConversationTiming {
   first_message_at: string | null;
 }
 
+interface ConvoRecord {
+  company_id: string;
+  created_at: string;
+  is_closed: boolean;
+}
+
 export default function HubDashboard() {
   return (
     <HubLayout
@@ -70,6 +76,7 @@ function HubDashboardContent({ userId }: { userId: string }) {
   const [allLeadRecords, setAllLeadRecords] = useState<LeadRecord[]>([]);
   const [conversationTimings, setConversationTimings] = useState<ConversationTiming[]>([]);
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [allConvoRecords, setAllConvoRecords] = useState<ConvoRecord[]>([]);
   const [filters, setFilters] = useState<DashboardFilters>(getDefaultFilters);
 
   useEffect(() => {
@@ -209,6 +216,11 @@ function HubDashboardContent({ userId }: { userId: string }) {
         }
         setCompanyMetrics(metrics);
         setAllLeadRecords(allLeadsRecords);
+        setAllConvoRecords(allConvos.map(c => ({
+          company_id: c.company_id,
+          created_at: c.created_at,
+          is_closed: !!c.is_closed,
+        })));
         setConversationTimings(timings);
       } catch (err) {
         console.error("Error fetching hub metrics:", err);
@@ -234,27 +246,48 @@ function HubDashboardContent({ userId }: { userId: string }) {
     return companyMetrics.filter(m => m.companyId === filters.companyId);
   }, [companyMetrics, filters.companyId]);
 
-  // KPIs
+  // Conversas filtradas por data + empresa (status não se aplica a conversas)
+  const filteredConvos = useMemo(() => {
+    const fromISO = filters.dateRange.from.toISOString();
+    const toISO = filters.dateRange.to.toISOString();
+    return allConvoRecords.filter(c => {
+      if (c.created_at < fromISO || c.created_at > toISO) return false;
+      if (filters.companyId && c.company_id !== filters.companyId) return false;
+      return true;
+    });
+  }, [allConvoRecords, filters]);
+
+  // Today ISO para "Leads Hoje" (sempre hoje, independente do filtro de período)
+  const todayISO = useMemo(() => {
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    return t.toISOString();
+  }, []);
+
+  // KPIs derivados dos leads filtrados pelo período
   const totals = useMemo(() => {
-    const m = filteredMetrics;
-    return m.reduce((acc, item) => ({
-      leads: acc.leads + item.totalLeads,
-      leadsToday: acc.leadsToday + item.leadsToday,
-      closed: acc.closed + item.leadsClosed,
-      lost: acc.lost + item.leadsLost,
-      newLeads: acc.newLeads + item.leadsNew,
-      conversations: acc.conversations + item.totalConversations,
-      activeConversations: acc.activeConversations + item.activeConversations,
-      messages: acc.messages + item.totalMessages,
-    }), { leads: 0, leadsToday: 0, closed: 0, lost: 0, newLeads: 0, conversations: 0, activeConversations: 0, messages: 0 });
-  }, [filteredMetrics]);
+    const leads = filteredLeads;
+    return {
+      leads: leads.length,
+      leadsToday: leads.filter(l => l.created_at >= todayISO).length,
+      closed: leads.filter(l => l.status === "fechado").length,
+      lost: leads.filter(l => l.status === "perdido").length,
+      newLeads: leads.filter(l => l.status === "novo").length,
+      conversations: filteredConvos.length,
+      activeConversations: filteredConvos.filter(c => !c.is_closed).length,
+      messages: filteredMetrics.reduce((acc, m) => acc + m.totalMessages, 0),
+    };
+  }, [filteredLeads, filteredConvos, filteredMetrics, todayISO]);
 
   const conversionRate = totals.leads > 0 ? ((totals.closed / totals.leads) * 100).toFixed(1) : "0";
 
   const avgResponseTime = useMemo(() => {
+    const fromISO = filters.dateRange.from.toISOString();
+    const toISO = filters.dateRange.to.toISOString();
     const relevant = conversationTimings.filter(t => {
       if (!t.first_message_at) return false;
       if (filters.companyId && t.company_id !== filters.companyId) return false;
+      if (t.created_at < fromISO || t.created_at > toISO) return false;
       return true;
     });
     if (!relevant.length) return null;
@@ -266,7 +299,7 @@ function HubDashboardContent({ userId }: { userId: string }) {
     if (avg < 60) return `${Math.round(avg)}min`;
     if (avg < 1440) return `${(avg / 60).toFixed(1)}h`;
     return `${(avg / 1440).toFixed(1)}d`;
-  }, [conversationTimings, filters.companyId]);
+  }, [conversationTimings, filters]);
 
   const summaryCards = [
     { title: "Total de Leads", value: totals.leads, icon: Users, gradient: "from-primary/20 via-primary/10 to-transparent", iconBg: "bg-primary/15", iconColor: "text-primary", borderColor: "border-primary/20" },
