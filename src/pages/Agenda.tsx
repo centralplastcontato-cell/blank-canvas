@@ -518,10 +518,12 @@ export default function Agenda() {
     if (paymentIds.length > 0) {
       const { data: entriesData } = await (supabase as any)
         .from("event_payment_entries")
-        .select("payment_id, amount")
+        .select("payment_id, amount, gross_amount")
         .in("payment_id", paymentIds);
       (entriesData || []).forEach((e: any) => {
-        entriesByPayment[e.payment_id] = (entriesByPayment[e.payment_id] || 0) + Number(e.amount || 0);
+        // Use gross_amount when available (what client actually paid), fallback to net amount
+        const grossValue = Number(e.gross_amount ?? e.amount ?? 0);
+        entriesByPayment[e.payment_id] = (entriesByPayment[e.payment_id] || 0) + grossValue;
       });
     }
 
