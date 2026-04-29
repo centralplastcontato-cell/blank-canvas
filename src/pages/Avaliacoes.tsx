@@ -681,6 +681,10 @@ export function AvaliacoesContent() {
                                 <Switch checked={q.required !== false} onCheckedChange={(v) => updateQuestion(idx, { required: v })} className="scale-75" />
                                 Obrigatória
                               </label>
+                              <label className="flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800" title="Marque para que esta pergunta NÃO apareça para o cliente. Apenas o buffet vê e preenche.">
+                                <input type="checkbox" checked={(q as any).internal === true} onChange={(e) => updateQuestion(idx, { internal: e.target.checked } as any)} className="rounded" />
+                                🔒 Interna
+                              </label>
                             </div>
                           </div>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeQuestion(idx)}>
