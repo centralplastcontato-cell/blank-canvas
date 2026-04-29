@@ -3567,8 +3567,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       if (filter === 'equipe') return conv.is_equipe;
       if (filter === 'favorites') return conv.is_favorite;
       if (filter === 'grupos') return conv.remote_jid?.endsWith('@g.us');
-      // 'all' filter - show non-closed conversations only
-      return !conv.is_closed;
+      // 'all' filter - show ALL conversations (including closed)
+      return true;
     })
     .sort((a, b) => {
       // Favorites first, then by last message
