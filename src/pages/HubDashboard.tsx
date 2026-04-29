@@ -69,7 +69,7 @@ export default function HubDashboard() {
         <div>
           <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
             <BarChart3 className="h-5 w-5" />
-            Painel Hub
+            Painel Celebrei
           </h1>
           <p className="text-xs text-muted-foreground">Visão consolidada de todas as empresas</p>
         </div>
