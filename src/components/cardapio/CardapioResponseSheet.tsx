@@ -316,8 +316,8 @@ export function CardapioResponseSheet({
                 {onDelete && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 w-full sm:w-auto justify-center">
-                        <Trash2 className="h-3.5 w-3.5" /> Apagar resposta
+                      <Button variant="ghost" size="sm" className="h-8 px-2.5 gap-1 text-xs text-destructive hover:text-destructive hover:bg-destructive/10">
+                        <Trash2 className="h-3 w-3" /> Apagar
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
