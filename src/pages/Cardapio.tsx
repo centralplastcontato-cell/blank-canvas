@@ -272,7 +272,7 @@ function CardapioResponseCards({ responses, template, onDelete, company, allTemp
                     <User className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="text-base font-semibold">{selectedResponse.respondent_name || "Anônimo"}</p>
+                    <p className="text-base font-semibold">{getDisplayName(selectedResponse)}</p>
                     <p className="text-xs text-muted-foreground font-normal">
                       Preenchido em {format(new Date(selectedResponse.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     </p>
