@@ -45,6 +45,12 @@ interface ConversationTiming {
   first_message_at: string | null;
 }
 
+interface ConvoRecord {
+  company_id: string;
+  created_at: string;
+  is_closed: boolean;
+}
+
 export default function HubDashboard() {
   return (
     <HubLayout
