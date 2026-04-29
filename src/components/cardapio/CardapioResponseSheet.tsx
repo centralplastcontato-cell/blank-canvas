@@ -144,7 +144,7 @@ export function CardapioResponseSheet({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side={side} className="w-full sm:max-w-md overflow-y-auto">
+        <SheetContent side={side} className="w-full sm:max-w-md overflow-y-auto overflow-x-hidden">
           {response && (
             <>
               <SheetHeader className="pb-4">
@@ -198,12 +198,12 @@ export function CardapioResponseSheet({
                 </div>
               )}
 
-              <div className="pt-4 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
-                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <div className="pt-4 flex flex-wrap gap-2 items-center justify-between">
+                <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
                   <Button
                     variant="default"
                     size="sm"
-                    className="gap-1.5 w-full sm:w-auto justify-center"
+                    className="h-8 px-2.5 gap-1 text-xs"
                     disabled={printing || !pdfTemplateId}
                     onClick={async () => {
                       const tpl =
@@ -233,8 +233,8 @@ export function CardapioResponseSheet({
                       }
                     }}
                   >
-                    {printing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
-                    Pré-visualizar PDF
+                    {printing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eye className="h-3 w-3" />}
+                    PDF
                   </Button>
 
                   <Popover>
@@ -242,10 +242,10 @@ export function CardapioResponseSheet({
                       <Button
                         variant="outline"
                         size="sm"
-                        className="gap-1.5 w-full sm:w-auto justify-center"
+                        className="h-8 px-2.5 gap-1 text-xs"
                         title="Preferências de impressão"
                       >
-                        <Settings2 className="h-3.5 w-3.5" />
+                        <Settings2 className="h-3 w-3" />
                         Preferências
                       </Button>
                     </PopoverTrigger>
@@ -316,8 +316,8 @@ export function CardapioResponseSheet({
                 {onDelete && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 w-full sm:w-auto justify-center">
-                        <Trash2 className="h-3.5 w-3.5" /> Apagar resposta
+                      <Button variant="ghost" size="sm" className="h-8 px-2.5 gap-1 text-xs text-destructive hover:text-destructive hover:bg-destructive/10">
+                        <Trash2 className="h-3 w-3" /> Apagar
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
