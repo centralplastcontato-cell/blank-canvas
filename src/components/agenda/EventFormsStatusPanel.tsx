@@ -26,6 +26,7 @@ import { buildPublicFormUrl } from "@/lib/publicFormRoutes";
 import { format } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { CardapioResponseSheet } from "@/components/cardapio/CardapioResponseSheet";
+import { PreFestaInternalAnswers } from "@/components/agenda/PreFestaInternalAnswers";
 import { generatePreFestaPrintPDF } from "@/lib/prefestaPrintPDF";
 import { useCardapioPrintPrefs } from "@/hooks/useCardapioPrintPrefs";
 
