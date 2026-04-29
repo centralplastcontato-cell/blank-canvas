@@ -850,6 +850,114 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
                   </div>
                 </div>
                 <FormattedResponseView answers={resp.answers} formType={viewingResponses.type} questions={viewingResponses.templateQuestions} />
+
+                {viewingResponses?.type === "prefesta" && (
+                  <div className="pt-2 flex flex-wrap gap-1.5 items-center justify-between border-t border-border/40">
+                    <div className="flex flex-wrap gap-1.5">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="h-8 px-2.5 gap-1 text-xs"
+                        disabled={printingId === resp.id}
+                        onClick={() => handleGeneratePreFestaPDF(resp)}
+                      >
+                        {printingId === resp.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eye className="h-3 w-3" />}
+                        PDF
+                      </Button>
+
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-8 px-2.5 gap-1 text-xs">
+                            <Settings2 className="h-3 w-3" />
+                            Preferências
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-72 space-y-4" align="start">
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold">Preferências de impressão</p>
+                            <p className="text-xs text-muted-foreground">
+                              Salvas neste navegador para os próximos PDFs.
+                            </p>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Tamanho da página</Label>
+                            <RadioGroup
+                              value={printPrefs.pageSize}
+                              onValueChange={(v) => setPrintPrefs({ ...printPrefs, pageSize: v as "a4" | "letter" })}
+                              className="flex gap-4"
+                            >
+                              <div className="flex items-center gap-2">
+                                <RadioGroupItem value="a4" id={`pf-a4-${resp.id}`} />
+                                <Label htmlFor={`pf-a4-${resp.id}`} className="text-sm font-normal cursor-pointer">A4</Label>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <RadioGroupItem value="letter" id={`pf-letter-${resp.id}`} />
+                                <Label htmlFor={`pf-letter-${resp.id}`} className="text-sm font-normal cursor-pointer">Carta</Label>
+                              </div>
+                            </RadioGroup>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Orientação</Label>
+                            <RadioGroup
+                              value={printPrefs.orientation}
+                              onValueChange={(v) => setPrintPrefs({ ...printPrefs, orientation: v as "portrait" | "landscape" })}
+                              className="flex gap-4"
+                            >
+                              <div className="flex items-center gap-2">
+                                <RadioGroupItem value="portrait" id={`pf-or-p-${resp.id}`} />
+                                <Label htmlFor={`pf-or-p-${resp.id}`} className="text-sm font-normal cursor-pointer">Retrato</Label>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <RadioGroupItem value="landscape" id={`pf-or-l-${resp.id}`} />
+                                <Label htmlFor={`pf-or-l-${resp.id}`} className="text-sm font-normal cursor-pointer">Paisagem</Label>
+                              </div>
+                            </RadioGroup>
+                          </div>
+                          <div className="flex items-center justify-between gap-2 pt-1 border-t">
+                            <Label htmlFor={`pf-inc-${resp.id}`} className="text-sm font-normal cursor-pointer flex-1">
+                              Incluir dados do cliente
+                            </Label>
+                            <Switch
+                              id={`pf-inc-${resp.id}`}
+                              checked={printPrefs.includeClientInfo}
+                              onCheckedChange={(checked) => setPrintPrefs({ ...printPrefs, includeClientInfo: checked })}
+                            />
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 px-2.5 gap-1 text-xs text-destructive hover:text-destructive hover:bg-destructive/10">
+                          <Trash2 className="h-3 w-3" /> Apagar
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Apagar resposta?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            A resposta {resp.respondent_name ? <>de <strong>{resp.respondent_name}</strong></> : null} será excluída permanentemente. Esta ação não pode ser desfeita.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            disabled={deletingId === resp.id}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleDeleteResponse(resp, viewingResponses.type);
+                            }}
+                          >
+                            {deletingId === resp.id ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                            Apagar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                )}
               </div>
             ))}
             {viewingResponses?.responses.length === 0 && (
@@ -858,6 +966,57 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* PDF Preview Dialog (Pré-Festa) */}
+      <Dialog
+        open={!!pdfPreview}
+        onOpenChange={(open) => {
+          if (!open && pdfPreview) {
+            URL.revokeObjectURL(pdfPreview.url);
+            setPdfPreview(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-5xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 py-4 border-b shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-4 w-4 text-primary" />
+              Pré-visualização do PDF
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden bg-muted/30">
+            {pdfPreview && (
+              <iframe src={pdfPreview.url} title="Pré-visualização Pré-Festa" className="w-full h-full border-0" />
+            )}
+          </div>
+          <DialogFooter className="px-6 py-3 border-t shrink-0 gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (pdfPreview) {
+                  URL.revokeObjectURL(pdfPreview.url);
+                  setPdfPreview(null);
+                }
+              }}
+            >
+              Fechar
+            </Button>
+            <Button
+              onClick={() => {
+                if (!pdfPreview) return;
+                const a = document.createElement("a");
+                a.href = pdfPreview.url;
+                a.download = pdfPreview.fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+              }}
+            >
+              Baixar PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Response Dialog */}
       <Dialog open={!!editingResponse} onOpenChange={(o) => !o && setEditingResponse(null)}>
