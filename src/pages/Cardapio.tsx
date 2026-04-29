@@ -238,7 +238,7 @@ function CardapioResponseCards({ responses, template, onDelete, company, allTemp
                       <User className="h-4 w-4 text-primary" />
                     </div>
                     <div className="min-w-0">
-                      <p className="font-semibold text-sm truncate">{r.respondent_name || "Anônimo"}</p>
+                      <p className="font-semibold text-sm truncate">{getDisplayName(r)}</p>
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         {format(new Date(r.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
