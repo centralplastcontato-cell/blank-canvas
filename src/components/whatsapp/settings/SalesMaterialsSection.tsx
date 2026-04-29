@@ -243,6 +243,9 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
     setIsUploading(true);
 
     try {
+      // Normaliza orientação EXIF (evita fotos de lado no WhatsApp)
+      file = await normalizeImageOrientation(file);
+
       const fileExt = file.name.split(".").pop();
       const fileName = `${selectedUnit.toLowerCase()}/${formData.type}/${Date.now()}.${fileExt}`;
 
