@@ -395,6 +395,22 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
   const [printingId, setPrintingId] = useState<string | null>(null);
   const [pdfPreview, setPdfPreview] = useState<{ url: string; fileName: string } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [eventInternalNotes, setEventInternalNotes] = useState<string | null>(null);
+
+  // Buscar internal_notes do evento (campo único bridge entre modal da festa e card do pré-festa)
+  useEffect(() => {
+    let cancelled = false;
+    if (!eventId) return;
+    (async () => {
+      const { data } = await supabase
+        .from("company_events")
+        .select("internal_notes")
+        .eq("id", eventId)
+        .maybeSingle();
+      if (!cancelled) setEventInternalNotes((data?.internal_notes as string | null) ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [eventId, viewingResponses?.type]);
 
   const handleDeleteResponse = async (resp: any, formType: string) => {
     setDeletingId(resp.id);
