@@ -51,6 +51,11 @@ interface ConvoRecord {
   is_closed: boolean;
 }
 
+interface FollowUpRecord {
+  company_id: string;
+  created_at: string;
+}
+
 export default function HubDashboard() {
   return (
     <HubLayout
