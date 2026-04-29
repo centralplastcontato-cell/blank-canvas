@@ -481,7 +481,7 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
         if (ft.responseTable === "prefesta_responses" || ft.responseTable === "evaluation_responses") {
           const { data } = await (supabase as any)
             .from(ft.responseTable)
-            .select("id, answers, respondent_name, created_at")
+            .select("id, answers, respondent_name, created_at, event_id, template_id, company_events(event_date, title, guest_count)")
             .eq("event_id", eventId)
             .order("created_at", { ascending: false });
           responses = data || [];
