@@ -202,6 +202,7 @@ export function useEventFinancial(eventId: string | undefined, companyId: string
     type: string; amount: number; due_date: string; payment_method: string;
     notes?: string; bank_account_id?: string;
     card_operator_id?: string; card_installments?: number; card_fee_percent?: number; gross_amount?: number;
+    compensation_date?: string;
   }) => {
     if (!eventId || !companyId) return;
     const { notes, ...rest } = data;
