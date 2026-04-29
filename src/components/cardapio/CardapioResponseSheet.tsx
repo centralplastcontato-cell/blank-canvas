@@ -198,12 +198,12 @@ export function CardapioResponseSheet({
                 </div>
               )}
 
-              <div className="pt-4 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
-                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <div className="pt-4 flex flex-wrap gap-2 items-center justify-between">
+                <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
                   <Button
                     variant="default"
                     size="sm"
-                    className="gap-1.5 w-full sm:w-auto justify-center"
+                    className="h-8 px-2.5 gap-1 text-xs"
                     disabled={printing || !pdfTemplateId}
                     onClick={async () => {
                       const tpl =
