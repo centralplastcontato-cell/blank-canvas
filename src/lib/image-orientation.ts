@@ -1,19 +1,48 @@
-/**
- * Normaliza a orientação de uma imagem antes do upload.
- * O navegador aplica EXIF orientation ao renderizar, mas APIs como WhatsApp
- * exibem os pixels brutos — fotos verticais aparecem deitadas.
- *
- * Esta função decodifica a imagem aplicando a orientação correta ("from-image")
- * e regrava os pixels já rotacionados, eliminando a tag EXIF.
- *
- * - Imagens não suportadas (PDF/vídeo) ou já corretas retornam o arquivo original.
- * - Mantém o nome e tipo MIME originais.
- */
+function readJpegOrientation(file: File): Promise<number> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const buffer = reader.result as ArrayBuffer;
+      const view = new DataView(buffer);
+      if (view.getUint16(0, false) !== 0xffd8) return resolve(1);
+
+      let offset = 2;
+      while (offset < view.byteLength) {
+        if (view.getUint8(offset) !== 0xff) return resolve(1);
+        const marker = view.getUint8(offset + 1);
+        const size = view.getUint16(offset + 2, false);
+
+        if (marker === 0xe1 && view.getUint32(offset + 4, false) === 0x45786966) {
+          const tiff = offset + 10;
+          const little = view.getUint16(tiff, false) === 0x4949;
+          const ifd = tiff + view.getUint32(tiff + 4, little);
+          const tags = view.getUint16(ifd, little);
+
+          for (let i = 0; i < tags; i++) {
+            const entry = ifd + 2 + i * 12;
+            if (view.getUint16(entry, little) === 0x0112) {
+              return resolve(view.getUint16(entry + 8, little));
+            }
+          }
+        }
+
+        offset += 2 + size;
+      }
+      resolve(1);
+    };
+    reader.onerror = () => resolve(1);
+    reader.readAsArrayBuffer(file.slice(0, 64 * 1024));
+  });
+}
+
+/** Normaliza somente JPEGs que realmente têm EXIF de rotação. */
 export async function normalizeImageOrientation(file: File): Promise<File> {
-  // Apenas imagens raster comuns
-  if (!/^image\/(jpeg|jpg|png|webp)$/i.test(file.type)) return file;
+  if (!/^image\/jpe?g$/i.test(file.type)) return file;
 
   try {
+    const orientation = await readJpegOrientation(file);
+    if (orientation < 2 || orientation > 8) return file;
+
     const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
     const canvas = document.createElement("canvas");
     canvas.width = bitmap.width;
@@ -26,17 +55,13 @@ export async function normalizeImageOrientation(file: File): Promise<File> {
     ctx.drawImage(bitmap, 0, 0);
     bitmap.close();
 
-    // Mantém JPEG como JPEG; PNG/WebP -> JPEG (menor e sem EXIF)
-    const outType = file.type === "image/png" ? "image/png" : "image/jpeg";
-    const quality = outType === "image/jpeg" ? 0.92 : undefined;
-
     const blob: Blob | null = await new Promise((resolve) =>
-      canvas.toBlob(resolve, outType, quality)
+      canvas.toBlob(resolve, "image/jpeg", 0.92)
     );
     if (!blob) return file;
 
     return new File([blob], file.name, {
-      type: outType,
+      type: "image/jpeg",
       lastModified: Date.now(),
     });
   } catch (err) {
