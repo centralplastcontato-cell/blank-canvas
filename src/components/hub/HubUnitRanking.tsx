@@ -88,6 +88,10 @@ export function HubUnitRanking({ metrics, followUpsByCompany }: HubUnitRankingPr
                   <p className="text-xs text-muted-foreground">Fechados</p>
                   <p className="text-sm font-bold text-emerald-600">{unit.leadsClosed}</p>
                 </div>
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground">Follow-ups</p>
+                  <p className="text-sm font-bold text-indigo-600">{followUpsByCompany?.get(unit.companyId) || 0}</p>
+                </div>
               </div>
             </div>
           ))}
