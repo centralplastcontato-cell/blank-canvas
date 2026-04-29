@@ -205,9 +205,26 @@ export function PartialPaymentDialog({ open, onOpenChange, onSubmit, paymentAmou
                   <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
                   <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
                   <SelectItem value="transferencia">Transferência</SelectItem>
+                  <SelectItem value="cheque">Cheque</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            {method === "cheque" && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+                <Label className="text-xs font-semibold text-amber-600 uppercase tracking-wide">
+                  📅 Data de compensação do cheque
+                </Label>
+                <Input
+                  type="date"
+                  value={compensationDate}
+                  onChange={e => setCompensationDate(e.target.value)}
+                  className="bg-white"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Quando o cheque deve cair na conta. O pagamento só será considerado efetivo nessa data.
+                </p>
+              </div>
+            )}
             <BankAccountSelect
               value={bankAccountId || null}
               onValueChange={setBankAccountId}
