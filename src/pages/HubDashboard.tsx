@@ -258,6 +258,7 @@ function HubDashboardContent({ userId }: { userId: string }) {
           is_closed: !!c.is_closed,
         })));
         setAllFollowUps(followUps);
+        setAllClosedEvents(closedEvents);
         setConversationTimings(timings);
       } catch (err) {
         console.error("Error fetching hub metrics:", err);
