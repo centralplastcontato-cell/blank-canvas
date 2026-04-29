@@ -18,6 +18,7 @@ interface CompanyMetrics {
 
 interface HubUnitRankingProps {
   metrics: CompanyMetrics[];
+  followUpsByCompany?: Map<string, number>;
 }
 
 const MEDAL_COLORS = ["text-amber-500", "text-slate-400", "text-orange-700"];
