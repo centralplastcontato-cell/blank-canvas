@@ -870,11 +870,13 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
                 </div>
                 <FormattedResponseView answers={resp.answers} formType={viewingResponses.type} questions={viewingResponses.templateQuestions} />
 
-                {viewingResponses?.type === "prefesta" && (viewingResponses.templateQuestions || []).some((q: any) => q?.internal === true) && (
+                {viewingResponses?.type === "prefesta" && (
                   <PreFestaInternalAnswers
                     responseId={resp.id}
                     answers={resp.answers}
                     questions={viewingResponses.templateQuestions || []}
+                    eventId={eventId}
+                    eventInternalNotes={eventInternalNotes}
                   />
                 )}
 
