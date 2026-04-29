@@ -468,7 +468,14 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
       if (currentUrl) {
         const response = await fetch(currentUrl, { mode: "cors" });
         const blob = await response.blob();
-        const sourceType = blob.type || "image/jpeg";
+        const urlPath = currentUrl.toLowerCase().split("?")[0];
+        const sourceType = blob.type.startsWith("image/")
+          ? blob.type
+          : urlPath.endsWith(".png")
+            ? "image/png"
+            : urlPath.endsWith(".webp")
+              ? "image/webp"
+              : "image/jpeg";
         const sourceExt = sourceType.includes("png") ? "png" : sourceType.includes("webp") ? "webp" : "jpg";
         const sourceFile = new File([blob], `photo_${index + 1}.${sourceExt}`, { type: sourceType });
         const normalizedUrl = await uploadPhotoFile(sourceFile);
