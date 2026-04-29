@@ -26,6 +26,7 @@ import { buildPublicFormUrl } from "@/lib/publicFormRoutes";
 import { format } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { CardapioResponseSheet } from "@/components/cardapio/CardapioResponseSheet";
+import { PreFestaInternalAnswers } from "@/components/agenda/PreFestaInternalAnswers";
 import { generatePreFestaPrintPDF } from "@/lib/prefestaPrintPDF";
 import { useCardapioPrintPrefs } from "@/hooks/useCardapioPrintPrefs";
 
@@ -306,6 +307,8 @@ function FormattedResponseView({ answers, formType, questions }: { answers: any;
             const question = qId
               ? (questions.find((q: any) => q.id === qId) || questions.find((q: any) => qId.startsWith(q.id)))
               : questions[i];
+            // Hide internal questions from the regular response list — they are shown in the dedicated buffet panel below.
+            if (question?.internal === true) return null;
             const label = question?.text || question?.label || question?.title || `Pergunta ${i + 1}`;
             return (
               <div key={i} className="space-y-0.5">
@@ -850,6 +853,15 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
                   </div>
                 </div>
                 <FormattedResponseView answers={resp.answers} formType={viewingResponses.type} questions={viewingResponses.templateQuestions} />
+
+                {viewingResponses?.type === "prefesta" && (viewingResponses.templateQuestions || []).some((q: any) => q?.internal === true) && (
+                  <PreFestaInternalAnswers
+                    responseId={resp.id}
+                    answers={resp.answers}
+                    questions={viewingResponses.templateQuestions || []}
+                    onSaved={fetchStatuses}
+                  />
+                )}
 
                 {viewingResponses?.type === "prefesta" && (
                   <div className="pt-2 flex flex-wrap gap-1.5 items-center justify-between border-t border-border/40">
