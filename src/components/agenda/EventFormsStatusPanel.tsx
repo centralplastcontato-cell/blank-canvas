@@ -1,19 +1,26 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import {
   FileText, ClipboardList, UtensilsCrossed, Star, CheckCircle2, Clock, Eye, Loader2,
   User, MapPin, Phone, Mail, Calendar, Users, Baby, CreditCard, Hash, MessageCircle,
+  Pencil, Save, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { buildPublicFormUrl } from "@/lib/publicFormRoutes";
 import { format } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { CardapioResponseSheet } from "@/components/cardapio/CardapioResponseSheet";
+
+
 
 interface FormStatus {
   type: string;
@@ -361,12 +368,51 @@ function tryParseJSON(str: string): any[] {
 }
 
 export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, parentNames }: EventFormsStatusPanelProps) {
+  const navigate = useNavigate();
   const [formStatuses, setFormStatuses] = useState<FormStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewingResponses, setViewingResponses] = useState<FormStatus | null>(null);
   const [viewingCardapio, setViewingCardapio] = useState<FormStatus | null>(null);
   const [companyInfo, setCompanyInfo] = useState<{ name: string; logo_url: string | null } | null>(null);
   const [sendingForm, setSendingForm] = useState<string | null>(null);
+  const [editingResponse, setEditingResponse] = useState<{ resp: any; formType: string } | null>(null);
+  const [editDraft, setEditDraft] = useState<Record<string, any>>({});
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const handleEditTemplate = (formType: string) => {
+    navigate(`/formularios?section=formularios&tab=${formType}`);
+  };
+
+  const openEditResponse = (resp: any, formType: string) => {
+    const data = resp.answers && typeof resp.answers === "object" && !Array.isArray(resp.answers)
+      ? { ...resp.answers }
+      : {};
+    setEditDraft(data);
+    setEditingResponse({ resp, formType });
+  };
+
+  const saveEditResponse = async () => {
+    if (!editingResponse) return;
+    setSavingEdit(true);
+    try {
+      const { resp, formType } = editingResponse;
+      if (formType === "prefesta") {
+        await (supabase as any).from("prefesta_responses").update({ answers: editDraft }).eq("id", resp.id);
+      } else if (formType === "avaliacao") {
+        await (supabase as any).from("evaluation_responses").update({ answers: editDraft }).eq("id", resp.id);
+      } else if (formType === "contrato") {
+        await (supabase as any).from("client_data_requests").update({ client_data: editDraft }).eq("id", resp.id);
+      }
+      toast({ title: "Resposta atualizada" });
+      setEditingResponse(null);
+      fetchStatuses();
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar", description: err?.message, variant: "destructive" });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
 
   const fetchStatuses = useCallback(async () => {
     if (!eventId || !companyId) return;
@@ -670,6 +716,15 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
                       Pendente
                     </Badge>
                   )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                    onClick={() => handleEditTemplate(fs.type)}
+                    title="Editar template do formulário"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
                 </div>
 
                 {/* Send button row - show when form has a template and lead is linked */}
@@ -716,9 +771,23 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
                   {resp.respondent_name && (
                     <span className="text-xs font-semibold text-foreground truncate">{resp.respondent_name}</span>
                   )}
-                  <Badge variant="outline" className="text-[9px] font-normal shrink-0">
-                    {format(new Date(resp.created_at), "dd/MM/yyyy 'às' HH:mm")}
-                  </Badge>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Badge variant="outline" className="text-[9px] font-normal">
+                      {format(new Date(resp.created_at), "dd/MM/yyyy 'às' HH:mm")}
+                    </Badge>
+                    {viewingResponses && resp.answers && typeof resp.answers === "object" && !Array.isArray(resp.answers) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-[10px] gap-1"
+                        onClick={() => openEditResponse(resp, viewingResponses.type)}
+                        title="Editar resposta deste cliente"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        Editar
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <FormattedResponseView answers={resp.answers} formType={viewingResponses.type} questions={viewingResponses.templateQuestions} />
               </div>
@@ -729,6 +798,64 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Edit Response Dialog */}
+      <Dialog open={!!editingResponse} onOpenChange={(o) => !o && setEditingResponse(null)}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Pencil className="h-4 w-4 text-primary" />
+              Editar resposta
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {Object.entries(editDraft).map(([key, value]) => {
+              if (HIDDEN_FIELDS.has(key)) return null;
+              const isObject = value && typeof value === "object";
+              const stringValue = isObject ? JSON.stringify(value, null, 2) : String(value ?? "");
+              const isLong = stringValue.length > 60 || stringValue.includes("\n");
+              return (
+                <div key={key} className="space-y-1">
+                  <Label className="text-xs text-muted-foreground capitalize">
+                    {key.replace(/_/g, " ")}
+                  </Label>
+                  {isLong || isObject ? (
+                    <Textarea
+                      className="bg-white text-sm min-h-[70px] font-mono text-xs"
+                      value={stringValue}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setEditDraft((prev) => ({
+                          ...prev,
+                          [key]: isObject ? (() => { try { return JSON.parse(v); } catch { return v; } })() : v,
+                        }));
+                      }}
+                    />
+                  ) : (
+                    <Input
+                      className="bg-white text-sm"
+                      value={stringValue}
+                      onChange={(e) => setEditDraft((prev) => ({ ...prev, [key]: e.target.value }))}
+                    />
+                  )}
+                </div>
+              );
+            })}
+            {Object.keys(editDraft).length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">Nenhum campo editável.</p>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditingResponse(null)} disabled={savingEdit}>
+              <X className="h-4 w-4 mr-1" /> Cancelar
+            </Button>
+            <Button onClick={saveEditResponse} disabled={savingEdit}>
+              {savingEdit ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Cardápio lateral sheet — same UX as Operações > Cardápio */}
       <CardapioResponseSheet
