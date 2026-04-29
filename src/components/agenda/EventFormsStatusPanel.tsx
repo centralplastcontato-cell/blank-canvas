@@ -368,12 +368,51 @@ function tryParseJSON(str: string): any[] {
 }
 
 export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, parentNames }: EventFormsStatusPanelProps) {
+  const navigate = useNavigate();
   const [formStatuses, setFormStatuses] = useState<FormStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewingResponses, setViewingResponses] = useState<FormStatus | null>(null);
   const [viewingCardapio, setViewingCardapio] = useState<FormStatus | null>(null);
   const [companyInfo, setCompanyInfo] = useState<{ name: string; logo_url: string | null } | null>(null);
   const [sendingForm, setSendingForm] = useState<string | null>(null);
+  const [editingResponse, setEditingResponse] = useState<{ resp: any; formType: string } | null>(null);
+  const [editDraft, setEditDraft] = useState<Record<string, any>>({});
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const handleEditTemplate = (formType: string) => {
+    navigate(`/formularios?section=formularios&tab=${formType}`);
+  };
+
+  const openEditResponse = (resp: any, formType: string) => {
+    const data = resp.answers && typeof resp.answers === "object" && !Array.isArray(resp.answers)
+      ? { ...resp.answers }
+      : {};
+    setEditDraft(data);
+    setEditingResponse({ resp, formType });
+  };
+
+  const saveEditResponse = async () => {
+    if (!editingResponse) return;
+    setSavingEdit(true);
+    try {
+      const { resp, formType } = editingResponse;
+      if (formType === "prefesta") {
+        await (supabase as any).from("prefesta_responses").update({ answers: editDraft }).eq("id", resp.id);
+      } else if (formType === "avaliacao") {
+        await (supabase as any).from("evaluation_responses").update({ answers: editDraft }).eq("id", resp.id);
+      } else if (formType === "contrato") {
+        await (supabase as any).from("client_data_requests").update({ client_data: editDraft }).eq("id", resp.id);
+      }
+      toast({ title: "Resposta atualizada" });
+      setEditingResponse(null);
+      fetchStatuses();
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar", description: err?.message, variant: "destructive" });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
 
   const fetchStatuses = useCallback(async () => {
     if (!eventId || !companyId) return;
