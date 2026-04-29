@@ -465,6 +465,8 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
           templateSlug: tmpl?.slug || undefined,
           publicPath: ft.publicPath,
           templateQuestions: Array.isArray(tmpl?.questions) ? tmpl.questions : undefined,
+          templateSections: ft.type === "cardapio" && Array.isArray(tmpl?.sections) ? tmpl.sections : undefined,
+          cardapioTemplates: ft.type === "cardapio" ? cardapioTemplates : undefined,
         });
       }
 
