@@ -416,7 +416,7 @@ export function EventFormsStatusPanel({ eventId, companyId, leadId, eventDate, p
         } else if (ft.responseTable === "cardapio_responses") {
           const { data } = await supabase
             .from("cardapio_responses")
-            .select("id, answers, respondent_name, created_at")
+            .select("id, answers, respondent_name, created_at, event_id, template_id, company_events(event_date, title, guest_count, child_name, parent_names, lead_id, campaign_leads(name))")
             .eq("event_id", eventId)
             .order("created_at", { ascending: false });
           responses = data || [];
