@@ -147,7 +147,7 @@ export function CardapioResponseSheet({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side={side} className="w-full sm:max-w-md overflow-y-auto overflow-x-hidden">
+        <SheetContent side={side} className={`w-full sm:max-w-md overflow-y-auto overflow-x-hidden ${contentClassName ?? ""}`}>
           {response && (
             <>
               <SheetHeader className="pb-4">
