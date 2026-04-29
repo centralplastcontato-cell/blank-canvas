@@ -1273,6 +1273,10 @@ export function FreelancerManagerContent() {
                             <input type="checkbox" checked={q.required !== false} onChange={(e) => updateQuestion(idx, { required: e.target.checked })} className="rounded h-3.5 w-3.5 accent-primary" />
                             Obrigatória
                           </label>
+                          <label className="flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 cursor-pointer select-none" title="Marque para que esta pergunta NÃO apareça para o cliente. Apenas o buffet vê e preenche.">
+                            <input type="checkbox" checked={(q as any).internal === true} onChange={(e) => updateQuestion(idx, { internal: e.target.checked } as any)} className="rounded h-3.5 w-3.5 accent-amber-600" />
+                            🔒 Interna
+                          </label>
                         </div>
                         {(q.type === "select" || q.type === "multiselect") && (
                           <OptionChipsEditor
