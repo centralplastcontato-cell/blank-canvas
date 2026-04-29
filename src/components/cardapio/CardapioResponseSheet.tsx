@@ -233,8 +233,8 @@ export function CardapioResponseSheet({
                       }
                     }}
                   >
-                    {printing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
-                    Pré-visualizar PDF
+                    {printing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eye className="h-3 w-3" />}
+                    PDF
                   </Button>
 
                   <Popover>
@@ -242,10 +242,10 @@ export function CardapioResponseSheet({
                       <Button
                         variant="outline"
                         size="sm"
-                        className="gap-1.5 w-full sm:w-auto justify-center"
+                        className="h-8 px-2.5 gap-1 text-xs"
                         title="Preferências de impressão"
                       >
-                        <Settings2 className="h-3.5 w-3.5" />
+                        <Settings2 className="h-3 w-3" />
                         Preferências
                       </Button>
                     </PopoverTrigger>
