@@ -142,8 +142,8 @@ export function PartialPaymentDialog({ open, onOpenChange, onSubmit, paymentAmou
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-3 border-b shrink-0">
             <DialogTitle>Pagamento Parcial</DialogTitle>
             <p className="text-xs text-muted-foreground mt-1">{paymentLabel}</p>
             {eventContext && (
