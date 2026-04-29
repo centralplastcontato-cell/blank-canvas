@@ -93,6 +93,10 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues,
 
   const handleSubmit = async () => {
     if (!grossAmount || !dueDate) return;
+    if (method === "cheque" && !compensationDate) {
+      // simple inline guard; UI shows the field below when method === cheque
+      return;
+    }
 
     const submitData: PaymentFormSubmitData = {
       type,
@@ -101,6 +105,7 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       payment_method: method,
       notes: notes.trim() || undefined,
       bank_account_id: bankAccountId || undefined,
+      compensation_date: method === "cheque" ? compensationDate : undefined,
     };
 
     if (isCard && operator && calc.feePercent > 0) {
