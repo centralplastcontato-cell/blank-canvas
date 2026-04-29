@@ -105,15 +105,16 @@ export default function PublicContrato() {
     );
   }
 
-  const totalSteps = Math.max(...template.questions.map(q => q.step), 1);
+  const visibleQuestions = template.questions.filter((q: any) => q.internal !== true);
+  const totalSteps = Math.max(...visibleQuestions.map(q => q.step), 1);
 
   // Inject synthetic Instagram question after the email question if not already present
-  const hasInstagramQuestion = template.questions.some(q => q.text.toLowerCase().includes("instagram"));
+  const hasInstagramQuestion = visibleQuestions.some(q => q.text.toLowerCase().includes("instagram"));
   const questionsWithInstagram = (() => {
-    if (hasInstagramQuestion) return template.questions;
-    const emailIdx = template.questions.findIndex(q => q.text.toLowerCase().includes("e-mail") || q.text.toLowerCase().includes("email"));
-    if (emailIdx === -1) return template.questions;
-    const emailQ = template.questions[emailIdx];
+    if (hasInstagramQuestion) return visibleQuestions;
+    const emailIdx = visibleQuestions.findIndex(q => q.text.toLowerCase().includes("e-mail") || q.text.toLowerCase().includes("email"));
+    if (emailIdx === -1) return visibleQuestions;
+    const emailQ = visibleQuestions[emailIdx];
     const instaQ: ContratoQuestion = {
       id: "__instagram__",
       type: "text",
@@ -121,7 +122,7 @@ export default function PublicContrato() {
       step: emailQ.step,
       required: false,
     };
-    const copy = [...template.questions];
+    const copy = [...visibleQuestions];
     copy.splice(emailIdx + 1, 0, instaQ);
     return copy;
   })();
