@@ -28,6 +28,7 @@ const METHOD_LABELS: Record<string, string> = {
   cartao_credito: "Cartão Crédito",
   cartao_debito: "Cartão Débito",
   transferencia: "Transferência",
+  cheque: "Cheque",
 };
 
 const STATUS_BADGE: Record<string, { label: string; className: string; bgRow: string }> = {
