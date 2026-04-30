@@ -3288,12 +3288,53 @@ async function processBotQualification(
           notificationMessage = `${leadName} está analisando os materiais. Aguarde ou faça follow-up em breve.`;
           notificationPriority = false;
           console.log(`[Bot] User ${contactPhone} wants time to analyze - updating status to orcamento_enviado`);
-        } else {
-          // Invalid choice, re-ask
-          nextStep = 'proximo_passo';
-          const defaultNextStepQuestion = `E agora, como você gostaria de continuar? 🤔\n\nResponda com o *número*:\n\n${buildMenuText(PROXIMO_PASSO_OPTIONS)}`;
-          msg = `Por favor, responda apenas com o *número* da opção desejada (1, 2 ou 3) 👇\n\n${settings.next_step_question || defaultNextStepQuestion}`;
-        }
+         } else {
+           // Invalid choice — DO NOT revert step (would re-trigger auto reminder cron forever).
+           // Keep current step (proximo_passo OR proximo_passo_reminded) and increment invalid_count.
+           // After 2 invalid replies, pause bot 24h and notify operator.
+           const prevInvalid = Number((updated as Record<string, unknown>)?.invalid_count || 0);
+           const newInvalid = prevInvalid + 1;
+           (updated as Record<string, unknown>).invalid_count = newInvalid;
+
+           if (newInvalid >= 2) {
+             // Pause bot silently and hand over to human
+             nextStep = step; // keep current
+             const pausedUntil = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+             await supabase.from('wapi_conversations').update({
+               bot_paused_until: pausedUntil,
+               bot_paused_reason: 'invalid_replies_handover',
+               bot_paused_at: new Date().toISOString(),
+             }).eq('id', conv.id);
+             console.warn(`[Bot] 🛑 Conversation ${conv.id} paused after ${newInvalid} invalid proximo_passo replies`);
+
+             // Notify team — needs human attention
+             try {
+               const unitLower = (instance as { unit?: string }).unit?.toLowerCase() || '';
+               const unitPermission = `leads.unit.${unitLower}`;
+               const targetUserIds = await getCompanyNotificationTargets(supabase, instance.company_id, unitPermission);
+               const notifs = targetUserIds.map((uid: string) => ({
+                 user_id: uid,
+                 company_id: instance.company_id,
+                 type: 'lead_needs_human',
+                 title: '🤝 Lead precisa de atenção humana',
+                 message: `${updated.nome || contactName || contactPhone} não respondeu corretamente — bot pausado, assuma a conversa.`,
+                 data: { conversation_id: conv.id, lead_id: conv.lead_id, reason: 'invalid_replies' },
+               }));
+               if (notifs.length) await supabase.from('notifications').insert(notifs);
+             } catch (e) {
+               console.error('[Bot] notify human handover error', e);
+             }
+
+             // Do not send another bot message — silent handover
+             msg = '';
+           } else {
+             // First invalid: re-ask but KEEP step at proximo_passo_reminded if we were already reminded,
+             // so the cron job does not pick it up again.
+             nextStep = step; // preserve current state
+             const defaultNextStepQuestion = `E agora, como você gostaria de continuar? 🤔\n\nResponda com o *número*:\n\n${buildMenuText(PROXIMO_PASSO_OPTIONS)}`;
+             msg = `Por favor, responda apenas com o *número* da opção desejada (1, 2 ou 3) 👇\n\n${settings.next_step_question || defaultNextStepQuestion}`;
+           }
+         }
         
         if (nextStep === 'complete_final') {
           msg = replaceVariables(responseMsg, updated);
