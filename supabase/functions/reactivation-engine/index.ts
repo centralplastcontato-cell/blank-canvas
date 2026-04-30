@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -395,6 +396,11 @@ Deno.serve(async (req) => {
 
               // Send
               const phone = conv.remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
+
+              if (await isConversationPaused(supabase, conv.id)) {
+                console.warn(`[reactivation-engine] ⏸ Skipping reactivation for ${phone} — conversation ${conv.id} paused (loop guard)`);
+                continue;
+              }
 
               const sendResponse = await fetch(
                 `https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`,

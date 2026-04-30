@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { detectAndPauseBotLoop, isConversationPaused } from "../_shared/bot-loop-guard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -3458,6 +3459,8 @@ async function sendBotActionViaWapiSend(
       instanceToken: instance.instance_token,
       conversationId: conv.id,
       companyId: instance.company_id,
+      source: 'bot',
+      automation: true,
     };
 
     if (payload.message !== undefined) body.message = payload.message;
@@ -5075,6 +5078,14 @@ async function processWebhookEvent(body: JsonRecord) {
               console.error('[Campaign Auto-Reply] Error:', campErr);
             }
             // Skip standard bot processing entirely
+            break;
+          }
+
+          // ── BOT LOOP GUARD: detect and silently pause bot↔bot ping-pong ──
+          const loopResult = await detectAndPauseBotLoop(supabase, conv.id, content);
+          const alreadyPaused = loopResult.paused || await isConversationPaused(supabase, conv.id);
+          if (alreadyPaused) {
+            console.warn(`[Bot] ⏸ Conversation ${conv.id} is paused (loop guard) — skipping bot reply`);
             break;
           }
 

@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1129,6 +1130,23 @@ Deno.serve(async (req) => {
     // === PHASE 1: Preflight session health check for all send actions ===
     const preflightResult = await checkSessionHealth(instance_id, instance_token, supabase, action, conversationId, companyId, message);
     if (preflightResult) return preflightResult;
+
+    // === BOT LOOP GUARD: silently block automated outbound when convo is paused ===
+    // Only blocks when caller explicitly opts-in as automation (body.automation === true
+    // or body.source ∈ {'bot','flow','follow-up','reactivation','visit-confirmation','campaign'}).
+    // Manual UI sends are NOT blocked.
+    const automationSources = new Set(['bot', 'flow', 'flow-builder', 'follow-up', 'followup', 'reactivation', 'visit-confirmation', 'campaign']);
+    const isAutomatedCall = body.automation === true || (typeof body.source === 'string' && automationSources.has(body.source));
+    if (isAutomatedCall && conversationId) {
+      const paused = await isConversationPaused(supabase, conversationId);
+      if (paused) {
+        console.warn(`[wapi-send] ⏸ Blocked automated send to paused conversation ${conversationId} (action=${action}, source=${body.source ?? 'automation'})`);
+        return new Response(JSON.stringify({ ok: true, skipped: true, reason: 'conversation_paused' }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
 
     switch (action) {
       case 'send-text': {

@@ -249,6 +249,8 @@ Deno.serve(async (req) => {
                 phone,
                 message,
                 conversationId: conv.id,
+                source: "visit-confirmation",
+                automation: true,
                 metadata: { source: "visit_confirmation", type: messageType, visit_id: visit.id },
               },
             });

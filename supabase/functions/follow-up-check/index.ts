@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
 
 type SupabaseAdmin = any;
 
@@ -529,6 +530,11 @@ async function processNextStepReminder({
 
       const phone = conv.remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
 
+      if (await isConversationPaused(supabase, conv.id)) {
+        console.warn(`[follow-up-check] ⏸ Skipping reminder — conversation ${conv.id} is paused (loop guard)`);
+        continue;
+      }
+
       const sendResult = await providerSendText(instance, phone, personalizedMessage);
 
       if (!sendResult.ok) {
@@ -820,6 +826,10 @@ async function processFollowUp({
 
       // Send the message via provider-aware helper
       const fuPhone = conversation.remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
+      if (await isConversationPaused(supabase, conversation.id)) {
+        console.warn(`[follow-up-check] ⏸ Skipping follow-up to ${lead.name} — conversation paused (loop guard)`);
+        continue;
+      }
       const sendResult = await providerSendText(instance, fuPhone, personalizedMessage);
 
       if (!sendResult.ok) {
@@ -1094,6 +1104,11 @@ Podemos continuar de onde paramos?`;
         }
       }
       const phone = conv.remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
+
+      if (await isConversationPaused(supabase, conv.id)) {
+        console.warn(`[follow-up-check] ⏸ Skipping bot-inactive follow-up — conversation ${conv.id} paused (loop guard)`);
+        continue;
+      }
 
       const sendResult = await providerSendText(instance, phone, personalizedMessage);
 
