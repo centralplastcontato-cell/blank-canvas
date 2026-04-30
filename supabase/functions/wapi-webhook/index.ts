@@ -3459,6 +3459,8 @@ async function sendBotActionViaWapiSend(
       instanceToken: instance.instance_token,
       conversationId: conv.id,
       companyId: instance.company_id,
+      source: 'bot',
+      automation: true,
     };
 
     if (payload.message !== undefined) body.message = payload.message;
