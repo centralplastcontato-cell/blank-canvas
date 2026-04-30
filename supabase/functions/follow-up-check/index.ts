@@ -826,6 +826,10 @@ async function processFollowUp({
 
       // Send the message via provider-aware helper
       const fuPhone = conversation.remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
+      if (await isConversationPaused(supabase, conversation.id)) {
+        console.warn(`[follow-up-check] ⏸ Skipping follow-up to ${lead.name} — conversation paused (loop guard)`);
+        continue;
+      }
       const sendResult = await providerSendText(instance, fuPhone, personalizedMessage);
 
       if (!sendResult.ok) {
