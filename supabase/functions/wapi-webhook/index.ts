@@ -2439,13 +2439,45 @@ async function processBotQualification(
     ];
 
     if (conv.bot_enabled === false || completedPilotSteps.includes(conv.bot_step || '')) {
-      console.log(`[Bot] 🧪 Restarting legacy bot for Mega Magic pilot conversation ${conv.id}`);
-      await supabase.from('wapi_conversations').update({
-        bot_enabled: true,
-        bot_step: 'welcome',
-        bot_data: {},
-      }).eq('id', conv.id);
+      // 🛡️ Anti-burst guard: evita restart duplicado quando várias mensagens
+      // chegam em sequência rápida (ex.: lead manda "1","2","3" um atrás do outro,
+      // ou Z-API entrega o mesmo evento mais de uma vez). Se a conversa já foi
+      // atualizada nos últimos 90s, presumimos que outro processo já reiniciou
+      // e está enviando o welcome — não disparamos de novo para evitar duplicar
+      // todo o fluxo de boas-vindas + mídias.
+      const updatedAtMs = conv.updated_at ? new Date(conv.updated_at).getTime() : 0;
+      const recentlyTouched = updatedAtMs > 0 && (Date.now() - updatedAtMs) < 90_000;
 
+      if (recentlyTouched) {
+        console.log(`[Bot] 🧪 Pilot restart skipped for conv ${conv.id} — conversation was touched ${Math.round((Date.now() - updatedAtMs)/1000)}s ago (anti-burst guard)`);
+        return;
+      }
+
+      // Atomic guard via conditional UPDATE: somente reinicia se o bot_step
+      // ainda for um step terminal. Se outro processo concorrente já trocou
+      // para 'welcome', o UPDATE retorna 0 linhas e abortamos.
+      const { data: restartRows, error: restartErr } = await supabase
+        .from('wapi_conversations')
+        .update({
+          bot_enabled: true,
+          bot_step: 'welcome',
+          bot_data: {},
+        })
+        .eq('id', conv.id)
+        .in('bot_step', completedPilotSteps)
+        .select('id');
+
+      if (restartErr) {
+        console.error(`[Bot] 🧪 Pilot restart failed for conv ${conv.id}: ${restartErr.message}`);
+        return;
+      }
+
+      if (!restartRows || restartRows.length === 0) {
+        console.log(`[Bot] 🧪 Pilot restart aborted for conv ${conv.id} — another process already restarted (race condition prevented)`);
+        return;
+      }
+
+      console.log(`[Bot] 🧪 Restarting legacy bot for Mega Magic pilot conversation ${conv.id}`);
       conv.bot_enabled = true;
       conv.bot_step = 'welcome';
       conv.bot_data = {};
@@ -4636,7 +4668,7 @@ async function processWebhookEvent(body: JsonRecord) {
       
       // Fetch existing conversation (single DB call) - use maybeSingle to handle 0 or 1 rows
       const { data: ex, error: exErr } = await supabase.from('wapi_conversations')
-        .select('id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id')
+        .select('id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at')
         .eq('instance_id', instance.id)
         .eq('remote_jid', rj)
         .maybeSingle();
@@ -4703,7 +4735,7 @@ async function processWebhookEvent(body: JsonRecord) {
         // New conversation - need to check for existing lead
         // First, do a final check to prevent race conditions (upsert-like behavior)
         const { data: raceCheck } = await supabase.from('wapi_conversations')
-          .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id')
+          .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at')
           .eq('instance_id', instance.id)
           .eq('remote_jid', rj)
           .maybeSingle();
@@ -4740,13 +4772,13 @@ async function processWebhookEvent(body: JsonRecord) {
             lead_id: lead?.id || null, bot_enabled: shouldStartBot, 
             bot_step: shouldStartBot ? 'welcome' : null, bot_data: {},
             company_id: instance.company_id,
-          }).select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id').single();
+          }).select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at').single();
           
           if (ce) {
             // If insert fails due to unique constraint, fetch existing
             console.log(`[Webhook] Insert failed (likely duplicate): ${ce.message}`);
             const { data: fallback } = await supabase.from('wapi_conversations')
-              .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id')
+              .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at')
               .eq('instance_id', instance.id)
               .eq('remote_jid', rj)
               .single();
@@ -4869,7 +4901,7 @@ async function processWebhookEvent(body: JsonRecord) {
         try {
           // Re-read conversation to catch concurrent updates (e.g., human_takeover set by UI or phone-message webhook)
           const { data: freshConv } = await supabase.from('wapi_conversations')
-            .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id')
+            .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at')
             .eq('id', conv.id)
             .single();
           if (freshConv) {
