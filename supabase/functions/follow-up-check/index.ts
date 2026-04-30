@@ -1105,6 +1105,11 @@ Podemos continuar de onde paramos?`;
       }
       const phone = conv.remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
 
+      if (await isConversationPaused(supabase, conv.id)) {
+        console.warn(`[follow-up-check] ⏸ Skipping bot-inactive follow-up — conversation ${conv.id} paused (loop guard)`);
+        continue;
+      }
+
       const sendResult = await providerSendText(instance, phone, personalizedMessage);
 
       if (!sendResult.ok) {
