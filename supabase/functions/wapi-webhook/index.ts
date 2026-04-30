@@ -4668,7 +4668,7 @@ async function processWebhookEvent(body: JsonRecord) {
       
       // Fetch existing conversation (single DB call) - use maybeSingle to handle 0 or 1 rows
       const { data: ex, error: exErr } = await supabase.from('wapi_conversations')
-        .select('id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id')
+        .select('id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at')
         .eq('instance_id', instance.id)
         .eq('remote_jid', rj)
         .maybeSingle();
