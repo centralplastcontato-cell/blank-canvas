@@ -5950,6 +5950,9 @@ export type Database = {
         Row: {
           bot_data: Json | null
           bot_enabled: boolean | null
+          bot_paused_at: string | null
+          bot_paused_reason: string | null
+          bot_paused_until: string | null
           bot_step: string | null
           company_id: string
           contact_name: string | null
@@ -5976,6 +5979,9 @@ export type Database = {
         Insert: {
           bot_data?: Json | null
           bot_enabled?: boolean | null
+          bot_paused_at?: string | null
+          bot_paused_reason?: string | null
+          bot_paused_until?: string | null
           bot_step?: string | null
           company_id: string
           contact_name?: string | null
@@ -6002,6 +6008,9 @@ export type Database = {
         Update: {
           bot_data?: Json | null
           bot_enabled?: boolean | null
+          bot_paused_at?: string | null
+          bot_paused_reason?: string | null
+          bot_paused_until?: string | null
           bot_step?: string | null
           company_id?: string
           contact_name?: string | null
