@@ -530,6 +530,11 @@ async function processNextStepReminder({
 
       const phone = conv.remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
 
+      if (await isConversationPaused(supabase, conv.id)) {
+        console.warn(`[follow-up-check] ⏸ Skipping reminder — conversation ${conv.id} is paused (loop guard)`);
+        continue;
+      }
+
       const sendResult = await providerSendText(instance, phone, personalizedMessage);
 
       if (!sendResult.ok) {
