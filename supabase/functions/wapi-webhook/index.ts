@@ -4687,6 +4687,12 @@ async function processWebhookEvent(body: JsonRecord) {
       
       let rj = (msg as JsonRecord).key?.remoteJid || (msg as JsonRecord).from || (msg as JsonRecord).remoteJid || ((msg as JsonRecord).chat?.id ? `${(msg as JsonRecord).chat?.id}` : null) || ((msg as JsonRecord).sender?.id ? `${(msg as JsonRecord).sender?.id}@s.whatsapp.net` : null);
       if (!rj) break;
+      // Ignore WhatsApp status broadcasts — they are not real conversations and must
+      // never create rows or trigger the bot. Examples: "status@broadcast", "*@broadcast".
+      if (typeof rj === 'string' && (rj.includes('@broadcast') || rj.toLowerCase().startsWith('status@'))) {
+        console.log(`[Webhook] Skipping broadcast event: ${rj}`);
+        break;
+      }
       const isGrp = (rj as string).includes('@g.us');
       if (!isGrp && !(rj as string).includes('@')) rj = `${rj}@s.whatsapp.net`;
       else if ((rj as string).includes('@c.us')) rj = (rj as string).replace('@c.us', '@s.whatsapp.net');

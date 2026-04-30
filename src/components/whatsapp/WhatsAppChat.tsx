@@ -210,6 +210,8 @@ interface Conversation {
   created_at: string;
   bot_enabled: boolean | null;
   bot_step: string | null;
+  bot_paused_until?: string | null;
+  bot_paused_reason?: string | null;
   pinned_message_id: string | null;
 }
 
@@ -1875,7 +1877,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     while (true) {
       const { data: batch, error } = await supabase
         .from("wapi_conversations")
-        .select("id, instance_id, lead_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, pinned_message_id, created_at")
+        .select("id, instance_id, lead_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, bot_paused_until, bot_paused_reason, pinned_message_id, created_at")
         .in("instance_id", selectedUnitInstanceIds)
         .order("last_message_at", { ascending: false, nullsFirst: true })
         .range(from, from + batchSize - 1);
@@ -2014,7 +2016,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           // Not found in current instance — search across ALL instances
           const { data: crossInstanceConv } = await supabase
             .from("wapi_conversations")
-            .select("id, instance_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, lead_id, is_imported, company_id, pinned_message_id")
+            .select("id, instance_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, bot_paused_until, bot_paused_reason, lead_id, is_imported, company_id, pinned_message_id")
             .or(phoneVariants.map(p => `contact_phone.ilike.%${p}%`).join(','))
             .order("last_message_at", { ascending: false })
             .limit(1)
@@ -5623,8 +5625,27 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                       className="flex-1 min-w-0 cursor-pointer" 
                       onClick={() => setIsChatHeaderCollapsed(!isChatHeaderCollapsed)}
                     >
-                      <p className="font-medium text-sm leading-tight">
-                        {selectedConversation.contact_name || selectedConversation.contact_phone}
+                      <p className="font-medium text-sm leading-tight flex items-center gap-2 flex-wrap">
+                        <span className="truncate">{selectedConversation.contact_name || selectedConversation.contact_phone}</span>
+                        {selectedConversation.bot_paused_until && new Date(selectedConversation.bot_paused_until).getTime() > Date.now() && (
+                          <button
+                            type="button"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              await supabase
+                                .from('wapi_conversations')
+                                .update({ bot_paused_until: null, bot_paused_reason: null, bot_paused_at: null })
+                                .eq('id', selectedConversation.id);
+                              setSelectedConversation(prev => prev ? { ...prev, bot_paused_until: null, bot_paused_reason: null } : null);
+                              setConversations(prev => prev.map(c => c.id === selectedConversation.id ? { ...c, bot_paused_until: null, bot_paused_reason: null } : c));
+                              toast({ title: 'Automação retomada', description: 'O bot voltará a responder esta conversa.' });
+                            }}
+                            title={`Pausa: ${selectedConversation.bot_paused_reason || 'manual'} — clique para retomar`}
+                            className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 hover:bg-amber-200 font-medium leading-none border border-amber-200"
+                          >
+                            ⏸ Bot pausado · retomar
+                          </button>
+                        )}
                       </p>
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                         {selectedConversation.contact_phone}
