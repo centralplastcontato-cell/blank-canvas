@@ -2425,6 +2425,9 @@ async function processBotQualification(
   }
 
   if (isPilotPhone && conv.bot_step !== 'human_takeover') {
+    // Steps verdadeiramente TERMINAIS — só esses justificam reset do bot piloto.
+    // 'sending_materials' e 'proximo_passo*' NÃO entram aqui pois são intermediários:
+    // se entrarem, uma mensagem que chega durante esses steps causa restart prematuro.
     const completedPilotSteps = [
       'complete_final',
       'flow_complete',
@@ -2433,7 +2436,6 @@ async function processBotQualification(
       'flow_no_followup',
       'transferred',
       'work_interest',
-      'sending_materials',
     ];
 
     if (conv.bot_enabled === false || completedPilotSteps.includes(conv.bot_step || '')) {
