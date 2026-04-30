@@ -5332,7 +5332,7 @@ function extractZapiInteractiveResponse(body: JsonRecord): { type: 'button' | 'l
 // Normalize Z-API webhook payload to W-API format
 function normalizeZapiPayload(body: JsonRecord): JsonRecord {
   const phone = body.phone as string || '';
-  const remoteJid = `${phone}@s.whatsapp.net`;
+  const remoteJid = normalizeZapiRemoteJid(phone);
   const msgId = body.messageId as string || `zapi_${Date.now()}`;
   const fromMe = body.fromMe === true;
   const senderName = (body.senderName || body.chatName || phone) as string;
