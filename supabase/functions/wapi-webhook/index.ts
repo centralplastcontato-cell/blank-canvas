@@ -2439,13 +2439,45 @@ async function processBotQualification(
     ];
 
     if (conv.bot_enabled === false || completedPilotSteps.includes(conv.bot_step || '')) {
-      console.log(`[Bot] 🧪 Restarting legacy bot for Mega Magic pilot conversation ${conv.id}`);
-      await supabase.from('wapi_conversations').update({
-        bot_enabled: true,
-        bot_step: 'welcome',
-        bot_data: {},
-      }).eq('id', conv.id);
+      // 🛡️ Anti-burst guard: evita restart duplicado quando várias mensagens
+      // chegam em sequência rápida (ex.: lead manda "1","2","3" um atrás do outro,
+      // ou Z-API entrega o mesmo evento mais de uma vez). Se a conversa já foi
+      // atualizada nos últimos 90s, presumimos que outro processo já reiniciou
+      // e está enviando o welcome — não disparamos de novo para evitar duplicar
+      // todo o fluxo de boas-vindas + mídias.
+      const updatedAtMs = conv.updated_at ? new Date(conv.updated_at).getTime() : 0;
+      const recentlyTouched = updatedAtMs > 0 && (Date.now() - updatedAtMs) < 90_000;
 
+      if (recentlyTouched) {
+        console.log(`[Bot] 🧪 Pilot restart skipped for conv ${conv.id} — conversation was touched ${Math.round((Date.now() - updatedAtMs)/1000)}s ago (anti-burst guard)`);
+        return;
+      }
+
+      // Atomic guard via conditional UPDATE: somente reinicia se o bot_step
+      // ainda for um step terminal. Se outro processo concorrente já trocou
+      // para 'welcome', o UPDATE retorna 0 linhas e abortamos.
+      const { data: restartRows, error: restartErr } = await supabase
+        .from('wapi_conversations')
+        .update({
+          bot_enabled: true,
+          bot_step: 'welcome',
+          bot_data: {},
+        })
+        .eq('id', conv.id)
+        .in('bot_step', completedPilotSteps)
+        .select('id');
+
+      if (restartErr) {
+        console.error(`[Bot] 🧪 Pilot restart failed for conv ${conv.id}: ${restartErr.message}`);
+        return;
+      }
+
+      if (!restartRows || restartRows.length === 0) {
+        console.log(`[Bot] 🧪 Pilot restart aborted for conv ${conv.id} — another process already restarted (race condition prevented)`);
+        return;
+      }
+
+      console.log(`[Bot] 🧪 Restarting legacy bot for Mega Magic pilot conversation ${conv.id}`);
       conv.bot_enabled = true;
       conv.bot_step = 'welcome';
       conv.bot_data = {};
