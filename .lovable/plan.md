@@ -1,75 +1,57 @@
-# Anotações internas: ponte entre Modal da Festa e Card do Pré-Festa
+## Diagnóstico
 
-## Contexto
+Confirmado: na **W-API**, mensagens enviadas pelo celular do buffet chegam normalmente no webhook (evento `webhookReceived` com `fromMe: true`), por isso Vendas 2 funciona. Já na **Z-API** (Mega Magic, Vendas 3, Planeta Divertido), essas mensagens **não aparecem na plataforma** por dois motivos combinados:
 
-Hoje já existe:
-- Campo `internal_notes` em `company_events` (textarea único), editável em **EventComplementaryTab** (modal da festa) e **EventSummaryPanel** (painel lateral).
-- Componente `PreFestaInternalAnswers` que mostra os campos `internal: true` do template do pré-festa, dentro do card de respostas (sheet do `EventFormsStatusPanel`).
+### Causa 1 — Webhook "mensagem enviada" nunca foi configurado na Z-API
+Em `supabase/functions/wapi-send/index.ts` (linhas 327–334), a função `zapiConfigureWebhooks` registra 7 webhooks, mas **falta o `update-webhook-message-sent`** (callback que a Z-API dispara quando o usuário envia algo pelo celular). Resultado: a Z-API simplesmente nunca chama nosso backend para essas mensagens.
 
-O que falta: enquanto o cliente **não** preencheu o pré-festa, esse `internal_notes` do modal precisa "migrar" visualmente para dentro do card do pré-festa assim que houver resposta — sem perder o conteúdo nem duplicar o lugar de edição.
-
-## Decisões aprovadas
-- **Campo no modal**: textarea único (já existe — `internal_notes`).
-- **Migração**: ao aparecer no card do pré-festa, mostrar **duas subseções visualmente separadas**:
-  1. *Anotações do cadastro da festa* (vindas de `company_events.internal_notes`)
-  2. *Campos internos do pré-festa* (perguntas com `internal: true` do template)
-
-Nada de novo no banco — reusamos colunas já existentes.
-
-## Mudanças
-
-### 1. `EventComplementaryTab.tsx` (modal da festa)
-- Manter o textarea `internal_notes` como está.
-- Adicionar uma legenda curta abaixo: *"Estas anotações ficam visíveis também no card do Pré-Festa quando o cliente preencher."*
-- Aplicar visual amber (mesma identidade do bloco interno do pré-festa) para reforçar que é interno.
-
-### 2. `PreFestaInternalAnswers.tsx`
-- Aceitar 2 novas props opcionais:
-  - `eventId: string`
-  - `eventInternalNotes: string | null`
-- Renderizar **duas subseções** dentro do mesmo card amber:
-  - **Subseção A — "Anotações do cadastro da festa"**: textarea único bound a `eventInternalNotes`. Auto-save (debounce 1s) + botão Salvar persistindo em `company_events.internal_notes` via `supabase.from("company_events").update(...).eq("id", eventId)`.
-  - **Subseção B — "Campos internos do pré-festa"**: renderização atual das perguntas `internal: true` (sem mudança de lógica).
-- Se `internalQs.length === 0` **e** `eventInternalNotes` vazio, não renderiza nada (mantém comportamento atual).
-- Se houver **só** uma das duas fontes, renderiza apenas a subseção correspondente (sem o título da outra).
-
-### 3. `EventFormsStatusPanel.tsx`
-- Buscar `internal_notes` do evento ao carregar (já temos `eventId`; adicionar select dedicado ou aproveitar fetch existente).
-- Passar para `PreFestaInternalAnswers`:
-  ```tsx
-  <PreFestaInternalAnswers
-    responseId={resp.id}
-    answers={resp.answers}
-    questions={viewingResponses.templateQuestions || []}
-    eventId={eventId}
-    eventInternalNotes={eventInternalNotes}
-  />
-  ```
-- Atualizar a condição de renderização para também mostrar quando `eventInternalNotes` tiver conteúdo (não depender mais só de `hasInternalQuestions`).
-
-## Comportamento resultante
-
-```text
-Antes do cliente preencher pré-festa:
-  Modal da Festa → aba Complementar → "Anotações Internas" (textarea amber)
-  Card do Pré-Festa → ainda não existe (sem resposta)
-
-Depois do cliente preencher pré-festa:
-  Modal da Festa → textarea continua editável (mesma fonte)
-  Card do Pré-Festa (sheet de respostas) → bloco amber com:
-     ┌─ Anotações do cadastro da festa ─────────┐
-     │ [textarea com internal_notes do evento]  │
-     ├─ Campos internos do pré-festa ───────────┤
-     │ [pergunta interna 1]                     │
-     │ [pergunta interna 2] ...                 │
-     └──────────────────────────────────────────┘
+### Causa 2 — Normalizador da Z-API só reconhece `ReceivedCallback`
+Em `supabase/functions/wapi-webhook/index.ts` (linha 5287), a detecção é:
 ```
+body.type === 'ReceivedCallback' || (body.phone && body.instanceId && !body.event && ...)
+```
+Mesmo que a Z-API estivesse mandando o `SendCallback` / payload de mensagem enviada, o webhook descartaria como "evento desconhecido" porque o `type` seria `SendCallback` (ou `MessageStatusCallback` para alguns formatos), não `ReceivedCallback`.
 
-Ambos os locais editam o **mesmo** campo `internal_notes` do evento, então qualquer alteração reflete nos dois sem duplicar dado.
+## Plano de correção
+
+### 1. Registrar o webhook de mensagens enviadas na Z-API
+Em `supabase/functions/wapi-send/index.ts`, dentro de `zapiConfigureWebhooks`, adicionar `update-webhook-message-sent` à lista de endpoints configurados. Isso passa a notificar nosso backend toda vez que o usuário envia uma mensagem pelo celular conectado à Z-API.
+
+### 2. Reaplicar nas instâncias Z-API já conectadas
+Como o webhook só é configurado no momento da conexão/reconexão, as 3 instâncias atuais (Mega Magic, Vendas 3, Planeta Divertido) precisam ter o webhook reconfigurado. Duas opções:
+- **(a)** Disparar `configure-webhooks` programaticamente para cada instância Z-API conectada logo após o deploy (script único de manutenção, sem migração de dados).
+- **(b)** Pedir reconexão manual via QR Code para cada uma.
+
+Recomendo **(a)** — execução única, transparente, sem fricção para os buffets.
+
+### 3. Aceitar `SendCallback` no normalizador
+Em `wapi-webhook/index.ts`, ampliar a detecção `isZapiPayload` para incluir os tipos de callback de envio da Z-API:
+```
+body.type === 'ReceivedCallback' ||
+body.type === 'SendCallback' ||
+body.type === 'MessageStatusCallback' ||
+(body.phone && body.instanceId && !body.event && (...))
+```
+A heurística por presença de `text/image/audio/video/document` já cobre o conteúdo — só faltava aceitar o `type`.
+
+### 4. Garantir `fromMe` correto no payload normalizado
+O `normalizeZapiPayload` já lê `body.fromMe === true` (linha 5228). Para `SendCallback`, a Z-API envia `fromMe: true` nativamente, então o restante do fluxo (`messages.upsert` → branch `fromMe`) já trata corretamente: salva como `from_me: true`, atualiza `last_message_from_me`, **não** incrementa `unread_count` e **desativa o bot** se estava ativo (comportamento esperado quando o atendente assume pelo celular).
+
+### 5. (Opcional) Logar payload bruto de `SendCallback` por 24h
+Adicionar um `console.log` específico quando `type === 'SendCallback'` para validarmos no Supabase Logs que o formato está exatamente como esperado antes de declarar resolvido.
 
 ## Arquivos afetados
-- `src/components/agenda/PreFestaInternalAnswers.tsx` (adicionar subseção do evento)
-- `src/components/agenda/EventFormsStatusPanel.tsx` (buscar e passar `eventInternalNotes`)
-- `src/components/agenda/EventComplementaryTab.tsx` (legenda explicativa + visual amber leve)
 
-Sem migração de banco e sem novas RLS — `company_events` já tem políticas de update por `company_id`.
+- `supabase/functions/wapi-send/index.ts` — adicionar endpoint `update-webhook-message-sent` + lógica de reconfiguração em massa (rota administrativa one-shot).
+- `supabase/functions/wapi-webhook/index.ts` — ampliar `isZapiPayload` para incluir `SendCallback` / `MessageStatusCallback` e adicionar log de debug.
+
+## Validação
+
+1. Após deploy, rodar a reconfiguração das 3 instâncias Z-API.
+2. Pedir ao buffet Mega Magic para enviar uma mensagem de texto, um áudio e uma imagem pelo celular.
+3. Conferir nos logs do `wapi-webhook` o evento chegando como `SendCallback` e a mensagem aparecendo na conversa do CRM com balão "enviado por mim".
+4. Repetir para Vendas 3 e Planeta Divertido.
+
+## Nota de segurança / regra de projeto
+
+A memória do projeto exige **não modificar a lógica core de conexão WhatsApp**. As mudanças aqui são **aditivas**: adicionam um endpoint de webhook e ampliam um filtro de detecção — nenhuma rota existente é alterada, nenhuma instância W-API é afetada. Mantém o `wapi-send` como ponto único de envio.
