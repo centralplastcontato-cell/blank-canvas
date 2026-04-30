@@ -5292,7 +5292,63 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
     message = { videoMessage: { url: videoObj.videoUrl, caption: videoObj.caption || '' } };
   } else if (documentObj?.documentUrl) {
     message = { documentMessage: { url: documentObj.documentUrl, fileName: documentObj.fileName || 'document' } };
+  } else {
+    // 🛡️ Fallback: handle additional Z-API message shapes that are otherwise
+    // dropped (resulting in mensagens that nunca aparecem na plataforma):
+    //  - hydratedTemplate / templateMessage (templates enviados pelo celular)
+    //  - sticker, contact, contacts, poll, location, reply, reaction
+    //  - quotedMessage / referenceMessageId (replies citando outra mensagem)
+    const hydrated = (body.hydratedTemplate as JsonRecord | undefined) || (body.templateMessage as JsonRecord | undefined);
+    const sticker = body.sticker as JsonRecord | undefined;
+    const contact = (body.contact as JsonRecord | undefined) || (body.contacts as JsonRecord | undefined);
+    const location = body.location as JsonRecord | undefined;
+    const reaction = body.reaction as JsonRecord | undefined;
+    const poll = body.poll as JsonRecord | undefined;
+    const reply = body.reply as JsonRecord | undefined;
+
+    if (hydrated) {
+      const txt = (hydrated.message as string) || (hydrated.text as string) || (hydrated.body as string) || (hydrated.contentText as string) || '[Mensagem]';
+      message = { conversation: txt };
+      console.log(`[normalizeZapi] hydratedTemplate/templateMessage → "${txt.substring(0, 80)}"`);
+    } else if (sticker) {
+      const url = (sticker.stickerUrl as string) || (sticker.url as string) || '';
+      message = url ? { stickerMessage: { url } } : { conversation: '[Figurinha]' };
+    } else if (contact) {
+      const name = (contact.displayName as string) || (contact.name as string) || 'Contato';
+      message = { conversation: `[Contato] ${name}` };
+    } else if (location) {
+      const lat = location.latitude;
+      const lng = location.longitude;
+      message = { conversation: `[Localização] ${lat},${lng}` };
+    } else if (reaction) {
+      const emoji = (reaction.value as string) || (reaction.reaction as string) || '👍';
+      message = { conversation: `[Reação] ${emoji}` };
+    } else if (poll) {
+      const name = (poll.name as string) || (poll.question as string) || 'Enquete';
+      message = { conversation: `[Enquete] ${name}` };
+    } else if (reply) {
+      const txt = (reply.message as string) || (reply.text as string) || '[Resposta]';
+      message = { conversation: txt };
+    } else if (typeof body.message === 'string' && body.message) {
+      // Some Z-API payloads carry a raw text under body.message
+      message = { conversation: body.message as string };
+    } else if (body.referenceMessageId) {
+      // Reply citation without text — preserve so it's not silently dropped
+      message = { conversation: '[Mensagem]' };
+      console.log(`[normalizeZapi] reply citation only (referenceMessageId=${body.referenceMessageId}) → placeholder`);
+    } else {
+      // Last-resort: log unknown payload shape so we can extend later, but
+      // still emit a minimal conversation so the message at least appears.
+      const knownContentKeys = ['text','image','audio','video','document','sticker','contact','contacts','location','reaction','poll','reply','hydratedTemplate','templateMessage','buttonsResponseMessage','buttonResponseMessage','listResponseMessage','listMessage','interactiveResponseMessage'];
+      const presentContentKeys = Object.keys(body).filter(k => knownContentKeys.includes(k));
+      console.log(`[normalizeZapi] ⚠️ Unrecognized Z-API content. fromMe=${fromMe}, type=${body.type}, present content keys=[${presentContentKeys.join(',')}], all keys=[${Object.keys(body).join(',')}]`);
+      // Only drop completely empty payloads silently for status callbacks
+      if (body.type !== 'MessageStatusCallback' && body.type !== 'SendCallback') {
+        message = { conversation: '[Mensagem]' };
+      }
+    }
   }
+
 
   // Z-API may include profile picture in the payload
   const profilePic = (body.photo as string) || (body.senderPhoto as string) || (body.chatPhoto as string) || null;
