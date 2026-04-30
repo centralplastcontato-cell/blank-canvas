@@ -5625,8 +5625,27 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                       className="flex-1 min-w-0 cursor-pointer" 
                       onClick={() => setIsChatHeaderCollapsed(!isChatHeaderCollapsed)}
                     >
-                      <p className="font-medium text-sm leading-tight">
-                        {selectedConversation.contact_name || selectedConversation.contact_phone}
+                      <p className="font-medium text-sm leading-tight flex items-center gap-2 flex-wrap">
+                        <span className="truncate">{selectedConversation.contact_name || selectedConversation.contact_phone}</span>
+                        {selectedConversation.bot_paused_until && new Date(selectedConversation.bot_paused_until).getTime() > Date.now() && (
+                          <button
+                            type="button"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              await supabase
+                                .from('wapi_conversations')
+                                .update({ bot_paused_until: null, bot_paused_reason: null, bot_paused_at: null })
+                                .eq('id', selectedConversation.id);
+                              setSelectedConversation(prev => prev ? { ...prev, bot_paused_until: null, bot_paused_reason: null } : null);
+                              setConversations(prev => prev.map(c => c.id === selectedConversation.id ? { ...c, bot_paused_until: null, bot_paused_reason: null } : c));
+                              toast({ title: 'Automação retomada', description: 'O bot voltará a responder esta conversa.' });
+                            }}
+                            title={`Pausa: ${selectedConversation.bot_paused_reason || 'manual'} — clique para retomar`}
+                            className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 hover:bg-amber-200 font-medium leading-none border border-amber-200"
+                          >
+                            ⏸ Bot pausado · retomar
+                          </button>
+                        )}
                       </p>
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                         {selectedConversation.contact_phone}
