@@ -323,16 +323,29 @@ async function zapiRequestPairingCode(instanceId: string, token: string, clientT
 
 // Z-API configure webhooks (all at once)
 async function zapiConfigureWebhooks(instanceId: string, token: string, clientToken: string | null, webhookUrl: string): Promise<{ ok: boolean; data?: unknown; error?: string }> {
-  // Z-API uses distinct endpoints per webhook type. Configure all relevant ones.
+  // Z-API exposes a single endpoint that registers the same URL for ALL webhook
+  // events at once (received, on-send/fromMe, delivery, status, connected, etc.).
+  // This is preferred over per-event endpoints because some of those (notably
+  // 'update-webhook-message-sent') return NOT_FOUND on certain Z-API plans,
+  // leaving the on-send webhook unregistered — which causes mensagens enviadas
+  // pelo celular do buffet to never reach our backend.
+  const primary = await zapiRequest(instanceId, token, clientToken, 'update-every-webhooks', 'PUT', { value: webhookUrl });
+  if (primary.ok) {
+    return { ok: true, data: primary.data };
+  }
+
+  // Fallback: per-event endpoints (older Z-API behavior). We tolerate NOT_FOUND
+  // on individual endpoints — what matters is that AT LEAST one succeeds and
+  // the primary update-every-webhooks already covers the modern accounts.
   const endpoints = [
-    'update-webhook-received',           // mensagens recebidas
-    'update-webhook-message-sent',       // mensagens enviadas pelo próprio celular (fromMe)
-    'update-webhook-delivery',           // status de entrega
-    'update-webhook-message-status',     // status da mensagem (legado)
-    'update-webhook-receive-all-notifications', // notificações gerais
-    'update-webhook-connected',          // instância conectada
-    'update-webhook-disconnected',       // instância desconectada
-    'update-webhook-chat-presence',      // presença
+    'update-webhook-received',
+    'update-webhook-message-sent',
+    'update-webhook-delivery',
+    'update-webhook-message-status',
+    'update-webhook-receive-all-notifications',
+    'update-webhook-connected',
+    'update-webhook-disconnected',
+    'update-webhook-chat-presence',
   ];
 
   const results: Array<{ endpoint: string; ok: boolean; error?: string }> = [];
