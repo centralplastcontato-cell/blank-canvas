@@ -326,6 +326,7 @@ async function zapiConfigureWebhooks(instanceId: string, token: string, clientTo
   // Z-API uses distinct endpoints per webhook type. Configure all relevant ones.
   const endpoints = [
     'update-webhook-received',           // mensagens recebidas
+    'update-webhook-message-sent',       // mensagens enviadas pelo próprio celular (fromMe)
     'update-webhook-delivery',           // status de entrega
     'update-webhook-message-status',     // status da mensagem (legado)
     'update-webhook-receive-all-notifications', // notificações gerais
