@@ -4735,7 +4735,7 @@ async function processWebhookEvent(body: JsonRecord) {
         // New conversation - need to check for existing lead
         // First, do a final check to prevent race conditions (upsert-like behavior)
         const { data: raceCheck } = await supabase.from('wapi_conversations')
-          .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id')
+          .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at')
           .eq('instance_id', instance.id)
           .eq('remote_jid', rj)
           .maybeSingle();
@@ -4772,13 +4772,13 @@ async function processWebhookEvent(body: JsonRecord) {
             lead_id: lead?.id || null, bot_enabled: shouldStartBot, 
             bot_step: shouldStartBot ? 'welcome' : null, bot_data: {},
             company_id: instance.company_id,
-          }).select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id').single();
+          }).select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at').single();
           
           if (ce) {
             // If insert fails due to unique constraint, fetch existing
             console.log(`[Webhook] Insert failed (likely duplicate): ${ce.message}`);
             const { data: fallback } = await supabase.from('wapi_conversations')
-              .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id')
+              .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at')
               .eq('instance_id', instance.id)
               .eq('remote_jid', rj)
               .single();
@@ -4901,7 +4901,7 @@ async function processWebhookEvent(body: JsonRecord) {
         try {
           // Re-read conversation to catch concurrent updates (e.g., human_takeover set by UI or phone-message webhook)
           const { data: freshConv } = await supabase.from('wapi_conversations')
-            .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id')
+            .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at')
             .eq('id', conv.id)
             .single();
           if (freshConv) {
