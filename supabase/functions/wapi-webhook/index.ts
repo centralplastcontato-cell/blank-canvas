@@ -5079,6 +5079,14 @@ async function processWebhookEvent(body: JsonRecord) {
             break;
           }
 
+          // ── BOT LOOP GUARD: detect and silently pause bot↔bot ping-pong ──
+          const loopResult = await detectAndPauseBotLoop(supabase, conv.id, content);
+          const alreadyPaused = loopResult.paused || await isConversationPaused(supabase, conv.id);
+          if (alreadyPaused) {
+            console.warn(`[Bot] ⏸ Conversation ${conv.id} is paused (loop guard) — skipping bot reply`);
+            break;
+          }
+
           const recoveredStep = shouldRecoverAccidentalHumanTakeover(instance.provider, conv);
           if (recoveredStep) {
             console.warn(`[Bot] Recovering accidental human_takeover for conv ${conv.id}; resuming at step ${recoveredStep}`);
