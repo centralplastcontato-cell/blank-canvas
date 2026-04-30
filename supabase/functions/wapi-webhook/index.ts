@@ -19,6 +19,74 @@ const MEGA_MAGIC_PILOT_PHONE = '15981121710';
 type Provider = 'wapi' | 'zapi';
 type JsonRecord = Record<string, any>;
 
+function normalizeZapiRemoteJid(rawPhone: string): string {
+  const raw = (rawPhone || '').trim();
+  if (!raw) return '';
+  if (raw.includes('@')) return raw.replace('@c.us', '@s.whatsapp.net').replace('@s.whatsapp.net@s.whatsapp.net', '@s.whatsapp.net');
+  return `${raw.replace(/\D/g, '')}@s.whatsapp.net`;
+}
+
+async function resolveLidConversation(
+  supabase: SupabaseClient,
+  instanceDbId: string,
+  lidJid: string,
+  msgId: string | null | undefined,
+  msg: JsonRecord,
+): Promise<JsonRecord | null> {
+  const selectFields = 'id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at';
+
+  if (msgId) {
+    const { data: existingMessage } = await supabase
+      .from('wapi_messages')
+      .select('conversation_id')
+      .eq('message_id', msgId)
+      .maybeSingle();
+
+    if (existingMessage?.conversation_id) {
+      const { data: convByMessage } = await supabase
+        .from('wapi_conversations')
+        .select(selectFields)
+        .eq('id', existingMessage.conversation_id)
+        .maybeSingle();
+      if (convByMessage?.remote_jid && !String(convByMessage.remote_jid).includes('@lid')) {
+        return convByMessage as JsonRecord;
+      }
+    }
+  }
+
+  const lidDigits = lidJid.replace(/\D/g, '');
+  const possibleNames = [
+    msg.pushName,
+    msg.chatName,
+    msg.chat?.name,
+    msg.senderName,
+    msg.sender?.pushName,
+  ]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 1)
+    .map((value) => value.trim())
+    .filter((value, index, arr) => arr.indexOf(value) === index)
+    .filter((value) => value.replace(/\D/g, '') !== lidDigits);
+
+  for (const name of possibleNames) {
+    const { data: matches } = await supabase
+      .from('wapi_conversations')
+      .select(selectFields)
+      .eq('instance_id', instanceDbId)
+      .eq('contact_name', name)
+      .not('remote_jid', 'like', '%@g.us%')
+      .not('remote_jid', 'like', '%@lid%')
+      .order('last_message_at', { ascending: false, nullsFirst: false })
+      .limit(2);
+
+    if (matches?.length === 1) {
+      console.log(`[Webhook] Resolved @lid ${lidJid} to ${matches[0].remote_jid} by contact_name=${name}`);
+      return matches[0] as JsonRecord;
+    }
+  }
+
+  return null;
+}
+
 function waitUntil(promise: Promise<unknown>): void {
   const runtime = (globalThis as JsonRecord).EdgeRuntime as { waitUntil?: (promise: Promise<unknown>) => void } | undefined;
   if (runtime?.waitUntil) {
