@@ -210,6 +210,8 @@ interface Conversation {
   created_at: string;
   bot_enabled: boolean | null;
   bot_step: string | null;
+  bot_paused_until?: string | null;
+  bot_paused_reason?: string | null;
   pinned_message_id: string | null;
 }
 
