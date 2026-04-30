@@ -1,57 +1,65 @@
+
 ## Diagnóstico
 
-Confirmado: na **W-API**, mensagens enviadas pelo celular do buffet chegam normalmente no webhook (evento `webhookReceived` com `fromMe: true`), por isso Vendas 2 funciona. Já na **Z-API** (Mega Magic, Vendas 3, Planeta Divertido), essas mensagens **não aparecem na plataforma** por dois motivos combinados:
+Encontrei a causa exata olhando os logs de envio + o banco.
 
-### Causa 1 — Webhook "mensagem enviada" nunca foi configurado na Z-API
-Em `supabase/functions/wapi-send/index.ts` (linhas 327–334), a função `zapiConfigureWebhooks` registra 7 webhooks, mas **falta o `update-webhook-message-sent`** (callback que a Z-API dispara quando o usuário envia algo pelo celular). Resultado: a Z-API simplesmente nunca chama nosso backend para essas mensagens.
+A conversa do **Castelo da Diversão (Vendas 3)** está salva com `remote_jid = 191826157928683@lid` (não é telefone real, é um identificador interno do WhatsApp chamado **LID**).
 
-### Causa 2 — Normalizador da Z-API só reconhece `ReceivedCallback`
-Em `supabase/functions/wapi-webhook/index.ts` (linha 5287), a detecção é:
-```
-body.type === 'ReceivedCallback' || (body.phone && body.instanceId && !body.event && ...)
-```
-Mesmo que a Z-API estivesse mandando o `SendCallback` / payload de mensagem enviada, o webhook descartaria como "evento desconhecido" porque o `type` seria `SendCallback` (ou `MessageStatusCallback` para alguns formatos), não `ReceivedCallback`.
+Quando você digita uma mensagem na plataforma:
+
+1. O front pega o `contact_phone` da conversa, que vale `191826157928683` (extraído do LID)
+2. Envia esse "número" para a Z-API via `wapi-send`
+3. A Z-API **aceita** (responde `messageId` e `status: sent`) — por isso não dá erro visível
+4. Mas **nunca entrega**, porque `191826157928683` não é um telefone roteável — é o LID interno do contato
+5. Resultado: a mensagem fica eternamente como `sent`, nunca vira `delivered` nem `read`, e nunca aparece no celular do cliente
+
+Já a conversa de **Vendas 2** com a mesma Carla tem `remote_jid = 5516981294568@s.whatsapp.net` (telefone real) — e os envios chegam normalmente.
+
+Isso explica perfeitamente o sintoma: "celular → plataforma OK, plataforma → celular não chega".
 
 ## Plano de correção
 
-### 1. Registrar o webhook de mensagens enviadas na Z-API
-Em `supabase/functions/wapi-send/index.ts`, dentro de `zapiConfigureWebhooks`, adicionar `update-webhook-message-sent` à lista de endpoints configurados. Isso passa a notificar nosso backend toda vez que o usuário envia uma mensagem pelo celular conectado à Z-API.
+### 1. Resolver LID → telefone real ANTES de enviar (`wapi-send`)
 
-### 2. Reaplicar nas instâncias Z-API já conectadas
-Como o webhook só é configurado no momento da conexão/reconexão, as 3 instâncias atuais (Mega Magic, Vendas 3, Planeta Divertido) precisam ter o webhook reconfigurado. Duas opções:
-- **(a)** Disparar `configure-webhooks` programaticamente para cada instância Z-API conectada logo após o deploy (script único de manutenção, sem migração de dados).
-- **(b)** Pedir reconexão manual via QR Code para cada uma.
+Adicionar uma etapa de resolução no início do handler `send-text` (e dos outros `send-*`):
 
-Recomendo **(a)** — execução única, transparente, sem fricção para os buffets.
+- Se o `phone` recebido vier de uma conversa cujo `remote_jid` termina em `@lid`, fazer lookup no banco para descobrir o telefone real do contato
+- Estratégia de lookup, em ordem:
+  1. Buscar `wapi_conversations` onde `contact_name` ou `lead_id` bate com a conversa LID e `remote_jid` termina em `@s.whatsapp.net` na mesma `instance_id` ou na mesma `company_id`
+  2. Se houver um `lead_id` associado à conversa LID, usar o `whatsapp` do lead em `campaign_leads`
+  3. Se houver mensagens recebidas anteriores (`from_me=false`) na conversa LID com `metadata.real_phone` (do mapeamento que já fizemos no webhook), usar esse
+- Substituir o `phone` enviado para a Z-API pelo telefone real resolvido
+- Logar claramente: `[send-text] Resolved LID 191826157928683 → 5516981294568`
 
-### 3. Aceitar `SendCallback` no normalizador
-Em `wapi-webhook/index.ts`, ampliar a detecção `isZapiPayload` para incluir os tipos de callback de envio da Z-API:
-```
-body.type === 'ReceivedCallback' ||
-body.type === 'SendCallback' ||
-body.type === 'MessageStatusCallback' ||
-(body.phone && body.instanceId && !body.event && (...))
-```
-A heurística por presença de `text/image/audio/video/document` já cobre o conteúdo — só faltava aceitar o `type`.
+### 2. Persistir o telefone real na conversa LID
 
-### 4. Garantir `fromMe` correto no payload normalizado
-O `normalizeZapiPayload` já lê `body.fromMe === true` (linha 5228). Para `SendCallback`, a Z-API envia `fromMe: true` nativamente, então o restante do fluxo (`messages.upsert` → branch `fromMe`) já trata corretamente: salva como `from_me: true`, atualiza `last_message_from_me`, **não** incrementa `unread_count` e **desativa o bot** se estava ativo (comportamento esperado quando o atendente assume pelo celular).
+Quando o webhook resolver um LID para um telefone real (lógica que já existe), gravar esse telefone em `wapi_conversations.contact_phone` da conversa LID (sem mudar o `remote_jid`, para não duplicar conversa). Assim o front passa a mandar o número certo automaticamente.
 
-### 5. (Opcional) Logar payload bruto de `SendCallback` por 24h
-Adicionar um `console.log` específico quando `type === 'SendCallback'` para validarmos no Supabase Logs que o formato está exatamente como esperado antes de declarar resolvido.
+### 3. Front: usar telefone real quando disponível
 
-## Arquivos afetados
+Em `getConversationPhone` (WhatsAppChat.tsx), se `remote_jid` terminar em `@lid` mas existir um `contact_phone` válido (com DDI 55 e tamanho normal de celular brasileiro), usar `contact_phone`. Caso contrário, deixar o backend resolver.
 
-- `supabase/functions/wapi-send/index.ts` — adicionar endpoint `update-webhook-message-sent` + lógica de reconfiguração em massa (rota administrativa one-shot).
-- `supabase/functions/wapi-webhook/index.ts` — ampliar `isZapiPayload` para incluir `SendCallback` / `MessageStatusCallback` e adicionar log de debug.
+### 4. Bloquear envio com fallback claro
+
+Se nem o backend conseguir resolver o LID para um telefone real, retornar erro `LID_UNRESOLVED` com mensagem amigável ("Não foi possível identificar o número real deste contato. Peça para ele enviar uma mensagem primeiro.") em vez de fingir sucesso.
+
+### 5. Migração de dados (opcional, mas recomendado)
+
+Rodar uma query única para popular `contact_phone` em todas as conversas `@lid` existentes, cruzando com conversas `@s.whatsapp.net` do mesmo `lead_id`/`contact_name` na mesma empresa.
+
+## Detalhes técnicos
+
+- Arquivos afetados:
+  - `supabase/functions/wapi-send/index.ts` — adicionar `resolveLidToRealPhone()` e chamá-la em `send-text`, `send-image`, `send-audio`, `send-video`, `send-document`
+  - `supabase/functions/wapi-webhook/index.ts` — quando `resolveLidConversation` casar, fazer `UPDATE wapi_conversations SET contact_phone=<real> WHERE remote_jid=<lid>`
+  - `src/components/whatsapp/WhatsAppChat.tsx` — ajustar `getConversationPhone` para preferir `contact_phone` quando `remote_jid` for `@lid`
+- Migração SQL: 1 update controlado em `wapi_conversations` com `@lid`
 
 ## Validação
 
-1. Após deploy, rodar a reconfiguração das 3 instâncias Z-API.
-2. Pedir ao buffet Mega Magic para enviar uma mensagem de texto, um áudio e uma imagem pelo celular.
-3. Conferir nos logs do `wapi-webhook` o evento chegando como `SendCallback` e a mensagem aparecendo na conversa do CRM com balão "enviado por mim".
-4. Repetir para Vendas 3 e Planeta Divertido.
+Depois do deploy, peça para mandar uma mensagem de teste pela plataforma na conversa do **Castelo da Diversão Vendas 3**. Vou checar nos logs:
+- `[send-text] Resolved LID ... → ...`
+- `status` da mensagem deve evoluir `sent → delivered → read`
+- E confirmar com você se chegou no celular do cliente
 
-## Nota de segurança / regra de projeto
-
-A memória do projeto exige **não modificar a lógica core de conexão WhatsApp**. As mudanças aqui são **aditivas**: adicionam um endpoint de webhook e ampliam um filtro de detecção — nenhuma rota existente é alterada, nenhuma instância W-API é afetada. Mantém o `wapi-send` como ponto único de envio.
+Posso seguir com a implementação?

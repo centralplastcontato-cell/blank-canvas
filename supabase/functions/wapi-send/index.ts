@@ -10,6 +10,125 @@ const ZAPI_BASE_URL = 'https://api.z-api.io/instances';
 
 type Provider = 'wapi' | 'zapi';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// LID → Real phone resolution
+// ─────────────────────────────────────────────────────────────────────────────
+// When Z-API returns a conversation with `remote_jid = <digits>@lid`, the
+// `<digits>` are NOT a routable phone — they are an internal WhatsApp Linked
+// Identifier. Sending to that "number" is silently accepted by Z-API
+// (returns messageId, status=sent) but the message NEVER reaches the device.
+//
+// This helper tries to resolve a real BR phone number for a LID-based send,
+// using progressively wider sources.
+async function resolveLidToRealPhone(
+  supabase: any,
+  rawPhone: string,
+  conversationId: string | null,
+  companyId: string | null
+): Promise<{ phone: string; resolved: boolean; source?: string }> {
+  const original = String(rawPhone || '');
+  // Detect LID candidates: caller passed "<digits>@lid" OR conversation row is @lid
+  const looksLikeLidLiteral = original.toLowerCase().endsWith('@lid');
+  // After /\D/g cleanup the front sends only digits — but if those digits don't
+  // start with country code 55 AND length is unusual (15+), it's almost certainly a LID.
+  const digitsOnly = original.replace(/\D/g, '');
+  const looksLikeLidNumeric = !looksLikeLidLiteral && digitsOnly.length >= 14 && !digitsOnly.startsWith('55');
+
+  let conv: any = null;
+  if (conversationId) {
+    const { data } = await supabase
+      .from('wapi_conversations')
+      .select('id, company_id, instance_id, remote_jid, contact_name, contact_phone, lead_id')
+      .eq('id', conversationId)
+      .maybeSingle();
+    conv = data;
+  }
+
+  const convIsLid = conv?.remote_jid?.toLowerCase?.().endsWith('@lid');
+
+  // Bail out fast if nothing suggests this is a LID send
+  if (!looksLikeLidLiteral && !looksLikeLidNumeric && !convIsLid) {
+    return { phone: digitsOnly || original, resolved: false };
+  }
+
+  console.log(`[resolveLid] Attempting LID resolution. raw="${original}" convIsLid=${convIsLid} convId=${conversationId}`);
+
+  // Heuristic: a Brazilian phone with country code is 12-13 digits and starts with 55
+  const isValidBrPhone = (p: string | null | undefined): boolean => {
+    if (!p) return false;
+    const d = p.replace(/\D/g, '');
+    return d.length >= 12 && d.length <= 13 && d.startsWith('55');
+  };
+
+  // 1) If the conversation already has a real contact_phone stored, use it
+  if (conv?.contact_phone && isValidBrPhone(conv.contact_phone)) {
+    const p = conv.contact_phone.replace(/\D/g, '');
+    console.log(`[resolveLid] ✅ source=conv.contact_phone → ${p}`);
+    return { phone: p, resolved: true, source: 'conv.contact_phone' };
+  }
+
+  // 2) Try metadata.real_phone from the latest received message in this conversation
+  if (conv?.id) {
+    const { data: lastMsg } = await supabase
+      .from('wapi_messages')
+      .select('metadata')
+      .eq('conversation_id', conv.id)
+      .eq('from_me', false)
+      .not('metadata->>real_phone', 'is', null)
+      .order('timestamp', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const realFromMeta = lastMsg?.metadata?.real_phone;
+    if (isValidBrPhone(realFromMeta)) {
+      const p = String(realFromMeta).replace(/\D/g, '');
+      console.log(`[resolveLid] ✅ source=metadata.real_phone → ${p}`);
+      // Persist on the conversation for future sends
+      await supabase.from('wapi_conversations').update({ contact_phone: p }).eq('id', conv.id);
+      return { phone: p, resolved: true, source: 'metadata.real_phone' };
+    }
+  }
+
+  // 3) If conversation is linked to a lead, use the lead's whatsapp number
+  if (conv?.lead_id) {
+    const { data: lead } = await supabase
+      .from('campaign_leads')
+      .select('whatsapp')
+      .eq('id', conv.lead_id)
+      .maybeSingle();
+    if (isValidBrPhone(lead?.whatsapp)) {
+      const p = String(lead.whatsapp).replace(/\D/g, '');
+      const phoneWithCC = p.startsWith('55') ? p : `55${p}`;
+      console.log(`[resolveLid] ✅ source=lead.whatsapp → ${phoneWithCC}`);
+      await supabase.from('wapi_conversations').update({ contact_phone: phoneWithCC }).eq('id', conv.id);
+      return { phone: phoneWithCC, resolved: true, source: 'lead.whatsapp' };
+    }
+  }
+
+  // 4) Cross-reference with another conversation (same company) sharing the contact_name
+  //    that has a real @s.whatsapp.net jid.
+  if (conv?.contact_name && (conv.company_id || companyId)) {
+    const cid = conv.company_id || companyId;
+    const { data: sibling } = await supabase
+      .from('wapi_conversations')
+      .select('contact_phone, remote_jid')
+      .eq('company_id', cid)
+      .eq('contact_name', conv.contact_name)
+      .like('remote_jid', '%@s.whatsapp.net')
+      .order('last_message_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (isValidBrPhone(sibling?.contact_phone)) {
+      const p = sibling.contact_phone.replace(/\D/g, '');
+      console.log(`[resolveLid] ✅ source=sibling_conversation → ${p}`);
+      await supabase.from('wapi_conversations').update({ contact_phone: p }).eq('id', conv.id);
+      return { phone: p, resolved: true, source: 'sibling_conversation' };
+    }
+  }
+
+  console.warn(`[resolveLid] ❌ Unable to resolve LID "${original}" to a real phone (convId=${conversationId})`);
+  return { phone: digitsOnly || original, resolved: false };
+}
+
 interface InstanceCredentials {
   instance_id: string;
   instance_token: string;
@@ -958,7 +1077,8 @@ Deno.serve(async (req) => {
     const supabase: any = createClient(supabaseUrl, supabaseServiceKey);
 
     const body = await req.json();
-    const { action, phone, message, conversationId } = body;
+    const { action, message, conversationId } = body;
+    let phone: string = body.phone;
 
     const creds = await getInstanceCredentials(supabase, req, body);
     if (creds instanceof Response) return creds;
@@ -976,6 +1096,34 @@ Deno.serve(async (req) => {
         .eq('id', conversationId)
         .single();
       companyId = convData?.company_id || null;
+    }
+
+    // === LID resolution: if the destination is a @lid identifier, resolve to real phone ===
+    // Only apply for outbound send actions that target a phone (not groups, not non-send actions).
+    const sendActionsForLid = ['send-text', 'send-image', 'send-audio', 'send-video', 'send-document', 'send-contact'];
+    if (phone && sendActionsForLid.includes(action) && !String(phone).endsWith('@g.us')) {
+      const lidResult = await resolveLidToRealPhone(supabase, phone, conversationId || null, companyId);
+      if (lidResult.resolved) {
+        console.log(`[wapi-send] LID resolved: ${phone} → ${lidResult.phone} (source=${lidResult.source})`);
+        phone = lidResult.phone;
+      } else {
+        // If we detected this was a LID but couldn't resolve, refuse to send (avoid silent black-hole).
+        const original = String(body.phone || '');
+        const looksLid = original.toLowerCase().endsWith('@lid') ||
+          (original.replace(/\D/g, '').length >= 14 && !original.replace(/\D/g, '').startsWith('55'));
+        if (looksLid) {
+          console.error(`[wapi-send] ❌ Refusing to send to unresolved LID: ${original}`);
+          await persistBlockedMessage(supabase, conversationId, companyId, message, 'LID_UNRESOLVED');
+          return new Response(JSON.stringify({
+            error: 'Não foi possível identificar o número real deste contato. Peça para o cliente enviar uma mensagem primeiro para sincronizar o número.',
+            errorType: 'LID_UNRESOLVED',
+            blocked: true,
+          }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
     }
 
     // === PHASE 1: Preflight session health check for all send actions ===

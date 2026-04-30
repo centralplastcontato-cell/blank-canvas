@@ -4691,6 +4691,7 @@ async function processWebhookEvent(body: JsonRecord) {
       const fromMe = (msg as JsonRecord).key?.fromMe || (msg as JsonRecord).fromMe || false;
       const msgId = (msg as JsonRecord).key?.id || (msg as JsonRecord).id || (msg as JsonRecord).messageId;
       const isLidJid = (rj as string).includes('@lid');
+      const originalLidJid = isLidJid ? (rj as string) : null;
       let resolvedLidConv: JsonRecord | null = null;
       if (isLidJid) {
         resolvedLidConv = await resolveLidConversation(supabase, instance.id, rj as string, msgId, msg as JsonRecord);
@@ -4704,6 +4705,28 @@ async function processWebhookEvent(body: JsonRecord) {
         }
       }
       const phone = (rj as string).replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace('@lid', '');
+
+      // If we mapped a @lid → real phone, propagate the real phone to any existing
+      // LID-based conversation rows so future plataforma → celular sends use the
+      // real number instead of the LID digits (which Z-API silently drops).
+      if (originalLidJid && resolvedLidConv?.remote_jid && !String(resolvedLidConv.remote_jid).includes('@lid')) {
+        const realPhoneDigits = phone.replace(/\D/g, '');
+        if (realPhoneDigits && realPhoneDigits.startsWith('55')) {
+          waitUntil((async () => {
+            const { error: updErr } = await supabase
+              .from('wapi_conversations')
+              .update({ contact_phone: realPhoneDigits })
+              .eq('instance_id', instance.id)
+              .eq('remote_jid', originalLidJid);
+            if (updErr) {
+              console.warn(`[Webhook] Failed to backfill contact_phone on LID conversation ${originalLidJid}:`, updErr.message);
+            } else {
+              console.log(`[Webhook] ✅ Backfilled real phone ${realPhoneDigits} on LID conversation ${originalLidJid}`);
+            }
+          })());
+        }
+      }
+      
       
       let cName = isGrp ? ((msg as JsonRecord).chat?.name || (msg as JsonRecord).groupName || (msg as JsonRecord).subject || null) : ((msg as JsonRecord).pushName || (msg as JsonRecord).verifiedBizName || (msg as JsonRecord).sender?.pushName || phone);
       const cPic = (msg as JsonRecord).chat?.profilePicture || (msg as JsonRecord).sender?.profilePicture || null;
