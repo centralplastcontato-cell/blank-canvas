@@ -19,6 +19,74 @@ const MEGA_MAGIC_PILOT_PHONE = '15981121710';
 type Provider = 'wapi' | 'zapi';
 type JsonRecord = Record<string, any>;
 
+function normalizeZapiRemoteJid(rawPhone: string): string {
+  const raw = (rawPhone || '').trim();
+  if (!raw) return '';
+  if (raw.includes('@')) return raw.replace('@c.us', '@s.whatsapp.net').replace('@s.whatsapp.net@s.whatsapp.net', '@s.whatsapp.net');
+  return `${raw.replace(/\D/g, '')}@s.whatsapp.net`;
+}
+
+async function resolveLidConversation(
+  supabase: SupabaseClient,
+  instanceDbId: string,
+  lidJid: string,
+  msgId: string | null | undefined,
+  msg: JsonRecord,
+): Promise<JsonRecord | null> {
+  const selectFields = 'id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at';
+
+  if (msgId) {
+    const { data: existingMessage } = await supabase
+      .from('wapi_messages')
+      .select('conversation_id')
+      .eq('message_id', msgId)
+      .maybeSingle();
+
+    if (existingMessage?.conversation_id) {
+      const { data: convByMessage } = await supabase
+        .from('wapi_conversations')
+        .select(selectFields)
+        .eq('id', existingMessage.conversation_id)
+        .maybeSingle();
+      if (convByMessage?.remote_jid && !String(convByMessage.remote_jid).includes('@lid')) {
+        return convByMessage as JsonRecord;
+      }
+    }
+  }
+
+  const lidDigits = lidJid.replace(/\D/g, '');
+  const possibleNames = [
+    msg.pushName,
+    msg.chatName,
+    msg.chat?.name,
+    msg.senderName,
+    msg.sender?.pushName,
+  ]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 1)
+    .map((value) => value.trim())
+    .filter((value, index, arr) => arr.indexOf(value) === index)
+    .filter((value) => value.replace(/\D/g, '') !== lidDigits);
+
+  for (const name of possibleNames) {
+    const { data: matches } = await supabase
+      .from('wapi_conversations')
+      .select(selectFields)
+      .eq('instance_id', instanceDbId)
+      .eq('contact_name', name)
+      .not('remote_jid', 'like', '%@g.us%')
+      .not('remote_jid', 'like', '%@lid%')
+      .order('last_message_at', { ascending: false, nullsFirst: false })
+      .limit(2);
+
+    if (matches?.length === 1) {
+      console.log(`[Webhook] Resolved @lid ${lidJid} to ${matches[0].remote_jid} by contact_name=${name}`);
+      return matches[0] as JsonRecord;
+    }
+  }
+
+  return null;
+}
+
 function waitUntil(promise: Promise<unknown>): void {
   const runtime = (globalThis as JsonRecord).EdgeRuntime as { waitUntil?: (promise: Promise<unknown>) => void } | undefined;
   if (runtime?.waitUntil) {
@@ -4620,14 +4688,21 @@ async function processWebhookEvent(body: JsonRecord) {
       if (!isGrp && !(rj as string).includes('@')) rj = `${rj}@s.whatsapp.net`;
       else if ((rj as string).includes('@c.us')) rj = (rj as string).replace('@c.us', '@s.whatsapp.net');
 
-      // Ignore Meta Linked IDs (@lid) - they duplicate real messages
-      if ((rj as string).includes('@lid')) {
-        console.log(`[Webhook] Ignoring @lid message: ${rj}`);
-        break;
-      }
-      
       const fromMe = (msg as JsonRecord).key?.fromMe || (msg as JsonRecord).fromMe || false;
       const msgId = (msg as JsonRecord).key?.id || (msg as JsonRecord).id || (msg as JsonRecord).messageId;
+      const isLidJid = (rj as string).includes('@lid');
+      let resolvedLidConv: JsonRecord | null = null;
+      if (isLidJid) {
+        resolvedLidConv = await resolveLidConversation(supabase, instance.id, rj as string, msgId, msg as JsonRecord);
+        if (resolvedLidConv?.remote_jid) {
+          rj = resolvedLidConv.remote_jid;
+        } else if (fromMe) {
+          console.log(`[Webhook] Saving @lid fromMe message without phone mapping yet: ${rj}`);
+        } else {
+          console.log(`[Webhook] Ignoring unresolved incoming @lid message: ${rj}`);
+          break;
+        }
+      }
       const phone = (rj as string).replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace('@lid', '');
       
       let cName = isGrp ? ((msg as JsonRecord).chat?.name || (msg as JsonRecord).groupName || (msg as JsonRecord).subject || null) : ((msg as JsonRecord).pushName || (msg as JsonRecord).verifiedBizName || (msg as JsonRecord).sender?.pushName || phone);
@@ -4667,7 +4742,7 @@ async function processWebhookEvent(body: JsonRecord) {
       console.log(`[Latency] parsing_complete: ${Date.now() - processingStartAt}ms`);
       
       // Fetch existing conversation (single DB call) - use maybeSingle to handle 0 or 1 rows
-      const { data: ex, error: exErr } = await supabase.from('wapi_conversations')
+      const { data: ex, error: exErr } = resolvedLidConv ? { data: resolvedLidConv, error: null } : await supabase.from('wapi_conversations')
         .select('id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at')
         .eq('instance_id', instance.id)
         .eq('remote_jid', rj)
@@ -5257,7 +5332,7 @@ function extractZapiInteractiveResponse(body: JsonRecord): { type: 'button' | 'l
 // Normalize Z-API webhook payload to W-API format
 function normalizeZapiPayload(body: JsonRecord): JsonRecord {
   const phone = body.phone as string || '';
-  const remoteJid = `${phone}@s.whatsapp.net`;
+  const remoteJid = normalizeZapiRemoteJid(phone);
   const msgId = body.messageId as string || `zapi_${Date.now()}`;
   const fromMe = body.fromMe === true;
   const senderName = (body.senderName || body.chatName || phone) as string;
