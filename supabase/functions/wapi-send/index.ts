@@ -1077,7 +1077,8 @@ Deno.serve(async (req) => {
     const supabase: any = createClient(supabaseUrl, supabaseServiceKey);
 
     const body = await req.json();
-    const { action, phone, message, conversationId } = body;
+    const { action, message, conversationId } = body;
+    let phone: string = body.phone;
 
     const creds = await getInstanceCredentials(supabase, req, body);
     if (creds instanceof Response) return creds;
@@ -1095,6 +1096,34 @@ Deno.serve(async (req) => {
         .eq('id', conversationId)
         .single();
       companyId = convData?.company_id || null;
+    }
+
+    // === LID resolution: if the destination is a @lid identifier, resolve to real phone ===
+    // Only apply for outbound send actions that target a phone (not groups, not non-send actions).
+    const sendActionsForLid = ['send-text', 'send-image', 'send-audio', 'send-video', 'send-document', 'send-contact'];
+    if (phone && sendActionsForLid.includes(action) && !String(phone).endsWith('@g.us')) {
+      const lidResult = await resolveLidToRealPhone(supabase, phone, conversationId || null, companyId);
+      if (lidResult.resolved) {
+        console.log(`[wapi-send] LID resolved: ${phone} → ${lidResult.phone} (source=${lidResult.source})`);
+        phone = lidResult.phone;
+      } else {
+        // If we detected this was a LID but couldn't resolve, refuse to send (avoid silent black-hole).
+        const original = String(body.phone || '');
+        const looksLid = original.toLowerCase().endsWith('@lid') ||
+          (original.replace(/\D/g, '').length >= 14 && !original.replace(/\D/g, '').startsWith('55'));
+        if (looksLid) {
+          console.error(`[wapi-send] ❌ Refusing to send to unresolved LID: ${original}`);
+          await persistBlockedMessage(supabase, conversationId, companyId, message, 'LID_UNRESOLVED');
+          return new Response(JSON.stringify({
+            error: 'Não foi possível identificar o número real deste contato. Peça para o cliente enviar uma mensagem primeiro para sincronizar o número.',
+            errorType: 'LID_UNRESOLVED',
+            blocked: true,
+          }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
     }
 
     // === PHASE 1: Preflight session health check for all send actions ===
