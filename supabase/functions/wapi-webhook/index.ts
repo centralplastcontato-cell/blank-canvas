@@ -5284,12 +5284,19 @@ Deno.serve(async (req) => {
     
     // Detect Z-API payload and normalize
     const hasInteractiveResponse = body.buttonsResponseMessage || body.buttonResponseMessage || body.interactiveResponseMessage || body.listResponseMessage || body.listMessage;
-    const isZapiPayload = body.type === 'ReceivedCallback' || 
+    const isZapiSendCallback = body.type === 'SendCallback' || body.type === 'MessageStatusCallback';
+    const isZapiPayload = body.type === 'ReceivedCallback' ||
+      isZapiSendCallback ||
       (body.phone && body.instanceId && !body.event && (body.text || body.image || body.audio || body.video || body.document || hasInteractiveResponse));
     if (isZapiPayload) {
       // Log raw payload keys for debugging interactive responses
       const payloadKeys = Object.keys(body).join(',');
-      console.log(`[Webhook] Z-API payload detected, normalizing. type=${body.type}, phone=${body.phone}, keys=[${payloadKeys}]`);
+      console.log(`[Webhook] Z-API payload detected, normalizing. type=${body.type}, phone=${body.phone}, fromMe=${body.fromMe}, keys=[${payloadKeys}]`);
+      if (isZapiSendCallback) {
+        // Force fromMe=true for send-callbacks (mensagens enviadas pelo celular do buffet)
+        if (body.fromMe !== true) body.fromMe = true;
+        console.log(`[Webhook] Z-API SendCallback raw payload (first 500 chars): ${JSON.stringify(body).substring(0, 500)}`);
+      }
       if (hasInteractiveResponse) {
         console.log(`[Webhook] Z-API interactive raw payload: ${JSON.stringify(body).substring(0, 500)}`);
       }
