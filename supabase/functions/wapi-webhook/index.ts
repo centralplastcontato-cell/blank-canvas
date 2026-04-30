@@ -4688,14 +4688,21 @@ async function processWebhookEvent(body: JsonRecord) {
       if (!isGrp && !(rj as string).includes('@')) rj = `${rj}@s.whatsapp.net`;
       else if ((rj as string).includes('@c.us')) rj = (rj as string).replace('@c.us', '@s.whatsapp.net');
 
-      // Ignore Meta Linked IDs (@lid) - they duplicate real messages
-      if ((rj as string).includes('@lid')) {
-        console.log(`[Webhook] Ignoring @lid message: ${rj}`);
-        break;
-      }
-      
       const fromMe = (msg as JsonRecord).key?.fromMe || (msg as JsonRecord).fromMe || false;
       const msgId = (msg as JsonRecord).key?.id || (msg as JsonRecord).id || (msg as JsonRecord).messageId;
+      const isLidJid = (rj as string).includes('@lid');
+      let resolvedLidConv: JsonRecord | null = null;
+      if (isLidJid) {
+        resolvedLidConv = await resolveLidConversation(supabase, instance.id, rj as string, msgId, msg as JsonRecord);
+        if (resolvedLidConv?.remote_jid) {
+          rj = resolvedLidConv.remote_jid;
+        } else if (fromMe) {
+          console.log(`[Webhook] Saving @lid fromMe message without phone mapping yet: ${rj}`);
+        } else {
+          console.log(`[Webhook] Ignoring unresolved incoming @lid message: ${rj}`);
+          break;
+        }
+      }
       const phone = (rj as string).replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace('@lid', '');
       
       let cName = isGrp ? ((msg as JsonRecord).chat?.name || (msg as JsonRecord).groupName || (msg as JsonRecord).subject || null) : ((msg as JsonRecord).pushName || (msg as JsonRecord).verifiedBizName || (msg as JsonRecord).sender?.pushName || phone);
@@ -4735,7 +4742,7 @@ async function processWebhookEvent(body: JsonRecord) {
       console.log(`[Latency] parsing_complete: ${Date.now() - processingStartAt}ms`);
       
       // Fetch existing conversation (single DB call) - use maybeSingle to handle 0 or 1 rows
-      const { data: ex, error: exErr } = await supabase.from('wapi_conversations')
+      const { data: ex, error: exErr } = resolvedLidConv ? { data: resolvedLidConv, error: null } : await supabase.from('wapi_conversations')
         .select('id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at')
         .eq('instance_id', instance.id)
         .eq('remote_jid', rj)
