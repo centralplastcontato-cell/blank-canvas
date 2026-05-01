@@ -1,67 +1,88 @@
-## O que aconteceu (diagnóstico confirmado)
+## Diagnóstico
 
-Encontrei a causa exata do caso da Cleitnes. **Não houve vazamento de dados de outro buffet, nem mistura de empresas.** O que aconteceu foi um bug histórico de captação de eventos do WhatsApp.
+Você está certíssimo: arquivar é perigoso. E a sua intuição também está correta — o ideal é que **mensagens novas (Z-API) caiam dentro da conversa antiga (W-API)** automaticamente, sem o cliente nem o atendente perceberem.
 
-### A raiz do problema
-O WhatsApp envia para o webhook, além de mensagens reais de clientes, eventos de **Status (Stories)** publicados pelos contatos da agenda do Buffet. Esses eventos chegam com `remoteJid = "status@broadcast"` — não é uma conversa real, é o "feed de status" do WhatsApp.
+### Por que hoje duplica
+No `wapi-webhook/index.ts` (linha ~4827), a busca pela conversa existente é feita assim:
 
-Antigamente o webhook **não filtrava** esses eventos. Resultado: o sistema criou conversas-fantasma chamadas `status@broadcast`, e como o WhatsApp manda no mesmo evento o "participant" (quem postou o status — Deise, Dayse, Vanessa, etc.), o sistema ia atualizando o nome/foto da conversa para a última pessoa que postou um status. Por isso a foto/nome muda toda hora.
+```ts
+.eq('instance_id', instance.id)   // ← amarra à instância
+.eq('remote_jid', rj)
+```
 
-### Por que apareceu como "Mauro Garçom Mega Magic"
-Na tela inicial (imagens 1, 2, 3, 5, 6), a conversa aparece com o nome do **lead vinculado** (Mauro). Isso porque o algoritmo de associação por telefone, há tempos atrás, grudou essa conversa-fantasma no `lead_id` do Mauro Garçom (provavelmente porque em algum momento o "participant" do status bateu com o número dele). Ao abrir a conversa (imagem 2 e 6), aparece o nome real do contato armazenado: **Deise** + `status@broadcast` no lugar do telefone — exatamente o sintoma que você descreveu.
+Como a instância mudou (W-API → Z-API), o `instance_id` é diferente, o webhook não encontra a conversa antiga e cria uma nova. **Esse é o único motivo da duplicação.**
 
-O Mauro **real** está nas outras 2 conversas (imagem 4) — uma com o número correto `5511996897204`. A duplicação dele é separada e legítima (mesmo número entrou por dois caminhos).
-
-### Escopo da contaminação no banco
-Rodei a varredura agora:
-- **Planeta Divertido**: 2 conversas-fantasma de `status@broadcast` (Deise, Dayse Rabelo) — uma delas grudada no lead do Mauro.
-- **Mega Magic**: 3 conversas-fantasma (Ana Maria, José Antonio, Silvana Honorato) — 1 com lead vinculado.
-- Total: **5 conversas-fantasma e 190 mensagens** que nunca deveriam ter existido.
-- Nenhuma outra empresa afetada.
-
-### Bom: a porta já está fechada
-A correção do webhook que aplicamos antes **já bloqueia** novos eventos `@broadcast` (`supabase/functions/wapi-webhook/index.ts` linha 4731-4734). Nenhuma conversa nova desse tipo está sendo criada. O que falta é **limpar o lixo histórico**.
-
-### Sobre exposição de dados
-Para tranquilizar a Cleitnes: **não houve vazamento entre buffets**. Tudo que apareceu como "Mauro estranho" são posts do feed de Status do WhatsApp dos próprios contatos da agenda do Planeta Divertido (Deise, etc.) — informações que já estavam públicas para quem tem o número salvo. O bug foi de **rotulagem interna** (associou status alheios ao perfil do Mauro), não de cruzamento entre empresas.
+A boa notícia: o `lead_id` já é vinculado corretamente nas duas conversas, então no CRM é o mesmo cliente. O problema é só visual no chat.
 
 ---
 
-## Plano de correção
+## Plano: Unificação automática por número (sem arquivar nada)
 
-### 1. Migration de limpeza (one-shot, segura)
-Criar migration que faz, dentro de uma transação:
+A ideia é trocar a regra de "1 conversa por instância+número" para **"1 conversa por empresa+número"**, reaproveitando a conversa antiga sempre que possível.
 
-1. **Desvincular** o `lead_id` em todas as `wapi_conversations` com `remote_jid` contendo `@broadcast` ou começando com `status@` (para não deletar leads reais por engano).
-2. **Apagar as 190 mensagens** dessas conversas-fantasma (`wapi_messages`).
-3. **Apagar as 5 conversas-fantasma** (`wapi_conversations`).
-4. **Apagar `flow_lead_state`** órfão dessas conversas, se houver.
+### 1. Lógica nova no webhook (`wapi-webhook/index.ts`)
 
-Filtro usado (idêntico ao que já existe no webhook):
-```sql
-remote_jid ILIKE '%@broadcast%'
-  OR remote_jid ILIKE 'status@%'
-  OR contact_phone IN ('status@broadcast', 'status')
+Quando chegar uma mensagem e não existir conversa para `instance_id + remote_jid`, **antes** de criar uma nova, procurar uma conversa **da mesma empresa + mesmo número** (em qualquer instância) usando as variantes brasileiras (com/sem 55, com/sem 9º dígito) — a mesma lógica que já existe em `src/lib/whatsappConversationHelper.ts`.
+
+Fluxo:
+```text
+Mensagem chega (Z-API)
+  ↓
+Existe conversa nessa instância+rj?  ──► SIM ──► usa ela (comportamento atual)
+  ↓ NÃO
+Existe conversa nessa empresa+telefone (qualquer instância)?
+  ↓ SIM
+  → Migra a conversa antiga para a nova instância:
+      UPDATE wapi_conversations 
+      SET instance_id = <nova>, remote_jid = <novo rj>
+      WHERE id = <conversa_antiga>
+  → Histórico, lead, bot_data, mensagens — tudo preservado
+  ↓ NÃO
+Cria conversa nova (comportamento atual)
 ```
 
-### 2. Reforço defensivo no webhook
-O filtro atual cobre `remoteJid`. Vou adicionar a mesma checagem também sobre o **`participant`** dos eventos de grupo/status, garantindo que mesmo se a W-API mudar o formato, nenhum evento de status escape e contamine outra conversa pelo número do "participant".
+Na prática: a conversa antiga **vira** a conversa ativa na nova instância. Cliente e atendente veem uma linha só, com todo o histórico de mensagens preservado e a nova mensagem aparecendo no final, naturalmente.
 
-### 3. Validação pós-limpeza
-Após a migration, rodar query de verificação confirmando:
-- 0 conversas com `remote_jid` de broadcast
-- 0 mensagens órfãs
-- Lead do Mauro Garçom (`23a486cf...`) volta a ter apenas a conversa real `5511996897204`
+### 2. Migração one-shot dos casos já duplicados
 
-### 4. Comunicação à cliente
-Texto pronto para a Cleitnes explicando o que era (status do WhatsApp dos contatos dela, não vazamento), por que aconteceu (bug antigo já corrigido) e o que foi feito (limpeza definitiva).
+Para os casos que já estão duplicados hoje (Mauro Garçom e quem mais estiver), rodar uma migration que:
+
+1. Identifica pares de conversas na mesma empresa + mesmo telefone (variantes) em instâncias diferentes.
+2. Para cada par: pega a **mais antiga** (com mais histórico) e **move as mensagens da mais nova** para ela; depois atualiza o `instance_id` e `remote_jid` da antiga para os valores da nova; deleta a duplicada vazia.
+3. Resultado: uma única linha no chat, histórico completo, sem perda de mensagem.
+
+Antes de executar, vou rodar uma query de inspeção e te mostrar **exatamente quais conversas serão mescladas** (números + nomes) para você aprovar caso a caso ou em bloco.
+
+### 3. Ajustes técnicos finos
+
+- **Constraint do banco**: hoje pode existir um índice único em `(instance_id, remote_jid)`. Vou verificar — se existir, não precisa mexer (a migração move antes de criar duplicata).
+- **bot_data**: ao migrar, preserva o `bot_step` e `bot_data` da conversa antiga (continuidade do bot, sem recomeçar do zero).
+- **flow_lead_state**: já é vinculado por `conversation_id`, então segue a conversa migrada automaticamente.
+- **`last_message_*`**: atualiza com a mensagem nova que disparou a migração.
+
+### 4. Validação pós-deploy
+
+Após aplicar, vou rodar query confirmando:
+- 0 pares de conversas duplicadas na mesma empresa+telefone.
+- Mauro Garçom volta a ter 1 conversa só, com histórico W-API + Z-API junto.
+- Nenhum lead órfão, nenhuma mensagem perdida.
 
 ---
 
 ## O que NÃO vou mexer
-- Lead do Mauro real e suas conversas legítimas (incluindo a duplicada por número correto).
-- Lógica do bot, follow-ups, ou qualquer outra automação.
-- Conexão WhatsApp / instâncias.
+
+- Conversas legítimas de clientes diferentes (lógica só agrupa quando empresa+telefone batem).
+- Lógica do bot, follow-ups, automações.
+- Conexão WhatsApp / instâncias W-API e Z-API.
+- Conversas em grupos (`@g.us`) — ficam de fora da unificação automática.
 
 ## Riscos
-Baixo. As 5 conversas a apagar têm `remote_jid = status@broadcast` — não correspondem a nenhum cliente real, são lixo do feed de Status. A migration roda em transação: se algo falhar, nada é apagado.
+
+Baixíssimo. A unificação só roda quando: (a) **mesma empresa**, (b) **mesmo telefone normalizado**, (c) conversa antiga existe. Se qualquer condição falhar, cai no comportamento atual (cria nova). A migration histórica roda em transação — se algo falhar, nada é alterado.
+
+## Resultado para o usuário
+
+- ✅ Cliente continua na mesma conversa de sempre, sem perceber troca de instância.
+- ✅ Atendente vê **uma linha só** no chat, com todo o histórico W-API + Z-API.
+- ✅ Nada de arquivar, nada de esconder, nada de perder mensagem.
+- ✅ Funciona automaticamente daqui pra frente — qualquer migração futura entre instâncias (W-API ↔ Z-API) já fica transparente.
