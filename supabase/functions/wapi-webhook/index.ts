@@ -4824,7 +4824,7 @@ async function processWebhookEvent(body: JsonRecord) {
       console.log(`[Latency] parsing_complete: ${Date.now() - processingStartAt}ms`);
       
       // Fetch existing conversation (single DB call) - use maybeSingle to handle 0 or 1 rows
-      const { data: ex, error: exErr } = resolvedLidConv ? { data: resolvedLidConv, error: null } : await supabase.from('wapi_conversations')
+      let { data: ex, error: exErr } = resolvedLidConv ? { data: resolvedLidConv as JsonRecord, error: null } : await supabase.from('wapi_conversations')
         .select('id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at')
         .eq('instance_id', instance.id)
         .eq('remote_jid', rj)
@@ -4832,6 +4832,77 @@ async function processWebhookEvent(body: JsonRecord) {
       
       if (exErr) {
         console.error(`[Webhook] Error fetching conversation: ${exErr.message}`);
+      }
+
+      // 🔄 CROSS-INSTANCE UNIFICATION
+      // If no conversation exists for this instance+rj, look for an existing
+      // conversation in the SAME COMPANY for the SAME PHONE on a DIFFERENT instance
+      // (e.g. customer migrated W-API → Z-API). When found, "move" that conversation
+      // to the current instance instead of creating a duplicate. This preserves the
+      // full chat history, lead link, bot state and is fully transparent to both
+      // the customer and the operator (single thread in the UI).
+      if (!ex && !isGrp && !resolvedLidConv) {
+        try {
+          const digitsOnly = phone.replace(/\D/g, '');
+          // Build phone variants: with/without 55, with/without 9th digit
+          const variants = new Set<string>();
+          variants.add(digitsOnly);
+          if (digitsOnly.startsWith('55') && digitsOnly.length >= 12) variants.add(digitsOnly.slice(2));
+          if (!digitsOnly.startsWith('55') && digitsOnly.length >= 10) variants.add('55' + digitsOnly);
+          const noCountry = digitsOnly.startsWith('55') ? digitsOnly.slice(2) : digitsOnly;
+          if (noCountry.length === 10) {
+            const withNine = noCountry.slice(0, 2) + '9' + noCountry.slice(2);
+            variants.add(withNine);
+            variants.add('55' + withNine);
+          }
+          if (noCountry.length === 11 && noCountry[2] === '9') {
+            const withoutNine = noCountry.slice(0, 2) + noCountry.slice(3);
+            variants.add(withoutNine);
+            variants.add('55' + withoutNine);
+          }
+
+          const { data: crossInstance } = await supabase.from('wapi_conversations')
+            .select('id, instance_id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at')
+            .eq('company_id', instance.company_id)
+            .neq('instance_id', instance.id)
+            .in('contact_phone', Array.from(variants))
+            .not('remote_jid', 'like', '%@g.us')
+            .not('remote_jid', 'like', '%@broadcast%')
+            .order('last_message_at', { ascending: false, nullsFirst: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (crossInstance) {
+            console.log(`[Webhook] 🔄 Cross-instance unification: migrating conversation ${crossInstance.id} from instance ${crossInstance.instance_id} → ${instance.id} (phone ${digitsOnly})`);
+            const { error: migErr } = await supabase
+              .from('wapi_conversations')
+              .update({
+                instance_id: instance.id,
+                remote_jid: rj,
+                contact_phone: digitsOnly,
+              })
+              .eq('id', crossInstance.id);
+            if (migErr) {
+              console.error(`[Webhook] Cross-instance migration FAILED for ${crossInstance.id}: ${migErr.message}. Falling back to new conversation.`);
+            } else {
+              ex = {
+                id: crossInstance.id,
+                remote_jid: rj,
+                bot_enabled: crossInstance.bot_enabled,
+                bot_step: crossInstance.bot_step,
+                bot_data: crossInstance.bot_data,
+                unread_count: crossInstance.unread_count,
+                is_closed: crossInstance.is_closed,
+                contact_name: crossInstance.contact_name,
+                contact_picture: crossInstance.contact_picture,
+                lead_id: crossInstance.lead_id,
+                updated_at: crossInstance.updated_at,
+              } as JsonRecord;
+            }
+          }
+        } catch (unifyErr) {
+          console.error(`[Webhook] Cross-instance unification error:`, unifyErr);
+        }
       }
       
       console.log(`[Latency] conversation_fetch: ${Date.now() - processingStartAt}ms, found: ${!!ex}`);
