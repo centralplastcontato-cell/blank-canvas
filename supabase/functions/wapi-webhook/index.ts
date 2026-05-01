@@ -85,6 +85,32 @@ async function resolveLidConversation(
     }
   }
 
+  // Fallback: try matching by contact_picture (profile photo URL).
+  // Useful for fromMe messages where pushName is not available — same WhatsApp
+  // account always has the same profile picture URL across @lid and the real JID.
+  const picCandidates = [
+    msg.chat?.profilePicture,
+    msg.sender?.profilePicture,
+    (msg as JsonRecord).profilePicture,
+  ].filter((v): v is string => typeof v === 'string' && v.length > 30);
+
+  for (const pic of picCandidates) {
+    const { data: picMatches } = await supabase
+      .from('wapi_conversations')
+      .select(selectFields)
+      .eq('instance_id', instanceDbId)
+      .eq('contact_picture', pic)
+      .not('remote_jid', 'like', '%@g.us%')
+      .not('remote_jid', 'like', '%@lid%')
+      .order('last_message_at', { ascending: false, nullsFirst: false })
+      .limit(2);
+
+    if (picMatches?.length === 1) {
+      console.log(`[Webhook] Resolved @lid ${lidJid} to ${picMatches[0].remote_jid} by contact_picture`);
+      return picMatches[0] as JsonRecord;
+    }
+  }
+
   return null;
 }
 
