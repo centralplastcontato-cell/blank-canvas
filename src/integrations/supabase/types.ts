@@ -6659,6 +6659,10 @@ export type Database = {
         Returns: undefined
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      merge_duplicate_conversations_intra_instance: {
+        Args: never
+        Returns: Json
+      }
       recalculate_lead_score: { Args: { _lead_id: string }; Returns: undefined }
       reset_company_data: {
         Args: {
