@@ -4730,8 +4730,17 @@ async function processWebhookEvent(body: JsonRecord) {
       if (!rj) break;
       // Ignore WhatsApp status broadcasts — they are not real conversations and must
       // never create rows or trigger the bot. Examples: "status@broadcast", "*@broadcast".
-      if (typeof rj === 'string' && (rj.includes('@broadcast') || rj.toLowerCase().startsWith('status@'))) {
-        console.log(`[Webhook] Skipping broadcast event: ${rj}`);
+      // Also check participant/author fields: WhatsApp Status events sometimes route the
+      // poster's JID through these fields, which historically contaminated real leads.
+      const _participantJid = (msg as JsonRecord).key?.participant
+        || (msg as JsonRecord).participant
+        || (msg as JsonRecord).author
+        || (msg as JsonRecord).key?.participantPn
+        || null;
+      const _isBroadcastLike = (v: unknown) =>
+        typeof v === 'string' && (v.includes('@broadcast') || v.toLowerCase().startsWith('status@'));
+      if (_isBroadcastLike(rj) || _isBroadcastLike(_participantJid)) {
+        console.log(`[Webhook] Skipping broadcast/status event: rj=${rj}, participant=${_participantJid}`);
         break;
       }
       const isGrp = (rj as string).includes('@g.us');
