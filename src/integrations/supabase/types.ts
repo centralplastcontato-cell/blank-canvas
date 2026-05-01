@@ -6663,6 +6663,10 @@ export type Database = {
         Args: never
         Returns: Json
       }
+      merge_lid_into_real_conversation: {
+        Args: { _loser_id: string; _winner_id: string }
+        Returns: Json
+      }
       recalculate_lead_score: { Args: { _lead_id: string }; Returns: undefined }
       reset_company_data: {
         Args: {
