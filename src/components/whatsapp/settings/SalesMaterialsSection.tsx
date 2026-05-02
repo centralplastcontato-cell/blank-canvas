@@ -50,6 +50,7 @@ interface SalesMaterial {
   photo_urls: string[] | null;
   sort_order: number;
   is_active: boolean;
+  event_mode?: 'interno' | 'externo' | null;
 }
 
 interface SalesMaterialsSectionProps {
