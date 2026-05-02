@@ -5068,9 +5068,15 @@ async function processWebhookEvent(body: JsonRecord) {
           const isGroupJid = rj.includes('@g.us');
           const shouldStartBot = !isGroupJid && !hasCompleteLead;
           
+          // Self-name guard: don't store the buffet's own name as the contact name
+          const safeIncomingName = (!isGrp && cName && await isSelfName(supabase, instance.company_id, cName)) ? null : cName;
+          if (safeIncomingName !== cName) {
+            console.log(`[SelfNameGuard] Ignoring pushName "${cName}" on new conversation — matches company name`);
+          }
+          
           const { data: nc, error: ce } = await supabase.from('wapi_conversations').insert({
             instance_id: instance.id, remote_jid: rj, contact_phone: phone, 
-            contact_name: cName || (isGrp ? `Grupo ${phone}` : phone), contact_picture: cPic,
+            contact_name: safeIncomingName || (isGrp ? `Grupo ${phone}` : phone), contact_picture: cPic,
             last_message_at: new Date().toISOString(), unread_count: fromMe ? 0 : 1, 
             last_message_content: preview.substring(0, 100), last_message_from_me: fromMe,
             lead_id: lead?.id || null, bot_enabled: shouldStartBot, 
