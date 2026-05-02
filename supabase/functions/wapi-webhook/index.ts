@@ -27,6 +27,50 @@ function normalizeZapiRemoteJid(rawPhone: string): string {
   return `${raw.replace(/\D/g, '')}@s.whatsapp.net`;
 }
 
+// === Self-name guard ===
+// Avoid storing the buffet/company/instance name as the contact name.
+// This happens when the client has the buffet saved in their phone — WhatsApp
+// then transmits the buffet's name in pushName for messages sent from that contact.
+const _selfNamesCache = new Map<string, Set<string>>();
+function _normName(s: string): string {
+  return (s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '')
+    .trim();
+}
+async function getCompanySelfNames(supabase: SupabaseClient, companyId: string): Promise<Set<string>> {
+  if (_selfNamesCache.has(companyId)) return _selfNamesCache.get(companyId)!;
+  const names = new Set<string>();
+  try {
+    const { data: company } = await supabase.from('companies').select('name, slug').eq('id', companyId).maybeSingle();
+    if (company?.name) names.add(_normName(company.name));
+    if (company?.slug) names.add(_normName(company.slug));
+    const { data: instances } = await supabase.from('wapi_instances').select('unit, instance_id').eq('company_id', companyId);
+    for (const inst of instances || []) {
+      if (inst.unit) names.add(_normName(inst.unit));
+    }
+  } catch (e) {
+    console.warn('[SelfNameGuard] Failed to load company self-names:', e);
+  }
+  names.delete('');
+  _selfNamesCache.set(companyId, names);
+  return names;
+}
+async function isSelfName(supabase: SupabaseClient, companyId: string, candidate: string | null | undefined): Promise<boolean> {
+  if (!candidate || !companyId) return false;
+  const norm = _normName(candidate);
+  if (!norm || norm.length < 3) return false;
+  const selfNames = await getCompanySelfNames(supabase, companyId);
+  for (const self of selfNames) {
+    if (!self) continue;
+    // Exact match OR candidate contains the self name as a substring (e.g. "Buffet Mega Magic" contains "megamagic")
+    if (norm === self || norm.includes(self) || self.includes(norm)) return true;
+  }
+  return false;
+}
+
 async function resolveLidConversation(
   supabase: SupabaseClient,
   instanceDbId: string,
@@ -4972,8 +5016,14 @@ async function processWebhookEvent(body: JsonRecord) {
           if (gn && gn !== ex.contact_name) upd.contact_name = gn; 
         } else if (!fromMe && cName && cName !== ex.contact_name) {
           // Only update contact_name from INCOMING messages — outgoing messages
-          // carry the business's own pushName which would overwrite the real name
-          upd.contact_name = cName;
+          // carry the business's own pushName which would overwrite the real name.
+          // Also skip if the incoming pushName matches the buffet/instance name
+          // (happens when the client has the buffet saved in their phone).
+          if (await isSelfName(supabase, instance.company_id, cName)) {
+            console.log(`[SelfNameGuard] Ignoring pushName "${cName}" — matches company/instance name (conv ${ex.id})`);
+          } else {
+            upd.contact_name = cName;
+          }
         }
         if (cPic) upd.contact_picture = cPic;
         
@@ -5018,9 +5068,15 @@ async function processWebhookEvent(body: JsonRecord) {
           const isGroupJid = rj.includes('@g.us');
           const shouldStartBot = !isGroupJid && !hasCompleteLead;
           
+          // Self-name guard: don't store the buffet's own name as the contact name
+          const safeIncomingName = (!isGrp && cName && await isSelfName(supabase, instance.company_id, cName)) ? null : cName;
+          if (safeIncomingName !== cName) {
+            console.log(`[SelfNameGuard] Ignoring pushName "${cName}" on new conversation — matches company name`);
+          }
+          
           const { data: nc, error: ce } = await supabase.from('wapi_conversations').insert({
             instance_id: instance.id, remote_jid: rj, contact_phone: phone, 
-            contact_name: cName || (isGrp ? `Grupo ${phone}` : phone), contact_picture: cPic,
+            contact_name: safeIncomingName || (isGrp ? `Grupo ${phone}` : phone), contact_picture: cPic,
             last_message_at: new Date().toISOString(), unread_count: fromMe ? 0 : 1, 
             last_message_content: preview.substring(0, 100), last_message_from_me: fromMe,
             lead_id: lead?.id || null, bot_enabled: shouldStartBot, 
