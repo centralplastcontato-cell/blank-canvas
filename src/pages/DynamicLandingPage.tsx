@@ -8,8 +8,7 @@ import { DLPHero } from "@/components/dynamic-lp/DLPHero";
 import { DLPSocialProof } from "@/components/dynamic-lp/DLPSocialProof";
 import { DLPBenefits } from "@/components/dynamic-lp/DLPBenefits";
 import { DLPTestimonials } from "@/components/dynamic-lp/DLPTestimonials";
-import { DLPVideo } from "@/components/dynamic-lp/DLPVideo";
-import { DLPGallery } from "@/components/dynamic-lp/DLPGallery";
+import { DLPMediaTabs } from "@/components/dynamic-lp/DLPMediaTabs";
 import { DLPOffer } from "@/components/dynamic-lp/DLPOffer";
 import { DLPHowItWorks } from "@/components/dynamic-lp/DLPHowItWorks";
 import { DLPFooter } from "@/components/dynamic-lp/DLPFooter";
@@ -241,8 +240,14 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
       />
       <DLPSocialProof socialProof={data.social_proof} theme={data.theme} />
       <DLPBenefits theme={data.theme} companyName={data.company_name} benefits={data.benefits} />
-      <DLPGallery gallery={data.gallery} theme={data.theme} companyName={data.company_name} onActiveUnitChange={setInterestContext} />
-      <DLPVideo video={data.video} theme={data.theme} companyName={data.company_name} companySlug={data.company_slug} onActiveUnitChange={setInterestContext} />
+      <DLPMediaTabs
+        gallery={data.gallery}
+        video={data.video}
+        theme={data.theme}
+        companyName={data.company_name}
+        companySlug={data.company_slug}
+        onActiveUnitChange={setInterestContext}
+      />
       <DLPHowItWorks howItWorks={data.how_it_works} theme={data.theme} />
       <DLPTestimonials testimonials={data.testimonials} theme={data.theme} />
       <DLPOffer offer={data.offer} theme={data.theme} onCtaClick={openChat} />
