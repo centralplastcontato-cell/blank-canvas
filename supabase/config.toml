@@ -96,6 +96,6 @@ verify_jwt = false
 [functions.fix-exif-rotation]
 verify_jwt = false
 
-[functions._admin-storage-upload]
+[functions.admin-storage-upload-tmp]
 verify_jwt = false
 
