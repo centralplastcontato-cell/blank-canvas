@@ -9,6 +9,7 @@ interface DLPGalleryProps {
   theme: LPTheme;
   companyName: string;
   onActiveUnitChange?: (unitName: string) => void;
+  hideHeader?: boolean;
 }
 
 type UnitKind = "internal" | "external" | "default";
@@ -82,7 +83,7 @@ function normalizeUnits(gallery: LPGallery, companyName: string): GalleryUnit[] 
   return [];
 }
 
-export function DLPGallery({ gallery, theme, companyName, onActiveUnitChange }: DLPGalleryProps) {
+export function DLPGallery({ gallery, theme, companyName, onActiveUnitChange, hideHeader }: DLPGalleryProps) {
   const [activeUnit, setActiveUnit] = useState(0);
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
@@ -122,41 +123,43 @@ export function DLPGallery({ gallery, theme, companyName, onActiveUnitChange }: 
       </div>
 
       <div className="container mx-auto px-4 relative z-10">
-        <motion.div
-          className="text-center mb-10"
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          viewport={{ once: true }}
-        >
+        {!hideHeader && (
           <motion.div
-            className="inline-flex items-center gap-2 px-6 py-2 rounded-full mb-6 shadow-lg"
-            style={{ backgroundColor: theme.primary_color, color: "#fff" }}
-            initial={{ scale: 0.8, opacity: 0 }}
-            whileInView={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
+            className="text-center mb-10"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
             viewport={{ once: true }}
           >
-            <Sparkles className="w-4 h-4" />
-            <span className="text-sm font-medium" style={{ fontFamily: theme.font_body }}>
-              Conheça nossos espaços
-            </span>
-            <Sparkles className="w-4 h-4" />
-          </motion.div>
+            <motion.div
+              className="inline-flex items-center gap-2 px-6 py-2 rounded-full mb-6 shadow-lg"
+              style={{ backgroundColor: theme.primary_color, color: "#fff" }}
+              initial={{ scale: 0.8, opacity: 0 }}
+              whileInView={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              viewport={{ once: true }}
+            >
+              <Sparkles className="w-4 h-4" />
+              <span className="text-sm font-medium" style={{ fontFamily: theme.font_body }}>
+                Conheça nossos espaços
+              </span>
+              <Sparkles className="w-4 h-4" />
+            </motion.div>
 
-          <h2
-            className="text-3xl md:text-5xl font-bold mb-4"
-            style={{ color: theme.text_color, fontFamily: theme.font_heading }}
-          >
-            {gallery.title || (hasMultipleUnits ? "Nossas Unidades" : "Nosso Espaço")}
-          </h2>
-          <p
-            className="text-lg max-w-md mx-auto"
-            style={{ color: theme.text_color + "99", fontFamily: theme.font_body }}
-          >
-            Veja os espaços incríveis onde realizamos festas inesquecíveis
-          </p>
-        </motion.div>
+            <h2
+              className="text-3xl md:text-5xl font-bold mb-4"
+              style={{ color: theme.text_color, fontFamily: theme.font_heading }}
+            >
+              {gallery.title || (hasMultipleUnits ? "Nossas Unidades" : "Nosso Espaço")}
+            </h2>
+            <p
+              className="text-lg max-w-md mx-auto"
+              style={{ color: theme.text_color + "99", fontFamily: theme.font_body }}
+            >
+              Veja os espaços incríveis onde realizamos festas inesquecíveis
+            </p>
+          </motion.div>
+        )}
 
         {hasMultipleUnits && (
           <div className="flex justify-center gap-4 mb-10 flex-wrap">
