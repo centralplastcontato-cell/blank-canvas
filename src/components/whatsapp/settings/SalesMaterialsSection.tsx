@@ -199,6 +199,13 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
 
   useEffect(() => {
     fetchMaterials();
+    (async () => {
+      const { count } = await supabase
+        .from("wapi_bot_questions")
+        .select("id", { count: "exact", head: true })
+        .eq("step", "local_festa");
+      setHasLocalFestaQuestion((count || 0) > 0);
+    })();
   }, []);
 
   const fetchMaterials = async () => {
