@@ -932,6 +932,9 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
 
   const filteredMaterials = materials.filter(
     m => m.unit === selectedUnit && m.type === selectedType
+      && (eventModeFilter === 'all'
+        || (eventModeFilter === 'interno' && (m.event_mode === 'interno' || !m.event_mode))
+        || (eventModeFilter === 'externo' && (m.event_mode === 'externo' || !m.event_mode)))
   );
 
   const collectionsCount = materials.filter(
