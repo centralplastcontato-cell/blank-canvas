@@ -50,6 +50,7 @@ interface SalesMaterial {
   photo_urls: string[] | null;
   sort_order: number;
   is_active: boolean;
+  event_mode?: 'interno' | 'externo' | null;
 }
 
 interface SalesMaterialsSectionProps {
@@ -118,7 +119,19 @@ function SortableMaterialItem({
           <span className="shrink-0">{getTypeIcon(material.type)}</span>
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium truncate">{material.name}</p>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <p className="text-sm font-medium truncate">{material.name}</p>
+            {material.event_mode === 'interno' && (
+              <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 shrink-0">
+                🏠 Nosso espaço
+              </span>
+            )}
+            {material.event_mode === 'externo' && (
+              <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 shrink-0">
+                📍 Festa externa
+              </span>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground truncate">
             {material.type === "photo_collection" && material.photo_urls
               ? `${material.photo_urls.length} foto${material.photo_urls.length !== 1 ? 's' : ''}`
@@ -184,7 +197,10 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
     is_active: true,
     unit: null as string | null,
     send_without_caption: false,
+    event_mode: null as 'interno' | 'externo' | null,
   });
+  const [hasLocalFestaQuestion, setHasLocalFestaQuestion] = useState(false);
+  const [eventModeFilter, setEventModeFilter] = useState<'all' | 'interno' | 'externo'>('all');
   const [guestSelectionTouched, setGuestSelectionTouched] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -195,6 +211,13 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
 
   useEffect(() => {
     fetchMaterials();
+    (async () => {
+      const { count } = await supabase
+        .from("wapi_bot_questions")
+        .select("id", { count: "exact", head: true })
+        .eq("step", "local_festa");
+      setHasLocalFestaQuestion((count || 0) > 0);
+    })();
   }, []);
 
   const fetchMaterials = async () => {
@@ -682,7 +705,8 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
             is_active: formData.is_active,
             unit: formData.unit || editingMaterial.unit,
             send_without_caption: formData.send_without_caption,
-          })
+            event_mode: formData.event_mode,
+          } as any)
           .eq("id", editingMaterial.id);
 
         if (error) throw error;
@@ -710,6 +734,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
           is_active: formData.is_active,
           sort_order: maxOrder,
           send_without_caption: formData.send_without_caption,
+          event_mode: formData.event_mode,
         }) as { error: any };
 
         if (error) throw error;
@@ -809,6 +834,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
         is_active: material.is_active,
         unit: material.unit,
         send_without_caption: (material as any).send_without_caption || false,
+        event_mode: ((material as any).event_mode as 'interno' | 'externo' | null) || null,
       });
     } else {
       resetForm();
@@ -829,6 +855,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
       is_active: true,
       unit: null,
       send_without_caption: false,
+      event_mode: null,
     });
   };
 
@@ -917,6 +944,9 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
 
   const filteredMaterials = materials.filter(
     m => m.unit === selectedUnit && m.type === selectedType
+      && (eventModeFilter === 'all'
+        || (eventModeFilter === 'interno' && (m.event_mode === 'interno' || !m.event_mode))
+        || (eventModeFilter === 'externo' && (m.event_mode === 'externo' || !m.event_mode)))
   );
 
   const collectionsCount = materials.filter(
@@ -964,6 +994,30 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
               </SelectContent>
             </Select>
           </div>
+
+          {/* Event mode filter (only when company uses local_festa branching) */}
+          {hasLocalFestaQuestion && (
+            <div className="mb-3 flex items-center gap-1.5 p-1 bg-muted/40 rounded-lg">
+              {([
+                { v: 'all', label: '🌐 Todos' },
+                { v: 'interno', label: '🏠 Nosso espaço' },
+                { v: 'externo', label: '📍 Festa externa' },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.v}
+                  type="button"
+                  onClick={() => setEventModeFilter(opt.v)}
+                  className={`flex-1 text-[11px] py-1.5 rounded-md transition-colors ${
+                    eventModeFilter === opt.v
+                      ? 'bg-background shadow-sm font-medium text-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Type tabs */}
           <Tabs value={selectedType} onValueChange={setSelectedType}>
@@ -1119,6 +1173,33 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                     </SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+
+            {hasLocalFestaQuestion && (
+              <div className="space-y-2">
+                <Label>Tipo de evento (Carrossel)</Label>
+                <Select
+                  value={formData.event_mode || 'all'}
+                  onValueChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      event_mode: value === 'all' ? null : (value as 'interno' | 'externo'),
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">🌐 Enviar para todos</SelectItem>
+                    <SelectItem value="interno">🏠 Apenas no nosso espaço</SelectItem>
+                    <SelectItem value="externo">📍 Apenas em festa externa</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Define quando este material será enviado pelo bot conforme a escolha do cliente.
+                </p>
               </div>
             )}
 
