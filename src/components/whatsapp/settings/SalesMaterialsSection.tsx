@@ -185,7 +185,10 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
     is_active: true,
     unit: null as string | null,
     send_without_caption: false,
+    event_mode: null as 'interno' | 'externo' | null,
   });
+  const [hasLocalFestaQuestion, setHasLocalFestaQuestion] = useState(false);
+  const [eventModeFilter, setEventModeFilter] = useState<'all' | 'interno' | 'externo'>('all');
   const [guestSelectionTouched, setGuestSelectionTouched] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
