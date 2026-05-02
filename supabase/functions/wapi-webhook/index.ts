@@ -3799,12 +3799,19 @@ async function sendQualificationMaterials(
     }
 
     if (sendPresentationVideo && presentationVideos.length > 0) {
-      const video = presentationVideos[0];
-      console.log(`[Bot Materials] Sending presentation video: ${video.name}`);
-
+      // When event_mode filter is active, send ALL matching videos (e.g. 3 external videos for Carrossel).
+      // Otherwise keep legacy behavior (single video) to avoid changing other clients.
+      const videosToSend = chosenMode ? presentationVideos : [presentationVideos[0]];
       const videoCaption = captionMap['video'] || `🎬 Conheça o ${companyName}! ✨`;
       const caption = videoCaption.replace(/\{unidade\}/gi, companyName).replace(/\{empresa\}/gi, companyName);
-      await sendVideo(video.file_url, caption, 'presentation_video');
+
+      for (let i = 0; i < videosToSend.length; i++) {
+        const video = videosToSend[i];
+        console.log(`[Bot Materials] Sending presentation video ${i + 1}/${videosToSend.length}: ${video.name}`);
+        // Caption only on the first video to avoid spam
+        await sendVideo(video.file_url, i === 0 ? caption : '', `presentation_video_${i + 1}`);
+        if (i < videosToSend.length - 1) await delay(messageDelay / 2);
+      }
       await delay(messageDelay);
     }
 
