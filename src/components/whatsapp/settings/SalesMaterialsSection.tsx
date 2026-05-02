@@ -693,7 +693,8 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
             is_active: formData.is_active,
             unit: formData.unit || editingMaterial.unit,
             send_without_caption: formData.send_without_caption,
-          })
+            event_mode: formData.event_mode,
+          } as any)
           .eq("id", editingMaterial.id);
 
         if (error) throw error;
