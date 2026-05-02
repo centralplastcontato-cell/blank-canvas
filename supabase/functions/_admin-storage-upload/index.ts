@@ -1,19 +1,19 @@
-// Temporary admin upload endpoint. Uses service role to upload a file to Storage.
-// Protected by ADMIN_UPLOAD_TOKEN secret.
+// TEMPORARY admin upload endpoint. Uses service role to upload a file to Storage.
+// To be deleted right after use.
 import { createClient } from "npm:@supabase/supabase-js@2";
+
+const TOKEN = 'eef42d5c53f485087aeca0780f72a992bfb4bccfcf434996';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-admin-token, x-bucket, x-path, x-content-type',
+  'Access-Control-Allow-Headers': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
-  const token = req.headers.get('x-admin-token');
-  const expected = Deno.env.get('ADMIN_UPLOAD_TOKEN');
-  if (!expected || token !== expected) {
+  if (req.headers.get('x-admin-token') !== TOKEN) {
     return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 
