@@ -722,6 +722,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
           is_active: formData.is_active,
           sort_order: maxOrder,
           send_without_caption: formData.send_without_caption,
+          event_mode: formData.event_mode,
         }) as { error: any };
 
         if (error) throw error;
