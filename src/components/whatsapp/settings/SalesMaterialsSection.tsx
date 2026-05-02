@@ -119,7 +119,19 @@ function SortableMaterialItem({
           <span className="shrink-0">{getTypeIcon(material.type)}</span>
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium truncate">{material.name}</p>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <p className="text-sm font-medium truncate">{material.name}</p>
+            {material.event_mode === 'interno' && (
+              <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 shrink-0">
+                🏠 Nosso espaço
+              </span>
+            )}
+            {material.event_mode === 'externo' && (
+              <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 shrink-0">
+                📍 Festa externa
+              </span>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground truncate">
             {material.type === "photo_collection" && material.photo_urls
               ? `${material.photo_urls.length} foto${material.photo_urls.length !== 1 ? 's' : ''}`
