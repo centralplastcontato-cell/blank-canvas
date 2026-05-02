@@ -1,0 +1,1 @@
+UPDATE public.sales_materials SET is_active = false WHERE id IN ('d6e3948a-d969-49c2-9666-cb99e18b384b','6bfc2dc0-2771-470c-ba6f-d2923fd534e2','9cd1236c-f081-4708-bf40-8a3bbe14a9b5','37303983-26d4-4ed7-a301-1301c4346094');
