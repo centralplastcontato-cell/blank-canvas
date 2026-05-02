@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Heart, Check, Star } from "lucide-react";
+import { Heart, Check, Star, Sparkles, ArrowRight } from "lucide-react";
 import type { LPOffer, LPTheme } from "@/types/landing-page";
 
 interface DLPOfferProps {
@@ -200,18 +200,48 @@ export function DLPOffer({ offer, theme, onCtaClick }: DLPOfferProps) {
 
               <motion.button
                 onClick={onCtaClick}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className={`w-full py-4 px-10 text-lg font-bold shadow-xl transition-all duration-300 ${btnClass}`}
+                whileHover={{ scale: 1.04, y: -2 }}
+                whileTap={{ scale: 0.97 }}
+                animate={{
+                  boxShadow: [
+                    `0 10px 30px ${theme.secondary_color}55`,
+                    `0 14px 45px ${theme.secondary_color}88`,
+                    `0 10px 30px ${theme.secondary_color}55`,
+                  ],
+                }}
+                transition={{ boxShadow: { duration: 2.2, repeat: Infinity } }}
+                className={`group relative w-full py-5 px-10 text-base md:text-lg font-extrabold uppercase tracking-wide overflow-hidden ${btnClass}`}
                 style={{
-                  backgroundColor: theme.secondary_color,
+                  background: `linear-gradient(135deg, ${theme.primary_color}, ${theme.secondary_color})`,
                   color: "#fff",
                   fontFamily: theme.font_body,
-                  boxShadow: `0 10px 35px ${theme.secondary_color}55`,
+                  letterSpacing: "0.05em",
                 }}
               >
-                {offer.cta_text || "Quero fazer minha festa!"} 🎉
+                {/* Shimmer */}
+                <motion.span
+                  aria-hidden
+                  className="absolute inset-0 -translate-x-full"
+                  animate={{ x: ["-100%", "200%"] }}
+                  transition={{ duration: 2.4, repeat: Infinity, ease: "linear", repeatDelay: 1 }}
+                  style={{
+                    background:
+                      "linear-gradient(110deg, transparent 25%, rgba(255,255,255,0.45) 50%, transparent 75%)",
+                  }}
+                />
+                <span className="relative z-10 inline-flex items-center justify-center gap-2">
+                  <Sparkles className="w-5 h-5" />
+                  {offer.cta_text || "Quero fazer minha festa!"}
+                  <ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" />
+                </span>
               </motion.button>
+
+              <p
+                className="mt-3 text-xs font-medium opacity-70"
+                style={{ color: theme.text_color, fontFamily: theme.font_body }}
+              >
+                ✓ Resposta rápida no WhatsApp · Sem compromisso
+              </p>
 
               {hasPromotion && (
                 <div
