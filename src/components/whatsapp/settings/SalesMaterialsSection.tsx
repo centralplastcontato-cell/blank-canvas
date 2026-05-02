@@ -983,6 +983,30 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
             </Select>
           </div>
 
+          {/* Event mode filter (only when company uses local_festa branching) */}
+          {hasLocalFestaQuestion && (
+            <div className="mb-3 flex items-center gap-1.5 p-1 bg-muted/40 rounded-lg">
+              {([
+                { v: 'all', label: '🌐 Todos' },
+                { v: 'interno', label: '🏠 Nosso espaço' },
+                { v: 'externo', label: '📍 Festa externa' },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.v}
+                  type="button"
+                  onClick={() => setEventModeFilter(opt.v)}
+                  className={`flex-1 text-[11px] py-1.5 rounded-md transition-colors ${
+                    eventModeFilter === opt.v
+                      ? 'bg-background shadow-sm font-medium text-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Type tabs */}
           <Tabs value={selectedType} onValueChange={setSelectedType}>
             <TabsList className="flex w-full mb-3 h-9 p-1 overflow-x-auto scrollbar-thin">
