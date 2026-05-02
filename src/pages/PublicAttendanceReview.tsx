@@ -31,11 +31,8 @@ export default function PublicAttendanceReview() {
     async function load() {
       if (!recordId) { setNotFound(true); setLoading(false); return; }
 
-      const { data, error } = await supabase
-        .from("attendance_entries")
-        .select("*")
-        .eq("id", recordId)
-        .single();
+      const { data: rows, error } = await supabase.rpc("get_attendance_entry_public", { _entry_id: recordId });
+      const data = rows && (rows as any[])[0];
 
       if (error || !data) { setNotFound(true); setLoading(false); return; }
 

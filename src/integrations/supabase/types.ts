@@ -6281,6 +6281,18 @@ export type Database = {
         Args: { _target_user_id: string; _user_id: string }
         Returns: boolean
       }
+      get_attendance_entry_public: {
+        Args: { _entry_id: string }
+        Returns: {
+          company_id: string
+          event_id: string
+          finalized_at: string
+          guests: Json
+          id: string
+          notes: string
+          receptionist_name: string
+        }[]
+      }
       get_cardapio_template_by_slugs: {
         Args: { _company_slug: string; _template_slug: string }
         Returns: {
@@ -6506,6 +6518,22 @@ export type Database = {
           title: string
         }[]
       }
+      get_freelancer_schedule_public: {
+        Args: { _company_id?: string; _schedule_id?: string; _slug?: string }
+        Returns: {
+          company_id: string
+          end_date: string
+          event_display_names: Json
+          event_ids: string[]
+          event_notes: Json
+          id: string
+          is_active: boolean
+          notes: string
+          slug: string
+          start_date: string
+          title: string
+        }[]
+      }
       get_freelancer_template_by_slugs: {
         Args: { _company_slug: string; _template_slug: string }
         Returns: {
@@ -6596,12 +6624,32 @@ export type Database = {
           whatsapp_welcome_template: string
         }[]
       }
+      get_maintenance_entry_public: {
+        Args: { _entry_id: string }
+        Returns: {
+          company_id: string
+          event_id: string
+          id: string
+          items: Json
+          notes: string
+        }[]
+      }
       get_onboarding_public_fields: {
         Args: { _company_id: string }
         Returns: {
           instagram: string
           multiple_units: boolean
           whatsapp_numbers: string[]
+        }[]
+      }
+      get_party_monitoring_entry_public: {
+        Args: { _entry_id: string }
+        Returns: {
+          company_id: string
+          event_id: string
+          id: string
+          items: Json
+          notes: string
         }[]
       }
       get_prefesta_template_by_slugs: {
@@ -6693,6 +6741,15 @@ export type Database = {
         }
         Returns: Json
       }
+      submit_freelancer_availability_public: {
+        Args: {
+          _available_event_ids: string[]
+          _freelancer_name: string
+          _freelancer_phone: string
+          _schedule_id: string
+        }
+        Returns: boolean
+      }
       update_attendance_entry_public: {
         Args: {
           _entry_id: string
@@ -6712,6 +6769,24 @@ export type Database = {
           _notes?: string
         }
         Returns: undefined
+      }
+      update_maintenance_entry_public: {
+        Args: {
+          _entry_id: string
+          _event_id?: string
+          _items: Json
+          _notes?: string
+        }
+        Returns: boolean
+      }
+      update_party_monitoring_entry_public: {
+        Args: {
+          _entry_id: string
+          _event_id?: string
+          _items: Json
+          _notes?: string
+        }
+        Returns: boolean
       }
       update_staff_entry_public: {
         Args: {

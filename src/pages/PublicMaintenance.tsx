@@ -42,11 +42,8 @@ export default function PublicMaintenance() {
   useEffect(() => {
     if (!recordId) return;
     (async () => {
-      const { data, error } = await supabase
-        .from("maintenance_entries")
-        .select("*")
-        .eq("id", recordId)
-        .single();
+      const { data: rows, error } = await supabase.rpc("get_maintenance_entry_public", { _entry_id: recordId });
+      const data = rows && (rows as any[])[0];
 
       if (error || !data) {
         setNotFound(true);
@@ -93,19 +90,12 @@ export default function PublicMaintenance() {
 
     setSaving(true);
 
-    const updatePayload: any = {
-      items: items,
-      notes: notes || null,
-    };
-
-    if (!hasEventId && selectedEventId) {
-      updatePayload.event_id = selectedEventId;
-    }
-
-    const { error } = await supabase
-      .from("maintenance_entries")
-      .update(updatePayload)
-      .eq("id", recordId);
+    const { error } = await supabase.rpc("update_maintenance_entry_public", {
+      _entry_id: recordId,
+      _items: items as any,
+      _notes: notes || null,
+      _event_id: (!hasEventId && selectedEventId) ? selectedEventId : null,
+    });
 
     setSaving(false);
     if (error) {
