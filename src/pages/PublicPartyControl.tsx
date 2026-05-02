@@ -120,28 +120,25 @@ export default function PublicPartyControl() {
   const [countdown, setCountdown] = useState(POLL_INTERVAL / 1000);
 
   const fetchModuleStatus = async (_companyId: string) => {
-    const [checklistRes, staffRes, maintenanceRes, monitoringRes, attendanceRes, infoRes] = await Promise.all([
+    const [checklistRes, infoRes, statusRes] = await Promise.all([
       supabase.from("event_checklist_items").select("id, title, is_completed, sort_order").eq("event_id", eventId!).order("sort_order"),
-      (supabase as any).from("event_staff_entries").select("id").eq("event_id", eventId!).limit(1),
-      (supabase as any).from("maintenance_entries").select("id").eq("event_id", eventId!).limit(1),
-      (supabase as any).from("party_monitoring_entries").select("id").eq("event_id", eventId!).limit(1),
-      supabase.from("attendance_entries").select("id, guests").eq("event_id", eventId!).limit(1),
       supabase.from("event_info_entries").select("id, items").eq("event_id", eventId!).limit(1),
+      supabase.rpc("get_party_control_module_status", { _event_id: eventId! }),
     ]);
 
     const items = (checklistRes.data || []) as ChecklistItem[];
     setChecklistItems(items);
-    const guestData = attendanceRes.data?.[0]?.guests;
-    const guestCount = Array.isArray(guestData) ? guestData.length : 0;
+    const status = (statusRes.data && (statusRes.data as any[])[0]) || {};
+    const guestCount = (status.attendance_guest_count as number) || 0;
     const infoItems = infoRes.data?.[0]?.items;
     const blockCount = Array.isArray(infoItems) ? infoItems.length : 0;
 
     setStatus({
       checklist: { total: items.length, completed: items.filter(i => i.is_completed).length },
-      staff: { id: staffRes.data?.[0]?.id || null },
-      maintenance: { id: maintenanceRes.data?.[0]?.id || null },
-      monitoring: { id: monitoringRes.data?.[0]?.id || null },
-      attendance: { id: attendanceRes.data?.[0]?.id || null, guestCount },
+      staff: { id: status.has_staff ? "1" : null },
+      maintenance: { id: status.has_maintenance ? "1" : null },
+      monitoring: { id: status.has_monitoring ? "1" : null },
+      attendance: { id: guestCount > 0 ? "1" : null, guestCount },
       info: { id: infoRes.data?.[0]?.id || null, blockCount },
     });
     setLastUpdated(new Date());
