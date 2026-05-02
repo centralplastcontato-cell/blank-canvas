@@ -3724,6 +3724,23 @@ async function sendQualificationMaterials(
 
     console.log(`[Bot Materials] Found ${materials.length} materials for ${unit}`);
 
+    // 🎯 Filter by event_mode (interno/externo) when lead chose a venue type
+    // local_festa = '1' → interno; local_festa = '2' → externo
+    // Materials with event_mode = NULL are sent in both cases (universal)
+    const localFesta = (botData.local_festa || '').trim();
+    let chosenMode: 'interno' | 'externo' | null = null;
+    if (localFesta === '1' || /interno|nosso\s*espa[çc]o|no\s*espa[çc]o/i.test(localFesta)) {
+      chosenMode = 'interno';
+    } else if (localFesta === '2' || /externa?|barraca|em\s*casa|condom[ií]nio|ch[áa]cara/i.test(localFesta)) {
+      chosenMode = 'externo';
+    }
+
+    if (chosenMode) {
+      const beforeCount = materials.length;
+      materials = materials.filter((m) => !m.event_mode || m.event_mode === chosenMode);
+      console.log(`[Bot Materials] Filtered by event_mode="${chosenMode}": ${beforeCount} → ${materials.length}`);
+    }
+
     const photoCollections = materials.filter((material) => material.type === 'photo_collection');
     const allVideos = materials.filter((material) => material.type === 'video');
     const promoVideos = allVideos.filter((material) => material.name?.toLowerCase().includes('promo') || material.name?.toLowerCase().includes('carnaval'));
@@ -3782,12 +3799,19 @@ async function sendQualificationMaterials(
     }
 
     if (sendPresentationVideo && presentationVideos.length > 0) {
-      const video = presentationVideos[0];
-      console.log(`[Bot Materials] Sending presentation video: ${video.name}`);
-
+      // When event_mode filter is active, send ALL matching videos (e.g. 3 external videos for Carrossel).
+      // Otherwise keep legacy behavior (single video) to avoid changing other clients.
+      const videosToSend = chosenMode ? presentationVideos : [presentationVideos[0]];
       const videoCaption = captionMap['video'] || `🎬 Conheça o ${companyName}! ✨`;
       const caption = videoCaption.replace(/\{unidade\}/gi, companyName).replace(/\{empresa\}/gi, companyName);
-      await sendVideo(video.file_url, caption, 'presentation_video');
+
+      for (let i = 0; i < videosToSend.length; i++) {
+        const video = videosToSend[i];
+        console.log(`[Bot Materials] Sending presentation video ${i + 1}/${videosToSend.length}: ${video.name}`);
+        // Caption only on the first video to avoid spam
+        await sendVideo(video.file_url, i === 0 ? caption : '', `presentation_video_${i + 1}`);
+        if (i < videosToSend.length - 1) await delay(messageDelay / 2);
+      }
       await delay(messageDelay);
     }
 
