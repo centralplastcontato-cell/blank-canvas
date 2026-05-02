@@ -27,6 +27,50 @@ function normalizeZapiRemoteJid(rawPhone: string): string {
   return `${raw.replace(/\D/g, '')}@s.whatsapp.net`;
 }
 
+// === Self-name guard ===
+// Avoid storing the buffet/company/instance name as the contact name.
+// This happens when the client has the buffet saved in their phone — WhatsApp
+// then transmits the buffet's name in pushName for messages sent from that contact.
+const _selfNamesCache = new Map<string, Set<string>>();
+function _normName(s: string): string {
+  return (s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '')
+    .trim();
+}
+async function getCompanySelfNames(supabase: SupabaseClient, companyId: string): Promise<Set<string>> {
+  if (_selfNamesCache.has(companyId)) return _selfNamesCache.get(companyId)!;
+  const names = new Set<string>();
+  try {
+    const { data: company } = await supabase.from('companies').select('name, slug').eq('id', companyId).maybeSingle();
+    if (company?.name) names.add(_normName(company.name));
+    if (company?.slug) names.add(_normName(company.slug));
+    const { data: instances } = await supabase.from('wapi_instances').select('unit, instance_id').eq('company_id', companyId);
+    for (const inst of instances || []) {
+      if (inst.unit) names.add(_normName(inst.unit));
+    }
+  } catch (e) {
+    console.warn('[SelfNameGuard] Failed to load company self-names:', e);
+  }
+  names.delete('');
+  _selfNamesCache.set(companyId, names);
+  return names;
+}
+async function isSelfName(supabase: SupabaseClient, companyId: string, candidate: string | null | undefined): Promise<boolean> {
+  if (!candidate || !companyId) return false;
+  const norm = _normName(candidate);
+  if (!norm || norm.length < 3) return false;
+  const selfNames = await getCompanySelfNames(supabase, companyId);
+  for (const self of selfNames) {
+    if (!self) continue;
+    // Exact match OR candidate contains the self name as a substring (e.g. "Buffet Mega Magic" contains "megamagic")
+    if (norm === self || norm.includes(self) || self.includes(norm)) return true;
+  }
+  return false;
+}
+
 async function resolveLidConversation(
   supabase: SupabaseClient,
   instanceDbId: string,
