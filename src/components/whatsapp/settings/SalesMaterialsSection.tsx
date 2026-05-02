@@ -1176,6 +1176,33 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
               </div>
             )}
 
+            {hasLocalFestaQuestion && (
+              <div className="space-y-2">
+                <Label>Tipo de evento (Carrossel)</Label>
+                <Select
+                  value={formData.event_mode || 'all'}
+                  onValueChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      event_mode: value === 'all' ? null : (value as 'interno' | 'externo'),
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">🌐 Enviar para todos</SelectItem>
+                    <SelectItem value="interno">🏠 Apenas no nosso espaço</SelectItem>
+                    <SelectItem value="externo">📍 Apenas em festa externa</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Define quando este material será enviado pelo bot conforme a escolha do cliente.
+                </p>
+              </div>
+            )}
+
             {formData.type === "pdf_package" && (
               <div className="space-y-2">
                 <Label>Quantidade de Convidados *</Label>
