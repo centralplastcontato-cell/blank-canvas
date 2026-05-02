@@ -95,9 +95,27 @@ export function DLPBenefits({ theme, companyName, benefits }: DLPBenefitsProps) 
                 {companyName}
               </span>?</>)}
           </h2>
-          <p className="text-xl max-w-2xl mx-auto" style={{ color: theme.text_color + "99", fontFamily: theme.font_body }}>
-            {subtitle}
-          </p>
+          {(() => {
+            const secondary = (benefits as any)?.subtitle_secondary as string | undefined;
+            if (secondary) {
+              return (
+                <div className="flex flex-col md:flex-row items-center justify-center gap-3 md:gap-8 max-w-4xl mx-auto">
+                  <p className="text-xl" style={{ color: theme.text_color + "99", fontFamily: theme.font_body }}>
+                    {subtitle}
+                  </p>
+                  <span className="hidden md:inline-block w-px h-6" style={{ backgroundColor: theme.text_color + "33" }} />
+                  <p className="text-xl" style={{ color: theme.text_color + "99", fontFamily: theme.font_body }}>
+                    {secondary}
+                  </p>
+                </div>
+              );
+            }
+            return (
+              <p className="text-xl max-w-2xl mx-auto" style={{ color: theme.text_color + "99", fontFamily: theme.font_body }}>
+                {subtitle}
+              </p>
+            );
+          })()}
         </motion.div>
 
         <motion.div variants={containerVariants} initial="hidden" whileInView="visible" viewport={{ once: true }} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
