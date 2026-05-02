@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Heart, Check, Star } from "lucide-react";
+import { Heart, Check, Star, Sparkles, ArrowRight } from "lucide-react";
 import type { LPOffer, LPTheme } from "@/types/landing-page";
 
 interface DLPOfferProps {
