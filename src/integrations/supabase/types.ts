@@ -5284,6 +5284,7 @@ export type Database = {
         Row: {
           company_id: string
           created_at: string
+          event_mode: string | null
           file_path: string | null
           file_url: string
           guest_count: number | null
@@ -5300,6 +5301,7 @@ export type Database = {
         Insert: {
           company_id: string
           created_at?: string
+          event_mode?: string | null
           file_path?: string | null
           file_url: string
           guest_count?: number | null
@@ -5316,6 +5318,7 @@ export type Database = {
         Update: {
           company_id?: string
           created_at?: string
+          event_mode?: string | null
           file_path?: string | null
           file_url?: string
           guest_count?: number | null
