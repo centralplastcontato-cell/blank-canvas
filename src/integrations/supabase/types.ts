@@ -6642,6 +6642,15 @@ export type Database = {
           whatsapp_numbers: string[]
         }[]
       }
+      get_party_control_module_status: {
+        Args: { _event_id: string }
+        Returns: {
+          attendance_guest_count: number
+          has_maintenance: boolean
+          has_monitoring: boolean
+          has_staff: boolean
+        }[]
+      }
       get_party_monitoring_entry_public: {
         Args: { _entry_id: string }
         Returns: {
