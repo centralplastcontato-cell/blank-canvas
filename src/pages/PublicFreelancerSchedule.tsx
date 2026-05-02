@@ -61,22 +61,17 @@ export default function PublicFreelancerSchedule() {
     async function load() {
       if (!scheduleId && !scheduleSlug) { setNotFound(true); setLoading(false); return; }
 
-      let query = supabase
-        .from("freelancer_schedules")
-        .select("id, title, start_date, end_date, event_ids, company_id, is_active, event_display_names, notes, event_notes")
-        .eq("is_active", true);
-
+      let rpcArgs: any = {};
       if (scheduleId) {
-        query = query.eq("id", scheduleId);
+        rpcArgs = { _schedule_id: scheduleId };
       } else if (companySlug && scheduleSlug) {
-        // Resolve company by slug via RPC
         const companyId = await supabase.rpc("get_company_id_by_slug", { _slug: companySlug });
-        const companyData = companyId.data ? { id: companyId.data } : null;
-        if (!companyData) { setNotFound(true); setLoading(false); return; }
-        query = query.eq("company_id", companyData.id).eq("slug", scheduleSlug);
+        if (!companyId.data) { setNotFound(true); setLoading(false); return; }
+        rpcArgs = { _company_id: companyId.data, _slug: scheduleSlug };
       }
 
-      const { data: schedData, error: schedError } = await query.single();
+      const { data: schedRows, error: schedError } = await supabase.rpc("get_freelancer_schedule_public", rpcArgs);
+      const schedData = schedRows && (schedRows as any[])[0];
 
       if (schedError || !schedData) { setNotFound(true); setLoading(false); return; }
 
@@ -129,13 +124,12 @@ export default function PublicFreelancerSchedule() {
     }
     setSubmitting(true);
 
-    const { error } = await supabase.from("freelancer_availability").insert({
-      schedule_id: schedule.id,
-      company_id: schedule.company_id,
-      freelancer_name: name.trim(),
-      freelancer_phone: phone.trim(),
-      available_event_ids: selectedEvents,
-    } as any);
+    const { error } = await supabase.rpc("submit_freelancer_availability_public", {
+      _schedule_id: schedule.id,
+      _freelancer_name: name.trim(),
+      _freelancer_phone: phone.trim(),
+      _available_event_ids: selectedEvents,
+    });
 
     setSubmitting(false);
     if (error) {
