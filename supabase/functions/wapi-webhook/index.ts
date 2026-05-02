@@ -3724,6 +3724,23 @@ async function sendQualificationMaterials(
 
     console.log(`[Bot Materials] Found ${materials.length} materials for ${unit}`);
 
+    // 🎯 Filter by event_mode (interno/externo) when lead chose a venue type
+    // local_festa = '1' → interno; local_festa = '2' → externo
+    // Materials with event_mode = NULL are sent in both cases (universal)
+    const localFesta = (botData.local_festa || '').trim();
+    let chosenMode: 'interno' | 'externo' | null = null;
+    if (localFesta === '1' || /interno|nosso\s*espa[çc]o|no\s*espa[çc]o/i.test(localFesta)) {
+      chosenMode = 'interno';
+    } else if (localFesta === '2' || /externa?|barraca|em\s*casa|condom[ií]nio|ch[áa]cara/i.test(localFesta)) {
+      chosenMode = 'externo';
+    }
+
+    if (chosenMode) {
+      const beforeCount = materials.length;
+      materials = materials.filter((m) => !m.event_mode || m.event_mode === chosenMode);
+      console.log(`[Bot Materials] Filtered by event_mode="${chosenMode}": ${beforeCount} → ${materials.length}`);
+    }
+
     const photoCollections = materials.filter((material) => material.type === 'photo_collection');
     const allVideos = materials.filter((material) => material.type === 'video');
     const promoVideos = allVideos.filter((material) => material.name?.toLowerCase().includes('promo') || material.name?.toLowerCase().includes('carnaval'));
