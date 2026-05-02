@@ -5016,8 +5016,14 @@ async function processWebhookEvent(body: JsonRecord) {
           if (gn && gn !== ex.contact_name) upd.contact_name = gn; 
         } else if (!fromMe && cName && cName !== ex.contact_name) {
           // Only update contact_name from INCOMING messages — outgoing messages
-          // carry the business's own pushName which would overwrite the real name
-          upd.contact_name = cName;
+          // carry the business's own pushName which would overwrite the real name.
+          // Also skip if the incoming pushName matches the buffet/instance name
+          // (happens when the client has the buffet saved in their phone).
+          if (await isSelfName(supabase, instance.company_id, cName)) {
+            console.log(`[SelfNameGuard] Ignoring pushName "${cName}" — matches company/instance name (conv ${ex.id})`);
+          } else {
+            upd.contact_name = cName;
+          }
         }
         if (cPic) upd.contact_picture = cPic;
         
