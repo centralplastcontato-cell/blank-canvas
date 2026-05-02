@@ -813,6 +813,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
         is_active: material.is_active,
         unit: material.unit,
         send_without_caption: (material as any).send_without_caption || false,
+        event_mode: ((material as any).event_mode as 'interno' | 'externo' | null) || null,
       });
     } else {
       resetForm();
