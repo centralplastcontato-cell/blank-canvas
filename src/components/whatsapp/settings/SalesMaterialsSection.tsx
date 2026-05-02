@@ -834,6 +834,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
       is_active: true,
       unit: null,
       send_without_caption: false,
+      event_mode: null,
     });
   };
 
