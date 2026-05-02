@@ -120,9 +120,8 @@ export default function PublicPartyControl() {
   const [countdown, setCountdown] = useState(POLL_INTERVAL / 1000);
 
   const fetchModuleStatus = async (_companyId: string) => {
-    const [checklistRes, attendanceRes, infoRes, statusRes] = await Promise.all([
+    const [checklistRes, infoRes, statusRes] = await Promise.all([
       supabase.from("event_checklist_items").select("id, title, is_completed, sort_order").eq("event_id", eventId!).order("sort_order"),
-      supabase.rpc("get_attendance_entry_by_event_public", { _event_id: eventId! } as any).then((r: any) => r).catch(() => ({ data: null })),
       supabase.from("event_info_entries").select("id, items").eq("event_id", eventId!).limit(1),
       supabase.rpc("get_party_control_module_status", { _event_id: eventId! }),
     ]);
