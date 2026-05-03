@@ -1,0 +1,1 @@
+UPDATE public.wapi_instances SET status='disconnected', updated_at=now() WHERE id='ba0a2a17-110e-447d-a22a-f481e21c7894';
