@@ -87,36 +87,6 @@ export function BenefitsSection() {
           })}
         </motion.div>
 
-        {/* Trust Badges */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-          className="mt-20 flex flex-wrap justify-center items-center gap-6 md:gap-8"
-        >
-          <motion.div 
-            whileHover={{ scale: 1.05 }}
-            className="flex items-center gap-3 bg-gradient-to-r from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 border border-yellow-200 dark:border-yellow-700/30 px-8 py-4 rounded-full shadow-sm"
-          >
-            <Star className="w-7 h-7 text-yellow-500 fill-yellow-500" />
-            <span className="font-bold text-lg text-foreground">4.9/5 no Google</span>
-          </motion.div>
-          <motion.div 
-            whileHover={{ scale: 1.05 }}
-            className="flex items-center gap-3 bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 px-8 py-4 rounded-full shadow-sm"
-          >
-            <PartyPopper className="w-7 h-7 text-primary" />
-            <span className="font-bold text-lg text-foreground">+5.000 festas realizadas</span>
-          </motion.div>
-          <motion.div 
-            whileHover={{ scale: 1.05 }}
-            className="flex items-center gap-3 bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 border border-red-200 dark:border-red-700/30 px-8 py-4 rounded-full shadow-sm"
-          >
-            <Heart className="w-7 h-7 text-red-500 fill-red-500" />
-            <span className="font-bold text-lg text-foreground">98% de satisfação</span>
-          </motion.div>
-        </motion.div>
       </div>
     </section>
   );
