@@ -1,0 +1,1 @@
+UPDATE public.wapi_conversations SET bot_paused_until=NULL, bot_paused_reason=NULL, bot_paused_at=NULL WHERE id='3809363f-2226-4fef-bc31-f5678faa0fad';
