@@ -2592,6 +2592,27 @@ async function processBotQualification(
         return;
       }
 
+      // 🛡️ Follow-up guard: se a última mensagem do bot foi um auto_reminder
+      // (follow-up automático após complete_final), NÃO reiniciar o fluxo.
+      // O handler normal de `complete_final` (logo abaixo) trata a resposta
+      // como uma escolha de proximo_passo. Restart aqui causaria reenvio
+      // completo de boas-vindas, fotos, vídeo e PDF.
+      if (conv.bot_step === 'complete_final') {
+        const { data: lastBotMsg } = await supabase
+          .from('wapi_messages')
+          .select('metadata')
+          .eq('conversation_id', conv.id)
+          .eq('from_me', true)
+          .order('timestamp', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const lastSource = (lastBotMsg?.metadata as JsonRecord | null)?.source;
+        if (lastSource === 'auto_reminder') {
+          console.log(`[Bot] 🧪 Pilot restart skipped for conv ${conv.id} — last bot message was auto_reminder follow-up; letting complete_final handler treat reply as proximo_passo`);
+          return;
+        }
+      }
+
       // Atomic guard via conditional UPDATE: somente reinicia se o bot_step
       // ainda for um step terminal. Se outro processo concorrente já trocou
       // para 'welcome', o UPDATE retorna 0 linhas e abortamos.
