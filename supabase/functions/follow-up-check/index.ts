@@ -2153,7 +2153,7 @@ async function processStuckBotRecovery({
             conversation_id: conv.id, message_id: msgId, from_me: true,
             message_type: 'text', content: welcomeMsg, status: 'sent',
             timestamp: new Date().toISOString(), company_id: instance.company_id,
-            metadata: { source: 'stuck_bot_recovery' },
+            metadata: { source: 'bot' },
           });
         }
 
@@ -2188,7 +2188,7 @@ async function processStuckBotRecovery({
             conversation_id: conv.id, message_id: msgId, from_me: true,
             message_type: 'text', content: errorMsg, status: 'sent',
             timestamp: new Date().toISOString(), company_id: instance.company_id,
-            metadata: { source: 'stuck_bot_recovery' },
+            metadata: { source: 'bot' },
           });
         }
 
@@ -2226,7 +2226,7 @@ async function processStuckBotRecovery({
               conversation_id: conv.id, message_id: msgId, from_me: true,
               message_type: 'text', content: transferMsg, status: 'sent',
               timestamp: new Date().toISOString(), company_id: instance.company_id,
-              metadata: { source: 'stuck_bot_recovery' },
+              metadata: { source: 'bot' },
             });
           }
           await supabase.from('wapi_conversations').update({
@@ -2254,7 +2254,7 @@ async function processStuckBotRecovery({
               conversation_id: conv.id, message_id: msgId, from_me: true,
               message_type: 'text', content: workMsg, status: 'sent',
               timestamp: new Date().toISOString(), company_id: instance.company_id,
-              metadata: { source: 'stuck_bot_recovery' },
+              metadata: { source: 'bot' },
             });
           }
 
@@ -2309,7 +2309,7 @@ async function processStuckBotRecovery({
             conversation_id: conv.id, message_id: msgId, from_me: true,
             message_type: 'text', content: completionMsg, status: 'sent',
             timestamp: new Date().toISOString(), company_id: instance.company_id,
-            metadata: { source: 'stuck_bot_recovery' },
+            metadata: { source: 'bot' },
           });
         }
 
@@ -2366,7 +2366,7 @@ async function processStuckBotRecovery({
             conversation_id: conv.id, message_id: msgId2, from_me: true,
             message_type: 'text', content: nextStepQuestion, status: 'sent',
             timestamp: new Date().toISOString(), company_id: instance.company_id,
-            metadata: { source: 'stuck_bot_recovery' },
+            metadata: { source: 'bot' },
           });
         }
 
@@ -2399,7 +2399,7 @@ async function processStuckBotRecovery({
           conversation_id: conv.id, message_id: msgId, from_me: true,
           message_type: 'text', content: nextQuestionMsg, status: 'sent',
           timestamp: new Date().toISOString(), company_id: instance.company_id,
-          metadata: { source: 'stuck_bot_recovery' },
+          metadata: { source: 'bot' },
         });
       }
 
@@ -2544,7 +2544,7 @@ async function recoverySendMaterials(
       message_type: type, content, media_url: mediaUrl || null,
       status: 'sent', timestamp: new Date().toISOString(),
       company_id: instance.company_id,
-      metadata: { source: 'stuck_bot_recovery' },
+      metadata: { source: 'bot' },
     });
   };
 
