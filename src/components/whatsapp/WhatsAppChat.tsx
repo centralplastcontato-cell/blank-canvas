@@ -2477,19 +2477,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     setReplyingTo(null);
     setIsSending(true);
 
-    // Auto-disable bot when human sends a message
-    if (selectedConversation.bot_enabled) {
-      supabase
-        .from("wapi_conversations")
-        .update({ bot_enabled: false, bot_step: 'human_takeover' })
-        .eq("id", selectedConversation.id)
-        .then(() => {
-          // Update local state
-          setSelectedConversation(prev => prev ? { ...prev, bot_enabled: false, bot_step: 'human_takeover' } : null);
-          setConversations(prev => prev.map(c => c.id === selectedConversation.id ? { ...c, bot_enabled: false, bot_step: 'human_takeover' } : c));
-          console.log('[Bot] Auto-desativado por envio humano');
-        });
-    }
+    autoDisableBotOnHumanSend(selectedConversation);
 
     // Optimistic update - show message immediately with pending status
     const optimisticId = `optimistic-${Date.now()}`;
