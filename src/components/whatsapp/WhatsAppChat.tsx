@@ -2444,6 +2444,20 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
   };
 
+  // Auto-disable bot when human sends ANY message (text, media, audio, contact)
+  const autoDisableBotOnHumanSend = (conv: { id: string; bot_enabled: boolean | null } | null) => {
+    if (!conv || !conv.bot_enabled) return;
+    supabase
+      .from("wapi_conversations")
+      .update({ bot_enabled: false, bot_step: 'human_takeover' })
+      .eq("id", conv.id)
+      .then(() => {
+        setSelectedConversation(prev => prev && prev.id === conv.id ? { ...prev, bot_enabled: false, bot_step: 'human_takeover' } : prev);
+        setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, bot_enabled: false, bot_step: 'human_takeover' } : c));
+        console.log('[Bot] Auto-desativado por envio humano');
+      });
+  };
+
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || !selectedInstance || isSending) return;
 
@@ -2463,19 +2477,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     setReplyingTo(null);
     setIsSending(true);
 
-    // Auto-disable bot when human sends a message
-    if (selectedConversation.bot_enabled) {
-      supabase
-        .from("wapi_conversations")
-        .update({ bot_enabled: false, bot_step: 'human_takeover' })
-        .eq("id", selectedConversation.id)
-        .then(() => {
-          // Update local state
-          setSelectedConversation(prev => prev ? { ...prev, bot_enabled: false, bot_step: 'human_takeover' } : null);
-          setConversations(prev => prev.map(c => c.id === selectedConversation.id ? { ...c, bot_enabled: false, bot_step: 'human_takeover' } : c));
-          console.log('[Bot] Auto-desativado por envio humano');
-        });
-    }
+    autoDisableBotOnHumanSend(selectedConversation);
 
     // Optimistic update - show message immediately with pending status
     const optimisticId = `optimistic-${Date.now()}`;
@@ -2585,6 +2587,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     };
     
     setMessages(prev => [...prev, optimisticMessage]);
+    autoDisableBotOnHumanSend(selectedConversation);
     setShowContactDialog(false);
     
     try {
@@ -3085,6 +3088,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     };
     
     setMessages(prev => [...prev, optimisticMessage]);
+    autoDisableBotOnHumanSend(selectedConversation);
     
     // Capture blob before clearing recording UI
     const capturedBlob = audioBlob;
@@ -3296,6 +3300,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     };
     
     setMessages(prev => [...prev, optimisticMessage]);
+    autoDisableBotOnHumanSend(selectedConversation);
     
     // Clear preview immediately for better UX
     cancelMediaUpload();
