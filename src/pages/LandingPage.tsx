@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { Moon, Sun } from "lucide-react";
 import { HeroSection } from "@/components/landing/HeroSection";
+import { GoogleReviewsSection } from "@/components/landing/GoogleReviewsSection";
 import { BenefitsSection } from "@/components/landing/BenefitsSection";
 import { OfferSection } from "@/components/landing/OfferSection";
 import { InstagramSection } from "@/components/landing/InstagramSection";
@@ -40,6 +41,7 @@ const LandingPage = () => {
         <meta property="og:url" content="https://www.castelodadiversao.online" />
       </Helmet>
       <HeroSection onCtaClick={openChat} />
+      <GoogleReviewsSection />
       <OfferSection onCtaClick={openChat} />
       <BenefitsSection />
       <VideoGallerySection />
