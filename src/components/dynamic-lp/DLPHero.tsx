@@ -192,8 +192,8 @@ export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick, mul
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4, duration: 0.6 }}
-              className="text-4xl md:text-6xl lg:text-7xl font-bold drop-shadow-lg"
-              style={{ color: theme.text_color, fontFamily: theme.font_heading }}
+              className="text-4xl md:text-6xl lg:text-7xl font-bold"
+              style={{ color: "#ffffff", fontFamily: theme.font_heading, textShadow: "0 2px 12px rgba(0,0,0,0.7), 0 4px 24px rgba(0,0,0,0.5)" }}
             >
               {hero.title || companyName}
             </motion.h1>
@@ -204,7 +204,7 @@ export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick, mul
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6, duration: 0.5 }}
                 className="text-lg md:text-2xl max-w-2xl mx-auto mt-4"
-                style={{ color: theme.text_color + "ee", fontFamily: theme.font_body }}
+                style={{ color: "#ffffff", fontFamily: theme.font_body, textShadow: "0 2px 8px rgba(0,0,0,0.7)" }}
               >
                 {hero.subtitle}
               </motion.p>
