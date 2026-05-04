@@ -5,40 +5,39 @@
 
 export const campaignConfig = {
   // HERO
-  title: "Promoção de Páscoa",
-  subtitle: "Comemore a Páscoa com uma festa inesquecível! 10 crianças até 8 anos FREE e parcele em até 10x no cartão.",
-  tagline: "🐰 Promoção de Páscoa no Castelo da Diversão",
-  
+  title: "Castelo da Diversão",
+  subtitle: "Há 9 anos transformando aniversários em memórias inesquecíveis. Mais de 4.000 festas realizadas em Sorocaba.",
+  tagline: "✨ 9 anos · +4.000 festas realizadas",
+
   // OFERTA PRINCIPAL
   offer: {
-    headline: "Promoção especial de Páscoa",
-    description: "Nesta Páscoa, o Castelo da Diversão preparou um presente especial: sua festa com 10 crianças até 8 anos FREE! Parcele em até 10x no cartão.",
+    headline: "Conheça o Castelo da Diversão",
+    description: "Agende uma visita de 15 minutos e descubra por que somos referência em festas infantis em Sorocaba.",
     benefits: [
-      "10 crianças até 8 anos FREE",
-      "Parcelamento em até 10x no cartão",
       "Estrutura completa para sua festa",
       "Equipe especializada e dedicada",
+      "Cardápio variado para todas as idades",
+      "Ambiente seguro e preparado para crianças",
     ],
-    validUntil: "20 de Abril de 2026",
+    validUntil: "",
     conditions: [
-      "Válida para festas agendadas até 20/04/2026",
-      "Crianças FREE com até 8 anos de idade",
-      "Promoção não cumulativa com outras ofertas",
+      "Visita rápida de 15 minutos com horário agendado",
+      "Atendimento personalizado por nossa equipe comercial",
     ],
   },
 
   // URGÊNCIA
   urgency: {
-    message: "Garanta agora a data da festa do seu filho",
-    spotsLeft: 10,
-    deadline: "Promoção por tempo limitado",
-    endDate: "2026-04-20T23:59:59",
+    message: "Garanta a data da festa do seu filho",
+    spotsLeft: 0,
+    deadline: "Datas se esgotam rapidamente",
+    endDate: "",
   },
 
   // CHATBOT - Opções configuráveis
   chatbot: {
     unitOptions: ["Trujillo"],
-    monthOptions: ["Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"],
+    monthOptions: ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"],
     promoMonths: [],
     nonPromoMessage: "",
     dayOptions: ["Segunda a Quinta", "Sexta", "Sábado", "Domingo"],
@@ -46,8 +45,8 @@ export const campaignConfig = {
   },
 
   // IDENTIFICAÇÃO
-  campaignId: "pascoa-2026",
-  campaignName: "Promoção de Páscoa 2026",
+  campaignId: "castelo-institucional",
+  campaignName: "Castelo da Diversão",
   
   // EMPRESA (multi-tenant) - ID da empresa padrão para leads da landing page
   companyId: "a0000000-0000-0000-0000-000000000001",
