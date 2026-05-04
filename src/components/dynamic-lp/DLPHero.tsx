@@ -173,16 +173,7 @@ export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick, mul
           transition={{ duration: 0.8 }}
           className="space-y-6"
         >
-          {/* Glassmorphism backdrop */}
-          <div
-            className="absolute inset-0 -inset-x-6 -inset-y-4 rounded-3xl"
-            style={{
-              background: `linear-gradient(135deg, ${theme.primary_color}18, ${theme.secondary_color}10)`,
-              backdropFilter: "blur(8px)",
-              WebkitBackdropFilter: "blur(8px)",
-              border: `1px solid ${theme.text_color}15`,
-            }}
-          />
+          {/* Backdrop removed para deixar a imagem do hero mais visível */}
 
           <div className="relative z-10">
             {companyLogo && !logoFailed && (
