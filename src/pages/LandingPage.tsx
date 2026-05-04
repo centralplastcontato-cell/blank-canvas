@@ -11,6 +11,13 @@ import { UrgencySection } from "@/components/landing/UrgencySection";
 import { LeadChatbot } from "@/components/landing/LeadChatbot";
 import { FloatingCTA } from "@/components/landing/FloatingCTA";
 import { Footer } from "@/components/landing/Footer";
+import { DLPPromoSection } from "@/components/dynamic-lp/DLPPromoSection";
+import { DLPUrgencyBanner } from "@/components/dynamic-lp/DLPUrgencyBanner";
+
+const CASTELO_THEME = {
+  primary_color: "#E91E63",
+  secondary_color: "#FFC107",
+} as any;
 
 const LandingPage = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -39,9 +46,11 @@ const LandingPage = () => {
         <meta property="og:title" content="Castelo da Diversão | Buffet Infantil em Sorocaba" />
         <meta property="og:url" content="https://www.castelodadiversao.online" />
       </Helmet>
+      <DLPUrgencyBanner theme={CASTELO_THEME} onCtaClick={openChat} />
       <HeroSection onCtaClick={openChat} />
       <GoogleReviewsSection />
       <BenefitsSection />
+      <DLPPromoSection theme={CASTELO_THEME} onCtaClick={openChat} />
       <VideoGallerySection />
       <UrgencySection onCtaClick={openChat} />
       <InstagramSection />

@@ -7,8 +7,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { DLPHero } from "@/components/dynamic-lp/DLPHero";
 import { DLPSocialProof } from "@/components/dynamic-lp/DLPSocialProof";
 import { DLPBenefits } from "@/components/dynamic-lp/DLPBenefits";
-import { DLPPromoSection } from "@/components/dynamic-lp/DLPPromoSection";
-import { DLPUrgencyBanner } from "@/components/dynamic-lp/DLPUrgencyBanner";
 import { DLPTestimonials } from "@/components/dynamic-lp/DLPTestimonials";
 import { DLPMediaTabs } from "@/components/dynamic-lp/DLPMediaTabs";
 import { DLPOffer } from "@/components/dynamic-lp/DLPOffer";
@@ -232,10 +230,6 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
         {data.company_logo && <meta name="twitter:image" content={data.company_logo} />}
       </Helmet>
 
-      {data.company_slug?.includes("castelo") && (
-        <DLPUrgencyBanner theme={data.theme} onCtaClick={openChat} />
-      )}
-
       <DLPHero
         hero={data.hero}
         theme={data.theme}
@@ -246,9 +240,6 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
       />
       <DLPSocialProof socialProof={data.social_proof} theme={data.theme} />
       <DLPBenefits theme={data.theme} companyName={data.company_name} benefits={data.benefits} />
-      {data.company_slug?.includes("castelo") && (
-        <DLPPromoSection theme={data.theme} onCtaClick={openChat} />
-      )}
       <DLPMediaTabs
         gallery={data.gallery}
         video={data.video}
