@@ -176,14 +176,14 @@ export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick, mul
           {/* Backdrop removed para deixar a imagem do hero mais visível */}
 
           <div className="relative z-10">
-            {companyLogo && !logoFailed && companyName.toLowerCase().indexOf("carrossel") === -1 && (
+            {companyLogo && !logoFailed && (
               <motion.img
                 src={companyLogo}
                 alt={companyName}
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.2, duration: 0.5 }}
-                className="w-48 md:w-64 lg:w-80 mx-auto drop-shadow-2xl mb-6"
+                className="w-48 md:w-64 lg:w-80 mx-auto drop-shadow-2xl mb-6 -mt-16 md:-mt-24"
                 onError={() => setLogoFailed(true)}
               />
             )}
