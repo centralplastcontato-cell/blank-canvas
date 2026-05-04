@@ -2587,6 +2587,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     };
     
     setMessages(prev => [...prev, optimisticMessage]);
+    autoDisableBotOnHumanSend(selectedConversation);
     setShowContactDialog(false);
     
     try {
