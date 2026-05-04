@@ -7,8 +7,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { DLPHero } from "@/components/dynamic-lp/DLPHero";
 import { DLPSocialProof } from "@/components/dynamic-lp/DLPSocialProof";
 import { DLPBenefits } from "@/components/dynamic-lp/DLPBenefits";
-import { DLPPromoSection } from "@/components/dynamic-lp/DLPPromoSection";
-import { DLPUrgencyBanner } from "@/components/dynamic-lp/DLPUrgencyBanner";
 import { DLPTestimonials } from "@/components/dynamic-lp/DLPTestimonials";
 import { DLPMediaTabs } from "@/components/dynamic-lp/DLPMediaTabs";
 import { DLPOffer } from "@/components/dynamic-lp/DLPOffer";
