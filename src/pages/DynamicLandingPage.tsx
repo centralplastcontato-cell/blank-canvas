@@ -242,9 +242,6 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
       />
       <DLPSocialProof socialProof={data.social_proof} theme={data.theme} />
       <DLPBenefits theme={data.theme} companyName={data.company_name} benefits={data.benefits} />
-      {data.company_slug?.includes("castelo") && (
-        <DLPPromoSection theme={data.theme} onCtaClick={openChat} />
-      )}
       <DLPMediaTabs
         gallery={data.gallery}
         video={data.video}
