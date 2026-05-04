@@ -3300,6 +3300,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     };
     
     setMessages(prev => [...prev, optimisticMessage]);
+    autoDisableBotOnHumanSend(selectedConversation);
     
     // Clear preview immediately for better UX
     cancelMediaUpload();
