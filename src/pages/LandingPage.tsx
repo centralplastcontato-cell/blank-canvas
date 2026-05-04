@@ -4,7 +4,7 @@ import { Moon, Sun } from "lucide-react";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { GoogleReviewsSection } from "@/components/landing/GoogleReviewsSection";
 import { BenefitsSection } from "@/components/landing/BenefitsSection";
-import { OfferSection } from "@/components/landing/OfferSection";
+
 import { InstagramSection } from "@/components/landing/InstagramSection";
 import { VideoGallerySection } from "@/components/landing/VideoGallerySection";
 import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
@@ -35,14 +35,13 @@ const LandingPage = () => {
         {isDark ? <Sun className="w-5 h-5 text-secondary" /> : <Moon className="w-5 h-5 text-foreground" />}
       </button>
       <Helmet>
-        <title>Castelo da Diversão | Promoção de Páscoa 🐰</title>
-        <meta name="description" content="Promoção de Páscoa no Castelo da Diversão! 10 crianças até 8 anos FREE. Parcele em até 10x no cartão. Buffet infantil em Sorocaba." />
-        <meta property="og:title" content="Castelo da Diversão | Promoção de Páscoa 🐰" />
+        <title>Castelo da Diversão | Buffet Infantil em Sorocaba</title>
+        <meta name="description" content="Há 9 anos transformando aniversários em memórias inesquecíveis. +4.000 festas realizadas. Agende uma visita de 15 minutos." />
+        <meta property="og:title" content="Castelo da Diversão | Buffet Infantil em Sorocaba" />
         <meta property="og:url" content="https://www.castelodadiversao.online" />
       </Helmet>
       <HeroSection onCtaClick={openChat} />
       <GoogleReviewsSection />
-      <OfferSection onCtaClick={openChat} />
       <BenefitsSection />
       <VideoGallerySection />
       <UrgencySection onCtaClick={openChat} />
