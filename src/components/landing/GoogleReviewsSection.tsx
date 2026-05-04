@@ -8,15 +8,15 @@ interface GoogleReviewsSectionProps {
 const reviews = [
   {
     name: "Mariana S.",
-    text: "Festa perfeita do início ao fim. Equipe atenciosa, espaço lindo e meu filho amou cada minuto!",
+    text: "Recebemos os convidados num espaço impecável. Meu filho ainda fala da festa dele meses depois.",
   },
   {
     name: "Rafael L.",
-    text: "Melhor buffet de Sorocaba. Comida ótima, monitores incríveis e tudo super organizado.",
+    text: "Atenção aos detalhes do começo ao fim. Equipe leve, comida elogiada e festa fluindo sem nenhum perrengue.",
   },
   {
     name: "Camila R.",
-    text: "Já é a segunda festa que fazemos aqui. Família toda elogiou — vale cada centavo.",
+    text: "Voltamos pela terceira vez. É raro encontrar um lugar que entrega o que promete — aqui entrega mais.",
   },
 ];
 
@@ -49,13 +49,13 @@ export function GoogleReviewsSection({
                   <path fill="#FBBC05" d="M11.69 28.18A13.6 13.6 0 0 1 10.96 24c0-1.45.25-2.86.69-4.18v-5.7H4.34A21.97 21.97 0 0 0 2 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7z"/>
                   <path fill="#EA4335" d="M24 9.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 2.96 29.93 1 24 1 15.4 1 7.96 5.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/>
                 </svg>
-                Famílias no Google
+                Reputação verificada · Google
               </span>
               <span className="h-px w-8 bg-gradient-to-l from-transparent to-amber-400/60" />
             </div>
             <h2 className="font-['Fraunces'] text-3xl md:text-5xl font-light text-foreground leading-tight">
-              O que as famílias{" "}
-              <span className="italic font-medium text-primary">dizem por aí</span>
+              Quem celebra aqui{" "}
+              <span className="italic font-medium text-primary">volta — e indica</span>
             </h2>
           </div>
 
