@@ -7,7 +7,6 @@ import { BenefitsSection } from "@/components/landing/BenefitsSection";
 
 import { InstagramSection } from "@/components/landing/InstagramSection";
 import { VideoGallerySection } from "@/components/landing/VideoGallerySection";
-import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
 import { UrgencySection } from "@/components/landing/UrgencySection";
 import { LeadChatbot } from "@/components/landing/LeadChatbot";
 import { FloatingCTA } from "@/components/landing/FloatingCTA";
@@ -46,7 +45,6 @@ const LandingPage = () => {
       <VideoGallerySection />
       <UrgencySection onCtaClick={openChat} />
       <InstagramSection />
-      <TestimonialsSection />
       <Footer />
       
       <FloatingCTA onClick={openChat} />
