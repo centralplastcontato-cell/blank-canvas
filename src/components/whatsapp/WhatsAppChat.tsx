@@ -3088,6 +3088,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     };
     
     setMessages(prev => [...prev, optimisticMessage]);
+    autoDisableBotOnHumanSend(selectedConversation);
     
     // Capture blob before clearing recording UI
     const capturedBlob = audioBlob;
