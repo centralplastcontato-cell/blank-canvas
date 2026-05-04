@@ -46,9 +46,11 @@ const LandingPage = () => {
         <meta property="og:title" content="Castelo da Diversão | Buffet Infantil em Sorocaba" />
         <meta property="og:url" content="https://www.castelodadiversao.online" />
       </Helmet>
+      <DLPUrgencyBanner theme={CASTELO_THEME} onCtaClick={openChat} />
       <HeroSection onCtaClick={openChat} />
       <GoogleReviewsSection />
       <BenefitsSection />
+      <DLPPromoSection theme={CASTELO_THEME} onCtaClick={openChat} />
       <VideoGallerySection />
       <UrgencySection onCtaClick={openChat} />
       <InstagramSection />
