@@ -47,10 +47,30 @@ const LandingPage = () => {
         <meta property="og:url" content="https://www.castelodadiversao.online" />
       </Helmet>
       <DLPUrgencyBanner theme={CASTELO_THEME} onCtaClick={openChat} />
+      <header className="sticky top-0 z-40 bg-[#0a0a1a]/90 backdrop-blur-md border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+          <span className="text-sm font-bold tracking-wider uppercase text-yellow-300">
+            Castelo da Diversão
+          </span>
+          <a
+            href="#oferta"
+            onClick={(e) => {
+              e.preventDefault();
+              document.getElementById("oferta")?.scrollIntoView({ behavior: "smooth" });
+            }}
+            className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold text-[#0a0a1a] shadow-md hover:scale-105 transition-transform"
+            style={{ background: `linear-gradient(110deg, ${CASTELO_THEME.primary_color}, ${CASTELO_THEME.secondary_color})`, color: "#fff" }}
+          >
+            Ver oferta →
+          </a>
+        </div>
+      </header>
       <HeroSection onCtaClick={openChat} />
       <GoogleReviewsSection />
       <BenefitsSection />
-      <DLPPromoSection theme={CASTELO_THEME} onCtaClick={openChat} />
+      <div id="oferta">
+        <DLPPromoSection theme={CASTELO_THEME} onCtaClick={openChat} />
+      </div>
       <VideoGallerySection />
       <UrgencySection onCtaClick={openChat} />
       <InstagramSection />
