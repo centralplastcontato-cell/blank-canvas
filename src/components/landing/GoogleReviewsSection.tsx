@@ -114,10 +114,6 @@ export function GoogleReviewsSection({
             </div>
           </div>
 
-          {/* Trust line */}
-          <p className="text-center text-xs md:text-sm text-muted-foreground mt-6 font-medium">
-            9 anos de história · +4.000 festas realizadas · referência em Sorocaba
-          </p>
         </motion.div>
       </div>
     </section>
