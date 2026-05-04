@@ -232,10 +232,6 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
         {data.company_logo && <meta name="twitter:image" content={data.company_logo} />}
       </Helmet>
 
-      {data.company_slug?.includes("castelo") && (
-        <DLPUrgencyBanner theme={data.theme} onCtaClick={openChat} />
-      )}
-
       <DLPHero
         hero={data.hero}
         theme={data.theme}
