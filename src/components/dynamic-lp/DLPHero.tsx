@@ -115,11 +115,11 @@ export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick, mul
           ))}
         </AnimatePresence>
       </div>
-      {/* More vibrant overlay with dual gradient */}
+      {/* Darker overlay for text legibility */}
       <div
         className="absolute inset-0"
         style={{
-          background: `linear-gradient(180deg, ${theme.primary_color}55 0%, transparent 35%, transparent 65%, ${theme.background_color}cc 100%)`,
+          background: `linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 40%, rgba(0,0,0,0.55) 100%)`,
         }}
       />
     </>
@@ -143,7 +143,7 @@ export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick, mul
           <div
             className="absolute inset-0"
             style={{
-              background: `linear-gradient(180deg, ${theme.primary_color}55 0%, transparent 35%, transparent 65%, ${theme.background_color}cc 100%)`,
+              background: `linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 40%, rgba(0,0,0,0.55) 100%)`,
             }}
           />
         </div>
