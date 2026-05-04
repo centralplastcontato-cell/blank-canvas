@@ -119,7 +119,7 @@ export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick, mul
       <div
         className="absolute inset-0"
         style={{
-          background: `linear-gradient(160deg, ${theme.primary_color}cc 0%, ${theme.primary_color}88 40%, ${theme.secondary_color}66 70%, ${theme.background_color}ee 100%)`,
+          background: `linear-gradient(180deg, ${theme.primary_color}55 0%, transparent 35%, transparent 65%, ${theme.background_color}cc 100%)`,
         }}
       />
     </>
