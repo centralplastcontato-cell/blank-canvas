@@ -2444,6 +2444,20 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
   };
 
+  // Auto-disable bot when human sends ANY message (text, media, audio, contact)
+  const autoDisableBotOnHumanSend = (conv: { id: string; bot_enabled: boolean | null } | null) => {
+    if (!conv || !conv.bot_enabled) return;
+    supabase
+      .from("wapi_conversations")
+      .update({ bot_enabled: false, bot_step: 'human_takeover' })
+      .eq("id", conv.id)
+      .then(() => {
+        setSelectedConversation(prev => prev && prev.id === conv.id ? { ...prev, bot_enabled: false, bot_step: 'human_takeover' } : prev);
+        setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, bot_enabled: false, bot_step: 'human_takeover' } : c));
+        console.log('[Bot] Auto-desativado por envio humano');
+      });
+  };
+
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || !selectedInstance || isSending) return;
 
