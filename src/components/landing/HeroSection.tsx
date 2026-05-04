@@ -8,9 +8,9 @@ interface HeroSectionProps {
 }
 
 const stats = [
-  { value: "9", suffix: "anos", label: "de história" },
-  { value: "+4.000", suffix: "", label: "festas realizadas" },
-  { value: "4,9", suffix: "★", label: "no Google" },
+  { value: "9", suffix: "anos", label: "de tradição em Sorocaba" },
+  { value: "+4.000", suffix: "", label: "celebrações realizadas" },
+  { value: "4,9", suffix: "★", label: "reputação no Google" },
 ];
 
 export function HeroSection({ onCtaClick }: HeroSectionProps) {
@@ -113,8 +113,8 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
             transition={{ delay: 0.55, duration: 0.7 }}
             className="font-['Inter'] text-base sm:text-lg md:text-xl text-white/75 max-w-2xl mx-auto font-light leading-relaxed"
           >
-            Há 9 anos transformando aniversários em memórias inesquecíveis.
-            <span className="block mt-1 text-white/60">Agende uma visita de 15 minutos e conheça nosso espaço.</span>
+            Cada detalhe pensado para transformar o aniversário em memória de família.
+            <span className="block mt-1 text-white/60">Conheça o espaço numa visita rápida de 15 minutos.</span>
           </motion.p>
 
           {/* CTA */}
@@ -181,7 +181,7 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
                 <Star key={i} className="w-3 h-3 fill-yellow-300 text-yellow-300" />
               ))}
               <span className="ml-2 text-[11px] text-white/60 font-['Inter'] tracking-wide">
-                avaliado por centenas de famílias
+                a confiança de quem já celebrou aqui
               </span>
             </div>
           </motion.div>
