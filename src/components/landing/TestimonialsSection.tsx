@@ -112,27 +112,6 @@ export function TestimonialsSection() {
           ))}
         </motion.div>
 
-        {/* Trust badges */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="mt-12 flex flex-wrap justify-center gap-6 md:gap-12"
-        >
-          <div className="text-center">
-            <p className="text-3xl md:text-4xl font-display font-bold text-primary">+500</p>
-            <p className="text-sm text-muted-foreground">Festas realizadas</p>
-          </div>
-          <div className="text-center">
-            <p className="text-3xl md:text-4xl font-display font-bold text-primary">4.9</p>
-            <p className="text-sm text-muted-foreground">Avaliação média</p>
-          </div>
-          <div className="text-center">
-            <p className="text-3xl md:text-4xl font-display font-bold text-primary">98%</p>
-            <p className="text-sm text-muted-foreground">Clientes satisfeitos</p>
-          </div>
-        </motion.div>
       </div>
     </section>
   );
