@@ -176,7 +176,7 @@ export function DLPHero({ hero, theme, companyName, companyLogo, onCtaClick, mul
           {/* Backdrop removed para deixar a imagem do hero mais visível */}
 
           <div className="relative z-10">
-            {companyLogo && !logoFailed && (
+            {companyLogo && !logoFailed && companyName.toLowerCase().indexOf("carrossel") === -1 && (
               <motion.img
                 src={companyLogo}
                 alt={companyName}
