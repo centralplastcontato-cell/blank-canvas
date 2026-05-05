@@ -184,15 +184,14 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
           const s = String(m).toLowerCase();
           return s.includes("deb");
         };
-        for (const p of financial.payments) {
+        for (const pRaw of financial.payments) {
+          const p: any = pRaw;
           if (!isCardMethod(p.payment_method)) continue;
-          // Skip if already stamped (idempotent)
           const hasFee = p.card_fee_percent != null && Number(p.card_fee_percent) > 0;
           const hasGross = p.gross_amount != null && Number(p.gross_amount) > 0;
           if (hasFee && hasGross) continue;
 
           const isDebit = isDebitMethod(p.payment_method);
-          // Pick installments / snapshot tax by row type
           const isEntradaRow = p.type === "entrada";
           const parcelas = isDebit
             ? 1
@@ -209,7 +208,6 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
           };
           if (snapshotOperatorId && !p.card_operator_id) update.card_operator_id = snapshotOperatorId;
           if (!hasGross) {
-            // Reverse-engineer gross from net (amount = gross * (1 - taxa/100))
             const gross = Math.round((Number(p.amount) / (1 - taxa / 100)) * 100) / 100;
             update.gross_amount = gross;
           }
