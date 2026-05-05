@@ -2205,14 +2205,17 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               {/* Parcelas */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
                 <div className="space-y-2.5">
-                  <Label className="text-sm font-medium text-foreground/70">Parcelas</Label>
+                  <Label className="text-sm font-medium text-foreground/70">
+                    Parcelas {payment.saldo_forma === "cartao_debito" && <span className="text-xs text-muted-foreground font-normal">(débito é à vista)</span>}
+                  </Label>
                   <Input
                     type="number"
                     inputMode="numeric"
                     min={1}
                     max={24}
                     placeholder="1"
-                    value={payment.parcelas ?? ""}
+                    value={payment.saldo_forma === "cartao_debito" ? 1 : (payment.parcelas ?? "")}
+                    disabled={payment.saldo_forma === "cartao_debito"}
                     onWheel={(e) => (e.target as HTMLInputElement).blur()}
                     onKeyDown={(e) => { if (e.key === "ArrowUp" || e.key === "ArrowDown") e.preventDefault(); }}
                     onChange={(e) => {
@@ -2222,7 +2225,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     }}
                   />
                 </div>
-                {(payment.parcelas ?? 0) > 1 && payment.saldo_forma !== "cartao" && (
+                {(payment.parcelas ?? 0) > 1 && payment.saldo_forma !== "cartao" && payment.saldo_forma !== "cartao_debito" && (
                   <div className="space-y-2.5">
                     <Label className="text-sm font-medium text-foreground/70">Vencimentos</Label>
                     <div className="flex gap-2">
