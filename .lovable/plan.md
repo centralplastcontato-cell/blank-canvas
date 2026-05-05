@@ -1,48 +1,72 @@
+## Objetivo
 
-## Problema
+Salvar o percentual da taxa da operadora no momento em que a parcela/entrada é registrada, para que o painel "Taxas de Cartão / Perdas" e o cálculo do Pendente sempre usem a taxa **da época** — não a taxa atual da operadora (que pode ter mudado).
 
-Hoje, ao lançar um pagamento no cartão (ex: R$ 5.000 em 10x), a plataforma cria **uma única parcela líquida** independentemente da operadora antecipar ou não. Para buffets que **não antecipam** (ex: cliente da Celebrei), isso impede o controle de recebimento mês a mês conforme a operadora deposita.
+## Boa notícia
 
-## Solução
+As colunas necessárias **já existem** em `event_payments`:
+- `card_fee_percent numeric`
+- `card_operator_id uuid`
+- `card_installments integer`
+- `gross_amount numeric`
 
-Quando a operadora estiver com `antecipado = false`, gerar **N parcelas mensais** automaticamente, cada uma já com o valor líquido (taxa diluída) e a data correta de recebimento conforme o prazo da operadora.
+Não precisa migration de schema. O trabalho é só no frontend.
 
 ## Mudanças
 
-### 1. Banco — `company_card_fees`
-Adicionar coluna nova:
-- `prazo_recebimento_dias` (integer, default 30) — quantos dias após a venda cai a 1ª parcela; as demais somam +30 dias cada.
+### 1) `src/components/agenda/EventFormDialog.tsx` — congelar no `payment_details`
 
-### 2. UI — `CardFeesManager` (Admin → Taxas de Cartão)
-- Quando o switch "Recebimento antecipado" estiver **desligado**, mostrar campo novo: **"Prazo de recebimento da 1ª parcela (dias)"** com default 30.
-- Texto explicativo: "Cada parcela seguinte será recebida 30 dias após a anterior."
+No `handleSubmit` e no auto-save, ao normalizar o `payment` antes de gravar em `company_events.payment_details`, adicionar:
 
-### 3. Lógica de criação de parcela — `PaymentFormDialog.tsx` + handler do submit
-Ao submeter um pagamento de cartão de crédito parcelado:
+- `entrada_taxa_percent` — percentual da operadora na hora, conforme método (crédito Nx → `taxa_credito_Nx`; débito → `taxa_debito`)
+- `saldo_taxa_percent` — idem para o saldo
+- `card_operator_id` e `card_operator_name` — qual operadora estava ativa
 
-- Se operadora `antecipado = true` → comportamento atual (1 parcela líquida na data informada). **Sem mudança.**
-- Se operadora `antecipado = false` e `installments > 1` → em vez de criar 1 `event_payments`, criar **N rows**:
-  - `valor por parcela = (gross × (1 - taxa%/100)) / N` (arredondamento na última para fechar a soma)
-  - `due_date` da parcela 1 = data da venda + `prazo_recebimento_dias`
-  - `due_date` das parcelas 2..N = parcela 1 + 30 dias × (i-1)
-  - Mesmas flags de cartão (operator_id, installments, fee_percent, gross_amount) replicadas em todas
-  - `notes` automático: "Parcela 1/10 — Cartão 10x sem antecipação"
+Aplicar tanto no `handleSubmit` (linhas ~1112-1122) quanto no auto-save (linhas ~1379-1388).
 
-### 4. Standalone revenues (dashboard financeiro)
-Mesmo comportamento aplicado ao fluxo de receita avulsa que já usa `calcCardFee` no `PaymentFormDialog`.
+### 2) `src/components/financial/EventFinancialTab.tsx` — gravar nas parcelas auto-criadas
 
-### 5. Edição/recálculo
-- Ao editar uma parcela do grupo, **não** propagar para as outras (cada uma é independente, igual ao fluxo de parcelamento atual de eventos).
-- Sync seletiva existente já preserva parcelas pagas — nada a fazer.
+No bloco de auto-sync (`useEffect` linhas ~120-243) que cria as `event_payments` a partir do `payment_details`, popular nas linhas inseridas:
+- `card_fee_percent` (do snapshot salvo no `payment_details`, com fallback à taxa atual)
+- `card_operator_id`
+- `card_installments`
+- `gross_amount` (valor bruto antes da taxa)
+
+Assim cada `event_payment` carrega seu próprio "selo" da taxa da época.
+
+### 3) `src/components/financial/EventFinancialTab.tsx` — usar a taxa congelada no painel
+
+No `useMemo cardFeeLoss` (linhas 600-666), trocar a leitura de `cardFees[0][taxa_credito_Nx]` por:
+
+1. **Prioridade 1:** percentual congelado em `paymentDetails.entrada_taxa_percent` / `saldo_taxa_percent`
+2. **Prioridade 2 (fallback legado):** taxa atual da operadora (comportamento de hoje), para eventos antigos que não tinham snapshot
+
+Mostrar a operadora pelo nome congelado em `paymentDetails.card_operator_name` quando existir.
+
+### 4) Compatibilidade com registros legados
+
+Eventos antigos sem os campos congelados continuam funcionando exatamente como hoje (fallback à taxa atual). Não há quebra de dados — apenas eventos **novos** (e edições futuras de eventos antigos) passam a ter o snapshot.
+
+## Resultado para a Cleitne
+
+- Aumentar a taxa da Infinite hoje **não altera mais** a perda exibida nem o Pendente de festas antigas.
+- Festas novas registram automaticamente a taxa do momento.
+- Não precisa mais criar "Infinite 2" só para preservar histórico (continua sendo uma opção válida se quiser separar relatórios por operadora).
 
 ## Detalhes técnicos
 
-- A coluna nova é nullable com default 30, então operadoras existentes seguem funcionando.
-- O cálculo `calcCardFee` em `src/lib/cardFees.ts` ganha um helper novo `splitInstallments(calc, startDate, prazoDias)` que retorna `Array<{ amount, due_date }>` — usado tanto no event side quanto no standalone.
-- Não mexe em nada do flag `antecipado=true` (comportamento atual preservado, conforme você pediu).
+```text
+payment_details (jsonb em company_events) — adiciona:
+├── card_operator_id        ← snapshot
+├── card_operator_name      ← snapshot
+├── entrada_taxa_percent    ← snapshot (numérico, ex.: 4.5)
+└── saldo_taxa_percent      ← snapshot
 
-## Resultado esperado
+event_payments — popula colunas existentes:
+├── card_fee_percent        ← já existe
+├── card_operator_id        ← já existe
+├── card_installments       ← já existe
+└── gross_amount            ← já existe
+```
 
-Cliente Celebrei lança R$ 5.000 em 10x na Stone (sem antecipação, prazo 30 dias):
-→ sistema cria **10 parcelas de ~R$ 482**, vencendo em 30, 60, 90... dias.
-→ ele dá baixa em cada uma conforme o extrato da operadora.
+Sem migration. Sem mudança em RLS. Sem impacto em outras telas.
