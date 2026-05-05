@@ -34,6 +34,7 @@ interface CardFee {
 const EMPTY_FORM: Omit<CardFee, "id"> = {
   operator_name: "",
   antecipado: false,
+  prazo_recebimento_dias: 30,
   taxa_debito: 0,
   taxa_credito_1x: 0,
   taxa_credito_2x: 0,
