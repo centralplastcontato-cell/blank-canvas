@@ -449,8 +449,16 @@ async function zapiConfigureWebhooks(instanceId: string, token: string, clientTo
   // 'update-webhook-message-sent') return NOT_FOUND on certain Z-API plans,
   // leaving the on-send webhook unregistered — which causes mensagens enviadas
   // pelo celular do buffet to never reach our backend.
-  const primary = await zapiRequest(instanceId, token, clientToken, 'update-every-webhooks', 'PUT', { value: webhookUrl });
+  // CRITICAL: notifySentByMe=true makes the "Ao receber" webhook ALSO fire for
+  // messages the buffet sends from the phone (with full content), not just status
+  // callbacks. Without this, mensagens enviadas pelo celular nunca aparecem na
+  // plataforma porque o backend só recebe MessageStatusCallback (sem conteúdo).
+  const primary = await zapiRequest(instanceId, token, clientToken, 'update-every-webhooks', 'PUT', { value: webhookUrl, notifySentByMe: true });
   if (primary.ok) {
+    // Also explicitly enable notifySentByMe via the dedicated endpoint as
+    // double-insurance (some Z-API plans ignore the flag in update-every-webhooks).
+    await zapiRequest(instanceId, token, clientToken, 'update-notify-sent-by-me', 'PUT', { notifySentByMe: true })
+      .catch(() => ({ ok: false }));
     return { ok: true, data: primary.data };
   }
 
