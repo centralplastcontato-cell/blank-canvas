@@ -129,10 +129,11 @@ export function AdvancedSection({ userId, isAdmin }: AdvancedSectionProps) {
         return;
       }
 
-      // Group by contact_phone to find duplicates
+      // Group by phone (canonical when fuzzyMode is on, raw otherwise)
       const phoneGroups: Record<string, typeof conversations> = {};
       conversations.forEach(conv => {
-        const phone = conv.contact_phone;
+        const phone = fuzzyMode ? canonPhone(conv.contact_phone) : conv.contact_phone;
+        if (!phone) return;
         if (!phoneGroups[phone]) {
           phoneGroups[phone] = [];
         }
