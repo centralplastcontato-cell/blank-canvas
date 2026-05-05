@@ -117,12 +117,10 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
     return () => { cancelled = true; };
   }, [eventId]);
 
-  // Auto-sync: if no payments exist but event has payment_details, sync them
+  // Auto-sync: (A) if no payments exist, create from payment_details;
+  // (B) if payments exist but card ones lack the frozen tax stamp, backfill it.
   useEffect(() => {
     if (financial.isLoading || syncAttempted.current) return;
-    // If ANY payments exist (even just a paid entrada), skip backfill
-    // This prevents re-creating manually deleted parcelas
-    if (financial.payments.length > 0) return;
     syncAttempted.current = true;
 
     (async () => {
@@ -174,6 +172,52 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
         return today;
       };
 
+      // ===== Branch B: payments already exist — backfill missing card stamps =====
+      if (financial.payments.length > 0) {
+        const isCardMethod = (m?: string | null) => {
+          if (!m) return false;
+          const s = String(m).toLowerCase();
+          return s.includes("cart") || s === "cartao" || s === "cartao_credito" || s === "cartao_debito";
+        };
+        const isDebitMethod = (m?: string | null) => {
+          if (!m) return false;
+          const s = String(m).toLowerCase();
+          return s.includes("deb");
+        };
+        for (const pRaw of financial.payments) {
+          const p: any = pRaw;
+          if (!isCardMethod(p.payment_method)) continue;
+          const hasFee = p.card_fee_percent != null && Number(p.card_fee_percent) > 0;
+          const hasGross = p.gross_amount != null && Number(p.gross_amount) > 0;
+          if (hasFee && hasGross) continue;
+
+          const isDebit = isDebitMethod(p.payment_method);
+          const isEntradaRow = p.type === "entrada";
+          const parcelas = isDebit
+            ? 1
+            : Math.max(1, Number(isEntradaRow ? pd.entrada_parcelas : pd.parcelas) || (Number(p.card_installments) || 1));
+          const snapshotPct = isEntradaRow ? pd.entrada_taxa_percent : pd.saldo_taxa_percent;
+          const taxa = snapshotPct != null
+            ? Number(snapshotPct)
+            : (isDebit ? getDebitTax() : getCardTax(parcelas));
+          if (!(taxa > 0)) continue;
+
+          const update: any = {
+            card_fee_percent: taxa,
+            card_installments: parcelas,
+          };
+          if (snapshotOperatorId && !p.card_operator_id) update.card_operator_id = snapshotOperatorId;
+          if (!hasGross) {
+            const gross = Math.round((Number(p.amount) / (1 - taxa / 100)) * 100) / 100;
+            update.gross_amount = gross;
+          }
+          await supabase.from("event_payments").update(update).eq("id", p.id);
+        }
+        financial.refresh();
+        return;
+      }
+
+      // ===== Branch A: no payments — create from payment_details =====
       const rows: any[] = [];
       const entradaAmount = parseAmount(pd.entrada_valor);
       if (entradaAmount && entradaAmount > 0) {
@@ -184,7 +228,6 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
         let entradaParcelas = 1;
         if (isEntradaCardCredito) {
           entradaParcelas = Math.max(1, Number(pd.entrada_parcelas) || 1);
-          // Prefer snapshot percent from payment_details
           entradaTaxa = pd.entrada_taxa_percent != null ? Number(pd.entrada_taxa_percent) : getCardTax(entradaParcelas);
           if (entradaTaxa > 0) amount = entradaAmount - (entradaAmount * entradaTaxa / 100);
         } else if (isEntradaCardDebito) {
@@ -621,93 +664,75 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
     }
   }, [companyId, eventId]);
 
-  // Compute card fee losses using GROSS values from payment_details and real installment counts.
-  // Prefers SNAPSHOT percent congelado em payment_details (taxa da época); fallback à taxa atual.
+  // Compute card fee losses iterating REAL parcelas (event_payments).
+  // Source of truth = each parcela's frozen stamp; falls back to payment_details snapshot, then current operator rate.
   const cardFeeLoss = useMemo(() => {
-    if (!paymentDetails) return null;
-    const snapshotOpId = paymentDetails.card_operator_id;
-    const operator: any = (snapshotOpId && cardFees.find((f: any) => f.id === snapshotOpId))
-      || cardFees[0]
-      || null;
+    const pd: any = paymentDetails || {};
+    const isCardMethod = (m?: string | null) => {
+      if (!m) return false;
+      const s = String(m).toLowerCase();
+      return s.includes("cart") || s === "cartao" || s === "cartao_credito" || s === "cartao_debito";
+    };
+    const isDebitMethod = (m?: string | null) => {
+      if (!m) return false;
+      return String(m).toLowerCase().includes("deb");
+    };
+
+    const cardPayments = (financial.payments || []).filter((p: any) => isCardMethod(p.payment_method));
+    if (cardPayments.length === 0) return null;
+
+    // Pick operator: row's own → snapshot → first available
+    const firstRowOpId = (cardPayments.find((p: any) => p.card_operator_id) as any)?.card_operator_id;
+    const opId = pd.card_operator_id || firstRowOpId;
+    const operator: any = (opId && cardFees.find((f: any) => f.id === opId)) || cardFees[0] || null;
     const operatorName: string =
-      paymentDetails.card_operator_name || operator?.operator_name || "Operadora";
+      pd.card_operator_name || operator?.operator_name || "Operadora";
+
+    const rateForRow = (rowOp: any, parcelas: number, debit: boolean) => {
+      const op = rowOp || operator;
+      if (!op) return 0;
+      if (debit) return Number(op.taxa_debito || 0);
+      const key = `taxa_credito_${Math.min(Math.max(1, parcelas), 12)}x`;
+      return Number(op[key] || 0);
+    };
 
     let totalLoss = 0;
     const details: Array<{ type: string; bruto: number; taxa: number; desconto: number; parcelas: number }> = [];
 
-    const parseNum = (v: unknown): number => {
-      if (typeof v === "number") return v;
-      if (typeof v !== "string") return 0;
-      const cleaned = v.trim().replace(/R\$\s?/g, "").replace(/\s/g, "");
-      const normalized = cleaned.includes(",") ? cleaned.replace(/\./g, "").replace(",", ".") : cleaned;
-      return Number(normalized) || 0;
-    };
+    for (const pRaw of cardPayments) {
+      const p: any = pRaw;
+      const isDebit = isDebitMethod(p.payment_method);
+      const isEntradaRow = p.type === "entrada";
+      const snapshotPct = isEntradaRow ? pd.entrada_taxa_percent : pd.saldo_taxa_percent;
+      const parcelas = isDebit
+        ? 1
+        : Math.max(1, Number(p.card_installments) || Number(isEntradaRow ? pd.entrada_parcelas : pd.parcelas) || 1);
 
-    const taxaCredito = (parcelas: number): number => {
-      if (!operator) return 0;
-      const key = `taxa_credito_${Math.min(parcelas, 12)}x`;
-      return Number(operator[key] || 0);
-    };
-    const taxaDebito = (): number => operator ? Number(operator.taxa_debito || 0) : 0;
+      // Tax priority: row stamp → payment_details snapshot → current operator rate
+      let taxa = 0;
+      if (p.card_fee_percent != null && Number(p.card_fee_percent) > 0) {
+        taxa = Number(p.card_fee_percent);
+      } else if (snapshotPct != null) {
+        taxa = Number(snapshotPct);
+      } else {
+        const rowOp = (p.card_operator_id && cardFees.find((f: any) => f.id === p.card_operator_id)) || operator;
+        taxa = rateForRow(rowOp, parcelas, isDebit);
+      }
+      if (!(taxa > 0)) continue;
 
-    // Entrada
-    if (paymentDetails.entrada_forma === "cartao" || paymentDetails.entrada_forma === "cartao_credito") {
-      const brutEntrada = parseNum(paymentDetails.entrada_valor);
-      if (brutEntrada > 0) {
-        const parcelas = Math.max(1, Number(paymentDetails.entrada_parcelas) || 1);
-        const taxa = paymentDetails.entrada_taxa_percent != null
-          ? Number(paymentDetails.entrada_taxa_percent)
-          : taxaCredito(parcelas);
-        if (taxa > 0) {
-          const desconto = brutEntrada * taxa / 100;
-          totalLoss += desconto;
-          details.push({ type: "entrada", bruto: brutEntrada, taxa, desconto, parcelas });
-        }
-      }
-    } else if (paymentDetails.entrada_forma === "cartao_debito") {
-      const brutEntrada = parseNum(paymentDetails.entrada_valor);
-      if (brutEntrada > 0) {
-        const taxa = paymentDetails.entrada_taxa_percent != null
-          ? Number(paymentDetails.entrada_taxa_percent)
-          : taxaDebito();
-        if (taxa > 0) {
-          const desconto = brutEntrada * taxa / 100;
-          totalLoss += desconto;
-          details.push({ type: "entrada", bruto: brutEntrada, taxa, desconto, parcelas: 1 });
-        }
-      }
-    }
+      // Gross priority: row gross_amount → derive from net amount
+      const gross = p.gross_amount != null && Number(p.gross_amount) > 0
+        ? Number(p.gross_amount)
+        : Math.round((Number(p.amount) / (1 - taxa / 100)) * 100) / 100;
+      if (!(gross > 0)) continue;
 
-    // Saldo
-    if (paymentDetails.saldo_forma === "cartao" || paymentDetails.saldo_forma === "cartao_credito") {
-      const brutSaldo = parseNum(paymentDetails.saldo_valor);
-      if (brutSaldo > 0) {
-        const parcelas = Math.max(1, Number(paymentDetails.parcelas) || 1);
-        const taxa = paymentDetails.saldo_taxa_percent != null
-          ? Number(paymentDetails.saldo_taxa_percent)
-          : taxaCredito(parcelas);
-        if (taxa > 0) {
-          const desconto = brutSaldo * taxa / 100;
-          totalLoss += desconto;
-          details.push({ type: "parcela", bruto: brutSaldo, taxa, desconto, parcelas });
-        }
-      }
-    } else if (paymentDetails.saldo_forma === "cartao_debito") {
-      const brutSaldo = parseNum(paymentDetails.saldo_valor);
-      if (brutSaldo > 0) {
-        const taxa = paymentDetails.saldo_taxa_percent != null
-          ? Number(paymentDetails.saldo_taxa_percent)
-          : taxaDebito();
-        if (taxa > 0) {
-          const desconto = brutSaldo * taxa / 100;
-          totalLoss += desconto;
-          details.push({ type: "parcela", bruto: brutSaldo, taxa, desconto, parcelas: 1 });
-        }
-      }
+      const desconto = Math.round((gross * taxa / 100) * 100) / 100;
+      totalLoss += desconto;
+      details.push({ type: p.type, bruto: gross, taxa, desconto, parcelas });
     }
 
     return totalLoss > 0 ? { operator: operatorName, totalLoss, details } : null;
-  }, [cardFees, paymentDetails]);
+  }, [cardFees, paymentDetails, financial.payments]);
 
   // Adjust summary for unaccounted card fees (legacy records where gross_amount === amount)
   const adjustedSummary = useMemo(() => {
