@@ -81,14 +81,19 @@ export function getCompanyLogoOverride(slug?: string | null, fallback?: string |
 export function applyHeroAssetOverrides(hero: LPHero, slug?: string | null): LPHero {
   const override = getCompanyAssetOverride(slug);
 
-  if (!override?.mascot && !override?.heroBackgroundImage) {
+  if (!override?.mascot && !override?.heroBackgroundImage && !override?.heroBackgroundImages) {
     return hero;
   }
 
   return {
     ...hero,
     ...(override.mascot ? { mascot_image_url: override.mascot } : {}),
-    ...(override.heroBackgroundImage
+    ...(override.heroBackgroundImages && override.heroBackgroundImages.length > 0
+      ? {
+          background_image_url: override.heroBackgroundImages[0],
+          background_images: override.heroBackgroundImages,
+        }
+      : override.heroBackgroundImage
       ? {
           background_image_url: override.heroBackgroundImage,
           background_images: [override.heroBackgroundImage],
