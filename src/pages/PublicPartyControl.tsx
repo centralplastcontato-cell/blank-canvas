@@ -122,7 +122,7 @@ export default function PublicPartyControl() {
   const fetchModuleStatus = async (_companyId: string) => {
     const [checklistRes, infoRes, statusRes] = await Promise.all([
       supabase.from("event_checklist_items").select("id, title, is_completed, sort_order").eq("event_id", eventId!).order("sort_order"),
-      supabase.from("event_info_entries").select("id, items").eq("event_id", eventId!).limit(1),
+      supabase.rpc("get_event_info_entries_by_event_public", { _event_id: eventId! }),
       supabase.rpc("get_party_control_module_status", { _event_id: eventId! }),
     ]);
 

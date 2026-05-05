@@ -115,19 +115,14 @@ export function PublicStaffEvaluation({ recordId, companyId, eventId, staffData 
     setSaving(true);
 
     for (const ev of evals) {
-      const payload = {
-        company_id: companyId,
-        event_staff_entry_id: recordId,
-        event_id: eventId,
-        freelancer_name: ev.name,
-        evaluated_by: null,
-        scores: ev.scores,
-        observations: ev.observations || null,
-      };
-
-      const { error } = await (supabase as any)
-        .from("freelancer_evaluations")
-        .upsert(payload, { onConflict: "event_staff_entry_id,freelancer_name" });
+      const { error } = await (supabase as any).rpc("submit_freelancer_evaluation", {
+        _entry_id: recordId,
+        _company_id: companyId,
+        _event_id: eventId,
+        _freelancer_name: ev.name,
+        _scores: ev.scores,
+        _observations: ev.observations || null,
+      });
 
       if (error) {
         toast({ title: `Erro ao salvar avaliação de ${ev.name}`, description: error.message, variant: "destructive" });

@@ -27,11 +27,8 @@ export default function PublicEventInfo() {
   useEffect(() => {
     if (!recordId) return;
     (async () => {
-      const { data, error } = await supabase
-        .from("event_info_entries")
-        .select("*")
-        .eq("id", recordId)
-        .single();
+      const { data: rpcData, error } = await supabase.rpc("get_event_info_entry_public", { _id: recordId });
+      const data = rpcData && (rpcData as any[])[0];
 
       if (error || !data) {
         setNotFound(true);
