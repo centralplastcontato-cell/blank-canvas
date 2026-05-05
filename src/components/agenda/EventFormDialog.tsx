@@ -1109,8 +1109,19 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
     setSaving(true);
     try {
+      // Hard guard: Cartão Débito é sempre 1x. Normaliza saldo e entrada antes de gravar.
+      const normalizedPayment: any = { ...payment };
+      if (normalizedPayment.saldo_forma === "cartao_debito") {
+        normalizedPayment.parcelas = 1;
+        normalizedPayment.parcelas_same_day = true;
+        normalizedPayment.parcelas_day = null;
+        normalizedPayment.parcelas_details = buildParcelasDetails(1, normalizedPayment.saldo_valor, normalizedPayment.parcelas_details || []);
+      }
+      if (normalizedPayment.entrada_forma === "cartao_debito") {
+        normalizedPayment.entrada_parcelas = 1;
+      }
       const paymentWithDiscount = {
-        ...payment,
+        ...normalizedPayment,
         discount_type: form.discount_type, discount_value: form.discount_value,
         discount_base: form.discount_base, discount_reason: form.discount_reason,
         // Per-person pricing data
