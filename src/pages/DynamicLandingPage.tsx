@@ -14,7 +14,7 @@ import { DLPHowItWorks } from "@/components/dynamic-lp/DLPHowItWorks";
 import { DLPFooter } from "@/components/dynamic-lp/DLPFooter";
 import { DLPFloatingCTA } from "@/components/dynamic-lp/DLPFloatingCTA";
 import { LeadChatbot } from "@/components/landing/LeadChatbot";
-import { applyHeroAssetOverrides, getCompanyLogoOverride, getExtraGalleryPhotos } from "@/lib/companyAssetOverrides";
+import { applyHeroAssetOverrides, getCompanyLogoOverride, getExtraGalleryPhotos, getGalleryPhotosOverride } from "@/lib/companyAssetOverrides";
 import type { LPHero, LPVideo, LPGallery, LPTestimonials, LPOffer, LPTheme, LPFooter, LPBenefits, LPSocialProof, LPHowItWorks } from "@/types/landing-page";
 
 interface LPBotConfig {
@@ -164,10 +164,11 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
               : (Array.isArray(g.images)
                 ? g.images.map((img: any) => typeof img === 'string' ? img : img?.url).filter(Boolean)
                 : []);
+            const galleryOverride = getGalleryPhotosOverride(companySlug);
             const extra = getExtraGalleryPhotos(companySlug);
-            const allPhotos = [...basePhotos, ...extra];
+            const allPhotos = galleryOverride ?? [...basePhotos, ...extra];
             const newUnits = Array.isArray(g.units) && g.units.length > 0
-              ? g.units.map((u, i) => i === 0 ? { ...u, photos: [...(u.photos || []), ...extra] } : u)
+              ? g.units.map((u, i) => i === 0 ? { ...u, photos: galleryOverride ?? [...(u.photos || []), ...extra] } : u)
               : undefined;
             return { ...g, photos: allPhotos, ...(newUnits ? { units: newUnits } : {}) };
           })(),
