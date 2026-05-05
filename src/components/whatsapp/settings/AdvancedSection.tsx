@@ -45,10 +45,29 @@ export function AdvancedSection({ userId, isAdmin }: AdvancedSectionProps) {
   const [isMerging, setIsMerging] = useState(false);
   const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([]);
   const [hasScanned, setHasScanned] = useState(false);
+  const [fuzzyMode, setFuzzyMode] = useState(false);
   const [aiContext, setAiContext] = useState("");
   const [aiContextLoading, setAiContextLoading] = useState(false);
   const [aiContextSaving, setAiContextSaving] = useState(false);
   const companyId = useCurrentCompanyId();
+
+  // Canonicaliza número BR: remove o "9" extra de celulares e força DDI 55
+  // Resultado estável para variações 8 vs 9 dígitos e com/sem 55
+  const canonPhone = (raw: string | null | undefined): string => {
+    if (!raw) return "";
+    const d = String(raw).replace(/\D/g, "");
+    if (!d) return "";
+    if (d.length === 13 && d.startsWith("55") && d.charAt(4) === "9") {
+      return d.slice(0, 4) + d.slice(5);
+    }
+    if (d.length === 12 && d.startsWith("55")) return d;
+    if (d.length === 11 && d.charAt(2) === "9") {
+      return "55" + d.slice(0, 2) + d.slice(3);
+    }
+    if (d.length === 10) return "55" + d;
+    if (d.length >= 8 && d.length <= 9) return d;
+    return d.startsWith("55") ? d : "55" + d;
+  };
 
   // Load ai_context from all company bot settings
   useEffect(() => {
@@ -110,10 +129,11 @@ export function AdvancedSection({ userId, isAdmin }: AdvancedSectionProps) {
         return;
       }
 
-      // Group by contact_phone to find duplicates
+      // Group by phone (canonical when fuzzyMode is on, raw otherwise)
       const phoneGroups: Record<string, typeof conversations> = {};
       conversations.forEach(conv => {
-        const phone = conv.contact_phone;
+        const phone = fuzzyMode ? canonPhone(conv.contact_phone) : conv.contact_phone;
+        if (!phone) return;
         if (!phoneGroups[phone]) {
           phoneGroups[phone] = [];
         }
@@ -507,6 +527,21 @@ export function AdvancedSection({ userId, isAdmin }: AdvancedSectionProps) {
               Essa ferramenta identifica contatos que aparecem mais de uma vez na lista de conversas
               (causado por variações no formato do número) e permite mesclá-los em uma única conversa.
             </p>
+
+            <label className="flex items-start gap-3 p-3 rounded-xl border bg-muted/30 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={fuzzyMode}
+                onChange={(e) => { setFuzzyMode(e.target.checked); setHasScanned(false); setDuplicates([]); }}
+                className="mt-1"
+              />
+              <div className="flex-1">
+                <p className="text-sm font-medium">Modo aproximado (recomendado)</p>
+                <p className="text-xs text-muted-foreground">
+                  Une números quase iguais — ex.: <span className="font-mono">5515998111710</span> e <span className="font-mono">551598111710</span> (diferença do 9 extra) viram o mesmo contato. Use só se tiver certeza que são a mesma pessoa.
+                </p>
+              </div>
+            </label>
 
             <div className="flex flex-wrap gap-2">
               <Button 
