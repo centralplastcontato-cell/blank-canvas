@@ -491,8 +491,10 @@ async function zapiConfigureWebhooks(instanceId: string, token: string, clientTo
     console.log(`[zapi-webhook] ${ep}: ${res.ok ? 'OK' : 'FAIL'}${res.error ? ` (${res.error})` : ''}`);
   }
 
-  // Also enable "notify sent by me" so we receive our own outgoing messages
-  const notifyMe = await zapiRequest(instanceId, token, clientToken, 'update-every-private-message-call', 'PUT', { value: true }).catch(() => ({ ok: false }));
+  // Also enable "notify sent by me" so we receive our own outgoing messages WITH
+  // CONTENT via the on-receive webhook. The correct body per Z-API docs is
+  // { notifySentByMe: true } — the previous { value: true } silently failed.
+  const notifyMe = await zapiRequest(instanceId, token, clientToken, 'update-notify-sent-by-me', 'PUT', { notifySentByMe: true }).catch(() => ({ ok: false }));
   console.log(`[zapi-webhook] notify-sent-by-me: ${notifyMe.ok ? 'OK' : 'SKIP'}`);
 
   return {
