@@ -782,6 +782,28 @@ function exceedsGuestLimit(guestOption: string, limit: number): boolean {
 const normalizePhone = (phone: string) => phone.replace(/\D/g, '');
 const normalizePhoneForTestMatch = (phone: string) => normalizePhone(phone).replace(/^55/, '').replace(/^0+/, '');
 
+function getBrazilianPhoneVariants(rawPhone: string): string[] {
+  const digits = normalizePhone(rawPhone);
+  if (!digits) return [];
+
+  const variants = new Set<string>([digits]);
+  const local = digits.startsWith('55') ? digits.slice(2) : digits;
+  if (digits.startsWith('55') && digits.length >= 12) variants.add(local);
+  if (!digits.startsWith('55') && digits.length >= 10) variants.add(`55${digits}`);
+  if (local.length === 10) {
+    const withNine = `${local.slice(0, 2)}9${local.slice(2)}`;
+    variants.add(withNine);
+    variants.add(`55${withNine}`);
+  }
+  if (local.length === 11 && local[2] === '9') {
+    const withoutNine = `${local.slice(0, 2)}${local.slice(3)}`;
+    variants.add(withoutNine);
+    variants.add(`55${withoutNine}`);
+  }
+
+  return Array.from(variants);
+}
+
 
 function isSameTestPhone(incomingPhone: string, testPhone: string): boolean {
   const incoming = normalizePhoneForTestMatch(incomingPhone);
@@ -4949,6 +4971,29 @@ async function processWebhookEvent(body: JsonRecord) {
         console.error(`[Webhook] Error fetching conversation: ${exErr.message}`);
       }
 
+      // Same-instance phone unification: Z-API/W-API may alternate BR numbers with
+      // and without the 9th digit. Reuse the existing phone thread before creating
+      // a second conversation for the same contact.
+      if (!ex && !isGrp && !resolvedLidConv) {
+        const phoneVariants = getBrazilianPhoneVariants(phone);
+        const { data: samePhoneConv } = await supabase.from('wapi_conversations')
+          .select('id, instance_id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at')
+          .eq('company_id', instance.company_id)
+          .eq('instance_id', instance.id)
+          .in('contact_phone', phoneVariants)
+          .not('remote_jid', 'like', '%@g.us')
+          .not('remote_jid', 'like', '%@broadcast%')
+          .order('last_message_at', { ascending: false, nullsFirst: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (samePhoneConv) {
+          console.log(`[Webhook] Reusing same-phone conversation ${samePhoneConv.id} for ${phone}`);
+          ex = samePhoneConv as JsonRecord;
+          rj = samePhoneConv.remote_jid || rj;
+        }
+      }
+
       // 🔄 CROSS-INSTANCE UNIFICATION
       // If no conversation exists for this instance+rj, look for an existing
       // conversation in the SAME COMPANY for the SAME PHONE on a DIFFERENT instance
@@ -5386,9 +5431,20 @@ async function processWebhookEvent(body: JsonRecord) {
           const cId = (body?.chat as JsonRecord)?.id || (sd as JsonRecord)?.chat?.id;
           if (cId) {
             let rj = (cId as string).includes('@') ? cId : `${cId}@s.whatsapp.net`;
+            if ((rj as string).includes('@c.us')) rj = (rj as string).replace('@c.us', '@s.whatsapp.net');
+            let resolvedStatusLidConv: JsonRecord | null = null;
+            if ((rj as string).includes('@lid')) {
+              resolvedStatusLidConv = await resolveLidConversation(supabase, instance.id, rj as string, mId as string | null, body as JsonRecord);
+              if (resolvedStatusLidConv?.remote_jid && !String(resolvedStatusLidConv.remote_jid).includes('@lid')) {
+                console.log(`[webhookDelivery] Resolved status @lid ${rj} to ${resolvedStatusLidConv.remote_jid}`);
+                rj = resolvedStatusLidConv.remote_jid;
+              }
+            }
             const p = (rj as string).replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace('@lid', '');
             if (!(rj as string).includes('@g.us')) {
-              const { data: ec } = await supabase.from('wapi_conversations').select('*').eq('instance_id', instance.id).eq('remote_jid', rj).maybeSingle();
+              const { data: ec } = resolvedStatusLidConv && !(rj as string).includes('@lid')
+                ? { data: resolvedStatusLidConv }
+                : await supabase.from('wapi_conversations').select('*').eq('instance_id', instance.id).eq('remote_jid', rj).maybeSingle();
               let pv = '';
               if ((mcd as JsonRecord).conversation) pv = (mcd as JsonRecord).conversation as string;
               else if ((mcd as JsonRecord).extendedTextMessage?.text) pv = (mcd as JsonRecord).extendedTextMessage?.text as string;
