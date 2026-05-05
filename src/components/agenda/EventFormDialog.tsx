@@ -25,6 +25,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { getDayType, getDayTypeLabel, findMatchingTier, getShiftFromTime, DEFAULT_DAY_TYPES, DEFAULT_GUEST_TIERS } from "@/lib/brazilian-holidays";
 import { DEFAULT_EVENT_TYPES } from "@/components/admin/EventTypesConfig";
+import { splitNonAntecipadoInstallments } from "@/lib/cardFees";
 
 export interface ParcelaDetail {
   valor: number | null;
@@ -2348,6 +2349,37 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                         </p>
                       </div>
                     )}
+                    {/* Detalhamento de parcelas para cartão SEM antecipação */}
+                    {operator && !isDebit && !operator.antecipado && parcelas > 1 && taxa > 0 && (() => {
+                      const saleDate = payment.saldo_data || format(new Date(), "yyyy-MM-dd");
+                      const prazoDias = Number(operator.prazo_recebimento_dias) || 30;
+                      const slices = splitNonAntecipadoInstallments(bruto, taxa, parcelas, saleDate, prazoDias);
+                      if (!slices) return null;
+                      return (
+                        <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3 space-y-2">
+                          <p className="text-xs font-semibold text-blue-700 dark:text-blue-400">
+                            📅 Recebimento das {parcelas} parcelas (sem antecipação · 1ª em +{prazoDias} dias)
+                          </p>
+                          <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                            {slices.map((s) => {
+                              const [y, m, d] = s.due_date.split("-");
+                              return (
+                                <div key={s.index} className="flex items-center justify-between text-xs">
+                                  <span className="text-muted-foreground">{s.index}ª parcela</span>
+                                  <span className="font-medium">{`${d}/${m}/${y}`}</span>
+                                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                    R$ {s.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground italic pt-1 border-t border-blue-500/15">
+                            Cada parcela poderá ser baixada conforme cair no extrato da operadora.
+                          </p>
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })()}
