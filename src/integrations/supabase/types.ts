@@ -6486,6 +6486,23 @@ export type Database = {
           scores: Json
         }[]
       }
+      get_event_info_entries_by_event_public: {
+        Args: { _event_id: string }
+        Returns: {
+          id: string
+          items: Json
+        }[]
+      }
+      get_event_info_entry_public: {
+        Args: { _id: string }
+        Returns: {
+          company_id: string
+          event_id: string
+          id: string
+          items: Json
+          notes: string
+        }[]
+      }
       get_event_public_info: {
         Args: { _event_id: string }
         Returns: {
@@ -6761,6 +6778,17 @@ export type Database = {
           _schedule_id: string
         }
         Returns: boolean
+      }
+      submit_freelancer_evaluation: {
+        Args: {
+          _company_id: string
+          _entry_id: string
+          _event_id: string
+          _freelancer_name: string
+          _observations: string
+          _scores: Json
+        }
+        Returns: string
       }
       update_attendance_entry_public: {
         Args: {
