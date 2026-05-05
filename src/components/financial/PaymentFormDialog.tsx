@@ -217,8 +217,11 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues,
             <Input inputMode="decimal" value={amount} onChange={e => setAmount(formatCurrencyInput(e.target.value))} placeholder="0,00" />
           </div>
           <div>
-            <Label>Vencimento</Label>
+            <Label>{shouldSplit ? "Data da venda" : "Vencimento"}</Label>
             <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+            {shouldSplit && (
+              <p className="text-[11px] text-muted-foreground mt-1">A 1ª parcela cairá {operator?.prazo_recebimento_dias ?? 30} dias após esta data.</p>
+            )}
           </div>
           <div>
             <Label>Forma de Pagamento</Label>
