@@ -91,16 +91,57 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues,
     setDuplicateDialogOpen(false);
   };
 
+  // Determine if we need to split into N monthly net installments
+  // (non-antecipado credit card with > 1 parcela)
+  const shouldSplit =
+    isCard && !isDebit && operator && operator.antecipado === false && calc.installments > 1 && calc.feePercent > 0;
+
+  const splitSlices = shouldSplit && dueDate
+    ? splitNonAntecipadoInstallments(
+        grossAmount,
+        calc.feePercent,
+        calc.installments,
+        dueDate,
+        operator?.prazo_recebimento_dias ?? 30,
+      )
+    : null;
+
   const handleSubmit = async () => {
     if (!grossAmount || !dueDate) return;
     if (method === "cheque" && !compensationDate) {
-      // simple inline guard; UI shows the field below when method === cheque
       return;
     }
 
+    // CASE A: split into N parcelas (non-antecipado)
+    if (splitSlices && splitSlices.length > 0) {
+      for (const slice of splitSlices) {
+        const sliceData: PaymentFormSubmitData = {
+          type,
+          amount: slice.amount,
+          due_date: slice.due_date,
+          payment_method: method,
+          notes: `Parcela ${slice.index}/${slice.total} — Cartão ${calc.installments}x ${operator?.operator_name || ""} (sem antecipação)${notes.trim() ? ` — ${notes.trim()}` : ""}`,
+          bank_account_id: bankAccountId || undefined,
+        };
+        if (operator) {
+          sliceData.card_operator_id = operator.id;
+          sliceData.card_installments = calc.installments;
+          sliceData.card_fee_percent = calc.feePercent;
+          sliceData.gross_amount = grossAmount / calc.installments; // bruto proporcional por parcela
+        }
+        // Sequential to preserve created_at order
+        await onSubmit(sliceData);
+      }
+      onOpenChange(false);
+      setAmount(""); setDueDate(""); setNotes(""); setBankAccountId(""); setCompensationDate("");
+      setInstallments(1);
+      return;
+    }
+
+    // CASE B: original behavior (single net parcela)
     const submitData: PaymentFormSubmitData = {
       type,
-      amount: calc.netAmount, // Store NET amount (matches event-side behavior)
+      amount: calc.netAmount,
       due_date: dueDate,
       payment_method: method,
       notes: notes.trim() || undefined,
@@ -115,7 +156,6 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       submitData.gross_amount = grossAmount;
     }
 
-    // Nível 2: checa duplicidade em outras festas (mesmo valor + método nas últimas 24h)
     if (eventContext && currentCompany?.id && !defaultValues) {
       setChecking(true);
       try {
