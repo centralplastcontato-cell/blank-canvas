@@ -1409,13 +1409,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                     return c;
                   });
                   // Re-sort by last message time
-                  return updated.sort((a, b) => 
+                  return dedupeConversations(updated).sort((a, b) => 
                     new Date(b.last_message_at || 0).getTime() - new Date(a.last_message_at || 0).getTime()
                   );
                 } else {
                   // New conversation - add to list and sort
                   console.log('[Realtime] Adding new conversation to list');
-                  return [updatedConv, ...prev].sort((a, b) => 
+                  return dedupeConversations([updatedConv, ...prev]).sort((a, b) => 
                     new Date(b.last_message_at || 0).getTime() - new Date(a.last_message_at || 0).getTime()
                   );
                 }
@@ -1964,7 +1964,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         return new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime();
       });
       
-      setConversations(sortedConversations as Conversation[]);
+      setConversations(dedupeConversations(sortedConversations as Conversation[]));
       
       const leadIds = Array.from(new Set(
         sortedConversations
