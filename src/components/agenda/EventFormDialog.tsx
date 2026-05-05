@@ -2158,13 +2158,22 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                   <Label className="text-sm font-medium text-foreground/70">Forma</Label>
                   <Select value={payment.saldo_forma || "none"} onValueChange={(v) => {
                     const novaForma = v === "none" ? "" : v;
-                    // Débito não permite parcelamento — força 1x
+                    const formaAnterior = payment.saldo_forma;
+                    // Débito não permite parcelamento — força 1x e recalcula
                     if (novaForma === "cartao_debito") {
                       const details = buildParcelasDetails(1, payment.saldo_valor, payment.parcelas_details || []);
                       setPayment({ ...payment, saldo_forma: novaForma, parcelas: 1, parcelas_details: details });
-                    } else {
-                      setPayment({ ...payment, saldo_forma: novaForma });
+                      return;
                     }
+                    // Saindo de débito → reconstrói parcelas_details com base no nº atual
+                    // (evita resquícios de quando estava travado em 1x)
+                    if (formaAnterior === "cartao_debito") {
+                      const novasParcelas = payment.parcelas && payment.parcelas > 0 ? payment.parcelas : 1;
+                      const details = buildParcelasDetails(novasParcelas, payment.saldo_valor, payment.parcelas_details || []);
+                      setPayment({ ...payment, saldo_forma: novaForma, parcelas: novasParcelas, parcelas_details: details });
+                      return;
+                    }
+                    setPayment({ ...payment, saldo_forma: novaForma });
                   }}>
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
