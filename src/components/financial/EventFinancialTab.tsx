@@ -117,12 +117,10 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
     return () => { cancelled = true; };
   }, [eventId]);
 
-  // Auto-sync: if no payments exist but event has payment_details, sync them
+  // Auto-sync: (A) if no payments exist, create from payment_details;
+  // (B) if payments exist but card ones lack the frozen tax stamp, backfill it.
   useEffect(() => {
     if (financial.isLoading || syncAttempted.current) return;
-    // If ANY payments exist (even just a paid entrada), skip backfill
-    // This prevents re-creating manually deleted parcelas
-    if (financial.payments.length > 0) return;
     syncAttempted.current = true;
 
     (async () => {
