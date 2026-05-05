@@ -621,12 +621,19 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
     }
   }, [companyId, eventId]);
 
-  // Compute card fee losses using GROSS values from payment_details and real installment counts
+  // Compute card fee losses using GROSS values from payment_details and real installment counts.
+  // Prefers SNAPSHOT percent congelado em payment_details (taxa da época); fallback à taxa atual.
   const cardFeeLoss = useMemo(() => {
-    if (cardFees.length === 0 || !paymentDetails) return null;
-    const operator = cardFees[0];
+    if (!paymentDetails) return null;
+    const snapshotOpId = paymentDetails.card_operator_id;
+    const operator: any = (snapshotOpId && cardFees.find((f: any) => f.id === snapshotOpId))
+      || cardFees[0]
+      || null;
+    const operatorName: string =
+      paymentDetails.card_operator_name || operator?.operator_name || "Operadora";
+
     let totalLoss = 0;
-    let details: Array<{ type: string; bruto: number; taxa: number; desconto: number; parcelas: number }> = [];
+    const details: Array<{ type: string; bruto: number; taxa: number; desconto: number; parcelas: number }> = [];
 
     const parseNum = (v: unknown): number => {
       if (typeof v === "number") return v;
@@ -636,13 +643,21 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       return Number(normalized) || 0;
     };
 
+    const taxaCredito = (parcelas: number): number => {
+      if (!operator) return 0;
+      const key = `taxa_credito_${Math.min(parcelas, 12)}x`;
+      return Number(operator[key] || 0);
+    };
+    const taxaDebito = (): number => operator ? Number(operator.taxa_debito || 0) : 0;
+
     // Entrada
     if (paymentDetails.entrada_forma === "cartao" || paymentDetails.entrada_forma === "cartao_credito") {
       const brutEntrada = parseNum(paymentDetails.entrada_valor);
       if (brutEntrada > 0) {
         const parcelas = Math.max(1, Number(paymentDetails.entrada_parcelas) || 1);
-        const taxaKey = `taxa_credito_${Math.min(parcelas, 12)}x`;
-        const taxa = Number(operator[taxaKey] || 0);
+        const taxa = paymentDetails.entrada_taxa_percent != null
+          ? Number(paymentDetails.entrada_taxa_percent)
+          : taxaCredito(parcelas);
         if (taxa > 0) {
           const desconto = brutEntrada * taxa / 100;
           totalLoss += desconto;
@@ -652,7 +667,9 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
     } else if (paymentDetails.entrada_forma === "cartao_debito") {
       const brutEntrada = parseNum(paymentDetails.entrada_valor);
       if (brutEntrada > 0) {
-        const taxa = Number(operator.taxa_debito || 0);
+        const taxa = paymentDetails.entrada_taxa_percent != null
+          ? Number(paymentDetails.entrada_taxa_percent)
+          : taxaDebito();
         if (taxa > 0) {
           const desconto = brutEntrada * taxa / 100;
           totalLoss += desconto;
@@ -666,8 +683,9 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       const brutSaldo = parseNum(paymentDetails.saldo_valor);
       if (brutSaldo > 0) {
         const parcelas = Math.max(1, Number(paymentDetails.parcelas) || 1);
-        const taxaKey = `taxa_credito_${Math.min(parcelas, 12)}x`;
-        const taxa = Number(operator[taxaKey] || 0);
+        const taxa = paymentDetails.saldo_taxa_percent != null
+          ? Number(paymentDetails.saldo_taxa_percent)
+          : taxaCredito(parcelas);
         if (taxa > 0) {
           const desconto = brutSaldo * taxa / 100;
           totalLoss += desconto;
@@ -677,7 +695,9 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
     } else if (paymentDetails.saldo_forma === "cartao_debito") {
       const brutSaldo = parseNum(paymentDetails.saldo_valor);
       if (brutSaldo > 0) {
-        const taxa = Number(operator.taxa_debito || 0);
+        const taxa = paymentDetails.saldo_taxa_percent != null
+          ? Number(paymentDetails.saldo_taxa_percent)
+          : taxaDebito();
         if (taxa > 0) {
           const desconto = brutSaldo * taxa / 100;
           totalLoss += desconto;
@@ -686,7 +706,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       }
     }
 
-    return totalLoss > 0 ? { operator: operator.operator_name, totalLoss, details } : null;
+    return totalLoss > 0 ? { operator: operatorName, totalLoss, details } : null;
   }, [cardFees, paymentDetails]);
 
   // Adjust summary for unaccounted card fees (legacy records where gross_amount === amount)
