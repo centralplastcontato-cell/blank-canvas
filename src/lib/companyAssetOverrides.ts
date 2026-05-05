@@ -23,11 +23,25 @@ interface CompanyAssetOverride {
   logo?: string;
   mascot?: string;
   heroBackgroundImage?: string;
+  heroBackgroundImages?: string[];
   galleryPhotos?: string[];
   extraGalleryPhotos?: string[];
   /** Map of video file basename (last URL segment) -> override poster URL */
   videoPosters?: Record<string, string>;
 }
+
+const planetaFixedGallery = [
+  planetaGallery01,
+  planetaGallery02,
+  planetaGallery03,
+  planetaGallery04,
+  planetaGallery05,
+  planetaGallery06,
+  planetaGallery07,
+  planetaGallery08,
+  planetaGallery09,
+  planetaGallery10,
+];
 
 const COMPANY_ASSET_OVERRIDES: Record<string, CompanyAssetOverride> = {
   megamegic: {
@@ -36,32 +50,12 @@ const COMPANY_ASSET_OVERRIDES: Record<string, CompanyAssetOverride> = {
     extraGalleryPhotos: [megamagicGalleryBaby],
   },
   "planeta-divertido": {
-    galleryPhotos: [
-      planetaGallery01,
-      planetaGallery02,
-      planetaGallery03,
-      planetaGallery04,
-      planetaGallery05,
-      planetaGallery06,
-      planetaGallery07,
-      planetaGallery08,
-      planetaGallery09,
-      planetaGallery10,
-    ],
+    galleryPhotos: planetaFixedGallery,
+    heroBackgroundImages: planetaFixedGallery,
   },
   buffetplanetadivertido: {
-    galleryPhotos: [
-      planetaGallery01,
-      planetaGallery02,
-      planetaGallery03,
-      planetaGallery04,
-      planetaGallery05,
-      planetaGallery06,
-      planetaGallery07,
-      planetaGallery08,
-      planetaGallery09,
-      planetaGallery10,
-    ],
+    galleryPhotos: planetaFixedGallery,
+    heroBackgroundImages: planetaFixedGallery,
   },
   "espaco-carrossel": {
     logo: espacoCarrosselLogo,
@@ -87,14 +81,19 @@ export function getCompanyLogoOverride(slug?: string | null, fallback?: string |
 export function applyHeroAssetOverrides(hero: LPHero, slug?: string | null): LPHero {
   const override = getCompanyAssetOverride(slug);
 
-  if (!override?.mascot && !override?.heroBackgroundImage) {
+  if (!override?.mascot && !override?.heroBackgroundImage && !override?.heroBackgroundImages) {
     return hero;
   }
 
   return {
     ...hero,
     ...(override.mascot ? { mascot_image_url: override.mascot } : {}),
-    ...(override.heroBackgroundImage
+    ...(override.heroBackgroundImages && override.heroBackgroundImages.length > 0
+      ? {
+          background_image_url: override.heroBackgroundImages[0],
+          background_images: override.heroBackgroundImages,
+        }
+      : override.heroBackgroundImage
       ? {
           background_image_url: override.heroBackgroundImage,
           background_images: [override.heroBackgroundImage],
