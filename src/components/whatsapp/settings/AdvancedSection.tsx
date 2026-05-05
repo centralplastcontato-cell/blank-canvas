@@ -528,6 +528,21 @@ export function AdvancedSection({ userId, isAdmin }: AdvancedSectionProps) {
               (causado por variações no formato do número) e permite mesclá-los em uma única conversa.
             </p>
 
+            <label className="flex items-start gap-3 p-3 rounded-xl border bg-muted/30 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={fuzzyMode}
+                onChange={(e) => { setFuzzyMode(e.target.checked); setHasScanned(false); setDuplicates([]); }}
+                className="mt-1"
+              />
+              <div className="flex-1">
+                <p className="text-sm font-medium">Modo aproximado (recomendado)</p>
+                <p className="text-xs text-muted-foreground">
+                  Une números quase iguais — ex.: <span className="font-mono">5515998111710</span> e <span className="font-mono">551598111710</span> (diferença do 9 extra) viram o mesmo contato. Use só se tiver certeza que são a mesma pessoa.
+                </p>
+              </div>
+            </label>
+
             <div className="flex flex-wrap gap-2">
               <Button 
                 variant="outline" 
