@@ -5431,9 +5431,20 @@ async function processWebhookEvent(body: JsonRecord) {
           const cId = (body?.chat as JsonRecord)?.id || (sd as JsonRecord)?.chat?.id;
           if (cId) {
             let rj = (cId as string).includes('@') ? cId : `${cId}@s.whatsapp.net`;
+            if ((rj as string).includes('@c.us')) rj = (rj as string).replace('@c.us', '@s.whatsapp.net');
+            let resolvedStatusLidConv: JsonRecord | null = null;
+            if ((rj as string).includes('@lid')) {
+              resolvedStatusLidConv = await resolveLidConversation(supabase, instance.id, rj as string, mId as string | null, body as JsonRecord);
+              if (resolvedStatusLidConv?.remote_jid && !String(resolvedStatusLidConv.remote_jid).includes('@lid')) {
+                console.log(`[webhookDelivery] Resolved status @lid ${rj} to ${resolvedStatusLidConv.remote_jid}`);
+                rj = resolvedStatusLidConv.remote_jid;
+              }
+            }
             const p = (rj as string).replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace('@lid', '');
             if (!(rj as string).includes('@g.us')) {
-              const { data: ec } = await supabase.from('wapi_conversations').select('*').eq('instance_id', instance.id).eq('remote_jid', rj).maybeSingle();
+              const { data: ec } = resolvedStatusLidConv && !(rj as string).includes('@lid')
+                ? { data: resolvedStatusLidConv }
+                : await supabase.from('wapi_conversations').select('*').eq('instance_id', instance.id).eq('remote_jid', rj).maybeSingle();
               let pv = '';
               if ((mcd as JsonRecord).conversation) pv = (mcd as JsonRecord).conversation as string;
               else if ((mcd as JsonRecord).extendedTextMessage?.text) pv = (mcd as JsonRecord).extendedTextMessage?.text as string;
