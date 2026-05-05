@@ -8,11 +8,22 @@ import carrosselPosterInterna2 from "@/assets/espaco-carrossel-poster-interna-2.
 import carrosselPosterExterna1 from "@/assets/espaco-carrossel-poster-externa-1.jpg";
 import carrosselPosterExterna2 from "@/assets/espaco-carrossel-poster-externa-2.jpg";
 import carrosselPosterExterna3 from "@/assets/espaco-carrossel-poster-externa-3.jpg";
+import planetaGallery01 from "@/assets/planeta-gallery-fixed/1771618696306.jpg";
+import planetaGallery02 from "@/assets/planeta-gallery-fixed/1771618697238.jpg";
+import planetaGallery03 from "@/assets/planeta-gallery-fixed/1771618698659.jpg";
+import planetaGallery04 from "@/assets/planeta-gallery-fixed/1771618699783.jpg";
+import planetaGallery05 from "@/assets/planeta-gallery-fixed/1771618700704.jpg";
+import planetaGallery06 from "@/assets/planeta-gallery-fixed/1771618701630.jpg";
+import planetaGallery07 from "@/assets/planeta-gallery-fixed/1771618702758.jpg";
+import planetaGallery08 from "@/assets/planeta-gallery-fixed/1771618704085.jpg";
+import planetaGallery09 from "@/assets/planeta-gallery-fixed/1771618705413.jpg";
+import planetaGallery10 from "@/assets/planeta-gallery-fixed/1771618706337.jpg";
 
 interface CompanyAssetOverride {
   logo?: string;
   mascot?: string;
   heroBackgroundImage?: string;
+  galleryPhotos?: string[];
   extraGalleryPhotos?: string[];
   /** Map of video file basename (last URL segment) -> override poster URL */
   videoPosters?: Record<string, string>;
@@ -23,6 +34,34 @@ const COMPANY_ASSET_OVERRIDES: Record<string, CompanyAssetOverride> = {
     logo: megamagicLogo,
     mascot: megamagicMascot,
     extraGalleryPhotos: [megamagicGalleryBaby],
+  },
+  "planeta-divertido": {
+    galleryPhotos: [
+      planetaGallery01,
+      planetaGallery02,
+      planetaGallery03,
+      planetaGallery04,
+      planetaGallery05,
+      planetaGallery06,
+      planetaGallery07,
+      planetaGallery08,
+      planetaGallery09,
+      planetaGallery10,
+    ],
+  },
+  buffetplanetadivertido: {
+    galleryPhotos: [
+      planetaGallery01,
+      planetaGallery02,
+      planetaGallery03,
+      planetaGallery04,
+      planetaGallery05,
+      planetaGallery06,
+      planetaGallery07,
+      planetaGallery08,
+      planetaGallery09,
+      planetaGallery10,
+    ],
   },
   "espaco-carrossel": {
     logo: espacoCarrosselLogo,
@@ -66,6 +105,10 @@ export function applyHeroAssetOverrides(hero: LPHero, slug?: string | null): LPH
 
 export function getExtraGalleryPhotos(slug?: string | null): string[] {
   return getCompanyAssetOverride(slug)?.extraGalleryPhotos ?? [];
+}
+
+export function getGalleryPhotosOverride(slug?: string | null): string[] | null {
+  return getCompanyAssetOverride(slug)?.galleryPhotos ?? null;
 }
 
 export function getVideoPosterOverride(
