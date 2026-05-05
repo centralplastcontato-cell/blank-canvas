@@ -2156,7 +2156,16 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 </div>
                 <div className="space-y-2.5">
                   <Label className="text-sm font-medium text-foreground/70">Forma</Label>
-                  <Select value={payment.saldo_forma || "none"} onValueChange={(v) => setPayment({ ...payment, saldo_forma: v === "none" ? "" : v })}>
+                  <Select value={payment.saldo_forma || "none"} onValueChange={(v) => {
+                    const novaForma = v === "none" ? "" : v;
+                    // Débito não permite parcelamento — força 1x
+                    if (novaForma === "cartao_debito") {
+                      const details = buildParcelasDetails(1, payment.saldo_valor, payment.parcelas_details || []);
+                      setPayment({ ...payment, saldo_forma: novaForma, parcelas: 1, parcelas_details: details });
+                    } else {
+                      setPayment({ ...payment, saldo_forma: novaForma });
+                    }
+                  }}>
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Não informado</SelectItem>
