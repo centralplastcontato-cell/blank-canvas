@@ -4971,6 +4971,29 @@ async function processWebhookEvent(body: JsonRecord) {
         console.error(`[Webhook] Error fetching conversation: ${exErr.message}`);
       }
 
+      // Same-instance phone unification: Z-API/W-API may alternate BR numbers with
+      // and without the 9th digit. Reuse the existing phone thread before creating
+      // a second conversation for the same contact.
+      if (!ex && !isGrp && !resolvedLidConv) {
+        const phoneVariants = getBrazilianPhoneVariants(phone);
+        const { data: samePhoneConv } = await supabase.from('wapi_conversations')
+          .select('id, instance_id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at')
+          .eq('company_id', instance.company_id)
+          .eq('instance_id', instance.id)
+          .in('contact_phone', phoneVariants)
+          .not('remote_jid', 'like', '%@g.us')
+          .not('remote_jid', 'like', '%@broadcast%')
+          .order('last_message_at', { ascending: false, nullsFirst: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (samePhoneConv) {
+          console.log(`[Webhook] Reusing same-phone conversation ${samePhoneConv.id} for ${phone}`);
+          ex = samePhoneConv as JsonRecord;
+          rj = samePhoneConv.remote_jid || rj;
+        }
+      }
+
       // 🔄 CROSS-INSTANCE UNIFICATION
       // If no conversation exists for this instance+rj, look for an existing
       // conversation in the SAME COMPANY for the SAME PHONE on a DIFFERENT instance
