@@ -9,7 +9,7 @@ import { BankAccountSelect } from "./BankAccountSelect";
 import { formatCurrencyInput, parseCurrencyInput, numberToCurrencyDisplay } from "@/lib/currency-input";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
-import { calcCardFee, isCardMethod, isDebitMethod, type CardFeeRow } from "@/lib/cardFees";
+import { calcCardFee, isCardMethod, isDebitMethod, splitNonAntecipadoInstallments, type CardFeeRow } from "@/lib/cardFees";
 import { checkDuplicatePayment, type DuplicateMatch } from "@/hooks/useDuplicatePaymentCheck";
 import { DuplicatePaymentWarningDialog } from "./DuplicatePaymentWarningDialog";
 import { format } from "date-fns";
