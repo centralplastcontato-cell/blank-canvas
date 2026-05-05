@@ -172,6 +172,54 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
         return today;
       };
 
+      // ===== Branch B: payments already exist — backfill missing card stamps =====
+      if (financial.payments.length > 0) {
+        const isCardMethod = (m?: string | null) => {
+          if (!m) return false;
+          const s = String(m).toLowerCase();
+          return s.includes("cart") || s === "cartao" || s === "cartao_credito" || s === "cartao_debito";
+        };
+        const isDebitMethod = (m?: string | null) => {
+          if (!m) return false;
+          const s = String(m).toLowerCase();
+          return s.includes("deb");
+        };
+        for (const p of financial.payments) {
+          if (!isCardMethod(p.payment_method)) continue;
+          // Skip if already stamped (idempotent)
+          const hasFee = p.card_fee_percent != null && Number(p.card_fee_percent) > 0;
+          const hasGross = p.gross_amount != null && Number(p.gross_amount) > 0;
+          if (hasFee && hasGross) continue;
+
+          const isDebit = isDebitMethod(p.payment_method);
+          // Pick installments / snapshot tax by row type
+          const isEntradaRow = p.type === "entrada";
+          const parcelas = isDebit
+            ? 1
+            : Math.max(1, Number(isEntradaRow ? pd.entrada_parcelas : pd.parcelas) || (Number(p.card_installments) || 1));
+          const snapshotPct = isEntradaRow ? pd.entrada_taxa_percent : pd.saldo_taxa_percent;
+          const taxa = snapshotPct != null
+            ? Number(snapshotPct)
+            : (isDebit ? getDebitTax() : getCardTax(parcelas));
+          if (!(taxa > 0)) continue;
+
+          const update: any = {
+            card_fee_percent: taxa,
+            card_installments: parcelas,
+          };
+          if (snapshotOperatorId && !p.card_operator_id) update.card_operator_id = snapshotOperatorId;
+          if (!hasGross) {
+            // Reverse-engineer gross from net (amount = gross * (1 - taxa/100))
+            const gross = Math.round((Number(p.amount) / (1 - taxa / 100)) * 100) / 100;
+            update.gross_amount = gross;
+          }
+          await supabase.from("event_payments").update(update).eq("id", p.id);
+        }
+        financial.refresh();
+        return;
+      }
+
+      // ===== Branch A: no payments — create from payment_details =====
       const rows: any[] = [];
       const entradaAmount = parseAmount(pd.entrada_valor);
       if (entradaAmount && entradaAmount > 0) {
@@ -182,7 +230,6 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
         let entradaParcelas = 1;
         if (isEntradaCardCredito) {
           entradaParcelas = Math.max(1, Number(pd.entrada_parcelas) || 1);
-          // Prefer snapshot percent from payment_details
           entradaTaxa = pd.entrada_taxa_percent != null ? Number(pd.entrada_taxa_percent) : getCardTax(entradaParcelas);
           if (entradaTaxa > 0) amount = entradaAmount - (entradaAmount * entradaTaxa / 100);
         } else if (isEntradaCardDebito) {
