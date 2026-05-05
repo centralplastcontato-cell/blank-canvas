@@ -14,6 +14,7 @@ interface CardFee {
   id: string;
   operator_name: string;
   antecipado: boolean;
+  prazo_recebimento_dias: number;
   taxa_debito: number;
   taxa_credito_1x: number;
   taxa_credito_2x: number;
