@@ -23,11 +23,25 @@ interface CompanyAssetOverride {
   logo?: string;
   mascot?: string;
   heroBackgroundImage?: string;
+  heroBackgroundImages?: string[];
   galleryPhotos?: string[];
   extraGalleryPhotos?: string[];
   /** Map of video file basename (last URL segment) -> override poster URL */
   videoPosters?: Record<string, string>;
 }
+
+const planetaFixedGallery = [
+  planetaGallery01,
+  planetaGallery02,
+  planetaGallery03,
+  planetaGallery04,
+  planetaGallery05,
+  planetaGallery06,
+  planetaGallery07,
+  planetaGallery08,
+  planetaGallery09,
+  planetaGallery10,
+];
 
 const COMPANY_ASSET_OVERRIDES: Record<string, CompanyAssetOverride> = {
   megamegic: {
