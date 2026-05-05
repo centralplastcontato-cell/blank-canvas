@@ -25,6 +25,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { getDayType, getDayTypeLabel, findMatchingTier, getShiftFromTime, DEFAULT_DAY_TYPES, DEFAULT_GUEST_TIERS } from "@/lib/brazilian-holidays";
 import { DEFAULT_EVENT_TYPES } from "@/components/admin/EventTypesConfig";
+import { splitNonAntecipadoInstallments } from "@/lib/cardFees";
 
 export interface ParcelaDetail {
   valor: number | null;
