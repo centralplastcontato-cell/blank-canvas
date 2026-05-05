@@ -1407,6 +1407,26 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       if (normalizedPayment.entrada_forma === "cartao_debito") {
         normalizedPayment.entrada_parcelas = 1;
       }
+      // Snapshot da taxa da operadora no auto-save
+      {
+        const op: any = cardFees.length === 1 ? cardFees[0] : (cardFees.find((f: any) => f.id === selectedOperatorId) || null);
+        if (op) {
+          normalizedPayment.card_operator_id = op.id;
+          normalizedPayment.card_operator_name = op.operator_name;
+          if (normalizedPayment.saldo_forma === "cartao" || normalizedPayment.saldo_forma === "cartao_credito") {
+            const p = Math.max(1, Math.min(12, Number(normalizedPayment.parcelas) || 1));
+            normalizedPayment.saldo_taxa_percent = Number(op[`taxa_credito_${p}x`] || 0);
+          } else if (normalizedPayment.saldo_forma === "cartao_debito") {
+            normalizedPayment.saldo_taxa_percent = Number(op.taxa_debito || 0);
+          }
+          if (normalizedPayment.entrada_forma === "cartao" || normalizedPayment.entrada_forma === "cartao_credito") {
+            const p = Math.max(1, Math.min(12, Number(normalizedPayment.entrada_parcelas) || 1));
+            normalizedPayment.entrada_taxa_percent = Number(op[`taxa_credito_${p}x`] || 0);
+          } else if (normalizedPayment.entrada_forma === "cartao_debito") {
+            normalizedPayment.entrada_taxa_percent = Number(op.taxa_debito || 0);
+          }
+        }
+      }
       const paymentWithDiscount = {
         ...normalizedPayment,
         discount_type: form.discount_type, discount_value: form.discount_value,
