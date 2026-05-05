@@ -9,7 +9,7 @@ import { BankAccountSelect } from "./BankAccountSelect";
 import { formatCurrencyInput, parseCurrencyInput, numberToCurrencyDisplay } from "@/lib/currency-input";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
-import { calcCardFee, isCardMethod, isDebitMethod, type CardFeeRow } from "@/lib/cardFees";
+import { calcCardFee, isCardMethod, isDebitMethod, splitNonAntecipadoInstallments, type CardFeeRow } from "@/lib/cardFees";
 import { checkDuplicatePayment, type DuplicateMatch } from "@/hooks/useDuplicatePaymentCheck";
 import { DuplicatePaymentWarningDialog } from "./DuplicatePaymentWarningDialog";
 import { format } from "date-fns";
@@ -91,16 +91,57 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues,
     setDuplicateDialogOpen(false);
   };
 
+  // Determine if we need to split into N monthly net installments
+  // (non-antecipado credit card with > 1 parcela)
+  const shouldSplit =
+    isCard && !isDebit && operator && operator.antecipado === false && calc.installments > 1 && calc.feePercent > 0;
+
+  const splitSlices = shouldSplit && dueDate
+    ? splitNonAntecipadoInstallments(
+        grossAmount,
+        calc.feePercent,
+        calc.installments,
+        dueDate,
+        operator?.prazo_recebimento_dias ?? 30,
+      )
+    : null;
+
   const handleSubmit = async () => {
     if (!grossAmount || !dueDate) return;
     if (method === "cheque" && !compensationDate) {
-      // simple inline guard; UI shows the field below when method === cheque
       return;
     }
 
+    // CASE A: split into N parcelas (non-antecipado)
+    if (splitSlices && splitSlices.length > 0) {
+      for (const slice of splitSlices) {
+        const sliceData: PaymentFormSubmitData = {
+          type,
+          amount: slice.amount,
+          due_date: slice.due_date,
+          payment_method: method,
+          notes: `Parcela ${slice.index}/${slice.total} — Cartão ${calc.installments}x ${operator?.operator_name || ""} (sem antecipação)${notes.trim() ? ` — ${notes.trim()}` : ""}`,
+          bank_account_id: bankAccountId || undefined,
+        };
+        if (operator) {
+          sliceData.card_operator_id = operator.id;
+          sliceData.card_installments = calc.installments;
+          sliceData.card_fee_percent = calc.feePercent;
+          sliceData.gross_amount = grossAmount / calc.installments; // bruto proporcional por parcela
+        }
+        // Sequential to preserve created_at order
+        await onSubmit(sliceData);
+      }
+      onOpenChange(false);
+      setAmount(""); setDueDate(""); setNotes(""); setBankAccountId(""); setCompensationDate("");
+      setInstallments(1);
+      return;
+    }
+
+    // CASE B: original behavior (single net parcela)
     const submitData: PaymentFormSubmitData = {
       type,
-      amount: calc.netAmount, // Store NET amount (matches event-side behavior)
+      amount: calc.netAmount,
       due_date: dueDate,
       payment_method: method,
       notes: notes.trim() || undefined,
@@ -115,7 +156,6 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues,
       submitData.gross_amount = grossAmount;
     }
 
-    // Nível 2: checa duplicidade em outras festas (mesmo valor + método nas últimas 24h)
     if (eventContext && currentCompany?.id && !defaultValues) {
       setChecking(true);
       try {
@@ -177,8 +217,11 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues,
             <Input inputMode="decimal" value={amount} onChange={e => setAmount(formatCurrencyInput(e.target.value))} placeholder="0,00" />
           </div>
           <div>
-            <Label>Vencimento</Label>
+            <Label>{shouldSplit ? "Data da venda" : "Vencimento"}</Label>
             <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+            {shouldSplit && (
+              <p className="text-[11px] text-muted-foreground mt-1">A 1ª parcela cairá {operator?.prazo_recebimento_dias ?? 30} dias após esta data.</p>
+            )}
           </div>
           <div>
             <Label>Forma de Pagamento</Label>
@@ -255,6 +298,16 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues,
                       <p className="font-semibold text-foreground">
                         Líquido a receber: R$ {calc.netAmount.toFixed(2)}
                       </p>
+                      {splitSlices && splitSlices.length > 0 && (
+                        <div className="mt-2 rounded-md bg-blue-500/10 border border-blue-500/20 p-2 space-y-0.5">
+                          <p className="font-semibold text-blue-700 dark:text-blue-400">
+                            📅 Sem antecipação — {splitSlices.length} parcelas serão geradas
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            1ª: R$ {splitSlices[0].amount.toFixed(2)} em {splitSlices[0].due_date.split("-").reverse().join("/")} · Última: R$ {splitSlices[splitSlices.length - 1].amount.toFixed(2)} em {splitSlices[splitSlices.length - 1].due_date.split("-").reverse().join("/")}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </>

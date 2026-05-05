@@ -1071,6 +1071,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           operator_name: string
+          prazo_recebimento_dias: number
           taxa_credito_10x: number | null
           taxa_credito_11x: number | null
           taxa_credito_12x: number | null
@@ -1093,6 +1094,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           operator_name: string
+          prazo_recebimento_dias?: number
           taxa_credito_10x?: number | null
           taxa_credito_11x?: number | null
           taxa_credito_12x?: number | null
@@ -1115,6 +1117,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           operator_name?: string
+          prazo_recebimento_dias?: number
           taxa_credito_10x?: number | null
           taxa_credito_11x?: number | null
           taxa_credito_12x?: number | null

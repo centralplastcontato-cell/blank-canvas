@@ -14,6 +14,7 @@ interface CardFee {
   id: string;
   operator_name: string;
   antecipado: boolean;
+  prazo_recebimento_dias: number;
   taxa_debito: number;
   taxa_credito_1x: number;
   taxa_credito_2x: number;
@@ -33,6 +34,7 @@ interface CardFee {
 const EMPTY_FORM: Omit<CardFee, "id"> = {
   operator_name: "",
   antecipado: false,
+  prazo_recebimento_dias: 30,
   taxa_debito: 0,
   taxa_credito_1x: 0,
   taxa_credito_2x: 0,
@@ -218,6 +220,24 @@ export function CardFeesManager() {
               <Switch checked={form.antecipado} onCheckedChange={v => setField("antecipado", v)} />
               <Label className="cursor-pointer">Valor recebido antecipadamente?</Label>
             </div>
+
+            {!form.antecipado && (
+              <div className="space-y-2 rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
+                <Label className="text-sm font-medium">📅 Prazo de recebimento da 1ª parcela (dias)</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="120"
+                  value={form.prazo_recebimento_dias || ""}
+                  onChange={e => setField("prazo_recebimento_dias", parseInt(e.target.value) || 30)}
+                  placeholder="30"
+                  className="bg-white"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Quantos dias após a venda cai a 1ª parcela. As demais são geradas a cada +30 dias.
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label className="text-sm font-medium">Taxa Débito (%)</Label>
