@@ -295,6 +295,16 @@ export function PaymentFormDialog({ open, onOpenChange, onSubmit, defaultValues,
                       <p className="font-semibold text-foreground">
                         Líquido a receber: R$ {calc.netAmount.toFixed(2)}
                       </p>
+                      {splitSlices && splitSlices.length > 0 && (
+                        <div className="mt-2 rounded-md bg-blue-500/10 border border-blue-500/20 p-2 space-y-0.5">
+                          <p className="font-semibold text-blue-700 dark:text-blue-400">
+                            📅 Sem antecipação — {splitSlices.length} parcelas serão geradas
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            1ª: R$ {splitSlices[0].amount.toFixed(2)} em {splitSlices[0].due_date.split("-").reverse().join("/")} · Última: R$ {splitSlices[splitSlices.length - 1].amount.toFixed(2)} em {splitSlices[splitSlices.length - 1].due_date.split("-").reverse().join("/")}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </>
