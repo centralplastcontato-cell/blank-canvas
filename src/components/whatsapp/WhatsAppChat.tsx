@@ -247,8 +247,61 @@ const getPhoneVariants = (value: string | null | undefined): string[] => {
 
   const withoutCountryCode = digits.startsWith('55') ? digits.slice(2) : digits;
   const withCountryCode = digits.startsWith('55') ? digits : `55${digits}`;
+  const variants = new Set([digits, withoutCountryCode, withCountryCode].filter(Boolean));
 
-  return Array.from(new Set([digits, withoutCountryCode, withCountryCode].filter(Boolean)));
+  if (withoutCountryCode.length === 10) {
+    const withNine = `${withoutCountryCode.slice(0, 2)}9${withoutCountryCode.slice(2)}`;
+    variants.add(withNine);
+    variants.add(`55${withNine}`);
+  }
+
+  if (withoutCountryCode.length === 11 && withoutCountryCode[2] === '9') {
+    const withoutNine = `${withoutCountryCode.slice(0, 2)}${withoutCountryCode.slice(3)}`;
+    variants.add(withoutNine);
+    variants.add(`55${withoutNine}`);
+  }
+
+  return Array.from(variants);
+};
+
+const getConversationDedupKey = (conv: Conversation): string => {
+  if (conv.remote_jid?.endsWith('@g.us')) return `group:${conv.instance_id}:${conv.remote_jid}`;
+
+  const digits = normalizePhoneDigits(conv.contact_phone);
+  const local = digits.startsWith('55') ? digits.slice(2) : digits;
+  const phoneKey = local.length === 11 && local[2] === '9'
+    ? `${local.slice(0, 2)}${local.slice(3)}`
+    : local;
+
+  return `phone:${conv.instance_id}:${phoneKey || conv.remote_jid || conv.id}`;
+};
+
+const dedupeConversations = (rows: Conversation[]): Conversation[] => {
+  const byKey = new Map<string, Conversation>();
+
+  rows.forEach((conv) => {
+    const key = getConversationDedupKey(conv);
+    const current = byKey.get(key);
+    if (!current) {
+      byKey.set(key, conv);
+      return;
+    }
+
+    const convIsRealJid = !conv.remote_jid?.includes('@lid');
+    const currentIsRealJid = !current.remote_jid?.includes('@lid');
+    const convScore = (conv.lead_id ? 4 : 0) + (convIsRealJid ? 2 : 0) + (conv.contact_picture ? 1 : 0);
+    const currentScore = (current.lead_id ? 4 : 0) + (currentIsRealJid ? 2 : 0) + (current.contact_picture ? 1 : 0);
+    const convTime = new Date(conv.last_message_at || conv.created_at || 0).getTime();
+    const currentTime = new Date(current.last_message_at || current.created_at || 0).getTime();
+
+    if (convScore > currentScore || (convScore === currentScore && convTime > currentTime)) {
+      byKey.set(key, conv);
+    }
+  });
+
+  return Array.from(byKey.values()).sort((a, b) =>
+    new Date(b.last_message_at || 0).getTime() - new Date(a.last_message_at || 0).getTime()
+  );
 };
 
 // Helper: resolve the correct phone/JID for sending messages
