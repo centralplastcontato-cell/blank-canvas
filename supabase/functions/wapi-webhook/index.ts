@@ -782,6 +782,28 @@ function exceedsGuestLimit(guestOption: string, limit: number): boolean {
 const normalizePhone = (phone: string) => phone.replace(/\D/g, '');
 const normalizePhoneForTestMatch = (phone: string) => normalizePhone(phone).replace(/^55/, '').replace(/^0+/, '');
 
+function getBrazilianPhoneVariants(rawPhone: string): string[] {
+  const digits = normalizePhone(rawPhone);
+  if (!digits) return [];
+
+  const variants = new Set<string>([digits]);
+  const local = digits.startsWith('55') ? digits.slice(2) : digits;
+  if (digits.startsWith('55') && digits.length >= 12) variants.add(local);
+  if (!digits.startsWith('55') && digits.length >= 10) variants.add(`55${digits}`);
+  if (local.length === 10) {
+    const withNine = `${local.slice(0, 2)}9${local.slice(2)}`;
+    variants.add(withNine);
+    variants.add(`55${withNine}`);
+  }
+  if (local.length === 11 && local[2] === '9') {
+    const withoutNine = `${local.slice(0, 2)}${local.slice(3)}`;
+    variants.add(withoutNine);
+    variants.add(`55${withoutNine}`);
+  }
+
+  return Array.from(variants);
+}
+
 
 function isSameTestPhone(incomingPhone: string, testPhone: string): boolean {
   const incoming = normalizePhoneForTestMatch(incomingPhone);
