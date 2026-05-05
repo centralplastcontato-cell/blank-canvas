@@ -2467,32 +2467,6 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                 );
               })()}
 
-              {/* Card fee info for entrada */}
-              {(payment.entrada_forma === "cartao" || payment.entrada_forma === "cartao_debito") && cardFees.length > 0 && (payment.entrada_valor ?? 0) > 0 && (() => {
-                const operator = cardFees.length === 1 
-                  ? cardFees[0] 
-                  : cardFees.find(f => f.id === selectedOperatorId) || null;
-                const isDebit = payment.entrada_forma === "cartao_debito";
-                const entradaParcelas = isDebit ? 1 : Math.max(1, payment.entrada_parcelas ?? 1);
-                const taxa = operator 
-                  ? Number(isDebit ? (operator.taxa_debito || 0) : (operator[`taxa_credito_${entradaParcelas}x`] || 0)) 
-                  : 0;
-                const bruto = payment.entrada_valor ?? 0;
-                const desconto = bruto * taxa / 100;
-                const liquido = bruto - desconto;
-
-                return operator && taxa > 0 ? (
-                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 -mt-2 mb-2">
-                    <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
-                      💳 Taxa entrada ({operator.operator_name} {isDebit ? "Débito" : `${entradaParcelas}x`}): {taxa.toFixed(2)}%
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Desconto: <span className="font-semibold text-destructive">R$ {desconto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
-                      {" | "}Líquido: <span className="font-semibold text-emerald-600 dark:text-emerald-400">R$ {liquido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
-                    </p>
-                  </div>
-                ) : null;
-              })()}
             </div>
 
             <div className="border-t border-border/30" />
