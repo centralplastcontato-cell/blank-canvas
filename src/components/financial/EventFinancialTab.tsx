@@ -148,6 +148,9 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
         const key = `taxa_credito_${Math.min(Math.max(1, parcelas), 12)}x`;
         return Number(op[key] || 0);
       };
+      const getDebitTax = (): number => fees.length === 0 ? 0 : Number(fees[0].taxa_debito || 0);
+      // Snapshot operator: prefer the one congelado em payment_details
+      const snapshotOperatorId: string | null = pd.card_operator_id || (fees[0]?.id ?? null);
 
       const today = new Date().toISOString().split("T")[0];
       const parseAmount = (value: unknown): number | null => {
@@ -175,33 +178,54 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       const entradaAmount = parseAmount(pd.entrada_valor);
       if (entradaAmount && entradaAmount > 0) {
         let amount = entradaAmount;
-        // Card payments: store NET amount (after fee discount)
-        if (pd.entrada_forma === "cartao") {
-          const parcelas = Math.max(1, Number(pd.entrada_parcelas) || 1);
-          const taxa = getCardTax(parcelas);
-          if (taxa > 0) amount = entradaAmount - (entradaAmount * taxa / 100);
+        const isEntradaCardCredito = pd.entrada_forma === "cartao" || pd.entrada_forma === "cartao_credito";
+        const isEntradaCardDebito = pd.entrada_forma === "cartao_debito";
+        let entradaTaxa = 0;
+        let entradaParcelas = 1;
+        if (isEntradaCardCredito) {
+          entradaParcelas = Math.max(1, Number(pd.entrada_parcelas) || 1);
+          // Prefer snapshot percent from payment_details
+          entradaTaxa = pd.entrada_taxa_percent != null ? Number(pd.entrada_taxa_percent) : getCardTax(entradaParcelas);
+          if (entradaTaxa > 0) amount = entradaAmount - (entradaAmount * entradaTaxa / 100);
+        } else if (isEntradaCardDebito) {
+          entradaTaxa = pd.entrada_taxa_percent != null ? Number(pd.entrada_taxa_percent) : getDebitTax();
+          if (entradaTaxa > 0) amount = entradaAmount - (entradaAmount * entradaTaxa / 100);
         }
-        rows.push({
+        const row: any = {
           event_id: eventId, company_id: companyId, type: "entrada",
           amount: Math.round(amount * 100) / 100,
           due_date: parseDate(pd.entrada_data),
           payment_method: pd.entrada_forma || null, status: "pending",
-        });
+        };
+        if (isEntradaCardCredito || isEntradaCardDebito) {
+          row.gross_amount = Math.round(entradaAmount * 100) / 100;
+          row.card_fee_percent = entradaTaxa;
+          row.card_installments = entradaParcelas;
+          if (snapshotOperatorId) row.card_operator_id = snapshotOperatorId;
+        }
+        rows.push(row);
       }
 
       // For card balance: single row with net amount, NO installment splitting
-      if (pd.saldo_forma === "cartao") {
+      if (pd.saldo_forma === "cartao" || pd.saldo_forma === "cartao_credito" || pd.saldo_forma === "cartao_debito") {
         const saldoAmount = parseAmount(pd.saldo_valor);
         if (saldoAmount && saldoAmount > 0) {
-          const parcelas = Math.max(1, Number(pd.parcelas) || 1);
-          const taxa = getCardTax(parcelas);
+          const isDebit = pd.saldo_forma === "cartao_debito";
+          const parcelas = isDebit ? 1 : Math.max(1, Number(pd.parcelas) || 1);
+          const taxa = pd.saldo_taxa_percent != null
+            ? Number(pd.saldo_taxa_percent)
+            : (isDebit ? getDebitTax() : getCardTax(parcelas));
           let amount = saldoAmount;
           if (taxa > 0) amount = saldoAmount - (saldoAmount * taxa / 100);
           rows.push({
             event_id: eventId, company_id: companyId, type: "parcela",
             amount: Math.round(amount * 100) / 100,
             due_date: parseDate(pd.saldo_data),
-            payment_method: "cartao", status: "pending",
+            payment_method: pd.saldo_forma || "cartao", status: "pending",
+            gross_amount: Math.round(saldoAmount * 100) / 100,
+            card_fee_percent: taxa,
+            card_installments: parcelas,
+            ...(snapshotOperatorId ? { card_operator_id: snapshotOperatorId } : {}),
           });
         }
       } else {
