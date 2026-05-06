@@ -117,7 +117,7 @@ import {
   Users, ArrowRightLeft, Trash2, Eraser,
   CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
   Pencil, Copy, ChevronDown, ChevronUp, Download, Pin, PinOff, Reply,
-  CheckSquare, MoreVertical, DollarSign, Bot
+  CheckSquare, MoreVertical, DollarSign, Bot, PlayCircle, Info
 } from "lucide-react";
 import JSZip from "jszip";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
@@ -3671,6 +3671,50 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     });
   };
 
+  // ── Manual qualification trigger ──
+  const [startQualConfirm, setStartQualConfirm] = useState<{ step: string } | null>(null);
+  const [startQualLoading, setStartQualLoading] = useState(false);
+
+  const handleStartQualification = async (force: boolean) => {
+    if (!selectedConversation) return;
+    setStartQualLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('start-bot-qualification', {
+        body: { conversation_id: selectedConversation.id, force },
+      });
+      // supabase.functions.invoke returns error for non-2xx, but the body still comes
+      const payload = (data ?? (error as { context?: { body?: unknown } })?.context?.body) as
+        | { error?: string; current_step?: string; success?: boolean; message?: string }
+        | undefined;
+
+      if (payload?.error === 'flow_in_progress' && !force) {
+        setStartQualConfirm({ step: payload.current_step || 'desconhecido' });
+        return;
+      }
+      if (error || payload?.error) {
+        toast({
+          title: 'Erro ao iniciar qualificação',
+          description: payload?.error || error?.message || 'Tente novamente.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      toast({
+        title: 'Qualificação iniciada',
+        description: 'A primeira pergunta foi enviada para o lead.',
+      });
+      setStartQualConfirm(null);
+    } catch (e) {
+      toast({
+        title: 'Erro ao iniciar qualificação',
+        description: e instanceof Error ? e.message : String(e),
+        variant: 'destructive',
+      });
+    } finally {
+      setStartQualLoading(false);
+    }
+  };
+
   const toggleScheduledVisit = async (conv: Conversation) => {
     const newValue = !conv.has_scheduled_visit;
     
@@ -4735,15 +4779,31 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           </span>
                         )}
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => setShowContactInfoSheet(true)}
-                        title="Dados do contato"
-                      >
-                        <MoreVertical className="w-4 h-4 text-muted-foreground" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="Mais ações"
+                          >
+                            <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuItem onClick={() => setShowContactInfoSheet(true)}>
+                            <Info className="w-4 h-4 mr-2" />
+                            Dados do contato
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleStartQualification(false)}
+                          >
+                            <PlayCircle className="w-4 h-4 mr-2 text-primary" />
+                            Iniciar qualificação
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
 
@@ -7063,6 +7123,28 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
               onClick={() => deleteMessageId && handleDeleteMessage(deleteMessageId)}
             >
               Apagar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirm restart qualification flow */}
+      <AlertDialog open={!!startQualConfirm} onOpenChange={(o) => !o && setStartQualConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reiniciar qualificação?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Este lead já está em um fluxo ativo (passo: <strong>{startQualConfirm?.step}</strong>).
+              Reiniciar vai zerar o progresso e enviar a primeira pergunta novamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={startQualLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={startQualLoading}
+              onClick={(e) => { e.preventDefault(); handleStartQualification(true); }}
+            >
+              {startQualLoading ? 'Enviando...' : 'Reiniciar mesmo assim'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
