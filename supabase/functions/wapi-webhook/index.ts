@@ -3901,9 +3901,15 @@ async function sendQualificationMaterials(
 
         for (let i = 0; i < pdfsToSend.length; i++) {
           const pdf = pdfsToSend[i];
-          const sanitizedName = (pdf.name || 'Pacote').replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim();
-          const fileName = `${sanitizedName || 'Pacote'}.pdf`;
-          await sendDocument(pdf.file_url, fileName, `pdf_document_${i + 1}`);
+          const isPkgImage = /\.(png|jpe?g|webp)(\?|$)/i.test(pdf.file_url || '');
+          const cleanName = (pdf.name || 'Pacote').trim();
+          if (isPkgImage) {
+            await sendImage(pdf.file_url, cleanName, `pdf_image_${i + 1}`);
+          } else {
+            const sanitizedName = cleanName.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim();
+            const fileName = `${sanitizedName || 'Pacote'}.pdf`;
+            await sendDocument(pdf.file_url, fileName, `pdf_document_${i + 1}`);
+          }
 
           if (i < pdfsToSend.length - 1) await delay(2000);
         }
