@@ -78,7 +78,7 @@ export async function detectAndPauseBotLoop(
   newContent: string | null | undefined,
 ): Promise<LoopGuardResult> {
   try {
-    // (a) frequency in 60s
+    // Gather recent inbound messages once (used by multiple checks)
     const sinceFreq = new Date(Date.now() - FREQ_WINDOW_SECONDS * 1000).toISOString();
     const { count: recentCount } = await supabase
       .from('wapi_messages')
@@ -87,60 +87,77 @@ export async function detectAndPauseBotLoop(
       .eq('from_me', false)
       .gte('timestamp', sinceFreq);
 
+    const sinceAcute = new Date(Date.now() - ACUTE_WINDOW_SECONDS * 1000).toISOString();
+    const { count: acuteCount } = await supabase
+      .from('wapi_messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('conversation_id', conversationId)
+      .eq('from_me', false)
+      .gte('timestamp', sinceAcute);
+
+    const { data: recent } = await supabase
+      .from('wapi_messages')
+      .select('content')
+      .eq('conversation_id', conversationId)
+      .eq('from_me', false)
+      .order('timestamp', { ascending: false })
+      .limit(ALT_WINDOW);
+
+    // Strong signals first — these alone trip the breaker
     let reason: LoopReason | null = null;
-    if ((recentCount ?? 0) >= FREQ_THRESHOLD) reason = 'frequency';
 
-    // (b) acute volume in 120s
-    if (!reason) {
-      const sinceAcute = new Date(Date.now() - ACUTE_WINDOW_SECONDS * 1000).toISOString();
-      const { count: acuteCount } = await supabase
-        .from('wapi_messages')
-        .select('id', { count: 'exact', head: true })
-        .eq('conversation_id', conversationId)
-        .eq('from_me', false)
-        .gte('timestamp', sinceAcute);
-      if ((acuteCount ?? 0) >= ACUTE_THRESHOLD) reason = 'acute_volume';
-    }
-
-    // (c) (d) need recent inbound contents
-    if (!reason) {
-      const { data: recent } = await supabase
-        .from('wapi_messages')
-        .select('content')
-        .eq('conversation_id', conversationId)
-        .eq('from_me', false)
-        .order('timestamp', { ascending: false })
-        .limit(ALT_WINDOW);
-
-      if (recent && recent.length >= REPEAT_THRESHOLD) {
-        // (c) repetition of newContent
-        const target = normalizeContent(newContent);
-        if (target) {
-          const matches = recent.filter(
-            (m: { content: string | null }) => normalizeContent(m.content) === target,
-          ).length;
-          if (matches >= REPEAT_THRESHOLD) reason = 'repetition';
-        }
-      }
-
-      // (d) alternating: last ALT_WINDOW inbound reduce to <= 2 distinct
-      if (!reason && recent && recent.length >= ALT_WINDOW) {
-        const distinct = new Set(
-          recent
-            .map((m: { content: string | null }) => normalizeContent(m.content))
-            .filter((c: string) => c.length > 0),
-        );
-        if (distinct.size > 0 && distinct.size <= ALT_DISTINCT_MAX) {
-          reason = 'alternating';
-        }
+    // (c) repetition of newContent
+    if (recent && recent.length >= REPEAT_THRESHOLD) {
+      const target = normalizeContent(newContent);
+      if (target) {
+        const matches = recent.filter(
+          (m: { content: string | null }) => normalizeContent(m.content) === target,
+        ).length;
+        if (matches >= REPEAT_THRESHOLD) reason = 'repetition';
       }
     }
 
-    // (e) bot-marker burst: lower frequency threshold when content looks bot-like
+    // (d) alternating: last ALT_WINDOW inbound reduce to <= 2 distinct
+    if (!reason && recent && recent.length >= ALT_WINDOW) {
+      const distinct = new Set(
+        recent
+          .map((m: { content: string | null }) => normalizeContent(m.content))
+          .filter((c: string) => c.length > 0),
+      );
+      if (distinct.size > 0 && distinct.size <= ALT_DISTINCT_MAX) {
+        reason = 'alternating';
+      }
+    }
+
+    // (e) bot-marker burst: clear bot-like content + sustained frequency
     if (!reason && looksLikeBotMessage(newContent)) {
       if ((recentCount ?? 0) >= BOT_HINT_FREQ_THRESHOLD) {
         reason = 'bot_marker_burst';
       }
+    }
+
+    // Co-signal helper: any recent inbound looks bot-like, or content already repeats >=2
+    const hasCoSignal = (() => {
+      if (!recent || recent.length === 0) return false;
+      if (recent.some((m: { content: string | null }) => looksLikeBotMessage(m.content))) return true;
+      const counts = new Map<string, number>();
+      for (const m of recent) {
+        const k = normalizeContent((m as { content: string | null }).content);
+        if (!k) continue;
+        counts.set(k, (counts.get(k) ?? 0) + 1);
+      }
+      for (const v of counts.values()) if (v >= 2) return true;
+      return false;
+    })();
+
+    // (a) frequency — requires co-signal to avoid false positives during fast legitimate qualification
+    if (!reason && (recentCount ?? 0) >= FREQ_THRESHOLD && hasCoSignal) {
+      reason = 'frequency';
+    }
+
+    // (b) acute volume — requires co-signal as well
+    if (!reason && (acuteCount ?? 0) >= ACUTE_THRESHOLD && hasCoSignal) {
+      reason = 'acute_volume';
     }
 
     if (!reason) return { paused: false };
