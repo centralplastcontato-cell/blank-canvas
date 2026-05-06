@@ -332,8 +332,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Reset health cache for each invocation
+    // Reset health & ramp-up caches for each invocation
     instanceHealthCache.clear();
+    rampUpCache.clear();
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
