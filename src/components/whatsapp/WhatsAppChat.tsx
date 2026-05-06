@@ -4802,6 +4802,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                             <PlayCircle className="w-4 h-4 mr-2 text-primary" />
                             Iniciar qualificação
                           </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleResumeQualification()}
+                          >
+                            <Bot className="w-4 h-4 mr-2 text-primary" />
+                            Retomar bot do passo atual
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
