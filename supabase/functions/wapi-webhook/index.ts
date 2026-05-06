@@ -2181,17 +2181,9 @@ async function advanceFlowFromNode(
               await new Promise(r => setTimeout(r, 1000));
               
               for (const pdf of pdfsToSend) {
-                const fileExt = pdf.file_url.split('?')[0].split('.').pop()?.toLowerCase() || '';
-                const isPkgImage = ['jpg', 'jpeg', 'png', 'webp'].includes(fileExt);
-                if (isPkgImage) {
-                  const caption = pdf.name || 'Pacote';
-                  const msgId = await sendBotImage(instance.instance_id, instance.instance_token, conv.remote_jid, pdf.file_url, caption);
-                  if (msgId) await saveMediaMsg(msgId, 'image', caption, pdf.file_url);
-                } else {
-                  const fileName = (pdf.name?.replace(/[^a-zA-Z0-9\s\-]/g, '').trim() || 'Pacote') + '.pdf';
-                  const msgId = await sendBotDocument(instance.instance_id, instance.instance_token, conv.remote_jid, pdf.file_url, fileName);
-                  if (msgId) await saveMediaMsg(msgId, 'document', fileName, pdf.file_url);
-                }
+                const fileName = (pdf.name?.replace(/[^a-zA-Z0-9\s\-]/g, '').trim() || 'Pacote') + '.pdf';
+                const msgId = await sendBotDocument(instance.instance_id, instance.instance_token, conv.remote_jid, pdf.file_url, fileName);
+                if (msgId) await saveMediaMsg(msgId, 'document', fileName, pdf.file_url);
                 if (pdfsToSend.length > 1) await new Promise(r => setTimeout(r, 1500));
               }
             } else {
@@ -3902,17 +3894,9 @@ async function sendQualificationMaterials(
 
         for (let i = 0; i < pdfsToSend.length; i++) {
           const pdf = pdfsToSend[i];
-          const fileExt = pdf.file_url.split('?')[0].split('.').pop()?.toLowerCase() || '';
-          const isPkgImage = ['jpg', 'jpeg', 'png', 'webp'].includes(fileExt);
-
-          if (isPkgImage) {
-            const caption = pdf.name || 'Pacote';
-            await sendImage(pdf.file_url, caption, `pdf_image_${i + 1}`);
-          } else {
-            const sanitizedName = (pdf.name || 'Pacote').replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim();
-            const fileName = `${sanitizedName || 'Pacote'}.pdf`;
-            await sendDocument(pdf.file_url, fileName, `pdf_document_${i + 1}`);
-          }
+          const sanitizedName = (pdf.name || 'Pacote').replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim();
+          const fileName = `${sanitizedName || 'Pacote'}.pdf`;
+          await sendDocument(pdf.file_url, fileName, `pdf_document_${i + 1}`);
 
           if (i < pdfsToSend.length - 1) await delay(2000);
         }
@@ -4628,33 +4612,16 @@ async function handleReactivationResponse(
         (pdfMats && pdfMats.length > 0 ? [pdfMats[0]] : []);
 
       for (const pdf of pdfsToSend) {
-        const fileExt = pdf.file_url.split('?')[0].split('.').pop()?.toLowerCase() || '';
-        const isImage = ['jpg', 'jpeg', 'png', 'webp'].includes(fileExt);
-        
-        if (isImage) {
-          const caption = pdf.name || 'Valores';
-          const msgId = await sendBotImage(instance.instance_id, instance.instance_token, conv.remote_jid, pdf.file_url, caption);
-          if (msgId) {
-            await supabase.from('wapi_messages').insert({
-              conversation_id: conv.id, message_id: msgId, from_me: true,
-              message_type: 'image', content: caption, media_url: pdf.file_url,
-              status: 'sent', timestamp: new Date().toISOString(),
-              company_id: instance.company_id,
-              metadata: { source: 'reactivation_4b', action: 'send_values' },
-            });
-          }
-        } else {
-          const fileName = (pdf.name?.replace(/[^a-zA-Z0-9\s\-]/g, '').trim() || 'Valores') + '.pdf';
-          const msgId = await sendBotDocument(instance.instance_id, instance.instance_token, conv.remote_jid, pdf.file_url, fileName);
-          if (msgId) {
-            await supabase.from('wapi_messages').insert({
-              conversation_id: conv.id, message_id: msgId, from_me: true,
-              message_type: 'document', content: fileName, media_url: pdf.file_url,
-              status: 'sent', timestamp: new Date().toISOString(),
-              company_id: instance.company_id,
-              metadata: { source: 'reactivation_4b', action: 'send_values' },
-            });
-          }
+        const fileName = (pdf.name?.replace(/[^a-zA-Z0-9\s\-]/g, '').trim() || 'Valores') + '.pdf';
+        const msgId = await sendBotDocument(instance.instance_id, instance.instance_token, conv.remote_jid, pdf.file_url, fileName);
+        if (msgId) {
+          await supabase.from('wapi_messages').insert({
+            conversation_id: conv.id, message_id: msgId, from_me: true,
+            message_type: 'document', content: fileName, media_url: pdf.file_url,
+            status: 'sent', timestamp: new Date().toISOString(),
+            company_id: instance.company_id,
+            metadata: { source: 'reactivation_4b', action: 'send_values' },
+          });
         }
         await new Promise(r => setTimeout(r, 1500));
       }
