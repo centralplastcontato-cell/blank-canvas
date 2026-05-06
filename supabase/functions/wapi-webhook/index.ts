@@ -5053,7 +5053,28 @@ async function processWebhookEvent(body: JsonRecord) {
             .maybeSingle();
 
           if (crossInstance) {
-            console.log(`[Webhook] 🔄 Cross-instance unification: migrating conversation ${crossInstance.id} from instance ${crossInstance.instance_id} → ${instance.id} (phone ${digitsOnly})`);
+            console.warn(`[Webhook][VariantMatch][cross-instance] phone=${digitsOnly} variants=${JSON.stringify(Array.from(variants))} matched_conv=${crossInstance.id} from_instance=${crossInstance.instance_id} → to_instance=${instance.id} matched_jid=${crossInstance.remote_jid} incoming_jid=${rj} company=${instance.company_id}`);
+            try {
+              await supabase.from('notifications').insert({
+                user_id: null,
+                company_id: instance.company_id,
+                type: 'whatsapp_variant_match',
+                title: '🔄 Conversa migrada entre instâncias',
+                message: `Conversa de ${digitsOnly} foi migrada para a instância atual. Variante detectada — verifique se está correto.`,
+                data: {
+                  phone: digitsOnly,
+                  variants: Array.from(variants),
+                  matched_conversation_id: crossInstance.id,
+                  from_instance_id: crossInstance.instance_id,
+                  to_instance_id: instance.id,
+                  matched_remote_jid: crossInstance.remote_jid,
+                  incoming_remote_jid: rj,
+                  scope: 'cross-instance',
+                },
+              });
+            } catch (notifErr) {
+              console.error('[Webhook][VariantMatch] notification insert failed:', notifErr);
+            }
             const { error: migErr } = await supabase
               .from('wapi_conversations')
               .update({
