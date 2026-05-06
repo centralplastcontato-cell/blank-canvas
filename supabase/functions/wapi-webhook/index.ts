@@ -3894,17 +3894,9 @@ async function sendQualificationMaterials(
 
         for (let i = 0; i < pdfsToSend.length; i++) {
           const pdf = pdfsToSend[i];
-          const fileExt = pdf.file_url.split('?')[0].split('.').pop()?.toLowerCase() || '';
-          const isPkgImage = ['jpg', 'jpeg', 'png', 'webp'].includes(fileExt);
-
-          if (isPkgImage) {
-            const caption = pdf.name || 'Pacote';
-            await sendImage(pdf.file_url, caption, `pdf_image_${i + 1}`);
-          } else {
-            const sanitizedName = (pdf.name || 'Pacote').replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim();
-            const fileName = `${sanitizedName || 'Pacote'}.pdf`;
-            await sendDocument(pdf.file_url, fileName, `pdf_document_${i + 1}`);
-          }
+          const sanitizedName = (pdf.name || 'Pacote').replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, ' ').trim();
+          const fileName = `${sanitizedName || 'Pacote'}.pdf`;
+          await sendDocument(pdf.file_url, fileName, `pdf_document_${i + 1}`);
 
           if (i < pdfsToSend.length - 1) await delay(2000);
         }
