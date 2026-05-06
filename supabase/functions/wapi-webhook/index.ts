@@ -4625,16 +4625,31 @@ async function handleReactivationResponse(
         (pdfMats && pdfMats.length > 0 ? [pdfMats[0]] : []);
 
       for (const pdf of pdfsToSend) {
-        const fileName = (pdf.name?.replace(/[^a-zA-Z0-9\s\-]/g, '').trim() || 'Valores') + '.pdf';
-        const msgId = await sendBotDocument(instance.instance_id, instance.instance_token, conv.remote_jid, pdf.file_url, fileName);
-        if (msgId) {
-          await supabase.from('wapi_messages').insert({
-            conversation_id: conv.id, message_id: msgId, from_me: true,
-            message_type: 'document', content: fileName, media_url: pdf.file_url,
-            status: 'sent', timestamp: new Date().toISOString(),
-            company_id: instance.company_id,
-            metadata: { source: 'reactivation_4b', action: 'send_values' },
-          });
+        const isImage = /\.(png|jpe?g|webp)(\?|$)/i.test(pdf.file_url || '');
+        const cleanName = (pdf.name || 'Valores').trim();
+        if (isImage) {
+          const msgId = await sendBotImage(instance.instance_id, instance.instance_token, conv.remote_jid, pdf.file_url, cleanName);
+          if (msgId) {
+            await supabase.from('wapi_messages').insert({
+              conversation_id: conv.id, message_id: msgId, from_me: true,
+              message_type: 'image', content: cleanName, media_url: pdf.file_url,
+              status: 'sent', timestamp: new Date().toISOString(),
+              company_id: instance.company_id,
+              metadata: { source: 'reactivation_4b', action: 'send_values' },
+            });
+          }
+        } else {
+          const fileName = (cleanName.replace(/[^a-zA-Z0-9\s\-]/g, '').trim() || 'Valores') + '.pdf';
+          const msgId = await sendBotDocument(instance.instance_id, instance.instance_token, conv.remote_jid, pdf.file_url, fileName);
+          if (msgId) {
+            await supabase.from('wapi_messages').insert({
+              conversation_id: conv.id, message_id: msgId, from_me: true,
+              message_type: 'document', content: fileName, media_url: pdf.file_url,
+              status: 'sent', timestamp: new Date().toISOString(),
+              company_id: instance.company_id,
+              metadata: { source: 'reactivation_4b', action: 'send_values' },
+            });
+          }
         }
         await new Promise(r => setTimeout(r, 1500));
       }
