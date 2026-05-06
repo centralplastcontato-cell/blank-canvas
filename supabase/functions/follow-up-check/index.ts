@@ -567,7 +567,13 @@ async function processNextStepReminder({
   const defaultReminderMsg = `Oi {nome} estou por aqui escolha uma das opções.\n\n1️⃣ - Agendar visita\n2️⃣ - Tirar dúvidas\n3️⃣ - Analisar com calma`;
   const reminderTemplate = settings.next_step_reminder_message || defaultReminderMsg;
 
+  const rampUp = await getReconnectRampUp(supabase, settings.instance_id);
+
   for (const conv of stuckConversations) {
+    if (rampUp && successCount >= rampUp.maxSendsPerRun) {
+      console.log(`[follow-up-check] 🐢 Ramp-up cap reached (${rampUp.maxSendsPerRun}) for next-step reminder on instance ${settings.instance_id} — deferring remaining ${stuckConversations.length - successCount} sends`);
+      break;
+    }
     try {
       // Test mode guard: skip if not the test number
       if (shouldSkipTestMode(settings.test_mode_enabled, settings.test_mode_number, conv.remote_jid)) {
