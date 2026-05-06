@@ -1115,7 +1115,13 @@ Podemos continuar de onde paramos?`;
     }
   }
 
+  const rampUp = await getReconnectRampUp(supabase, settings.instance_id);
+
   for (const conv of stuckConversations) {
+    if (rampUp && successCount >= rampUp.maxSendsPerRun) {
+      console.log(`[follow-up-check] 🐢 Ramp-up cap reached (${rampUp.maxSendsPerRun}) for bot-inactive follow-up on instance ${settings.instance_id} — deferring remaining ${stuckConversations.length - successCount} sends`);
+      break;
+    }
     try {
       // Test mode guard: skip if not the test number
       if (shouldSkipTestMode(settings.test_mode_enabled, settings.test_mode_number, conv.remote_jid)) {
