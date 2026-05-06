@@ -3671,7 +3671,49 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     });
   };
 
-  const toggleScheduledVisit = async (conv: Conversation) => {
+  // ── Manual qualification trigger ──
+  const [startQualConfirm, setStartQualConfirm] = useState<{ step: string } | null>(null);
+  const [startQualLoading, setStartQualLoading] = useState(false);
+
+  const handleStartQualification = async (force: boolean) => {
+    if (!selectedConversation) return;
+    setStartQualLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('start-bot-qualification', {
+        body: { conversation_id: selectedConversation.id, force },
+      });
+      // supabase.functions.invoke returns error for non-2xx, but the body still comes
+      const payload = (data ?? (error as { context?: { body?: unknown } })?.context?.body) as
+        | { error?: string; current_step?: string; success?: boolean; message?: string }
+        | undefined;
+
+      if (payload?.error === 'flow_in_progress' && !force) {
+        setStartQualConfirm({ step: payload.current_step || 'desconhecido' });
+        return;
+      }
+      if (error || payload?.error) {
+        toast({
+          title: 'Erro ao iniciar qualificação',
+          description: payload?.error || error?.message || 'Tente novamente.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      toast({
+        title: 'Qualificação iniciada',
+        description: 'A primeira pergunta foi enviada para o lead.',
+      });
+      setStartQualConfirm(null);
+    } catch (e) {
+      toast({
+        title: 'Erro ao iniciar qualificação',
+        description: e instanceof Error ? e.message : String(e),
+        variant: 'destructive',
+      });
+    } finally {
+      setStartQualLoading(false);
+    }
+  };
     const newValue = !conv.has_scheduled_visit;
     
     await supabase
