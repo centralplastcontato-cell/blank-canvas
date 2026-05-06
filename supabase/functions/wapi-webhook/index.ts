@@ -4917,10 +4917,13 @@ async function processWebhookEvent(body: JsonRecord) {
         resolvedLidConv = await resolveLidConversation(supabase, instance.id, rj as string, msgId, msg as JsonRecord);
         if (resolvedLidConv?.remote_jid) {
           rj = resolvedLidConv.remote_jid;
-        } else if (fromMe) {
-          console.log(`[Webhook] Saving @lid fromMe message without phone mapping yet: ${rj}`);
         } else {
-          console.log(`[Webhook] Ignoring unresolved incoming @lid message: ${rj}`);
+          // Never create a phantom conversation for an unresolved @lid (15-digit
+          // internal WhatsApp ID). This was polluting the chat list with bizarre
+          // numbers like "232916210704390". Drop the event silently — when the
+          // contact eventually messages from their real phone, a proper
+          // conversation will be created with the correct number.
+          console.log(`[Webhook] Ignoring unresolved @lid message (fromMe=${fromMe}): ${rj}`);
           break;
         }
       }
