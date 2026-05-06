@@ -2078,12 +2078,22 @@ async function processStuckBotRecovery({
   console.log(`[follow-up-check] 🔄 Found ${stuckConversations.length} stuck bot conversations to recover`);
 
   let recoveryMessagesSent = 0;
+  const perInstanceSends = new Map<string, number>();
 
   for (const conv of stuckConversations) {
-    // Safe delay between sends to avoid WhatsApp rate limiting
+    // Per-instance ramp-up cap (anti-burst after reconnection)
+    const rampUpEarly = await getReconnectRampUp(supabase, conv.instance_id);
+    if (rampUpEarly && (perInstanceSends.get(conv.instance_id) ?? 0) >= rampUpEarly.maxSendsPerRun) {
+      console.log(`[follow-up-check] 🐢 Ramp-up cap reached (${rampUpEarly.maxSendsPerRun}) for stuck bot recovery on instance ${conv.instance_id} — skipping conv ${conv.id}`);
+      continue;
+    }
+
+    // Safe delay between sends to avoid WhatsApp rate limiting (ramp-up overrides)
     if (recoveryMessagesSent > 0) {
-      console.log(`[follow-up-check] ⏳ Waiting 8-15s before next stuck bot recovery send...`);
-      await randomSafeDelay(8, 15);
+      const minD = rampUpEarly ? rampUpEarly.minDelay : 8;
+      const maxD = rampUpEarly ? rampUpEarly.maxDelay : 15;
+      console.log(`[follow-up-check] ⏳ Waiting ${minD}-${maxD}s before next stuck bot recovery send...`);
+      await randomSafeDelay(minD, maxD);
     }
 
     try {
