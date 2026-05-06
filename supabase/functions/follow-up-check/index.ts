@@ -1223,9 +1223,9 @@ Podemos continuar de onde paramos?`;
 
       successCount++;
 
-      // Safe delay between sends to avoid WhatsApp rate limiting
-      const minDelay = settings.follow_up_send_min_delay ?? 8;
-      const maxDelay = settings.follow_up_send_max_delay ?? 15;
+      // Safe delay between sends to avoid WhatsApp rate limiting (ramp-up overrides)
+      const minDelay = rampUp ? rampUp.minDelay : (settings.follow_up_send_min_delay ?? 8);
+      const maxDelay = rampUp ? rampUp.maxDelay : (settings.follow_up_send_max_delay ?? 15);
       if (successCount < stuckConversations.length) {
         console.log(`[follow-up-check] ⏳ Waiting ${minDelay}-${maxDelay}s before next bot-inactive send...`);
         await randomSafeDelay(minDelay, maxDelay);
