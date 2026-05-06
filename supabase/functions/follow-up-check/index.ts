@@ -61,6 +61,58 @@ function randomSafeDelay(minSec: number, maxSec: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// ============= POST-RECONNECTION RAMP-UP (anti-burst safety) =============
+//
+// After an instance reconnects (especially after a WhatsApp/W-API block),
+// we MUST avoid bursting many automated messages at once — that's exactly
+// what gets numbers re-blocked. Even when a batch of leads is eligible at
+// the same time, we cap how many are sent per execution and increase the
+// inter-send delay during the first hours after `connected_at`.
+//
+// Tiers (since connected_at):
+//   0–60 min   → 2 sends max, 30–60s between
+//   60–180 min → 5 sends max, 20–40s between
+//   180–360 min→ 10 sends max, 15–28s between
+//   > 6h       → no override (use settings delays)
+interface ReconnectRampUp {
+  maxSendsPerRun: number;
+  minDelay: number;
+  maxDelay: number;
+  tier: string;
+}
+
+const rampUpCache = new Map<string, ReconnectRampUp | null>();
+
+async function getReconnectRampUp(
+  supabase: SupabaseAdmin,
+  instanceDbId: string,
+): Promise<ReconnectRampUp | null> {
+  if (rampUpCache.has(instanceDbId)) return rampUpCache.get(instanceDbId)!;
+
+  const { data: inst } = await supabase
+    .from("wapi_instances")
+    .select("connected_at")
+    .eq("id", instanceDbId)
+    .single();
+
+  let result: ReconnectRampUp | null = null;
+  if (inst?.connected_at) {
+    const minutesSince = (Date.now() - new Date(inst.connected_at).getTime()) / (60 * 1000);
+    if (minutesSince < 60) {
+      result = { maxSendsPerRun: 2, minDelay: 30, maxDelay: 60, tier: "0-60min" };
+    } else if (minutesSince < 180) {
+      result = { maxSendsPerRun: 5, minDelay: 20, maxDelay: 40, tier: "60-180min" };
+    } else if (minutesSince < 360) {
+      result = { maxSendsPerRun: 10, minDelay: 15, maxDelay: 28, tier: "180-360min" };
+    }
+  }
+  rampUpCache.set(instanceDbId, result);
+  if (result) {
+    console.log(`[follow-up-check] 🐢 Ramp-up active for instance ${instanceDbId} (${result.tier}): max ${result.maxSendsPerRun} sends/run, ${result.minDelay}-${result.maxDelay}s delay`);
+  }
+  return result;
+}
+
 /** Returns true if current time in America/Sao_Paulo is outside the allowed send window */
 function isOutsideSendWindow(settings: FollowUpSettings): boolean {
   const minHour = settings.follow_up_min_hour ?? 8;
@@ -280,8 +332,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Reset health cache for each invocation
+    // Reset health & ramp-up caches for each invocation
     instanceHealthCache.clear();
+    rampUpCache.clear();
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -514,7 +567,13 @@ async function processNextStepReminder({
   const defaultReminderMsg = `Oi {nome} estou por aqui escolha uma das opções.\n\n1️⃣ - Agendar visita\n2️⃣ - Tirar dúvidas\n3️⃣ - Analisar com calma`;
   const reminderTemplate = settings.next_step_reminder_message || defaultReminderMsg;
 
+  const rampUp = await getReconnectRampUp(supabase, settings.instance_id);
+
   for (const conv of stuckConversations) {
+    if (rampUp && successCount >= rampUp.maxSendsPerRun) {
+      console.log(`[follow-up-check] 🐢 Ramp-up cap reached (${rampUp.maxSendsPerRun}) for next-step reminder on instance ${settings.instance_id} — deferring remaining ${stuckConversations.length - successCount} sends`);
+      break;
+    }
     try {
       // Test mode guard: skip if not the test number
       if (shouldSkipTestMode(settings.test_mode_enabled, settings.test_mode_number, conv.remote_jid)) {
@@ -574,9 +633,9 @@ async function processNextStepReminder({
 
       successCount++;
 
-      // Safe delay between sends to avoid WhatsApp rate limiting
-      const minDelay = settings.follow_up_send_min_delay ?? 8;
-      const maxDelay = settings.follow_up_send_max_delay ?? 15;
+      // Safe delay between sends to avoid WhatsApp rate limiting (ramp-up overrides)
+      const minDelay = rampUp ? rampUp.minDelay : (settings.follow_up_send_min_delay ?? 8);
+      const maxDelay = rampUp ? rampUp.maxDelay : (settings.follow_up_send_max_delay ?? 15);
       if (successCount < stuckConversations.length) {
         console.log(`[follow-up-check] ⏳ Waiting ${minDelay}-${maxDelay}s before next send...`);
         await randomSafeDelay(minDelay, maxDelay);
@@ -755,7 +814,13 @@ async function processFollowUp({
     return { successCount: 0, errors: [] };
   }
 
+  const rampUp = await getReconnectRampUp(supabase, settings.instance_id);
+
   for (const lead of leads) {
+    if (rampUp && successCount >= rampUp.maxSendsPerRun) {
+      console.log(`[follow-up-check] 🐢 Ramp-up cap reached (${rampUp.maxSendsPerRun}) for follow-up #${followUpNumber} on instance ${settings.instance_id} — deferring remaining ${leads.length - successCount} sends`);
+      break;
+    }
     try {
       // Test mode guard: find conversation phone and check
       if (settings.test_mode_enabled && settings.test_mode_number) {
@@ -924,9 +989,9 @@ async function processFollowUp({
 
       successCount++;
 
-      // Safe delay between sends to avoid WhatsApp rate limiting
-      const minDelay = settings.follow_up_send_min_delay ?? 8;
-      const maxDelay = settings.follow_up_send_max_delay ?? 15;
+      // Safe delay between sends to avoid WhatsApp rate limiting (ramp-up overrides)
+      const minDelay = rampUp ? rampUp.minDelay : (settings.follow_up_send_min_delay ?? 8);
+      const maxDelay = rampUp ? rampUp.maxDelay : (settings.follow_up_send_max_delay ?? 15);
       if (successCount < leads.length) {
         console.log(`[follow-up-check] ⏳ Waiting ${minDelay}-${maxDelay}s before next follow-up send...`);
         await randomSafeDelay(minDelay, maxDelay);
@@ -1050,7 +1115,13 @@ Podemos continuar de onde paramos?`;
     }
   }
 
+  const rampUp = await getReconnectRampUp(supabase, settings.instance_id);
+
   for (const conv of stuckConversations) {
+    if (rampUp && successCount >= rampUp.maxSendsPerRun) {
+      console.log(`[follow-up-check] 🐢 Ramp-up cap reached (${rampUp.maxSendsPerRun}) for bot-inactive follow-up on instance ${settings.instance_id} — deferring remaining ${stuckConversations.length - successCount} sends`);
+      break;
+    }
     try {
       // Test mode guard: skip if not the test number
       if (shouldSkipTestMode(settings.test_mode_enabled, settings.test_mode_number, conv.remote_jid)) {
@@ -1152,9 +1223,9 @@ Podemos continuar de onde paramos?`;
 
       successCount++;
 
-      // Safe delay between sends to avoid WhatsApp rate limiting
-      const minDelay = settings.follow_up_send_min_delay ?? 8;
-      const maxDelay = settings.follow_up_send_max_delay ?? 15;
+      // Safe delay between sends to avoid WhatsApp rate limiting (ramp-up overrides)
+      const minDelay = rampUp ? rampUp.minDelay : (settings.follow_up_send_min_delay ?? 8);
+      const maxDelay = rampUp ? rampUp.maxDelay : (settings.follow_up_send_max_delay ?? 15);
       if (successCount < stuckConversations.length) {
         console.log(`[follow-up-check] ⏳ Waiting ${minDelay}-${maxDelay}s before next bot-inactive send...`);
         await randomSafeDelay(minDelay, maxDelay);
@@ -2007,12 +2078,22 @@ async function processStuckBotRecovery({
   console.log(`[follow-up-check] 🔄 Found ${stuckConversations.length} stuck bot conversations to recover`);
 
   let recoveryMessagesSent = 0;
+  const perInstanceSends = new Map<string, number>();
 
   for (const conv of stuckConversations) {
-    // Safe delay between sends to avoid WhatsApp rate limiting
+    // Per-instance ramp-up cap (anti-burst after reconnection)
+    const rampUpEarly = await getReconnectRampUp(supabase, conv.instance_id);
+    if (rampUpEarly && (perInstanceSends.get(conv.instance_id) ?? 0) >= rampUpEarly.maxSendsPerRun) {
+      console.log(`[follow-up-check] 🐢 Ramp-up cap reached (${rampUpEarly.maxSendsPerRun}) for stuck bot recovery on instance ${conv.instance_id} — skipping conv ${conv.id}`);
+      continue;
+    }
+
+    // Safe delay between sends to avoid WhatsApp rate limiting (ramp-up overrides)
     if (recoveryMessagesSent > 0) {
-      console.log(`[follow-up-check] ⏳ Waiting 8-15s before next stuck bot recovery send...`);
-      await randomSafeDelay(8, 15);
+      const minD = rampUpEarly ? rampUpEarly.minDelay : 8;
+      const maxD = rampUpEarly ? rampUpEarly.maxDelay : 15;
+      console.log(`[follow-up-check] ⏳ Waiting ${minD}-${maxD}s before next stuck bot recovery send...`);
+      await randomSafeDelay(minD, maxD);
     }
 
     try {
@@ -2167,7 +2248,7 @@ async function processStuckBotRecovery({
 
         console.log(`[follow-up-check] 🔄 Recovered welcome step for conv ${conv.id}`);
         successCount++;
-        recoveryMessagesSent++;
+        recoveryMessagesSent++; perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1);
         continue;
       }
 
@@ -2202,7 +2283,7 @@ async function processStuckBotRecovery({
 
         console.log(`[follow-up-check] 🔄 Invalid answer for conv ${conv.id}, re-sent question`);
         successCount++;
-        recoveryMessagesSent++;
+        recoveryMessagesSent++; perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1);
         continue;
       }
 
@@ -2238,7 +2319,7 @@ async function processStuckBotRecovery({
 
           console.log(`[follow-up-check] 🔄 Recovered conv ${conv.id} - client transfer`);
           successCount++;
-          recoveryMessagesSent++;
+          recoveryMessagesSent++; perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1);
           continue;
         }
 
@@ -2280,7 +2361,7 @@ async function processStuckBotRecovery({
 
           console.log(`[follow-up-check] 🔄 Recovered conv ${conv.id} - work interest`);
           successCount++;
-          recoveryMessagesSent++;
+          recoveryMessagesSent++; perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1);
           continue;
         }
         // Option 2 (quote) - continue normal flow below
@@ -2379,7 +2460,7 @@ async function processStuckBotRecovery({
 
         console.log(`[follow-up-check] 🔄 Recovered conv ${conv.id} - qualification complete, materials sent, next step question sent`);
         successCount++;
-        recoveryMessagesSent++;
+        recoveryMessagesSent++; perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1);
         continue;
       }
 
@@ -2413,7 +2494,7 @@ async function processStuckBotRecovery({
 
       console.log(`[follow-up-check] 🔄 Recovered conv ${conv.id}: ${step} → ${nextStepKey}`);
       successCount++;
-      recoveryMessagesSent++;
+      recoveryMessagesSent++; perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1);
     } catch (err) {
       console.error(`[follow-up-check] 🔄 Error recovering conv ${conv.id}:`, err);
       errors.push(`Recovery error conv ${conv.id}: ${String(err)}`);
