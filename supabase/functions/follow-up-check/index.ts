@@ -61,6 +61,58 @@ function randomSafeDelay(minSec: number, maxSec: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// ============= POST-RECONNECTION RAMP-UP (anti-burst safety) =============
+//
+// After an instance reconnects (especially after a WhatsApp/W-API block),
+// we MUST avoid bursting many automated messages at once — that's exactly
+// what gets numbers re-blocked. Even when a batch of leads is eligible at
+// the same time, we cap how many are sent per execution and increase the
+// inter-send delay during the first hours after `connected_at`.
+//
+// Tiers (since connected_at):
+//   0–60 min   → 2 sends max, 30–60s between
+//   60–180 min → 5 sends max, 20–40s between
+//   180–360 min→ 10 sends max, 15–28s between
+//   > 6h       → no override (use settings delays)
+interface ReconnectRampUp {
+  maxSendsPerRun: number;
+  minDelay: number;
+  maxDelay: number;
+  tier: string;
+}
+
+const rampUpCache = new Map<string, ReconnectRampUp | null>();
+
+async function getReconnectRampUp(
+  supabase: SupabaseAdmin,
+  instanceDbId: string,
+): Promise<ReconnectRampUp | null> {
+  if (rampUpCache.has(instanceDbId)) return rampUpCache.get(instanceDbId)!;
+
+  const { data: inst } = await supabase
+    .from("wapi_instances")
+    .select("connected_at")
+    .eq("id", instanceDbId)
+    .single();
+
+  let result: ReconnectRampUp | null = null;
+  if (inst?.connected_at) {
+    const minutesSince = (Date.now() - new Date(inst.connected_at).getTime()) / (60 * 1000);
+    if (minutesSince < 60) {
+      result = { maxSendsPerRun: 2, minDelay: 30, maxDelay: 60, tier: "0-60min" };
+    } else if (minutesSince < 180) {
+      result = { maxSendsPerRun: 5, minDelay: 20, maxDelay: 40, tier: "60-180min" };
+    } else if (minutesSince < 360) {
+      result = { maxSendsPerRun: 10, minDelay: 15, maxDelay: 28, tier: "180-360min" };
+    }
+  }
+  rampUpCache.set(instanceDbId, result);
+  if (result) {
+    console.log(`[follow-up-check] 🐢 Ramp-up active for instance ${instanceDbId} (${result.tier}): max ${result.maxSendsPerRun} sends/run, ${result.minDelay}-${result.maxDelay}s delay`);
+  }
+  return result;
+}
+
 /** Returns true if current time in America/Sao_Paulo is outside the allowed send window */
 function isOutsideSendWindow(settings: FollowUpSettings): boolean {
   const minHour = settings.follow_up_min_hour ?? 8;
