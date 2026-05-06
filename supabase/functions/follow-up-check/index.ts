@@ -1924,13 +1924,35 @@ function recoveryBuildMenuText(options: { num: number; value: string }[]): strin
   return options.map(opt => `${recoveryNumToKeycap(opt.num)} - ${opt.value}`).join('\n');
 }
 
+function recoveryEmojiDigitsToNumber(text: string): number | null {
+  if (text.includes('🔟')) return 10;
+  const keycapPattern = /([\d])\uFE0F?\u20E3/g;
+  let digits = '';
+  let m: RegExpExecArray | null;
+  while ((m = keycapPattern.exec(text)) !== null) digits += m[1];
+  return digits ? parseInt(digits, 10) : null;
+}
+
 function recoveryExtractOptionsFromQuestion(questionText: string): { num: number; value: string }[] | null {
   const lines = questionText.split('\n');
   const options: { num: number; value: string }[] = [];
   for (const line of lines) {
-    const match = line.match(/^\*?(\d+)\*?\s*[-\.]\s*(.+)$/);
+    const trimmed = line.trim();
+    // Pattern "1 - texto" / "1. texto" / "*1* texto"
+    const match = trimmed.match(/^\*?(\d+)\*?\s*[-\.]\s*(.+)$/);
     if (match) {
       options.push({ num: parseInt(match[1]), value: match[2].trim() });
+      continue;
+    }
+    // Emoji keycap digits: "1️⃣ Maio", "🔟 Fevereiro/27", "1️⃣1️⃣ Março/27"
+    const emojiNum = recoveryEmojiDigitsToNumber(trimmed);
+    if (emojiNum !== null) {
+      const label = trimmed
+        .replace(/🔟/g, '')
+        .replace(/[\d]\uFE0F?\u20E3/g, '')
+        .replace(/^\s*[-\.]\s*/, '')
+        .trim();
+      if (label) options.push({ num: emojiNum, value: label });
     }
   }
   return options.length > 0 ? options : null;
