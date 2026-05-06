@@ -4735,15 +4735,31 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           </span>
                         )}
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => setShowContactInfoSheet(true)}
-                        title="Dados do contato"
-                      >
-                        <MoreVertical className="w-4 h-4 text-muted-foreground" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="Mais ações"
+                          >
+                            <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuItem onClick={() => setShowContactInfoSheet(true)}>
+                            <Info className="w-4 h-4 mr-2" />
+                            Dados do contato
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleStartQualification(false)}
+                          >
+                            <PlayCircle className="w-4 h-4 mr-2 text-primary" />
+                            Iniciar qualificação
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
 
