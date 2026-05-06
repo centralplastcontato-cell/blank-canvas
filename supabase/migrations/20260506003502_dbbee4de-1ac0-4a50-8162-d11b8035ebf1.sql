@@ -1,0 +1,1 @@
+SELECT public.merge_duplicate_conversations_intra_instance();
