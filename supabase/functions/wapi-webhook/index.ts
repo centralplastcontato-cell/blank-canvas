@@ -2959,6 +2959,8 @@ async function processBotQualification(
   delete (updated as JsonRecord)._inactive_reminded;
   delete (updated as JsonRecord)._claimed_step;
   delete (updated as JsonRecord)._claimed_at;
+  // Clear recovery flag so follow-up-check can recover again if webhook fails on a future step
+  delete (updated as JsonRecord)._recovery_attempted;
 
   // Buscar nome da empresa para variáveis de template
   let companyName = '';
