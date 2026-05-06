@@ -2248,7 +2248,7 @@ async function processStuckBotRecovery({
 
         console.log(`[follow-up-check] 🔄 Recovered welcome step for conv ${conv.id}`);
         successCount++;
-        recoveryMessagesSent++; perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1); perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1);
+        recoveryMessagesSent++; perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1);
         continue;
       }
 
@@ -2283,7 +2283,7 @@ async function processStuckBotRecovery({
 
         console.log(`[follow-up-check] 🔄 Invalid answer for conv ${conv.id}, re-sent question`);
         successCount++;
-        recoveryMessagesSent++; perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1); perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1);
+        recoveryMessagesSent++; perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1);
         continue;
       }
 
@@ -2319,7 +2319,7 @@ async function processStuckBotRecovery({
 
           console.log(`[follow-up-check] 🔄 Recovered conv ${conv.id} - client transfer`);
           successCount++;
-          recoveryMessagesSent++; perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1); perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1); perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1);
+          recoveryMessagesSent++; perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1);
           continue;
         }
 
@@ -2361,7 +2361,7 @@ async function processStuckBotRecovery({
 
           console.log(`[follow-up-check] 🔄 Recovered conv ${conv.id} - work interest`);
           successCount++;
-          recoveryMessagesSent++; perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1); perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1); perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1);
+          recoveryMessagesSent++; perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1);
           continue;
         }
         // Option 2 (quote) - continue normal flow below
@@ -2460,7 +2460,7 @@ async function processStuckBotRecovery({
 
         console.log(`[follow-up-check] 🔄 Recovered conv ${conv.id} - qualification complete, materials sent, next step question sent`);
         successCount++;
-        recoveryMessagesSent++; perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1); perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1);
+        recoveryMessagesSent++; perInstanceSends.set(conv.instance_id, (perInstanceSends.get(conv.instance_id) ?? 0) + 1);
         continue;
       }
 
