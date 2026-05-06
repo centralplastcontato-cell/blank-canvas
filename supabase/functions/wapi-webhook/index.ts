@@ -2687,7 +2687,28 @@ async function processBotQualification(
     }
     
     // Check if there's an LP lead linked or findable by phone number
-    const vars = [n, n.replace(/^55/, ''), `55${n}`];
+    // Build all Brazilian phone variants (with/without 55, with/without 9th digit)
+    const buildPhoneVariants = (raw: string): string[] => {
+      const clean = (raw || '').replace(/\D/g, '');
+      const set = new Set<string>();
+      if (!clean) return [];
+      set.add(clean);
+      const noCC = clean.startsWith('55') && clean.length >= 12 ? clean.slice(2) : clean;
+      set.add(noCC);
+      set.add('55' + noCC);
+      if (noCC.length === 10) {
+        const with9 = noCC.slice(0, 2) + '9' + noCC.slice(2);
+        set.add(with9);
+        set.add('55' + with9);
+      }
+      if (noCC.length === 11 && noCC[2] === '9') {
+        const without9 = noCC.slice(0, 2) + noCC.slice(3);
+        set.add(without9);
+        set.add('55' + without9);
+      }
+      return Array.from(set);
+    };
+    const vars = buildPhoneVariants(n);
     let lpLead = null;
     
     if (conv.lead_id) {
@@ -2700,14 +2721,19 @@ async function processBotQualification(
     
     if (!lpLead) {
       const { data: found } = await supabase.from('campaign_leads')
-        .select('id, name, month, day_of_month, guests, campaign_id')
-        .or(vars.map(p => `whatsapp.ilike.%${p}%`).join(','))
+        .select('id, name, month, day_of_month, guests, campaign_id, whatsapp')
+        .in('whatsapp', vars)
         .eq('company_id', instance.company_id)
         .not('campaign_id', 'like', 'whatsapp%')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (found) lpLead = found;
+      if (found) {
+        lpLead = found;
+        console.log(`[Bot] LP lead matched by phone variant for ${n} -> lead ${found.id} (stored: ${found.whatsapp})`);
+      } else {
+        console.log(`[Bot] LP lead NOT FOUND for phone ${n} (variants tried: ${JSON.stringify(vars)}) — bot stays at lp_sent`);
+      }
     }
     
     if (lpLead && lpLead.name && lpLead.month) {
