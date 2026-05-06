@@ -1,0 +1,1 @@
+UPDATE wapi_conversations SET bot_paused_until = NULL, bot_paused_reason = NULL, bot_paused_at = NULL, bot_enabled = true WHERE id IN ('bc9f989d-6ce7-4fb2-992f-21cc95f1df23','a88653d9-de21-4cc8-b027-c50368f6804a');
