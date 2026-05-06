@@ -814,7 +814,13 @@ async function processFollowUp({
     return { successCount: 0, errors: [] };
   }
 
+  const rampUp = await getReconnectRampUp(supabase, settings.instance_id);
+
   for (const lead of leads) {
+    if (rampUp && successCount >= rampUp.maxSendsPerRun) {
+      console.log(`[follow-up-check] 🐢 Ramp-up cap reached (${rampUp.maxSendsPerRun}) for follow-up #${followUpNumber} on instance ${settings.instance_id} — deferring remaining ${leads.length - successCount} sends`);
+      break;
+    }
     try {
       // Test mode guard: find conversation phone and check
       if (settings.test_mode_enabled && settings.test_mode_number) {
