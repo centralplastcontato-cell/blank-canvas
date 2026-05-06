@@ -7128,6 +7128,28 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Confirm restart qualification flow */}
+      <AlertDialog open={!!startQualConfirm} onOpenChange={(o) => !o && setStartQualConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reiniciar qualificação?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Este lead já está em um fluxo ativo (passo: <strong>{startQualConfirm?.step}</strong>).
+              Reiniciar vai zerar o progresso e enviar a primeira pergunta novamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={startQualLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={startQualLoading}
+              onClick={(e) => { e.preventDefault(); handleStartQualification(true); }}
+            >
+              {startQualLoading ? 'Enviando...' : 'Reiniciar mesmo assim'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Create New Contact Dialog */}
       <Dialog open={showCreateContactDialog} onOpenChange={(open) => {
         setShowCreateContactDialog(open);
