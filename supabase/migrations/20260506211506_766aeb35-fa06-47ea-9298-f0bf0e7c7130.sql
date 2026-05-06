@@ -1,0 +1,2 @@
+DELETE FROM wapi_messages WHERE conversation_id IN (SELECT id FROM wapi_conversations WHERE remote_jid LIKE '%@lid' AND lead_id IS NULL);
+DELETE FROM wapi_conversations WHERE remote_jid LIKE '%@lid' AND lead_id IS NULL;
