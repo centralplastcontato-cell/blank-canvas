@@ -2134,9 +2134,69 @@ async function processStuckBotRecovery({
 
       const botData = (conv.bot_data || {}) as Record<string, string>;
 
-      // Skip if already recovered (prevent loops)
+      // Skip if already recovered (prevent loops) — but notify the team that the bot is still stuck
       if ((botData as Record<string, unknown>)._recovery_attempted) {
         console.log(`[follow-up-check] 🔄 Skipping conv ${conv.id} - already recovered`);
+
+        // Notify team once per stuck-recovery cycle (cleared when lead message advances bot in webhook)
+        if (!(botData as Record<string, unknown>)._recovery_notified) {
+          try {
+            const { data: instForNotif } = await supabase
+              .from('wapi_instances')
+              .select('id, company_id, unit, instance_id')
+              .eq('id', conv.instance_id)
+              .single();
+
+            if (instForNotif?.company_id) {
+              const stepLabels: Record<string, string> = {
+                welcome: 'Boas-vindas',
+                nome: 'Nome do cliente',
+                tipo: 'Tipo de atendimento',
+                mes: 'Mês da festa',
+                dia: 'Dia da semana',
+                convidados: 'Quantidade de convidados',
+                proximo_passo: 'Próximo passo',
+                proximo_passo_reminded: 'Próximo passo',
+              };
+              const stepLabel = stepLabels[conv.bot_step || ''] || conv.bot_step || 'desconhecido';
+              const contactName = conv.contact_name || conv.remote_jid?.replace(/@.*/, '') || 'Lead';
+              const unitName = instForNotif.unit || instForNotif.instance_id || 'WhatsApp';
+
+              const { data: companyUsers } = await supabase
+                .from('user_companies')
+                .select('user_id')
+                .eq('company_id', instForNotif.company_id);
+
+              if (companyUsers && companyUsers.length > 0) {
+                const notifications = companyUsers.map((u: { user_id: string }) => ({
+                  user_id: u.user_id,
+                  company_id: instForNotif.company_id,
+                  type: 'bot_recovery_failed',
+                  title: '🤖 Bot travado — atendimento manual necessário',
+                  message: `${contactName} (${unitName}) não avançou após tentativa de recuperação. Passo esperado: ${stepLabel}. Assuma a conversa para continuar.`,
+                  data: {
+                    conversation_id: conv.id,
+                    lead_id: conv.lead_id,
+                    instance_id: instForNotif.id,
+                    bot_step: conv.bot_step,
+                    step_label: stepLabel,
+                    contact_name: contactName,
+                  },
+                }));
+                await supabase.from('notifications').insert(notifications);
+                console.log(`[follow-up-check] 🔔 bot_recovery_failed notification sent for conv ${conv.id}`);
+              }
+
+              // Mark as notified so we don't spam
+              await supabase
+                .from('wapi_conversations')
+                .update({ bot_data: { ...botData, _recovery_notified: true } })
+                .eq('id', conv.id);
+            }
+          } catch (notifErr) {
+            console.error(`[follow-up-check] Failed to send bot_recovery_failed notification for conv ${conv.id}:`, notifErr);
+          }
+        }
         continue;
       }
 
