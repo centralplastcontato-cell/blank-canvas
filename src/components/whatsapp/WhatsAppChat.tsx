@@ -3714,6 +3714,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       setStartQualLoading(false);
     }
   };
+
+  const toggleScheduledVisit = async (conv: Conversation) => {
     const newValue = !conv.has_scheduled_visit;
     
     await supabase
