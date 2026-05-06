@@ -3715,6 +3715,39 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
   };
 
+  const handleResumeQualification = async () => {
+    if (!selectedConversation) return;
+    setStartQualLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('resume-bot-qualification', {
+        body: { conversation_id: selectedConversation.id },
+      });
+      const payload = (data ?? (error as { context?: { body?: unknown } })?.context?.body) as
+        | { error?: string; success?: boolean; step?: string }
+        | undefined;
+      if (error || payload?.error) {
+        toast({
+          title: 'Erro ao retomar bot',
+          description: payload?.error || error?.message || 'Tente novamente.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      toast({
+        title: 'Bot retomado',
+        description: `Pergunta do passo "${payload?.step}" enviada ao lead.`,
+      });
+    } catch (e) {
+      toast({
+        title: 'Erro ao retomar bot',
+        description: e instanceof Error ? e.message : String(e),
+        variant: 'destructive',
+      });
+    } finally {
+      setStartQualLoading(false);
+    }
+  };
+
   const toggleScheduledVisit = async (conv: Conversation) => {
     const newValue = !conv.has_scheduled_visit;
     
@@ -4801,6 +4834,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                           >
                             <PlayCircle className="w-4 h-4 mr-2 text-primary" />
                             Iniciar qualificação
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleResumeQualification()}
+                          >
+                            <Bot className="w-4 h-4 mr-2 text-primary" />
+                            Retomar bot do passo atual
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
