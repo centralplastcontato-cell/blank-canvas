@@ -5145,17 +5145,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                               )}
                             >
                               <div className={cn("relative w-full min-w-0 overflow-hidden", msg.from_me ? "flex flex-row-reverse items-start gap-1" : "flex items-start gap-1")}>
-                                <div
-                                  className={cn(
-                                    "max-w-[85%] sm:max-w-[75%] rounded-2xl text-sm",
-                                    msg.from_me
-                                      ? "bg-primary text-primary-foreground shadow-sm"
-                                      : "bg-card border border-border/50 shadow-subtle",
-                                    (msg.message_type === 'image' || msg.message_type === 'video')
-                                      ? "p-0 overflow-hidden"
-                                      : "px-3.5 py-2.5"
-                                  )}
-                                >
+                                 <div
+                                   className={cn(
+                                     "rounded-2xl text-sm",
+                                     (msg.message_type === 'image' || msg.message_type === 'video')
+                                       ? "max-w-[60%] sm:max-w-[45%] bg-transparent p-0 overflow-hidden"
+                                       : cn(
+                                           "max-w-[85%] sm:max-w-[75%] px-3.5 py-2.5",
+                                           msg.from_me
+                                             ? "bg-primary text-primary-foreground shadow-sm"
+                                             : "bg-card border border-border/50 shadow-subtle"
+                                         )
+                                   )}
+                                 >
 {/* Group sender name */}
 {selectedConversation?.remote_jid?.includes('@g.us') && !msg.from_me && (
   <p className="text-xs font-semibold mb-0.5" style={{ color: getSenderColor((msg.metadata as Record<string, string> | null)?.participant) }}>
@@ -5341,7 +5343,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   </>
                                 ) : null}
                                 {msg.message_type !== 'text' && msg.message_type !== 'contact' && msg.content && msg.content !== '[Imagem]' && msg.content !== '[Áudio]' && (
-                                  <p className={cn("whitespace-pre-wrap break-words [overflow-wrap:anywhere] mt-1", (msg.message_type === 'image' || msg.message_type === 'video') && "px-2")}>{formatMessageContent(msg.content)}</p>
+                                  <p className={cn(
+                                    "whitespace-pre-wrap break-words [overflow-wrap:anywhere] mt-1",
+                                    (msg.message_type === 'image' || msg.message_type === 'video') && "px-3 py-2 rounded-b-2xl bg-card text-foreground border border-t-0 border-border/50"
+                                  )}>{formatMessageContent(msg.content)}</p>
                                 )}
                                 <div className={cn(
                                   "flex items-center gap-1 mt-1",
@@ -5353,7 +5358,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                                   )}
                                   <span className={cn(
                                     "text-[10px]",
-                                    msg.from_me ? "text-primary-foreground/70" : "text-muted-foreground"
+                                    (msg.message_type === 'image' || msg.message_type === 'video')
+                                      ? "text-muted-foreground"
+                                      : (msg.from_me ? "text-primary-foreground/70" : "text-muted-foreground")
                                   )}>
                                     {formatMessageTime(msg.timestamp)}
                                   </span>

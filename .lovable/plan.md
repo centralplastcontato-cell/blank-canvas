@@ -1,30 +1,32 @@
-## Correção
+# Remover o "fundo azul gigante" das mensagens com imagem na Central de Atendimento
 
-Reverter a lógica que escolhe entre `sendImage` e `sendDocument` para materiais do tipo `pdf_package`. Voltar ao comportamento original: **sempre enviar como documento `.pdf`**, independente da extensão real do arquivo. Era assim que funcionava antes do commit `93f2c6d4` (23/02/2026), e era assim que o Aventura Kids recebia os pacotes corretamente.
+## O que está acontecendo hoje
 
-## Arquivos alterados
+Na Central de Atendimento, toda mensagem enviada por você (`from_me = true`) ganha um balão com fundo azul (`bg-primary`). Para mensagens de **texto** isso fica certinho — o balão acompanha o tamanho do texto. Mas para mensagens de **imagem com legenda** (caso da campanha "Dia das Mães"), acontece o seguinte:
 
-**`supabase/functions/wapi-webhook/index.ts`** — 2 trechos:
+- O balão é forçado a ter até 75% da largura do chat (porque a legenda é um texto longo que ocupa quase a linha toda).
+- A imagem fica encostada à esquerda, com a legenda embaixo.
+- O fundo azul preenche todo o espaço livre à direita da imagem, criando aquela "faixa azul gigante" que você quer eliminar.
 
-1. Linha ~2183 (Flow Builder, ação `send_pdf`):
-   - Remover a checagem `isPkgImage`.
-   - Voltar a chamar sempre `sendBotDocument(...)` com nome `<nome>.pdf` e salvar como `message_type: 'document'`.
+No WhatsApp oficial, mensagens com mídia não têm esse bloco azul ao redor — a imagem aparece "solta", e só a legenda recebe um leve contraste.
 
-2. Linha ~3903 (`sendQualificationMaterials`, envio automático após qualificação):
-   - Remover a checagem `isPkgImage`.
-   - Voltar a chamar sempre `sendDocument(pdf.file_url, fileName)` com nome `<nome>.pdf`.
+## Plano
 
-Também tem um terceiro ponto similar em `send_pdf_values` (linha ~4631) que já segue o mesmo padrão problemático — vou reverter junto, por consistência.
+Ajustar apenas a aparência das mensagens de mídia (imagem e vídeo) enviadas por você, para deixar igual ao WhatsApp:
 
-## O que NÃO vou mexer
+1. Em `src/components/whatsapp/WhatsAppChat.tsx`, no bloco que renderiza o balão da mensagem (por volta da linha 5148):
+   - Quando o tipo for `image` ou `video`, **não aplicar mais** `bg-primary` no balão (deixar fundo transparente).
+   - A imagem aparece sem moldura azul ao redor.
+   - Se houver legenda, ela recebe um pequeno fundo discreto só atrás do texto (para continuar legível), seguindo o padrão visual do WhatsApp.
+2. Mensagens só de texto continuam com o balão azul atual — sem mudança.
+3. Mensagens recebidas (do cliente) continuam exatamente como estão.
+4. Áudio, documento e contato continuam como estão (já têm tratamento próprio).
 
-- Nada na lógica de conexão WhatsApp (W-API/Z-API).
-- Nada nos cadastros existentes (`sales_materials`).
-- Nada na UI de upload de materiais.
-- Nada nas outras unidades — a mudança é compatível: PDFs continuam sendo enviados como PDF, e imagens cadastradas como pacotes voltam a ser enviadas como documento `.pdf` (que é o WhatsApp anexa normalmente).
+## Onde mexe
+
+- Apenas em `src/components/whatsapp/WhatsAppChat.tsx` (mudança visual no balão de mídia).
+- Nenhuma alteração em lógica de envio, banco, campanhas ou WhatsApp.
 
 ## Resultado esperado
 
-Próxima conversa com lead do Aventura Kids: o bot envia os 6 pacotes como **documento PDF anexado** no chat, igual ao comportamento de antes do dia 23/02. As outras unidades não são afetadas.
-
-Após a correção, o webhook é redeployado automaticamente.
+A imagem da campanha aparece "limpa" no chat, sem aquele retângulo azul vazio à direita — exatamente como o cliente vê no WhatsApp dele.
