@@ -215,10 +215,54 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
 
   const progressPercent = progress ? Math.round((progress.current / progress.total) * 100) : 0;
 
+  // Drag handlers
+  const handleDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    const target = e.currentTarget.parentElement as HTMLDivElement;
+    const rect = target.getBoundingClientRect();
+    dragRef.current = {
+      dx: e.clientX - rect.left,
+      dy: e.clientY - rect.top,
+      dragging: true,
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const handleDragMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current.dragging) return;
+    const w = 320, h = 80;
+    const x = Math.max(8, Math.min(window.innerWidth - w - 8, e.clientX - dragRef.current.dx));
+    const y = Math.max(8, Math.min(window.innerHeight - h - 8, e.clientY - dragRef.current.dy));
+    setBannerPos({ x, y });
+  };
+  const handleDragEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current.dragging) return;
+    dragRef.current.dragging = false;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
+    if (bannerPos) {
+      try { localStorage.setItem("campaign_banner_pos", JSON.stringify(bannerPos)); } catch {}
+    }
+  };
+
   // Banner global flutuante – aparece sempre que minimizado e há campanha rodando
+  const bannerStyle: React.CSSProperties = bannerPos
+    ? { left: bannerPos.x, top: bannerPos.y, right: "auto", bottom: "auto" }
+    : { right: 16, bottom: 16 };
+
   const banner = isSending && isMinimized
     ? createPortal(
-        <div className="fixed bottom-4 right-4 z-[200] flex items-center gap-3 rounded-lg border bg-background px-4 py-3 shadow-xl min-w-[280px] max-w-[360px]">
+        <div
+          className="fixed z-[200] flex items-center gap-2 rounded-lg border bg-background px-2 py-3 pr-4 shadow-xl min-w-[280px] max-w-[360px] select-none"
+          style={bannerStyle}
+        >
+          <div
+            onPointerDown={handleDragStart}
+            onPointerMove={handleDragMove}
+            onPointerUp={handleDragEnd}
+            onPointerCancel={handleDragEnd}
+            className="shrink-0 flex items-center justify-center h-8 w-5 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+            title="Arraste para mover"
+          >
+            <GripVertical className="h-4 w-4" />
+          </div>
           <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold truncate flex items-center gap-1.5">
