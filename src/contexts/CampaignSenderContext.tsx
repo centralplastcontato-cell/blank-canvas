@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useRef, useCallback, useEffect, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, CheckCircle2, Pause, Megaphone, Maximize2 } from "lucide-react";
+import { Loader2, CheckCircle2, Pause, Megaphone, Maximize2, GripVertical } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 
