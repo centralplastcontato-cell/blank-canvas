@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
         const headers: Record<string, string> = inst.client_token ? { 'Client-Token': inst.client_token } : {};
         for (const u of [`${base}/contacts/${phone}`, `${base}/chats/${phone}`]) {
           try {
-            const r = await fetch(u, { headers });
+            const r = await fetch(u, { headers, signal: AbortSignal.timeout(5000) });
             if (r.ok) {
               const d = await r.json();
               name = d?.name || d?.short || d?.notify || d?.vname || d?.contactName || null;
@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
         ];
         for (const u of urls) {
           try {
-            const r = await fetch(u, { headers: { Authorization: `Bearer ${inst.instance_token}` } });
+            const r = await fetch(u, { headers: { Authorization: `Bearer ${inst.instance_token}` }, signal: AbortSignal.timeout(5000) });
             if (!r.ok) continue;
             const d = await r.json();
             name = d?.name || d?.contact?.name || d?.pushname || d?.pushName
