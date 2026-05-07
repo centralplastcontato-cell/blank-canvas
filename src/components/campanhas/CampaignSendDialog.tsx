@@ -51,23 +51,17 @@ interface CampaignSendDialogProps {
 export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, onComplete }: CampaignSendDialogProps) {
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [minimized, setMinimized] = useState(false);
-  const [progress, setProgress] = useState<{ current: number; total: number; waiting: boolean } | null>(null);
-  const [countdown, setCountdown] = useState<number | null>(null);
   const [result, setResult] = useState<{ success: number; errors: number } | null>(null);
   const [statuses, setStatuses] = useState<Map<string, string>>(new Map());
   const [instances, setInstances] = useState<InstanceOption[]>([]);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string>("");
-  const isSendingRef = useRef(false);
-  const pauseRequestedRef = useRef(false);
-  const [paused, setPaused] = useState(false);
 
-  useEffect(() => {
-    if (countdown === null || countdown <= 0) return;
-    const t = setInterval(() => setCountdown((p) => (p && p > 1 ? p - 1 : null)), 1000);
-    return () => clearInterval(t);
-  }, [countdown]);
+  const sender = useCampaignSender();
+  const isThisActive = sender.isSending && sender.activeCampaignId === campaign.id;
+  const sending = isThisActive;
+  const progress = isThisActive ? sender.progress : null;
+  const countdown = isThisActive ? sender.countdown : null;
+  const paused = isThisActive ? sender.paused : false;
 
   useEffect(() => {
     if (!open) return;
@@ -110,154 +104,34 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
       toast.error("Nenhuma instância de WhatsApp conectada!");
       return;
     }
-
-    // Buscar nome do buffet/empresa para interpolar {empresa}
-    const { data: companyData } = await supabase
-      .from("companies")
-      .select("name")
-      .eq("id", companyId)
-      .single();
-    const companyName = companyData?.name || "";
-
-    setSending(true);
-    setPaused(false);
-    pauseRequestedRef.current = false;
-    isSendingRef.current = true;
-    setProgress({ current: 0, total: recipients.length, waiting: false });
-    setResult(null);
-
-    // Update campaign status
-    await supabase.from("campaigns").update({ status: "sending", started_at: new Date().toISOString() }).eq("id", campaign.id);
-
-    const variations = Array.isArray(campaign.message_variations) ? campaign.message_variations : [];
-    let successCount = 0;
-    let errorCount = 0;
-
-    for (let i = 0; i < recipients.length; i++) {
-      if (pauseRequestedRef.current) break;
-      const r = recipients[i];
-
-      if (i > 0) {
-        const totalDelay = campaign.delay_seconds + Math.floor(Math.random() * 5);
-        setCountdown(totalDelay);
-        setProgress({ current: i, total: recipients.length, waiting: true });
-        for (let s = 0; s < totalDelay; s++) {
-          if (pauseRequestedRef.current) break;
-          await new Promise((res) => setTimeout(res, 1000));
-        }
-        setCountdown(null);
-        if (pauseRequestedRef.current) break;
-      }
-
-      setProgress({ current: i + 1, total: recipients.length, waiting: false });
-      setStatuses((prev) => new Map(prev).set(r.id, "sending"));
-
-
-      const variation = variations[r.variation_index] || variations[0];
-      const text = (variation?.text || "")
-        .replace(/\{\{?\s*nome\s*\}?\}/gi, r.lead_name || "")
-        .replace(/\{\{?\s*empresa\s*\}?\}/gi, companyName);
-
-      try {
-        let sendError: any = null;
-
-        if (campaign.image_url) {
-          const { error } = await supabase.functions.invoke("wapi-send", {
-            body: {
-              action: "send-image",
-              instanceId,
-              phone: r.phone,
-              mediaUrl: campaign.image_url,
-              caption: text,
-            },
-          });
-          sendError = error;
-        } else {
-          const { error } = await supabase.functions.invoke("wapi-send", {
-            body: {
-              action: "send-text",
-              instanceId,
-              phone: r.phone,
-              message: text,
-            },
-          });
-          sendError = error;
-        }
-
-        if (sendError) {
-          errorCount++;
-          setStatuses((prev) => new Map(prev).set(r.id, "error"));
-          await supabase.from("campaign_recipients").update({ status: "error", error_message: String(sendError) }).eq("id", r.id);
-        } else {
-          successCount++;
-          setStatuses((prev) => new Map(prev).set(r.id, "sent"));
-          await supabase.from("campaign_recipients").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", r.id);
-
-          // Pause bot for this conversation if campaign requires it
-          if (campaign.pause_bot_on_reply) {
-            try {
-              await supabase.functions.invoke("campaign-mark-conversation", {
-                body: {
-                  campaign_id: campaign.id,
-                  phone: r.phone,
-                  instance_id: instanceId,
-                  lead_name: r.lead_name,
-                },
-              });
-            } catch (markErr) {
-              console.error("Error marking conversation for campaign pause:", markErr);
-            }
-          }
-        }
-
-        // Update campaign counts
-        await supabase.from("campaigns").update({
-          sent_count: successCount,
-          error_count: errorCount,
-        }).eq("id", campaign.id);
-      } catch (err) {
-        errorCount++;
-        setStatuses((prev) => new Map(prev).set(r.id, "error"));
-        await supabase.from("campaign_recipients").update({ status: "error", error_message: String(err) }).eq("id", r.id);
-      }
-    }
-
-    const wasPaused = pauseRequestedRef.current;
-
-    // Finalize
-    await supabase.from("campaigns").update({
-      status: wasPaused ? "draft" : "completed",
-      completed_at: wasPaused ? null : new Date().toISOString(),
-      sent_count: successCount,
-      error_count: errorCount,
-    }).eq("id", campaign.id);
-
-    if (wasPaused) {
-      toast.success(`Campanha pausada. ${successCount} enviados, ${recipients.length - successCount - errorCount} pendentes.`);
-      setSending(false);
-      setPaused(false);
-      pauseRequestedRef.current = false;
-      isSendingRef.current = false;
-      setProgress(null);
-      setCountdown(null);
-      setMinimized(false);
-      onOpenChange(false);
-      onComplete();
+    if (sender.isSending) {
+      toast.error("Já existe uma campanha em andamento.");
       return;
     }
+    setResult(null);
+    sender.setMinimized(false);
 
-    setResult({ success: successCount, errors: errorCount });
-    setSending(false);
-    isSendingRef.current = false;
-    setProgress(null);
-    setMinimized(false);
+    await sender.startCampaign({
+      campaign,
+      companyId,
+      instanceId,
+      recipients,
+      onStatusChange: (id, status) => {
+        setStatuses((prev) => new Map(prev).set(id, status));
+      },
+      onComplete: ({ success, errors, paused: wasPaused }) => {
+        if (wasPaused) {
+          onOpenChange(false);
+          onComplete();
+        } else {
+          setResult({ success, errors });
+          onComplete();
+        }
+      },
+    });
   };
 
-  const handlePause = () => {
-    pauseRequestedRef.current = true;
-    setPaused(true);
-    toast.info("Pausando após o envio atual...");
-  };
+  const handlePause = () => sender.pauseCampaign();
 
   const handleClose = () => {
     setResult(null);
@@ -265,186 +139,156 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
     onComplete();
   };
 
+  const handleMinimize = () => {
+    sender.setMinimized(true);
+    onOpenChange(false);
+  };
+
   const handleDialogChange = (newOpen: boolean) => {
-    if (sending) return;
+    // Se está enviando e usuário fecha o dialog, apenas minimiza (envio segue rodando globalmente)
+    if (sending && !newOpen) {
+      handleMinimize();
+      return;
+    }
     onOpenChange(newOpen);
   };
 
   const progressPercent = progress ? Math.round((progress.current / progress.total) * 100) : 0;
-  const dialogVisible = open && !minimized;
-
-  const floatingBanner = minimized && (sending || result)
-    ? createPortal(
-        <div
-          onClick={() => setMinimized(false)}
-          className="fixed bottom-4 right-4 z-[100] flex items-center gap-3 rounded-lg border bg-background px-4 py-3 shadow-lg cursor-pointer hover:shadow-xl transition-shadow min-w-[240px]"
-        >
-          {sending ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{paused ? "Pausando..." : `Enviando ${progress?.current || 0} de ${progress?.total || 0}...`}</p>
-                {progress?.waiting && countdown !== null && !paused && (
-                  <p className="text-[10px] text-muted-foreground">Próximo em {countdown}s ⏳</p>
-                )}
-                <Progress value={progressPercent} className="h-1.5 mt-1" />
-              </div>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); handlePause(); }}
-                disabled={paused}
-                className="shrink-0 flex items-center justify-center h-7 w-7 rounded-md bg-muted hover:bg-accent text-foreground transition-colors disabled:opacity-50"
-                title="Pausar campanha"
-              >
-                <Pause className="h-3.5 w-3.5" />
-              </button>
-            </>
-          ) : result ? (
-            <>
-              <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
-              <p className="text-sm font-medium">Campanha finalizada! Clique para ver.</p>
-            </>
-          ) : null}
-        </div>,
-        document.body
-      )
-    : null;
 
   return (
-    <>
-      <Dialog open={dialogVisible} onOpenChange={handleDialogChange}>
-        <DialogContent className="sm:max-w-lg max-h-[90dvh] flex flex-col overflow-hidden p-4 sm:p-6">
-          {sending && (
-            <button
-              type="button"
-              onClick={() => setMinimized(true)}
-              className="absolute right-11 top-4 z-10 flex items-center justify-center h-6 w-6 rounded-md bg-muted hover:bg-accent text-foreground transition-colors"
-              title="Minimizar"
-            >
-              <Minus className="h-4 w-4" />
-            </button>
-          )}
+    <Dialog open={open} onOpenChange={handleDialogChange}>
+      <DialogContent className="sm:max-w-lg max-h-[90dvh] flex flex-col overflow-hidden p-4 sm:p-6">
+        {sending && (
+          <button
+            type="button"
+            onClick={handleMinimize}
+            className="absolute right-11 top-4 z-10 flex items-center justify-center h-6 w-6 rounded-md bg-muted hover:bg-accent text-foreground transition-colors"
+            title="Minimizar (envio continua em segundo plano)"
+          >
+            <Minus className="h-4 w-4" />
+          </button>
+        )}
 
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Megaphone className="w-5 h-5 text-primary" />
-              {campaign.name}
-            </DialogTitle>
-            <DialogDescription>
-              {sending ? "Enviando campanha..." : result ? "Resultado" : `${recipients.length} destinatários pendentes`}
-            </DialogDescription>
-          </DialogHeader>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Megaphone className="w-5 h-5 text-primary" />
+            {campaign.name}
+          </DialogTitle>
+          <DialogDescription>
+            {sending ? "Enviando campanha..." : result ? "Resultado" : `${recipients.length} destinatários pendentes`}
+          </DialogDescription>
+        </DialogHeader>
 
-          {result ? (
-            <div className="space-y-4 py-4">
-              <div className="flex flex-col items-center gap-3 text-center">
-                {result.errors === 0 ? (
-                  <CheckCircle2 className="w-10 h-10 text-green-500" />
-                ) : (
-                  <XCircle className="w-10 h-10 text-destructive" />
-                )}
-                <div>
-                  <p className="text-base font-semibold">
-                    {result.success > 0 ? `Enviado para ${result.success} contato(s)!` : "Nenhuma mensagem enviada"}
-                  </p>
-                  {result.errors > 0 && (
-                    <p className="text-sm text-muted-foreground mt-1">{result.errors} falha(s)</p>
-                  )}
-                </div>
-              </div>
-              <Button onClick={handleClose} className="w-full">Fechar</Button>
-            </div>
-          ) : loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : sending ? (
-            <div className="space-y-3 py-2 flex-1 overflow-hidden flex flex-col min-h-0">
-              <div className="space-y-1.5 shrink-0">
-                <p className="text-sm font-medium">{paused ? "Finalizando envio atual..." : `Enviando ${progress?.current || 0} de ${progress?.total || 0}...`}</p>
-                <Progress value={progressPercent} className="h-2" />
-                {progress?.waiting && countdown !== null && !paused && (
-                  <p className="text-xs text-muted-foreground animate-pulse">Próximo envio em {countdown}s ⏳</p>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePause}
-                  disabled={paused}
-                  className="w-full mt-2"
-                >
-                  <Pause className="w-3.5 h-3.5 mr-1.5" />
-                  {paused ? "Pausando..." : "Pausar campanha"}
-                </Button>
-              </div>
-              <ScrollArea className="flex-1 border rounded-md min-h-0">
-                <div className="p-1 space-y-0.5">
-                  {recipients.map((r) => {
-                    const s = statuses.get(r.id) || "pending";
-                    return (
-                      <div key={r.id} className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${s === "sending" ? "bg-accent" : ""}`}>
-                        {s === "pending" && <Clock className="w-4 h-4 shrink-0 text-muted-foreground" />}
-                        {s === "sending" && <Loader2 className="w-4 h-4 shrink-0 text-primary animate-spin" />}
-                        {s === "sent" && <CheckCircle2 className="w-4 h-4 shrink-0 text-green-500" />}
-                        {s === "error" && <XCircle className="w-4 h-4 shrink-0 text-destructive" />}
-                        <span className="truncate flex-1">{r.lead_name}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </ScrollArea>
-              <p className="text-xs text-muted-foreground shrink-0">Você pode minimizar e continuar usando o sistema.</p>
-            </div>
-          ) : (
-            <div className="space-y-4 py-2">
-              {instances.length > 1 && (
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <Smartphone className="w-3.5 h-3.5" />
-                    Enviar pelo WhatsApp
-                  </Label>
-                  <Select value={selectedInstanceId} onValueChange={setSelectedInstanceId}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecione a instância" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {instances.map((inst) => (
-                        <SelectItem key={inst.instance_id} value={inst.instance_id}>
-                          {inst.unit || "Sem unidade"}
-                          {inst.phone_number ? ` — ${inst.phone_number}` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-[11px] text-muted-foreground">
-                    Escolha por qual número os disparos serão feitos.
-                  </p>
-                </div>
+        {result ? (
+          <div className="space-y-4 py-4">
+            <div className="flex flex-col items-center gap-3 text-center">
+              {result.errors === 0 ? (
+                <CheckCircle2 className="w-10 h-10 text-green-500" />
+              ) : (
+                <XCircle className="w-10 h-10 text-destructive" />
               )}
-              {instances.length === 1 && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 text-xs text-muted-foreground">
-                  <Smartphone className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">
-                    Enviando por: <strong className="text-foreground">{instances[0].unit || "WhatsApp"}</strong>
-                    {instances[0].phone_number ? ` (${instances[0].phone_number})` : ""}
-                  </span>
-                </div>
-              )}
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground mb-4">
-                  {recipients.length} mensagens serão enviadas com intervalo de {campaign.delay_seconds}s.
-                  Tempo estimado: ~{Math.ceil((recipients.length * campaign.delay_seconds) / 60)} minutos.
+              <div>
+                <p className="text-base font-semibold">
+                  {result.success > 0 ? `Enviado para ${result.success} contato(s)!` : "Nenhuma mensagem enviada"}
                 </p>
-                <Button onClick={handleSend} className="w-full" size="lg" disabled={instances.length === 0}>
-                  <Send className="w-4 h-4 mr-2" />
-                  {instances.length === 0 ? "Nenhum WhatsApp conectado" : "Iniciar Envio"}
-                </Button>
+                {result.errors > 0 && (
+                  <p className="text-sm text-muted-foreground mt-1">{result.errors} falha(s)</p>
+                )}
               </div>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
-      {floatingBanner}
-    </>
+            <Button onClick={handleClose} className="w-full">Fechar</Button>
+          </div>
+        ) : loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : sending ? (
+          <div className="space-y-3 py-2 flex-1 overflow-hidden flex flex-col min-h-0">
+            <div className="space-y-1.5 shrink-0">
+              <p className="text-sm font-medium">{paused ? "Finalizando envio atual..." : `Enviando ${progress?.current || 0} de ${progress?.total || 0}...`}</p>
+              <Progress value={progressPercent} className="h-2" />
+              {progress?.waiting && countdown !== null && !paused && (
+                <p className="text-xs text-muted-foreground animate-pulse">Próximo envio em {countdown}s ⏳</p>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePause}
+                disabled={paused}
+                className="w-full mt-2"
+              >
+                <Pause className="w-3.5 h-3.5 mr-1.5" />
+                {paused ? "Pausando..." : "Pausar campanha"}
+              </Button>
+            </div>
+            <ScrollArea className="flex-1 border rounded-md min-h-0">
+              <div className="p-1 space-y-0.5">
+                {recipients.map((r) => {
+                  const s = statuses.get(r.id) || "pending";
+                  return (
+                    <div key={r.id} className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${s === "sending" ? "bg-accent" : ""}`}>
+                      {s === "pending" && <Clock className="w-4 h-4 shrink-0 text-muted-foreground" />}
+                      {s === "sending" && <Loader2 className="w-4 h-4 shrink-0 text-primary animate-spin" />}
+                      {s === "sent" && <CheckCircle2 className="w-4 h-4 shrink-0 text-green-500" />}
+                      {s === "error" && <XCircle className="w-4 h-4 shrink-0 text-destructive" />}
+                      <span className="truncate flex-1">{r.lead_name}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+            <p className="text-xs text-muted-foreground shrink-0">
+              ✨ Você pode minimizar esta janela e usar a plataforma normalmente — o envio continua em segundo plano.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4 py-2">
+            {instances.length > 1 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Smartphone className="w-3.5 h-3.5" />
+                  Enviar pelo WhatsApp
+                </Label>
+                <Select value={selectedInstanceId} onValueChange={setSelectedInstanceId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecione a instância" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {instances.map((inst) => (
+                      <SelectItem key={inst.instance_id} value={inst.instance_id}>
+                        {inst.unit || "Sem unidade"}
+                        {inst.phone_number ? ` — ${inst.phone_number}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  Escolha por qual número os disparos serão feitos.
+                </p>
+              </div>
+            )}
+            {instances.length === 1 && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 text-xs text-muted-foreground">
+                <Smartphone className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">
+                  Enviando por: <strong className="text-foreground">{instances[0].unit || "WhatsApp"}</strong>
+                  {instances[0].phone_number ? ` (${instances[0].phone_number})` : ""}
+                </span>
+              </div>
+            )}
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground mb-4">
+                {recipients.length} mensagens serão enviadas com intervalo de {campaign.delay_seconds}s.
+                Tempo estimado: ~{Math.ceil((recipients.length * campaign.delay_seconds) / 60)} minutos.
+              </p>
+              <Button onClick={handleSend} className="w-full" size="lg" disabled={instances.length === 0}>
+                <Send className="w-4 h-4 mr-2" />
+                {instances.length === 0 ? "Nenhum WhatsApp conectado" : "Iniciar Envio"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
