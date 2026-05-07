@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Megaphone, Plus, CheckCircle2, XCircle, Clock, Loader2, Users, Menu, ImageIcon, Trash2, Play, RotateCcw, Eye } from "lucide-react";
+import { Megaphone, Plus, CheckCircle2, XCircle, Clock, Loader2, Users, Menu, ImageIcon, Trash2, Play, RotateCcw, Eye, Pencil } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
@@ -25,6 +25,7 @@ import { ptBR } from "date-fns/locale";
 import { CampaignWizard } from "@/components/campanhas/CampaignWizard";
 import { CampaignSendDialog } from "@/components/campanhas/CampaignSendDialog";
 import { CampaignDetailSheet } from "@/components/campanhas/CampaignDetailSheet";
+import { CampaignEditDialog } from "@/components/campanhas/CampaignEditDialog";
 import { BaseLeadsTab } from "@/components/campanhas/BaseLeadsTab";
 import { CampaignGalleryTab } from "@/components/campanhas/CampaignGalleryTab";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -69,6 +70,7 @@ export default function Campanhas() {
   const [sendCampaign, setSendCampaign] = useState<Campaign | null>(null);
   const [detailCampaign, setDetailCampaign] = useState<Campaign | null>(null);
   const [editingAudienceCampaign, setEditingAudienceCampaign] = useState<Campaign | null>(null);
+  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [campaignToDelete, setCampaignToDelete] = useState<Campaign | null>(null);
   const [campaignToReset, setCampaignToReset] = useState<Campaign | null>(null);
   const [resetting, setResetting] = useState(false);
@@ -342,6 +344,15 @@ export default function Campanhas() {
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                title="Editar campanha"
+                                onClick={(e) => { e.stopPropagation(); setEditingCampaign(campaign); }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 className="h-8 w-8 text-muted-foreground hover:text-destructive"
                                 onClick={(e) => { e.stopPropagation(); setCampaignToDelete(campaign); }}
                               >
@@ -418,6 +429,14 @@ export default function Campanhas() {
             onEditAudience={(c) => { setDetailCampaign(null); setEditingAudienceCampaign(c); }}
             onRefresh={loadCampaigns}
           />
+
+          <CampaignEditDialog
+            campaign={editingCampaign}
+            open={!!editingCampaign}
+            onOpenChange={(o) => { if (!o) setEditingCampaign(null); }}
+            onSaved={loadCampaigns}
+          />
+
 
           <AlertDialog open={!!campaignToDelete} onOpenChange={(open) => !open && setCampaignToDelete(null)}>
             <AlertDialogContent>
