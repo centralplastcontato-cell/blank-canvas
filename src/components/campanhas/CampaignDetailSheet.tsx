@@ -165,7 +165,7 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
         </div>
 
         {/* Preview + Recipient list */}
-        <ScrollArea className="flex-1 min-h-0 w-full max-w-full [&_[data-radix-scroll-area-viewport]>div]:!table-cell [&_[data-radix-scroll-area-viewport]>div]:!w-full [&_[data-radix-scroll-area-viewport]>div]:!max-w-full">
+        <ScrollArea className="flex-1 min-h-0 w-full max-w-full [&_[data-radix-scroll-area-viewport]>div]:!block [&_[data-radix-scroll-area-viewport]>div]:!w-full [&_[data-radix-scroll-area-viewport]>div]:!max-w-full [&_[data-radix-scroll-area-viewport]>div]:!min-w-0">
           <div className="w-full max-w-full overflow-hidden">
           {/* Prévia da campanha */}
           <div className="p-4 sm:px-6 border-b border-border max-w-full overflow-hidden">
