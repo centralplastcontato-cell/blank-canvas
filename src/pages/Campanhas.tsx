@@ -430,6 +430,14 @@ export default function Campanhas() {
             onRefresh={loadCampaigns}
           />
 
+          <CampaignEditDialog
+            campaign={editingCampaign}
+            open={!!editingCampaign}
+            onOpenChange={(o) => { if (!o) setEditingCampaign(null); }}
+            onSaved={loadCampaigns}
+          />
+
+
           <AlertDialog open={!!campaignToDelete} onOpenChange={(open) => !open && setCampaignToDelete(null)}>
             <AlertDialogContent>
               <AlertDialogHeader>
