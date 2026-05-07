@@ -5345,6 +5345,15 @@ async function processWebhookEvent(body: JsonRecord) {
               fetchAndUpdateProfilePicture(supabase, instance.instance_id, instance.instance_token, nc.id, rj as string, instance.provider || 'wapi')
                 .catch(() => {});
             }
+            // Resolve numeric/LID contact_name via provider API
+            const newName = (nc as JsonRecord | null)?.contact_name as string | null | undefined;
+            if (!isGrp && nc?.id && (!newName || /^[\d\s+()-]+$/.test(String(newName).trim()))) {
+              fetchAndUpdateContactName(
+                supabase, instance.instance_id, instance.instance_token,
+                instance.client_token || null, nc.id, rj as string,
+                newName ?? null, instance.provider || 'wapi'
+              ).catch(() => {});
+            }
           }
         }
       }
