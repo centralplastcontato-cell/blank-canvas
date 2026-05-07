@@ -154,6 +154,7 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
           <p className="text-xs text-muted-foreground">
             Criada em {format(new Date(campaign.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
           </p>
+          <FiltersSummary filters={campaign.filters} />
         </div>
 
         {/* Metrics */}
