@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { CheckCircle2, XCircle, Clock, Loader2, Users, RefreshCw, Send, ImageIcon, MessageSquare, UserCog } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Loader2, Users, RefreshCw, Send, ImageIcon, MessageSquare, UserCog, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -154,6 +154,7 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
           <p className="text-xs text-muted-foreground">
             Criada em {format(new Date(campaign.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
           </p>
+          <FiltersSummary filters={campaign.filters} />
         </div>
 
         {/* Metrics */}
@@ -277,6 +278,70 @@ function MetricCard({ label, value, icon: Icon, color }: { label: string; value:
       <Icon className={`w-4 h-4 mx-auto mb-0.5 ${color}`} />
       <p className={`text-lg font-bold ${color}`}>{value}</p>
       <p className="text-[10px] text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  novo: "Novo",
+  em_contato: "Em contato",
+  aguardando_resposta: "Aguardando resposta",
+  orcamento_enviado: "Orçamento enviado",
+  fechado: "Fechado",
+  perdido: "Perdido",
+  transferido: "Transferido",
+  trabalhe_conosco: "Trabalhe conosco",
+  fornecedor: "Fornecedor",
+  cliente_retorno: "Cliente retorno",
+  outros: "Outros",
+};
+
+const SOURCE_LABELS: Record<string, string> = { crm: "CRM", base: "Base" };
+const PARTY_LABELS: Record<string, string> = {
+  aniversario: "🎂 Aniversário",
+  formatura: "🎓 Formatura",
+  escolar: "🏫 Escolar",
+  confraternizacao: "🏢 Confraternização",
+  outro: "📌 Outro",
+};
+
+function FiltersSummary({ filters }: { filters: any }) {
+  if (!filters || typeof filters !== "object") return null;
+  const chips: { label: string; value: string }[] = [];
+
+  if (Array.isArray(filters.statuses) && filters.statuses.length > 0) {
+    chips.push({
+      label: "Status",
+      value: filters.statuses.map((s: string) => STATUS_LABELS[s] || s).join(", "),
+    });
+  }
+  if (filters.month && filters.month !== "all") chips.push({ label: "Mês", value: filters.month });
+  if (filters.unit && filters.unit !== "all") chips.push({ label: "Unidade", value: filters.unit });
+  if (filters.source && filters.source !== "all") {
+    chips.push({ label: "Origem", value: SOURCE_LABELS[filters.source] || filters.source });
+  }
+  if (filters.partyType && filters.partyType !== "all") {
+    chips.push({ label: "Tipo", value: PARTY_LABELS[filters.partyType] || filters.partyType });
+  }
+  if (filters.search) chips.push({ label: "Busca", value: `"${filters.search}"` });
+
+  return (
+    <div className="pt-2 mt-1 border-t border-border/50">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1">
+        <Filter className="w-3 h-3" /> Filtros usados na seleção
+      </p>
+      {chips.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic">Nenhum filtro — todos os leads disponíveis.</p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {chips.map((c, i) => (
+            <Badge key={i} variant="outline" className="text-[10px] font-normal">
+              <span className="text-muted-foreground mr-1">{c.label}:</span>
+              <span className="text-foreground">{c.value}</span>
+            </Badge>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

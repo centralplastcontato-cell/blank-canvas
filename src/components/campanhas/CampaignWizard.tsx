@@ -40,6 +40,14 @@ export interface CampaignDraft {
   delaySeconds: number;
   pauseBotOnReply: boolean;
   autoReplyMessage: string;
+  audienceFilters?: {
+    statuses: string[];
+    month: string;
+    unit: string;
+    source: string;
+    partyType: string;
+    search: string;
+  };
 }
 
 const STEPS = [
@@ -125,6 +133,7 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
           total_recipients: selectedLeads.length,
           pause_bot_on_reply: draft.pauseBotOnReply,
           auto_reply_message: draft.pauseBotOnReply ? (draft.autoReplyMessage.trim() || null) : null,
+          filters: draft.audienceFilters || null,
         })
         .select()
         .single();
