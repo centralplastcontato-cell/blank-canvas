@@ -17,6 +17,8 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url);
   const companyId = url.searchParams.get('company_id');
+  const limit = parseInt(url.searchParams.get('limit') || '10', 10);
+  const offset = parseInt(url.searchParams.get('offset') || '0', 10);
   if (!companyId) {
     return new Response(JSON.stringify({ error: 'company_id required' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400,
@@ -27,7 +29,8 @@ Deno.serve(async (req) => {
     .from('wapi_conversations')
     .select('id, contact_name, remote_jid, instance_id, wapi_instances(instance_id, instance_token, client_token, provider)')
     .eq('company_id', companyId)
-    .or('contact_name.match.^[0-9]+$,contact_name.like.*@lid*');
+    .or('contact_name.match.^[0-9]+$,contact_name.like.*@lid*')
+    .range(offset, offset + limit - 1);
 
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), {
