@@ -5026,7 +5026,9 @@ async function fetchAndUpdateContactName(
   }
 }
 
-
+      }
+      
+      
       let cName = isGrp ? ((msg as JsonRecord).chat?.name || (msg as JsonRecord).groupName || (msg as JsonRecord).subject || null) : ((msg as JsonRecord).pushName || (msg as JsonRecord).verifiedBizName || (msg as JsonRecord).sender?.pushName || phone);
       const cPic = (msg as JsonRecord).chat?.profilePicture || (msg as JsonRecord).sender?.profilePicture || null;
 
