@@ -25,6 +25,7 @@ import { ptBR } from "date-fns/locale";
 import { CampaignWizard } from "@/components/campanhas/CampaignWizard";
 import { CampaignSendDialog } from "@/components/campanhas/CampaignSendDialog";
 import { CampaignDetailSheet } from "@/components/campanhas/CampaignDetailSheet";
+import { CampaignEditDialog } from "@/components/campanhas/CampaignEditDialog";
 import { BaseLeadsTab } from "@/components/campanhas/BaseLeadsTab";
 import { CampaignGalleryTab } from "@/components/campanhas/CampaignGalleryTab";
 import { SidebarProvider } from "@/components/ui/sidebar";
