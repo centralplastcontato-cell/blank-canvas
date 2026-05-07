@@ -248,43 +248,114 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
     ? { left: bannerPos.x, top: bannerPos.y, right: "auto", bottom: "auto" }
     : { right: 16, bottom: 16 };
 
+  const remaining = progress ? Math.max(progress.total - progress.current, 0) : 0;
+  const errorCountState = 0; // tracked locally inside startCampaign; we surface live via progress only
+
   const banner = isSending && isMinimized
     ? createPortal(
         <div
-          className="fixed z-[200] flex items-center gap-2 rounded-lg border bg-background px-2 py-3 pr-4 shadow-xl min-w-[280px] max-w-[360px] select-none"
-          style={bannerStyle}
+          className="fixed z-[200] rounded-xl border bg-background shadow-xl select-none overflow-hidden transition-all"
+          style={{ ...bannerStyle, width: expanded ? 340 : undefined, minWidth: expanded ? 340 : 280, maxWidth: 360 }}
         >
-          <div
-            onPointerDown={handleDragStart}
-            onPointerMove={handleDragMove}
-            onPointerUp={handleDragEnd}
-            onPointerCancel={handleDragEnd}
-            className="shrink-0 flex items-center justify-center h-8 w-5 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
-            title="Arraste para mover"
-          >
-            <GripVertical className="h-4 w-4" />
+          {/* Header row (always visible) */}
+          <div className="flex items-center gap-2 px-2 py-3 pr-3">
+            <div
+              onPointerDown={handleDragStart}
+              onPointerMove={handleDragMove}
+              onPointerUp={handleDragEnd}
+              onPointerCancel={handleDragEnd}
+              className="shrink-0 flex items-center justify-center h-8 w-5 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+              title="Arraste para mover"
+            >
+              <GripVertical className="h-4 w-4" />
+            </div>
+            <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="flex-1 min-w-0 text-left"
+              title={expanded ? "Recolher" : "Expandir detalhes"}
+            >
+              <p className="text-xs font-semibold truncate flex items-center gap-1.5">
+                <Megaphone className="w-3 h-3 text-primary" />
+                {activeCampaignName}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {paused ? "Pausando..." : `Enviando ${progress?.current || 0} de ${progress?.total || 0}`}
+                {progress?.waiting && countdown !== null && !paused && ` • próximo em ${countdown}s`}
+              </p>
+              <Progress value={progressPercent} className="h-1.5 mt-1" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="shrink-0 flex items-center justify-center h-7 w-7 rounded-md bg-muted hover:bg-accent text-foreground transition-colors"
+              title={expanded ? "Recolher" : "Expandir"}
+            >
+              {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
+            </button>
+            <button
+              type="button"
+              onClick={pauseCampaign}
+              disabled={paused}
+              className="shrink-0 flex items-center justify-center h-7 w-7 rounded-md bg-muted hover:bg-accent text-foreground transition-colors disabled:opacity-50"
+              title="Pausar campanha"
+            >
+              <Pause className="h-3.5 w-3.5" />
+            </button>
           </div>
-          <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold truncate flex items-center gap-1.5">
-              <Megaphone className="w-3 h-3 text-primary" />
-              {activeCampaignName}
-            </p>
-            <p className="text-xs text-muted-foreground truncate">
-              {paused ? "Pausando..." : `Enviando ${progress?.current || 0} de ${progress?.total || 0}`}
-              {progress?.waiting && countdown !== null && !paused && ` • próximo em ${countdown}s`}
-            </p>
-            <Progress value={progressPercent} className="h-1.5 mt-1" />
-          </div>
-          <button
-            type="button"
-            onClick={pauseCampaign}
-            disabled={paused}
-            className="shrink-0 flex items-center justify-center h-7 w-7 rounded-md bg-muted hover:bg-accent text-foreground transition-colors disabled:opacity-50"
-            title="Pausar campanha"
-          >
-            <Pause className="h-3.5 w-3.5" />
-          </button>
+
+          {/* Expanded details */}
+          {expanded && progress && (
+            <div className="border-t bg-muted/30 px-3 py-3 space-y-2.5 text-xs">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-lg bg-background border p-2 text-center">
+                  <div className="flex items-center justify-center gap-1 text-muted-foreground mb-0.5">
+                    <Send className="h-3 w-3" />
+                    <span className="text-[10px] uppercase tracking-wide">Enviados</span>
+                  </div>
+                  <p className="text-sm font-bold text-foreground">{progress.current}</p>
+                </div>
+                <div className="rounded-lg bg-background border p-2 text-center">
+                  <div className="flex items-center justify-center gap-1 text-muted-foreground mb-0.5">
+                    <Clock className="h-3 w-3" />
+                    <span className="text-[10px] uppercase tracking-wide">Restam</span>
+                  </div>
+                  <p className="text-sm font-bold text-foreground">{remaining}</p>
+                </div>
+                <div className="rounded-lg bg-background border p-2 text-center">
+                  <div className="flex items-center justify-center gap-1 text-muted-foreground mb-0.5">
+                    <CheckCircle2 className="h-3 w-3" />
+                    <span className="text-[10px] uppercase tracking-wide">Total</span>
+                  </div>
+                  <p className="text-sm font-bold text-foreground">{progress.total}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>Progresso</span>
+                <span className="font-semibold text-foreground">{progressPercent}%</span>
+              </div>
+
+              {progress.waiting && countdown !== null && !paused && (
+                <div className="flex items-center gap-2 rounded-md bg-background border px-2 py-1.5">
+                  <Clock className="h-3.5 w-3.5 text-primary" />
+                  <span>Próximo envio em <strong className="text-foreground">{countdown}s</strong></span>
+                </div>
+              )}
+
+              {paused && (
+                <div className="flex items-center gap-2 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 px-2 py-1.5 text-amber-900 dark:text-amber-200">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  <span>Pausando após o envio atual...</span>
+                </div>
+              )}
+
+              <p className="text-[10px] text-muted-foreground leading-relaxed pt-1 border-t">
+                💡 Você pode navegar pela plataforma — a campanha continua rodando em segundo plano.
+              </p>
+            </div>
+          )}
         </div>,
         document.body
       )
