@@ -162,6 +162,21 @@ export function CampaignAudienceStep({ draft, setDraft, companyId }: Props) {
     });
   }, [leads, filterStatuses, filterMonth, filterUnit, filterSource, filterPartyType, search]);
 
+  // Persist active filter snapshot in the draft so the detail sheet can show it later.
+  useEffect(() => {
+    setDraft((prev) => ({
+      ...prev,
+      audienceFilters: {
+        statuses: filterStatuses,
+        month: filterMonth,
+        unit: filterUnit,
+        source: filterSource,
+        partyType: filterPartyType,
+        search: search.trim(),
+      },
+    }));
+  }, [filterStatuses, filterMonth, filterUnit, filterSource, filterPartyType, search, setDraft]);
+
   const selectedSet = new Set(draft.selectedLeadIds);
 
   const toggleLead = (id: string) => {
