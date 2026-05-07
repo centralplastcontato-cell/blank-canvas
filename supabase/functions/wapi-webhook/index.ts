@@ -5269,6 +5269,16 @@ async function processWebhookEvent(body: JsonRecord) {
           fetchAndUpdateProfilePicture(supabase, instance.instance_id, instance.instance_token, ex.id, rj as string, instance.provider || 'wapi')
             .catch(() => {});
         }
+
+        // If contact_name is numeric (LID/phone fallback), try to fetch real name from provider
+        const effectiveName = (upd.contact_name as string | undefined) ?? ex.contact_name;
+        if (!isGrp && (!effectiveName || /^[\d\s+()-]+$/.test(String(effectiveName).trim()))) {
+          fetchAndUpdateContactName(
+            supabase, instance.instance_id, instance.instance_token,
+            instance.client_token || null, ex.id, rj as string,
+            effectiveName as string | null, instance.provider || 'wapi'
+          ).catch(() => {});
+        }
       } else {
         // New conversation - need to check for existing lead
         // First, do a final check to prevent race conditions (upsert-like behavior)
