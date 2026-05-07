@@ -96,3 +96,6 @@ verify_jwt = false
 [functions.fix-exif-rotation]
 verify_jwt = false
 
+[functions.resolve-numeric-names]
+verify_jwt = false
+
