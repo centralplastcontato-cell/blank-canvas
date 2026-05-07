@@ -4238,6 +4238,82 @@ async function fetchAndUpdateProfilePicture(
   }
 }
 
+/**
+ * Detects when a contact_name is just digits (LID or raw phone) and tries to
+ * fetch the real saved name from the WhatsApp provider's contact API. Works
+ * only if the buffet has the contact saved on their WhatsApp agenda. Silent
+ * fallback when not available.
+ */
+async function fetchAndUpdateContactName(
+  supabase: SupabaseClient,
+  instanceId: string,
+  instanceToken: string,
+  clientToken: string | null,
+  conversationId: string,
+  remoteJid: string,
+  currentName: string | null,
+  provider: string = 'wapi'
+): Promise<void> {
+  try {
+    const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace('@lid', '');
+    const cleanName = (currentName || '').trim();
+    const isNumeric = !cleanName || /^[\d\s+()-]+$/.test(cleanName);
+    if (!isNumeric) return;
+
+    let resolvedName: string | null = null;
+
+    if (provider === 'zapi') {
+      const zapiBase = `https://api.z-api.io/instances/${instanceId}/token/${instanceToken}`;
+      const headers: Record<string, string> = {};
+      if (clientToken) headers['Client-Token'] = clientToken;
+      try {
+        const res = await fetch(`${zapiBase}/contacts/${phone}`, { headers });
+        if (res.ok) {
+          const data = await res.json();
+          resolvedName = data?.name || data?.short || data?.notify || data?.vname || null;
+        }
+      } catch { /* ignore */ }
+      if (!resolvedName) {
+        try {
+          const res = await fetch(`${zapiBase}/chats/${phone}`, { headers });
+          if (res.ok) {
+            const data = await res.json();
+            resolvedName = data?.name || data?.contactName || null;
+          }
+        } catch { /* ignore */ }
+      }
+    } else {
+      const tryEndpoints = [
+        `${WAPI_BASE_URL}/contacts/contact-info?instanceId=${instanceId}&phoneNumber=${phone}`,
+        `${WAPI_BASE_URL}/contacts/contact-info?instanceId=${instanceId}&phone=${phone}`,
+        `${WAPI_BASE_URL}/contact/info?instanceId=${instanceId}&phone=${phone}`,
+        `${WAPI_BASE_URL}/contacts?instanceId=${instanceId}&phone=${phone}`,
+      ];
+      for (const url of tryEndpoints) {
+        try {
+          const res = await fetch(url, { headers: { 'Authorization': `Bearer ${instanceToken}` } });
+          if (!res.ok) continue;
+          const data = await res.json();
+          resolvedName = data?.name || data?.contact?.name || data?.pushname
+            || data?.pushName || data?.verifiedName || data?.verifiedBizName
+            || data?.shortName || data?.notify || null;
+          if (resolvedName) break;
+        } catch { /* try next */ }
+      }
+    }
+
+    if (resolvedName) {
+      const trimmed = String(resolvedName).trim();
+      if (trimmed && !/^[\d\s+()-]+$/.test(trimmed)) {
+        await supabase.from('wapi_conversations').update({ contact_name: trimmed }).eq('id', conversationId);
+        console.log(`[ContactName] Resolved "${cleanName}" → "${trimmed}" via ${provider} API for conv ${conversationId}`);
+      }
+    }
+  } catch (err) {
+    console.warn(`[ContactName] Failed to fetch contact name:`, err instanceof Error ? err.message : String(err));
+  }
+}
+
 function extractMsgContent(mc: JsonRecord, msg: JsonRecord) {
   let type = 'text', content = '', url: string | null = null, key: string | null = null, path: string | null = null, fn: string | undefined, download = false, mime: string | null = null;
   
@@ -5193,6 +5269,16 @@ async function processWebhookEvent(body: JsonRecord) {
           fetchAndUpdateProfilePicture(supabase, instance.instance_id, instance.instance_token, ex.id, rj as string, instance.provider || 'wapi')
             .catch(() => {});
         }
+
+        // If contact_name is numeric (LID/phone fallback), try to fetch real name from provider
+        const effectiveName = (upd.contact_name as string | undefined) ?? ex.contact_name;
+        if (!isGrp && (!effectiveName || /^[\d\s+()-]+$/.test(String(effectiveName).trim()))) {
+          fetchAndUpdateContactName(
+            supabase, instance.instance_id, instance.instance_token,
+            instance.client_token || null, ex.id, rj as string,
+            effectiveName as string | null, instance.provider || 'wapi'
+          ).catch(() => {});
+        }
       } else {
         // New conversation - need to check for existing lead
         // First, do a final check to prevent race conditions (upsert-like behavior)
@@ -5258,6 +5344,15 @@ async function processWebhookEvent(body: JsonRecord) {
             if (!cPic && nc?.id) {
               fetchAndUpdateProfilePicture(supabase, instance.instance_id, instance.instance_token, nc.id, rj as string, instance.provider || 'wapi')
                 .catch(() => {});
+            }
+            // Resolve numeric/LID contact_name via provider API
+            const newName = (nc as JsonRecord | null)?.contact_name as string | null | undefined;
+            if (!isGrp && nc?.id && (!newName || /^[\d\s+()-]+$/.test(String(newName).trim()))) {
+              fetchAndUpdateContactName(
+                supabase, instance.instance_id, instance.instance_token,
+                instance.client_token || null, nc.id, rj as string,
+                newName ?? null, instance.provider || 'wapi'
+              ).catch(() => {});
             }
           }
         }
