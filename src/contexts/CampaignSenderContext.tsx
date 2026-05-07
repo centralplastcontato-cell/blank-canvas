@@ -61,6 +61,7 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [paused, setPaused] = useState(false);
   const [isMinimized, setIsMinimizedState] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [bannerPos, setBannerPos] = useState<{ x: number; y: number } | null>(() => {
     try {
       const raw = localStorage.getItem("campaign_banner_pos");
