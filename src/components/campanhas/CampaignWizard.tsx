@@ -40,6 +40,14 @@ export interface CampaignDraft {
   delaySeconds: number;
   pauseBotOnReply: boolean;
   autoReplyMessage: string;
+  audienceFilters?: {
+    statuses: string[];
+    month: string;
+    unit: string;
+    source: string;
+    partyType: string;
+    search: string;
+  };
 }
 
 const STEPS = [
