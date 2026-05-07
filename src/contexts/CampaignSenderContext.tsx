@@ -61,6 +61,13 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [paused, setPaused] = useState(false);
   const [isMinimized, setIsMinimizedState] = useState(true);
+  const [bannerPos, setBannerPos] = useState<{ x: number; y: number } | null>(() => {
+    try {
+      const raw = localStorage.getItem("campaign_banner_pos");
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  });
+  const dragRef = useRef<{ dx: number; dy: number; dragging: boolean }>({ dx: 0, dy: 0, dragging: false });
 
   const pauseRequestedRef = useRef(false);
   const isSendingRef = useRef(false);
