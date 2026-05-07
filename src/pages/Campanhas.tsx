@@ -344,6 +344,15 @@ export default function Campanhas() {
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                title="Editar campanha"
+                                onClick={(e) => { e.stopPropagation(); setEditingCampaign(campaign); }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 className="h-8 w-8 text-muted-foreground hover:text-destructive"
                                 onClick={(e) => { e.stopPropagation(); setCampaignToDelete(campaign); }}
                               >
