@@ -2997,19 +2997,45 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
       // Send a prompt message to the lead so the webhook processes the response
       const promptMsg = 'Oi! Desculpe, tive um probleminha técnico 😅\nPodemos continuar de onde paramos?\n\nResponda *1* para continuar';
-      
-      const { error } = await supabase.functions.invoke('wapi-send', {
+
+      // Pick the best instance to send from: the one selected for sending,
+      // falling back to the conversation's own instance, then the unit-selected one.
+      const sendInstanceId =
+        selectedSendInstance?.instance_id ||
+        instances.find(i => i.id === conv.instance_id)?.instance_id ||
+        selectedInstance?.instance_id;
+
+      if (!sendInstanceId) {
+        toast({
+          title: 'Sem instância disponível',
+          description: 'Nenhuma instância conectada para enviar a mensagem de reativação.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const { data: sendData, error } = await supabase.functions.invoke('wapi-send', {
         body: {
           action: 'send-text',
           phone: getConversationPhone(conv),
           message: promptMsg,
-          unit: selectedInstance?.unit || undefined,
-          conversation_id: conv.id,
+          instanceId: sendInstanceId,
+          conversationId: conv.id,
         },
       });
 
-      if (error) {
-        console.error('Erro ao enviar mensagem de reativação:', error);
+      const sendPayload = (sendData ?? (error as { context?: { body?: unknown } })?.context?.body) as
+        | { error?: string; success?: boolean; skipped?: boolean }
+        | undefined;
+
+      if (error || sendPayload?.error) {
+        console.error('Erro ao enviar mensagem de reativação:', error, sendPayload);
+        toast({
+          title: 'Bot reativado, mas a mensagem falhou',
+          description: sendPayload?.error || error?.message || 'Não foi possível enviar a mensagem de reativação. Tente enviar manualmente.',
+          variant: 'destructive',
+        });
+        return;
       }
 
       toast({
