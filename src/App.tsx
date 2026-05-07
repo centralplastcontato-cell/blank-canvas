@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { CompanyProvider } from "@/contexts/CompanyContext";
+import { CampaignSenderProvider } from "@/contexts/CampaignSenderContext";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 
 // Eager: root-level routing (tiny, always needed)
@@ -139,6 +140,7 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <CompanyProvider>
+      <CampaignSenderProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -245,6 +247,7 @@ const App = () => (
           </Suspense>
         </BrowserRouter>
       </TooltipProvider>
+      </CampaignSenderProvider>
     </CompanyProvider>
   </QueryClientProvider>
 );
