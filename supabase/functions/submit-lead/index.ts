@@ -376,11 +376,17 @@ Deno.serve(async (req) => {
 
     // Link lead to existing WhatsApp conversation (if any)
     try {
+      const digits = normalizedPhone.replace(/\D/g, '');
+      const withoutCountry = digits.startsWith('55') ? digits.slice(2) : digits;
+      const withCountry = digits.startsWith('55') ? digits : `55${digits}`;
+      const phoneVariants = Array.from(new Set([digits, withoutCountry, withCountry]));
+      const jidVariants = phoneVariants.map((p) => `${p}@s.whatsapp.net`);
+
       const { data: conversation } = await supabase
         .from('wapi_conversations')
         .select('id')
-        .like('phone', `%${normalizedPhone}`)
         .eq('company_id', company_id)
+        .or(`contact_phone.in.(${phoneVariants.join(',')}),remote_jid.in.(${jidVariants.join(',')})`)
         .order('last_message_at', { ascending: false, nullsFirst: false })
         .limit(1)
         .maybeSingle();

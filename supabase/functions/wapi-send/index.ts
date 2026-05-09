@@ -722,6 +722,21 @@ async function findOrCreateConversation(
       return null;
     }
 
+    let matchedLeadId: string | null = null;
+    if (lpMode) {
+      const leadPhoneVariants = getBrazilianPhoneVariants(cleanPhone).map((v) => v.startsWith('55') ? v.slice(2) : v);
+      const { data: matchedLead } = await supabase
+        .from('campaign_leads')
+        .select('id, whatsapp')
+        .eq('company_id', instanceRecord.company_id)
+        .in('whatsapp', leadPhoneVariants)
+        .not('campaign_id', 'like', 'whatsapp%')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      matchedLeadId = matchedLead?.id || null;
+    }
+
     // Check if conversation already exists — search ALL phone variants so we
     // reuse the existing chat even if it was originally stored with/without 55
     // or with/without the 9th digit.
@@ -753,6 +768,9 @@ async function findOrCreateConversation(
           bot_step: 'lp_sent',
           bot_enabled: true,
         };
+        if (matchedLeadId && !existing.lead_id) {
+          updateData.lead_id = matchedLeadId;
+        }
         // Update contact_name if we have a real name and current one looks like a phone number
         if (contactName && /^\d+$/.test(existing.contact_name || '')) {
           updateData.contact_name = contactName;
@@ -783,6 +801,7 @@ async function findOrCreateConversation(
         bot_enabled: true,
         bot_step: 'lp_sent',
         last_message_from_me: true,
+        ...(matchedLeadId ? { lead_id: matchedLeadId } : {}),
         ...(contactName ? { bot_data: { nome: contactName } } : {}),
       })
       .select('id, company_id')
