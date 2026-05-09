@@ -391,7 +391,7 @@ Deno.serve(async (req) => {
 
       const { data: conversation } = await supabase
         .from('wapi_conversations')
-        .select('id')
+        .select('id, contact_name, contact_phone')
         .eq('company_id', company_id)
         .or(`contact_phone.in.(${phoneVariants.join(',')}),remote_jid.in.(${jidVariants.join(',')})`)
         .order('last_message_at', { ascending: false, nullsFirst: false })
@@ -399,9 +399,24 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (conversation) {
+        // Only overwrite contact_name when the existing one is missing,
+        // numeric, or equals the phone. Never replace a real WhatsApp pushName.
+        const existing = (conversation.contact_name || '').trim();
+        const existingDigits = existing.replace(/\D/g, '');
+        const isPlaceholder =
+          !existing ||
+          /^[\d\s+()\-]+$/.test(existing) ||
+          (existingDigits.length >= 8 && existingDigits === existing.replace(/\s/g, '').replace(/\D/g, '')) ||
+          existing === conversation.contact_phone;
+
+        const updatePayload: Record<string, unknown> = { lead_id: leadId };
+        if (isPlaceholder) {
+          updatePayload.contact_name = name.trim();
+        }
+
         const { error: linkError } = await supabase
           .from('wapi_conversations')
-          .update({ lead_id: leadId, contact_name: name.trim() })
+          .update(updatePayload)
           .eq('id', conversation.id);
 
         if (linkError) {
