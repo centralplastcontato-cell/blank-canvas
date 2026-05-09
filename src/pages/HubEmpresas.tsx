@@ -573,6 +573,13 @@ function HubEmpresasContent() {
         open={!!onboardingViewCompany}
         onOpenChange={(open) => { if (!open) setOnboardingViewCompany(null); }}
       />
+
+      <CompanyQRCodeDialog
+        open={!!qrCompany}
+        onOpenChange={(open) => { if (!open) setQrCompany(null); }}
+        companyName={qrCompany?.name || ""}
+        url={qrCompany?.custom_domain ? `https://${qrCompany.custom_domain}` : ""}
+      />
     </>
   );
 }
