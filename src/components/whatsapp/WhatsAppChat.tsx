@@ -221,19 +221,41 @@ const isConnectedStatus = (status: string | null | undefined) => status === 'con
 const isValidContactName = (name: string | null | undefined): name is string => {
   if (!name) return false;
   const trimmed = name.trim();
-  return trimmed.length > 0 && trimmed !== '.' && trimmed !== '-' && trimmed !== '...' && trimmed !== '--';
+  const digits = trimmed.replace(/\D/g, '');
+  return (
+    trimmed.length > 0 &&
+    trimmed !== '.' &&
+    trimmed !== '-' &&
+    trimmed !== '...' &&
+    trimmed !== '--' &&
+    !/^[\d\s+()\-]+$/.test(trimmed) &&
+    !(digits.length >= 8 && digits === trimmed.replace(/\D/g, ''))
+  );
+};
+
+const isValidLeadDisplayName = (name: string | null | undefined): name is string => {
+  if (!name) return false;
+  const trimmed = name.trim();
+  return (
+    isValidContactName(trimmed) &&
+    /[a-zà-úA-ZÀ-Ú]/.test(trimmed) &&
+    !/\d/.test(trimmed) &&
+    !/(anivers[áa]rio|\banos?\b|\bmes(es)?\b|festa|convidad)/i.test(trimmed)
+  );
 };
 
 // Helper: resolve the best display name for a conversation
 const getConversationDisplayName = (
-  conv: { contact_name: string; contact_phone: string; id: string },
-  leadsMap: Record<string, Lead | undefined>
+  conv: { contact_name: string | null; contact_phone: string; id: string },
+  leadsMap: Record<string, Lead | null | undefined>
 ): string => {
-  // 1. Prioritize linked lead name
-  const leadName = leadsMap[conv.id]?.name;
-  if (leadName && leadName.trim().length > 0) return leadName;
-  // 2. Use contact_name if valid
+  // 1. Prefer the real WhatsApp/contact name when it is usable.
   if (isValidContactName(conv.contact_name)) return conv.contact_name;
+
+  // 2. Use linked lead name only when the contact name is empty/numeric/placeholder.
+  const leadName = leadsMap[conv.id]?.name;
+  if (isValidLeadDisplayName(leadName)) return leadName.trim();
+
   // 3. Fallback to phone
   return conv.contact_phone;
 };
@@ -3057,7 +3079,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     
     // Replace placeholders with conversation/lead data
     if (selectedConversation) {
-      const leadName = conversationLeadsMap[selectedConversation.id]?.name || selectedConversation.contact_name || '';
+      const leadName = getConversationDisplayName(selectedConversation, conversationLeadsMap);
       const leadMonth = conversationLeadsMap[selectedConversation.id]?.month || '';
       const leadGuests = conversationLeadsMap[selectedConversation.id]?.guests || '';
       const leadCampaign = conversationLeadsMap[selectedConversation.id]?.campaign_name || '';
