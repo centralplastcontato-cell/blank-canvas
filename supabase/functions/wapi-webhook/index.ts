@@ -3103,11 +3103,16 @@ async function processBotQualification(
             if (!leadErr && newLead) {
               newLeadId = newLead.id;
               console.log(`[Bot] Existing client lead created: ${newLead.id}`);
-              // Link lead to conversation
-              await supabase.from('wapi_conversations').update({
-                lead_id: newLead.id,
-                contact_name: leadName,
-              }).eq('id', conv.id);
+              // Link lead to conversation. Only overwrite contact_name when
+              // the existing one is missing/numeric — never replace a real pushName.
+              const existing = (conv.contact_name || '').trim();
+              const isPlaceholder =
+                !existing ||
+                /^[\d\s+()\-]+$/.test(existing) ||
+                existing === conv.contact_phone;
+              const updatePayload: Record<string, unknown> = { lead_id: newLead.id };
+              if (isPlaceholder && leadName) updatePayload.contact_name = leadName;
+              await supabase.from('wapi_conversations').update(updatePayload).eq('id', conv.id);
             } else if (leadErr) {
               console.error('[Bot] Error creating client return lead:', leadErr);
             }
