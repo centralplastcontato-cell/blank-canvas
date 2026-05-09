@@ -457,8 +457,13 @@ async function zapiConfigureWebhooks(instanceId: string, token: string, clientTo
   if (primary.ok) {
     // Also explicitly enable notifySentByMe via the dedicated endpoint as
     // double-insurance (some Z-API plans ignore the flag in update-every-webhooks).
-    await zapiRequest(instanceId, token, clientToken, 'update-notify-sent-by-me', 'PUT', { notifySentByMe: true })
-      .catch(() => ({ ok: false }));
+    const notifyAttempts = await Promise.allSettled([
+      zapiRequest(instanceId, token, clientToken, 'update-notify-sent-by-me', 'PUT', { notifySentByMe: true }),
+      zapiRequest(instanceId, token, clientToken, 'update-notify-sent-by-me', 'PUT', { value: true }),
+      zapiRequest(instanceId, token, clientToken, 'update-webhook-received', 'PUT', { value: webhookUrl, notifySentByMe: true }),
+      zapiRequest(instanceId, token, clientToken, 'update-webhook-receive-all-notifications', 'PUT', { value: webhookUrl, notifySentByMe: true }),
+    ]);
+    console.log(`[zapi-webhook] notify-sent-by-me attempts: ${notifyAttempts.map((r) => r.status === 'fulfilled' && r.value.ok ? 'OK' : 'FAIL').join(',')}`);
     return { ok: true, data: primary.data };
   }
 
@@ -494,8 +499,11 @@ async function zapiConfigureWebhooks(instanceId: string, token: string, clientTo
   // Also enable "notify sent by me" so we receive our own outgoing messages WITH
   // CONTENT via the on-receive webhook. The correct body per Z-API docs is
   // { notifySentByMe: true } — the previous { value: true } silently failed.
-  const notifyMe = await zapiRequest(instanceId, token, clientToken, 'update-notify-sent-by-me', 'PUT', { notifySentByMe: true }).catch(() => ({ ok: false }));
-  console.log(`[zapi-webhook] notify-sent-by-me: ${notifyMe.ok ? 'OK' : 'SKIP'}`);
+  const notifyAttempts = await Promise.allSettled([
+    zapiRequest(instanceId, token, clientToken, 'update-notify-sent-by-me', 'PUT', { notifySentByMe: true }),
+    zapiRequest(instanceId, token, clientToken, 'update-notify-sent-by-me', 'PUT', { value: true }),
+  ]);
+  console.log(`[zapi-webhook] notify-sent-by-me attempts: ${notifyAttempts.map((r) => r.status === 'fulfilled' && r.value.ok ? 'OK' : 'FAIL').join(',')}`);
 
   return {
     ok: anyOk,
