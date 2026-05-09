@@ -5256,7 +5256,21 @@ async function processWebhookEvent(body: JsonRecord) {
           if (await isSelfName(supabase, instance.company_id, cName)) {
             console.log(`[SelfNameGuard] Ignoring pushName "${cName}" — matches company/instance name (conv ${ex.id})`);
           } else {
-            upd.contact_name = cName;
+            // Lock contact_name once a real (non-numeric) name is established.
+            // Overwrite only if the current name is missing, numeric, equals the phone,
+            // or is the "Grupo <phone>" placeholder. This prevents Dani → Danielle,
+            // Taly Amorim → 170526J Taly/Otto, etc. flapping on every new message.
+            const existing = (ex.contact_name || '').trim();
+            const existingDigits = existing.replace(/\D/g, '');
+            const isPlaceholder =
+              !existing ||
+              /^[\d\s+()\-]+$/.test(existing) ||
+              existing === ex.contact_phone ||
+              (existingDigits.length >= 8 && existingDigits === existing.replace(/\D/g, '')) ||
+              /^Grupo\s/i.test(existing);
+            if (isPlaceholder) {
+              upd.contact_name = cName;
+            }
           }
         }
         if (cPic) upd.contact_picture = cPic;
