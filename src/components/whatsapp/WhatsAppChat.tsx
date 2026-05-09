@@ -3079,7 +3079,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     
     // Replace placeholders with conversation/lead data
     if (selectedConversation) {
-      const leadName = conversationLeadsMap[selectedConversation.id]?.name || selectedConversation.contact_name || '';
+      const leadName = getConversationDisplayName(selectedConversation, conversationLeadsMap);
       const leadMonth = conversationLeadsMap[selectedConversation.id]?.month || '';
       const leadGuests = conversationLeadsMap[selectedConversation.id]?.guests || '';
       const leadCampaign = conversationLeadsMap[selectedConversation.id]?.campaign_name || '';
