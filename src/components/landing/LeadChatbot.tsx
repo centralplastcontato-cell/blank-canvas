@@ -523,7 +523,23 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
       setTimeout(() => proceedAfterVenue(venueChoice), 400);
       return;
     } else if (inputType === "name") {
-      setLeadData((prev) => ({ ...prev, name: inputValue }));
+      const raw = inputValue.trim();
+      const lower = raw.toLowerCase();
+      const onlyDigits = /^[\d\s+()\-]+$/.test(raw);
+      const hasForbiddenWord = /(anivers[áa]rio|\banos?\b|\bmes(es)?\b|festa|convidad)/i.test(lower);
+      const hasDigit = /\d/.test(raw);
+      const hasLetters = /[a-zà-ú]/i.test(raw);
+      const tooShort = raw.length < 2;
+      if (tooShort || onlyDigits || hasForbiddenWord || hasDigit || !hasLetters) {
+        setMessages((prev) => [...prev, {
+          id: `bot-${Date.now()}`,
+          type: "bot",
+          content: "Ops! Preciso do *seu nome* (ex.: Maria Silva) — sem números, idade ou descrição da festa. Pode escrever de novo? 😊",
+        }]);
+        setInputValue("");
+        return;
+      }
+      setLeadData((prev) => ({ ...prev, name: raw }));
       setInputValue("");
       setInputType("whatsapp");
     } else if (inputType === "whatsapp") {
