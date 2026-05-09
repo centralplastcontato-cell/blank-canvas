@@ -5859,7 +5859,8 @@ function extractZapiInteractiveResponse(body: JsonRecord): { type: 'button' | 'l
 function normalizeZapiPayload(body: JsonRecord): JsonRecord {
   const phone = body.phone as string || '';
   const remoteJid = normalizeZapiRemoteJid(phone);
-  const msgId = body.messageId as string || `zapi_${Date.now()}`;
+  const ids = Array.isArray(body.ids) ? body.ids : [];
+  const msgId = (body.messageId as string) || (ids[0] as string | undefined) || `zapi_${Date.now()}`;
   const fromMe = body.fromMe === true;
   const senderName = (body.senderName || body.chatName || phone) as string;
 
@@ -5954,14 +5955,20 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
   // Z-API may include profile picture in the payload
   const profilePic = (body.photo as string) || (body.senderPhoto as string) || (body.chatPhoto as string) || null;
 
+  const isStatusOnlyCallback = body.type === 'MessageStatusCallback' || body.type === 'SendCallback';
+
   return {
-    event: 'messages.upsert',
+    event: isStatusOnlyCallback && Object.keys(message).length === 0 ? 'webhookDelivery' : 'messages.upsert',
     instanceId: body.instanceId,
     data: {
       key: { remoteJid, fromMe, id: msgId },
+      messageId: msgId,
+      status: body.status,
+      ack: body.ack,
+      ids,
       pushName: senderName,
       message,
-      messageTimestamp: Math.floor(Date.now() / 1000),
+      messageTimestamp: body.momment ? Math.floor((body.momment as number) / 1000) : Math.floor(Date.now() / 1000),
       ...(profilePic ? { sender: { profilePicture: profilePic } } : {}),
     },
   };
@@ -5978,7 +5985,7 @@ Deno.serve(async (req) => {
     const isZapiSendCallback = body.type === 'SendCallback' || body.type === 'MessageStatusCallback';
     const isZapiPayload = body.type === 'ReceivedCallback' ||
       isZapiSendCallback ||
-      (body.phone && body.instanceId && !body.event && (body.text || body.image || body.audio || body.video || body.document || hasInteractiveResponse));
+      (body.phone && body.instanceId && !body.event && (body.text || body.image || body.audio || body.video || body.document || body.sticker || body.location || body.contact || body.contacts || body.reaction || body.poll || body.reply || body.message || body.hydratedTemplate || body.templateMessage || hasInteractiveResponse));
     if (isZapiPayload) {
       // Log raw payload keys for debugging interactive responses
       const payloadKeys = Object.keys(body).join(',');
