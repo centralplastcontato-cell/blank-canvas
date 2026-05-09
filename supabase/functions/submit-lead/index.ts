@@ -52,6 +52,13 @@ function validateName(name: string): { valid: boolean; error?: string } {
   if (/[<>{}]/.test(trimmed)) {
     return { valid: false, error: 'Nome contém caracteres inválidos' };
   }
+  // Block phone numbers, ages, and party descriptions in the name field
+  const hasDigit = /\d/.test(trimmed);
+  const hasLetters = /[a-zà-úA-ZÀ-Ú]/.test(trimmed);
+  const hasForbiddenWord = /(anivers[áa]rio|\banos?\b|\bmes(es)?\b|festa|convidad)/i.test(trimmed);
+  if (hasDigit || !hasLetters || hasForbiddenWord) {
+    return { valid: false, error: 'Por favor, digite seu nome real (sem números, idade ou descrição da festa).' };
+  }
   return { valid: true };
 }
 
