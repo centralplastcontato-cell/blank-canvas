@@ -18,7 +18,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Building2, Plus, Pencil, Users, Loader2, UserPlus, Link2, Copy, ClipboardList, MessageSquare, BarChart3, Clock, CheckCircle2, AlertCircle, Globe, AlertTriangle, ExternalLink, Settings2, Trash2, RotateCcw, Film } from "lucide-react";
+import { Building2, Plus, Pencil, Users, Loader2, UserPlus, Link2, Copy, ClipboardList, MessageSquare, BarChart3, Clock, CheckCircle2, AlertCircle, Globe, AlertTriangle, ExternalLink, Settings2, Trash2, RotateCcw, Film, QrCode } from "lucide-react";
+import { CompanyQRCodeDialog } from "@/components/hub/CompanyQRCodeDialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
@@ -96,6 +97,7 @@ function HubEmpresasContent() {
   const [resetConversations, setResetConversations] = useState(true);
   const [resetLeads, setResetLeads] = useState(true);
   const [onboardingViewCompany, setOnboardingViewCompany] = useState<Company | null>(null);
+  const [qrCompany, setQrCompany] = useState<Company | null>(null);
 
   useEffect(() => { fetchCompanies(); }, []);
 
@@ -517,6 +519,13 @@ function HubEmpresasContent() {
                         >
                           <Copy className="h-3.5 w-3.5 text-muted-foreground" />
                         </button>
+                        <button
+                          onClick={() => setQrCompany(child)}
+                          className="p-1 rounded hover:bg-muted transition-colors"
+                          title="QR Code"
+                        >
+                          <QrCode className="h-3.5 w-3.5 text-primary" />
+                        </button>
                       </div>
                     </div>
                   )}
@@ -563,6 +572,13 @@ function HubEmpresasContent() {
         companyName={onboardingViewCompany?.name || ""}
         open={!!onboardingViewCompany}
         onOpenChange={(open) => { if (!open) setOnboardingViewCompany(null); }}
+      />
+
+      <CompanyQRCodeDialog
+        open={!!qrCompany}
+        onOpenChange={(open) => { if (!open) setQrCompany(null); }}
+        companyName={qrCompany?.name || ""}
+        url={qrCompany?.custom_domain ? `https://${qrCompany.custom_domain}` : ""}
       />
     </>
   );
