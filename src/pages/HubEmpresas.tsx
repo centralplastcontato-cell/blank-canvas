@@ -519,6 +519,13 @@ function HubEmpresasContent() {
                         >
                           <Copy className="h-3.5 w-3.5 text-muted-foreground" />
                         </button>
+                        <button
+                          onClick={() => setQrCompany(child)}
+                          className="p-1 rounded hover:bg-muted transition-colors"
+                          title="QR Code"
+                        >
+                          <QrCode className="h-3.5 w-3.5 text-primary" />
+                        </button>
                       </div>
                     </div>
                   )}
