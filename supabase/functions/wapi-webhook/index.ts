@@ -3103,11 +3103,16 @@ async function processBotQualification(
             if (!leadErr && newLead) {
               newLeadId = newLead.id;
               console.log(`[Bot] Existing client lead created: ${newLead.id}`);
-              // Link lead to conversation
-              await supabase.from('wapi_conversations').update({
-                lead_id: newLead.id,
-                contact_name: leadName,
-              }).eq('id', conv.id);
+              // Link lead to conversation. Only overwrite contact_name when
+              // the existing one is missing/numeric — never replace a real pushName.
+              const existing = (conv.contact_name || '').trim();
+              const isPlaceholder =
+                !existing ||
+                /^[\d\s+()\-]+$/.test(existing) ||
+                existing === conv.contact_phone;
+              const updatePayload: Record<string, unknown> = { lead_id: newLead.id };
+              if (isPlaceholder && leadName) updatePayload.contact_name = leadName;
+              await supabase.from('wapi_conversations').update(updatePayload).eq('id', conv.id);
             } else if (leadErr) {
               console.error('[Bot] Error creating client return lead:', leadErr);
             }
@@ -5256,7 +5261,21 @@ async function processWebhookEvent(body: JsonRecord) {
           if (await isSelfName(supabase, instance.company_id, cName)) {
             console.log(`[SelfNameGuard] Ignoring pushName "${cName}" — matches company/instance name (conv ${ex.id})`);
           } else {
-            upd.contact_name = cName;
+            // Lock contact_name once a real (non-numeric) name is established.
+            // Overwrite only if the current name is missing, numeric, equals the phone,
+            // or is the "Grupo <phone>" placeholder. This prevents Dani → Danielle,
+            // Taly Amorim → 170526J Taly/Otto, etc. flapping on every new message.
+            const existing = (ex.contact_name || '').trim();
+            const existingDigits = existing.replace(/\D/g, '');
+            const isPlaceholder =
+              !existing ||
+              /^[\d\s+()\-]+$/.test(existing) ||
+              existing === ex.contact_phone ||
+              (existingDigits.length >= 8 && existingDigits === existing.replace(/\D/g, '')) ||
+              /^Grupo\s/i.test(existing);
+            if (isPlaceholder) {
+              upd.contact_name = cName;
+            }
           }
         }
         if (cPic) upd.contact_picture = cPic;
