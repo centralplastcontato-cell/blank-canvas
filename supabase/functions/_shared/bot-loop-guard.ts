@@ -106,10 +106,10 @@ export async function detectAndPauseBotLoop(
     // Strong signals first — these alone trip the breaker
     let reason: LoopReason | null = null;
 
-    // (c) repetition of newContent
+    // (c) repetition of newContent — ignore short/numeric replies (menu choices)
     if (recent && recent.length >= REPEAT_THRESHOLD) {
       const target = normalizeContent(newContent);
-      if (target) {
+      if (target && target.length > 3 && !/^\d+$/.test(target)) {
         const matches = recent.filter(
           (m: { content: string | null }) => normalizeContent(m.content) === target,
         ).length;
