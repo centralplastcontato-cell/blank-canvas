@@ -106,10 +106,10 @@ export async function detectAndPauseBotLoop(
     // Strong signals first — these alone trip the breaker
     let reason: LoopReason | null = null;
 
-    // (c) repetition of newContent
+    // (c) repetition of newContent — ignore short/numeric replies (menu choices)
     if (recent && recent.length >= REPEAT_THRESHOLD) {
       const target = normalizeContent(newContent);
-      if (target) {
+      if (target && target.length > 3 && !/^\d+$/.test(target)) {
         const matches = recent.filter(
           (m: { content: string | null }) => normalizeContent(m.content) === target,
         ).length;
@@ -136,14 +136,15 @@ export async function detectAndPauseBotLoop(
       }
     }
 
-    // Co-signal helper: any recent inbound looks bot-like, or content already repeats >=2
+    // Co-signal helper: any recent inbound looks bot-like, or NON-TRIVIAL content repeats >=2.
+    // Short numeric/menu answers ("1", "2", "ok") are excluded — they naturally repeat in qualification flows.
     const hasCoSignal = (() => {
       if (!recent || recent.length === 0) return false;
       if (recent.some((m: { content: string | null }) => looksLikeBotMessage(m.content))) return true;
       const counts = new Map<string, number>();
       for (const m of recent) {
         const k = normalizeContent((m as { content: string | null }).content);
-        if (!k) continue;
+        if (!k || k.length <= 3 || /^\d+$/.test(k)) continue;
         counts.set(k, (counts.get(k) ?? 0) + 1);
       }
       for (const v of counts.values()) if (v >= 2) return true;
