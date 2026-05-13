@@ -462,12 +462,12 @@ export function LeadDetailSheet({
               Contato via WhatsApp
             </Label>
             <Button
-              variant="outline"
-              className="w-full justify-start"
+              size="lg"
+              className="w-full justify-center gap-2 bg-[#25D366] hover:bg-[#20BA5A] text-white font-semibold shadow-md hover:shadow-lg transition-all rounded-xl h-12"
               onClick={canViewContact ? openWhatsAppChat : undefined}
               disabled={!canViewContact}
             >
-              <MessageSquare className="w-4 h-4 mr-2" />
+              <MessageSquare className="w-5 h-5" />
               {canViewContact ? `Abrir Conversa (${lead.whatsapp})` : `Contato oculto (${maskPhone(lead.whatsapp)})`}
             </Button>
           </div>
