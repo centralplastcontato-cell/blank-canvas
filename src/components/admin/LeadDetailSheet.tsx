@@ -43,6 +43,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { maskPhone } from "@/lib/mask-utils";
 import { LeadVisitHistory } from "./LeadVisitHistory";
+import { LeadDuplicateHubBanner } from "./LeadDuplicateHubBanner";
 import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
@@ -284,6 +285,9 @@ export function LeadDetailSheet({
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
+          {/* Duplicate-in-hub warning */}
+          <LeadDuplicateHubBanner phone={lead.whatsapp} companyId={currentCompany?.id} />
+
           {/* Return Banner */}
           {lead.has_return && (
             <div className="relative bg-gradient-to-r from-violet-500/15 via-fuchsia-500/10 to-violet-500/15 border border-violet-400/30 rounded-xl p-4 shadow-sm overflow-hidden">
