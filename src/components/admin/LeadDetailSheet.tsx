@@ -286,7 +286,7 @@ export function LeadDetailSheet({
 
         <div className="mt-6 space-y-6">
           {/* Duplicate-in-hub warning */}
-          <LeadDuplicateHubBanner phone={lead.whatsapp} companyId={lead.company_id} />
+          <LeadDuplicateHubBanner phone={lead.whatsapp} companyId={currentCompany?.id} />
 
           {/* Return Banner */}
           {lead.has_return && (
