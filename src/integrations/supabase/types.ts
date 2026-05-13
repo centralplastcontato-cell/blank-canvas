@@ -6620,6 +6620,17 @@ export type Database = {
           video: Json
         }[]
       }
+      get_lead_duplicates_in_hub: {
+        Args: { _company_id: string; _phone: string }
+        Returns: {
+          company_id: string
+          company_name: string
+          last_message_at: string
+          lead_created_at: string
+          lead_id: string
+          status: string
+        }[]
+      }
       get_lp_bot_settings_public: {
         Args: { _company_id: string }
         Returns: {
