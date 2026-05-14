@@ -3034,12 +3034,24 @@ async function processBotQualification(
       updated[step] = validation.value || content.trim();
       
       // Update contact_name when bot collects the lead's real name
+      // BUT: respect manually edited names (with /, codes, +, - separators)
       if (step === 'nome' && (validation.value || content.trim())) {
         const realName = validation.value || content.trim();
-        await supabase.from('wapi_conversations').update({
-          contact_name: realName,
-        }).eq('id', conv.id);
-        console.log(`[Bot] Updated contact_name to "${realName}" for conv ${conv.id}`);
+        const existing = (conv.contact_name || '').trim();
+        const isManuallyEdited =
+          existing.includes('/') ||
+          /[0-9]{3,}[A-Za-z]/.test(existing) ||
+          /[A-Za-z][0-9]{2,}/.test(existing) ||
+          existing.includes(' + ') ||
+          /[A-Za-zÀ-ÿ]+\s*-\s*[A-Za-z0-9]/.test(existing);
+        if (isManuallyEdited) {
+          console.log(`[Bot] Skipping contact_name update — "${existing}" looks manually edited (conv ${conv.id})`);
+        } else {
+          await supabase.from('wapi_conversations').update({
+            contact_name: realName,
+          }).eq('id', conv.id);
+          console.log(`[Bot] Updated contact_name to "${realName}" for conv ${conv.id}`);
+        }
       }
       
       const currentQ = questions[step];
