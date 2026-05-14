@@ -377,6 +377,38 @@ export function LeadInfoPopover({
 
         if (error) throw error;
 
+        // Fallback: if linkedLead hasn't loaded yet but the conversation
+        // is actually linked to a lead, sync the name to campaign_leads too.
+        const { data: convRow } = await supabase
+          .from("wapi_conversations")
+          .select("lead_id")
+          .eq("id", selectedConversation.id)
+          .maybeSingle();
+
+        if (convRow?.lead_id) {
+          const { data: leadRow } = await supabase
+            .from("campaign_leads")
+            .select("id, name")
+            .eq("id", convRow.lead_id)
+            .maybeSingle();
+
+          if (leadRow && leadRow.name !== trimmedName) {
+            await supabase
+              .from("campaign_leads")
+              .update({ name: trimmedName })
+              .eq("id", leadRow.id);
+
+            await supabase.from("lead_history").insert({
+              lead_id: leadRow.id,
+              user_id: userId,
+              user_name: currentUserName,
+              action: "Alteração de nome",
+              old_value: leadRow.name,
+              new_value: trimmedName,
+            });
+          }
+        }
+
         onLeadNameChange(trimmedName);
         setIsEditingName(false);
         setEditedName("");
