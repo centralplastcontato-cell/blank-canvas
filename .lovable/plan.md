@@ -1,32 +1,40 @@
-# Remover o "fundo azul gigante" das mensagens com imagem na Central de Atendimento
+## Objetivo
 
-## O que está acontecendo hoje
+Garantir que o nome editado pelo buffet (ex: "150526J Daniela/ Gael") seja a fonte da verdade, aparecendo em **todos os lugares** (chat, Kanban, CRM, relatórios) — e nunca seja sobrescrito pelo `pushName` do WhatsApp.
 
-Na Central de Atendimento, toda mensagem enviada por você (`from_me = true`) ganha um balão com fundo azul (`bg-primary`). Para mensagens de **texto** isso fica certinho — o balão acompanha o tamanho do texto. Mas para mensagens de **imagem com legenda** (caso da campanha "Dia das Mães"), acontece o seguinte:
+---
 
-- O balão é forçado a ter até 75% da largura do chat (porque a legenda é um texto longo que ocupa quase a linha toda).
-- A imagem fica encostada à esquerda, com a legenda embaixo.
-- O fundo azul preenche todo o espaço livre à direita da imagem, criando aquela "faixa azul gigante" que você quer eliminar.
+## Etapa 1 — Backfill seguro (105 leads)
 
-No WhatsApp oficial, mensagens com mídia não têm esse bloco azul ao redor — a imagem aparece "solta", e só a legenda recebe um leve contraste.
+**O que faz:** copia o nome do CRM (`campaign_leads.name`) para o chat (`wapi_conversations.contact_name`) **apenas** nos 105 casos onde é impossível o nome ter vindo do WhatsApp — ou seja, nomes que claramente foram digitados manualmente pelo buffet.
 
-## Plano
+**Critérios de segurança (todos checados):**
+- Nome contém `/` (ex: "Daniela/ Gael")
+- Nome contém código alfanumérico (ex: "150526J", "P12-A")
+- Nome tem mistura de letras + números no meio
+- Nome contém `+` ou `-` separando partes
 
-Ajustar apenas a aparência das mensagens de mídia (imagem e vídeo) enviadas por você, para deixar igual ao WhatsApp:
+**Impacto:** chat passa a exibir o nome correto do buffet imediatamente. Os outros 1.937 casos ambíguos **não são tocados** (poderiam ser legítimos pushNames).
 
-1. Em `src/components/whatsapp/WhatsAppChat.tsx`, no bloco que renderiza o balão da mensagem (por volta da linha 5148):
-   - Quando o tipo for `image` ou `video`, **não aplicar mais** `bg-primary` no balão (deixar fundo transparente).
-   - A imagem aparece sem moldura azul ao redor.
-   - Se houver legenda, ela recebe um pequeno fundo discreto só atrás do texto (para continuar legível), seguindo o padrão visual do WhatsApp.
-2. Mensagens só de texto continuam com o balão azul atual — sem mudança.
-3. Mensagens recebidas (do cliente) continuam exatamente como estão.
-4. Áudio, documento e contato continuam como estão (já têm tratamento próprio).
+---
 
-## Onde mexe
+## Etapa 2 — Proteção contra sobrescrita futura
 
-- Apenas em `src/components/whatsapp/WhatsAppChat.tsx` (mudança visual no balão de mídia).
-- Nenhuma alteração em lógica de envio, banco, campanhas ou WhatsApp.
+**2.1 — Webhook do WhatsApp (`wapi-webhook`)**
+Mudar a lógica de atualização de `contact_name`: o `pushName` só preenche se o nome atual estiver **vazio, numérico ou for placeholder** (ex: "Lead WhatsApp"). Se o buffet já editou, o pushName é ignorado.
 
-## Resultado esperado
+**2.2 — Edição manual no chat (LeadInfoPopover + WhatsAppChat)**
+Quando o buffet edita o nome no chat, garantir que a alteração seja propagada para `campaign_leads.name` **mesmo quando o `linkedLead` ainda não foi carregado** (hoje há janela onde a sincronização falha).
 
-A imagem da campanha aparece "limpa" no chat, sem aquele retângulo azul vazio à direita — exatamente como o cliente vê no WhatsApp dele.
+**Resultado:** o nome editado pelo buffet vira a fonte única da verdade — aparece igual em chat, Kanban, CRM e relatórios.
+
+---
+
+## Ordem de execução
+
+1. Rodar UPDATE da Etapa 1 (105 leads) — via insert-tool, sem migration
+2. Ajustar `wapi-webhook` (Etapa 2.1)
+3. Ajustar `LeadInfoPopover` + `WhatsAppChat` para garantir sync CRM ← chat (Etapa 2.2)
+4. Validar com 2-3 leads de exemplo
+
+Quer que eu siga?
