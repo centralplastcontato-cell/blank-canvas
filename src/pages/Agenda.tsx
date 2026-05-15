@@ -851,10 +851,18 @@ export default function Agenda() {
         await supabase.from("event_payments").delete().eq("event_id", eventId);
       }
 
-      // Helper to get card fee rate from the already-loaded agendaCardFees
+      // Helpers — resolve operator (snapshot first, then global default)
+      const getCardOperator = (): any | null => {
+        const opId = pd.card_operator_id;
+        if (opId) {
+          const found = agendaCardFees.find((f: any) => f.id === opId);
+          if (found) return found;
+        }
+        return agendaCardFees[0] || null;
+      };
       const getCardFeeRate = (forma: string, parcelas: number): number => {
-        if (agendaCardFees.length === 0) return 0;
-        const op = agendaCardFees[0] as any;
+        const op: any = getCardOperator();
+        if (!op) return 0;
         if (forma === "cartao_debito") return Number(op.taxa_debito || 0);
         if (forma === "cartao" || forma === "cartao_credito") {
           const p = Math.min(Math.max(1, parcelas), 12);
