@@ -38,7 +38,8 @@ Deno.serve(async (req) => {
     );
 
     const body = await req.json();
-    const { campaign_id, phone, instance_id, lead_name } = body || {};
+    const { campaign_id, phone, instance_id, lead_name, soft } = body || {};
+    const isSoft = soft === true;
 
     if (!campaign_id || !phone || !instance_id) {
       return new Response(
