@@ -1,34 +1,23 @@
-# Aviso visual de resposta a campanha
-
 ## Objetivo
-Quando um lead que recebeu uma campanha responder no WhatsApp, mostrar um destaque visual na conversa (lista de chats) para que qualquer vendedor da unidade veja imediatamente. Vale para **qualquer resposta**, mesmo que a campanha não tenha ativado "pausar bot ao responder".
+Manter o destaque visual de "respondeu campanha" na lista do WhatsApp até o vendedor humano **realmente responder** ao lead. Apenas abrir a conversa não limpa mais o badge.
 
-## Estado atual (já funciona parcialmente)
-- `campaign-mark-conversation` marca `bot_data.campaign_pending_reply` na conversa.
-- Webhook (linhas 5505-5575) detecta a resposta, cria `notifications` tipo `campaign_reply` para todos os usuários da empresa, e grava `bot_data.campaign_replied_at`.
-- **Limitação:** só marca quando a campanha tem `pause_bot_on_reply = true`.
+## Mudanças (apenas frontend, 1 arquivo)
 
-## Etapa 1 — Marcar a conversa em todas as campanhas (frontend)
-Em `CampaignSenderContext.tsx` (linhas 178-186), remover a condição `if (campaign.pause_bot_on_reply)` e sempre invocar `campaign-mark-conversation`, passando um novo parâmetro `soft: true` quando o pause não está ativo.
+**`src/components/whatsapp/WhatsAppChat.tsx`**
 
-## Etapa 2 — Modo "soft" no campaign-mark-conversation (edge function)
-Aceitar parâmetro `soft`. Quando `soft = true`:
-- Apenas grava `bot_data.campaign_pending_reply / campaign_lead_name / campaign_marked_at`.
-- **Não** mexe em `bot_enabled` nem `bot_step` (deixa o bot funcionar normalmente).
+1. **`handleSelectConversation` (linhas 3645-3659)** — remover toda a lógica de limpeza. Vira só `setSelectedConversation(conv)`. Abrir a conversa não mexe mais em `bot_data.campaign_replied_at`.
 
-E no webhook, ajustar bloco da linha 5505: quando `soft` (sem auto_reply_message e bot continua ligado), apenas criar a notificação + marcar `campaign_replied_at`, **sem** quebrar (`break`) o fluxo do bot. Para identificar o modo, salvar `campaign_soft: true` em `bot_data` na marcação.
+2. **`handleSendMessage` (a partir da linha 2537)** — após o envio manual bem-sucedido pelo humano, se a conversa selecionada tiver `campaign_replied_at`, limpar `campaign_replied_at` / `campaign_replied_id` / `campaign_replied_name` do `bot_data`:
+   - Atualiza estado local (`setConversations` + `setSelectedConversation`).
+   - `update` no `wapi_conversations` com o `bot_data` limpo.
+   - Best-effort (try/catch silencioso, não bloqueia envio).
 
-## Etapa 3 — Badge na lista de conversas (frontend)
-Na lista de conversas do WhatsApp (`ConversationList`/`ConversationItem`), exibir um badge laranja `📣 Respondeu campanha` quando `bot_data.campaign_replied_at` existe e ainda não foi "lido pelo vendedor". Critério para limpar:
-- Quando o vendedor abre a conversa OU envia uma mensagem manual → limpar `campaign_replied_at` em `bot_data`.
+## O que NÃO muda
+- Webhook, edge functions, schema, RLS, lógica do bot.
+- Renderização do badge laranja `📣 Campanha` continua igual (já lê `campaign_replied_at`).
+- Notificação no sino e marcação inicial pela `campaign-mark-conversation` permanecem.
 
-## O que NÃO será alterado
-- Lógica do bot, webhook de envio (`wapi-send`), realtime, autenticação, RLS.
-- Schema de banco (tudo cabe em `bot_data` jsonb que já existe).
-- Comportamento de `pause_bot_on_reply` para campanhas que já o usam.
-
-## Validações
-- Disparar campanha de teste sem `pause_bot_on_reply` → lead responde → badge aparece para todos os vendedores da unidade.
-- Abrir a conversa → badge desaparece.
-- Bot continua respondendo normalmente nas campanhas sem pause.
-- Campanhas com `pause_bot_on_reply=true` continuam pausando como hoje.
+## Validação
+- Lead responde campanha → badge laranja aparece para todos os vendedores.
+- Vendedor abre a conversa → badge **continua** visível.
+- Vendedor envia uma mensagem manual → badge desaparece (para todos via realtime do `wapi_conversations`).

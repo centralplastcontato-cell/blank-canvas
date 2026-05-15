@@ -2619,6 +2619,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           m.id === optimisticId ? { ...m, status: 'sent' } : m
         ));
       }
+
+      // Limpa badge de "respondeu campanha" — humano respondeu manualmente
+      void clearCampaignReplyFlag(selectedConversation);
     } catch (error: unknown) {
       // Remove optimistic message on error
       if (selectedConversationRef.current === convId) {
@@ -3642,15 +3645,20 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
   return !!(conv?.bot_data && (conv.bot_data as Record<string, unknown>).campaign_replied_at);
 };
 
-  // Limpa o flag de resposta de campanha ao abrir a conversa (best-effort)
-  const handleSelectConversation = async (conv: Conversation) => {
+  // Abrir a conversa NÃO limpa mais o badge de campanha; apenas o envio manual do humano limpa.
+  const handleSelectConversation = (conv: Conversation) => {
     setSelectedConversation(conv);
+  };
+
+  // Limpa o badge de "respondeu campanha" após o humano enviar uma mensagem manual (best-effort)
+  const clearCampaignReplyFlag = async (conv: Conversation) => {
     if (!hasCampaignReply(conv)) return;
     const cleaned: Record<string, unknown> = { ...(conv.bot_data || {}) };
     delete cleaned.campaign_replied_at;
     delete cleaned.campaign_replied_id;
     delete cleaned.campaign_replied_name;
     setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, bot_data: cleaned } : c));
+    setSelectedConversation(prev => prev && prev.id === conv.id ? { ...prev, bot_data: cleaned } : prev);
     try {
       await supabase.from('wapi_conversations').update({ bot_data: cleaned as never }).eq('id', conv.id);
     } catch (e) {
