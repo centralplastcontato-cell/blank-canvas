@@ -3642,6 +3642,22 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
   return !!(conv?.bot_data && (conv.bot_data as Record<string, unknown>).campaign_replied_at);
 };
 
+  // Limpa o flag de resposta de campanha ao abrir a conversa (best-effort)
+  const handleSelectConversation = async (conv: Conversation) => {
+    setSelectedConversation(conv);
+    if (!hasCampaignReply(conv)) return;
+    const cleaned: Record<string, unknown> = { ...(conv.bot_data || {}) };
+    delete cleaned.campaign_replied_at;
+    delete cleaned.campaign_replied_id;
+    delete cleaned.campaign_replied_name;
+    setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, bot_data: cleaned } : c));
+    try {
+      await supabase.from('wapi_conversations').update({ bot_data: cleaned as never }).eq('id', conv.id);
+    } catch (e) {
+      console.error('Failed to clear campaign_replied flag:', e);
+    }
+  };
+
 
   const filteredConversations = conversations
     .filter((conv) => {
