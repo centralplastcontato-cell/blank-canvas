@@ -1535,7 +1535,7 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
           const retryMsg = `Hmm, não consegui entender seu nome 🤔 Por favor, digite apenas seu *nome*:`;
           const retryMsgId = `bot_${Date.now()}_retry`;
           await sendBotMessage(instance.instance_id, instance.instance_token, contactPhone, retryMsg);
-          await supabase.from('wapi_messages').insert({
+          await supabase.from('wapi_messages').upsert({
             conversation_id: conv.id,
             message_id: retryMsgId,
             content: retryMsg,
@@ -1543,7 +1543,7 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
             from_me: true,
             timestamp: new Date().toISOString(),
             status: 'sent',
-          });
+          }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
           console.log(`[FlowBuilder] ❌ Name validation failed for "${content}" — re-asking`);
           return;
         }
@@ -1557,7 +1557,7 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
           const retryMsg = freeTextValidation.error || 'Por favor, responda a pergunta anterior 😊';
           const retryMsgId = `bot_${Date.now()}_retry`;
           await sendBotMessage(instance.instance_id, instance.instance_token, contactPhone, retryMsg);
-          await supabase.from('wapi_messages').insert({
+          await supabase.from('wapi_messages').upsert({
             conversation_id: conv.id,
             message_id: retryMsgId,
             content: retryMsg,
@@ -1565,7 +1565,7 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
             from_me: true,
             timestamp: new Date().toISOString(),
             status: 'sent',
-          });
+          }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
           console.log(`[FlowBuilder] ❌ Free-text validation failed for field "${currentNode.extract_field}": "${content}" — re-asking`);
           return;
         }
@@ -1772,11 +1772,11 @@ Se não conseguir classificar com certeza, retorne a opção mais próxima.`;
           
           const retryMsgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, retryMsg);
           if (retryMsgId) {
-            await supabase.from('wapi_messages').insert({
+            await supabase.from('wapi_messages').upsert({
               conversation_id: conv.id, message_id: retryMsgId, from_me: true,
               message_type: 'text', content: retryMsg, status: 'sent',
               timestamp: new Date().toISOString(), company_id: companyId,
-            });
+            }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
           }
           return;
         }
@@ -1921,11 +1921,11 @@ async function advanceFlowFromNode(
         console.log(`[FlowBuilder] 📤 Sending message: "${msg.substring(0, 80)}..."`);
         const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
         if (msgId) {
-          await supabase.from('wapi_messages').insert({
+          await supabase.from('wapi_messages').upsert({
             conversation_id: conv.id, message_id: msgId, from_me: true,
             message_type: 'text', content: msg, status: 'sent',
             timestamp: new Date().toISOString(), company_id: instance.company_id,
-          });
+          }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
         }
         
         // Update conversation
@@ -1972,11 +1972,11 @@ async function advanceFlowFromNode(
       console.log(`[FlowBuilder] 📤 Sending question: "${msg.substring(0, 80)}..."`);
       const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
       if (msgId) {
-        await supabase.from('wapi_messages').insert({
+        await supabase.from('wapi_messages').upsert({
           conversation_id: conv.id, message_id: msgId, from_me: true,
           message_type: 'text', content: msg, status: 'sent',
           timestamp: new Date().toISOString(), company_id: instance.company_id,
-        });
+        }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
       }
       
       // Update state to wait for reply
@@ -2008,11 +2008,11 @@ async function advanceFlowFromNode(
           const msg = replaceVars(currentNode.message_template);
           const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
           if (msgId) {
-            await supabase.from('wapi_messages').insert({
+            await supabase.from('wapi_messages').upsert({
               conversation_id: conv.id, message_id: msgId, from_me: true,
               message_type: 'text', content: msg, status: 'sent',
               timestamp: new Date().toISOString(), company_id: instance.company_id,
-            });
+            }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
           }
           await supabase.from('wapi_conversations').update({
             last_message_at: new Date().toISOString(),
@@ -2037,11 +2037,11 @@ async function advanceFlowFromNode(
       
       // Helper to save a media message to DB
       const saveMediaMsg = async (msgId: string, type: string, content: string, mediaUrl?: string) => {
-        await supabase.from('wapi_messages').insert({
+        await supabase.from('wapi_messages').upsert({
           conversation_id: conv.id, message_id: msgId, from_me: true,
           message_type: type, content, media_url: mediaUrl || null,
           status: 'sent', timestamp: new Date().toISOString(), company_id: instance.company_id,
-        });
+        }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
       };
       
       switch (actionType) {
@@ -2357,11 +2357,11 @@ async function advanceFlowFromNode(
         const msg = replaceVars(currentNode.message_template);
         const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
         if (msgId) {
-          await supabase.from('wapi_messages').insert({
+          await supabase.from('wapi_messages').upsert({
             conversation_id: conv.id, message_id: msgId, from_me: true,
             message_type: 'text', content: msg, status: 'sent',
             timestamp: new Date().toISOString(), company_id: instance.company_id,
-          });
+          }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
         }
       }
       
@@ -2407,11 +2407,11 @@ async function advanceFlowFromNode(
         const msg = replaceVars(currentNode.message_template);
         const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
         if (msgId) {
-          await supabase.from('wapi_messages').insert({
+          await supabase.from('wapi_messages').upsert({
             conversation_id: conv.id, message_id: msgId, from_me: true,
             message_type: 'text', content: msg, status: 'sent',
             timestamp: new Date().toISOString(), company_id: instance.company_id,
-          });
+          }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
         }
         
         await supabase.from('wapi_conversations').update({
@@ -2444,11 +2444,11 @@ async function advanceFlowFromNode(
       console.log(`[FlowBuilder] 📤 Sending qualify question: "${msg.substring(0, 80)}..."`);
       const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
       if (msgId) {
-        await supabase.from('wapi_messages').insert({
+        await supabase.from('wapi_messages').upsert({
           conversation_id: conv.id, message_id: msgId, from_me: true,
           message_type: 'text', content: msg, status: 'sent',
           timestamp: new Date().toISOString(), company_id: instance.company_id,
-        });
+        }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
       }
       
       // Update state to wait for reply
@@ -2752,10 +2752,10 @@ async function processBotQualification(
         const transferMsg = settings.transfer_message || 'Ótimo! Um atendente vai falar com você em breve. Aguarde! 😊';
         const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, transferMsg);
         if (msgId) {
-          await supabase.from('wapi_messages').insert({
+          await supabase.from('wapi_messages').upsert({
             conversation_id: conv.id, message_id: msgId, from_me: true, message_type: 'text',
             company_id: instance.company_id, content: transferMsg, status: 'sent', timestamp: new Date().toISOString()
-          });
+          }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
         }
         return;
       }
@@ -2866,7 +2866,7 @@ async function processBotQualification(
           
           if (msgId) {
             // Save message to database
-            await supabase.from('wapi_messages').insert({
+            await supabase.from('wapi_messages').upsert({
               conversation_id: conv.id,
               message_id: msgId,
               from_me: true,
@@ -2875,7 +2875,7 @@ async function processBotQualification(
               content: welcomeMsg,
               status: 'sent',
               timestamp: new Date().toISOString()
-            });
+            }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
           }
           
           // Update bot_data (bot_step already set to sending_materials by atomic claim above)
@@ -3075,7 +3075,7 @@ async function processBotQualification(
           const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
           
           if (msgId) {
-            await supabase.from('wapi_messages').insert({
+            await supabase.from('wapi_messages').upsert({
               conversation_id: conv.id,
               message_id: msgId,
               from_me: true,
@@ -3084,7 +3084,7 @@ async function processBotQualification(
               status: 'sent',
               timestamp: new Date().toISOString(),
               company_id: instance.company_id,
-            });
+            }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
           }
           
           // Mark as transferred and disable bot
@@ -3181,7 +3181,7 @@ async function processBotQualification(
           const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, msg);
           
           if (msgId) {
-            await supabase.from('wapi_messages').insert({
+            await supabase.from('wapi_messages').upsert({
               conversation_id: conv.id,
               message_id: msgId,
               from_me: true,
@@ -3190,7 +3190,7 @@ async function processBotQualification(
               status: 'sent',
               timestamp: new Date().toISOString(),
               company_id: instance.company_id,
-            });
+            }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
           }
           
           // Create lead with "Trabalhe Conosco" unit
@@ -3290,11 +3290,11 @@ async function processBotQualification(
           // Send redirect message
           const redirectMsgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, redirectMsg);
           if (redirectMsgId) {
-            await supabase.from('wapi_messages').insert({
+            await supabase.from('wapi_messages').upsert({
               conversation_id: conv.id, message_id: redirectMsgId, from_me: true,
               message_type: 'text', content: redirectMsg, status: 'sent',
               timestamp: new Date().toISOString(), company_id: instance.company_id,
-            });
+            }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
           }
           
           // Create lead with status "transferido"
@@ -3578,7 +3578,7 @@ async function processBotQualification(
   const msgId = await sendInteractiveOrText(instance.instance_id, instance.instance_token, conv.remote_jid, msg, instance);
   
   // Always save bot message to DB so it appears in chat, even if W-API delivery failed
-  await supabase.from('wapi_messages').insert({
+  await supabase.from('wapi_messages').upsert({
     conversation_id: conv.id,
     message_id: msgId || `bot_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     from_me: true,
@@ -3587,7 +3587,7 @@ async function processBotQualification(
     status: msgId ? 'sent' : 'failed',
     timestamp: new Date().toISOString(),
     company_id: instance.company_id,
-  });
+  }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
   
   await supabase.from('wapi_conversations').update({
     bot_step: nextStep,
@@ -4027,7 +4027,7 @@ async function sendQualificationMaterialsThenQuestion(
     }
 
     // Save bot message to DB (sendInteractiveOrText bypasses wapi-send, so no auto-save)
-    await supabase.from('wapi_messages').insert({
+    await supabase.from('wapi_messages').upsert({
       conversation_id: conv.id,
       message_id: msgId || `bot_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       from_me: true,
@@ -4036,7 +4036,7 @@ async function sendQualificationMaterialsThenQuestion(
       status: msgId ? 'sent' : 'failed',
       timestamp: new Date().toISOString(),
       company_id: instance.company_id,
-    });
+    }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
 
     const { data: stepAdvanced } = await supabase.from('wapi_conversations').update({
       bot_step: 'proximo_passo',
@@ -4522,7 +4522,7 @@ async function handleVisitConfirmationResponse(
 
   const replyMsgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, replyMsg);
   if (replyMsgId) {
-    await supabase.from('wapi_messages').insert({
+    await supabase.from('wapi_messages').upsert({
       conversation_id: conv.id,
       message_id: replyMsgId,
       from_me: true,
@@ -4532,7 +4532,7 @@ async function handleVisitConfirmationResponse(
       timestamp: new Date().toISOString(),
       company_id: instance.company_id,
       metadata: { source: 'visit_confirmation', type: 'response' },
-    });
+    }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
 
     await supabase.from('wapi_conversations').update({
       last_message_at: new Date().toISOString(),
@@ -4752,25 +4752,25 @@ async function handleReactivationResponse(
         if (isImage) {
           const msgId = await sendBotImage(instance.instance_id, instance.instance_token, conv.remote_jid, pdf.file_url, cleanName);
           if (msgId) {
-            await supabase.from('wapi_messages').insert({
+            await supabase.from('wapi_messages').upsert({
               conversation_id: conv.id, message_id: msgId, from_me: true,
               message_type: 'image', content: cleanName, media_url: pdf.file_url,
               status: 'sent', timestamp: new Date().toISOString(),
               company_id: instance.company_id,
               metadata: { source: 'reactivation_4b', action: 'send_values' },
-            });
+            }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
           }
         } else {
           const fileName = (cleanName.replace(/[^a-zA-Z0-9\s\-]/g, '').trim() || 'Valores') + '.pdf';
           const msgId = await sendBotDocument(instance.instance_id, instance.instance_token, conv.remote_jid, pdf.file_url, fileName);
           if (msgId) {
-            await supabase.from('wapi_messages').insert({
+            await supabase.from('wapi_messages').upsert({
               conversation_id: conv.id, message_id: msgId, from_me: true,
               message_type: 'document', content: fileName, media_url: pdf.file_url,
               status: 'sent', timestamp: new Date().toISOString(),
               company_id: instance.company_id,
               metadata: { source: 'reactivation_4b', action: 'send_values' },
-            });
+            }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
           }
         }
         await new Promise(r => setTimeout(r, 1500));
@@ -4781,13 +4781,13 @@ async function handleReactivationResponse(
         const fallbackMsg = 'Opa! Vou verificar os valores atualizados e já te envio. Aguarda só um momento! 😊';
         const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, fallbackMsg);
         if (msgId) {
-          await supabase.from('wapi_messages').insert({
+          await supabase.from('wapi_messages').upsert({
             conversation_id: conv.id, message_id: msgId, from_me: true,
             message_type: 'text', content: fallbackMsg,
             status: 'sent', timestamp: new Date().toISOString(),
             company_id: instance.company_id,
             metadata: { source: 'reactivation_4b', action: 'send_values_fallback' },
-          });
+          }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
         }
       }
     }
@@ -4809,13 +4809,13 @@ async function handleReactivationResponse(
     const ackMsg = 'Sem problemas! 😊 Qualquer dúvida, é só chamar. Estamos aqui!';
     const msgId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, ackMsg);
     if (msgId) {
-      await supabase.from('wapi_messages').insert({
+      await supabase.from('wapi_messages').upsert({
         conversation_id: conv.id, message_id: msgId, from_me: true,
         message_type: 'text', content: ackMsg,
         status: 'sent', timestamp: new Date().toISOString(),
         company_id: instance.company_id,
         metadata: { source: 'reactivation_4b', action: 'pause_ack' },
-      });
+      }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
     }
 
     // Record in lead_history
@@ -5415,13 +5415,13 @@ async function processWebhookEvent(body: JsonRecord) {
             participant: ((msg as JsonRecord).key?.participant || (msg as JsonRecord).participant || '').replace('@s.whatsapp.net',''),
             sender_name: (msg as JsonRecord).pushName || (msg as JsonRecord).sender?.pushName || null
           } : null;
-          await supabase.from('wapi_messages').insert({
+          await supabase.from('wapi_messages').upsert({
             conversation_id: conv.id, message_id: msgId, from_me: fromMe, message_type: type, content,
             media_url: url, media_key: key, media_direct_path: path, status: 'sent',
             timestamp: messageTimestamp,
             company_id: instance.company_id,
             metadata: grpMeta1,
-          });
+          }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
         }
       } else {
         // Dedup incoming messages — W-API may fire the same webhook twice
@@ -5441,13 +5441,13 @@ async function processWebhookEvent(body: JsonRecord) {
           participant: ((msg as JsonRecord).key?.participant || (msg as JsonRecord).participant || '').replace('@s.whatsapp.net',''),
           sender_name: (msg as JsonRecord).pushName || (msg as JsonRecord).sender?.pushName || null
         } : null;
-        await supabase.from('wapi_messages').insert({
+        await supabase.from('wapi_messages').upsert({
           conversation_id: conv.id, message_id: msgId, from_me: fromMe, message_type: type, content,
           media_url: url, media_key: key, media_direct_path: path, status: fromMe ? 'sent' : 'received',
           timestamp: messageTimestamp,
           company_id: instance.company_id,
           metadata: grpMeta2,
-        });
+        }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
       }
       
       console.log(`[Latency] message_inserted: ${Date.now() - insertStartAt}ms (total: ${Date.now() - processingStartAt}ms)`);
@@ -5518,7 +5518,7 @@ async function processWebhookEvent(body: JsonRecord) {
                 const replyText = campaign.auto_reply_message.trim();
                 const sentId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, replyText);
                 if (sentId) {
-                  await supabase.from('wapi_messages').insert({
+                  await supabase.from('wapi_messages').upsert({
                     conversation_id: conv.id,
                     message_id: sentId,
                     from_me: true,
@@ -5528,7 +5528,7 @@ async function processWebhookEvent(body: JsonRecord) {
                     status: 'sent',
                     timestamp: new Date().toISOString(),
                     metadata: { source: 'campaign_auto_reply', campaign_id: campaignPendingId },
-                  });
+                  }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
                 }
               }
 
@@ -5694,7 +5694,7 @@ async function processWebhookEvent(body: JsonRecord) {
                   tp = 'document'; ct = (dm.fileName as string) || '[Documento]'; mu = dm.url as string || null; mk = dm.mediaKey as string || null; dp = dm.directPath as string || null; mm = dm.mimetype as string || null;
                 }
                 
-                await supabase.from('wapi_messages').insert({ conversation_id: cv.id, message_id: mId, from_me: true, message_type: tp, content: ct, media_url: mu, media_key: mk, media_direct_path: dp, status: 'sent', timestamp: body.moment ? new Date((body.moment as number) * 1000).toISOString() : new Date().toISOString(), company_id: instance.company_id });
+                await supabase.from('wapi_messages').upsert({ conversation_id: cv.id, message_id: mId, from_me: true, message_type: tp, content: ct, media_url: mu, media_key: mk, media_direct_path: dp, status: 'sent', timestamp: body.moment ? new Date((body.moment as number) * 1000).toISOString() : new Date().toISOString(), company_id: instance.company_id }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
                 
                 // Download media to persistent storage if it's a media message
                 if ((tp === 'image' || tp === 'video' || tp === 'audio' || tp === 'document') && mId) {
@@ -5801,7 +5801,7 @@ async function processWebhookEvent(body: JsonRecord) {
                   sender_name: (unknownMsg as JsonRecord).pushName || null
                 } : { source: 'platform' };
                 
-                await supabase.from('wapi_messages').insert({
+                await supabase.from('wapi_messages').upsert({
                   conversation_id: existingConv.id,
                   message_id: msgId,
                   from_me: true,
@@ -5814,7 +5814,7 @@ async function processWebhookEvent(body: JsonRecord) {
                     : new Date().toISOString(),
                   company_id: instance.company_id,
                   metadata: grpMeta,
-                });
+                }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
                 
                 // Update conversation - but don't disable bot during active steps (only for non-groups)
                 const unknownActiveBotSteps = ['welcome', 'tipo', 'nome', 'mes', 'dia', 'convidados', 'sending_materials', 'proximo_passo', 'proximo_passo_reminded'];
