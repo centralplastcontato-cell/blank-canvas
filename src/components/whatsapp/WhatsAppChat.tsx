@@ -4467,7 +4467,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                     className={cn(
                       "w-full px-4 py-3 flex items-center gap-3 hover:bg-muted/60 transition-all duration-200 text-left border-b border-border/30 group",
                       selectedConversation?.id === conv.id && "bg-primary/8 border-l-[3px] border-l-primary",
-                      conv.unread_count > 0 && "bg-primary/5"
+                      conv.unread_count > 0 && "bg-primary/5",
+                      hasCampaignReply(conv) && "bg-gradient-to-r from-orange-100 to-transparent dark:from-orange-950/40 border-l-[3px] border-l-orange-500"
                     )}
                       >
                         <div className="relative shrink-0">
