@@ -4318,14 +4318,15 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                   </p>
                 </div>
               ) : (
-                filteredConversations.map((conv) => (
+                 filteredConversations.map((conv) => (
                   <button
                     key={conv.id}
                     onClick={() => handleSelectConversation(conv)}
                     className={cn(
                       "w-full px-3 py-2.5 flex items-center gap-2.5 hover:bg-primary/5 transition-all text-left border-b border-border/40 group",
                       selectedConversation?.id === conv.id && "bg-primary/10 border-l-2 border-l-primary",
-                      conv.unread_count > 0 && "bg-gradient-to-r from-primary/10 to-transparent"
+                      conv.unread_count > 0 && "bg-gradient-to-r from-primary/10 to-transparent",
+                      hasCampaignReply(conv) && "bg-gradient-to-r from-orange-100 to-transparent dark:from-orange-950/40"
                     )}
                   >
                     <div className="relative shrink-0">
