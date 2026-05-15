@@ -3635,8 +3635,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     '❤️ Símbolos': ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💕', '💖', '💗', '💓', '💘', '💝', '⭐', '✨', '🔥', '💯', '✅', '❌'],
     '🎉 Festa': ['🎉', '🎊', '🎂', '🎈', '🎁', '🎀', '🪅', '🥂', '🍰', '🧁', '🎵', '🎶', '🏰', '👑', '🎠', '🎡'],
     '📦 Objetos': ['📋', '📅', '🗓️', '📞', '💬', '📷', '🎥', '📍', '🏠', '💰', '💳', '📄', '✍️', '📌', '🔗', '⏰'],
-  };
-  
+};
+
+// Helper: detecta se a conversa tem uma resposta de campanha pendente de atendimento
+const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | null | undefined): boolean => {
+  return !!(conv?.bot_data && (conv.bot_data as Record<string, unknown>).campaign_replied_at);
+};
+
 
   const filteredConversations = conversations
     .filter((conv) => {
