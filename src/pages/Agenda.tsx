@@ -851,10 +851,18 @@ export default function Agenda() {
         await supabase.from("event_payments").delete().eq("event_id", eventId);
       }
 
-      // Helper to get card fee rate from the already-loaded agendaCardFees
+      // Helpers — resolve operator (snapshot first, then global default)
+      const getCardOperator = (): any | null => {
+        const opId = pd.card_operator_id;
+        if (opId) {
+          const found = agendaCardFees.find((f: any) => f.id === opId);
+          if (found) return found;
+        }
+        return agendaCardFees[0] || null;
+      };
       const getCardFeeRate = (forma: string, parcelas: number): number => {
-        if (agendaCardFees.length === 0) return 0;
-        const op = agendaCardFees[0] as any;
+        const op: any = getCardOperator();
+        if (!op) return 0;
         if (forma === "cartao_debito") return Number(op.taxa_debito || 0);
         if (forma === "cartao" || forma === "cartao_credito") {
           const p = Math.min(Math.max(1, parcelas), 12);
@@ -909,38 +917,77 @@ export default function Agenda() {
         }
       }
 
-      // Parcelas — for card payments, store as a single net row (don't split)
+      // Parcelas — for non-antecipado card, split into N monthly net rows; otherwise consolidate
       const saldoForma = pd.saldo_forma || "";
       const saldoIsCard = saldoForma === "cartao" || saldoForma === "cartao_credito" || saldoForma === "cartao_debito";
-      const saldoFeeRate = getCardFeeRate(saldoForma, Number(pd.parcelas) || 1);
+      const saldoIsDebit = saldoForma === "cartao_debito";
+      const saldoParcelas = saldoIsDebit ? 1 : Math.max(1, Number(pd.parcelas) || 1);
+      const saldoFeeRate = getCardFeeRate(saldoForma, saldoParcelas);
 
-      // Check if parcela was already paid
-      const parcelaAlreadyPaid = paidPayments.some((p: any) => p.type === "parcela");
+      // Guard: only block when there is a non-opcional saldo parcela already paid.
+      // Opcionais (notes contains "[extra:" or starts with "Opcional") must NOT block saldo creation.
+      const isOpcionalParcel = (p: any) => {
+        const n = String(p?.notes || "");
+        return n.startsWith("[extra:") || n.toLowerCase().includes("opcional");
+      };
+      const parcelaAlreadyPaid = paidPayments.some(
+        (p: any) => p.type === "parcela" && !isOpcionalParcel(p),
+      );
 
       if (!parcelaAlreadyPaid) {
-        if (saldoIsCard && saldoFeeRate > 0) {
-          // Card: consolidate all parcelas into single net-value row
-          let totalSaldo = 0;
-          if (pd.parcelas_details && pd.parcelas_details.length > 0) {
-            totalSaldo = pd.parcelas_details.reduce((s: number, p: any) => s + (Number(p.valor) || 0), 0);
-          } else if (pd.saldo_valor && pd.saldo_valor > 0) {
-            totalSaldo = pd.saldo_valor;
+        // Compute total saldo gross (sum of parcelas_details if present, else saldo_valor)
+        let totalSaldoGross = 0;
+        if (pd.parcelas_details && pd.parcelas_details.length > 0) {
+          totalSaldoGross = pd.parcelas_details.reduce((s: number, p: any) => s + (Number(p.valor) || 0), 0);
+        } else if (pd.saldo_valor && pd.saldo_valor > 0) {
+          totalSaldoGross = pd.saldo_valor;
+        }
+
+        const operator: any = getCardOperator();
+        const isNonAntecipado = saldoIsCard && !saldoIsDebit && operator && operator.antecipado === false && saldoParcelas > 1 && saldoFeeRate > 0;
+
+        if (saldoIsCard && saldoFeeRate > 0 && isNonAntecipado && totalSaldoGross > 0) {
+          // CASE A: card non-antecipado → split into N monthly net rows
+          const { splitNonAntecipadoInstallments } = await import("@/lib/cardFees");
+          const saleDate = pd.saldo_data || new Date().toISOString().split("T")[0];
+          const prazoDias = Number(operator.prazo_recebimento_dias) || 30;
+          const slices = splitNonAntecipadoInstallments(totalSaldoGross, saldoFeeRate, saldoParcelas, saleDate, prazoDias);
+          if (slices && slices.length > 0) {
+            const grossPerSlice = Math.round((totalSaldoGross / saldoParcelas) * 100) / 100;
+            for (const slice of slices) {
+              rows.push({
+                event_id: eventId,
+                company_id: companyId,
+                type: "parcela",
+                amount: slice.amount,
+                gross_amount: grossPerSlice,
+                card_fee_percent: saldoFeeRate,
+                card_installments: saldoParcelas,
+                card_operator_id: operator.id,
+                due_date: slice.due_date,
+                payment_method: saldoForma,
+                status: "pending",
+                notes: `Parcela ${slice.index}/${slice.total} — Cartão ${saldoParcelas}x ${operator.operator_name || ""} (sem antecipação)`,
+              });
+            }
           }
-          if (totalSaldo > 0) {
-            rows.push({
-              event_id: eventId,
-              company_id: companyId,
-              type: "parcela",
-              amount: applyFee(totalSaldo, saldoFeeRate),
-              gross_amount: totalSaldo,
-              card_fee_percent: saldoFeeRate,
-              due_date: pd.saldo_data || new Date().toISOString().split("T")[0],
-              payment_method: saldoForma,
-              status: "pending",
-            });
-          }
+        } else if (saldoIsCard && saldoFeeRate > 0 && totalSaldoGross > 0) {
+          // CASE B: card antecipado / debit → consolidate into single net row
+          rows.push({
+            event_id: eventId,
+            company_id: companyId,
+            type: "parcela",
+            amount: applyFee(totalSaldoGross, saldoFeeRate),
+            gross_amount: totalSaldoGross,
+            card_fee_percent: saldoFeeRate,
+            card_installments: saldoParcelas,
+            card_operator_id: operator?.id || null,
+            due_date: pd.saldo_data || new Date().toISOString().split("T")[0],
+            payment_method: saldoForma,
+            status: "pending",
+          });
         } else {
-          // Non-card: keep individual parcelas
+          // CASE C: non-card → keep individual parcelas
           if (pd.parcelas_details && pd.parcelas_details.length > 0) {
             pd.parcelas_details.forEach((p: any) => {
               if (p.valor && p.valor > 0) {
