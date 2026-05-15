@@ -6227,6 +6227,63 @@ export type Database = {
           },
         ]
       }
+      wapi_messages_dedup_backup_20260514: {
+        Row: {
+          company_id: string | null
+          content: string | null
+          conversation_id: string | null
+          created_at: string | null
+          from_me: boolean | null
+          id: string | null
+          is_starred: boolean | null
+          media_direct_path: string | null
+          media_key: string | null
+          media_url: string | null
+          message_id: string | null
+          message_type: string | null
+          metadata: Json | null
+          quoted_message_id: string | null
+          status: string | null
+          timestamp: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          content?: string | null
+          conversation_id?: string | null
+          created_at?: string | null
+          from_me?: boolean | null
+          id?: string | null
+          is_starred?: boolean | null
+          media_direct_path?: string | null
+          media_key?: string | null
+          media_url?: string | null
+          message_id?: string | null
+          message_type?: string | null
+          metadata?: Json | null
+          quoted_message_id?: string | null
+          status?: string | null
+          timestamp?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          content?: string | null
+          conversation_id?: string | null
+          created_at?: string | null
+          from_me?: boolean | null
+          id?: string | null
+          is_starred?: boolean | null
+          media_direct_path?: string | null
+          media_key?: string | null
+          media_url?: string | null
+          message_id?: string | null
+          message_type?: string | null
+          metadata?: Json | null
+          quoted_message_id?: string | null
+          status?: string | null
+          timestamp?: string | null
+        }
+        Relationships: []
+      }
       wapi_vip_numbers: {
         Row: {
           company_id: string | null
