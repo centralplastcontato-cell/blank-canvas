@@ -2619,6 +2619,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           m.id === optimisticId ? { ...m, status: 'sent' } : m
         ));
       }
+
+      // Limpa badge de "respondeu campanha" — humano respondeu manualmente
+      void clearCampaignReplyFlag(selectedConversation);
     } catch (error: unknown) {
       // Remove optimistic message on error
       if (selectedConversationRef.current === convId) {
