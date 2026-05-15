@@ -5504,8 +5504,9 @@ async function processWebhookEvent(body: JsonRecord) {
 
           // === CAMPAIGN AUTO-REPLY: lead is responding to a campaign that pauses the bot ===
           const campaignPendingId = (conv.bot_data as JsonRecord | null)?.campaign_pending_reply as string | undefined;
+          const campaignSoft = (conv.bot_data as JsonRecord | null)?.campaign_soft === true;
           if (campaignPendingId) {
-            console.log(`[Campaign Auto-Reply] Lead replied to campaign ${campaignPendingId}, conv ${conv.id}`);
+            console.log(`[Campaign Auto-Reply] Lead replied to campaign ${campaignPendingId}, conv ${conv.id}, soft=${campaignSoft}`);
             try {
               const { data: campaign } = await supabase
                 .from('campaigns')
@@ -5513,8 +5514,8 @@ async function processWebhookEvent(body: JsonRecord) {
                 .eq('id', campaignPendingId)
                 .maybeSingle();
 
-              // Send the auto-reply message (if configured)
-              if (campaign?.auto_reply_message && campaign.auto_reply_message.trim()) {
+              // Send the auto-reply message (only when not in soft mode)
+              if (!campaignSoft && campaign?.auto_reply_message && campaign.auto_reply_message.trim()) {
                 const replyText = campaign.auto_reply_message.trim();
                 const sentId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, replyText);
                 if (sentId) {
@@ -5556,22 +5557,32 @@ async function processWebhookEvent(body: JsonRecord) {
                 await supabase.from('notifications').insert(notifications);
               }
 
-              // Clear the pending flag (one-shot) but KEEP human_takeover so bot stays paused
+              // Clear the pending flag (one-shot) but KEEP human_takeover so bot stays paused (only in non-soft mode)
               const cleanedBotData = { ...(conv.bot_data as JsonRecord | null || {}) };
               delete (cleanedBotData as JsonRecord).campaign_pending_reply;
               delete (cleanedBotData as JsonRecord).campaign_lead_name;
               delete (cleanedBotData as JsonRecord).campaign_marked_at;
+              delete (cleanedBotData as JsonRecord).campaign_soft;
               (cleanedBotData as JsonRecord).campaign_replied_at = new Date().toISOString();
               (cleanedBotData as JsonRecord).campaign_replied_id = campaignPendingId;
+              (cleanedBotData as JsonRecord).campaign_replied_name = leadName;
 
               await supabase.from('wapi_conversations').update({
                 bot_data: cleanedBotData,
               }).eq('id', conv.id);
+
+              // Refresh local conv to keep downstream bot processing consistent in soft mode
+              if (campaignSoft) {
+                conv = { ...conv, bot_data: cleanedBotData };
+              }
             } catch (campErr) {
               console.error('[Campaign Auto-Reply] Error:', campErr);
             }
-            // Skip standard bot processing entirely
-            break;
+            // In non-soft mode, skip standard bot processing entirely.
+            // In soft mode, continue normal bot flow.
+            if (!campaignSoft) {
+              break;
+            }
           }
 
           // ── BOT LOOP GUARD: detect and silently pause bot↔bot ping-pong ──

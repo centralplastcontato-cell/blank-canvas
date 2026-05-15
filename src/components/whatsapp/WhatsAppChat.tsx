@@ -213,6 +213,7 @@ interface Conversation {
   bot_paused_until?: string | null;
   bot_paused_reason?: string | null;
   pinned_message_id: string | null;
+  bot_data?: Record<string, unknown> | null;
 }
 
 const isConnectedStatus = (status: string | null | undefined) => status === 'connected' || status === 'degraded';
@@ -1952,7 +1953,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     while (true) {
       const { data: batch, error } = await supabase
         .from("wapi_conversations")
-        .select("id, instance_id, lead_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, bot_paused_until, bot_paused_reason, pinned_message_id, created_at")
+        .select("id, instance_id, lead_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, bot_paused_until, bot_paused_reason, pinned_message_id, created_at, bot_data")
         .in("instance_id", selectedUnitInstanceIds)
         .order("last_message_at", { ascending: false, nullsFirst: true })
         .range(from, from + batchSize - 1);
@@ -2091,7 +2092,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           // Not found in current instance — search across ALL instances
           const { data: crossInstanceConv } = await supabase
             .from("wapi_conversations")
-            .select("id, instance_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, bot_paused_until, bot_paused_reason, lead_id, is_imported, company_id, pinned_message_id")
+            .select("id, instance_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, bot_paused_until, bot_paused_reason, lead_id, is_imported, company_id, pinned_message_id, bot_data")
             .or(phoneVariants.map(p => `contact_phone.ilike.%${p}%`).join(','))
             .order("last_message_at", { ascending: false })
             .limit(1)
@@ -3634,8 +3635,29 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     '❤️ Símbolos': ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💕', '💖', '💗', '💓', '💘', '💝', '⭐', '✨', '🔥', '💯', '✅', '❌'],
     '🎉 Festa': ['🎉', '🎊', '🎂', '🎈', '🎁', '🎀', '🪅', '🥂', '🍰', '🧁', '🎵', '🎶', '🏰', '👑', '🎠', '🎡'],
     '📦 Objetos': ['📋', '📅', '🗓️', '📞', '💬', '📷', '🎥', '📍', '🏠', '💰', '💳', '📄', '✍️', '📌', '🔗', '⏰'],
+};
+
+// Helper: detecta se a conversa tem uma resposta de campanha pendente de atendimento
+const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | null | undefined): boolean => {
+  return !!(conv?.bot_data && (conv.bot_data as Record<string, unknown>).campaign_replied_at);
+};
+
+  // Limpa o flag de resposta de campanha ao abrir a conversa (best-effort)
+  const handleSelectConversation = async (conv: Conversation) => {
+    setSelectedConversation(conv);
+    if (!hasCampaignReply(conv)) return;
+    const cleaned: Record<string, unknown> = { ...(conv.bot_data || {}) };
+    delete cleaned.campaign_replied_at;
+    delete cleaned.campaign_replied_id;
+    delete cleaned.campaign_replied_name;
+    setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, bot_data: cleaned } : c));
+    try {
+      await supabase.from('wapi_conversations').update({ bot_data: cleaned as never }).eq('id', conv.id);
+    } catch (e) {
+      console.error('Failed to clear campaign_replied flag:', e);
+    }
   };
-  
+
 
   const filteredConversations = conversations
     .filter((conv) => {
@@ -4296,14 +4318,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                   </p>
                 </div>
               ) : (
-                filteredConversations.map((conv) => (
+                 filteredConversations.map((conv) => (
                   <button
                     key={conv.id}
-                    onClick={() => setSelectedConversation(conv)}
+                    onClick={() => handleSelectConversation(conv)}
                     className={cn(
                       "w-full px-3 py-2.5 flex items-center gap-2.5 hover:bg-primary/5 transition-all text-left border-b border-border/40 group",
                       selectedConversation?.id === conv.id && "bg-primary/10 border-l-2 border-l-primary",
-                      conv.unread_count > 0 && "bg-gradient-to-r from-primary/10 to-transparent"
+                      conv.unread_count > 0 && "bg-gradient-to-r from-primary/10 to-transparent",
+                      hasCampaignReply(conv) && "bg-gradient-to-r from-orange-100 to-transparent dark:from-orange-950/40"
                     )}
                   >
                     <div className="relative shrink-0">
@@ -4348,6 +4371,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                         {instances.length > 1 && instanceUnitMap[conv.instance_id] && (
                           <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium shrink-0 leading-none">
                             {instanceUnitMap[conv.instance_id]}
+                          </span>
+                        )}
+                        {hasCampaignReply(conv) && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-500 text-white font-semibold shrink-0 leading-none">
+                            📣 Campanha
                           </span>
                         )}
                       </div>
@@ -4440,11 +4468,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                     filteredConversations.map((conv) => (
                       <button
                         key={conv.id}
-                        onClick={() => setSelectedConversation(conv)}
+                        onClick={() => handleSelectConversation(conv)}
                     className={cn(
                       "w-full px-4 py-3 flex items-center gap-3 hover:bg-muted/60 transition-all duration-200 text-left border-b border-border/30 group",
                       selectedConversation?.id === conv.id && "bg-primary/8 border-l-[3px] border-l-primary",
-                      conv.unread_count > 0 && "bg-primary/5"
+                      conv.unread_count > 0 && "bg-primary/5",
+                      hasCampaignReply(conv) && "bg-gradient-to-r from-orange-100 to-transparent dark:from-orange-950/40 border-l-[3px] border-l-orange-500"
                     )}
                       >
                         <div className="relative shrink-0">
@@ -4489,6 +4518,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
                               {instances.length > 1 && instanceUnitMap[conv.instance_id] && (
                                 <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium shrink-0 leading-none">
                                   {instanceUnitMap[conv.instance_id]}
+                                </span>
+                              )}
+                              {hasCampaignReply(conv) && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-500 text-white font-semibold shrink-0 leading-none">
+                                  📣 Campanha
                                 </span>
                               )}
                             </div>

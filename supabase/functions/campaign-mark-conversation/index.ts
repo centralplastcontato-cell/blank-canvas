@@ -38,7 +38,8 @@ Deno.serve(async (req) => {
     );
 
     const body = await req.json();
-    const { campaign_id, phone, instance_id, lead_name } = body || {};
+    const { campaign_id, phone, instance_id, lead_name, soft } = body || {};
+    const isSoft = soft === true;
 
     if (!campaign_id || !phone || !instance_id) {
       return new Response(
@@ -91,15 +92,19 @@ Deno.serve(async (req) => {
       campaign_pending_reply: campaign_id,
       campaign_lead_name: lead_name || null,
       campaign_marked_at: new Date().toISOString(),
+      campaign_soft: isSoft,
     };
+
+    // Soft mode: apenas marca para detecção da resposta, sem desligar o bot.
+    const updatePayload: Record<string, unknown> = { bot_data: newBotData };
+    if (!isSoft) {
+      updatePayload.bot_enabled = false;
+      updatePayload.bot_step = 'human_takeover';
+    }
 
     await supabase
       .from('wapi_conversations')
-      .update({
-        bot_enabled: false,
-        bot_step: 'human_takeover',
-        bot_data: newBotData,
-      })
+      .update(updatePayload)
       .eq('id', conv.id);
 
     console.log(`[campaign-mark-conversation] Marked conv ${conv.id} for campaign ${campaign_id}`);
