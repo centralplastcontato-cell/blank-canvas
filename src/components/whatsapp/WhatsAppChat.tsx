@@ -4321,7 +4321,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                 filteredConversations.map((conv) => (
                   <button
                     key={conv.id}
-                    onClick={() => setSelectedConversation(conv)}
+                    onClick={() => handleSelectConversation(conv)}
                     className={cn(
                       "w-full px-3 py-2.5 flex items-center gap-2.5 hover:bg-primary/5 transition-all text-left border-b border-border/40 group",
                       selectedConversation?.id === conv.id && "bg-primary/10 border-l-2 border-l-primary",
@@ -4462,7 +4462,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                     filteredConversations.map((conv) => (
                       <button
                         key={conv.id}
-                        onClick={() => setSelectedConversation(conv)}
+                        onClick={() => handleSelectConversation(conv)}
                     className={cn(
                       "w-full px-4 py-3 flex items-center gap-3 hover:bg-muted/60 transition-all duration-200 text-left border-b border-border/30 group",
                       selectedConversation?.id === conv.id && "bg-primary/8 border-l-[3px] border-l-primary",
