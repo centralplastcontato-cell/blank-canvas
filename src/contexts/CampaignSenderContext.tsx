@@ -105,8 +105,27 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
     await supabase.from("campaigns").update({ status: "sending", started_at: new Date().toISOString() }).eq("id", campaign.id);
 
     const variations = Array.isArray(campaign.message_variations) ? campaign.message_variations : [];
+
+    // Seed counters with cumulative totals already persisted in campaign_recipients
+    // so that pausing/resuming a campaign does not overwrite previous progress.
     let successCount = 0;
     let errorCount = 0;
+    try {
+      const { count: sentCount } = await supabase
+        .from("campaign_recipients")
+        .select("id", { count: "exact", head: true })
+        .eq("campaign_id", campaign.id)
+        .eq("status", "sent");
+      const { count: errCount } = await supabase
+        .from("campaign_recipients")
+        .select("id", { count: "exact", head: true })
+        .eq("campaign_id", campaign.id)
+        .eq("status", "error");
+      successCount = sentCount || 0;
+      errorCount = errCount || 0;
+    } catch (e) {
+      console.warn("Could not seed campaign counters from recipients:", e);
+    }
 
     for (let i = 0; i < recipients.length; i++) {
       if (pauseRequestedRef.current) break;
