@@ -213,6 +213,7 @@ interface Conversation {
   bot_paused_until?: string | null;
   bot_paused_reason?: string | null;
   pinned_message_id: string | null;
+  bot_data?: Record<string, unknown> | null;
 }
 
 const isConnectedStatus = (status: string | null | undefined) => status === 'connected' || status === 'degraded';
