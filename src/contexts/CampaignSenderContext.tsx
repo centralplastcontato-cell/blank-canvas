@@ -175,14 +175,20 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
           onStatusChange?.(r.id, "sent");
           await supabase.from("campaign_recipients").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", r.id);
 
-          if (campaign.pause_bot_on_reply) {
-            try {
-              await supabase.functions.invoke("campaign-mark-conversation", {
-                body: { campaign_id: campaign.id, phone: r.phone, instance_id: instanceId, lead_name: r.lead_name },
-              });
-            } catch (markErr) {
-              console.error("Error marking conversation for campaign pause:", markErr);
-            }
+          // Sempre marcar a conversa para que o vendedor seja avisado quando o lead responder.
+          // Quando pause_bot_on_reply = false, usa modo "soft" (não desliga o bot).
+          try {
+            await supabase.functions.invoke("campaign-mark-conversation", {
+              body: {
+                campaign_id: campaign.id,
+                phone: r.phone,
+                instance_id: instanceId,
+                lead_name: r.lead_name,
+                soft: !campaign.pause_bot_on_reply,
+              },
+            });
+          } catch (markErr) {
+            console.error("Error marking conversation for campaign reply tracking:", markErr);
           }
         }
 
