@@ -4520,6 +4520,11 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                   {instanceUnitMap[conv.instance_id]}
                                 </span>
                               )}
+                              {hasCampaignReply(conv) && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-500 text-white font-semibold shrink-0 leading-none">
+                                  📣 Campanha
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
                               <button
