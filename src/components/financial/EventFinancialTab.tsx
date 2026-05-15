@@ -1228,6 +1228,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
                       <SelectItem value="cartao_credito">Cartão Crédito</SelectItem>
                       <SelectItem value="cartao_debito">Cartão Débito</SelectItem>
                       <SelectItem value="transferencia">Transferência</SelectItem>
+                      <SelectItem value="boleto">Boleto</SelectItem>
                       <SelectItem value="cheque">Cheque</SelectItem>
                     </SelectContent>
                   </Select>
