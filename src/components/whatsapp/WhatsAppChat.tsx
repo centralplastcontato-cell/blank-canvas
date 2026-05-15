@@ -2092,7 +2092,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           // Not found in current instance — search across ALL instances
           const { data: crossInstanceConv } = await supabase
             .from("wapi_conversations")
-            .select("id, instance_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, bot_paused_until, bot_paused_reason, lead_id, is_imported, company_id, pinned_message_id")
+            .select("id, instance_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, bot_paused_until, bot_paused_reason, lead_id, is_imported, company_id, pinned_message_id, bot_data")
             .or(phoneVariants.map(p => `contact_phone.ilike.%${p}%`).join(','))
             .order("last_message_at", { ascending: false })
             .limit(1)
