@@ -851,14 +851,26 @@ export default function Agenda() {
         await supabase.from("event_payments").delete().eq("event_id", eventId);
       }
 
-      // Helpers — resolve operator (snapshot first, then global default)
+      // Helpers — resolve operator (snapshot first, then global default).
+      // Do not depend only on React state here: this sync can run right after opening
+      // the agenda, before agendaCardFees has finished loading.
+      let effectiveCardFees = agendaCardFees;
+      if (effectiveCardFees.length === 0) {
+        const { data: freshFees } = await supabase
+          .from("company_card_fees" as any)
+          .select("*")
+          .eq("company_id", companyId)
+          .eq("is_active", true);
+        effectiveCardFees = (freshFees || []) as any[];
+        if (effectiveCardFees.length > 0) setAgendaCardFees(effectiveCardFees);
+      }
       const getCardOperator = (): any | null => {
         const opId = pd.card_operator_id;
         if (opId) {
-          const found = agendaCardFees.find((f: any) => f.id === opId);
+          const found = effectiveCardFees.find((f: any) => f.id === opId);
           if (found) return found;
         }
-        return agendaCardFees[0] || null;
+        return effectiveCardFees[0] || null;
       };
       const getCardFeeRate = (forma: string, parcelas: number): number => {
         const op: any = getCardOperator();
