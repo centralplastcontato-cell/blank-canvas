@@ -184,6 +184,66 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
           const s = String(m).toLowerCase();
           return s.includes("deb");
         };
+        const saldoForma = String(pd.saldo_forma || "");
+        const saldoIsDebit = saldoForma === "cartao_debito";
+        const saldoIsCreditCard = saldoForma === "cartao" || saldoForma === "cartao_credito";
+        const saldoParcelas = saldoIsDebit ? 1 : Math.max(1, Number(pd.parcelas) || 1);
+        const saldoAmount = parseAmount(pd.saldo_valor);
+        const operator: any = (snapshotOperatorId && fees.find((f: any) => f.id === snapshotOperatorId)) || fees[0] || null;
+        const saldoTaxa = pd.saldo_taxa_percent != null ? Number(pd.saldo_taxa_percent) : getCardTax(saldoParcelas);
+        const isOpcionalParcel = (p: any) => String(p.notes || "").startsWith("[extra:") || String(p.notes || "").toLowerCase().includes("opcional");
+        const hasProtectedSaldoPayment = financial.payments.some((p: any) =>
+          p.status === "paid" && p.type === "parcela" && !isOpcionalParcel(p) && !String(p.notes || "").toLowerCase().includes("ajuste pós-contrato")
+        );
+        const shouldCreateCardSplit = saldoIsCreditCard && !hasProtectedSaldoPayment && operator?.antecipado === false && saldoParcelas > 1 && saldoAmount && saldoAmount > 0 && saldoTaxa > 0;
+        const alreadyHasCardSplit = financial.payments.some((p: any) =>
+          p.type === "parcela" &&
+          isCardMethod(p.payment_method) &&
+          Number(p.card_installments) === saldoParcelas &&
+          String(p.notes || "").toLowerCase().includes("sem antecipação")
+        );
+
+        if (shouldCreateCardSplit && !alreadyHasCardSplit) {
+          const removablePendingIds = financial.payments
+            .filter((p: any) => {
+              if (p.status === "paid" || p.type !== "parcela") return false;
+              const notes = String(p.notes || "").toLowerCase();
+              const isPostContractAdjustment = notes.includes("ajuste pós-contrato");
+              const isWrongCardSaldo = isCardMethod(p.payment_method) && Number(p.card_installments || saldoParcelas) === saldoParcelas;
+              return isPostContractAdjustment || isWrongCardSaldo;
+            })
+            .map((p: any) => p.id);
+
+          if (removablePendingIds.length > 0) {
+            await supabase.from("event_payments").delete().in("id", removablePendingIds);
+          }
+
+          const { splitNonAntecipadoInstallments } = await import("@/lib/cardFees");
+          const saleDate = parseDate(pd.saldo_data);
+          const prazoDias = Number(operator.prazo_recebimento_dias) || 30;
+          const slices = splitNonAntecipadoInstallments(saldoAmount, saldoTaxa, saldoParcelas, saleDate, prazoDias);
+          if (slices && slices.length > 0) {
+            const grossPerSlice = Math.round((saldoAmount / saldoParcelas) * 100) / 100;
+            await supabase.from("event_payments").insert(slices.map((slice) => ({
+              event_id: eventId,
+              company_id: companyId,
+              type: "parcela",
+              amount: slice.amount,
+              gross_amount: grossPerSlice,
+              card_fee_percent: saldoTaxa,
+              card_installments: saldoParcelas,
+              due_date: slice.due_date,
+              payment_method: saldoForma,
+              status: "pending",
+              notes: `Parcela ${slice.index}/${slice.total} — Cartão ${saldoParcelas}x ${operator.operator_name || ""} (sem antecipação)`,
+              ...(snapshotOperatorId ? { card_operator_id: snapshotOperatorId } : {}),
+            })));
+          }
+
+          financial.refresh();
+          return;
+        }
+
         for (const pRaw of financial.payments) {
           const p: any = pRaw;
           if (!isCardMethod(p.payment_method)) continue;
