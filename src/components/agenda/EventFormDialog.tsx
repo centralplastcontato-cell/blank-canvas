@@ -1171,7 +1171,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           try {
             const { data: existingPayments } = await supabase
               .from('event_payments')
-              .select('amount, gross_amount')
+              .select('amount, gross_amount, payment_method, card_installments')
               .eq('event_id', resultId);
             // Use gross_amount when available so card fees aren't mistaken for unpaid balance.
             const totalPayments = (existingPayments || []).reduce(
@@ -1179,8 +1179,17 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
               0,
             );
             const diff = grandTotal - totalPayments;
-            // Tolerance of R$ 1,00 to absorb rounding/legacy fee residuals and avoid phantom installments.
-            if (diff > 1) {
+            // Skip phantom "Ajuste pós-contrato" when saldo is card without anticipation:
+            // split into N parcels causes <R$1 rounding residuals that must NOT become a fake row.
+            const saldoForma = String(paymentWithDiscount?.saldo_forma || '');
+            const saldoIsCard = saldoForma === 'cartao' || saldoForma === 'cartao_credito' || saldoForma === 'cartao_debito';
+            const saldoParcelas = Math.max(1, Number(paymentWithDiscount?.parcelas) || 1);
+            const hasCardSplitRows = (existingPayments || []).some(
+              (p: any) => p.card_installments && Number(p.card_installments) > 1,
+            );
+            // Tolerance of R$ 1,00 normally; raise to R$ 5,00 when card non-antecipado split is in play.
+            const tolerance = (saldoIsCard && saldoParcelas > 1) || hasCardSplitRows ? 5 : 1;
+            if (diff > tolerance) {
               await supabase.from('event_payments').insert({
                 event_id: resultId,
                 company_id: currentCompany.id,
