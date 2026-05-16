@@ -191,7 +191,11 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
         const saldoAmount = parseAmount(pd.saldo_valor);
         const operator: any = (snapshotOperatorId && fees.find((f: any) => f.id === snapshotOperatorId)) || fees[0] || null;
         const saldoTaxa = pd.saldo_taxa_percent != null ? Number(pd.saldo_taxa_percent) : getCardTax(saldoParcelas);
-        const shouldCreateCardSplit = saldoIsCreditCard && operator?.antecipado === false && saldoParcelas > 1 && saldoAmount && saldoAmount > 0 && saldoTaxa > 0;
+        const isOpcionalParcel = (p: any) => String(p.notes || "").startsWith("[extra:") || String(p.notes || "").toLowerCase().includes("opcional");
+        const hasProtectedSaldoPayment = financial.payments.some((p: any) =>
+          p.status === "paid" && p.type === "parcela" && !isOpcionalParcel(p) && !String(p.notes || "").toLowerCase().includes("ajuste pós-contrato")
+        );
+        const shouldCreateCardSplit = saldoIsCreditCard && !hasProtectedSaldoPayment && operator?.antecipado === false && saldoParcelas > 1 && saldoAmount && saldoAmount > 0 && saldoTaxa > 0;
         const alreadyHasCardSplit = financial.payments.some((p: any) =>
           p.type === "parcela" &&
           isCardMethod(p.payment_method) &&
