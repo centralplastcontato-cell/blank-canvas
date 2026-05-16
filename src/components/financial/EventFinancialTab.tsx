@@ -249,7 +249,8 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
         rows.push(row);
       }
 
-      // For card balance: single row with net amount, NO installment splitting
+      // For card balance: split into N rows when operator does NOT do antecipação,
+      // otherwise consolidate into a single net row.
       if (pd.saldo_forma === "cartao" || pd.saldo_forma === "cartao_credito" || pd.saldo_forma === "cartao_debito") {
         const saldoAmount = parseAmount(pd.saldo_valor);
         if (saldoAmount && saldoAmount > 0) {
@@ -258,18 +259,46 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
           const taxa = pd.saldo_taxa_percent != null
             ? Number(pd.saldo_taxa_percent)
             : (isDebit ? getDebitTax() : getCardTax(parcelas));
-          let amount = saldoAmount;
-          if (taxa > 0) amount = saldoAmount - (saldoAmount * taxa / 100);
-          rows.push({
-            event_id: eventId, company_id: companyId, type: "parcela",
-            amount: Math.round(amount * 100) / 100,
-            due_date: parseDate(pd.saldo_data),
-            payment_method: pd.saldo_forma || "cartao", status: "pending",
-            gross_amount: Math.round(saldoAmount * 100) / 100,
-            card_fee_percent: taxa,
-            card_installments: parcelas,
-            ...(snapshotOperatorId ? { card_operator_id: snapshotOperatorId } : {}),
-          });
+          const operator: any = (snapshotOperatorId && fees.find((f: any) => f.id === snapshotOperatorId)) || fees[0] || null;
+          const isNonAntecipado = !isDebit && operator && operator.antecipado === false && parcelas > 1 && taxa > 0;
+
+          if (isNonAntecipado) {
+            // CASE A: card crédito sem antecipação → N parcelas líquidas mensais
+            const { splitNonAntecipadoInstallments } = await import("@/lib/cardFees");
+            const saleDate = parseDate(pd.saldo_data);
+            const prazoDias = Number(operator.prazo_recebimento_dias) || 30;
+            const slices = splitNonAntecipadoInstallments(saldoAmount, taxa, parcelas, saleDate, prazoDias);
+            if (slices && slices.length > 0) {
+              const grossPerSlice = Math.round((saldoAmount / parcelas) * 100) / 100;
+              for (const slice of slices) {
+                rows.push({
+                  event_id: eventId, company_id: companyId, type: "parcela",
+                  amount: slice.amount,
+                  gross_amount: grossPerSlice,
+                  card_fee_percent: taxa,
+                  card_installments: parcelas,
+                  due_date: slice.due_date,
+                  payment_method: pd.saldo_forma || "cartao", status: "pending",
+                  notes: `Parcela ${slice.index}/${slice.total} — Cartão ${parcelas}x ${operator.operator_name || ""} (sem antecipação)`,
+                  ...(snapshotOperatorId ? { card_operator_id: snapshotOperatorId } : {}),
+                });
+              }
+            }
+          } else {
+            // CASE B: cartão antecipado / débito → 1 linha líquida consolidada
+            let amount = saldoAmount;
+            if (taxa > 0) amount = saldoAmount - (saldoAmount * taxa / 100);
+            rows.push({
+              event_id: eventId, company_id: companyId, type: "parcela",
+              amount: Math.round(amount * 100) / 100,
+              due_date: parseDate(pd.saldo_data),
+              payment_method: pd.saldo_forma || "cartao", status: "pending",
+              gross_amount: Math.round(saldoAmount * 100) / 100,
+              card_fee_percent: taxa,
+              card_installments: parcelas,
+              ...(snapshotOperatorId ? { card_operator_id: snapshotOperatorId } : {}),
+            });
+          }
         }
       } else {
         // Non-card: keep existing installment logic
