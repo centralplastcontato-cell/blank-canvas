@@ -1540,7 +1540,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         const actualIdx = prev.length - 10 + optimisticIdx;
         if (actualIdx >= 0) {
           const updated = [...prev];
-          updated[actualIdx] = newMessage;
+          const optimisticMessage = updated[actualIdx];
+          updated[actualIdx] = {
+            ...newMessage,
+            quoted_message_id: newMessage.quoted_message_id || optimisticMessage.quoted_message_id || null,
+          };
           return updated;
         }
       }
@@ -1566,8 +1570,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const idx = prev.findIndex(m => m.id === updatedMessage.id);
       if (idx === -1) return prev;
       const existing = prev[idx];
-      // Only update if media_url actually changed
-      if (existing.media_url === updatedMessage.media_url && existing.status === updatedMessage.status) return prev;
+      // Only update when relevant fields actually changed
+      if (
+        existing.media_url === updatedMessage.media_url &&
+        existing.status === updatedMessage.status &&
+        existing.quoted_message_id === updatedMessage.quoted_message_id
+      ) return prev;
       const updated = [...prev];
       updated[idx] = { ...existing, ...updatedMessage };
       return updated;
