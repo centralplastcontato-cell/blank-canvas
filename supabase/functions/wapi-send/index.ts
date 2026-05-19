@@ -1195,9 +1195,25 @@ Deno.serve(async (req) => {
     switch (action) {
       case 'send-text': {
         console.log(`send-text: sending message to ${phone} via ${provider}`);
+        const quotedDbMessageId = typeof body.quotedDbMessageId === 'string' && body.quotedDbMessageId
+          ? body.quotedDbMessageId
+          : null;
+        let quotedProviderMessageId = typeof body.quotedProviderMessageId === 'string' && body.quotedProviderMessageId
+          ? body.quotedProviderMessageId
+          : null;
+
+        if (quotedDbMessageId && !quotedProviderMessageId) {
+          const { data: quotedMsg } = await supabase
+            .from('wapi_messages')
+            .select('message_id')
+            .eq('id', quotedDbMessageId)
+            .maybeSingle();
+          quotedProviderMessageId = quotedMsg?.message_id || null;
+        }
+
         const sendResult = isZapi
-          ? await zapiSendText(instance_id, instance_token, client_token, phone, message)
-          : await sendTextWithFallback(instance_id, instance_token, phone, message);
+          ? await zapiSendText(instance_id, instance_token, client_token, phone, message, quotedProviderMessageId)
+          : await sendTextWithFallback(instance_id, instance_token, phone, message, quotedProviderMessageId);
 
         console.log('send-text response:', JSON.stringify(sendResult));
 
@@ -1225,9 +1241,7 @@ Deno.serve(async (req) => {
         }
 
         if (resolvedConvId) {
-          const quotedMessageId = typeof body.quotedDbMessageId === 'string' && body.quotedDbMessageId
-            ? body.quotedDbMessageId
-            : null;
+          const quotedMessageId = quotedDbMessageId;
 
           const messageRecord = {
             conversation_id: resolvedConvId,
