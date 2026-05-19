@@ -5433,12 +5433,40 @@ async function processWebhookEvent(body: JsonRecord) {
             participant: ((msg as JsonRecord).key?.participant || (msg as JsonRecord).participant || '').replace('@s.whatsapp.net',''),
             sender_name: (msg as JsonRecord).pushName || (msg as JsonRecord).sender?.pushName || null
           } : null;
+      // Resolve quoted provider message ID → wapi_messages.id (uuid)
+      let quotedDbId: string | null = null;
+      if (quotedProviderMsgId) {
+        const { data: qm } = await supabase.from('wapi_messages')
+          .select('id')
+          .eq('conversation_id', conv.id)
+          .eq('message_id', String(quotedProviderMsgId))
+          .maybeSingle();
+        quotedDbId = qm?.id || null;
+        if (!quotedDbId) console.log(`[Webhook] quoted msg ${quotedProviderMsgId} not found in DB for conv ${conv.id}`);
+      }
+
+      if (fromMe && msgId) {
+        const { data: existingMsg } = await supabase.from('wapi_messages')
+          .select('id')
+          .eq('conversation_id', conv.id)
+          .eq('message_id', msgId)
+          .limit(1)
+          .maybeSingle();
+        
+        if (existingMsg) {
+          console.log(`[Bot] Skipping duplicate outgoing message ${msgId} - already saved`);
+        } else {
+          const grpMeta1 = isGrp ? {
+            participant: ((msg as JsonRecord).key?.participant || (msg as JsonRecord).participant || '').replace('@s.whatsapp.net',''),
+            sender_name: (msg as JsonRecord).pushName || (msg as JsonRecord).sender?.pushName || null
+          } : null;
           await supabase.from('wapi_messages').upsert({
             conversation_id: conv.id, message_id: msgId, from_me: fromMe, message_type: type, content,
             media_url: url, media_key: key, media_direct_path: path, status: 'sent',
             timestamp: messageTimestamp,
             company_id: instance.company_id,
             metadata: grpMeta1,
+            quoted_message_id: quotedDbId,
           }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
         }
       } else {
@@ -5465,6 +5493,7 @@ async function processWebhookEvent(body: JsonRecord) {
           timestamp: messageTimestamp,
           company_id: instance.company_id,
           metadata: grpMeta2,
+          quoted_message_id: quotedDbId,
         }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
       }
       
