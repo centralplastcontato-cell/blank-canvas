@@ -1220,7 +1220,11 @@ Deno.serve(async (req) => {
         }
 
         if (resolvedConvId) {
-          await supabase.from('wapi_messages').insert({
+          const quotedMessageId = typeof body.quotedDbMessageId === 'string' && body.quotedDbMessageId
+            ? body.quotedDbMessageId
+            : null;
+
+          const messageRecord = {
             conversation_id: resolvedConvId,
             message_id: messageId,
             from_me: true,
@@ -1229,9 +1233,22 @@ Deno.serve(async (req) => {
             status: 'sent',
             timestamp: new Date().toISOString(),
             company_id: resolvedCompanyId,
-            quoted_message_id: body.quotedDbMessageId || null,
+            quoted_message_id: quotedMessageId,
             metadata: { source: 'platform' },
-          });
+          };
+
+          await supabase
+            .from('wapi_messages')
+            .upsert(messageRecord, { onConflict: 'conversation_id,message_id' });
+
+          if (quotedMessageId) {
+            await supabase
+              .from('wapi_messages')
+              .update({ quoted_message_id: quotedMessageId })
+              .eq('conversation_id', resolvedConvId)
+              .eq('message_id', messageId);
+          }
+
           await supabase.from('wapi_conversations').update({
             last_message_at: new Date().toISOString(),
             last_message_content: message.substring(0, 100),
