@@ -18,16 +18,16 @@ export const WAPI_WEBHOOK_URL =
  */
 export async function configureWapiWebhooks(
   instanceId: string,
-  instanceToken: string,
+  instanceToken?: string | null,
   context: string = "auto",
-): Promise<void> {
+): Promise<boolean> {
   try {
     const response = await supabase.functions.invoke("wapi-send", {
       body: {
         action: "configure-webhooks",
         webhookUrl: WAPI_WEBHOOK_URL,
         instanceId,
-        instanceToken,
+        ...(instanceToken ? { instanceToken } : {}),
       },
     });
 
@@ -36,15 +36,18 @@ export async function configureWapiWebhooks(
         `[wapi-webhook-config] (${context}) Failed to configure webhooks for ${instanceId}:`,
         response.error,
       );
+      return false;
     } else {
       console.log(
         `[wapi-webhook-config] (${context}) Webhooks reconfigured for ${instanceId}`,
       );
+      return response.data?.success !== false;
     }
   } catch (error) {
     console.error(
       `[wapi-webhook-config] (${context}) Unexpected error for ${instanceId}:`,
       error,
     );
+    return false;
   }
 }
