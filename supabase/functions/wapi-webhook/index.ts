@@ -6060,6 +6060,8 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
 
   // Z-API may include profile picture in the payload
   const profilePic = (body.photo as string) || (body.senderPhoto as string) || (body.chatPhoto as string) || null;
+  const referenceMessageId = body.referenceMessageId ? String(body.referenceMessageId) : null;
+  const quotedContext = referenceMessageId ? { stanzaId: referenceMessageId, quotedMessageId: referenceMessageId } : null;
 
   return {
     event: 'messages.upsert',
@@ -6071,9 +6073,18 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
       ack: body.ack,
       ids,
       pushName: senderName,
-      message,
+      message: quotedContext
+        ? Object.fromEntries(
+          Object.entries(message).map(([key, value]) => [
+            key,
+            value && typeof value === 'object'
+              ? { ...(value as JsonRecord), contextInfo: (value as JsonRecord).contextInfo || quotedContext }
+              : value,
+          ]),
+        )
+        : message,
       messageTimestamp: body.momment ? Math.floor((body.momment as number) / 1000) : Math.floor(Date.now() / 1000),
-      ...(body.referenceMessageId ? { contextInfo: { stanzaId: String(body.referenceMessageId) }, referenceMessageId: String(body.referenceMessageId) } : {}),
+      ...(referenceMessageId ? { contextInfo: quotedContext, referenceMessageId } : {}),
       ...(profilePic ? { sender: { profilePicture: profilePic } } : {}),
     },
   };
