@@ -1309,6 +1309,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Ref to track selected conversation ID inside realtime callbacks without re-triggering the effect
   const selectedConversationRef = useRef<string | null>(null);
   selectedConversationRef.current = selectedConversation?.id ?? null;
+  const messagesRef = useRef<Message[]>([]);
+  messagesRef.current = messages;
   // Keep activeConversationIdRef in sync (used by async guards)
   activeConversationIdRef.current = selectedConversation?.id ?? null;
 
