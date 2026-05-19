@@ -11,6 +11,15 @@ const ZAPI_BASE_URL = 'https://api.z-api.io/instances';
 
 type Provider = 'wapi' | 'zapi';
 
+function waitUntil(promise: Promise<unknown>): void {
+  const runtime = (globalThis as Record<string, unknown>).EdgeRuntime as { waitUntil?: (promise: Promise<unknown>) => void } | undefined;
+  if (runtime?.waitUntil) {
+    runtime.waitUntil(promise);
+    return;
+  }
+  promise.catch((err) => console.error('[Background task] Unhandled error:', err));
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // LID → Real phone resolution
 // ─────────────────────────────────────────────────────────────────────────────
@@ -375,6 +384,16 @@ async function zapiRequest(instanceId: string, token: string, clientToken: strin
   }
 }
 
+async function zapiReinforceNotifySentByMe(instanceId: string, token: string, clientToken: string | null, context: string): Promise<void> {
+  const webhookUrl = `${(Deno.env.get('SUPABASE_URL') || 'https://rsezgnkfhodltrsewlhz.supabase.co').replace(/\/$/, '')}/functions/v1/wapi-webhook`;
+  const attempts = await Promise.allSettled([
+    zapiRequest(instanceId, token, clientToken, 'update-notify-sent-by-me', 'PUT', { notifySentByMe: true }),
+    zapiRequest(instanceId, token, clientToken, 'update-webhook-received', 'PUT', { value: webhookUrl, notifySentByMe: true }),
+    zapiRequest(instanceId, token, clientToken, 'update-webhook-receive-all-notifications', 'PUT', { value: webhookUrl, notifySentByMe: true }),
+  ]);
+  console.log(`[zapi-webhook] reinforce notify-sent-by-me (${context}): ${attempts.map((r) => r.status === 'fulfilled' && r.value.ok ? 'OK' : 'FAIL').join(',')}`);
+}
+
 // Z-API send text. When messageId is present, Z-API sends a native WhatsApp reply/quote.
 async function zapiSendText(instanceId: string, token: string, clientToken: string | null, rawPhone: string, message: string, quotedProviderMessageId?: string | null): Promise<{ ok: boolean; data?: unknown; error?: string }> {
   const phone = rawPhone.endsWith('@g.us') ? rawPhone : String(rawPhone || '').replace(/\D/g, '');
@@ -383,6 +402,7 @@ async function zapiSendText(instanceId: string, token: string, clientToken: stri
   const res = await zapiRequest(instanceId, token, clientToken, 'send-text', 'POST', payload);
   if (res.ok) {
     console.log(`[Z-API] send-text success to ${phone}${quotedProviderMessageId ? ` replyingTo=${quotedProviderMessageId}` : ''}`);
+    waitUntil(zapiReinforceNotifySentByMe(instanceId, token, clientToken, 'after-send-text'));
   }
   return res;
 }
