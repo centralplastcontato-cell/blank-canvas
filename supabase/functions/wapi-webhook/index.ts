@@ -5418,21 +5418,7 @@ async function processWebhookEvent(body: JsonRecord) {
       // Insert message immediately (don't wait for media download)
       // For outgoing messages (fromMe), check if already saved (e.g. by follow-up-check with metadata)
       const insertStartAt = Date.now();
-      if (fromMe && msgId) {
-        const { data: existingMsg } = await supabase.from('wapi_messages')
-          .select('id')
-          .eq('conversation_id', conv.id)
-          .eq('message_id', msgId)
-          .limit(1)
-          .maybeSingle();
-        
-        if (existingMsg) {
-          console.log(`[Bot] Skipping duplicate outgoing message ${msgId} - already saved`);
-        } else {
-          const grpMeta1 = isGrp ? {
-            participant: ((msg as JsonRecord).key?.participant || (msg as JsonRecord).participant || '').replace('@s.whatsapp.net',''),
-            sender_name: (msg as JsonRecord).pushName || (msg as JsonRecord).sender?.pushName || null
-          } : null;
+
       // Resolve quoted provider message ID → wapi_messages.id (uuid)
       let quotedDbId: string | null = null;
       if (quotedProviderMsgId) {
@@ -5444,6 +5430,7 @@ async function processWebhookEvent(body: JsonRecord) {
         quotedDbId = qm?.id || null;
         if (!quotedDbId) console.log(`[Webhook] quoted msg ${quotedProviderMsgId} not found in DB for conv ${conv.id}`);
       }
+
 
       if (fromMe && msgId) {
         const { data: existingMsg } = await supabase.from('wapi_messages')
