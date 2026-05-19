@@ -460,6 +460,7 @@ async function zapiConfigureWebhooks(instanceId: string, token: string, clientTo
     const notifyAttempts = await Promise.allSettled([
       zapiRequest(instanceId, token, clientToken, 'update-notify-sent-by-me', 'PUT', { notifySentByMe: true }),
       zapiRequest(instanceId, token, clientToken, 'update-notify-sent-by-me', 'PUT', { value: true }),
+      zapiRequest(instanceId, token, clientToken, 'update-notify-sent-by-me', 'POST', { notifySentByMe: true }),
       zapiRequest(instanceId, token, clientToken, 'update-webhook-received', 'PUT', { value: webhookUrl, notifySentByMe: true }),
       zapiRequest(instanceId, token, clientToken, 'update-webhook-receive-all-notifications', 'PUT', { value: webhookUrl, notifySentByMe: true }),
     ]);
@@ -502,6 +503,7 @@ async function zapiConfigureWebhooks(instanceId: string, token: string, clientTo
   const notifyAttempts = await Promise.allSettled([
     zapiRequest(instanceId, token, clientToken, 'update-notify-sent-by-me', 'PUT', { notifySentByMe: true }),
     zapiRequest(instanceId, token, clientToken, 'update-notify-sent-by-me', 'PUT', { value: true }),
+    zapiRequest(instanceId, token, clientToken, 'update-notify-sent-by-me', 'POST', { notifySentByMe: true }),
   ]);
   console.log(`[zapi-webhook] notify-sent-by-me attempts: ${notifyAttempts.map((r) => r.status === 'fulfilled' && r.value.ok ? 'OK' : 'FAIL').join(',')}`);
 
