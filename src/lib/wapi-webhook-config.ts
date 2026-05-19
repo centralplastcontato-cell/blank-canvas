@@ -18,7 +18,7 @@ export const WAPI_WEBHOOK_URL =
  */
 export async function configureWapiWebhooks(
   instanceId: string,
-  instanceToken: string,
+  instanceToken?: string | null,
   context: string = "auto",
 ): Promise<void> {
   try {
@@ -27,7 +27,7 @@ export async function configureWapiWebhooks(
         action: "configure-webhooks",
         webhookUrl: WAPI_WEBHOOK_URL,
         instanceId,
-        instanceToken,
+        ...(instanceToken ? { instanceToken } : {}),
       },
     });
 
