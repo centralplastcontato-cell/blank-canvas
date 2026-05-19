@@ -601,18 +601,21 @@ async function sendMediaWithGroupFallback(
   return { ok: false, error: `Falha ao enviar ${actionName} para grupo (W-API)` };
 }
 
-async function sendTextWithFallback(instanceId: string, token: string, rawPhone: string, message: string) {
+async function sendTextWithFallback(instanceId: string, token: string, rawPhone: string, message: string, quotedProviderMessageId?: string | null) {
   const endpoint = `${WAPI_BASE_URL}/message/send-text?instanceId=${instanceId}`;
+  const withQuote = (payload: Record<string, unknown>) => quotedProviderMessageId
+    ? { ...payload, messageId: quotedProviderMessageId, quotedMessageId: quotedProviderMessageId, replyToMessageId: quotedProviderMessageId }
+    : payload;
 
   // Detect group JIDs and send directly via chatId (skip phone normalization)
   if (rawPhone && rawPhone.endsWith('@g.us')) {
     const groupAttempts = [
-      { name: 'phone+message', body: { phone: rawPhone, message, delayTyping: 1 } },
-      { name: 'phone+text', body: { phone: rawPhone, text: message, delayTyping: 1 } },
-      { name: 'chatId+message', body: { chatId: rawPhone, message, delayTyping: 1 } },
-      { name: 'chatId+text', body: { chatId: rawPhone, text: message, delayTyping: 1 } },
-      { name: 'number+message', body: { number: rawPhone, message, delayTyping: 1 } },
-      { name: 'groupId+message', body: { groupId: rawPhone, message, delayTyping: 1 } },
+      { name: 'phone+message', body: withQuote({ phone: rawPhone, message, delayTyping: 1 }) },
+      { name: 'phone+text', body: withQuote({ phone: rawPhone, text: message, delayTyping: 1 }) },
+      { name: 'chatId+message', body: withQuote({ chatId: rawPhone, message, delayTyping: 1 }) },
+      { name: 'chatId+text', body: withQuote({ chatId: rawPhone, text: message, delayTyping: 1 }) },
+      { name: 'number+message', body: withQuote({ number: rawPhone, message, delayTyping: 1 }) },
+      { name: 'groupId+message', body: withQuote({ groupId: rawPhone, message, delayTyping: 1 }) },
     ];
     for (const attempt of groupAttempts) {
       const res = await wapiRequest(endpoint, token, 'POST', attempt.body);
@@ -629,12 +632,12 @@ async function sendTextWithFallback(instanceId: string, token: string, rawPhone:
   const phone = String(rawPhone || '').replace(/\D/g, '');
 
   const attempts: Array<{ name: string; body: Record<string, unknown> }> = [
-    { name: 'phone+message', body: { phone, message, delayTyping: 1 } },
-    { name: 'phone+text', body: { phone, text: message, delayTyping: 1 } },
-    { name: 'phoneNumber+message', body: { phoneNumber: phone, message, delayTyping: 1 } },
-    { name: 'phoneNumber+text', body: { phoneNumber: phone, text: message, delayTyping: 1 } },
-    { name: 'chatId+message', body: { chatId: `${phone}@s.whatsapp.net`, message, delayTyping: 1 } },
-    { name: 'chatId+text', body: { chatId: `${phone}@s.whatsapp.net`, text: message, delayTyping: 1 } },
+    { name: 'phone+message', body: withQuote({ phone, message, delayTyping: 1 }) },
+    { name: 'phone+text', body: withQuote({ phone, text: message, delayTyping: 1 }) },
+    { name: 'phoneNumber+message', body: withQuote({ phoneNumber: phone, message, delayTyping: 1 }) },
+    { name: 'phoneNumber+text', body: withQuote({ phoneNumber: phone, text: message, delayTyping: 1 }) },
+    { name: 'chatId+message', body: withQuote({ chatId: `${phone}@s.whatsapp.net`, message, delayTyping: 1 }) },
+    { name: 'chatId+text', body: withQuote({ chatId: `${phone}@s.whatsapp.net`, text: message, delayTyping: 1 }) },
   ];
 
   let lastError = 'Falha ao enviar mensagem (W-API)';
