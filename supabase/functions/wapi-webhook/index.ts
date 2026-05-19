@@ -6050,6 +6050,7 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
       pushName: senderName,
       message,
       messageTimestamp: body.momment ? Math.floor((body.momment as number) / 1000) : Math.floor(Date.now() / 1000),
+      ...(body.referenceMessageId ? { contextInfo: { stanzaId: String(body.referenceMessageId) }, referenceMessageId: String(body.referenceMessageId) } : {}),
       ...(profilePic ? { sender: { profilePicture: profilePic } } : {}),
     },
   };
