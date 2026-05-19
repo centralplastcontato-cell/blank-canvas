@@ -375,12 +375,14 @@ async function zapiRequest(instanceId: string, token: string, clientToken: strin
   }
 }
 
-// Z-API send text
-async function zapiSendText(instanceId: string, token: string, clientToken: string | null, rawPhone: string, message: string): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+// Z-API send text. When messageId is present, Z-API sends a native WhatsApp reply/quote.
+async function zapiSendText(instanceId: string, token: string, clientToken: string | null, rawPhone: string, message: string, quotedProviderMessageId?: string | null): Promise<{ ok: boolean; data?: unknown; error?: string }> {
   const phone = rawPhone.endsWith('@g.us') ? rawPhone : String(rawPhone || '').replace(/\D/g, '');
-  const res = await zapiRequest(instanceId, token, clientToken, 'send-text', 'POST', { phone, message });
+  const payload: Record<string, unknown> = { phone, message };
+  if (quotedProviderMessageId) payload.messageId = quotedProviderMessageId;
+  const res = await zapiRequest(instanceId, token, clientToken, 'send-text', 'POST', payload);
   if (res.ok) {
-    console.log(`[Z-API] send-text success to ${phone}`);
+    console.log(`[Z-API] send-text success to ${phone}${quotedProviderMessageId ? ` replyingTo=${quotedProviderMessageId}` : ''}`);
   }
   return res;
 }
