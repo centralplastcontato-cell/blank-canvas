@@ -2620,6 +2620,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           conversationId: convId,
           instanceId: instId,
           quotedDbMessageId: quotedMsg?.id || null,
+          quotedProviderMessageId: quotedMsg?.message_id || null,
       });
 
       if (response.error) {
