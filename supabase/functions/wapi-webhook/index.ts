@@ -80,11 +80,31 @@ async function resolveLidConversation(
 ): Promise<JsonRecord | null> {
   const selectFields = 'id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at';
 
-  if (msgId) {
+  const ctx = msg.contextInfo
+    || msg.message?.extendedTextMessage?.contextInfo
+    || msg.message?.imageMessage?.contextInfo
+    || msg.message?.videoMessage?.contextInfo
+    || msg.message?.audioMessage?.contextInfo
+    || msg.message?.documentMessage?.contextInfo
+    || null;
+  const candidateMessageIds = [
+    msgId,
+    msg.referenceMessageId,
+    msg.quotedMessageId,
+    msg.quotedMsgId,
+    ctx?.stanzaId,
+    ctx?.quotedMessageId,
+    ctx?.quotedMsgId,
+  ]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .map((value) => value.trim())
+    .filter((value, index, arr) => arr.indexOf(value) === index);
+
+  for (const candidateMsgId of candidateMessageIds) {
     const { data: existingMessage } = await supabase
       .from('wapi_messages')
       .select('conversation_id')
-      .eq('message_id', msgId)
+      .eq('message_id', candidateMsgId)
       .maybeSingle();
 
     if (existingMessage?.conversation_id) {
@@ -94,6 +114,9 @@ async function resolveLidConversation(
         .eq('id', existingMessage.conversation_id)
         .maybeSingle();
       if (convByMessage?.remote_jid && !String(convByMessage.remote_jid).includes('@lid')) {
+        if (candidateMsgId !== msgId) {
+          console.log(`[Webhook] Resolved @lid ${lidJid} to ${convByMessage.remote_jid} by referenced message ${candidateMsgId}`);
+        }
         return convByMessage as JsonRecord;
       }
     }
