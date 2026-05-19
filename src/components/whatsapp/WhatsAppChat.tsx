@@ -463,6 +463,7 @@ import { FollowUpChip, isAutomationMessage } from "@/components/whatsapp/FollowU
 import { AutomationTimelineSheet } from "@/components/whatsapp/AutomationTimelineSheet";
 import { useFilterOrder } from "@/hooks/useFilterOrder";
 import { useDraftMessages } from "@/hooks/useDraftMessages";
+import { configureWapiWebhooks } from "@/lib/wapi-webhook-config";
 
 export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded, onLeadClosedMobile, onUnreadCountChange }: WhatsAppChatProps) {
   const { currentCompany } = useCompany();
@@ -877,7 +878,24 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const ids = selectedUnitInstances.map((instance) => instance.id);
     return ids.length > 0 ? ids : [selectedInstance.id];
   }, [selectedInstance, selectedUnitInstances]);
+  const webhookConfiguredInstanceIdsRef = useRef<Set<string>>(new Set());
   const canUseSelectedInstanceForSending = !!selectedSendInstance;
+
+  useEffect(() => {
+    const connectedZapiInstances = instances.filter(
+      (instance) => instance.provider === 'zapi' && instance.is_active !== false && isConnectedStatus(instance.status)
+    );
+
+    connectedZapiInstances.forEach((instance) => {
+      const key = instance.id;
+      if (webhookConfiguredInstanceIdsRef.current.has(key)) return;
+      webhookConfiguredInstanceIdsRef.current.add(key);
+
+      void configureWapiWebhooks(instance.instance_id, null, `chat-open-${instance.unit || instance.id}`).then((ok) => {
+        if (!ok) webhookConfiguredInstanceIdsRef.current.delete(key);
+      });
+    });
+  }, [instances]);
 
   // Notifications hook - uses shared toggle state
   const { notificationsEnabled } = useChatNotificationToggle();
