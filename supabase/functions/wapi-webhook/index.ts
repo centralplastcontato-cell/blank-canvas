@@ -80,11 +80,31 @@ async function resolveLidConversation(
 ): Promise<JsonRecord | null> {
   const selectFields = 'id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at';
 
-  if (msgId) {
+  const ctx = msg.contextInfo
+    || msg.message?.extendedTextMessage?.contextInfo
+    || msg.message?.imageMessage?.contextInfo
+    || msg.message?.videoMessage?.contextInfo
+    || msg.message?.audioMessage?.contextInfo
+    || msg.message?.documentMessage?.contextInfo
+    || null;
+  const candidateMessageIds = [
+    msgId,
+    msg.referenceMessageId,
+    msg.quotedMessageId,
+    msg.quotedMsgId,
+    ctx?.stanzaId,
+    ctx?.quotedMessageId,
+    ctx?.quotedMsgId,
+  ]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .map((value) => value.trim())
+    .filter((value, index, arr) => arr.indexOf(value) === index);
+
+  for (const candidateMsgId of candidateMessageIds) {
     const { data: existingMessage } = await supabase
       .from('wapi_messages')
       .select('conversation_id')
-      .eq('message_id', msgId)
+      .eq('message_id', candidateMsgId)
       .maybeSingle();
 
     if (existingMessage?.conversation_id) {
@@ -94,6 +114,9 @@ async function resolveLidConversation(
         .eq('id', existingMessage.conversation_id)
         .maybeSingle();
       if (convByMessage?.remote_jid && !String(convByMessage.remote_jid).includes('@lid')) {
+        if (candidateMsgId !== msgId) {
+          console.log(`[Webhook] Resolved @lid ${lidJid} to ${convByMessage.remote_jid} by referenced message ${candidateMsgId}`);
+        }
         return convByMessage as JsonRecord;
       }
     }
@@ -6037,6 +6060,8 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
 
   // Z-API may include profile picture in the payload
   const profilePic = (body.photo as string) || (body.senderPhoto as string) || (body.chatPhoto as string) || null;
+  const referenceMessageId = body.referenceMessageId ? String(body.referenceMessageId) : null;
+  const quotedContext = referenceMessageId ? { stanzaId: referenceMessageId, quotedMessageId: referenceMessageId } : null;
 
   return {
     event: 'messages.upsert',
@@ -6048,9 +6073,18 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
       ack: body.ack,
       ids,
       pushName: senderName,
-      message,
+      message: quotedContext
+        ? Object.fromEntries(
+          Object.entries(message).map(([key, value]) => [
+            key,
+            value && typeof value === 'object'
+              ? { ...(value as JsonRecord), contextInfo: (value as JsonRecord).contextInfo || quotedContext }
+              : value,
+          ]),
+        )
+        : message,
       messageTimestamp: body.momment ? Math.floor((body.momment as number) / 1000) : Math.floor(Date.now() / 1000),
-      ...(body.referenceMessageId ? { contextInfo: { stanzaId: String(body.referenceMessageId) }, referenceMessageId: String(body.referenceMessageId) } : {}),
+      ...(referenceMessageId ? { contextInfo: quotedContext, referenceMessageId } : {}),
       ...(profilePic ? { sender: { profilePicture: profilePic } } : {}),
     },
   };
