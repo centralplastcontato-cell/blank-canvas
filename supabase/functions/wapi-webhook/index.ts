@@ -5062,6 +5062,24 @@ async function processWebhookEvent(body: JsonRecord) {
       if (!ext) break;
       let { type, content, url, key, path, fn, download, mime } = ext;
 
+      // Extract quoted message provider ID (reply citation) from Baileys/W-API contextInfo
+      // or from Z-API normalized referenceMessageId, so inbound replies render as quoted on the platform.
+      const _ctx = (mc as JsonRecord)?.extendedTextMessage?.contextInfo
+        || (mc as JsonRecord)?.imageMessage?.contextInfo
+        || (mc as JsonRecord)?.videoMessage?.contextInfo
+        || (mc as JsonRecord)?.audioMessage?.contextInfo
+        || (mc as JsonRecord)?.documentMessage?.contextInfo
+        || (mc as JsonRecord)?.stickerMessage?.contextInfo
+        || (mc as JsonRecord)?.contextInfo
+        || (msg as JsonRecord)?.contextInfo
+        || null;
+      const quotedProviderMsgId = (_ctx as JsonRecord | null)?.stanzaId
+        || (_ctx as JsonRecord | null)?.quotedMessageId
+        || (_ctx as JsonRecord | null)?.quotedMsgId
+        || (msg as JsonRecord)?.referenceMessageId
+        || (body as JsonRecord)?.referenceMessageId
+        || null;
+
       // Reject text messages with empty content (common in history sync events)
       if (type === 'text' && !content.trim()) {
         console.log(`[Webhook] Skipping empty text message, msgId=${msgId}, phone=${phone}`);
