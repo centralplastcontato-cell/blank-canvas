@@ -101,7 +101,7 @@ export default function WhatsApp() {
   // Mobile layout
   if (isMobile) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
+      <div className="min-h-screen w-full max-w-[100vw] overflow-x-hidden bg-background flex flex-col">
         <header className="bg-card border-b border-border sticky top-0 z-10">
           <div className="px-3 py-3">
             <div className="flex items-center justify-between gap-2">
@@ -136,7 +136,7 @@ export default function WhatsApp() {
           </div>
         </header>
 
-        <main className="flex-1 flex flex-col">
+        <main className="flex-1 flex flex-col w-full max-w-full min-w-0 overflow-hidden">
           <WhatsAppChat userId={user.id} allowedUnits={canViewAll ? ['all'] : allowedUnits} />
         </main>
       </div>

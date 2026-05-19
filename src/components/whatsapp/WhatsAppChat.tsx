@@ -4130,7 +4130,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
   const showDisconnectedBanner = allDisconnected || !selectedUnitHasConnection;
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full w-full max-w-full min-w-0 overflow-hidden">
       {/* Header with Unit Tabs - only show if multiple instances AND no external control */}
       {!externalSelectedUnit && (
         <div className="flex items-center justify-between gap-2 mt-3 mb-3 px-1 shrink-0">
@@ -4287,7 +4287,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
 
       {/* Chat Area - Premium Container */}
       {selectedInstance && (
-        <div className="flex flex-1 min-w-0 border-0 md:border border-border/60 rounded-none md:rounded-xl overflow-hidden bg-gradient-to-br from-card via-card to-muted/20 min-h-0 md:shadow-lg">
+        <div className="flex flex-1 w-full max-w-full min-w-0 border-0 md:border border-border/60 rounded-none md:rounded-xl overflow-hidden bg-gradient-to-br from-card via-card to-muted/20 min-h-0 md:shadow-lg">
           {/* Mobile: Show full width list or chat */}
           <div className={cn(
             "w-full min-w-0 flex flex-col overflow-hidden md:hidden",
@@ -5877,7 +5877,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
 
           {/* Mobile: Show chat when conversation is selected */}
           <div className={cn(
-            "w-full max-w-full flex flex-col overflow-hidden md:hidden",
+            "w-full max-w-full min-w-0 flex flex-col overflow-hidden md:hidden",
             !selectedConversation && "hidden"
           )}>
             {selectedConversation && (
@@ -6434,25 +6434,25 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         ) : (
                         <div
                           className={cn(
-                            "flex group",
+                            "flex group w-full max-w-full min-w-0 overflow-hidden",
                             msg.from_me ? "justify-end" : "justify-start"
                           )}
                         >
-                          <div className={cn("relative w-full min-w-0 overflow-hidden", msg.from_me ? "flex flex-row-reverse items-start gap-1" : "flex items-start gap-1")}>
+                          <div className={cn("relative w-full max-w-full min-w-0", msg.from_me ? "flex flex-row-reverse items-start gap-1" : "flex items-start gap-1")}>
                             <div
                               className={cn(
-                                "max-w-[85%] rounded-lg text-sm shadow-sm",
+                                "max-w-[85%] min-w-0 rounded-lg text-sm shadow-sm",
                                 msg.from_me
                                   ? "bg-primary text-primary-foreground"
                                   : "bg-card border",
                                 (msg.message_type === 'image' || msg.message_type === 'video')
-                                  ? "p-0 overflow-hidden"
+                                  ? "p-0 overflow-hidden max-w-[82%]"
                                   : "px-3 py-2"
                               )}
                             >
 {(msg.message_type === 'image' || msg.message_type === 'video' || msg.message_type === 'audio' || msg.message_type === 'document') && (
                               <div className={cn(
-                                "relative",
+                                "relative max-w-full min-w-0 overflow-hidden",
                                 (msg.message_type === 'image' || msg.message_type === 'video') ? "" : "mb-2"
                               )}>
                                 {isSelectMode && msg.message_type === 'image' && (
@@ -6869,7 +6869,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                       e.preventDefault();
                       handleSendMessage();
                     }}
-                    className="flex gap-2 items-end"
+                    className="flex w-full min-w-0 gap-2 items-end overflow-hidden"
                   >
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -6944,7 +6944,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         }
                       }}
                       disabled={!canSendMessages || !canUseSelectedInstanceForSending}
-                      className="text-base flex-1 min-h-[40px] max-h-[50vh] resize-y py-2"
+                      className="text-base flex-1 min-w-0 min-h-[40px] max-h-[50vh] resize-y py-2"
                       rows={1}
                       spellCheck={true}
                     />
