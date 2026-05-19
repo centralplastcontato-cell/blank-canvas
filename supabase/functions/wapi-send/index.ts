@@ -2230,6 +2230,9 @@ Deno.serve(async (req) => {
 
       case 'configure-webhooks': {
         const { webhookUrl } = body;
+        if (!webhookUrl || typeof webhookUrl !== 'string' || !webhookUrl.startsWith('https://')) {
+          return new Response(JSON.stringify({ error: 'Webhook HTTPS inválido' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
         if (isZapi) {
           const zapiRes = await zapiConfigureWebhooks(instance_id, instance_token, client_token, webhookUrl);
           return new Response(JSON.stringify({ success: zapiRes.ok, error: zapiRes.error, provider: 'zapi' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
