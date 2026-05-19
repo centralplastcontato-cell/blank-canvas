@@ -375,12 +375,14 @@ async function zapiRequest(instanceId: string, token: string, clientToken: strin
   }
 }
 
-// Z-API send text
-async function zapiSendText(instanceId: string, token: string, clientToken: string | null, rawPhone: string, message: string): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+// Z-API send text. When messageId is present, Z-API sends a native WhatsApp reply/quote.
+async function zapiSendText(instanceId: string, token: string, clientToken: string | null, rawPhone: string, message: string, quotedProviderMessageId?: string | null): Promise<{ ok: boolean; data?: unknown; error?: string }> {
   const phone = rawPhone.endsWith('@g.us') ? rawPhone : String(rawPhone || '').replace(/\D/g, '');
-  const res = await zapiRequest(instanceId, token, clientToken, 'send-text', 'POST', { phone, message });
+  const payload: Record<string, unknown> = { phone, message };
+  if (quotedProviderMessageId) payload.messageId = quotedProviderMessageId;
+  const res = await zapiRequest(instanceId, token, clientToken, 'send-text', 'POST', payload);
   if (res.ok) {
-    console.log(`[Z-API] send-text success to ${phone}`);
+    console.log(`[Z-API] send-text success to ${phone}${quotedProviderMessageId ? ` replyingTo=${quotedProviderMessageId}` : ''}`);
   }
   return res;
 }
@@ -599,18 +601,21 @@ async function sendMediaWithGroupFallback(
   return { ok: false, error: `Falha ao enviar ${actionName} para grupo (W-API)` };
 }
 
-async function sendTextWithFallback(instanceId: string, token: string, rawPhone: string, message: string) {
+async function sendTextWithFallback(instanceId: string, token: string, rawPhone: string, message: string, quotedProviderMessageId?: string | null) {
   const endpoint = `${WAPI_BASE_URL}/message/send-text?instanceId=${instanceId}`;
+  const withQuote = (payload: Record<string, unknown>) => quotedProviderMessageId
+    ? { ...payload, messageId: quotedProviderMessageId, quotedMessageId: quotedProviderMessageId, replyToMessageId: quotedProviderMessageId }
+    : payload;
 
   // Detect group JIDs and send directly via chatId (skip phone normalization)
   if (rawPhone && rawPhone.endsWith('@g.us')) {
     const groupAttempts = [
-      { name: 'phone+message', body: { phone: rawPhone, message, delayTyping: 1 } },
-      { name: 'phone+text', body: { phone: rawPhone, text: message, delayTyping: 1 } },
-      { name: 'chatId+message', body: { chatId: rawPhone, message, delayTyping: 1 } },
-      { name: 'chatId+text', body: { chatId: rawPhone, text: message, delayTyping: 1 } },
-      { name: 'number+message', body: { number: rawPhone, message, delayTyping: 1 } },
-      { name: 'groupId+message', body: { groupId: rawPhone, message, delayTyping: 1 } },
+      { name: 'phone+message', body: withQuote({ phone: rawPhone, message, delayTyping: 1 }) },
+      { name: 'phone+text', body: withQuote({ phone: rawPhone, text: message, delayTyping: 1 }) },
+      { name: 'chatId+message', body: withQuote({ chatId: rawPhone, message, delayTyping: 1 }) },
+      { name: 'chatId+text', body: withQuote({ chatId: rawPhone, text: message, delayTyping: 1 }) },
+      { name: 'number+message', body: withQuote({ number: rawPhone, message, delayTyping: 1 }) },
+      { name: 'groupId+message', body: withQuote({ groupId: rawPhone, message, delayTyping: 1 }) },
     ];
     for (const attempt of groupAttempts) {
       const res = await wapiRequest(endpoint, token, 'POST', attempt.body);
@@ -627,12 +632,12 @@ async function sendTextWithFallback(instanceId: string, token: string, rawPhone:
   const phone = String(rawPhone || '').replace(/\D/g, '');
 
   const attempts: Array<{ name: string; body: Record<string, unknown> }> = [
-    { name: 'phone+message', body: { phone, message, delayTyping: 1 } },
-    { name: 'phone+text', body: { phone, text: message, delayTyping: 1 } },
-    { name: 'phoneNumber+message', body: { phoneNumber: phone, message, delayTyping: 1 } },
-    { name: 'phoneNumber+text', body: { phoneNumber: phone, text: message, delayTyping: 1 } },
-    { name: 'chatId+message', body: { chatId: `${phone}@s.whatsapp.net`, message, delayTyping: 1 } },
-    { name: 'chatId+text', body: { chatId: `${phone}@s.whatsapp.net`, text: message, delayTyping: 1 } },
+    { name: 'phone+message', body: withQuote({ phone, message, delayTyping: 1 }) },
+    { name: 'phone+text', body: withQuote({ phone, text: message, delayTyping: 1 }) },
+    { name: 'phoneNumber+message', body: withQuote({ phoneNumber: phone, message, delayTyping: 1 }) },
+    { name: 'phoneNumber+text', body: withQuote({ phoneNumber: phone, text: message, delayTyping: 1 }) },
+    { name: 'chatId+message', body: withQuote({ chatId: `${phone}@s.whatsapp.net`, message, delayTyping: 1 }) },
+    { name: 'chatId+text', body: withQuote({ chatId: `${phone}@s.whatsapp.net`, text: message, delayTyping: 1 }) },
   ];
 
   let lastError = 'Falha ao enviar mensagem (W-API)';
@@ -1190,9 +1195,25 @@ Deno.serve(async (req) => {
     switch (action) {
       case 'send-text': {
         console.log(`send-text: sending message to ${phone} via ${provider}`);
+        const quotedDbMessageId = typeof body.quotedDbMessageId === 'string' && body.quotedDbMessageId
+          ? body.quotedDbMessageId
+          : null;
+        let quotedProviderMessageId = typeof body.quotedProviderMessageId === 'string' && body.quotedProviderMessageId
+          ? body.quotedProviderMessageId
+          : null;
+
+        if (quotedDbMessageId && !quotedProviderMessageId) {
+          const { data: quotedMsg } = await supabase
+            .from('wapi_messages')
+            .select('message_id')
+            .eq('id', quotedDbMessageId)
+            .maybeSingle();
+          quotedProviderMessageId = quotedMsg?.message_id || null;
+        }
+
         const sendResult = isZapi
-          ? await zapiSendText(instance_id, instance_token, client_token, phone, message)
-          : await sendTextWithFallback(instance_id, instance_token, phone, message);
+          ? await zapiSendText(instance_id, instance_token, client_token, phone, message, quotedProviderMessageId)
+          : await sendTextWithFallback(instance_id, instance_token, phone, message, quotedProviderMessageId);
 
         console.log('send-text response:', JSON.stringify(sendResult));
 
@@ -1220,9 +1241,7 @@ Deno.serve(async (req) => {
         }
 
         if (resolvedConvId) {
-          const quotedMessageId = typeof body.quotedDbMessageId === 'string' && body.quotedDbMessageId
-            ? body.quotedDbMessageId
-            : null;
+          const quotedMessageId = quotedDbMessageId;
 
           const messageRecord = {
             conversation_id: resolvedConvId,
