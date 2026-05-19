@@ -4130,7 +4130,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
   const showDisconnectedBanner = allDisconnected || !selectedUnitHasConnection;
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full w-full max-w-full min-w-0 overflow-hidden">
       {/* Header with Unit Tabs - only show if multiple instances AND no external control */}
       {!externalSelectedUnit && (
         <div className="flex items-center justify-between gap-2 mt-3 mb-3 px-1 shrink-0">
@@ -4287,7 +4287,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
 
       {/* Chat Area - Premium Container */}
       {selectedInstance && (
-        <div className="flex flex-1 min-w-0 border-0 md:border border-border/60 rounded-none md:rounded-xl overflow-hidden bg-gradient-to-br from-card via-card to-muted/20 min-h-0 md:shadow-lg">
+        <div className="flex flex-1 w-full max-w-full min-w-0 border-0 md:border border-border/60 rounded-none md:rounded-xl overflow-hidden bg-gradient-to-br from-card via-card to-muted/20 min-h-0 md:shadow-lg">
           {/* Mobile: Show full width list or chat */}
           <div className={cn(
             "w-full min-w-0 flex flex-col overflow-hidden md:hidden",
@@ -5877,7 +5877,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
 
           {/* Mobile: Show chat when conversation is selected */}
           <div className={cn(
-            "w-full max-w-full flex flex-col overflow-hidden md:hidden",
+            "w-full max-w-full min-w-0 flex flex-col overflow-hidden md:hidden",
             !selectedConversation && "hidden"
           )}>
             {selectedConversation && (
