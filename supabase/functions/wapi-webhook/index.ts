@@ -5887,6 +5887,32 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
   const fromMe = body.fromMe === true;
   const senderName = (body.senderName || body.chatName || phone) as string;
 
+  const hasContentPayload = Boolean(
+    body.text || body.image || body.audio || body.video || body.document || body.sticker ||
+    body.contact || body.contacts || body.location || body.reaction || body.poll || body.reply ||
+    body.message || body.hydratedTemplate || body.templateMessage || body.buttonsResponseMessage ||
+    body.buttonResponseMessage || body.interactiveResponseMessage || body.listResponseMessage || body.listMessage
+  );
+
+  // Z-API status-only callbacks carry no message content. Route them directly to
+  // the status handler so they never become placeholder/chat messages and don't
+  // produce noisy "unrecognized content" logs.
+  if (body.type === 'MessageStatusCallback' || (body.type === 'SendCallback' && !hasContentPayload)) {
+    return {
+      event: 'webhookDelivery',
+      instanceId: body.instanceId,
+      data: {
+        key: { remoteJid, fromMe, id: msgId },
+        messageId: msgId,
+        status: body.status,
+        ack: body.ack,
+        ids,
+        pushName: senderName,
+        messageTimestamp: body.momment ? Math.floor((body.momment as number) / 1000) : Math.floor(Date.now() / 1000),
+      },
+    };
+  }
+
   // Extract content from Z-API nested structure
   const textObj = body.text as JsonRecord | undefined;
   const imageObj = body.image as JsonRecord | undefined;
@@ -5978,10 +6004,8 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
   // Z-API may include profile picture in the payload
   const profilePic = (body.photo as string) || (body.senderPhoto as string) || (body.chatPhoto as string) || null;
 
-  const isStatusOnlyCallback = body.type === 'MessageStatusCallback' || body.type === 'SendCallback';
-
   return {
-    event: isStatusOnlyCallback && Object.keys(message).length === 0 ? 'webhookDelivery' : 'messages.upsert',
+    event: 'messages.upsert',
     instanceId: body.instanceId,
     data: {
       key: { remoteJid, fromMe, id: msgId },
