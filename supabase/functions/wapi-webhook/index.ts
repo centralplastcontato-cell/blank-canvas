@@ -5062,6 +5062,24 @@ async function processWebhookEvent(body: JsonRecord) {
       if (!ext) break;
       let { type, content, url, key, path, fn, download, mime } = ext;
 
+      // Extract quoted message provider ID (reply citation) from Baileys/W-API contextInfo
+      // or from Z-API normalized referenceMessageId, so inbound replies render as quoted on the platform.
+      const _ctx = (mc as JsonRecord)?.extendedTextMessage?.contextInfo
+        || (mc as JsonRecord)?.imageMessage?.contextInfo
+        || (mc as JsonRecord)?.videoMessage?.contextInfo
+        || (mc as JsonRecord)?.audioMessage?.contextInfo
+        || (mc as JsonRecord)?.documentMessage?.contextInfo
+        || (mc as JsonRecord)?.stickerMessage?.contextInfo
+        || (mc as JsonRecord)?.contextInfo
+        || (msg as JsonRecord)?.contextInfo
+        || null;
+      const quotedProviderMsgId = (_ctx as JsonRecord | null)?.stanzaId
+        || (_ctx as JsonRecord | null)?.quotedMessageId
+        || (_ctx as JsonRecord | null)?.quotedMsgId
+        || (msg as JsonRecord)?.referenceMessageId
+        || (body as JsonRecord)?.referenceMessageId
+        || null;
+
       // Reject text messages with empty content (common in history sync events)
       if (type === 'text' && !content.trim()) {
         console.log(`[Webhook] Skipping empty text message, msgId=${msgId}, phone=${phone}`);
@@ -5400,6 +5418,20 @@ async function processWebhookEvent(body: JsonRecord) {
       // Insert message immediately (don't wait for media download)
       // For outgoing messages (fromMe), check if already saved (e.g. by follow-up-check with metadata)
       const insertStartAt = Date.now();
+
+      // Resolve quoted provider message ID → wapi_messages.id (uuid)
+      let quotedDbId: string | null = null;
+      if (quotedProviderMsgId) {
+        const { data: qm } = await supabase.from('wapi_messages')
+          .select('id')
+          .eq('conversation_id', conv.id)
+          .eq('message_id', String(quotedProviderMsgId))
+          .maybeSingle();
+        quotedDbId = qm?.id || null;
+        if (!quotedDbId) console.log(`[Webhook] quoted msg ${quotedProviderMsgId} not found in DB for conv ${conv.id}`);
+      }
+
+
       if (fromMe && msgId) {
         const { data: existingMsg } = await supabase.from('wapi_messages')
           .select('id')
@@ -5421,6 +5453,7 @@ async function processWebhookEvent(body: JsonRecord) {
             timestamp: messageTimestamp,
             company_id: instance.company_id,
             metadata: grpMeta1,
+            quoted_message_id: quotedDbId,
           }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
         }
       } else {
@@ -5447,6 +5480,7 @@ async function processWebhookEvent(body: JsonRecord) {
           timestamp: messageTimestamp,
           company_id: instance.company_id,
           metadata: grpMeta2,
+          quoted_message_id: quotedDbId,
         }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
       }
       
@@ -6016,6 +6050,7 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
       pushName: senderName,
       message,
       messageTimestamp: body.momment ? Math.floor((body.momment as number) / 1000) : Math.floor(Date.now() / 1000),
+      ...(body.referenceMessageId ? { contextInfo: { stanzaId: String(body.referenceMessageId) }, referenceMessageId: String(body.referenceMessageId) } : {}),
       ...(profilePic ? { sender: { profilePicture: profilePic } } : {}),
     },
   };
