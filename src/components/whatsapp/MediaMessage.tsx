@@ -187,11 +187,11 @@ export function MediaMessage({
       case 'image':
         if (hasValidUrl && !imageLoadError) {
           return (
-            <div className="relative group/img inline-block">
+            <div className="relative group/img block w-full max-w-full overflow-hidden">
               <img
                 src={currentUrl!}
                 alt={content || "Imagem"}
-                className="max-w-full max-h-64 object-contain cursor-pointer block"
+                className="w-full max-w-full max-h-64 object-contain cursor-pointer block"
                 onClick={() => window.open(currentUrl!, '_blank')}
                 onError={handleImageError}
               />
@@ -232,7 +232,7 @@ export function MediaMessage({
             <video
               controls
               src={currentUrl!}
-              className="max-w-full max-h-64 block rounded-lg"
+              className="w-full max-w-full max-h-64 block rounded-lg"
               preload="auto"
               playsInline
               onError={handleImageError}
@@ -328,7 +328,7 @@ export function MediaMessage({
     return (
       <div
         className={cn(
-          "flex flex-col gap-2 p-3 rounded-lg border min-w-[180px] max-w-[250px]",
+          "flex flex-col gap-2 p-3 rounded-lg border w-full min-w-0 max-w-[250px]",
           fromMe
             ? "border-primary-foreground/20 bg-primary-foreground/5"
             : "border-border bg-muted/30"
