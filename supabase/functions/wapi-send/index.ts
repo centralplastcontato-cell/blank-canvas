@@ -1229,6 +1229,7 @@ Deno.serve(async (req) => {
             status: 'sent',
             timestamp: new Date().toISOString(),
             company_id: resolvedCompanyId,
+            quoted_message_id: body.quotedDbMessageId || null,
             metadata: { source: 'platform' },
           });
           await supabase.from('wapi_conversations').update({
