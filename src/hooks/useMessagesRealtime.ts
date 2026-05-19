@@ -110,6 +110,8 @@ export function useMessagesRealtime({
 
     // Reset seen IDs on conversation change
     seenIdsRef.current.clear();
+    lastTimestampRef.current = null;
+    lastCreatedAtRef.current = null;
     pollIntervalRef.current = POLL_MIN_MS;
 
     const channelName = `msg_rt_${conversationId}_${Date.now()}`;
@@ -131,6 +133,9 @@ export function useMessagesRealtime({
           // Update baseline timestamp
           if (!lastTimestampRef.current || newMessage.timestamp > lastTimestampRef.current) {
             lastTimestampRef.current = newMessage.timestamp;
+          }
+          if (!lastCreatedAtRef.current || (newMessage.created_at || newMessage.timestamp) > lastCreatedAtRef.current) {
+            lastCreatedAtRef.current = newMessage.created_at || newMessage.timestamp;
           }
           (newMessage as Message & { _realtimeReceivedAt?: number })._realtimeReceivedAt = Date.now();
           onNewMessageRef.current(newMessage);
@@ -183,6 +188,9 @@ export function useMessagesRealtime({
     // Initialize baseline timestamp to "now" so polling only catches future messages
     if (!lastTimestampRef.current) {
       lastTimestampRef.current = new Date().toISOString();
+    }
+    if (!lastCreatedAtRef.current) {
+      lastCreatedAtRef.current = new Date().toISOString();
     }
 
     // Start polling after initial delay
