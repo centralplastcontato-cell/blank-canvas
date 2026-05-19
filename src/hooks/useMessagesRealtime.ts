@@ -12,6 +12,7 @@ interface Message {
   media_url: string | null;
   status: string;
   timestamp: string;
+  created_at?: string;
   metadata?: Record<string, string> | null;
 }
 
@@ -39,6 +40,7 @@ export function useMessagesRealtime({
   const pollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const seenIdsRef = useRef<Set<string>>(new Set());
   const lastTimestampRef = useRef<string | null>(null);
+  const lastCreatedAtRef = useRef<string | null>(null);
   const pollIntervalRef = useRef(POLL_MIN_MS);
   const [reconnectCounter, setReconnectCounter] = useState(0);
 
@@ -49,7 +51,7 @@ export function useMessagesRealtime({
   const pollMessages = useCallback(async () => {
     if (!conversationId || !enabled) return;
 
-    const since = lastTimestampRef.current;
+    const since = lastCreatedAtRef.current || lastTimestampRef.current;
     if (!since) {
       // No baseline yet — wait for realtime or next cycle
       pollTimeoutRef.current = setTimeout(pollMessages, pollIntervalRef.current);
@@ -61,8 +63,8 @@ export function useMessagesRealtime({
         .from("wapi_messages")
         .select("*")
         .eq("conversation_id", conversationId)
-        .gt("timestamp", since)
-        .order("timestamp", { ascending: true })
+        .gt("created_at", since)
+        .order("created_at", { ascending: true })
         .limit(50);
 
       if (data && data.length > 0) {
@@ -74,8 +76,11 @@ export function useMessagesRealtime({
             onNewMessageRef.current(msg as Message);
           }
         }
-        // Update baseline to latest polled message
-        lastTimestampRef.current = data[data.length - 1].timestamp;
+        // Update baselines to latest polled message. created_at is the reliable
+        // DB insertion clock; timestamp may come from WhatsApp and can arrive older.
+        const latest = data[data.length - 1] as Message;
+        lastTimestampRef.current = latest.timestamp;
+        lastCreatedAtRef.current = latest.created_at || latest.timestamp;
         // Reset backoff if new messages found
         if (hasNew) pollIntervalRef.current = POLL_MIN_MS;
       } else {
