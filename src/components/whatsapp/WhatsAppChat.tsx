@@ -6373,7 +6373,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                 </div>
 
                 <div className="flex-1 relative min-h-0">
-                  <ScrollArea ref={scrollAreaMobileRef} className="h-full whatsapp-chat-bg">
+                  <ScrollArea ref={scrollAreaMobileRef} className="h-full whatsapp-chat-bg [&>div[style]]:!block [&>div[style]]:!w-full [&>div[style]]:!min-w-0">
                     <div className="space-y-2 p-3 overflow-hidden">
                       {/* Loading indicator at top - mobile */}
                       {isLoadingMoreMessages && (
