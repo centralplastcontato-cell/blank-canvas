@@ -136,6 +136,18 @@ export default function Financeiro() {
     return map;
   }, [bankAccounts.activeAccounts]);
 
+  // IDs de despesas com baixa aguardando aprovação no consentimento
+  const pendingConsentExpenseIds = useMemo(() => {
+    const set = new Set<string>();
+    consentHook.pendingConsents.forEach(c => {
+      if (c.entity_table === 'company_expenses' && c.action_type === 'expense_paid') {
+        set.add(c.entity_id);
+      }
+    });
+    return set;
+  }, [consentHook.pendingConsents]);
+
+
   const handleMarkPaymentAsPaid = (paymentId: string) => {
     const payment = dashboard.payments.find((p: any) => p.id === paymentId);
     setMarkPaidPayment(payment || { id: paymentId });
@@ -792,6 +804,12 @@ export default function Financeiro() {
                                           )}>
                                             {e.status === 'pago' ? 'Pago' : (e.status === 'pendente' && new Date(e.expense_date + 'T23:59:59') < new Date()) ? 'Vencido' : 'Pendente'}
                                           </Badge>
+                                          {pendingConsentExpenseIds.has(e.id) && e.status !== 'pago' && (
+                                            <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30 gap-1">
+                                              <Clock className="h-3 w-3" />
+                                              Baixada · Aguardando aprovação
+                                            </Badge>
+                                          )}
                                         </div>
                                         <p className="text-xs text-muted-foreground mt-0.5">
                                           {format(new Date(e.expense_date + 'T12:00:00'), 'dd/MM/yyyy')}
@@ -817,12 +835,20 @@ export default function Financeiro() {
                                             <Button
                                               size="sm"
                                               variant="outline"
-                                              className="h-7 px-2.5 text-xs font-medium bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600 hover:border-emerald-600"
+                                              className={cn(
+                                                "h-7 px-2.5 text-xs font-medium",
+                                                pendingConsentExpenseIds.has(e.id)
+                                                  ? "bg-amber-500/10 text-amber-600 border-amber-500/30 cursor-not-allowed"
+                                                  : "bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600 hover:border-emerald-600"
+                                              )}
+                                              disabled={pendingConsentExpenseIds.has(e.id)}
+                                              title={pendingConsentExpenseIds.has(e.id) ? 'Aguardando aprovação no consentimento' : 'Marcar como paga'}
                                               onClick={() => setMarkPaidExpense({ id: e.id, description: e.description })}
                                             >
-                                              Baixar
+                                              {pendingConsentExpenseIds.has(e.id) ? 'Aguardando' : 'Baixar'}
                                             </Button>
                                           </div>
+
                                         ) : (
                                           <div className="flex items-center gap-1">
                                             {e.receipt_url && (
