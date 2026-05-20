@@ -207,8 +207,9 @@ async function reinforceZapiNotifySentByMe(instance: JsonRecord, context: string
 
   const requests = [
     { path: 'update-notify-sent-by-me', body: { notifySentByMe: true } },
-    { path: 'update-webhook-received', body: { value: webhookUrl } },
-    { path: 'update-webhook-receive-all-notifications', body: { value: webhookUrl } },
+    { path: 'update-every-webhooks', body: { value: webhookUrl, notifySentByMe: true } },
+    { path: 'update-webhook-received', body: { value: webhookUrl, notifySentByMe: true } },
+    { path: 'update-webhook-receive-all-notifications', body: { value: webhookUrl, notifySentByMe: true } },
   ].map(async ({ path, body }) => {
     const url = `${ZAPI_BASE_URL}/${instance.instance_id}/token/${instance.instance_token}/${path}`;
     const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify(body) });
