@@ -1226,6 +1226,7 @@ export type Database = {
           notes: string | null
           package_name: string | null
           parent_names: string | null
+          payment_blocks: Json | null
           payment_details: Json | null
           payment_method: string | null
           start_time: string | null
@@ -1261,6 +1262,7 @@ export type Database = {
           notes?: string | null
           package_name?: string | null
           parent_names?: string | null
+          payment_blocks?: Json | null
           payment_details?: Json | null
           payment_method?: string | null
           start_time?: string | null
@@ -1296,6 +1298,7 @@ export type Database = {
           notes?: string | null
           package_name?: string | null
           parent_names?: string | null
+          payment_blocks?: Json | null
           payment_details?: Json | null
           payment_method?: string | null
           start_time?: string | null
