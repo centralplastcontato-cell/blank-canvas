@@ -797,17 +797,20 @@ export default function Financeiro() {
                                         <p className="font-semibold text-sm text-foreground truncate">{e.description}</p>
                                         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                           <Badge variant="secondary" className="text-[10px]">{CATEGORY_LABELS[e.category] || e.category}</Badge>
-                                          <Badge variant="outline" className={cn("text-[10px]",
-                                            e.status === 'pago' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                                            : (e.status === 'pendente' && new Date(e.expense_date + 'T23:59:59') < new Date()) ? 'bg-red-500/10 text-red-500 border-red-500/20'
-                                            : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                                          )}>
-                                            {e.status === 'pago' ? 'Pago' : (e.status === 'pendente' && new Date(e.expense_date + 'T23:59:59') < new Date()) ? 'Vencido' : 'Pendente'}
-                                          </Badge>
+                                          {!(pendingConsentExpenseIds.has(e.id) && e.status !== 'pago') && (
+                                            <Badge variant="outline" className={cn("text-[10px]",
+                                              e.status === 'pago' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                                              : (e.status === 'pendente' && new Date(e.expense_date + 'T23:59:59') < new Date()) ? 'bg-red-500/10 text-red-500 border-red-500/20'
+                                              : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                                            )}>
+                                              {e.status === 'pago' ? 'Pago' : (e.status === 'pendente' && new Date(e.expense_date + 'T23:59:59') < new Date()) ? 'Vencido' : 'Pendente'}
+                                            </Badge>
+                                          )}
                                           {pendingConsentExpenseIds.has(e.id) && e.status !== 'pago' && (
-                                            <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30 gap-1">
-                                              <Clock className="h-3 w-3" />
-                                              Baixada · Aguardando aprovação
+                                            <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30 gap-1 max-w-full whitespace-nowrap">
+                                              <Clock className="h-3 w-3 shrink-0" />
+                                              <span className="sm:hidden">Aguarda aprovação</span>
+                                              <span className="hidden sm:inline">Baixada · Aguardando aprovação</span>
                                             </Badge>
                                           )}
                                         </div>
@@ -838,7 +841,7 @@ export default function Financeiro() {
                                               className={cn(
                                                 "h-7 px-2.5 text-xs font-medium",
                                                 pendingConsentExpenseIds.has(e.id)
-                                                  ? "bg-amber-500/10 text-amber-600 border-amber-500/30 cursor-not-allowed"
+                                                  ? "hidden sm:inline-flex bg-amber-500/10 text-amber-600 border-amber-500/30 cursor-not-allowed"
                                                   : "bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600 hover:border-emerald-600"
                                               )}
                                               disabled={pendingConsentExpenseIds.has(e.id)}
