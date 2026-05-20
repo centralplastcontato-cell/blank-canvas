@@ -8,6 +8,8 @@ const corsHeaders = {
 
 const WAPI_BASE_URL = 'https://api.w-api.app/v1';
 const ZAPI_BASE_URL = 'https://api.z-api.io/instances';
+const ZAPI_NOTIFY_REINFORCE_TTL_MS = 10 * 60 * 1000;
+const zapiNotifyReinforceCache = new Map<string, number>();
 
 // Instance IDs enabled for interactive messaging (Z-API buttons/lists)
 const INTERACTIVE_ENABLED_INSTANCES = new Set([
@@ -188,6 +190,37 @@ function waitUntil(promise: Promise<unknown>): void {
     return;
   }
   promise.catch((err) => console.error('[Background task] Unhandled error:', err));
+}
+
+async function reinforceZapiNotifySentByMe(instance: JsonRecord, context: string): Promise<void> {
+  if (instance.provider !== 'zapi' || !instance.instance_id || !instance.instance_token) return;
+
+  const now = Date.now();
+  const cacheKey = `${instance.instance_id}:${context}`;
+  const lastRun = zapiNotifyReinforceCache.get(cacheKey) || 0;
+  if (now - lastRun < ZAPI_NOTIFY_REINFORCE_TTL_MS) return;
+  zapiNotifyReinforceCache.set(cacheKey, now);
+
+  const webhookUrl = `${(Deno.env.get('SUPABASE_URL') || 'https://rsezgnkfhodltrsewlhz.supabase.co').replace(/\/$/, '')}/functions/v1/wapi-webhook`;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (instance.client_token) headers['Client-Token'] = String(instance.client_token);
+
+  const requests = [
+    { path: 'update-notify-sent-by-me', body: { notifySentByMe: true } },
+    { path: 'update-webhook-received', body: { value: webhookUrl } },
+    { path: 'update-webhook-receive-all-notifications', body: { value: webhookUrl } },
+  ].map(async ({ path, body }) => {
+    const url = `${ZAPI_BASE_URL}/${instance.instance_id}/token/${instance.instance_token}/${path}`;
+    const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify(body) });
+    return `${path}:${res.ok ? 'OK' : res.status}`;
+  });
+
+  try {
+    const results = await Promise.allSettled(requests);
+    console.log(`[zapi-webhook] reinforced notify-sent-by-me (${context}): ${results.map((r) => r.status === 'fulfilled' ? r.value : 'ERR').join(',')}`);
+  } catch (err) {
+    console.warn('[zapi-webhook] reinforce notify-sent-by-me failed:', err instanceof Error ? err.message : String(err));
+  }
 }
 
 function isMegaMagicPilotPhone(instanceId: string, contactPhone: string): boolean {
