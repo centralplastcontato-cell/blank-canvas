@@ -371,6 +371,13 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [cardFees, setCardFees] = useState<Array<{ id: string; operator_name: string; antecipado: boolean; [k: string]: any }>>([]);
   const [selectedOperatorId, setSelectedOperatorId] = useState<string | null>(null);
 
+  // Etapa 2 (visual-only): blocos extras de pagamento.
+  // Ainda NÃO gravam no banco nem geram parcelas — apenas UI para validação.
+  type ExtraBlock = { id: string; valor: number | null; forma: string; parcelas: number; operator_id?: string | null };
+  const [extraBlocks, setExtraBlocks] = useState<ExtraBlock[]>([]);
+  const [showExtraBlocks, setShowExtraBlocks] = useState(false);
+
+
   const [fechamentoDate, setFechamentoDate] = useState<Date | undefined>(undefined);
 
   // Client data request state
