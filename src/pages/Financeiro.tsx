@@ -136,6 +136,18 @@ export default function Financeiro() {
     return map;
   }, [bankAccounts.activeAccounts]);
 
+  // IDs de despesas com baixa aguardando aprovação no consentimento
+  const pendingConsentExpenseIds = useMemo(() => {
+    const set = new Set<string>();
+    consentHook.pendingConsents.forEach(c => {
+      if (c.entity_table === 'company_expenses' && c.action_type === 'expense_paid') {
+        set.add(c.entity_id);
+      }
+    });
+    return set;
+  }, [consentHook.pendingConsents]);
+
+
   const handleMarkPaymentAsPaid = (paymentId: string) => {
     const payment = dashboard.payments.find((p: any) => p.id === paymentId);
     setMarkPaidPayment(payment || { id: paymentId });
