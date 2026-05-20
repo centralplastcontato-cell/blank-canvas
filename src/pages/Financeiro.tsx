@@ -841,7 +841,7 @@ export default function Financeiro() {
                                               className={cn(
                                                 "h-7 px-2.5 text-xs font-medium",
                                                 pendingConsentExpenseIds.has(e.id)
-                                                  ? "bg-amber-500/10 text-amber-600 border-amber-500/30 cursor-not-allowed"
+                                                  ? "hidden sm:inline-flex bg-amber-500/10 text-amber-600 border-amber-500/30 cursor-not-allowed"
                                                   : "bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600 hover:border-emerald-600"
                                               )}
                                               disabled={pendingConsentExpenseIds.has(e.id)}
