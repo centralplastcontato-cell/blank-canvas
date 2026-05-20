@@ -4917,6 +4917,10 @@ async function processWebhookEvent(body: JsonRecord) {
   // Set active provider for all bot send functions in this request
   setActiveProvider(instance.provider, instance.client_token);
 
+  if (instance.provider === 'zapi') {
+    waitUntil(reinforceZapiNotifySentByMe(instance as JsonRecord, 'webhook-received'));
+  }
+
   // === AUTO-RECOVERY: If webhook arrives but DB says disconnected/degraded, the instance IS connected ===
   if (instance.status === 'disconnected' || instance.status === 'degraded') {
     console.warn(`[Webhook] ⚡ Message received for instance ${instanceId} but DB status is "${instance.status}". Auto-recovering status to connected...`);
