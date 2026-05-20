@@ -371,6 +371,13 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const [cardFees, setCardFees] = useState<Array<{ id: string; operator_name: string; antecipado: boolean; [k: string]: any }>>([]);
   const [selectedOperatorId, setSelectedOperatorId] = useState<string | null>(null);
 
+  // Etapa 2 (visual-only): blocos extras de pagamento.
+  // Ainda NÃO gravam no banco nem geram parcelas — apenas UI para validação.
+  type ExtraBlock = { id: string; valor: number | null; forma: string; parcelas: number; operator_id?: string | null };
+  const [extraBlocks, setExtraBlocks] = useState<ExtraBlock[]>([]);
+  const [showExtraBlocks, setShowExtraBlocks] = useState(false);
+
+
   const [fechamentoDate, setFechamentoDate] = useState<Date | undefined>(undefined);
 
   // Client data request state
@@ -2506,6 +2513,181 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             </div>
 
             <div className="border-t border-border/30" />
+
+            {/* --- Bloco extra: Dividir em mais formas de pagamento (Etapa 2 — visual) --- */}
+            <div className="space-y-3">
+              {!showExtraBlocks && extraBlocks.length === 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-2 border-dashed"
+                  onClick={() => {
+                    setShowExtraBlocks(true);
+                    setExtraBlocks([{ id: crypto.randomUUID(), valor: null, forma: "", parcelas: 1, operator_id: null }]);
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                  Dividir em mais formas de pagamento
+                </Button>
+              ) : (
+                <div className="rounded-xl border border-dashed border-primary/30 bg-primary/[0.03] p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-semibold text-primary uppercase tracking-wider">
+                        Formas adicionais de pagamento
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Use para misturar formas (ex: parte boleto + parte cartão). ⚠️ Visualização — ainda não gera parcelas.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-[11px]"
+                      onClick={() => { setExtraBlocks([]); setShowExtraBlocks(false); }}
+                    >
+                      <X className="h-3 w-3 mr-1" /> Fechar
+                    </Button>
+                  </div>
+
+                  {extraBlocks.map((b, idx) => {
+                    const isCard = b.forma === "cartao" || b.forma === "cartao_credito" || b.forma === "cartao_debito";
+                    const isDebit = b.forma === "cartao_debito";
+                    const operator = b.operator_id ? cardFees.find(f => f.id === b.operator_id) : (cardFees.length === 1 ? cardFees[0] : null);
+                    const parcelas = isDebit ? 1 : Math.max(1, b.parcelas || 1);
+                    const taxa = operator && isCard
+                      ? Number(isDebit ? (operator.taxa_debito || 0) : (operator[`taxa_credito_${parcelas}x`] || 0))
+                      : 0;
+                    const bruto = b.valor ?? 0;
+                    const liquido = bruto - (bruto * taxa / 100);
+
+                    return (
+                      <div key={b.id} className="rounded-lg border border-border/50 bg-white p-3 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                            Bloco extra {idx + 1}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                            onClick={() => setExtraBlocks(prev => prev.filter(x => x.id !== b.id))}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">Valor</Label>
+                            <MoneyInput value={b.valor} onChange={(v) => setExtraBlocks(prev => prev.map(x => x.id === b.id ? { ...x, valor: v } : x))} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">Forma</Label>
+                            <Select value={b.forma || "none"} onValueChange={(v) => setExtraBlocks(prev => prev.map(x => x.id === b.id ? { ...x, forma: v === "none" ? "" : v, parcelas: 1 } : x))}>
+                              <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">Selecionar...</SelectItem>
+                                <SelectItem value="pix">PIX</SelectItem>
+                                <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                                <SelectItem value="boleto">Boleto</SelectItem>
+                                <SelectItem value="transferencia">Transferência</SelectItem>
+                                <SelectItem value="cartao">Cartão de Crédito</SelectItem>
+                                <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
+                                <SelectItem value="cheque">Cheque</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">Parcelas</Label>
+                            <Select
+                              value={String(parcelas)}
+                              onValueChange={(v) => setExtraBlocks(prev => prev.map(x => x.id === b.id ? { ...x, parcelas: Number(v) } : x))}
+                              disabled={isDebit || (!isCard && b.forma !== "boleto" && b.forma !== "cheque")}
+                            >
+                              <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {Array.from({ length: 12 }, (_, i) => i + 1).map(n => (
+                                  <SelectItem key={n} value={String(n)}>{n}x</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        {isCard && cardFees.length > 1 && (
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">Operadora</Label>
+                            <Select value={b.operator_id || ""} onValueChange={(v) => setExtraBlocks(prev => prev.map(x => x.id === b.id ? { ...x, operator_id: v } : x))}>
+                              <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                              <SelectContent>
+                                {cardFees.map(f => <SelectItem key={f.id} value={f.id}>{f.operator_name}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+
+                        {isCard && operator && bruto > 0 && taxa > 0 && (
+                          <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-[11px]">
+                            <p className="font-medium text-amber-700 dark:text-amber-400">
+                              💳 Taxa {operator.operator_name} {isDebit ? "Débito" : `${parcelas}x`}: {taxa.toFixed(2)}%
+                            </p>
+                            <p className="text-muted-foreground">
+                              Bruto R$ {bruto.toFixed(2)} · Líquido <span className="font-semibold text-emerald-600">R$ {liquido.toFixed(2)}</span>
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2 border-dashed"
+                    onClick={() => setExtraBlocks(prev => [...prev, { id: crypto.randomUUID(), valor: null, forma: "", parcelas: 1, operator_id: null }])}
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Adicionar mais um bloco
+                  </Button>
+
+                  {(() => {
+                    const entradaVal = payment.entrada_valor ?? 0;
+                    const saldoVal = payment.saldo_valor ?? 0;
+                    const extrasVal = extraBlocks.reduce((s, b) => s + (b.valor ?? 0), 0);
+                    const somaTudo = entradaVal + saldoVal + extrasVal;
+                    const total = grandTotal || 0;
+                    const diff = Math.round((somaTudo - total) * 100) / 100;
+                    const ok = Math.abs(diff) < 0.01;
+                    return (
+                      <div className={cn(
+                        "rounded-md border p-2.5 text-[11px]",
+                        ok ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-700"
+                           : "border-amber-500/30 bg-amber-500/5 text-amber-700"
+                      )}>
+                        <div className="flex items-center justify-between gap-2">
+                          <span>
+                            Entrada R$ {entradaVal.toFixed(2)} + Saldo R$ {saldoVal.toFixed(2)} + Extras R$ {extrasVal.toFixed(2)}
+                          </span>
+                          <span className="font-semibold">
+                            = R$ {somaTudo.toFixed(2)} {ok ? "✓" : `(${diff > 0 ? "+" : ""}${diff.toFixed(2)})`}
+                          </span>
+                        </div>
+                        <p className="text-muted-foreground mt-1">
+                          Total da festa: R$ {total.toFixed(2)}
+                        </p>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-border/30" />
+
+
 
             {/* --- Bloco 4: Observações --- */}
             <div className="space-y-2.5">
