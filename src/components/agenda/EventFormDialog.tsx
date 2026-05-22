@@ -2709,7 +2709,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     variant="outline"
                     size="sm"
                     className="w-full gap-2 border-dashed"
-                    onClick={() => setExtraBlocks(prev => [...prev, { id: crypto.randomUUID(), valor: null, forma: "", parcelas: 1, operator_id: null }])}
+                    onClick={() => setExtraBlocks(prev => [...prev, { id: crypto.randomUUID(), valor: null, forma: "", parcelas: 1, operator_id: null, start_date: null }])}
                   >
                     <Plus className="h-3.5 w-3.5" /> Adicionar mais um bloco
                   </Button>
