@@ -2586,7 +2586,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                         Formas adicionais de pagamento
                       </p>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Use para misturar formas (ex: parte boleto + parte cartão). ⚠️ Visualização — ainda não gera parcelas.
+                        Use para misturar formas (ex: parte boleto + parte cartão). Cada bloco gera suas próprias parcelas no financeiro.
                       </p>
                     </div>
                     <Button
