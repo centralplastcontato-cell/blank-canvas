@@ -787,6 +787,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         forma: String(b.forma || ""),
         parcelas: Number(b.parcelas) || 1,
         operator_id: b.operator_id ?? b.card_operator_id ?? null,
+        start_date: b.start_date ?? null,
       })));
       setShowExtraBlocks(true);
     } else {
