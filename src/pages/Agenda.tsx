@@ -775,6 +775,10 @@ export default function Agenda() {
     } as any;
     if (data.payment_details) {
       payload.payment_details = data.payment_details;
+      // Etapa 3: persistir blocos extras de pagamento na coluna dedicada
+      payload.payment_blocks = Array.isArray((data.payment_details as any).payment_blocks)
+        ? (data.payment_details as any).payment_blocks
+        : null;
     }
     console.log('[Evento:DadosComerciais]', { data_fechamento_venda: payload.data_fechamento_venda, vendedor_responsavel_id: payload.vendedor_responsavel_id });
     console.log('[Evento:DadosAniversariante]', { child_name: payload.child_name, child_age: payload.child_age, parent_names: payload.parent_names, gifts: payload.gifts, extra_guest_value: payload.extra_guest_value });
