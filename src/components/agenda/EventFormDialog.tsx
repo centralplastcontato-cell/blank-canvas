@@ -275,13 +275,14 @@ function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: 
   );
 }
 
-function MoneyInput({ value, onChange, placeholder = "0,00" }: { value: number | null; onChange: (v: number | null) => void; placeholder?: string }) {
+function MoneyInput({ value, onChange, placeholder = "0,00", disabled = false }: { value: number | null; onChange: (v: number | null) => void; placeholder?: string; disabled?: boolean }) {
   return (
     <div className="relative">
       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">R$</span>
       <Input
         className="pl-10"
         placeholder={placeholder}
+        disabled={disabled}
         value={value != null ? value.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : ""}
         onChange={(e) => {
           const raw = e.target.value.replace(/[^\d]/g, "");
