@@ -1100,7 +1100,7 @@ export default function Agenda() {
             // CASE C: PIX / boleto / dinheiro → N parcelas mensais simples
             const perParcela = Math.round((bValor / bParcelas) * 100) / 100;
             for (let i = 0; i < bParcelas; i++) {
-              const d = new Date(today + "T12:00:00");
+              const d = new Date(bStartDate + "T12:00:00");
               d.setMonth(d.getMonth() + i);
               const due = d.toISOString().split("T")[0];
               rows.push({
