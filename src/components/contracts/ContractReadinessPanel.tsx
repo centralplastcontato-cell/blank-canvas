@@ -157,7 +157,9 @@ export function ContractReadinessPanel({ eventId, eventData, onGenerateContract 
     // Pagamento checks
     result.push({ key: "payment_method", label: "Forma de pagamento", category: "pagamento", ok: !!eventData.payment_method });
     const pd = paymentDetails as any;
-    const hasPaymentCondition = pd && (pd.entrada_valor || pd.saldo_valor || pd.observacoes_pagamento);
+    const blocks = Array.isArray((eventData as any)?.payment_blocks) ? (eventData as any).payment_blocks : (Array.isArray(pd?.payment_blocks) ? pd.payment_blocks : []);
+    const hasBlocks = blocks.some((b: any) => Number(b?.valor) > 0);
+    const hasPaymentCondition = hasBlocks || (pd && (pd.entrada_valor || pd.saldo_valor || pd.observacoes_pagamento));
     result.push({ key: "payment_condition", label: "Condição de pagamento", category: "pagamento", ok: !!hasPaymentCondition });
 
     // Contratante checks
