@@ -374,7 +374,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
   // Etapa 2 (visual-only): blocos extras de pagamento.
   // Ainda NÃO gravam no banco nem geram parcelas — apenas UI para validação.
-  type ExtraBlock = { id: string; valor: number | null; forma: string; parcelas: number; operator_id?: string | null };
+  type ExtraBlock = { id: string; valor: number | null; forma: string; parcelas: number; operator_id?: string | null; start_date?: string | null };
   const [extraBlocks, setExtraBlocks] = useState<ExtraBlock[]>([]);
   const [showExtraBlocks, setShowExtraBlocks] = useState(false);
   // Etapa 4: ids de blocos que já têm parcela paga — bloqueados para edição/remoção
@@ -787,6 +787,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         forma: String(b.forma || ""),
         parcelas: Number(b.parcelas) || 1,
         operator_id: b.operator_id ?? b.card_operator_id ?? null,
+        start_date: b.start_date ?? null,
       })));
       setShowExtraBlocks(true);
     } else {
@@ -1200,6 +1201,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           id: b.id, valor: b.valor, forma: b.forma,
           parcelas: Number(b.parcelas) || 1,
           card_operator_id: b.operator_id || null,
+          start_date: b.start_date || null,
         })),
       };
       // Protect against overwriting valid contractor data with empty local state
@@ -1500,6 +1502,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           id: b.id, valor: b.valor, forma: b.forma,
           parcelas: Number(b.parcelas) || 1,
           card_operator_id: b.operator_id || null,
+          start_date: b.start_date || null,
         })),
       };
       let finalForm = { ...form, id: eventId || form.id };
@@ -2573,7 +2576,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                   className="w-full gap-2 border-dashed"
                   onClick={() => {
                     setShowExtraBlocks(true);
-                    setExtraBlocks([{ id: crypto.randomUUID(), valor: null, forma: "", parcelas: 1, operator_id: null }]);
+                    setExtraBlocks([{ id: crypto.randomUUID(), valor: null, forma: "", parcelas: 1, operator_id: null, start_date: null }]);
                   }}
                 >
                   <Plus className="h-4 w-4" />
@@ -2678,6 +2681,27 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                           </div>
                         </div>
 
+                        {b.forma && b.forma !== "dinheiro" && (
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">
+                              {isCard
+                                ? (isDebit || parcelas === 1 ? "Data do pagamento" : "Data da venda (1ª parcela conta a partir daqui)")
+                                : (parcelas > 1 ? "1º vencimento (próximas a cada +30 dias)" : "Vencimento")}
+                            </Label>
+                            <Input
+                              type="date"
+                              className="h-9 bg-white"
+                              disabled={isLocked}
+                              value={b.start_date || ""}
+                              onChange={(e) => setExtraBlocks(prev => prev.map(x => x.id === b.id ? { ...x, start_date: e.target.value || null } : x))}
+                            />
+                            {!b.start_date && (
+                              <p className="text-[10px] text-muted-foreground">Se vazio, usa a data de hoje.</p>
+                            )}
+                          </div>
+                        )}
+
+
                         {isCard && cardFees.length > 1 && (
                           <div className="space-y-1">
                             <Label className="text-[11px] text-muted-foreground">Operadora</Label>
@@ -2709,7 +2733,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     variant="outline"
                     size="sm"
                     className="w-full gap-2 border-dashed"
-                    onClick={() => setExtraBlocks(prev => [...prev, { id: crypto.randomUUID(), valor: null, forma: "", parcelas: 1, operator_id: null }])}
+                    onClick={() => setExtraBlocks(prev => [...prev, { id: crypto.randomUUID(), valor: null, forma: "", parcelas: 1, operator_id: null, start_date: null }])}
                   >
                     <Plus className="h-3.5 w-3.5" /> Adicionar mais um bloco
                   </Button>

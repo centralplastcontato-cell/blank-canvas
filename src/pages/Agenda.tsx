@@ -1043,6 +1043,8 @@ export default function Agenda() {
           const bForma = String(b.forma || "");
           const bValor = Number(b.valor) || 0;
           if (bValor <= 0) continue;
+          // Data informada pelo usuário (data da venda no cartão, ou 1º vencimento de boleto/PIX). Fallback: hoje.
+          const bStartDate = (typeof b.start_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(b.start_date)) ? b.start_date : today;
           // Selective sync: se este bloco já tem alguma parcela paga, não regenera
           const blockHasPaid = paidPayments.some((p: any) => String(p.notes || "").startsWith(blockTag));
           if (blockHasPaid) continue;
@@ -1070,7 +1072,7 @@ export default function Agenda() {
             // CASE A: cartão não-antecipado → N parcelas mensais líquidas
             const { splitNonAntecipadoInstallments } = await import("@/lib/cardFees");
             const prazoDias = Number(blockOperator.prazo_recebimento_dias) || 30;
-            const slices = splitNonAntecipadoInstallments(bValor, blockFeeRate, bParcelas, today, prazoDias);
+            const slices = splitNonAntecipadoInstallments(bValor, blockFeeRate, bParcelas, bStartDate, prazoDias);
             if (slices) {
               const grossPerSlice = Math.round((bValor / bParcelas) * 100) / 100;
               for (const slice of slices) {
@@ -1091,14 +1093,14 @@ export default function Agenda() {
               amount: applyFee(bValor, blockFeeRate), gross_amount: bValor,
               card_fee_percent: blockFeeRate, card_installments: bParcelas,
               card_operator_id: blockOperator?.id || null,
-              due_date: today, payment_method: bForma, status: "pending",
+              due_date: bStartDate, payment_method: bForma, status: "pending",
               notes: `${blockTag} Cartão ${bParcelas}x${blockOperator?.operator_name ? ` — ${blockOperator.operator_name}` : ""}`,
             });
           } else {
             // CASE C: PIX / boleto / dinheiro → N parcelas mensais simples
             const perParcela = Math.round((bValor / bParcelas) * 100) / 100;
             for (let i = 0; i < bParcelas; i++) {
-              const d = new Date(today + "T12:00:00");
+              const d = new Date(bStartDate + "T12:00:00");
               d.setMonth(d.getMonth() + i);
               const due = d.toISOString().split("T")[0];
               rows.push({
