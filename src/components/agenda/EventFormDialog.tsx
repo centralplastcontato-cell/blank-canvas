@@ -275,13 +275,14 @@ function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: 
   );
 }
 
-function MoneyInput({ value, onChange, placeholder = "0,00" }: { value: number | null; onChange: (v: number | null) => void; placeholder?: string }) {
+function MoneyInput({ value, onChange, placeholder = "0,00", disabled = false }: { value: number | null; onChange: (v: number | null) => void; placeholder?: string; disabled?: boolean }) {
   return (
     <div className="relative">
       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">R$</span>
       <Input
         className="pl-10"
         placeholder={placeholder}
+        disabled={disabled}
         value={value != null ? value.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : ""}
         onChange={(e) => {
           const raw = e.target.value.replace(/[^\d]/g, "");
@@ -376,6 +377,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   type ExtraBlock = { id: string; valor: number | null; forma: string; parcelas: number; operator_id?: string | null };
   const [extraBlocks, setExtraBlocks] = useState<ExtraBlock[]>([]);
   const [showExtraBlocks, setShowExtraBlocks] = useState(false);
+  // Etapa 4: ids de blocos que já têm parcela paga — bloqueados para edição/remoção
+  const [lockedBlockIds, setLockedBlockIds] = useState<Set<string>>(new Set());
 
 
   const [fechamentoDate, setFechamentoDate] = useState<Date | undefined>(undefined);
@@ -851,6 +854,24 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         setLoadingClientRequest(false);
       });
   }, [open, eventId, currentCompany?.id, syncClientDataIntoForm]);
+
+  // Etapa 4: identifica blocos que já têm parcela paga (não podem ser editados/removidos)
+  useEffect(() => {
+    if (!open || !eventId || !currentCompany?.id) { setLockedBlockIds(new Set()); return; }
+    supabase
+      .from("event_payments")
+      .select("notes")
+      .eq("event_id", eventId)
+      .eq("status", "paid")
+      .then(({ data }) => {
+        const locked = new Set<string>();
+        for (const row of (data || []) as any[]) {
+          const m = String(row.notes || "").match(/^\[bloco:([^\]]+)\]/);
+          if (m) locked.add(m[1]);
+        }
+        setLockedBlockIds(locked);
+      });
+  }, [open, eventId, currentCompany?.id]);
 
   useEffect(() => {
     if (dateDay && dateMonth && dateYear) {
@@ -2566,7 +2587,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                         Formas adicionais de pagamento
                       </p>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Use para misturar formas (ex: parte boleto + parte cartão). ⚠️ Visualização — ainda não gera parcelas.
+                        Use para misturar formas (ex: parte boleto + parte cartão). Cada bloco gera suas próprias parcelas no financeiro.
                       </p>
                     </div>
                     <Button
@@ -2590,31 +2611,43 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                       : 0;
                     const bruto = b.valor ?? 0;
                     const liquido = bruto - (bruto * taxa / 100);
+                    const isLocked = lockedBlockIds.has(b.id);
 
                     return (
-                      <div key={b.id} className="rounded-lg border border-border/50 bg-white p-3 space-y-2.5">
+                      <div key={b.id} className={cn(
+                        "rounded-lg border p-3 space-y-2.5",
+                        isLocked ? "border-amber-400/60 bg-amber-50/50" : "border-border/50 bg-white"
+                      )}>
                         <div className="flex items-center justify-between">
                           <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                             Bloco extra {idx + 1}
+                            {isLocked && <span className="ml-2 text-amber-700 normal-case tracking-normal">🔒 com parcela paga</span>}
                           </span>
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                            className="h-6 w-6 text-muted-foreground hover:text-destructive disabled:opacity-30"
+                            disabled={isLocked}
+                            title={isLocked ? "Bloco com parcela paga não pode ser removido" : "Remover bloco"}
                             onClick={() => setExtraBlocks(prev => prev.filter(x => x.id !== b.id))}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
+                        {isLocked && (
+                          <div className="rounded-md border border-amber-500/40 bg-amber-100/40 p-2 text-[11px] text-amber-800">
+                            Este bloco já tem parcelas pagas. Para preservar o histórico, valor/forma/parcelas não podem ser alterados. Apenas parcelas <strong>pendentes</strong> serão recriadas ao salvar.
+                          </div>
+                        )}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
                           <div className="space-y-1">
                             <Label className="text-[11px] text-muted-foreground">Valor</Label>
-                            <MoneyInput value={b.valor} onChange={(v) => setExtraBlocks(prev => prev.map(x => x.id === b.id ? { ...x, valor: v } : x))} />
+                            <MoneyInput value={b.valor} disabled={isLocked} onChange={(v) => setExtraBlocks(prev => prev.map(x => x.id === b.id ? { ...x, valor: v } : x))} />
                           </div>
                           <div className="space-y-1">
                             <Label className="text-[11px] text-muted-foreground">Forma</Label>
-                            <Select value={b.forma || "none"} onValueChange={(v) => setExtraBlocks(prev => prev.map(x => x.id === b.id ? { ...x, forma: v === "none" ? "" : v, parcelas: 1 } : x))}>
+                            <Select disabled={isLocked} value={b.forma || "none"} onValueChange={(v) => setExtraBlocks(prev => prev.map(x => x.id === b.id ? { ...x, forma: v === "none" ? "" : v, parcelas: 1 } : x))}>
                               <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="Selecionar" /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="none">Selecionar...</SelectItem>
@@ -2633,7 +2666,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                             <Select
                               value={String(parcelas)}
                               onValueChange={(v) => setExtraBlocks(prev => prev.map(x => x.id === b.id ? { ...x, parcelas: Number(v) } : x))}
-                              disabled={isDebit || (!isCard && b.forma !== "boleto" && b.forma !== "cheque")}
+                              disabled={isLocked || isDebit || (!isCard && b.forma !== "boleto" && b.forma !== "cheque")}
                             >
                               <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
                               <SelectContent>
@@ -2648,7 +2681,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                         {isCard && cardFees.length > 1 && (
                           <div className="space-y-1">
                             <Label className="text-[11px] text-muted-foreground">Operadora</Label>
-                            <Select value={b.operator_id || ""} onValueChange={(v) => setExtraBlocks(prev => prev.map(x => x.id === b.id ? { ...x, operator_id: v } : x))}>
+                            <Select disabled={isLocked} value={b.operator_id || ""} onValueChange={(v) => setExtraBlocks(prev => prev.map(x => x.id === b.id ? { ...x, operator_id: v } : x))}>
                               <SelectTrigger className="h-9 bg-white"><SelectValue placeholder="Selecione" /></SelectTrigger>
                               <SelectContent>
                                 {cardFees.map(f => <SelectItem key={f.id} value={f.id}>{f.operator_name}</SelectItem>)}
