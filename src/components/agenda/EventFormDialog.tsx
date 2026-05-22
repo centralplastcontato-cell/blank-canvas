@@ -376,6 +376,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   type ExtraBlock = { id: string; valor: number | null; forma: string; parcelas: number; operator_id?: string | null };
   const [extraBlocks, setExtraBlocks] = useState<ExtraBlock[]>([]);
   const [showExtraBlocks, setShowExtraBlocks] = useState(false);
+  // Etapa 4: ids de blocos que já têm parcela paga — bloqueados para edição/remoção
+  const [lockedBlockIds, setLockedBlockIds] = useState<Set<string>>(new Set());
 
 
   const [fechamentoDate, setFechamentoDate] = useState<Date | undefined>(undefined);
