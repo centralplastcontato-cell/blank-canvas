@@ -1475,6 +1475,11 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         child_count: pricingMode === 'per_person' ? childCount : null,
         price_per_adult: pricingMode === 'per_person' ? pricePerAdult : null,
         price_per_child: pricingMode === 'per_person' ? pricePerChild : null,
+        payment_blocks: (extraBlocks || []).filter(b => (b.valor ?? 0) > 0).map(b => ({
+          id: b.id, valor: b.valor, forma: b.forma,
+          parcelas: Number(b.parcelas) || 1,
+          card_operator_id: b.operator_id || null,
+        })),
       };
       let finalForm = { ...form, id: eventId || form.id };
       if (clientRequest && (clientRequest.status === "completed" || clientRequest.status === "reviewed")) {
