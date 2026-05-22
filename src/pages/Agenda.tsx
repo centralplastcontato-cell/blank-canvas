@@ -1072,7 +1072,7 @@ export default function Agenda() {
             // CASE A: cartão não-antecipado → N parcelas mensais líquidas
             const { splitNonAntecipadoInstallments } = await import("@/lib/cardFees");
             const prazoDias = Number(blockOperator.prazo_recebimento_dias) || 30;
-            const slices = splitNonAntecipadoInstallments(bValor, blockFeeRate, bParcelas, today, prazoDias);
+            const slices = splitNonAntecipadoInstallments(bValor, blockFeeRate, bParcelas, bStartDate, prazoDias);
             if (slices) {
               const grossPerSlice = Math.round((bValor / bParcelas) * 100) / 100;
               for (const slice of slices) {
