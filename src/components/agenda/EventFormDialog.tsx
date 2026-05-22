@@ -773,6 +773,23 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
     setForm(nextForm);
     setPayment(nextPayment);
+    // Etapa 3: rehidratar blocos extras a partir de company_events.payment_blocks (ou payment_details como fallback)
+    const loadedBlocks: any[] = Array.isArray((data as any).payment_blocks)
+      ? (data as any).payment_blocks
+      : (Array.isArray((nextPayment as any).payment_blocks) ? (nextPayment as any).payment_blocks : []);
+    if (loadedBlocks.length > 0) {
+      setExtraBlocks(loadedBlocks.map((b: any) => ({
+        id: String(b.id || crypto.randomUUID()),
+        valor: b.valor ?? null,
+        forma: String(b.forma || ""),
+        parcelas: Number(b.parcelas) || 1,
+        operator_id: b.operator_id ?? b.card_operator_id ?? null,
+      })));
+      setShowExtraBlocks(true);
+    } else {
+      setExtraBlocks([]);
+      setShowExtraBlocks(false);
+    }
     setPricingMode(nextPricingMode);
     setAdultCount(nextAdultCount);
     setChildCount(nextChildCount);
