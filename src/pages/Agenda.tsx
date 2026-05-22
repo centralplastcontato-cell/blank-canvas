@@ -1093,7 +1093,7 @@ export default function Agenda() {
               amount: applyFee(bValor, blockFeeRate), gross_amount: bValor,
               card_fee_percent: blockFeeRate, card_installments: bParcelas,
               card_operator_id: blockOperator?.id || null,
-              due_date: today, payment_method: bForma, status: "pending",
+              due_date: bStartDate, payment_method: bForma, status: "pending",
               notes: `${blockTag} Cartão ${bParcelas}x${blockOperator?.operator_name ? ` — ${blockOperator.operator_name}` : ""}`,
             });
           } else {
