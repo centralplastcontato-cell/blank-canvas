@@ -374,7 +374,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
 
   // Etapa 2 (visual-only): blocos extras de pagamento.
   // Ainda NÃO gravam no banco nem geram parcelas — apenas UI para validação.
-  type ExtraBlock = { id: string; valor: number | null; forma: string; parcelas: number; operator_id?: string | null };
+  type ExtraBlock = { id: string; valor: number | null; forma: string; parcelas: number; operator_id?: string | null; start_date?: string | null };
   const [extraBlocks, setExtraBlocks] = useState<ExtraBlock[]>([]);
   const [showExtraBlocks, setShowExtraBlocks] = useState(false);
   // Etapa 4: ids de blocos que já têm parcela paga — bloqueados para edição/remoção
