@@ -2678,6 +2678,27 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                           </div>
                         </div>
 
+                        {b.forma && b.forma !== "dinheiro" && (
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">
+                              {isCard
+                                ? (isDebit || parcelas === 1 ? "Data do pagamento" : "Data da venda (1ª parcela conta a partir daqui)")
+                                : (parcelas > 1 ? "1º vencimento (próximas a cada +30 dias)" : "Vencimento")}
+                            </Label>
+                            <Input
+                              type="date"
+                              className="h-9 bg-white"
+                              disabled={isLocked}
+                              value={b.start_date || ""}
+                              onChange={(e) => setExtraBlocks(prev => prev.map(x => x.id === b.id ? { ...x, start_date: e.target.value || null } : x))}
+                            />
+                            {!b.start_date && (
+                              <p className="text-[10px] text-muted-foreground">Se vazio, usa a data de hoje.</p>
+                            )}
+                          </div>
+                        )}
+
+
                         {isCard && cardFees.length > 1 && (
                           <div className="space-y-1">
                             <Label className="text-[11px] text-muted-foreground">Operadora</Label>
