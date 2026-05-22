@@ -163,26 +163,40 @@ Deno.serve(async (req) => {
             const secondSent = existingConfs.find((c: any) => c.message_type === "second" && c.status === "sent");
             const hasResponse = existingConfs.some((c: any) => c.response_received);
 
+            // Anti-burst: any attempt (sent OR failed) in the last 4h blocks new attempts of same type.
+            // Reason: providers (W-API/Z-API) sometimes return errors (e.g. SESSION_UNVERIFIED)
+            // even though the message was actually delivered to WhatsApp. Without this guard,
+            // the cron would resend every 30min, spamming the client.
+            const ANTI_BURST_MS = 4 * 60 * 60 * 1000;
+            const now = Date.now();
+            const recentAttempt = (type: string) => existingConfs.some((c: any) => {
+              if (c.message_type !== type) return false;
+              const t = new Date(c.created_at || c.sent_at || 0).getTime();
+              return t > 0 && (now - t) < ANTI_BURST_MS;
+            });
+
             let messageToSend: string | null = null;
             let messageType = "first";
 
-            if (!firstSent) {
+            if (!firstSent && !recentAttempt("first")) {
               messageToSend = settings.confirmation_message;
               messageType = "first";
             } else if (
               settings.second_message_enabled &&
               !secondSent &&
               !hasResponse &&
-              firstSent.sent_at &&
-              !sentFirstInThisRun.has(visit.id) // Don't send second if first was just sent
+              !recentAttempt("second") &&
+              firstSent?.sent_at &&
+              !sentFirstInThisRun.has(visit.id)
             ) {
               const firstSentAt = new Date(firstSent.sent_at).getTime();
               const hoursAfter = (settings.second_message_hours_after || 6) * 60 * 60 * 1000;
-              if (Date.now() - firstSentAt >= hoursAfter) {
+              if (now - firstSentAt >= hoursAfter) {
                 messageToSend = settings.second_message_text;
                 messageType = "second";
               }
             }
+
 
             if (!messageToSend) continue;
 
