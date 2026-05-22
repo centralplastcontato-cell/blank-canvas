@@ -854,6 +854,24 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       });
   }, [open, eventId, currentCompany?.id, syncClientDataIntoForm]);
 
+  // Etapa 4: identifica blocos que já têm parcela paga (não podem ser editados/removidos)
+  useEffect(() => {
+    if (!open || !eventId || !currentCompany?.id) { setLockedBlockIds(new Set()); return; }
+    supabase
+      .from("event_payments")
+      .select("notes")
+      .eq("event_id", eventId)
+      .eq("status", "paid")
+      .then(({ data }) => {
+        const locked = new Set<string>();
+        for (const row of (data || []) as any[]) {
+          const m = String(row.notes || "").match(/^\[bloco:([^\]]+)\]/);
+          if (m) locked.add(m[1]);
+        }
+        setLockedBlockIds(locked);
+      });
+  }, [open, eventId, currentCompany?.id]);
+
   useEffect(() => {
     if (dateDay && dateMonth && dateYear) {
       setForm((prev) => ({ ...prev, event_date: `${dateYear}-${dateMonth}-${dateDay}` }));
