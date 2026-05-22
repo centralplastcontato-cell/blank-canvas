@@ -1032,6 +1032,86 @@ export default function Agenda() {
         }
       }
 
+      // Etapa 3: gerar parcelas dos blocos extras (múltiplas formas de pagamento)
+      // Cada bloco tem prefixo de notes "[bloco:<id>]" para preservar parcelas já pagas via selective sync.
+      const blocks: any[] = Array.isArray(pd.payment_blocks) ? pd.payment_blocks : [];
+      if (blocks.length > 0) {
+        const today = new Date().toISOString().split("T")[0];
+        for (const b of blocks) {
+          const blockId = String(b.id || crypto.randomUUID());
+          const blockTag = `[bloco:${blockId}]`;
+          const bForma = String(b.forma || "");
+          const bValor = Number(b.valor) || 0;
+          if (bValor <= 0) continue;
+          // Selective sync: se este bloco já tem alguma parcela paga, não regenera
+          const blockHasPaid = paidPayments.some((p: any) => String(p.notes || "").startsWith(blockTag));
+          if (blockHasPaid) continue;
+
+          const bIsCard = bForma === "cartao" || bForma === "cartao_credito" || bForma === "cartao_debito";
+          const bIsDebit = bForma === "cartao_debito";
+          const bParcelas = bIsDebit ? 1 : Math.max(1, Number(b.parcelas) || 1);
+          const bFeeRate = getCardFeeRate(bForma, bParcelas);
+          // Operadora específica do bloco (se informada) — senão usa a padrão do evento
+          const blockOperator: any = (() => {
+            if (b.card_operator_id) {
+              const f = effectiveCardFees.find((x: any) => x.id === b.card_operator_id);
+              if (f) return f;
+            }
+            return getCardOperator();
+          })();
+          const blockFeeRate = bIsCard && blockOperator
+            ? (bIsDebit ? Number(blockOperator.taxa_debito || 0)
+              : Number(blockOperator[`taxa_credito_${Math.min(12, Math.max(1, bParcelas))}x`] || 0))
+            : bFeeRate;
+
+          const isNonAntecipado = bIsCard && !bIsDebit && blockOperator && blockOperator.antecipado === false && bParcelas > 1 && blockFeeRate > 0;
+
+          if (bIsCard && blockFeeRate > 0 && isNonAntecipado) {
+            // CASE A: cartão não-antecipado → N parcelas mensais líquidas
+            const { splitNonAntecipadoInstallments } = await import("@/lib/cardFees");
+            const prazoDias = Number(blockOperator.prazo_recebimento_dias) || 30;
+            const slices = splitNonAntecipadoInstallments(bValor, blockFeeRate, bParcelas, today, prazoDias);
+            if (slices) {
+              const grossPerSlice = Math.round((bValor / bParcelas) * 100) / 100;
+              for (const slice of slices) {
+                rows.push({
+                  event_id: eventId, company_id: companyId, type: "parcela",
+                  amount: slice.amount, gross_amount: grossPerSlice,
+                  card_fee_percent: blockFeeRate, card_installments: bParcelas,
+                  card_operator_id: blockOperator.id,
+                  due_date: slice.due_date, payment_method: bForma, status: "pending",
+                  notes: `${blockTag} Parcela ${slice.index}/${slice.total} — Cartão ${bParcelas}x ${blockOperator.operator_name || ""} (sem antecipação)`,
+                });
+              }
+            }
+          } else if (bIsCard && blockFeeRate > 0) {
+            // CASE B: cartão antecipado / débito → consolida em 1 linha líquida
+            rows.push({
+              event_id: eventId, company_id: companyId, type: "parcela",
+              amount: applyFee(bValor, blockFeeRate), gross_amount: bValor,
+              card_fee_percent: blockFeeRate, card_installments: bParcelas,
+              card_operator_id: blockOperator?.id || null,
+              due_date: today, payment_method: bForma, status: "pending",
+              notes: `${blockTag} Cartão ${bParcelas}x${blockOperator?.operator_name ? ` — ${blockOperator.operator_name}` : ""}`,
+            });
+          } else {
+            // CASE C: PIX / boleto / dinheiro → N parcelas mensais simples
+            const perParcela = Math.round((bValor / bParcelas) * 100) / 100;
+            for (let i = 0; i < bParcelas; i++) {
+              const d = new Date(today + "T12:00:00");
+              d.setMonth(d.getMonth() + i);
+              const due = d.toISOString().split("T")[0];
+              rows.push({
+                event_id: eventId, company_id: companyId, type: "parcela",
+                amount: perParcela, due_date: due,
+                payment_method: bForma || null, status: "pending",
+                notes: `${blockTag} Parcela ${i + 1}/${bParcelas}${bForma ? ` — ${bForma}` : ""}`,
+              });
+            }
+          }
+        }
+      }
+
       if (rows.length > 0) {
         await supabase.from("event_payments").insert(rows);
       }
