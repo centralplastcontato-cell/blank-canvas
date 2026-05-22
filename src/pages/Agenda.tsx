@@ -1043,6 +1043,8 @@ export default function Agenda() {
           const bForma = String(b.forma || "");
           const bValor = Number(b.valor) || 0;
           if (bValor <= 0) continue;
+          // Data informada pelo usuário (data da venda no cartão, ou 1º vencimento de boleto/PIX). Fallback: hoje.
+          const bStartDate = (typeof b.start_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(b.start_date)) ? b.start_date : today;
           // Selective sync: se este bloco já tem alguma parcela paga, não regenera
           const blockHasPaid = paidPayments.some((p: any) => String(p.notes || "").startsWith(blockTag));
           if (blockHasPaid) continue;
