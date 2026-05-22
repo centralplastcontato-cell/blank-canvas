@@ -2573,7 +2573,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                   className="w-full gap-2 border-dashed"
                   onClick={() => {
                     setShowExtraBlocks(true);
-                    setExtraBlocks([{ id: crypto.randomUUID(), valor: null, forma: "", parcelas: 1, operator_id: null }]);
+                    setExtraBlocks([{ id: crypto.randomUUID(), valor: null, forma: "", parcelas: 1, operator_id: null, start_date: null }]);
                   }}
                 >
                   <Plus className="h-4 w-4" />
