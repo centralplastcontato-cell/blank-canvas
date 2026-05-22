@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { getFormAutomationTemplate, resolveFormAutomationMessage } from "@/lib/formAutomationMessages";
+import { toCanonicalBrazilianPhone } from "@/lib/whatsappConversationHelper";
 
 /**
  * Verify that a WhatsApp instance is actually connected (live check via W-API).
@@ -385,7 +386,11 @@ export async function sendContractViaWhatsApp(
     }
 
     // 3. Find existing conversation
-    const phone = lead.whatsapp.replace(/\D/g, "");
+    const rawPhone = lead.whatsapp.replace(/\D/g, "");
+    const phone = toCanonicalBrazilianPhone(rawPhone);
+    if (!phone || phone.length < 12) {
+      return { success: false, error: "Número de WhatsApp do lead inválido (sem DDI/DDD)." };
+    }
     const { data: convs } = await (supabase as any)
       .from("wapi_conversations")
       .select("id, jid")
