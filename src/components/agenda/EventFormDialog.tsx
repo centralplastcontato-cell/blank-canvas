@@ -1174,6 +1174,12 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         child_count: pricingMode === 'per_person' ? childCount : null,
         price_per_adult: pricingMode === 'per_person' ? pricePerAdult : null,
         price_per_child: pricingMode === 'per_person' ? pricePerChild : null,
+        // Etapa 3: blocos extras de pagamento (geram event_payments adicionais via syncPaymentDetails)
+        payment_blocks: (extraBlocks || []).filter(b => (b.valor ?? 0) > 0).map(b => ({
+          id: b.id, valor: b.valor, forma: b.forma,
+          parcelas: Number(b.parcelas) || 1,
+          card_operator_id: b.operator_id || null,
+        })),
       };
       // Protect against overwriting valid contractor data with empty local state
       let finalForm = { ...form, id: eventId || form.id };
