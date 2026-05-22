@@ -1200,6 +1200,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           id: b.id, valor: b.valor, forma: b.forma,
           parcelas: Number(b.parcelas) || 1,
           card_operator_id: b.operator_id || null,
+          start_date: b.start_date || null,
         })),
       };
       // Protect against overwriting valid contractor data with empty local state
