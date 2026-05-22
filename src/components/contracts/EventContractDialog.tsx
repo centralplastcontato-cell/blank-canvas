@@ -77,14 +77,28 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
       if (/^\d{4}-\d{2}-\d{2}$/.test(d)) { const [y, m, day] = d.split("-"); return `${day}/${m}/${y}`; }
       return d;
     };
-    const paymentDesc = pd
-      ? [
-          pd.entrada_valor ? `Entrada: R$ ${Number(pd.entrada_valor).toLocaleString("pt-BR")}${pd.entrada_forma ? ` (${pd.entrada_forma})` : ""}${pd.entrada_data ? ` em ${fmtDate(pd.entrada_data)}` : ""}` : "",
-          pd.saldo_valor ? `Saldo: R$ ${Number(pd.saldo_valor).toLocaleString("pt-BR")}${pd.saldo_forma ? ` (${pd.saldo_forma})` : ""}${pd.saldo_data ? ` em ${fmtDate(pd.saldo_data)}` : ""}` : "",
-          pd.parcelas ? `${pd.parcelas}x` : "",
-          pd.observacoes_pagamento || "",
-        ].filter(Boolean).join(" | ")
-      : "";
+    // Prefer payment_blocks (new model) when present; fallback to entrada/saldo (legacy)
+    const blocks: any[] = Array.isArray((eventData as any)?.payment_blocks)
+      ? (eventData as any).payment_blocks
+      : Array.isArray(pd?.payment_blocks) ? pd.payment_blocks : [];
+    const validBlocks = blocks.filter((b) => Number(b?.valor) > 0);
+
+    const paymentDesc = validBlocks.length > 0
+      ? validBlocks.map((b, i) => {
+          const valor = `R$ ${Number(b.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+          const forma = b.forma ? ` (${b.forma})` : "";
+          const parc = Number(b.parcelas) > 1 ? ` ${b.parcelas}x` : "";
+          return `Bloco ${i + 1}: ${valor}${forma}${parc}`;
+        }).join(" | ")
+      : pd
+        ? [
+            pd.entrada_valor ? `Entrada: R$ ${Number(pd.entrada_valor).toLocaleString("pt-BR")}${pd.entrada_forma ? ` (${pd.entrada_forma})` : ""}${pd.entrada_data ? ` em ${fmtDate(pd.entrada_data)}` : ""}` : "",
+            pd.saldo_valor ? `Saldo: R$ ${Number(pd.saldo_valor).toLocaleString("pt-BR")}${pd.saldo_forma ? ` (${pd.saldo_forma})` : ""}${pd.saldo_data ? ` em ${fmtDate(pd.saldo_data)}` : ""}` : "",
+            pd.parcelas ? `${pd.parcelas}x` : "",
+            pd.observacoes_pagamento || "",
+          ].filter(Boolean).join(" | ")
+        : "";
+
 
     return {
       lead: leadData ? {
