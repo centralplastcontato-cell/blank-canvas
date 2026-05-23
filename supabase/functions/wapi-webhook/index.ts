@@ -5199,19 +5199,24 @@ async function processWebhookEvent(body: JsonRecord) {
         || (msg as JsonRecord).author
         || (msg as JsonRecord).key?.participantPn
         || null;
-      const _isBroadcastLike = (v: unknown) =>
-        typeof v === 'string' && (v.includes('@broadcast') || v.toLowerCase().startsWith('status@'));
-      if (_isBroadcastLike(rj) || _isBroadcastLike(_participantJid)) {
-        console.log(`[Webhook] Skipping broadcast/status event: rj=${rj}, participant=${_participantJid}`);
+
+      // === JID NORMALIZER: fonte única de verdade para classificação/canonical ===
+      const rjNorm = normalizeJid(rj);
+      const partNorm = normalizeJid(_participantJid);
+      if (rjNorm.shouldIgnore || partNorm.kind === 'broadcast' || partNorm.kind === 'newsletter') {
+        console.log(`[Webhook] Skipping ${rjNorm.kind}/${partNorm.kind} event: rj=${rj}, participant=${_participantJid}`);
+        await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'ignored', processing_note: `jid_${rjNorm.kind === 'individual' ? partNorm.kind : rjNorm.kind}` });
         break;
       }
-      const isGrp = (rj as string).includes('@g.us');
-      if (!isGrp && !(rj as string).includes('@')) rj = `${rj}@s.whatsapp.net`;
-      else if ((rj as string).includes('@c.us')) rj = (rj as string).replace('@c.us', '@s.whatsapp.net');
+      // Use canonical form for groups/individuals (lid mantém-se p/ resolução abaixo)
+      if (rjNorm.kind === 'individual' || rjNorm.kind === 'group') {
+        rj = rjNorm.canonical;
+      }
+      const isGrp = rjNorm.kind === 'group';
 
       const fromMe = (msg as JsonRecord).key?.fromMe || (msg as JsonRecord).fromMe || false;
       const msgId = (msg as JsonRecord).key?.id || (msg as JsonRecord).id || (msg as JsonRecord).messageId;
-      const isLidJid = (rj as string).includes('@lid');
+      const isLidJid = rjNorm.kind === 'lid';
       const originalLidJid = isLidJid ? (rj as string) : null;
       let isUnresolvedInboundLid = false;
       let resolvedLidConv: JsonRecord | null = null;
