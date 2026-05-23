@@ -6335,6 +6335,72 @@ export type Database = {
           },
         ]
       }
+      wapi_webhook_raw_events: {
+        Row: {
+          conversation_id: string | null
+          error: string | null
+          event_type: string | null
+          from_me: boolean | null
+          has_content: boolean | null
+          headers: Json | null
+          id: string
+          instance_id: string | null
+          ip: string | null
+          is_group: boolean | null
+          is_status_broadcast: boolean | null
+          message_db_id: string | null
+          message_id: string | null
+          payload: Json
+          processing_note: string | null
+          processing_status: string
+          provider: string | null
+          received_at: string
+          remote_jid: string | null
+        }
+        Insert: {
+          conversation_id?: string | null
+          error?: string | null
+          event_type?: string | null
+          from_me?: boolean | null
+          has_content?: boolean | null
+          headers?: Json | null
+          id?: string
+          instance_id?: string | null
+          ip?: string | null
+          is_group?: boolean | null
+          is_status_broadcast?: boolean | null
+          message_db_id?: string | null
+          message_id?: string | null
+          payload: Json
+          processing_note?: string | null
+          processing_status?: string
+          provider?: string | null
+          received_at?: string
+          remote_jid?: string | null
+        }
+        Update: {
+          conversation_id?: string | null
+          error?: string | null
+          event_type?: string | null
+          from_me?: boolean | null
+          has_content?: boolean | null
+          headers?: Json | null
+          id?: string
+          instance_id?: string | null
+          ip?: string | null
+          is_group?: boolean | null
+          is_status_broadcast?: boolean | null
+          message_db_id?: string | null
+          message_id?: string | null
+          payload?: Json
+          processing_note?: string | null
+          processing_status?: string
+          provider?: string | null
+          received_at?: string
+          remote_jid?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
