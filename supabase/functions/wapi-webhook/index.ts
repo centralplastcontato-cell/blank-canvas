@@ -6290,8 +6290,20 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
+  const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  let rawWebhookEventId: string | null = null;
+
   try {
-    let body = await req.json();
+    let body: JsonRecord;
+    try {
+      body = await req.json();
+    } catch (parseErr) {
+      rawWebhookEventId = await saveRawWebhookEvent(supabase, {}, req, parseErr instanceof Error ? parseErr.message : 'invalid_json');
+      return new Response(JSON.stringify({ error: 'Invalid JSON', raw_event_id: rawWebhookEventId }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    rawWebhookEventId = await saveRawWebhookEvent(supabase, body, req);
+    const originalRawWebhookEventId = rawWebhookEventId;
     
     // Detect Z-API payload and normalize
     const hasInteractiveResponse = body.buttonsResponseMessage || body.buttonResponseMessage || body.interactiveResponseMessage || body.listResponseMessage || body.listMessage;
@@ -6318,6 +6330,7 @@ Deno.serve(async (req) => {
     const instanceId = body.instanceId;
     if (!instanceId) {
       console.log('No instanceId in webhook');
+      await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'ignored', processing_note: 'missing_instance_id' });
       return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     
@@ -6329,9 +6342,11 @@ Deno.serve(async (req) => {
     // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
     if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
       // @ts-ignore
+      body[RAW_WEBHOOK_EVENT_ID_FIELD] = originalRawWebhookEventId;
       waitUntil(processWebhookEvent(body));
     } else {
       // Fallback for environments without waitUntil - process async but don't await
+      body[RAW_WEBHOOK_EVENT_ID_FIELD] = originalRawWebhookEventId;
       processWebhookEvent(body).catch(e => console.error('Background processing error:', e));
     }
 
@@ -6339,6 +6354,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e: unknown) {
     console.error('Webhook error:', e);
+    await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'error', error: e instanceof Error ? e.message : 'Unknown error' });
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : 'Unknown error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
