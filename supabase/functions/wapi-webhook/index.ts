@@ -201,6 +201,100 @@ function waitUntil(promise: Promise<unknown>): void {
   promise.catch((err) => console.error('[Background task] Unhandled error:', err));
 }
 
+const RAW_WEBHOOK_EVENT_ID_FIELD = '__rawWebhookEventId';
+
+function headersToJson(req: Request): JsonRecord {
+  const headers: JsonRecord = {};
+  req.headers.forEach((value, key) => {
+    if (['authorization', 'apikey', 'client-token'].includes(key.toLowerCase())) {
+      headers[key] = '[redacted]';
+    } else {
+      headers[key] = value;
+    }
+  });
+  return headers;
+}
+
+function pickFirstString(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function inferRawWebhookFacts(payload: JsonRecord): JsonRecord {
+  const data = (payload.data as JsonRecord | undefined) || payload;
+  const msg = (data.key ? data : (data.message as JsonRecord | undefined)?.key ? data.message : data) as JsonRecord;
+  const remoteJid = pickFirstString(
+    msg?.key?.remoteJid,
+    msg?.remoteJid,
+    msg?.from,
+    msg?.chat?.id,
+    payload?.chat?.id,
+    payload.phone ? normalizeZapiRemoteJid(String(payload.phone)) : null,
+  );
+  const participant = pickFirstString(msg?.key?.participant, msg?.participant, msg?.author);
+  const eventType = pickFirstString(payload.event, payload.type, data.event) || 'unknown';
+  const messageId = pickFirstString(msg?.key?.id, msg?.id, msg?.messageId, data?.messageId, payload?.messageId, Array.isArray(payload.ids) ? payload.ids[0] : null);
+  const hasContent = Boolean(
+    msg?.message || msg?.msgContent || msg?.body || msg?.text ||
+    payload.text || payload.image || payload.audio || payload.video || payload.document || payload.sticker ||
+    payload.contact || payload.contacts || payload.location || payload.reaction || payload.poll || payload.reply ||
+    payload.message || payload.hydratedTemplate || payload.templateMessage || payload.buttonsResponseMessage ||
+    payload.buttonResponseMessage || payload.interactiveResponseMessage || payload.listResponseMessage || payload.listMessage
+  );
+  const statusCandidate = `${remoteJid || ''} ${participant || ''}`.toLowerCase();
+  const provider = payload.type || payload.phone ? 'zapi' : 'wapi';
+
+  return {
+    provider,
+    instance_id: pickFirstString(payload.instanceId, payload.instance_id, data.instanceId),
+    event_type: eventType,
+    remote_jid: remoteJid,
+    from_me: Boolean(msg?.key?.fromMe ?? msg?.fromMe ?? payload.fromMe ?? false),
+    message_id: messageId,
+    is_group: Boolean(remoteJid?.includes('@g.us')),
+    is_status_broadcast: statusCandidate.includes('@broadcast') || statusCandidate.includes('@newsletter') || statusCandidate.startsWith('status@') || statusCandidate.trim() === 'status',
+    has_content: hasContent,
+  };
+}
+
+async function saveRawWebhookEvent(supabase: SupabaseClient, payload: JsonRecord, req: Request, parseError?: string): Promise<string | null> {
+  try {
+    const facts = inferRawWebhookFacts(payload);
+    const { data, error } = await supabase
+      .from('wapi_webhook_raw_events')
+      .insert({
+        ...facts,
+        processing_status: parseError ? 'error' : 'received',
+        processing_note: parseError || null,
+        payload,
+        headers: headersToJson(req),
+        ip: req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || null,
+        error: parseError || null,
+      })
+      .select('id')
+      .single();
+    if (error) {
+      console.error('[RawWebhook] Failed to save raw event:', error.message);
+      return null;
+    }
+    return data?.id || null;
+  } catch (err) {
+    console.error('[RawWebhook] Unexpected error saving raw event:', err);
+    return null;
+  }
+}
+
+async function markRawWebhookEvent(supabase: SupabaseClient, rawEventId: string | null | undefined, patch: JsonRecord): Promise<void> {
+  if (!rawEventId) return;
+  const { error } = await supabase
+    .from('wapi_webhook_raw_events')
+    .update(patch)
+    .eq('id', rawEventId);
+  if (error) console.warn('[RawWebhook] Failed to update raw event:', error.message);
+}
+
 async function reinforceZapiNotifySentByMe(instance: JsonRecord, context: string): Promise<void> {
   if (instance.provider !== 'zapi' || !instance.instance_id || !instance.instance_token) return;
 
