@@ -5332,6 +5332,27 @@ async function processWebhookEvent(body: JsonRecord) {
       // a second conversation for the same contact.
       if (!ex && !isGrp && !resolvedLidConv) {
         const phoneVariants = getBrazilianPhoneVariants(phone);
+
+        // 🔎 Fallback adicional: buscar por VARIANTES DO REMOTE_JID (cobre rows
+        // antigas sem contact_phone preenchido — causa comum de "mensagem some")
+        const jidVariants = phoneVariants.map((v) => `${v}@s.whatsapp.net`);
+        const { data: sameJidVariant } = await supabase.from('wapi_conversations')
+          .select('id, instance_id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at')
+          .eq('company_id', instance.company_id)
+          .eq('instance_id', instance.id)
+          .in('remote_jid', jidVariants)
+          .order('last_message_at', { ascending: false, nullsFirst: false })
+          .limit(1)
+          .maybeSingle();
+        if (sameJidVariant) {
+          console.warn(`[Webhook][JidVariantMatch] incoming=${rj} matched_jid=${sameJidVariant.remote_jid} conv=${sameJidVariant.id}`);
+          ex = sameJidVariant as JsonRecord;
+          rj = sameJidVariant.remote_jid || rj;
+        }
+      }
+
+      if (!ex && !isGrp && !resolvedLidConv) {
+        const phoneVariants = getBrazilianPhoneVariants(phone);
         const { data: samePhoneConv } = await supabase.from('wapi_conversations')
           .select('id, instance_id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at')
           .eq('company_id', instance.company_id)
