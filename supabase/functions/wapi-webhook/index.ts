@@ -248,6 +248,10 @@ function inferRawWebhookFacts(payload: JsonRecord): JsonRecord {
 
   // Classificação canônica via JID normalizer (fonte única de verdade)
   const norm: NormalizedJid = normalizeJid(remoteJid);
+  const participantNorm: NormalizedJid = normalizeJid(participant);
+  const isStatusOrBroadcast =
+    norm.kind === 'broadcast' || norm.kind === 'newsletter' ||
+    participantNorm.kind === 'broadcast' || participantNorm.kind === 'newsletter';
 
   return {
     provider,
