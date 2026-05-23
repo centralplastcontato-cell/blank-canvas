@@ -201,6 +201,100 @@ function waitUntil(promise: Promise<unknown>): void {
   promise.catch((err) => console.error('[Background task] Unhandled error:', err));
 }
 
+const RAW_WEBHOOK_EVENT_ID_FIELD = '__rawWebhookEventId';
+
+function headersToJson(req: Request): JsonRecord {
+  const headers: JsonRecord = {};
+  req.headers.forEach((value, key) => {
+    if (['authorization', 'apikey', 'client-token'].includes(key.toLowerCase())) {
+      headers[key] = '[redacted]';
+    } else {
+      headers[key] = value;
+    }
+  });
+  return headers;
+}
+
+function pickFirstString(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function inferRawWebhookFacts(payload: JsonRecord): JsonRecord {
+  const data = (payload.data as JsonRecord | undefined) || payload;
+  const msg = (data.key ? data : (data.message as JsonRecord | undefined)?.key ? data.message : data) as JsonRecord;
+  const remoteJid = pickFirstString(
+    msg?.key?.remoteJid,
+    msg?.remoteJid,
+    msg?.from,
+    msg?.chat?.id,
+    payload?.chat?.id,
+    payload.phone ? normalizeZapiRemoteJid(String(payload.phone)) : null,
+  );
+  const participant = pickFirstString(msg?.key?.participant, msg?.participant, msg?.author);
+  const eventType = pickFirstString(payload.event, payload.type, data.event) || 'unknown';
+  const messageId = pickFirstString(msg?.key?.id, msg?.id, msg?.messageId, data?.messageId, payload?.messageId, Array.isArray(payload.ids) ? payload.ids[0] : null);
+  const hasContent = Boolean(
+    msg?.message || msg?.msgContent || msg?.body || msg?.text ||
+    payload.text || payload.image || payload.audio || payload.video || payload.document || payload.sticker ||
+    payload.contact || payload.contacts || payload.location || payload.reaction || payload.poll || payload.reply ||
+    payload.message || payload.hydratedTemplate || payload.templateMessage || payload.buttonsResponseMessage ||
+    payload.buttonResponseMessage || payload.interactiveResponseMessage || payload.listResponseMessage || payload.listMessage
+  );
+  const statusCandidate = `${remoteJid || ''} ${participant || ''}`.toLowerCase();
+  const provider = payload.type || payload.phone ? 'zapi' : 'wapi';
+
+  return {
+    provider,
+    instance_id: pickFirstString(payload.instanceId, payload.instance_id, data.instanceId),
+    event_type: eventType,
+    remote_jid: remoteJid,
+    from_me: Boolean(msg?.key?.fromMe ?? msg?.fromMe ?? payload.fromMe ?? false),
+    message_id: messageId,
+    is_group: Boolean(remoteJid?.includes('@g.us')),
+    is_status_broadcast: statusCandidate.includes('@broadcast') || statusCandidate.includes('@newsletter') || statusCandidate.startsWith('status@') || statusCandidate.trim() === 'status',
+    has_content: hasContent,
+  };
+}
+
+async function saveRawWebhookEvent(supabase: SupabaseClient, payload: JsonRecord, req: Request, parseError?: string): Promise<string | null> {
+  try {
+    const facts = inferRawWebhookFacts(payload);
+    const { data, error } = await supabase
+      .from('wapi_webhook_raw_events')
+      .insert({
+        ...facts,
+        processing_status: parseError ? 'error' : 'received',
+        processing_note: parseError || null,
+        payload,
+        headers: headersToJson(req),
+        ip: req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || null,
+        error: parseError || null,
+      })
+      .select('id')
+      .single();
+    if (error) {
+      console.error('[RawWebhook] Failed to save raw event:', error.message);
+      return null;
+    }
+    return data?.id || null;
+  } catch (err) {
+    console.error('[RawWebhook] Unexpected error saving raw event:', err);
+    return null;
+  }
+}
+
+async function markRawWebhookEvent(supabase: SupabaseClient, rawEventId: string | null | undefined, patch: JsonRecord): Promise<void> {
+  if (!rawEventId) return;
+  const { error } = await supabase
+    .from('wapi_webhook_raw_events')
+    .update(patch)
+    .eq('id', rawEventId);
+  if (error) console.warn('[RawWebhook] Failed to update raw event:', error.message);
+}
+
 async function reinforceZapiNotifySentByMe(instance: JsonRecord, context: string): Promise<void> {
   if (instance.provider !== 'zapi' || !instance.instance_id || !instance.instance_token) return;
 
@@ -4916,11 +5010,15 @@ async function handleReactivationResponse(
 // Background processor - runs after response is sent
 async function processWebhookEvent(body: JsonRecord) {
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  const rawWebhookEventId = typeof body[RAW_WEBHOOK_EVENT_ID_FIELD] === 'string' ? body[RAW_WEBHOOK_EVENT_ID_FIELD] as string : null;
+  delete body[RAW_WEBHOOK_EVENT_ID_FIELD];
+  await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'processing' });
   
   const { event, instanceId, data } = body;
   const { data: instance, error: iErr } = await supabase.from('wapi_instances').select('*').eq('instance_id', instanceId).single();
   if (iErr || !instance) {
     console.log('Instance not found:', instanceId);
+    await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'ignored', processing_note: 'instance_not_found' });
     return;
   }
 
@@ -5014,13 +5112,15 @@ async function processWebhookEvent(body: JsonRecord) {
     };
     if (_candidateJids.some(_looksLikeStatus)) {
       console.log(`[Webhook] 🛡️ Global guard dropped status/broadcast/newsletter event (evt=${evt})`);
+      await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'ignored', processing_note: 'status_broadcast_guard' });
       return;
     }
   } catch (_guardErr) {
     // Never let the guard itself break message processing
   }
 
-  switch (evt) {
+  try {
+    switch (evt) {
     case 'connection': case 'webhookConnected': {
       const c = (data as JsonRecord)?.connected ?? body.connected ?? false;
       const connPhone = (data as JsonRecord)?.phone || body.connectedPhone || null;
@@ -6001,6 +6101,14 @@ async function processWebhookEvent(body: JsonRecord) {
         }
       }
     }
+    }
+    await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'completed' });
+  } catch (err) {
+    await markRawWebhookEvent(supabase, rawWebhookEventId, {
+      processing_status: 'error',
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
   }
 }
 
@@ -6191,8 +6299,20 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
+  const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  let rawWebhookEventId: string | null = null;
+
   try {
-    let body = await req.json();
+    let body: JsonRecord;
+    try {
+      body = await req.json();
+    } catch (parseErr) {
+      rawWebhookEventId = await saveRawWebhookEvent(supabase, {}, req, parseErr instanceof Error ? parseErr.message : 'invalid_json');
+      return new Response(JSON.stringify({ error: 'Invalid JSON', raw_event_id: rawWebhookEventId }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    rawWebhookEventId = await saveRawWebhookEvent(supabase, body, req);
+    const originalRawWebhookEventId = rawWebhookEventId;
     
     // Detect Z-API payload and normalize
     const hasInteractiveResponse = body.buttonsResponseMessage || body.buttonResponseMessage || body.interactiveResponseMessage || body.listResponseMessage || body.listMessage;
@@ -6219,6 +6339,7 @@ Deno.serve(async (req) => {
     const instanceId = body.instanceId;
     if (!instanceId) {
       console.log('No instanceId in webhook');
+      await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'ignored', processing_note: 'missing_instance_id' });
       return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     
@@ -6230,9 +6351,11 @@ Deno.serve(async (req) => {
     // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
     if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
       // @ts-ignore
+      body[RAW_WEBHOOK_EVENT_ID_FIELD] = originalRawWebhookEventId;
       waitUntil(processWebhookEvent(body));
     } else {
       // Fallback for environments without waitUntil - process async but don't await
+      body[RAW_WEBHOOK_EVENT_ID_FIELD] = originalRawWebhookEventId;
       processWebhookEvent(body).catch(e => console.error('Background processing error:', e));
     }
 
@@ -6240,6 +6363,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e: unknown) {
     console.error('Webhook error:', e);
+    await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'error', error: e instanceof Error ? e.message : 'Unknown error' });
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : 'Unknown error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
