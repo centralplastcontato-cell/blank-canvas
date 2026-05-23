@@ -244,8 +244,10 @@ function inferRawWebhookFacts(payload: JsonRecord): JsonRecord {
     payload.message || payload.hydratedTemplate || payload.templateMessage || payload.buttonsResponseMessage ||
     payload.buttonResponseMessage || payload.interactiveResponseMessage || payload.listResponseMessage || payload.listMessage
   );
-  const statusCandidate = `${remoteJid || ''} ${participant || ''}`.toLowerCase();
   const provider = payload.type || payload.phone ? 'zapi' : 'wapi';
+
+  // Classificação canônica via JID normalizer (fonte única de verdade)
+  const norm: NormalizedJid = normalizeJid(remoteJid);
 
   return {
     provider,
@@ -254,8 +256,8 @@ function inferRawWebhookFacts(payload: JsonRecord): JsonRecord {
     remote_jid: remoteJid,
     from_me: Boolean(msg?.key?.fromMe ?? msg?.fromMe ?? payload.fromMe ?? false),
     message_id: messageId,
-    is_group: Boolean(remoteJid?.includes('@g.us')),
-    is_status_broadcast: statusCandidate.includes('@broadcast') || statusCandidate.includes('@newsletter') || statusCandidate.startsWith('status@') || statusCandidate.trim() === 'status',
+    is_group: norm.kind === 'group',
+    is_status_broadcast: norm.kind === 'broadcast' || norm.kind === 'newsletter',
     has_content: hasContent,
   };
 }
