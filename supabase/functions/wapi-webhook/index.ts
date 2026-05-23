@@ -5119,7 +5119,8 @@ async function processWebhookEvent(body: JsonRecord) {
     // Never let the guard itself break message processing
   }
 
-  switch (evt) {
+  try {
+    switch (evt) {
     case 'connection': case 'webhookConnected': {
       const c = (data as JsonRecord)?.connected ?? body.connected ?? false;
       const connPhone = (data as JsonRecord)?.phone || body.connectedPhone || null;
@@ -6100,6 +6101,14 @@ async function processWebhookEvent(body: JsonRecord) {
         }
       }
     }
+    }
+    await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'completed' });
+  } catch (err) {
+    await markRawWebhookEvent(supabase, rawWebhookEventId, {
+      processing_status: 'error',
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
   }
 }
 
