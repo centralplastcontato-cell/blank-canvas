@@ -129,8 +129,17 @@ async function resolveLidConversation(
     msg.pushName,
     msg.chatName,
     msg.chat?.name,
+    msg.chat?.pushName,
+    msg.chat?.displayName,
+    msg.contactName,
+    msg.notifyName,
     msg.senderName,
     msg.sender?.pushName,
+    msg.sender?.pushname,
+    msg.sender?.name,
+    msg.sender?.displayName,
+    msg.sender?.shortName,
+    msg.sender?.verifiedName,
   ]
     .filter((value): value is string => typeof value === 'string' && value.trim().length > 1)
     .map((value) => value.trim())
@@ -5097,19 +5106,24 @@ async function processWebhookEvent(body: JsonRecord) {
       const msgId = (msg as JsonRecord).key?.id || (msg as JsonRecord).id || (msg as JsonRecord).messageId;
       const isLidJid = (rj as string).includes('@lid');
       const originalLidJid = isLidJid ? (rj as string) : null;
+      let isUnresolvedInboundLid = false;
       let resolvedLidConv: JsonRecord | null = null;
       if (isLidJid) {
         resolvedLidConv = await resolveLidConversation(supabase, instance.id, rj as string, msgId, msg as JsonRecord);
         if (resolvedLidConv?.remote_jid) {
           rj = resolvedLidConv.remote_jid;
         } else {
-          // Never create a phantom conversation for an unresolved @lid (15-digit
-          // internal WhatsApp ID). This was polluting the chat list with bizarre
-          // numbers like "232916210704390". Drop the event silently — when the
-          // contact eventually messages from their real phone, a proper
-          // conversation will be created with the correct number.
-          console.log(`[Webhook] Ignoring unresolved @lid message (fromMe=${fromMe}): ${rj}`);
-          break;
+          // Inbound W-API/Z-API messages can arrive only with WhatsApp's private
+          // @lid identifier. Dropping them makes real client messages disappear
+          // from the platform. Keep inbound messages visible, but mark the thread
+          // as unresolved so automation does not reply to an unsafe destination.
+          if (!fromMe) {
+            isUnresolvedInboundLid = true;
+            console.warn(`[Webhook] Preserving unresolved inbound @lid message without bot auto-reply: ${rj}`);
+          } else {
+            console.log(`[Webhook] Ignoring unresolved outgoing @lid echo/status (fromMe=${fromMe}): ${rj}`);
+            break;
+          }
         }
       }
       const phone = (rj as string).replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace('@lid', '');
@@ -5136,7 +5150,7 @@ async function processWebhookEvent(body: JsonRecord) {
       }
       
       
-      let cName = isGrp ? ((msg as JsonRecord).chat?.name || (msg as JsonRecord).groupName || (msg as JsonRecord).subject || null) : ((msg as JsonRecord).pushName || (msg as JsonRecord).verifiedBizName || (msg as JsonRecord).sender?.pushName || phone);
+      let cName = isGrp ? ((msg as JsonRecord).chat?.name || (msg as JsonRecord).groupName || (msg as JsonRecord).subject || null) : ((msg as JsonRecord).pushName || (msg as JsonRecord).verifiedBizName || (msg as JsonRecord).sender?.pushName || (msg as JsonRecord).sender?.name || (msg as JsonRecord).senderName || (msg as JsonRecord).chat?.name || phone);
       const cPic = (msg as JsonRecord).chat?.profilePicture || (msg as JsonRecord).sender?.profilePicture || null;
 
       if (Object.keys(mc as object).length === 0 && !(msg as JsonRecord).body && !(msg as JsonRecord).text) { console.log(`[Debug-0] mc empty + no body/text, breaking. msg sample: ${JSON.stringify(msg).substring(0, 400)}`); break; }
@@ -5350,6 +5364,15 @@ async function processWebhookEvent(body: JsonRecord) {
           last_message_from_me: fromMe 
         };
         if (!fromMe && ex.is_closed) upd.is_closed = false;
+        if (isUnresolvedInboundLid) {
+          upd.bot_enabled = false;
+          upd.bot_step = 'human_takeover';
+          upd.bot_data = {
+            ...((ex.bot_data as JsonRecord | null) || {}),
+            unresolved_lid_jid: originalLidJid,
+            unresolved_lid_at: new Date().toISOString(),
+          };
+        }
         // Disable bot when a HUMAN sends a message from the phone directly.
         // Bot-sent and UI-sent messages are already saved in wapi_messages before the webhook fires.
         // Phone-sent messages are NOT in the DB yet → if msgId is absent from wapi_messages, it's human.
@@ -5451,7 +5474,7 @@ async function processWebhookEvent(body: JsonRecord) {
           
           const hasCompleteLead = lead?.name && lead?.month && lead?.day_preference && lead?.guests;
           const isGroupJid = rj.includes('@g.us');
-          const shouldStartBot = !isGroupJid && !hasCompleteLead;
+          const shouldStartBot = !isGroupJid && !hasCompleteLead && !isUnresolvedInboundLid;
           
           // Self-name guard: don't store the buffet's own name as the contact name
           const safeIncomingName = (!isGrp && cName && await isSelfName(supabase, instance.company_id, cName)) ? null : cName;
@@ -5465,7 +5488,8 @@ async function processWebhookEvent(body: JsonRecord) {
             last_message_at: new Date().toISOString(), unread_count: fromMe ? 0 : 1, 
             last_message_content: preview.substring(0, 100), last_message_from_me: fromMe,
             lead_id: lead?.id || null, bot_enabled: shouldStartBot, 
-            bot_step: shouldStartBot ? 'welcome' : null, bot_data: {},
+            bot_step: shouldStartBot ? 'welcome' : (isUnresolvedInboundLid ? 'human_takeover' : null),
+            bot_data: isUnresolvedInboundLid ? { unresolved_lid_jid: originalLidJid, unresolved_lid_at: new Date().toISOString() } : {},
             company_id: instance.company_id,
           }).select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at').single();
           
@@ -5588,6 +5612,11 @@ async function processWebhookEvent(body: JsonRecord) {
             console.log(`[Latency] media_updated: ${Date.now() - processingStartAt}ms`);
           }
         }).catch(err => console.error('[Media download error]', err));
+      }
+
+      if (isUnresolvedInboundLid) {
+        console.log(`[Webhook] Unresolved inbound @lid saved for manual review; automation skipped (conv=${conv.id})`);
+        break;
       }
 
       // Fase 7.1: Check for visit confirmation response BEFORE reactivation/bot
