@@ -5614,6 +5614,11 @@ async function processWebhookEvent(body: JsonRecord) {
         }).catch(err => console.error('[Media download error]', err));
       }
 
+      if (isUnresolvedInboundLid) {
+        console.log(`[Webhook] Unresolved inbound @lid saved for manual review; automation skipped (conv=${conv.id})`);
+        break;
+      }
+
       // Fase 7.1: Check for visit confirmation response BEFORE reactivation/bot
       if (!fromMe && !isGrp && type === 'text' && content) {
         try {
