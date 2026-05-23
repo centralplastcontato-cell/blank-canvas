@@ -5010,11 +5010,15 @@ async function handleReactivationResponse(
 // Background processor - runs after response is sent
 async function processWebhookEvent(body: JsonRecord) {
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  const rawWebhookEventId = typeof body[RAW_WEBHOOK_EVENT_ID_FIELD] === 'string' ? body[RAW_WEBHOOK_EVENT_ID_FIELD] as string : null;
+  delete body[RAW_WEBHOOK_EVENT_ID_FIELD];
+  await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'processing' });
   
   const { event, instanceId, data } = body;
   const { data: instance, error: iErr } = await supabase.from('wapi_instances').select('*').eq('instance_id', instanceId).single();
   if (iErr || !instance) {
     console.log('Instance not found:', instanceId);
+    await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'ignored', processing_note: 'instance_not_found' });
     return;
   }
 
@@ -5108,6 +5112,7 @@ async function processWebhookEvent(body: JsonRecord) {
     };
     if (_candidateJids.some(_looksLikeStatus)) {
       console.log(`[Webhook] 🛡️ Global guard dropped status/broadcast/newsletter event (evt=${evt})`);
+      await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'ignored', processing_note: 'status_broadcast_guard' });
       return;
     }
   } catch (_guardErr) {
