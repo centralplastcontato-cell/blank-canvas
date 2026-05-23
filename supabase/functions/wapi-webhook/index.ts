@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { detectAndPauseBotLoop, isConversationPaused } from "../_shared/bot-loop-guard.ts";
+import { normalizeJid, type NormalizedJid } from "../_shared/jid-normalizer.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
