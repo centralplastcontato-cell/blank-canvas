@@ -261,7 +261,7 @@ function inferRawWebhookFacts(payload: JsonRecord): JsonRecord {
     from_me: Boolean(msg?.key?.fromMe ?? msg?.fromMe ?? payload.fromMe ?? false),
     message_id: messageId,
     is_group: norm.kind === 'group',
-    is_status_broadcast: norm.kind === 'broadcast' || norm.kind === 'newsletter',
+    is_status_broadcast: isStatusOrBroadcast,
     has_content: hasContent,
   };
 }
