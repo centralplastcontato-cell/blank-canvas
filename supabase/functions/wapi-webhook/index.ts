@@ -4980,6 +4980,37 @@ async function processWebhookEvent(body: JsonRecord) {
     return;
   }
 
+  // 🛡️ GLOBAL GUARD: Silently drop ANY event whose JID looks like a WhatsApp
+  // Status broadcast feed, "@broadcast" list, or "@newsletter" channel. These
+  // are NOT real conversations and historically polluted the chat list with a
+  // ghost contact (ex: "AbracadabraFestass" / contact_phone="status") that the
+  // bot kept replying to. We scan every common JID field in the payload and
+  // short-circuit the entire dispatcher before any reducer can create/update
+  // a wapi_conversation row.
+  try {
+    const _d = (data as JsonRecord) || {};
+    const _b = (body as JsonRecord) || {};
+    const _candidateJids: unknown[] = [
+      _d?.key?.remoteJid, _d?.remoteJid, _d?.from, _d?.chat?.id, _d?.sender?.id,
+      _d?.key?.participant, _d?.participant, _d?.author, _d?.key?.participantPn,
+      _b?.key?.remoteJid, _b?.remoteJid, _b?.from, _b?.chat?.id, _b?.sender?.id,
+      _b?.key?.participant, _b?.participant, _b?.author,
+      (_d?.message as JsonRecord)?.key?.remoteJid,
+    ];
+    const _looksLikeStatus = (v: unknown) => {
+      if (typeof v !== 'string') return false;
+      const s = v.toLowerCase();
+      return s.includes('@broadcast') || s.includes('@newsletter')
+        || s.startsWith('status@') || s === 'status';
+    };
+    if (_candidateJids.some(_looksLikeStatus)) {
+      console.log(`[Webhook] 🛡️ Global guard dropped status/broadcast/newsletter event (evt=${evt})`);
+      return;
+    }
+  } catch (_guardErr) {
+    // Never let the guard itself break message processing
+  }
+
   switch (evt) {
     case 'connection': case 'webhookConnected': {
       const c = (data as JsonRecord)?.connected ?? body.connected ?? false;
