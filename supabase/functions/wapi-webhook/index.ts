@@ -5364,6 +5364,15 @@ async function processWebhookEvent(body: JsonRecord) {
           last_message_from_me: fromMe 
         };
         if (!fromMe && ex.is_closed) upd.is_closed = false;
+        if (isUnresolvedInboundLid) {
+          upd.bot_enabled = false;
+          upd.bot_step = 'human_takeover';
+          upd.bot_data = {
+            ...((ex.bot_data as JsonRecord | null) || {}),
+            unresolved_lid_jid: originalLidJid,
+            unresolved_lid_at: new Date().toISOString(),
+          };
+        }
         // Disable bot when a HUMAN sends a message from the phone directly.
         // Bot-sent and UI-sent messages are already saved in wapi_messages before the webhook fires.
         // Phone-sent messages are NOT in the DB yet → if msgId is absent from wapi_messages, it's human.
@@ -5465,7 +5474,7 @@ async function processWebhookEvent(body: JsonRecord) {
           
           const hasCompleteLead = lead?.name && lead?.month && lead?.day_preference && lead?.guests;
           const isGroupJid = rj.includes('@g.us');
-          const shouldStartBot = !isGroupJid && !hasCompleteLead;
+          const shouldStartBot = !isGroupJid && !hasCompleteLead && !isUnresolvedInboundLid;
           
           // Self-name guard: don't store the buffet's own name as the contact name
           const safeIncomingName = (!isGrp && cName && await isSelfName(supabase, instance.company_id, cName)) ? null : cName;
@@ -5479,7 +5488,8 @@ async function processWebhookEvent(body: JsonRecord) {
             last_message_at: new Date().toISOString(), unread_count: fromMe ? 0 : 1, 
             last_message_content: preview.substring(0, 100), last_message_from_me: fromMe,
             lead_id: lead?.id || null, bot_enabled: shouldStartBot, 
-            bot_step: shouldStartBot ? 'welcome' : null, bot_data: {},
+            bot_step: shouldStartBot ? 'welcome' : (isUnresolvedInboundLid ? 'human_takeover' : null),
+            bot_data: isUnresolvedInboundLid ? { unresolved_lid_jid: originalLidJid, unresolved_lid_at: new Date().toISOString() } : {},
             company_id: instance.company_id,
           }).select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at').single();
           
