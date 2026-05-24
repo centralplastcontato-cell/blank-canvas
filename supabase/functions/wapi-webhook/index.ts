@@ -6236,7 +6236,13 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
   const ids = Array.isArray(body.ids) ? body.ids : [];
   const msgId = (body.messageId as string) || (ids[0] as string | undefined) || `zapi_${Date.now()}`;
   const fromMe = body.fromMe === true;
-  const senderName = (body.senderName || body.chatName || phone) as string;
+  // Z-API uses senderName for the WhatsApp account owner on fromMe=true
+  // events (ex: buffet name) and chatName for the actual contact. If we use
+  // senderName here, manual messages sent from the phone are linked to the
+  // buffet's own conversation instead of the client conversation.
+  const contactName = (fromMe
+    ? (body.chatName || body.senderName || phone)
+    : (body.senderName || body.chatName || phone)) as string;
 
   const hasContentPayload = Boolean(
     body.text || body.image || body.audio || body.video || body.document || body.sticker ||
@@ -6258,7 +6264,9 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
         status: body.status,
         ack: body.ack,
         ids,
-        pushName: senderName,
+        pushName: contactName,
+        senderName: contactName,
+        chat: body.chatName ? { name: body.chatName } : undefined,
         messageTimestamp: body.momment ? Math.floor((body.momment as number) / 1000) : Math.floor(Date.now() / 1000),
       },
     };
@@ -6366,7 +6374,9 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
       status: body.status,
       ack: body.ack,
       ids,
-      pushName: senderName,
+      pushName: contactName,
+      senderName: contactName,
+      chat: body.chatName ? { name: body.chatName } : undefined,
       message: quotedContext
         ? Object.fromEntries(
           Object.entries(message).map(([key, value]) => [
