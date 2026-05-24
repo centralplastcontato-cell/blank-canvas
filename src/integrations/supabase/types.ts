@@ -6092,6 +6092,10 @@ export type Database = {
           messages_count: number | null
           phone_number: string | null
           provider: string
+          queue_auto_approve_minutes: number
+          queue_drip_seconds_max: number
+          queue_drip_seconds_min: number
+          queue_max_per_hour: number
           status: string | null
           unit: string | null
           updated_at: string
@@ -6114,6 +6118,10 @@ export type Database = {
           messages_count?: number | null
           phone_number?: string | null
           provider?: string
+          queue_auto_approve_minutes?: number
+          queue_drip_seconds_max?: number
+          queue_drip_seconds_min?: number
+          queue_max_per_hour?: number
           status?: string | null
           unit?: string | null
           updated_at?: string
@@ -6136,6 +6144,10 @@ export type Database = {
           messages_count?: number | null
           phone_number?: string | null
           provider?: string
+          queue_auto_approve_minutes?: number
+          queue_drip_seconds_max?: number
+          queue_drip_seconds_min?: number
+          queue_max_per_hour?: number
           status?: string | null
           unit?: string | null
           updated_at?: string
@@ -6398,6 +6410,72 @@ export type Database = {
           provider?: string | null
           received_at?: string
           remote_jid?: string | null
+        }
+        Relationships: []
+      }
+      whatsapp_outbound_queue: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          attempts: number
+          company_id: string
+          contact_name: string | null
+          created_at: string
+          id: string
+          instance_id: string
+          last_error: string | null
+          payload: Json
+          preview: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          scheduled_for: string | null
+          sent_at: string | null
+          source: string
+          status: string
+          to_phone: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          attempts?: number
+          company_id: string
+          contact_name?: string | null
+          created_at?: string
+          id?: string
+          instance_id: string
+          last_error?: string | null
+          payload: Json
+          preview?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          scheduled_for?: string | null
+          sent_at?: string | null
+          source?: string
+          status?: string
+          to_phone: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          attempts?: number
+          company_id?: string
+          contact_name?: string | null
+          created_at?: string
+          id?: string
+          instance_id?: string
+          last_error?: string | null
+          payload?: Json
+          preview?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          scheduled_for?: string | null
+          sent_at?: string | null
+          source?: string
+          status?: string
+          to_phone?: string
+          updated_at?: string
         }
         Relationships: []
       }
