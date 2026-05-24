@@ -29,6 +29,8 @@ import { VisitAlertBanner } from "@/components/admin/VisitAlertBanner";
 import { QuestionsAlertBanner } from "@/components/admin/QuestionsAlertBanner";
 import { OnboardingBanner } from "@/components/admin/OnboardingBanner";
 import { WhatsAppChat } from "@/components/whatsapp/WhatsAppChat";
+import { OutboundQueueSheet } from "@/components/whatsapp/OutboundQueueSheet";
+import { WarmupManagerDialog } from "@/components/whatsapp/WarmupManagerDialog";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
