@@ -1215,6 +1215,59 @@ Deno.serve(async (req) => {
     const queueableSources = new Set(['follow-up', 'followup', 'reactivation', 'visit-confirmation', 'campaign']);
     const isAutomatedCall = body.automation === true || (typeof body.source === 'string' && automationSources.has(body.source));
     const isQueueableAutomation = typeof body.source === 'string' && queueableSources.has(body.source);
+
+    // 🧯 Quarantine enqueue for queueable automations (campaign/follow-up/reactivation/visit-confirmation)
+    // applies REGARDLESS of conversationId — campaigns may send to phones without an existing conversation.
+    if (isQueueableAutomation) {
+      const { data: qInstance } = await supabase
+        .from('wapi_instances')
+        .select('id, connected_at')
+        .eq('instance_id', instance_id)
+        .maybeSingle();
+      const qUntil = getReconnectQuarantineUntil(qInstance);
+      if (qUntil) {
+        console.warn(`[wapi-send] 🧯 Enqueuing ${body.source} during reconnect quarantine until ${qUntil.toISOString()} (phone=${phone}, action=${action})`);
+
+        let contactName: string | null = null;
+        if (conversationId) {
+          const { data: convInfo } = await supabase
+            .from('wapi_conversations').select('contact_name').eq('id', conversationId).maybeSingle();
+          contactName = convInfo?.contact_name || null;
+        }
+
+        const previewSource = typeof message === 'string' ? message
+          : (typeof body.caption === 'string' ? body.caption
+          : (typeof body.text === 'string' ? body.text : `[${action}]`));
+        const preview = String(previewSource).slice(0, 200);
+
+        const queuePayload = { ...body };
+        delete queuePayload.instance_id;
+        delete queuePayload.instance_token;
+        delete queuePayload.client_token;
+
+        const { data: queued, error: queueErr } = await supabase
+          .from('whatsapp_outbound_queue')
+          .insert({
+            company_id: companyId,
+            instance_id: qInstance?.id,
+            to_phone: phone,
+            payload: queuePayload,
+            source: body.source,
+            status: 'pending',
+            contact_name: contactName,
+            preview,
+          })
+          .select('id').single();
+
+        if (queueErr) console.error('[wapi-send] Failed to enqueue during quarantine:', queueErr);
+
+        return new Response(JSON.stringify({
+          ok: true, queued: true, queue_id: queued?.id ?? null,
+          reason: 'reconnect_quarantine', until: qUntil.toISOString(),
+        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+    }
+
     if (isAutomatedCall && conversationId) {
       const paused = await isConversationPaused(supabase, conversationId);
       if (paused) {

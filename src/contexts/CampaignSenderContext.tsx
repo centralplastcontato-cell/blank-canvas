@@ -156,12 +156,12 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
 
         if (campaign.image_url) {
           const { error } = await supabase.functions.invoke("wapi-send", {
-            body: { action: "send-image", instanceId, phone: r.phone, mediaUrl: campaign.image_url, caption: text },
+            body: { action: "send-image", instanceId, phone: r.phone, mediaUrl: campaign.image_url, caption: text, source: "campaign", automation: true },
           });
           sendError = error;
         } else {
           const { error } = await supabase.functions.invoke("wapi-send", {
-            body: { action: "send-text", instanceId, phone: r.phone, message: text },
+            body: { action: "send-text", instanceId, phone: r.phone, message: text, source: "campaign", automation: true },
           });
           sendError = error;
         }
