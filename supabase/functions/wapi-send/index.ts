@@ -1227,17 +1227,72 @@ Deno.serve(async (req) => {
         .maybeSingle();
       const quarantineUntil = getReconnectQuarantineUntil(sendInstance);
       if (quarantineUntil) {
-        console.warn(`[wapi-send] 🧯 Blocked automated send during reconnect quarantine until ${quarantineUntil.toISOString()} (conversation=${conversationId}, action=${action}, source=${body.source ?? 'automation'})`);
-        await supabase.from('wapi_conversations').update({
-          bot_paused_until: quarantineUntil.toISOString(),
-          bot_paused_reason: 'reconnect_quarantine',
-          bot_paused_at: new Date().toISOString(),
-        }).eq('id', conversationId);
-        return new Response(JSON.stringify({ ok: true, skipped: true, reason: 'reconnect_quarantine', until: quarantineUntil.toISOString() }), {
+        console.warn(`[wapi-send] 🧯 Enqueuing automated send during reconnect quarantine until ${quarantineUntil.toISOString()} (conversation=${conversationId}, action=${action}, source=${body.source ?? 'automation'})`);
+
+        // Fetch contact info for preview
+        let contactName: string | null = null;
+        if (conversationId) {
+          const { data: convInfo } = await supabase
+            .from('wapi_conversations')
+            .select('contact_name')
+            .eq('id', conversationId)
+            .maybeSingle();
+          contactName = convInfo?.contact_name || null;
+        }
+
+        // Build preview text
+        const previewSource = typeof message === 'string' ? message
+          : (typeof body.caption === 'string' ? body.caption
+          : (typeof body.text === 'string' ? body.text : `[${action}]`));
+        const preview = String(previewSource).slice(0, 200);
+
+        // Insert into outbound queue (replaces silent block)
+        const queuePayload = { ...body };
+        // Don't store credentials inside payload
+        delete queuePayload.instance_id;
+        delete queuePayload.instance_token;
+        delete queuePayload.client_token;
+
+        const { data: queued, error: queueErr } = await supabase
+          .from('whatsapp_outbound_queue')
+          .insert({
+            company_id: companyId,
+            instance_id: sendInstance?.id,
+            to_phone: phone,
+            payload: queuePayload,
+            source: typeof body.source === 'string' ? body.source : 'bot',
+            status: 'pending',
+            contact_name: contactName,
+            preview,
+          })
+          .select('id')
+          .single();
+
+        if (queueErr) {
+          console.error('[wapi-send] Failed to enqueue during quarantine:', queueErr);
+        }
+
+        // Still mark the conversation as paused so bot doesn't keep spamming
+        if (conversationId) {
+          await supabase.from('wapi_conversations').update({
+            bot_paused_until: quarantineUntil.toISOString(),
+            bot_paused_reason: 'reconnect_quarantine',
+            bot_paused_at: new Date().toISOString(),
+          }).eq('id', conversationId);
+        }
+
+        return new Response(JSON.stringify({
+          ok: true,
+          queued: true,
+          queue_id: queued?.id ?? null,
+          reason: 'reconnect_quarantine',
+          until: quarantineUntil.toISOString(),
+        }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+
     }
 
     switch (action) {
