@@ -78,6 +78,7 @@ async function isSelfName(supabase: SupabaseClient, companyId: string, candidate
 async function resolveLidConversation(
   supabase: SupabaseClient,
   instanceDbId: string,
+  companyId: string | null | undefined,
   lidJid: string,
   msgId: string | null | undefined,
   msg: JsonRecord,
@@ -149,6 +150,10 @@ async function resolveLidConversation(
     .filter((value) => value.replace(/\D/g, '') !== lidDigits);
 
   for (const name of possibleNames) {
+    if (companyId && await isSelfName(supabase, companyId, name)) {
+      console.log(`[Webhook] Skipping @lid resolution by self-name candidate "${name}"`);
+      continue;
+    }
     const { data: matches } = await supabase
       .from('wapi_conversations')
       .select(selectFields)
@@ -5252,21 +5257,15 @@ async function processWebhookEvent(body: JsonRecord) {
       let isUnresolvedInboundLid = false;
       let resolvedLidConv: JsonRecord | null = null;
       if (isLidJid) {
-        resolvedLidConv = await resolveLidConversation(supabase, instance.id, rj as string, msgId, msg as JsonRecord);
+        resolvedLidConv = await resolveLidConversation(supabase, instance.id, instance.company_id, rj as string, msgId, msg as JsonRecord);
         if (resolvedLidConv?.remote_jid) {
           rj = resolvedLidConv.remote_jid;
         } else {
-          // Inbound W-API/Z-API messages can arrive only with WhatsApp's private
-          // @lid identifier. Dropping them makes real client messages disappear
-          // from the platform. Keep inbound messages visible, but mark the thread
-          // as unresolved so automation does not reply to an unsafe destination.
-          if (!fromMe) {
-            isUnresolvedInboundLid = true;
-            console.warn(`[Webhook] Preserving unresolved inbound @lid message without bot auto-reply: ${rj}`);
-          } else {
-            console.log(`[Webhook] Ignoring unresolved outgoing @lid echo/status (fromMe=${fromMe}): ${rj}`);
-            break;
-          }
+          // W-API/Z-API can send only WhatsApp's private @lid identifier.
+          // Dropping it makes real messages disappear from the platform. Keep it
+          // visible, but mark the thread unsafe for automation until resolved.
+          isUnresolvedInboundLid = true;
+          console.warn(`[Webhook] Preserving unresolved @lid message without bot auto-reply: fromMe=${fromMe}, jid=${rj}`);
         }
       }
       const phone = (rj as string).replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace('@lid', '');
@@ -5982,7 +5981,7 @@ async function processWebhookEvent(body: JsonRecord) {
             if ((rj as string).includes('@c.us')) rj = (rj as string).replace('@c.us', '@s.whatsapp.net');
             let resolvedStatusLidConv: JsonRecord | null = null;
             if ((rj as string).includes('@lid')) {
-              resolvedStatusLidConv = await resolveLidConversation(supabase, instance.id, rj as string, mId as string | null, body as JsonRecord);
+              resolvedStatusLidConv = await resolveLidConversation(supabase, instance.id, instance.company_id, rj as string, mId as string | null, body as JsonRecord);
               if (resolvedStatusLidConv?.remote_jid && !String(resolvedStatusLidConv.remote_jid).includes('@lid')) {
                 console.log(`[webhookDelivery] Resolved status @lid ${rj} to ${resolvedStatusLidConv.remote_jid}`);
                 rj = resolvedStatusLidConv.remote_jid;
@@ -6236,7 +6235,13 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
   const ids = Array.isArray(body.ids) ? body.ids : [];
   const msgId = (body.messageId as string) || (ids[0] as string | undefined) || `zapi_${Date.now()}`;
   const fromMe = body.fromMe === true;
-  const senderName = (body.senderName || body.chatName || phone) as string;
+  // Z-API uses senderName for the WhatsApp account owner on fromMe=true
+  // events (ex: buffet name) and chatName for the actual contact. If we use
+  // senderName here, manual messages sent from the phone are linked to the
+  // buffet's own conversation instead of the client conversation.
+  const contactName = (fromMe
+    ? (body.chatName || body.senderName || phone)
+    : (body.senderName || body.chatName || phone)) as string;
 
   const hasContentPayload = Boolean(
     body.text || body.image || body.audio || body.video || body.document || body.sticker ||
@@ -6258,7 +6263,9 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
         status: body.status,
         ack: body.ack,
         ids,
-        pushName: senderName,
+        pushName: contactName,
+        senderName: contactName,
+        chat: body.chatName ? { name: body.chatName } : undefined,
         messageTimestamp: body.momment ? Math.floor((body.momment as number) / 1000) : Math.floor(Date.now() / 1000),
       },
     };
@@ -6366,7 +6373,9 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
       status: body.status,
       ack: body.ack,
       ids,
-      pushName: senderName,
+      pushName: contactName,
+      senderName: contactName,
+      chat: body.chatName ? { name: body.chatName } : undefined,
       message: quotedContext
         ? Object.fromEntries(
           Object.entries(message).map(([key, value]) => [
