@@ -8,6 +8,7 @@ const corsHeaders = {
 
 const WAPI_BASE_URL = 'https://api.w-api.app/v1';
 const ZAPI_BASE_URL = 'https://api.z-api.io/instances';
+const RECONNECT_AUTOMATION_QUARANTINE_MS = 15 * 60 * 1000;
 
 type Provider = 'wapi' | 'zapi';
 
@@ -18,6 +19,14 @@ function waitUntil(promise: Promise<unknown>): void {
     return;
   }
   promise.catch((err) => console.error('[Background task] Unhandled error:', err));
+}
+
+function getReconnectQuarantineUntil(instance: Record<string, unknown> | null | undefined): Date | null {
+  const connectedAt = instance?.connected_at ? new Date(String(instance.connected_at)).getTime() : 0;
+  if (!connectedAt || Number.isNaN(connectedAt)) return null;
+  const quarantineUntil = connectedAt + RECONNECT_AUTOMATION_QUARANTINE_MS;
+  if (quarantineUntil <= Date.now()) return null;
+  return new Date(quarantineUntil);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1004,7 +1013,7 @@ async function checkSessionHealth(
   // Check DB first
   const { data: dbInstance } = await supabase
     .from('wapi_instances')
-    .select('id, status, phone_number')
+    .select('id, status, phone_number, connected_at')
     .eq('instance_id', instanceExternalId)
     .single();
 
@@ -1206,6 +1215,25 @@ Deno.serve(async (req) => {
       if (paused) {
         console.warn(`[wapi-send] ⏸ Blocked automated send to paused conversation ${conversationId} (action=${action}, source=${body.source ?? 'automation'})`);
         return new Response(JSON.stringify({ ok: true, skipped: true, reason: 'conversation_paused' }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { data: sendInstance } = await supabase
+        .from('wapi_instances')
+        .select('id, connected_at')
+        .eq('instance_id', instance_id)
+        .maybeSingle();
+      const quarantineUntil = getReconnectQuarantineUntil(sendInstance);
+      if (quarantineUntil) {
+        console.warn(`[wapi-send] 🧯 Blocked automated send during reconnect quarantine until ${quarantineUntil.toISOString()} (conversation=${conversationId}, action=${action}, source=${body.source ?? 'automation'})`);
+        await supabase.from('wapi_conversations').update({
+          bot_paused_until: quarantineUntil.toISOString(),
+          bot_paused_reason: 'reconnect_quarantine',
+          bot_paused_at: new Date().toISOString(),
+        }).eq('id', conversationId);
+        return new Response(JSON.stringify({ ok: true, skipped: true, reason: 'reconnect_quarantine', until: quarantineUntil.toISOString() }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });

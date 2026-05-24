@@ -11,6 +11,7 @@ const WAPI_BASE_URL = 'https://api.w-api.app/v1';
 const ZAPI_BASE_URL = 'https://api.z-api.io/instances';
 const ZAPI_NOTIFY_REINFORCE_TTL_MS = 10 * 60 * 1000;
 const zapiNotifyReinforceCache = new Map<string, number>();
+const RECONNECT_AUTOMATION_QUARANTINE_MS = 15 * 60 * 1000;
 
 // Instance IDs enabled for interactive messaging (Z-API buttons/lists)
 const INTERACTIVE_ENABLED_INSTANCES = new Set([
@@ -200,6 +201,14 @@ function waitUntil(promise: Promise<unknown>): void {
     return;
   }
   promise.catch((err) => console.error('[Background task] Unhandled error:', err));
+}
+
+function getReconnectQuarantineUntil(instance: JsonRecord): Date | null {
+  const connectedAt = instance.connected_at ? new Date(String(instance.connected_at)).getTime() : 0;
+  if (!connectedAt || Number.isNaN(connectedAt)) return null;
+  const quarantineUntil = connectedAt + RECONNECT_AUTOMATION_QUARANTINE_MS;
+  if (quarantineUntil <= Date.now()) return null;
+  return new Date(quarantineUntil);
 }
 
 const RAW_WEBHOOK_EVENT_ID_FIELD = '__rawWebhookEventId';
@@ -5039,12 +5048,14 @@ async function processWebhookEvent(body: JsonRecord) {
   // === AUTO-RECOVERY: If webhook arrives but DB says disconnected/degraded, the instance IS connected ===
   if (instance.status === 'disconnected' || instance.status === 'degraded') {
     console.warn(`[Webhook] ⚡ Message received for instance ${instanceId} but DB status is "${instance.status}". Auto-recovering status to connected...`);
+    const recoveredAt = new Date().toISOString();
     await supabase.from('wapi_instances').update({ 
       status: 'connected', 
-      connected_at: new Date().toISOString() 
+      connected_at: recoveredAt 
     }).eq('id', instance.id);
     // Update local reference so rest of handler uses correct status
     instance.status = 'connected';
+    instance.connected_at = recoveredAt;
   }
 
   let evt = event || body.event;
@@ -5878,6 +5889,17 @@ async function processWebhookEvent(body: JsonRecord) {
           const alreadyPaused = loopResult.paused || await isConversationPaused(supabase, conv.id);
           if (alreadyPaused) {
             console.warn(`[Bot] ⏸ Conversation ${conv.id} is paused (loop guard) — skipping bot reply`);
+            break;
+          }
+
+          const quarantineUntil = getReconnectQuarantineUntil(instance as JsonRecord);
+          if (quarantineUntil) {
+            console.warn(`[Bot] 🧯 Reconnect quarantine active for instance ${instance.instance_id} until ${quarantineUntil.toISOString()} — skipping automation for conv ${conv.id}`);
+            await supabase.from('wapi_conversations').update({
+              bot_paused_until: quarantineUntil.toISOString(),
+              bot_paused_reason: 'reconnect_quarantine',
+              bot_paused_at: new Date().toISOString(),
+            }).eq('id', conv.id);
             break;
           }
 
