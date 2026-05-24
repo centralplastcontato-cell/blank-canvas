@@ -5257,7 +5257,7 @@ async function processWebhookEvent(body: JsonRecord) {
       let isUnresolvedInboundLid = false;
       let resolvedLidConv: JsonRecord | null = null;
       if (isLidJid) {
-        resolvedLidConv = await resolveLidConversation(supabase, instance.id, rj as string, msgId, msg as JsonRecord);
+        resolvedLidConv = await resolveLidConversation(supabase, instance.id, instance.company_id, rj as string, msgId, msg as JsonRecord);
         if (resolvedLidConv?.remote_jid) {
           rj = resolvedLidConv.remote_jid;
         } else {
