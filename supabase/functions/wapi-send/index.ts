@@ -1231,7 +1231,7 @@ Deno.serve(async (req) => {
         .eq('instance_id', instance_id)
         .maybeSingle();
       const quarantineUntil = getReconnectQuarantineUntil(sendInstance);
-      if (quarantineUntil) {
+      if (quarantineUntil && isQueueableAutomation) {
         console.warn(`[wapi-send] 🧯 Enqueuing automated send during reconnect quarantine until ${quarantineUntil.toISOString()} (conversation=${conversationId}, action=${action}, source=${body.source ?? 'automation'})`);
 
         // Fetch contact info for preview
