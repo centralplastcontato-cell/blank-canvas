@@ -8,6 +8,7 @@ const corsHeaders = {
 
 const WAPI_BASE_URL = 'https://api.w-api.app/v1';
 const ZAPI_BASE_URL = 'https://api.z-api.io/instances';
+const RECONNECT_AUTOMATION_QUARANTINE_MS = 15 * 60 * 1000;
 
 type Provider = 'wapi' | 'zapi';
 
@@ -18,6 +19,14 @@ function waitUntil(promise: Promise<unknown>): void {
     return;
   }
   promise.catch((err) => console.error('[Background task] Unhandled error:', err));
+}
+
+function getReconnectQuarantineUntil(instance: Record<string, unknown> | null | undefined): Date | null {
+  const connectedAt = instance?.connected_at ? new Date(String(instance.connected_at)).getTime() : 0;
+  if (!connectedAt || Number.isNaN(connectedAt)) return null;
+  const quarantineUntil = connectedAt + RECONNECT_AUTOMATION_QUARANTINE_MS;
+  if (quarantineUntil <= Date.now()) return null;
+  return new Date(quarantineUntil);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
