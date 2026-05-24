@@ -5796,6 +5796,11 @@ async function processWebhookEvent(body: JsonRecord) {
         break;
       }
 
+      if (existingConversationReconnectQuarantine) {
+        console.log(`[Webhook] Existing conversation message saved during reconnect quarantine; all automation skipped (conv=${conv.id})`);
+        break;
+      }
+
       // Fase 7.1: Check for visit confirmation response BEFORE reactivation/bot
       if (!fromMe && !isGrp && type === 'text' && content) {
         try {
