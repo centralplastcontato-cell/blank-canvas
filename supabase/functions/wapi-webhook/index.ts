@@ -5634,7 +5634,7 @@ async function processWebhookEvent(body: JsonRecord) {
           
           const hasCompleteLead = lead?.name && lead?.month && lead?.day_preference && lead?.guests;
           const isGroupJid = rj.includes('@g.us');
-          const shouldStartBot = !isGroupJid && !hasCompleteLead && !isUnresolvedInboundLid;
+          const shouldStartBot = !isGroupJid && !hasCompleteLead && !isUnresolvedInboundLid && !reconnectHistoryReplay;
           
           // Self-name guard: don't store the buffet's own name as the contact name
           const safeIncomingName = (!isGrp && cName && await isSelfName(supabase, instance.company_id, cName)) ? null : cName;
@@ -5776,6 +5776,11 @@ async function processWebhookEvent(body: JsonRecord) {
 
       if (isUnresolvedInboundLid) {
         console.log(`[Webhook] Unresolved inbound @lid saved for manual review; automation skipped (conv=${conv.id})`);
+        break;
+      }
+
+      if (reconnectHistoryReplay) {
+        console.log(`[Webhook] Reconnect history replay saved; all automation skipped (conv=${conv.id})`);
         break;
       }
 
