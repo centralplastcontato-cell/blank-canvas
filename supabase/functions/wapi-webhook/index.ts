@@ -5890,6 +5890,17 @@ async function processWebhookEvent(body: JsonRecord) {
             break;
           }
 
+          const quarantineUntil = getReconnectQuarantineUntil(instance as JsonRecord);
+          if (quarantineUntil) {
+            console.warn(`[Bot] 🧯 Reconnect quarantine active for instance ${instance.instance_id} until ${quarantineUntil.toISOString()} — skipping automation for conv ${conv.id}`);
+            await supabase.from('wapi_conversations').update({
+              bot_paused_until: quarantineUntil.toISOString(),
+              bot_paused_reason: 'reconnect_quarantine',
+              bot_paused_at: new Date().toISOString(),
+            }).eq('id', conv.id);
+            break;
+          }
+
           const recoveredStep = shouldRecoverAccidentalHumanTakeover(instance.provider, conv);
           if (recoveredStep) {
             console.warn(`[Bot] Recovering accidental human_takeover for conv ${conv.id}; resuming at step ${recoveredStep}`);
