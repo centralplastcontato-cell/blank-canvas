@@ -29,6 +29,8 @@ import { VisitAlertBanner } from "@/components/admin/VisitAlertBanner";
 import { QuestionsAlertBanner } from "@/components/admin/QuestionsAlertBanner";
 import { OnboardingBanner } from "@/components/admin/OnboardingBanner";
 import { WhatsAppChat } from "@/components/whatsapp/WhatsAppChat";
+import { OutboundQueueSheet } from "@/components/whatsapp/OutboundQueueSheet";
+import { WarmupManagerDialog } from "@/components/whatsapp/WarmupManagerDialog";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -893,6 +895,8 @@ export default function CentralAtendimento() {
                     <BellOff className="w-5 h-5" />
                   )}
                 </Button>
+                <OutboundQueueSheet />
+                <WarmupManagerDialog />
                 <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/inteligencia")}>
                   <Brain className="w-5 h-5 text-[hsl(155,75%,38%)]" style={{ filter: 'drop-shadow(0 0 4px hsl(155 75% 38% / 0.5))' }} />
                 </Button>
@@ -1379,6 +1383,8 @@ export default function CentralAtendimento() {
                 
                 {/* User Info Desktop */}
                 <div className="flex items-center gap-3 shrink-0">
+                  <OutboundQueueSheet />
+                  <WarmupManagerDialog />
                   <NotificationBell />
                   <div 
                     className="flex items-center gap-2 bg-muted/60 rounded-full pl-3 pr-1 py-1 cursor-pointer hover:bg-muted/80 transition-all"
