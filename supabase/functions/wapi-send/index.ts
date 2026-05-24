@@ -1287,9 +1287,8 @@ Deno.serve(async (req) => {
         .maybeSingle();
       const quarantineUntil = getReconnectQuarantineUntil(sendInstance);
       if (quarantineUntil && isQueueableAutomation) {
-        console.warn(`[wapi-send] 🧯 Enqueuing automated send during reconnect quarantine until ${quarantineUntil.toISOString()} (conversation=${conversationId}, action=${action}, source=${body.source ?? 'automation'})`);
+        console.warn(`[wapi-send] 🚫 Auto-rejecting automated send during reconnect quarantine until ${quarantineUntil.toISOString()} (conversation=${conversationId}, action=${action}, source=${body.source ?? 'automation'})`);
 
-        // Fetch contact info for preview
         let contactName: string | null = null;
         if (conversationId) {
           const { data: convInfo } = await supabase
@@ -1300,20 +1299,18 @@ Deno.serve(async (req) => {
           contactName = convInfo?.contact_name || null;
         }
 
-        // Build preview text
         const previewSource = typeof message === 'string' ? message
           : (typeof body.caption === 'string' ? body.caption
           : (typeof body.text === 'string' ? body.text : `[${action}]`));
         const preview = String(previewSource).slice(0, 200);
 
-        // Insert into outbound queue (replaces silent block)
         const queuePayload = { ...body };
-        // Don't store credentials inside payload
         delete queuePayload.instance_id;
         delete queuePayload.instance_token;
         delete queuePayload.client_token;
 
-        const { data: queued, error: queueErr } = await supabase
+        // Auto-reject: log for observability, never send
+        const { error: queueErr } = await supabase
           .from('whatsapp_outbound_queue')
           .insert({
             company_id: companyId,
@@ -1321,18 +1318,17 @@ Deno.serve(async (req) => {
             to_phone: phone,
             payload: queuePayload,
             source: typeof body.source === 'string' ? body.source : 'bot',
-            status: 'pending',
+            status: 'rejected',
             contact_name: contactName,
             preview,
-          })
-          .select('id')
-          .single();
+            rejected_at: new Date().toISOString(),
+            last_error: 'auto_rejected_reconnect_quarantine',
+          });
 
         if (queueErr) {
-          console.error('[wapi-send] Failed to enqueue during quarantine:', queueErr);
+          console.error('[wapi-send] Failed to log auto-rejected during quarantine:', queueErr);
         }
 
-        // Still mark the conversation as paused so bot doesn't keep spamming
         if (conversationId) {
           await supabase.from('wapi_conversations').update({
             bot_paused_until: quarantineUntil.toISOString(),
@@ -1343,9 +1339,8 @@ Deno.serve(async (req) => {
 
         return new Response(JSON.stringify({
           ok: true,
-          queued: true,
-          queue_id: queued?.id ?? null,
-          reason: 'reconnect_quarantine',
+          skipped: true,
+          reason: 'reconnect_quarantine_auto_reject',
           until: quarantineUntil.toISOString(),
         }), {
           status: 200,
