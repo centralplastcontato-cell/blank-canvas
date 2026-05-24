@@ -1226,7 +1226,7 @@ Deno.serve(async (req) => {
         .maybeSingle();
       const qUntil = getReconnectQuarantineUntil(qInstance);
       if (qUntil) {
-        console.warn(`[wapi-send] 🧯 Enqueuing ${body.source} during reconnect quarantine until ${qUntil.toISOString()} (phone=${phone}, action=${action})`);
+        console.warn(`[wapi-send] 🚫 Auto-rejecting ${body.source} during reconnect quarantine until ${qUntil.toISOString()} (phone=${phone}, action=${action})`);
 
         let contactName: string | null = null;
         if (conversationId) {
@@ -1245,7 +1245,8 @@ Deno.serve(async (req) => {
         delete queuePayload.instance_token;
         delete queuePayload.client_token;
 
-        const { data: queued, error: queueErr } = await supabase
+        // Auto-reject: register for observability but never send
+        const { error: queueErr } = await supabase
           .from('whatsapp_outbound_queue')
           .insert({
             company_id: companyId,
@@ -1253,17 +1254,18 @@ Deno.serve(async (req) => {
             to_phone: phone,
             payload: queuePayload,
             source: body.source,
-            status: 'pending',
+            status: 'rejected',
             contact_name: contactName,
             preview,
-          })
-          .select('id').single();
+            rejected_at: new Date().toISOString(),
+            last_error: 'auto_rejected_reconnect_quarantine',
+          });
 
-        if (queueErr) console.error('[wapi-send] Failed to enqueue during quarantine:', queueErr);
+        if (queueErr) console.error('[wapi-send] Failed to log auto-rejected during quarantine:', queueErr);
 
         return new Response(JSON.stringify({
-          ok: true, queued: true, queue_id: queued?.id ?? null,
-          reason: 'reconnect_quarantine', until: qUntil.toISOString(),
+          ok: true, skipped: true,
+          reason: 'reconnect_quarantine_auto_reject', until: qUntil.toISOString(),
         }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
