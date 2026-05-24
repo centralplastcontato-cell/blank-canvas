@@ -5261,17 +5261,11 @@ async function processWebhookEvent(body: JsonRecord) {
         if (resolvedLidConv?.remote_jid) {
           rj = resolvedLidConv.remote_jid;
         } else {
-          // Inbound W-API/Z-API messages can arrive only with WhatsApp's private
-          // @lid identifier. Dropping them makes real client messages disappear
-          // from the platform. Keep inbound messages visible, but mark the thread
-          // as unresolved so automation does not reply to an unsafe destination.
-          if (!fromMe) {
-            isUnresolvedInboundLid = true;
-            console.warn(`[Webhook] Preserving unresolved inbound @lid message without bot auto-reply: ${rj}`);
-          } else {
-            console.log(`[Webhook] Ignoring unresolved outgoing @lid echo/status (fromMe=${fromMe}): ${rj}`);
-            break;
-          }
+          // W-API/Z-API can send only WhatsApp's private @lid identifier.
+          // Dropping it makes real messages disappear from the platform. Keep it
+          // visible, but mark the thread unsafe for automation until resolved.
+          isUnresolvedInboundLid = true;
+          console.warn(`[Webhook] Preserving unresolved @lid message without bot auto-reply: fromMe=${fromMe}, jid=${rj}`);
         }
       }
       const phone = (rj as string).replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace('@lid', '');
