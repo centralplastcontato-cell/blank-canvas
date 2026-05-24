@@ -1013,7 +1013,7 @@ async function checkSessionHealth(
   // Check DB first
   const { data: dbInstance } = await supabase
     .from('wapi_instances')
-    .select('id, status, phone_number')
+    .select('id, status, phone_number, connected_at')
     .eq('instance_id', instanceExternalId)
     .single();
 
