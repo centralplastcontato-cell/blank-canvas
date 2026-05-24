@@ -1209,7 +1209,12 @@ Deno.serve(async (req) => {
     // or body.source ∈ {'bot','flow','follow-up','reactivation','visit-confirmation','campaign'}).
     // Manual UI sends are NOT blocked.
     const automationSources = new Set(['bot', 'flow', 'flow-builder', 'follow-up', 'followup', 'reactivation', 'visit-confirmation', 'campaign']);
+    // 🎯 Bot de qualificação inicial (lead novo) NUNCA entra na fila/quarentena —
+    // é crítico responder leads novos imediatamente. Só follow-up/reativação/campanha
+    // são protegidos pelo sistema de fila pós-reconexão.
+    const queueableSources = new Set(['follow-up', 'followup', 'reactivation', 'visit-confirmation', 'campaign']);
     const isAutomatedCall = body.automation === true || (typeof body.source === 'string' && automationSources.has(body.source));
+    const isQueueableAutomation = typeof body.source === 'string' && queueableSources.has(body.source);
     if (isAutomatedCall && conversationId) {
       const paused = await isConversationPaused(supabase, conversationId);
       if (paused) {
@@ -1226,7 +1231,7 @@ Deno.serve(async (req) => {
         .eq('instance_id', instance_id)
         .maybeSingle();
       const quarantineUntil = getReconnectQuarantineUntil(sendInstance);
-      if (quarantineUntil) {
+      if (quarantineUntil && isQueueableAutomation) {
         console.warn(`[wapi-send] 🧯 Enqueuing automated send during reconnect quarantine until ${quarantineUntil.toISOString()} (conversation=${conversationId}, action=${action}, source=${body.source ?? 'automation'})`);
 
         // Fetch contact info for preview
