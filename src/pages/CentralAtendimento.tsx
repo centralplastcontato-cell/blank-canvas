@@ -1383,6 +1383,8 @@ export default function CentralAtendimento() {
                 
                 {/* User Info Desktop */}
                 <div className="flex items-center gap-3 shrink-0">
+                  <OutboundQueueSheet />
+                  <WarmupManagerDialog />
                   <NotificationBell />
                   <div 
                     className="flex items-center gap-2 bg-muted/60 rounded-full pl-3 pr-1 py-1 cursor-pointer hover:bg-muted/80 transition-all"
