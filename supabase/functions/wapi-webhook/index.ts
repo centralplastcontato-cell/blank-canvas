@@ -11,6 +11,7 @@ const WAPI_BASE_URL = 'https://api.w-api.app/v1';
 const ZAPI_BASE_URL = 'https://api.z-api.io/instances';
 const ZAPI_NOTIFY_REINFORCE_TTL_MS = 10 * 60 * 1000;
 const zapiNotifyReinforceCache = new Map<string, number>();
+const RECONNECT_AUTOMATION_QUARANTINE_MS = 15 * 60 * 1000;
 
 // Instance IDs enabled for interactive messaging (Z-API buttons/lists)
 const INTERACTIVE_ENABLED_INSTANCES = new Set([
@@ -200,6 +201,14 @@ function waitUntil(promise: Promise<unknown>): void {
     return;
   }
   promise.catch((err) => console.error('[Background task] Unhandled error:', err));
+}
+
+function getReconnectQuarantineUntil(instance: JsonRecord): Date | null {
+  const connectedAt = instance.connected_at ? new Date(String(instance.connected_at)).getTime() : 0;
+  if (!connectedAt || Number.isNaN(connectedAt)) return null;
+  const quarantineUntil = connectedAt + RECONNECT_AUTOMATION_QUARANTINE_MS;
+  if (quarantineUntil <= Date.now()) return null;
+  return new Date(quarantineUntil);
 }
 
 const RAW_WEBHOOK_EVENT_ID_FIELD = '__rawWebhookEventId';
