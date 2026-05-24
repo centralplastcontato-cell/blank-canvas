@@ -5335,6 +5335,10 @@ async function processWebhookEvent(body: JsonRecord) {
         : (msg as JsonRecord).moment 
           ? new Date(((msg as JsonRecord).moment as number) * 1000).toISOString() 
           : new Date().toISOString();
+      const reconnectHistoryReplay = isReconnectHistoryReplay(instance as JsonRecord, messageTimestamp);
+      if (reconnectHistoryReplay) {
+        console.warn(`[Webhook] 🚫 Reconnect history replay detected; message will be saved but automation skipped (instance=${instance.id}, msgAt=${messageTimestamp}, connectedAt=${instance.connected_at}, phone=${phone})`);
+      }
       
       // ⏱️ LATENCY: Log after parsing, before DB operations
       console.log(`[Latency] parsing_complete: ${Date.now() - processingStartAt}ms`);
