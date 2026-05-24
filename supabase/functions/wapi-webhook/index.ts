@@ -5892,16 +5892,11 @@ async function processWebhookEvent(body: JsonRecord) {
             break;
           }
 
-          const quarantineUntil = getReconnectQuarantineUntil(instance as JsonRecord);
-          if (quarantineUntil) {
-            console.warn(`[Bot] 🧯 Reconnect quarantine active for instance ${instance.instance_id} until ${quarantineUntil.toISOString()} — skipping automation for conv ${conv.id}`);
-            await supabase.from('wapi_conversations').update({
-              bot_paused_until: quarantineUntil.toISOString(),
-              bot_paused_reason: 'reconnect_quarantine',
-              bot_paused_at: new Date().toISOString(),
-            }).eq('id', conv.id);
-            break;
-          }
+          // 🎯 Quarentena pós-reconexão NÃO bloqueia mais o bot de qualificação.
+          // Lead novo precisa de resposta imediata — perder lead é pior que risco de ban.
+          // A proteção continua valendo para follow-up/reativação/campanhas (via wapi-send).
+          // (bloco antigo de quarentena removido intencionalmente)
+
 
           const recoveredStep = shouldRecoverAccidentalHumanTakeover(instance.provider, conv);
           if (recoveredStep) {
