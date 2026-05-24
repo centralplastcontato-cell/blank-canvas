@@ -5981,7 +5981,7 @@ async function processWebhookEvent(body: JsonRecord) {
             if ((rj as string).includes('@c.us')) rj = (rj as string).replace('@c.us', '@s.whatsapp.net');
             let resolvedStatusLidConv: JsonRecord | null = null;
             if ((rj as string).includes('@lid')) {
-              resolvedStatusLidConv = await resolveLidConversation(supabase, instance.id, rj as string, mId as string | null, body as JsonRecord);
+              resolvedStatusLidConv = await resolveLidConversation(supabase, instance.id, instance.company_id, rj as string, mId as string | null, body as JsonRecord);
               if (resolvedStatusLidConv?.remote_jid && !String(resolvedStatusLidConv.remote_jid).includes('@lid')) {
                 console.log(`[webhookDelivery] Resolved status @lid ${rj} to ${resolvedStatusLidConv.remote_jid}`);
                 rj = resolvedStatusLidConv.remote_jid;
