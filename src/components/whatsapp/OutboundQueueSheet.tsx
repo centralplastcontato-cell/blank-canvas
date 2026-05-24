@@ -9,6 +9,7 @@ import { useOutboundQueue, QueueItem } from "@/hooks/useOutboundQueue";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
+
 const sourceIcon: Record<string, JSX.Element> = {
   bot: <Bot className="w-3.5 h-3.5" />,
   "follow-up": <Send className="w-3.5 h-3.5" />,
