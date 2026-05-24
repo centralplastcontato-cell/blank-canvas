@@ -78,6 +78,7 @@ async function isSelfName(supabase: SupabaseClient, companyId: string, candidate
 async function resolveLidConversation(
   supabase: SupabaseClient,
   instanceDbId: string,
+  companyId: string | null | undefined,
   lidJid: string,
   msgId: string | null | undefined,
   msg: JsonRecord,
@@ -149,6 +150,10 @@ async function resolveLidConversation(
     .filter((value) => value.replace(/\D/g, '') !== lidDigits);
 
   for (const name of possibleNames) {
+    if (companyId && await isSelfName(supabase, companyId, name)) {
+      console.log(`[Webhook] Skipping @lid resolution by self-name candidate "${name}"`);
+      continue;
+    }
     const { data: matches } = await supabase
       .from('wapi_conversations')
       .select(selectFields)
