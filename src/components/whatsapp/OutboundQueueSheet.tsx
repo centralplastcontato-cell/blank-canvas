@@ -8,6 +8,7 @@ import { Inbox, Check, X, Clock, Bot, Sparkles, RefreshCw, AlertCircle, Send } f
 import { useOutboundQueue, QueueItem } from "@/hooks/useOutboundQueue";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { WarmupManagerDialog } from "./WarmupManagerDialog";
 
 const sourceIcon: Record<string, JSX.Element> = {
   bot: <Bot className="w-3.5 h-3.5" />,
