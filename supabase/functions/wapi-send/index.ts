@@ -1216,6 +1216,16 @@ Deno.serve(async (req) => {
     const isAutomatedCall = body.automation === true || (typeof body.source === 'string' && automationSources.has(body.source));
     const isQueueableAutomation = typeof body.source === 'string' && queueableSources.has(body.source);
 
+    // Fail-closed: the post-reconnect queue/drip path is disabled. Nothing from
+    // the queue is allowed to bypass quarantine as a "manual" send anymore.
+    if (body.source === 'queue-drip') {
+      console.warn(`[wapi-send] 🚫 Blocked queue-drip send permanently (phone=${phone}, action=${action})`);
+      return new Response(JSON.stringify({ ok: true, skipped: true, reason: 'queue_drip_disabled' }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // 🧯 Quarantine enqueue for queueable automations (campaign/follow-up/reactivation/visit-confirmation)
     // applies REGARDLESS of conversationId — campaigns may send to phones without an existing conversation.
     if (isQueueableAutomation) {

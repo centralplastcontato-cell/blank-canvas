@@ -82,7 +82,7 @@ async function resolveLidConversation(
   msgId: string | null | undefined,
   msg: JsonRecord,
 ): Promise<JsonRecord | null> {
-  const selectFields = 'id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at';
+  const selectFields = 'id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at, created_at';
 
   const ctx = msg.contextInfo
     || msg.message?.extendedTextMessage?.contextInfo
@@ -209,6 +209,26 @@ function getReconnectQuarantineUntil(instance: JsonRecord): Date | null {
   const quarantineUntil = connectedAt + RECONNECT_AUTOMATION_QUARANTINE_MS;
   if (quarantineUntil <= Date.now()) return null;
   return new Date(quarantineUntil);
+}
+
+function isReconnectHistoryReplay(instance: JsonRecord, messageTimestamp: string): boolean {
+  const connectedAt = instance.connected_at ? new Date(String(instance.connected_at)).getTime() : 0;
+  const msgAt = new Date(messageTimestamp).getTime();
+  if (!connectedAt || Number.isNaN(connectedAt) || Number.isNaN(msgAt)) return false;
+  const quarantineUntil = connectedAt + RECONNECT_AUTOMATION_QUARANTINE_MS;
+  if (quarantineUntil <= Date.now()) return false;
+  // During the reconnect window, only messages that arrived AFTER reconnect can
+  // trigger bot automation. Older timestamps are WhatsApp history replay and
+  // must never fan out welcome/materials/follow-up bursts.
+  return msgAt < connectedAt;
+}
+
+function isExistingConversationInReconnectQuarantine(instance: JsonRecord, conv: JsonRecord | null | undefined): boolean {
+  const connectedAt = instance.connected_at ? new Date(String(instance.connected_at)).getTime() : 0;
+  const convCreatedAt = conv?.created_at ? new Date(String(conv.created_at)).getTime() : 0;
+  if (!connectedAt || !convCreatedAt || Number.isNaN(connectedAt) || Number.isNaN(convCreatedAt)) return false;
+  if (connectedAt + RECONNECT_AUTOMATION_QUARANTINE_MS <= Date.now()) return false;
+  return convCreatedAt < connectedAt;
 }
 
 const RAW_WEBHOOK_EVENT_ID_FIELD = '__rawWebhookEventId';
@@ -5323,13 +5343,17 @@ async function processWebhookEvent(body: JsonRecord) {
         : (msg as JsonRecord).moment 
           ? new Date(((msg as JsonRecord).moment as number) * 1000).toISOString() 
           : new Date().toISOString();
+      const reconnectHistoryReplay = isReconnectHistoryReplay(instance as JsonRecord, messageTimestamp);
+      if (reconnectHistoryReplay) {
+        console.warn(`[Webhook] 🚫 Reconnect history replay detected; message will be saved but automation skipped (instance=${instance.id}, msgAt=${messageTimestamp}, connectedAt=${instance.connected_at}, phone=${phone})`);
+      }
       
       // ⏱️ LATENCY: Log after parsing, before DB operations
       console.log(`[Latency] parsing_complete: ${Date.now() - processingStartAt}ms`);
       
       // Fetch existing conversation (single DB call) - use maybeSingle to handle 0 or 1 rows
       let { data: ex, error: exErr } = resolvedLidConv ? { data: resolvedLidConv as JsonRecord, error: null } : await supabase.from('wapi_conversations')
-        .select('id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at')
+        .select('id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at, created_at')
         .eq('instance_id', instance.id)
         .eq('remote_jid', rj)
         .maybeSingle();
@@ -5348,7 +5372,7 @@ async function processWebhookEvent(body: JsonRecord) {
         // antigas sem contact_phone preenchido — causa comum de "mensagem some")
         const jidVariants = phoneVariants.map((v) => `${v}@s.whatsapp.net`);
         const { data: sameJidVariant } = await supabase.from('wapi_conversations')
-          .select('id, instance_id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at')
+          .select('id, instance_id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at, created_at, created_at')
           .eq('company_id', instance.company_id)
           .eq('instance_id', instance.id)
           .in('remote_jid', jidVariants)
@@ -5365,7 +5389,7 @@ async function processWebhookEvent(body: JsonRecord) {
       if (!ex && !isGrp && !resolvedLidConv) {
         const phoneVariants = getBrazilianPhoneVariants(phone);
         const { data: samePhoneConv } = await supabase.from('wapi_conversations')
-          .select('id, instance_id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at')
+          .select('id, instance_id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at, created_at, created_at')
           .eq('company_id', instance.company_id)
           .eq('instance_id', instance.id)
           .in('contact_phone', phoneVariants)
@@ -5430,7 +5454,7 @@ async function processWebhookEvent(body: JsonRecord) {
           }
 
           const { data: crossInstance } = await supabase.from('wapi_conversations')
-            .select('id, instance_id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at')
+            .select('id, instance_id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at, created_at, created_at')
             .eq('company_id', instance.company_id)
             .neq('instance_id', instance.id)
             .in('contact_phone', Array.from(variants))
@@ -5496,7 +5520,7 @@ async function processWebhookEvent(body: JsonRecord) {
       
       console.log(`[Latency] conversation_fetch: ${Date.now() - processingStartAt}ms, found: ${!!ex}`);
       
-      let conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: JsonRecord | null; lead_id: string | null };
+      let conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: JsonRecord | null; lead_id: string | null; created_at?: string | null };
       
       if (ex) {
         conv = ex;
@@ -5591,7 +5615,7 @@ async function processWebhookEvent(body: JsonRecord) {
         // New conversation - need to check for existing lead
         // First, do a final check to prevent race conditions (upsert-like behavior)
         const { data: raceCheck } = await supabase.from('wapi_conversations')
-          .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at')
+          .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at, created_at')
           .eq('instance_id', instance.id)
           .eq('remote_jid', rj)
           .maybeSingle();
@@ -5618,7 +5642,7 @@ async function processWebhookEvent(body: JsonRecord) {
           
           const hasCompleteLead = lead?.name && lead?.month && lead?.day_preference && lead?.guests;
           const isGroupJid = rj.includes('@g.us');
-          const shouldStartBot = !isGroupJid && !hasCompleteLead && !isUnresolvedInboundLid;
+          const shouldStartBot = !isGroupJid && !hasCompleteLead && !isUnresolvedInboundLid && !reconnectHistoryReplay;
           
           // Self-name guard: don't store the buffet's own name as the contact name
           const safeIncomingName = (!isGrp && cName && await isSelfName(supabase, instance.company_id, cName)) ? null : cName;
@@ -5635,13 +5659,13 @@ async function processWebhookEvent(body: JsonRecord) {
             bot_step: shouldStartBot ? 'welcome' : (isUnresolvedInboundLid ? 'human_takeover' : null),
             bot_data: isUnresolvedInboundLid ? { unresolved_lid_jid: originalLidJid, unresolved_lid_at: new Date().toISOString() } : {},
             company_id: instance.company_id,
-          }).select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at').single();
+          }).select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at, created_at').single();
           
           if (ce) {
             // If insert fails due to unique constraint, fetch existing
             console.log(`[Webhook] Insert failed (likely duplicate): ${ce.message}`);
             const { data: fallback } = await supabase.from('wapi_conversations')
-              .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at')
+              .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at, created_at')
               .eq('instance_id', instance.id)
               .eq('remote_jid', rj)
               .single();
@@ -5668,6 +5692,10 @@ async function processWebhookEvent(body: JsonRecord) {
       }
       
       console.log(`[Latency] conversation_ready: ${Date.now() - processingStartAt}ms`);
+      const existingConversationReconnectQuarantine = isExistingConversationInReconnectQuarantine(instance as JsonRecord, conv as JsonRecord);
+      if (existingConversationReconnectQuarantine) {
+        console.warn(`[Webhook] 🚫 Existing conversation inside reconnect quarantine; message will be saved but automation skipped (conv=${conv.id}, connectedAt=${instance.connected_at})`);
+      }
 
       // Download media in parallel with message insert if needed (for both sent and received messages)
       let mediaPromise: Promise<{ url: string; fileName: string } | null> | null = null;
@@ -5763,6 +5791,16 @@ async function processWebhookEvent(body: JsonRecord) {
         break;
       }
 
+      if (reconnectHistoryReplay) {
+        console.log(`[Webhook] Reconnect history replay saved; all automation skipped (conv=${conv.id})`);
+        break;
+      }
+
+      if (existingConversationReconnectQuarantine) {
+        console.log(`[Webhook] Existing conversation message saved during reconnect quarantine; all automation skipped (conv=${conv.id})`);
+        break;
+      }
+
       // Fase 7.1: Check for visit confirmation response BEFORE reactivation/bot
       if (!fromMe && !isGrp && type === 'text' && content) {
         try {
@@ -5794,7 +5832,7 @@ async function processWebhookEvent(body: JsonRecord) {
         try {
           // Re-read conversation to catch concurrent updates (e.g., human_takeover set by UI or phone-message webhook)
           const { data: freshConv } = await supabase.from('wapi_conversations')
-            .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at')
+            .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at, created_at')
             .eq('id', conv.id)
             .single();
           if (freshConv) {
