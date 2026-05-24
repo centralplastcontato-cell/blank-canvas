@@ -197,8 +197,9 @@ Deno.serve(async (req) => {
         }
 
         // Schedule the NEXT approved item for this instance with drip delay
-        const dripMin = inst.queue_drip_seconds_min ?? 30;
-        const dripMax = inst.queue_drip_seconds_max ?? 90;
+        // (warmup overrides take precedence to spread sends across the hour)
+        const dripMin = dripMinOverride ?? (inst.queue_drip_seconds_min ?? 30);
+        const dripMax = dripMaxOverride ?? (inst.queue_drip_seconds_max ?? 90);
         const delaySec = randInt(dripMin, dripMax);
         const nextScheduled = new Date(Date.now() + delaySec * 1000).toISOString();
 
