@@ -1219,6 +1219,25 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+
+      const { data: sendInstance } = await supabase
+        .from('wapi_instances')
+        .select('id, connected_at')
+        .eq('instance_id', instance_id)
+        .maybeSingle();
+      const quarantineUntil = getReconnectQuarantineUntil(sendInstance);
+      if (quarantineUntil) {
+        console.warn(`[wapi-send] 🧯 Blocked automated send during reconnect quarantine until ${quarantineUntil.toISOString()} (conversation=${conversationId}, action=${action}, source=${body.source ?? 'automation'})`);
+        await supabase.from('wapi_conversations').update({
+          bot_paused_until: quarantineUntil.toISOString(),
+          bot_paused_reason: 'reconnect_quarantine',
+          bot_paused_at: new Date().toISOString(),
+        }).eq('id', conversationId);
+        return new Response(JSON.stringify({ ok: true, skipped: true, reason: 'reconnect_quarantine', until: quarantineUntil.toISOString() }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     switch (action) {
