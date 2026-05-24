@@ -99,3 +99,6 @@ verify_jwt = false
 [functions.resolve-numeric-names]
 verify_jwt = false
 
+[functions.wapi-queue-processor]
+verify_jwt = false
+
