@@ -5048,12 +5048,14 @@ async function processWebhookEvent(body: JsonRecord) {
   // === AUTO-RECOVERY: If webhook arrives but DB says disconnected/degraded, the instance IS connected ===
   if (instance.status === 'disconnected' || instance.status === 'degraded') {
     console.warn(`[Webhook] ⚡ Message received for instance ${instanceId} but DB status is "${instance.status}". Auto-recovering status to connected...`);
+    const recoveredAt = new Date().toISOString();
     await supabase.from('wapi_instances').update({ 
       status: 'connected', 
-      connected_at: new Date().toISOString() 
+      connected_at: recoveredAt 
     }).eq('id', instance.id);
     // Update local reference so rest of handler uses correct status
     instance.status = 'connected';
+    instance.connected_at = recoveredAt;
   }
 
   let evt = event || body.event;
