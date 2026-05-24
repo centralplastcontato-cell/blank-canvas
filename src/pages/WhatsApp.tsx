@@ -131,6 +131,7 @@ export default function WhatsApp() {
               </div>
               <GuiaCRMDialog />
               <OutboundQueueSheet />
+              <WarmupManagerDialog />
               <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/inteligencia")}>
                 <Brain className="w-5 h-5 text-primary" />
               </Button>
