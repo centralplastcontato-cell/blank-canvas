@@ -82,7 +82,7 @@ async function resolveLidConversation(
   msgId: string | null | undefined,
   msg: JsonRecord,
 ): Promise<JsonRecord | null> {
-  const selectFields = 'id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at';
+  const selectFields = 'id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at, created_at';
 
   const ctx = msg.contextInfo
     || msg.message?.extendedTextMessage?.contextInfo
@@ -5353,7 +5353,7 @@ async function processWebhookEvent(body: JsonRecord) {
       
       // Fetch existing conversation (single DB call) - use maybeSingle to handle 0 or 1 rows
       let { data: ex, error: exErr } = resolvedLidConv ? { data: resolvedLidConv as JsonRecord, error: null } : await supabase.from('wapi_conversations')
-        .select('id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at')
+        .select('id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at, created_at')
         .eq('instance_id', instance.id)
         .eq('remote_jid', rj)
         .maybeSingle();
@@ -5372,7 +5372,7 @@ async function processWebhookEvent(body: JsonRecord) {
         // antigas sem contact_phone preenchido — causa comum de "mensagem some")
         const jidVariants = phoneVariants.map((v) => `${v}@s.whatsapp.net`);
         const { data: sameJidVariant } = await supabase.from('wapi_conversations')
-          .select('id, instance_id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at')
+          .select('id, instance_id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at, created_at, created_at')
           .eq('company_id', instance.company_id)
           .eq('instance_id', instance.id)
           .in('remote_jid', jidVariants)
@@ -5389,7 +5389,7 @@ async function processWebhookEvent(body: JsonRecord) {
       if (!ex && !isGrp && !resolvedLidConv) {
         const phoneVariants = getBrazilianPhoneVariants(phone);
         const { data: samePhoneConv } = await supabase.from('wapi_conversations')
-          .select('id, instance_id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at')
+          .select('id, instance_id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at, created_at, created_at')
           .eq('company_id', instance.company_id)
           .eq('instance_id', instance.id)
           .in('contact_phone', phoneVariants)
@@ -5454,7 +5454,7 @@ async function processWebhookEvent(body: JsonRecord) {
           }
 
           const { data: crossInstance } = await supabase.from('wapi_conversations')
-            .select('id, instance_id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at')
+            .select('id, instance_id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at, created_at, created_at')
             .eq('company_id', instance.company_id)
             .neq('instance_id', instance.id)
             .in('contact_phone', Array.from(variants))
@@ -5615,7 +5615,7 @@ async function processWebhookEvent(body: JsonRecord) {
         // New conversation - need to check for existing lead
         // First, do a final check to prevent race conditions (upsert-like behavior)
         const { data: raceCheck } = await supabase.from('wapi_conversations')
-          .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at')
+          .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at, created_at')
           .eq('instance_id', instance.id)
           .eq('remote_jid', rj)
           .maybeSingle();
@@ -5659,13 +5659,13 @@ async function processWebhookEvent(body: JsonRecord) {
             bot_step: shouldStartBot ? 'welcome' : (isUnresolvedInboundLid ? 'human_takeover' : null),
             bot_data: isUnresolvedInboundLid ? { unresolved_lid_jid: originalLidJid, unresolved_lid_at: new Date().toISOString() } : {},
             company_id: instance.company_id,
-          }).select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at').single();
+          }).select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at, created_at').single();
           
           if (ce) {
             // If insert fails due to unique constraint, fetch existing
             console.log(`[Webhook] Insert failed (likely duplicate): ${ce.message}`);
             const { data: fallback } = await supabase.from('wapi_conversations')
-              .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at')
+              .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at, created_at')
               .eq('instance_id', instance.id)
               .eq('remote_jid', rj)
               .single();
@@ -5823,7 +5823,7 @@ async function processWebhookEvent(body: JsonRecord) {
         try {
           // Re-read conversation to catch concurrent updates (e.g., human_takeover set by UI or phone-message webhook)
           const { data: freshConv } = await supabase.from('wapi_conversations')
-            .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at')
+            .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at, created_at')
             .eq('id', conv.id)
             .single();
           if (freshConv) {
