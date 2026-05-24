@@ -5520,7 +5520,7 @@ async function processWebhookEvent(body: JsonRecord) {
       
       console.log(`[Latency] conversation_fetch: ${Date.now() - processingStartAt}ms, found: ${!!ex}`);
       
-      let conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: JsonRecord | null; lead_id: string | null };
+      let conv: { id: string; remote_jid: string; bot_enabled: boolean | null; bot_step: string | null; bot_data: JsonRecord | null; lead_id: string | null; created_at?: string | null };
       
       if (ex) {
         conv = ex;
@@ -5692,6 +5692,10 @@ async function processWebhookEvent(body: JsonRecord) {
       }
       
       console.log(`[Latency] conversation_ready: ${Date.now() - processingStartAt}ms`);
+      const existingConversationReconnectQuarantine = isExistingConversationInReconnectQuarantine(instance as JsonRecord, conv as JsonRecord);
+      if (existingConversationReconnectQuarantine) {
+        console.warn(`[Webhook] 🚫 Existing conversation inside reconnect quarantine; message will be saved but automation skipped (conv=${conv.id}, connectedAt=${instance.connected_at})`);
+      }
 
       // Download media in parallel with message insert if needed (for both sent and received messages)
       let mediaPromise: Promise<{ url: string; fileName: string } | null> | null = null;
