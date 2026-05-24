@@ -6100,6 +6100,11 @@ export type Database = {
           unit: string | null
           updated_at: string
           user_id: string
+          warmup_curve_per_hour: number[]
+          warmup_days_total: number
+          warmup_enabled: boolean
+          warmup_reason: string | null
+          warmup_started_at: string | null
         }
         Insert: {
           addon_valid_until?: string | null
@@ -6126,6 +6131,11 @@ export type Database = {
           unit?: string | null
           updated_at?: string
           user_id: string
+          warmup_curve_per_hour?: number[]
+          warmup_days_total?: number
+          warmup_enabled?: boolean
+          warmup_reason?: string | null
+          warmup_started_at?: string | null
         }
         Update: {
           addon_valid_until?: string | null
@@ -6152,6 +6162,11 @@ export type Database = {
           unit?: string | null
           updated_at?: string
           user_id?: string
+          warmup_curve_per_hour?: number[]
+          warmup_days_total?: number
+          warmup_enabled?: boolean
+          warmup_reason?: string | null
+          warmup_started_at?: string | null
         }
         Relationships: [
           {
