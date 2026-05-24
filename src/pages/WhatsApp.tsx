@@ -157,7 +157,10 @@ export default function WhatsApp() {
           onLogout={handleLogout} 
         />
         
-        <SidebarInset className="flex-1 flex flex-col">
+        <SidebarInset className="flex-1 flex flex-col relative">
+          <div className="absolute top-4 right-6 z-20">
+            <OutboundQueueSheet />
+          </div>
           <main className="flex-1 flex flex-col h-screen p-4 pt-4">
             <WhatsAppChat userId={user.id} allowedUnits={canViewAll ? ['all'] : allowedUnits} />
           </main>
