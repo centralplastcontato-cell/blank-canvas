@@ -223,6 +223,14 @@ function isReconnectHistoryReplay(instance: JsonRecord, messageTimestamp: string
   return msgAt < connectedAt;
 }
 
+function isExistingConversationInReconnectQuarantine(instance: JsonRecord, conv: JsonRecord | null | undefined): boolean {
+  const connectedAt = instance.connected_at ? new Date(String(instance.connected_at)).getTime() : 0;
+  const convCreatedAt = conv?.created_at ? new Date(String(conv.created_at)).getTime() : 0;
+  if (!connectedAt || !convCreatedAt || Number.isNaN(connectedAt) || Number.isNaN(convCreatedAt)) return false;
+  if (connectedAt + RECONNECT_AUTOMATION_QUARANTINE_MS <= Date.now()) return false;
+  return convCreatedAt < connectedAt;
+}
+
 const RAW_WEBHOOK_EVENT_ID_FIELD = '__rawWebhookEventId';
 
 function headersToJson(req: Request): JsonRecord {
