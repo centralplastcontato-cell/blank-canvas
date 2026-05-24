@@ -211,6 +211,18 @@ function getReconnectQuarantineUntil(instance: JsonRecord): Date | null {
   return new Date(quarantineUntil);
 }
 
+function isReconnectHistoryReplay(instance: JsonRecord, messageTimestamp: string): boolean {
+  const connectedAt = instance.connected_at ? new Date(String(instance.connected_at)).getTime() : 0;
+  const msgAt = new Date(messageTimestamp).getTime();
+  if (!connectedAt || Number.isNaN(connectedAt) || Number.isNaN(msgAt)) return false;
+  const quarantineUntil = connectedAt + RECONNECT_AUTOMATION_QUARANTINE_MS;
+  if (quarantineUntil <= Date.now()) return false;
+  // During the reconnect window, only messages that arrived AFTER reconnect can
+  // trigger bot automation. Older timestamps are WhatsApp history replay and
+  // must never fan out welcome/materials/follow-up bursts.
+  return msgAt < connectedAt;
+}
+
 const RAW_WEBHOOK_EVENT_ID_FIELD = '__rawWebhookEventId';
 
 function headersToJson(req: Request): JsonRecord {
