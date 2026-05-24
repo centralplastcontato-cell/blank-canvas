@@ -895,6 +895,8 @@ export default function CentralAtendimento() {
                     <BellOff className="w-5 h-5" />
                   )}
                 </Button>
+                <OutboundQueueSheet />
+                <WarmupManagerDialog />
                 <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/inteligencia")}>
                   <Brain className="w-5 h-5 text-[hsl(155,75%,38%)]" style={{ filter: 'drop-shadow(0 0 4px hsl(155 75% 38% / 0.5))' }} />
                 </Button>
