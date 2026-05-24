@@ -16,6 +16,7 @@ import { GuiaCRMDialog } from "@/components/guias/GuiaCRMDialog";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Menu, Brain } from "lucide-react";
 import { OutboundQueueSheet } from "@/components/whatsapp/OutboundQueueSheet";
+import { WarmupManagerDialog } from "@/components/whatsapp/WarmupManagerDialog";
 import { Button } from "@/components/ui/button";
 import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "@/hooks/use-toast";
