@@ -349,7 +349,10 @@ export default function AdminMessageTrace() {
               onChange={(e) => setGroupByTracking(e.target.checked)}
             />
             <label htmlFor="grp" className="text-sm">Agrupar por tracking_id (timeline)</label>
-            <span className="text-xs text-muted-foreground ml-auto">{rows.length} registros</span>
+            <span className="text-xs text-muted-foreground ml-auto">
+              {rows.length} registros {groupByTracking && grouped ? `· ${grouped.length} grupos` : ""}
+            </span>
+
           </div>
         </Card>
 
