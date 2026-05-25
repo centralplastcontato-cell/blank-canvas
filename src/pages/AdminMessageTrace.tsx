@@ -364,7 +364,7 @@ export default function AdminMessageTrace() {
             {grouped.length === 0 && (
               <Card className="p-6 text-center text-muted-foreground">Nenhum registro.</Card>
             )}
-            {grouped.map((g) => {
+            {pagedGrouped?.map((g) => {
               const head = g.items[g.items.length - 1];
               const hasError = g.items.some((i) => i.status === "error");
               return (
@@ -400,7 +400,21 @@ export default function AdminMessageTrace() {
                 </Card>
               );
             })}
+            {totalItems > 0 && (
+              <PaginationBar
+                page={currentPage}
+                totalPages={totalPages}
+                pageSize={pageSize}
+                totalItems={totalItems}
+                startIdx={startIdx}
+                endIdx={Math.min(endIdx, totalItems)}
+                onPage={setPage}
+                onPageSize={setPageSize}
+                unit="grupos"
+              />
+            )}
           </div>
+
         ) : (
           <Card>
             <Table>
