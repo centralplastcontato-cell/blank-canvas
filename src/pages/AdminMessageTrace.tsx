@@ -83,6 +83,10 @@ export default function AdminMessageTrace() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [groupByTracking, setGroupByTracking] = useState(true);
 
+  // pagination
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
   // filters
   const [trackingId, setTrackingId] = useState("");
   const [phone, setPhone] = useState("");
@@ -95,6 +99,7 @@ export default function AdminMessageTrace() {
   const [stage, setStage] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
   const [limit, setLimit] = useState(200);
+
 
   async function runQuery(custom?: Partial<{
     direction: string; status: string; stage: string; phone: string;
@@ -151,6 +156,8 @@ export default function AdminMessageTrace() {
       }
 
       setRows(result);
+      setPage(1);
+
     } catch (e: any) {
       console.error("[message-trace] query error", e);
       alert("Erro ao consultar: " + (e?.message ?? String(e)));
@@ -187,6 +194,20 @@ export default function AdminMessageTrace() {
     });
     return arr;
   }, [rows, groupByTracking]);
+
+  // Pagination derived values
+  const totalItems = groupByTracking ? (grouped?.length ?? 0) : rows.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIdx = (currentPage - 1) * pageSize;
+  const endIdx = startIdx + pageSize;
+  const pagedGrouped = grouped ? grouped.slice(startIdx, endIdx) : null;
+  const pagedRows = rows.slice(startIdx, endIdx);
+
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize, groupByTracking]);
+
 
   function toggleExpand(id: string) {
     const next = new Set(expanded);
@@ -328,7 +349,10 @@ export default function AdminMessageTrace() {
               onChange={(e) => setGroupByTracking(e.target.checked)}
             />
             <label htmlFor="grp" className="text-sm">Agrupar por tracking_id (timeline)</label>
-            <span className="text-xs text-muted-foreground ml-auto">{rows.length} registros</span>
+            <span className="text-xs text-muted-foreground ml-auto">
+              {rows.length} registros {groupByTracking && grouped ? `· ${grouped.length} grupos` : ""}
+            </span>
+
           </div>
         </Card>
 
@@ -340,7 +364,7 @@ export default function AdminMessageTrace() {
             {grouped.length === 0 && (
               <Card className="p-6 text-center text-muted-foreground">Nenhum registro.</Card>
             )}
-            {grouped.map((g) => {
+            {pagedGrouped?.map((g) => {
               const head = g.items[g.items.length - 1];
               const hasError = g.items.some((i) => i.status === "error");
               return (
@@ -376,7 +400,21 @@ export default function AdminMessageTrace() {
                 </Card>
               );
             })}
+            {totalItems > 0 && (
+              <PaginationBar
+                page={currentPage}
+                totalPages={totalPages}
+                pageSize={pageSize}
+                totalItems={totalItems}
+                startIdx={startIdx}
+                endIdx={Math.min(endIdx, totalItems)}
+                onPage={setPage}
+                onPageSize={setPageSize}
+                unit="grupos"
+              />
+            )}
           </div>
+
         ) : (
           <Card>
             <Table>
@@ -398,7 +436,7 @@ export default function AdminMessageTrace() {
                 {rows.length === 0 && (
                   <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhum registro.</TableCell></TableRow>
                 )}
-                {rows.map((r) => (
+                {pagedRows.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="text-xs whitespace-nowrap">{new Date(r.created_at).toLocaleString("pt-BR")}</TableCell>
                     <TableCell><Badge variant="secondary">{r.direction || "-"}</Badge></TableCell>
@@ -420,11 +458,27 @@ export default function AdminMessageTrace() {
                 ))}
               </TableBody>
             </Table>
+            {totalItems > 0 && (
+              <div className="px-3 pt-3">
+                <PaginationBar
+                  page={currentPage}
+                  totalPages={totalPages}
+                  pageSize={pageSize}
+                  totalItems={totalItems}
+                  startIdx={startIdx}
+                  endIdx={Math.min(endIdx, totalItems)}
+                  onPage={setPage}
+                  onPageSize={setPageSize}
+                  unit="registros"
+                />
+              </div>
+            )}
             {/* expanded payload rows */}
             <div className="p-3 space-y-2">
-              {rows.filter((r) => expanded.has(r.id)).map((r) => (
+              {pagedRows.filter((r) => expanded.has(r.id)).map((r) => (
                 <div key={r.id} className="rounded-lg border bg-muted/30 p-3 text-xs">
                   <div className="font-semibold mb-1">{r.stage} — {r.tracking_id}</div>
+
                   {r.error_message && <div className="text-red-700 mb-1">⚠ {r.error_message}</div>}
                   <pre className="overflow-x-auto whitespace-pre-wrap break-all">{JSON.stringify(r.payload_summary, null, 2)}</pre>
                 </div>
@@ -475,3 +529,41 @@ function TimelineRow({
     </div>
   );
 }
+
+function PaginationBar({
+  page, totalPages, pageSize, totalItems, startIdx, endIdx, onPage, onPageSize, unit,
+}: {
+  page: number; totalPages: number; pageSize: number; totalItems: number;
+  startIdx: number; endIdx: number;
+  onPage: (p: number) => void; onPageSize: (n: number) => void; unit: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-card p-3">
+      <div className="text-xs text-muted-foreground">
+        Mostrando <span className="font-medium text-foreground">{startIdx + 1}–{endIdx}</span> de{" "}
+        <span className="font-medium text-foreground">{totalItems}</span> {unit}
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          <Label className="text-xs text-muted-foreground">Por página</Label>
+          <Select value={String(pageSize)} onValueChange={(v) => onPageSize(Number(v))}>
+            <SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {[10, 25, 50, 100].map((n) => (
+                <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button size="sm" variant="outline" className="h-8" onClick={() => onPage(1)} disabled={page <= 1}>«</Button>
+        <Button size="sm" variant="outline" className="h-8" onClick={() => onPage(page - 1)} disabled={page <= 1}>‹</Button>
+        <span className="text-xs tabular-nums px-2">
+          Página <span className="font-medium">{page}</span> / {totalPages}
+        </span>
+        <Button size="sm" variant="outline" className="h-8" onClick={() => onPage(page + 1)} disabled={page >= totalPages}>›</Button>
+        <Button size="sm" variant="outline" className="h-8" onClick={() => onPage(totalPages)} disabled={page >= totalPages}>»</Button>
+      </div>
+    </div>
+  );
+}
+
