@@ -21,6 +21,61 @@ function waitUntil(promise: Promise<unknown>): void {
   promise.catch((err) => console.error('[Background task] Unhandled error:', err));
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 2 — Outbound message trace (non-blocking, fire-and-forget)
+// Writes to public.message_trace_logs via RPC log_message_trace.
+// NEVER throws — any failure is swallowed so the send path is unaffected.
+// ─────────────────────────────────────────────────────────────────────────────
+function fireTrace(
+  supabase: any,
+  args: {
+    tracking_id: string;
+    stage: string;
+    status?: string;
+    provider?: string | null;
+    instance_id?: string | null;
+    company_id?: string | null;
+    conversation_id?: string | null;
+    message_id?: string | null;
+    phone?: string | null;
+    direction?: string;
+    error_message?: string | null;
+    latency_ms?: number | null;
+    payload_summary?: Record<string, unknown> | null;
+  },
+): void {
+  try {
+    const p = supabase.rpc('log_message_trace', {
+      _tracking_id: args.tracking_id,
+      _provider: args.provider ?? null,
+      _instance_id: args.instance_id ?? null,
+      _company_id: args.company_id ?? null,
+      _conversation_id: args.conversation_id ?? null,
+      _message_id: args.message_id ?? null,
+      _phone: args.phone ?? null,
+      _direction: args.direction ?? 'outbound',
+      _stage: args.stage,
+      _status: args.status ?? 'info',
+      _payload_summary: args.payload_summary ?? null,
+      _error_message: args.error_message ?? null,
+      _latency_ms: args.latency_ms ?? null,
+    });
+    if (p && typeof (p as Promise<unknown>).then === 'function') {
+      (p as Promise<unknown>).then(() => {}, () => {});
+    }
+  } catch (_e) {
+    // swallow — tracing must NEVER break the outbound send
+  }
+}
+
+function newTrackingId(): string {
+  try {
+    return `out_${crypto.randomUUID()}`;
+  } catch {
+    return `out_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+
 function getReconnectQuarantineUntil(instance: Record<string, unknown> | null | undefined): Date | null {
   const connectedAt = instance?.connected_at ? new Date(String(instance.connected_at)).getTime() : 0;
   if (!connectedAt || Number.isNaN(connectedAt)) return null;
@@ -1154,23 +1209,87 @@ Deno.serve(async (req) => {
     const { action, message, conversationId } = body;
     let phone: string = body.phone;
 
+    // Phase 2 trace — single tracking_id per outbound request
+    const trackingId: string = (typeof body.trackingId === 'string' && body.trackingId) || newTrackingId();
+
     const creds = await getInstanceCredentials(supabase, req, body);
     if (creds instanceof Response) return creds;
     const { instance_id, instance_token, provider, client_token } = creds;
     const isZapi = provider === 'zapi';
 
-    console.log('wapi-send:', action, phone ? `phone:${phone}` : '', 'instance:', instance_id);
+    console.log('wapi-send:', action, phone ? `phone:${phone}` : '', 'instance:', instance_id, 'trace:', trackingId);
+
+    // 🔭 trace: send_platform_attempt — entrada do envio outbound
+    fireTrace(supabase, {
+      tracking_id: trackingId,
+      stage: 'send_platform_attempt',
+      status: 'started',
+      provider,
+      instance_id,
+      conversation_id: conversationId ?? null,
+      phone: phone ?? null,
+      payload_summary: {
+        action,
+        provider_kind: isZapi ? 'zapi' : 'wapi',
+        source: typeof body.source === 'string' ? body.source : null,
+        automation: body.automation === true,
+        has_message: typeof message === 'string' && message.length > 0,
+        has_media: Boolean(body.mediaUrl || body.base64 || body.audio || body.video || body.document),
+        caller_tracking_id: typeof body.trackingId === 'string' ? body.trackingId : null,
+      },
+    });
 
     // Resolve company_id from conversation for message inserts
     let companyId: string | null = null;
     if (conversationId) {
-      const { data: convData } = await supabase
+      const convLookupStart = Date.now();
+      // 🔭 trace: conversation_lookup_attempt
+      fireTrace(supabase, {
+        tracking_id: trackingId,
+        stage: 'conversation_lookup_attempt',
+        status: 'started',
+        provider,
+        instance_id,
+        conversation_id: conversationId,
+        phone: phone ?? null,
+      });
+
+      const { data: convData, error: convErr } = await supabase
         .from('wapi_conversations')
         .select('company_id')
         .eq('id', conversationId)
         .single();
       companyId = convData?.company_id || null;
+
+      if (convErr || !convData) {
+        // 🔭 trace: conversation_lookup_error
+        fireTrace(supabase, {
+          tracking_id: trackingId,
+          stage: 'conversation_lookup_error',
+          status: 'error',
+          provider,
+          instance_id,
+          conversation_id: conversationId,
+          phone: phone ?? null,
+          error_message: convErr?.message ?? 'conversation_not_found',
+          latency_ms: Date.now() - convLookupStart,
+        });
+      } else {
+        // 🔭 trace: conversation_lookup_success
+        fireTrace(supabase, {
+          tracking_id: trackingId,
+          stage: 'conversation_lookup_success',
+          status: 'ok',
+          provider,
+          instance_id,
+          company_id: companyId,
+          conversation_id: conversationId,
+          phone: phone ?? null,
+          latency_ms: Date.now() - convLookupStart,
+        });
+      }
     }
+
 
     // === LID resolution: if the destination is a @lid identifier, resolve to real phone ===
     // Only apply for outbound send actions that target a phone (not groups, not non-send actions).
@@ -1379,6 +1498,26 @@ Deno.serve(async (req) => {
           quotedProviderMessageId = quotedMsg?.message_id || null;
         }
 
+        // 🔭 trace: provider_send_attempt
+        const providerStart = Date.now();
+        fireTrace(supabase, {
+          tracking_id: trackingId,
+          stage: 'provider_send_attempt',
+          status: 'started',
+          provider,
+          instance_id,
+          company_id: companyId,
+          conversation_id: conversationId ?? null,
+          phone: phone ?? null,
+          payload_summary: {
+            action: 'send-text',
+            provider_kind: isZapi ? 'zapi' : 'wapi',
+            remote_jid: String(phone || '').endsWith('@g.us') ? phone : null,
+            has_quoted: Boolean(quotedProviderMessageId),
+            message_length: typeof message === 'string' ? message.length : 0,
+          },
+        });
+
         const sendResult = isZapi
           ? await zapiSendText(instance_id, instance_token, client_token, phone, message, quotedProviderMessageId)
           : await sendTextWithFallback(instance_id, instance_token, phone, message, quotedProviderMessageId);
@@ -1387,13 +1526,63 @@ Deno.serve(async (req) => {
 
         if (!sendResult.ok) {
           console.error('send-text failed:', sendResult.error);
-          return new Response(JSON.stringify({ error: sendResult.error }), {
+          // 🔭 trace: send_provider_failed
+          fireTrace(supabase, {
+            tracking_id: trackingId,
+            stage: 'send_provider_failed',
+            status: 'error',
+            provider,
+            instance_id,
+            company_id: companyId,
+            conversation_id: conversationId ?? null,
+            phone: phone ?? null,
+            error_message: sendResult.error ?? 'unknown_provider_error',
+            latency_ms: Date.now() - providerStart,
+            payload_summary: {
+              provider_kind: isZapi ? 'zapi' : 'wapi',
+              attempt: (sendResult as { attempt?: string }).attempt ?? null,
+            },
+          });
+          // 🔭 trace: send_returned_to_frontend (error path)
+          fireTrace(supabase, {
+            tracking_id: trackingId,
+            stage: 'send_returned_to_frontend',
+            status: 'error',
+            provider,
+            instance_id,
+            company_id: companyId,
+            conversation_id: conversationId ?? null,
+            phone: phone ?? null,
+            error_message: sendResult.error ?? 'unknown_provider_error',
+            payload_summary: { http_status: 400, success: false },
+          });
+          return new Response(JSON.stringify({ error: sendResult.error, trackingId }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
         const messageId = (isZapi ? extractZapiMessageId(sendResult.data) : extractWapiMessageId(sendResult.data)) || `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+        // 🔭 trace: send_provider_success
+        fireTrace(supabase, {
+          tracking_id: trackingId,
+          stage: 'send_provider_success',
+          status: 'ok',
+          provider,
+          instance_id,
+          company_id: companyId,
+          conversation_id: conversationId ?? null,
+          phone: phone ?? null,
+          message_id: messageId,
+          latency_ms: Date.now() - providerStart,
+          payload_summary: {
+            provider_kind: isZapi ? 'zapi' : 'wapi',
+            attempt: (sendResult as { attempt?: string }).attempt ?? null,
+            provider_status: (sendResult.data as { status?: unknown })?.status ?? null,
+            had_real_message_id: !messageId.startsWith('manual_'),
+          },
+        });
 
         // Resolve or create conversation for DB tracking
         let resolvedConvId = conversationId;
@@ -1443,7 +1632,21 @@ Deno.serve(async (req) => {
           }).eq('id', resolvedConvId);
         }
 
-        return new Response(JSON.stringify({ success: true, messageId, conversationId: resolvedConvId, providerAttempt: (sendResult as { attempt?: string }).attempt }), {
+        // 🔭 trace: send_returned_to_frontend (success path)
+        fireTrace(supabase, {
+          tracking_id: trackingId,
+          stage: 'send_returned_to_frontend',
+          status: 'ok',
+          provider,
+          instance_id,
+          company_id: resolvedCompanyId,
+          conversation_id: resolvedConvId ?? null,
+          phone: phone ?? null,
+          message_id: messageId,
+          payload_summary: { http_status: 200, success: true },
+        });
+
+        return new Response(JSON.stringify({ success: true, messageId, conversationId: resolvedConvId, trackingId, providerAttempt: (sendResult as { attempt?: string }).attempt }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
