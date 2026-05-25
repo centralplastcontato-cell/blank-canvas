@@ -436,7 +436,7 @@ export default function AdminMessageTrace() {
                 {rows.length === 0 && (
                   <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nenhum registro.</TableCell></TableRow>
                 )}
-                {rows.map((r) => (
+                {pagedRows.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="text-xs whitespace-nowrap">{new Date(r.created_at).toLocaleString("pt-BR")}</TableCell>
                     <TableCell><Badge variant="secondary">{r.direction || "-"}</Badge></TableCell>
@@ -458,11 +458,27 @@ export default function AdminMessageTrace() {
                 ))}
               </TableBody>
             </Table>
+            {totalItems > 0 && (
+              <div className="px-3 pt-3">
+                <PaginationBar
+                  page={currentPage}
+                  totalPages={totalPages}
+                  pageSize={pageSize}
+                  totalItems={totalItems}
+                  startIdx={startIdx}
+                  endIdx={Math.min(endIdx, totalItems)}
+                  onPage={setPage}
+                  onPageSize={setPageSize}
+                  unit="registros"
+                />
+              </div>
+            )}
             {/* expanded payload rows */}
             <div className="p-3 space-y-2">
-              {rows.filter((r) => expanded.has(r.id)).map((r) => (
+              {pagedRows.filter((r) => expanded.has(r.id)).map((r) => (
                 <div key={r.id} className="rounded-lg border bg-muted/30 p-3 text-xs">
                   <div className="font-semibold mb-1">{r.stage} — {r.tracking_id}</div>
+
                   {r.error_message && <div className="text-red-700 mb-1">⚠ {r.error_message}</div>}
                   <pre className="overflow-x-auto whitespace-pre-wrap break-all">{JSON.stringify(r.payload_summary, null, 2)}</pre>
                 </div>
