@@ -1209,23 +1209,87 @@ Deno.serve(async (req) => {
     const { action, message, conversationId } = body;
     let phone: string = body.phone;
 
+    // Phase 2 trace — single tracking_id per outbound request
+    const trackingId: string = (typeof body.trackingId === 'string' && body.trackingId) || newTrackingId();
+
     const creds = await getInstanceCredentials(supabase, req, body);
     if (creds instanceof Response) return creds;
     const { instance_id, instance_token, provider, client_token } = creds;
     const isZapi = provider === 'zapi';
 
-    console.log('wapi-send:', action, phone ? `phone:${phone}` : '', 'instance:', instance_id);
+    console.log('wapi-send:', action, phone ? `phone:${phone}` : '', 'instance:', instance_id, 'trace:', trackingId);
+
+    // 🔭 trace: send_platform_attempt — entrada do envio outbound
+    fireTrace(supabase, {
+      tracking_id: trackingId,
+      stage: 'send_platform_attempt',
+      status: 'started',
+      provider,
+      instance_id,
+      conversation_id: conversationId ?? null,
+      phone: phone ?? null,
+      payload_summary: {
+        action,
+        provider_kind: isZapi ? 'zapi' : 'wapi',
+        source: typeof body.source === 'string' ? body.source : null,
+        automation: body.automation === true,
+        has_message: typeof message === 'string' && message.length > 0,
+        has_media: Boolean(body.mediaUrl || body.base64 || body.audio || body.video || body.document),
+        caller_tracking_id: typeof body.trackingId === 'string' ? body.trackingId : null,
+      },
+    });
 
     // Resolve company_id from conversation for message inserts
     let companyId: string | null = null;
     if (conversationId) {
-      const { data: convData } = await supabase
+      const convLookupStart = Date.now();
+      // 🔭 trace: conversation_lookup_attempt
+      fireTrace(supabase, {
+        tracking_id: trackingId,
+        stage: 'conversation_lookup_attempt',
+        status: 'started',
+        provider,
+        instance_id,
+        conversation_id: conversationId,
+        phone: phone ?? null,
+      });
+
+      const { data: convData, error: convErr } = await supabase
         .from('wapi_conversations')
         .select('company_id')
         .eq('id', conversationId)
         .single();
       companyId = convData?.company_id || null;
+
+      if (convErr || !convData) {
+        // 🔭 trace: conversation_lookup_error
+        fireTrace(supabase, {
+          tracking_id: trackingId,
+          stage: 'conversation_lookup_error',
+          status: 'error',
+          provider,
+          instance_id,
+          conversation_id: conversationId,
+          phone: phone ?? null,
+          error_message: convErr?.message ?? 'conversation_not_found',
+          latency_ms: Date.now() - convLookupStart,
+        });
+      } else {
+        // 🔭 trace: conversation_lookup_success
+        fireTrace(supabase, {
+          tracking_id: trackingId,
+          stage: 'conversation_lookup_success',
+          status: 'ok',
+          provider,
+          instance_id,
+          company_id: companyId,
+          conversation_id: conversationId,
+          phone: phone ?? null,
+          latency_ms: Date.now() - convLookupStart,
+        });
+      }
     }
+
 
     // === LID resolution: if the destination is a @lid identifier, resolve to real phone ===
     // Only apply for outbound send actions that target a phone (not groups, not non-send actions).
