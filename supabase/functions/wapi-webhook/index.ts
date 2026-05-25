@@ -5825,6 +5825,18 @@ async function processWebhookEvent(body: JsonRecord) {
       }
 
 
+      // [FASE 2 trace] common fields para todos os stages de insert
+      const _traceCommon = {
+        tracking_id: rawWebhookEventId,
+        provider: instance.provider || null,
+        instance_id: instance.instance_id || null,
+        company_id: instance.company_id || null,
+        conversation_id: conv.id,
+        message_id: typeof msgId === 'string' ? msgId : (msgId ? String(msgId) : null),
+        phone,
+        direction: fromMe ? 'outgoing' : 'incoming',
+      };
+
       if (fromMe && msgId) {
         const { data: existingMsg } = await supabase.from('wapi_messages')
           .select('id')
@@ -5835,12 +5847,22 @@ async function processWebhookEvent(body: JsonRecord) {
         
         if (existingMsg) {
           console.log(`[Bot] Skipping duplicate outgoing message ${msgId} - already saved`);
+          // [FASE 2 trace] dedup detectado ANTES do upsert (outgoing)
+          fireTrace(supabase, 'message_insert_skipped_duplicate', {
+            ..._traceCommon,
+            payload_summary: { type, reason: 'pre_upsert_dedup_outgoing' },
+          });
         } else {
           const grpMeta1 = isGrp ? {
             participant: ((msg as JsonRecord).key?.participant || (msg as JsonRecord).participant || '').replace('@s.whatsapp.net',''),
             sender_name: (msg as JsonRecord).pushName || (msg as JsonRecord).sender?.pushName || null
           } : null;
-          await supabase.from('wapi_messages').upsert({
+          // [FASE 2 trace] tentativa de insert
+          fireTrace(supabase, 'message_insert_attempt', {
+            ..._traceCommon,
+            payload_summary: { type, has_media: !!url, is_group: isGrp },
+          });
+          const { error: _insErr1 } = await supabase.from('wapi_messages').upsert({
             conversation_id: conv.id, message_id: msgId, from_me: fromMe, message_type: type, content,
             media_url: url, media_key: key, media_direct_path: path, status: 'sent',
             timestamp: messageTimestamp,
@@ -5848,6 +5870,21 @@ async function processWebhookEvent(body: JsonRecord) {
             metadata: grpMeta1,
             quoted_message_id: quotedDbId,
           }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
+          if (_insErr1) {
+            fireTrace(supabase, 'message_insert_error', {
+              ..._traceCommon,
+              status: 'error',
+              error_message: _insErr1.message,
+              payload_summary: { type, code: (_insErr1 as any).code || null },
+              latency_ms: Date.now() - insertStartAt,
+            });
+          } else {
+            fireTrace(supabase, 'message_insert_success', {
+              ..._traceCommon,
+              payload_summary: { type, status: 'sent' },
+              latency_ms: Date.now() - insertStartAt,
+            });
+          }
         }
       } else {
         // Dedup incoming messages — W-API may fire the same webhook twice
@@ -5860,6 +5897,11 @@ async function processWebhookEvent(body: JsonRecord) {
             .maybeSingle();
           if (existingIncoming) {
             console.log(`[Webhook] Skipping duplicate incoming message ${msgId}`);
+            // [FASE 2 trace] dedup detectado ANTES do upsert (incoming)
+            fireTrace(supabase, 'message_insert_skipped_duplicate', {
+              ..._traceCommon,
+              payload_summary: { type, reason: 'pre_upsert_dedup_incoming' },
+            });
             break;
           }
         }
@@ -5867,7 +5909,12 @@ async function processWebhookEvent(body: JsonRecord) {
           participant: ((msg as JsonRecord).key?.participant || (msg as JsonRecord).participant || '').replace('@s.whatsapp.net',''),
           sender_name: (msg as JsonRecord).pushName || (msg as JsonRecord).sender?.pushName || null
         } : null;
-        await supabase.from('wapi_messages').upsert({
+        // [FASE 2 trace] tentativa de insert
+        fireTrace(supabase, 'message_insert_attempt', {
+          ..._traceCommon,
+          payload_summary: { type, has_media: !!url, is_group: isGrp },
+        });
+        const { error: _insErr2 } = await supabase.from('wapi_messages').upsert({
           conversation_id: conv.id, message_id: msgId, from_me: fromMe, message_type: type, content,
           media_url: url, media_key: key, media_direct_path: path, status: fromMe ? 'sent' : 'received',
           timestamp: messageTimestamp,
@@ -5875,9 +5922,25 @@ async function processWebhookEvent(body: JsonRecord) {
           metadata: grpMeta2,
           quoted_message_id: quotedDbId,
         }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
+        if (_insErr2) {
+          fireTrace(supabase, 'message_insert_error', {
+            ..._traceCommon,
+            status: 'error',
+            error_message: _insErr2.message,
+            payload_summary: { type, code: (_insErr2 as any).code || null },
+            latency_ms: Date.now() - insertStartAt,
+          });
+        } else {
+          fireTrace(supabase, 'message_insert_success', {
+            ..._traceCommon,
+            payload_summary: { type, status: fromMe ? 'sent' : 'received' },
+            latency_ms: Date.now() - insertStartAt,
+          });
+        }
       }
       
       console.log(`[Latency] message_inserted: ${Date.now() - insertStartAt}ms (total: ${Date.now() - processingStartAt}ms)`);
+
 
       // If media download was started, wait for it and update the message
       if (mediaPromise) {
