@@ -5758,6 +5758,25 @@ async function processWebhookEvent(body: JsonRecord) {
       }
       
       console.log(`[Latency] conversation_ready: ${Date.now() - processingStartAt}ms`);
+
+      // [FASE 2 trace] conversation_resolved — conv pronta (existente OU recém-criada)
+      fireTrace(supabase, 'conversation_resolved', {
+        tracking_id: rawWebhookEventId,
+        provider: instance.provider || null,
+        instance_id: instance.instance_id || null,
+        company_id: instance.company_id || null,
+        conversation_id: conv?.id || null,
+        message_id: typeof msgId === 'string' ? msgId : (msgId ? String(msgId) : null),
+        phone,
+        direction: fromMe ? 'outgoing' : 'incoming',
+        payload_summary: {
+          was_existing: !!ex,
+          bot_enabled: conv?.bot_enabled ?? null,
+          bot_step: conv?.bot_step ?? null,
+          lead_id: conv?.lead_id ?? null,
+        },
+        latency_ms: Date.now() - processingStartAt,
+      });
       const existingConversationReconnectQuarantine = isExistingConversationInReconnectQuarantine(instance as JsonRecord, conv as JsonRecord);
       if (existingConversationReconnectQuarantine) {
         console.warn(`[Webhook] 🚫 Existing conversation inside reconnect quarantine; message will be saved but automation skipped (conv=${conv.id}, connectedAt=${instance.connected_at})`);
