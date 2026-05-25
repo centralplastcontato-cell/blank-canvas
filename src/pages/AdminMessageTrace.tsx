@@ -156,6 +156,8 @@ export default function AdminMessageTrace() {
       }
 
       setRows(result);
+      setPage(1);
+
     } catch (e: any) {
       console.error("[message-trace] query error", e);
       alert("Erro ao consultar: " + (e?.message ?? String(e)));
