@@ -1498,6 +1498,26 @@ Deno.serve(async (req) => {
           quotedProviderMessageId = quotedMsg?.message_id || null;
         }
 
+        // 🔭 trace: provider_send_attempt
+        const providerStart = Date.now();
+        fireTrace(supabase, {
+          tracking_id: trackingId,
+          stage: 'provider_send_attempt',
+          status: 'started',
+          provider,
+          instance_id,
+          company_id: companyId,
+          conversation_id: conversationId ?? null,
+          phone: phone ?? null,
+          payload_summary: {
+            action: 'send-text',
+            provider_kind: isZapi ? 'zapi' : 'wapi',
+            remote_jid: String(phone || '').endsWith('@g.us') ? phone : null,
+            has_quoted: Boolean(quotedProviderMessageId),
+            message_length: typeof message === 'string' ? message.length : 0,
+          },
+        });
+
         const sendResult = isZapi
           ? await zapiSendText(instance_id, instance_token, client_token, phone, message, quotedProviderMessageId)
           : await sendTextWithFallback(instance_id, instance_token, phone, message, quotedProviderMessageId);
@@ -1506,13 +1526,63 @@ Deno.serve(async (req) => {
 
         if (!sendResult.ok) {
           console.error('send-text failed:', sendResult.error);
-          return new Response(JSON.stringify({ error: sendResult.error }), {
+          // 🔭 trace: send_provider_failed
+          fireTrace(supabase, {
+            tracking_id: trackingId,
+            stage: 'send_provider_failed',
+            status: 'error',
+            provider,
+            instance_id,
+            company_id: companyId,
+            conversation_id: conversationId ?? null,
+            phone: phone ?? null,
+            error_message: sendResult.error ?? 'unknown_provider_error',
+            latency_ms: Date.now() - providerStart,
+            payload_summary: {
+              provider_kind: isZapi ? 'zapi' : 'wapi',
+              attempt: (sendResult as { attempt?: string }).attempt ?? null,
+            },
+          });
+          // 🔭 trace: send_returned_to_frontend (error path)
+          fireTrace(supabase, {
+            tracking_id: trackingId,
+            stage: 'send_returned_to_frontend',
+            status: 'error',
+            provider,
+            instance_id,
+            company_id: companyId,
+            conversation_id: conversationId ?? null,
+            phone: phone ?? null,
+            error_message: sendResult.error ?? 'unknown_provider_error',
+            payload_summary: { http_status: 400, success: false },
+          });
+          return new Response(JSON.stringify({ error: sendResult.error, trackingId }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
         const messageId = (isZapi ? extractZapiMessageId(sendResult.data) : extractWapiMessageId(sendResult.data)) || `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+        // 🔭 trace: send_provider_success
+        fireTrace(supabase, {
+          tracking_id: trackingId,
+          stage: 'send_provider_success',
+          status: 'ok',
+          provider,
+          instance_id,
+          company_id: companyId,
+          conversation_id: conversationId ?? null,
+          phone: phone ?? null,
+          message_id: messageId,
+          latency_ms: Date.now() - providerStart,
+          payload_summary: {
+            provider_kind: isZapi ? 'zapi' : 'wapi',
+            attempt: (sendResult as { attempt?: string }).attempt ?? null,
+            provider_status: (sendResult.data as { status?: unknown })?.status ?? null,
+            had_real_message_id: !messageId.startsWith('manual_'),
+          },
+        });
 
         // Resolve or create conversation for DB tracking
         let resolvedConvId = conversationId;
@@ -1562,7 +1632,21 @@ Deno.serve(async (req) => {
           }).eq('id', resolvedConvId);
         }
 
-        return new Response(JSON.stringify({ success: true, messageId, conversationId: resolvedConvId, providerAttempt: (sendResult as { attempt?: string }).attempt }), {
+        // 🔭 trace: send_returned_to_frontend (success path)
+        fireTrace(supabase, {
+          tracking_id: trackingId,
+          stage: 'send_returned_to_frontend',
+          status: 'ok',
+          provider,
+          instance_id,
+          company_id: resolvedCompanyId,
+          conversation_id: resolvedConvId ?? null,
+          phone: phone ?? null,
+          message_id: messageId,
+          payload_summary: { http_status: 200, success: true },
+        });
+
+        return new Response(JSON.stringify({ success: true, messageId, conversationId: resolvedConvId, trackingId, providerAttempt: (sendResult as { attempt?: string }).attempt }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
