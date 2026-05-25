@@ -5236,12 +5236,23 @@ async function processWebhookEvent(body: JsonRecord) {
           connected_at: new Date().toISOString(),
         }).eq('id', instance.id);
       } else {
-        await supabase.from('wapi_instances').update({ 
-          status: c ? 'connected' : 'disconnected', 
-          phone_number: connPhone, 
-          connected_at: c ? new Date().toISOString() : null 
-        }).eq('id', instance.id);
+        // Only stamp connected_at on a real transition. Repeated webhookConnected
+        // events from the provider were resetting the quarantine timer.
+        const alreadyConnected = c
+          && (instance as JsonRecord).status === 'connected'
+          && !!(instance as JsonRecord).connected_at;
+        const updatePayload: JsonRecord = {
+          status: c ? 'connected' : 'disconnected',
+          phone_number: connPhone,
+        };
+        if (!c) {
+          updatePayload.connected_at = null;
+        } else if (!alreadyConnected) {
+          updatePayload.connected_at = new Date().toISOString();
+        }
+        await supabase.from('wapi_instances').update(updatePayload).eq('id', instance.id);
       }
+
       break;
     }
     case 'disconnection': case 'webhookDisconnected':
