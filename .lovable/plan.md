@@ -1,63 +1,29 @@
-# Fila de Aprovação + Drip Send pós-reconexão
+# Corrigir mistura de mensagens entre Vendas 1 e Vendas 2
 
-## Objetivo
-Eliminar o risco de bloqueio recorrente do WhatsApp: durante a quarentena pós-reconexão, **nenhuma mensagem automática é descartada nem disparada em massa**. Tudo entra em fila visível, com auto-aprovação após 30 min e envio gotejado seguro.
+## Diagnóstico
 
-## Etapas (implementação passo a passo)
+Em `supabase/functions/wapi-webhook/index.ts`, dentro de `resolveLidConversation` (~linhas 155-175), o lookup que resolve `@lid` via mensagem referenciada (`wapi_messages.message_id`) **não filtra por instância**.
 
-### Etapa 1 — Banco de dados
-- Nova tabela `whatsapp_outbound_queue`: company_id, instance_id, to_phone, payload (jsonb com tipo/texto/mídia), source (bot/follow-up/reativação/lembrete/etc), status (pending/approved/rejected/sent/failed), scheduled_for, attempts, created_at, approved_at, sent_at, error
-- Índices por (company_id, status) e (instance_id, status, scheduled_for)
-- RLS: SELECT/UPDATE para usuários da company; INSERT/UPDATE livre para edge functions (service role)
-- Coluna nova em `wapi_instances`: `queue_auto_approve_minutes` (default 30), `queue_drip_seconds_min` (default 30), `queue_drip_seconds_max` (default 90), `queue_max_per_hour` (default 10)
+Quando o mesmo cliente já tem histórico no Vendas 1 e manda nova mensagem pelo Vendas 2, o resolver acha o registro antigo em `wapi_messages`, devolve a `conversation_id` daquela conversa (do Vendas 1) e o webhook injeta a mensagem nova dentro dela. Por isso aparecem mensagens dos dois números no mesmo thread.
 
-### Etapa 2 — Enfileirar em vez de descartar
-- Modificar `wapi-send/index.ts`: quando `isAutomatedCall && quarantineAtivo` → **inserir na fila** em vez de bloquear silenciosamente. Retornar `{ queued: true, queue_id }`.
-- Modificar `wapi-webhook/index.ts`: mesma lógica para mensagens disparadas pelo bot durante quarentena.
+As outras duas estratégias de resolução (por `contact_name` e por `contact_picture`) já estão corretamente filtradas por `instance_id` (linhas 207 e 233). Só o branch por `message_id` ficou sem o filtro.
 
-### Etapa 3 — Drip processor (edge function nova)
-- `wapi-queue-processor`: roda a cada 1 min via cron
-- Para cada instância com fila aprovada:
-  - Respeitar janela 08h-22h
-  - Pegar próxima mensagem `approved` com `scheduled_for <= now()`
-  - Enviar via wapi-send (com flag `isAutomatedCall: false` para não re-enfileirar)
-  - Agendar próxima com delay aleatório 30-90s
-  - Respeitar limite de 10/hora
-  - Em caso de falha de envio: pausar fila e notificar
-- Auto-aprovação: a cada execução, marcar como `approved` mensagens `pending` criadas há mais de 30 min
+A safeguard de "cross-instance unification" (linha 5550) protege a criação de novas conversas em setups multi-instância, mas ela só roda **depois** de `resolveLidConversation` — então não cobre esse caminho.
 
-### Etapa 4 — UI Central WhatsApp (nova aba "Fila pós-reconexão")
-- Badge vermelho no menu quando houver pending > 0
-- Lista agrupada por contato:
-  - Foto/nome + telefone
-  - Origem (bot/follow-up/reativação) com ícone semântico
-  - Preview da mensagem
-  - Tempo restante para auto-aprovação
-- Ações em massa: **Aprovar tudo / Rejeitar tudo / Aprovar selecionadas / Rejeitar selecionadas**
-- Aba só aparece quando há mensagens na fila (sem poluir UI quando vazia)
+## Correção (1 alteração cirúrgica)
 
-### Etapa 5 — Modo aquecimento pós-bloqueio (opcional, etapa final)
-- Detectar bloqueio → marcar `wapi_instances.warmup_until = now() + 72h`
-- Durante warmup, limites mais agressivos (10/h primeiras 24h, 30/h 24-72h)
-- Indicador visual de "modo aquecimento ativo" na tela de instâncias
+`supabase/functions/wapi-webhook/index.ts`, função `resolveLidConversation`:
 
-## Configuração escolhida
-- **Escopo**: todas as mensagens automáticas (bot, follow-up, reativação, lembrete, etc) entram na fila durante quarentena
-- **Aprovação**: auto-aprova após 30 minutos sem revisão manual
-- **Ritmo**: conservador (30-90s entre envios, máx 10/h)
+- Ao buscar `wapi_conversations` pelo `existingMessage.conversation_id`, **adicionar filtro `.eq('instance_id', instanceDbId)`**. Se a conversa pertencer a outra instância da mesma empresa, ignorar e seguir para as próximas estratégias (nome, foto). Se nada resolver, a mensagem cai no fluxo normal de criação de nova conversa naquela instância — exatamente como já acontece hoje em setups multi-seller.
 
-## Cron job manual necessário
-Após etapa 3, executar no SQL Editor:
-```sql
-select cron.schedule(
-  'wapi-queue-processor-every-minute',
-  '* * * * *',
-  $$ select net.http_post(...wapi-queue-processor...) $$
-);
-```
+Zero alteração em: realtime, dedup, envio, `wapi-send`, regra de negócio do bot, cross-instance unification.
 
-## Detalhes técnicos
-- A fila preserva o payload completo (texto, mídia, contexto do bot) para reenvio fiel
-- `scheduled_for` permite distribuir naturalmente os envios sem stampede
-- Edge function usa `FOR UPDATE SKIP LOCKED` para evitar duplicação em execuções paralelas
-- Mensagens manuais do atendente continuam funcionando normalmente (nunca entram na fila)
+## Verificação
+
+1. Conferir nos logs do `wapi-webhook` que não há mais `Resolved @lid ... by referenced message` cruzando instâncias.
+2. Mandar mensagem nova pelo Vendas 2 de um contato que já fala no Vendas 1 → deve criar uma conversa nova isolada no Vendas 2 (ou, se já existir, reusar a do próprio Vendas 2).
+3. Abrir o thread no chat e confirmar que só aparecem mensagens da instância selecionada.
+
+## Não incluso neste passo (próximos, se necessário)
+
+- Script de "split" para separar mensagens que já foram salvas misturadas em conversas existentes. Faço como passo 2, depois de validar a correção do webhook, se você confirmar que há conversas atuais bagunçadas.
