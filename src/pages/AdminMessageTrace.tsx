@@ -195,6 +195,20 @@ export default function AdminMessageTrace() {
     return arr;
   }, [rows, groupByTracking]);
 
+  // Pagination derived values
+  const totalItems = groupByTracking ? (grouped?.length ?? 0) : rows.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIdx = (currentPage - 1) * pageSize;
+  const endIdx = startIdx + pageSize;
+  const pagedGrouped = grouped ? grouped.slice(startIdx, endIdx) : null;
+  const pagedRows = rows.slice(startIdx, endIdx);
+
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize, groupByTracking]);
+
+
   function toggleExpand(id: string) {
     const next = new Set(expanded);
     if (next.has(id)) next.delete(id);
