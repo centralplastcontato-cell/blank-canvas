@@ -6558,6 +6558,10 @@ export type Database = {
         Returns: boolean
       }
       cleanup_message_trace_logs: { Args: never; Returns: number }
+      delete_conversation_cascade: {
+        Args: { _conversation_id: string; _delete_lead?: boolean }
+        Returns: Json
+      }
       get_attendance_entry_public: {
         Args: { _entry_id: string }
         Returns: {
