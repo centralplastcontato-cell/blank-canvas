@@ -5660,7 +5660,27 @@ async function processWebhookEvent(body: JsonRecord) {
         if (cPic) upd.contact_picture = cPic;
         
         // Await to ensure human_takeover flag is committed before next message arrives
-        await supabase.from('wapi_conversations').update(upd).eq('id', ex.id);
+        const { error: _convUpdErr } = await supabase.from('wapi_conversations').update(upd).eq('id', ex.id);
+
+        // [FASE 2 trace] conversation_update_success — update do last_message_at/unread/etc
+        fireTrace(supabase, 'conversation_update_success', {
+          tracking_id: rawWebhookEventId,
+          provider: instance.provider || null,
+          instance_id: instance.instance_id || null,
+          company_id: instance.company_id || null,
+          conversation_id: ex.id,
+          message_id: typeof msgId === 'string' ? msgId : (msgId ? String(msgId) : null),
+          phone,
+          direction: fromMe ? 'outgoing' : 'incoming',
+          status: _convUpdErr ? 'error' : 'ok',
+          error_message: _convUpdErr ? _convUpdErr.message : null,
+          payload_summary: {
+            fields_updated: Object.keys(upd),
+            bot_enabled_after: (upd.bot_enabled as boolean | undefined) ?? ex.bot_enabled ?? null,
+            bot_step_after: (upd.bot_step as string | undefined) ?? ex.bot_step ?? null,
+          },
+        });
+
         
         // If no profile picture, fetch it in background
         if (!cPic && !ex.contact_picture) {
