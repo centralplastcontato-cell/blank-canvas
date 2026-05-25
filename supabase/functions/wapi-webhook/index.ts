@@ -6119,9 +6119,36 @@ async function processWebhookEvent(body: JsonRecord) {
           const allowPilotRestart = isMegaMagicPilotPhone(instance.id, phone) && conv.bot_step !== 'human_takeover';
           if ((conv.bot_enabled === false || conv.bot_step === 'human_takeover') && !allowPilotRestart) {
             console.log(`[Bot] Skipping — bot disabled after re-read (step: ${conv.bot_step}, enabled: ${conv.bot_enabled})`);
+            // [FASE 2 trace] bot_dispatch — pulado por estado do bot
+            fireTrace(supabase, 'bot_dispatch', {
+              tracking_id: rawWebhookEventId,
+              provider: instance.provider || null,
+              instance_id: instance.instance_id || null,
+              company_id: instance.company_id || null,
+              conversation_id: conv.id,
+              message_id: typeof msgId === 'string' ? msgId : (msgId ? String(msgId) : null),
+              phone,
+              direction: 'incoming',
+              status: 'skipped',
+              payload_summary: { reason: 'bot_disabled_or_human_takeover', bot_step: conv.bot_step, bot_enabled: conv.bot_enabled },
+            });
           } else {
+            // [FASE 2 trace] bot_dispatch — entrega da mensagem ao motor de qualificação
+            fireTrace(supabase, 'bot_dispatch', {
+              tracking_id: rawWebhookEventId,
+              provider: instance.provider || null,
+              instance_id: instance.instance_id || null,
+              company_id: instance.company_id || null,
+              conversation_id: conv.id,
+              message_id: typeof msgId === 'string' ? msgId : (msgId ? String(msgId) : null),
+              phone,
+              direction: 'incoming',
+              payload_summary: { bot_step: conv.bot_step, bot_enabled: conv.bot_enabled, content_len: (content || '').length },
+              latency_ms: Date.now() - processingStartAt,
+            });
             await processBotQualification(supabase, instance, conv, content, phone, cName as string | null);
           }
+
         } catch (err) {
           console.error('[Bot qualification error]', err);
         }
