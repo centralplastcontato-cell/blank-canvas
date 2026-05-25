@@ -5261,7 +5261,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                             ) : (
                             <div
                               className={cn(
-                                "flex group",
+                                "flex group w-full max-w-full min-w-0 overflow-hidden",
                                 msg.from_me ? "justify-end" : "justify-start"
                               )}
                             >
