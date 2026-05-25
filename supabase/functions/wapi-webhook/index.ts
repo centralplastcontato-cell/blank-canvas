@@ -269,11 +269,14 @@ function isReconnectHistoryReplay(instance: JsonRecord, messageTimestamp: string
   if (!connectedAt || Number.isNaN(connectedAt) || Number.isNaN(msgAt)) return false;
   const quarantineUntil = connectedAt + RECONNECT_AUTOMATION_QUARANTINE_MS;
   if (quarantineUntil <= Date.now()) return false;
-  // During the reconnect window, only messages that arrived AFTER reconnect can
-  // trigger bot automation. Older timestamps are WhatsApp history replay and
-  // must never fan out welcome/materials/follow-up bursts.
-  return msgAt < connectedAt;
+  // During the reconnect window, only messages that arrived clearly BEFORE
+  // reconnect (more than 60s) are treated as WhatsApp history replay.
+  // A 60s tolerance prevents false positives from clock skew or messages that
+  // arrive in the same second the instance reports "connected".
+  const HISTORY_REPLAY_TOLERANCE_MS = 60_000;
+  return msgAt < (connectedAt - HISTORY_REPLAY_TOLERANCE_MS);
 }
+
 
 function isExistingConversationInReconnectQuarantine(instance: JsonRecord, conv: JsonRecord | null | undefined): boolean {
   const connectedAt = instance.connected_at ? new Date(String(instance.connected_at)).getTime() : 0;
