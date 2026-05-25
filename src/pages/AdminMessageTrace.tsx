@@ -529,3 +529,41 @@ function TimelineRow({
     </div>
   );
 }
+
+function PaginationBar({
+  page, totalPages, pageSize, totalItems, startIdx, endIdx, onPage, onPageSize, unit,
+}: {
+  page: number; totalPages: number; pageSize: number; totalItems: number;
+  startIdx: number; endIdx: number;
+  onPage: (p: number) => void; onPageSize: (n: number) => void; unit: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-card p-3">
+      <div className="text-xs text-muted-foreground">
+        Mostrando <span className="font-medium text-foreground">{startIdx + 1}–{endIdx}</span> de{" "}
+        <span className="font-medium text-foreground">{totalItems}</span> {unit}
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          <Label className="text-xs text-muted-foreground">Por página</Label>
+          <Select value={String(pageSize)} onValueChange={(v) => onPageSize(Number(v))}>
+            <SelectTrigger className="h-8 w-[80px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {[10, 25, 50, 100].map((n) => (
+                <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button size="sm" variant="outline" className="h-8" onClick={() => onPage(1)} disabled={page <= 1}>«</Button>
+        <Button size="sm" variant="outline" className="h-8" onClick={() => onPage(page - 1)} disabled={page <= 1}>‹</Button>
+        <span className="text-xs tabular-nums px-2">
+          Página <span className="font-medium">{page}</span> / {totalPages}
+        </span>
+        <Button size="sm" variant="outline" className="h-8" onClick={() => onPage(page + 1)} disabled={page >= totalPages}>›</Button>
+        <Button size="sm" variant="outline" className="h-8" onClick={() => onPage(totalPages)} disabled={page >= totalPages}>»</Button>
+      </div>
+    </div>
+  );
+}
+
