@@ -4478,6 +4478,60 @@ export type Database = {
           },
         ]
       }
+      message_trace_logs: {
+        Row: {
+          company_id: string | null
+          conversation_id: string | null
+          created_at: string
+          direction: string | null
+          error_message: string | null
+          id: string
+          instance_id: string | null
+          latency_ms: number | null
+          message_id: string | null
+          payload_summary: Json | null
+          phone: string | null
+          provider: string | null
+          stage: string
+          status: string
+          tracking_id: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          direction?: string | null
+          error_message?: string | null
+          id?: string
+          instance_id?: string | null
+          latency_ms?: number | null
+          message_id?: string | null
+          payload_summary?: Json | null
+          phone?: string | null
+          provider?: string | null
+          stage: string
+          status: string
+          tracking_id?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          direction?: string | null
+          error_message?: string | null
+          id?: string
+          instance_id?: string | null
+          latency_ms?: number | null
+          message_id?: string | null
+          payload_summary?: Json | null
+          phone?: string | null
+          provider?: string | null
+          stage?: string
+          status?: string
+          tracking_id?: string | null
+        }
+        Relationships: []
+      }
       monthly_reviews: {
         Row: {
           ai_context_generated: string | null
@@ -6503,6 +6557,7 @@ export type Database = {
         Args: { _target_user_id: string; _user_id: string }
         Returns: boolean
       }
+      cleanup_message_trace_logs: { Args: never; Returns: number }
       get_attendance_entry_public: {
         Args: { _entry_id: string }
         Returns: {
@@ -6969,6 +7024,24 @@ export type Database = {
         Returns: undefined
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      log_message_trace: {
+        Args: {
+          _company_id: string
+          _conversation_id: string
+          _direction: string
+          _error_message?: string
+          _instance_id: string
+          _latency_ms?: number
+          _message_id: string
+          _payload_summary?: Json
+          _phone: string
+          _provider: string
+          _stage: string
+          _status: string
+          _tracking_id: string
+        }
+        Returns: undefined
+      }
       merge_duplicate_conversations_intra_instance: {
         Args: never
         Returns: Json
