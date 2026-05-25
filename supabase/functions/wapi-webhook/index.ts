@@ -5496,10 +5496,29 @@ async function processWebhookEvent(body: JsonRecord) {
       // If no conversation exists for this instance+rj, look for an existing
       // conversation in the SAME COMPANY for the SAME PHONE on a DIFFERENT instance
       // (e.g. customer migrated W-API → Z-API). When found, "move" that conversation
-      // to the current instance instead of creating a duplicate. This preserves the
-      // full chat history, lead link, bot state and is fully transparent to both
-      // the customer and the operator (single thread in the UI).
+      // to the current instance instead of creating a duplicate.
+      // 🛡️ SAFEGUARD: Only run unification when the company has a SINGLE active
+      // instance. Multi-instance setups (Vendas 1/2/3) have independent sellers —
+      // unifying would contaminate bot_step/history across sellers and break the
+      // bot flow.
+      let allowCrossInstanceUnify = false;
       if (!ex && !isGrp && !resolvedLidConv) {
+        try {
+          const { count: activeInstancesCount } = await supabase
+            .from('whatsapp_instances')
+            .select('id', { count: 'exact', head: true })
+            .eq('company_id', instance.company_id)
+            .eq('is_active', true);
+          allowCrossInstanceUnify = (activeInstancesCount ?? 0) <= 1;
+          if (!allowCrossInstanceUnify) {
+            console.log(`[Webhook][CrossInstanceUnify] SKIPPED company=${instance.company_id} has ${activeInstancesCount} active instances (multi-seller). Keeping per-instance isolation.`);
+          }
+        } catch (countErr) {
+          console.error('[Webhook][CrossInstanceUnify] count check failed, defaulting to SKIP:', countErr);
+          allowCrossInstanceUnify = false;
+        }
+      }
+      if (allowCrossInstanceUnify) {
         try {
           const digitsOnly = phone.replace(/\D/g, '');
           // Build phone variants: with/without 55, with/without 9th digit
