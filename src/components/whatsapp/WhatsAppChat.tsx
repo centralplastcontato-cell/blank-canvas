@@ -5200,7 +5200,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                   })()}
                   {/* Messages */}
                   <div className="flex-1 relative min-h-0">
-                    <ScrollArea ref={scrollAreaDesktopRef} className="h-full whatsapp-chat-bg">
+                    <ScrollArea ref={scrollAreaDesktopRef} className="h-full whatsapp-chat-bg [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden [&_[data-radix-scroll-area-viewport]>div]:!block [&_[data-radix-scroll-area-viewport]>div]:!w-full [&_[data-radix-scroll-area-viewport]>div]:!min-w-0">
                       <div className="space-y-2 sm:space-y-3 p-3 sm:p-4">
                         {/* Loading indicator at top */}
                         {isLoadingMoreMessages && (
