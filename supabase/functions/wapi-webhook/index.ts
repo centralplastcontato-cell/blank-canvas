@@ -164,10 +164,11 @@ async function resolveLidConversation(
         .from('wapi_conversations')
         .select(selectFields)
         .eq('id', existingMessage.conversation_id)
+        .eq('instance_id', instanceDbId) // 🛡️ ISOLAR INSTÂNCIAS: nunca resolver @lid para conversa de outra instância (Vendas 1 ↔ Vendas 2)
         .maybeSingle();
       if (convByMessage?.remote_jid && !String(convByMessage.remote_jid).includes('@lid')) {
         if (candidateMsgId !== msgId) {
-          console.log(`[Webhook] Resolved @lid ${lidJid} to ${convByMessage.remote_jid} by referenced message ${candidateMsgId}`);
+          console.log(`[Webhook] Resolved @lid ${lidJid} to ${convByMessage.remote_jid} by referenced message ${candidateMsgId} (same-instance)`);
         }
         return convByMessage as JsonRecord;
       }
