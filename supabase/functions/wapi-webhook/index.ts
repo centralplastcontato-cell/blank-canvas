@@ -5317,6 +5317,26 @@ async function processWebhookEvent(body: JsonRecord) {
       }
       const phone = (rj as string).replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace('@lid', '');
 
+      // [FASE 2 trace] payload_normalized — após classificar JID e extrair phone/msgId
+      fireTrace(supabase, 'payload_normalized', {
+        tracking_id: rawWebhookEventId,
+        provider: instance.provider || null,
+        instance_id: instance.instance_id || null,
+        company_id: instance.company_id || null,
+        message_id: typeof msgId === 'string' ? msgId : (msgId ? String(msgId) : null),
+        phone,
+        direction: fromMe ? 'outgoing' : 'incoming',
+        payload_summary: {
+          jid_kind: rjNorm.kind,
+          is_group: isGrp,
+          is_lid: isLidJid,
+          unresolved_lid: isUnresolvedInboundLid,
+          remote_jid: rj,
+        },
+        latency_ms: Date.now() - processingStartAt,
+      });
+
+
       // If we mapped a @lid → real phone, propagate the real phone to any existing
       // LID-based conversation rows so future plataforma → celular sends use the
       // real number instead of the LID digits (which Z-API silently drops).
