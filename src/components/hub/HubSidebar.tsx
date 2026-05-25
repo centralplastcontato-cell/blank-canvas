@@ -1,5 +1,5 @@
 import { useLocation } from "react-router-dom";
-import { BarChart3, Building2, LogOut, Smartphone, Target, Presentation, Brain, GraduationCap, Users, Headset, Package, UserSearch, BookOpen, Database } from "lucide-react";
+import { BarChart3, Building2, LogOut, Smartphone, Target, Presentation, Brain, GraduationCap, Users, Headset, Package, UserSearch, BookOpen, Database, Activity } from "lucide-react";
 import logoCelebrei from "@/assets/logo-celebrei-2.png";
 import { NavLink } from "@/components/NavLink";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,7 @@ const hubMenuItems = [
   { title: "Comercial B2B", url: "/hub/comercial-b2b", icon: Presentation },
   { title: "Prospecção", url: "/hub/prospeccao", icon: Target },
   { title: "WhatsApp", url: "/hub/whatsapp", icon: Smartphone },
+  { title: "Diagnóstico Msg", url: "/admin/message-trace", icon: Activity },
   { title: "Consumo IA", url: "/hub/consumo-ia", icon: Brain },
   { title: "Treinamento", url: "/hub/treinamento", icon: GraduationCap },
   { title: "Materiais", url: "/hub/materiais", icon: Package },
