@@ -83,6 +83,10 @@ export default function AdminMessageTrace() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [groupByTracking, setGroupByTracking] = useState(true);
 
+  // pagination
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
   // filters
   const [trackingId, setTrackingId] = useState("");
   const [phone, setPhone] = useState("");
@@ -95,6 +99,7 @@ export default function AdminMessageTrace() {
   const [stage, setStage] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
   const [limit, setLimit] = useState(200);
+
 
   async function runQuery(custom?: Partial<{
     direction: string; status: string; stage: string; phone: string;
