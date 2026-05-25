@@ -24,6 +24,53 @@ const MEGA_MAGIC_PILOT_PHONE = '15981121710';
 type Provider = 'wapi' | 'zapi';
 type JsonRecord = Record<string, any>;
 
+// ============================================================================
+// FASE 2 — RASTREABILIDADE (somente logs, nunca bloqueia o pipeline)
+// ----------------------------------------------------------------------------
+// Toda chamada é fire-and-forget; qualquer erro é silenciado pela RPC
+// `log_message_trace` (SECURITY DEFINER, EXCEPTION WHEN OTHERS THEN NULL).
+// NÃO altera regra de negócio. NÃO altera dedup/realtime/@lid/wapi-send.
+// ============================================================================
+interface TraceFields {
+  tracking_id?: string | null;
+  provider?: string | null;
+  instance_id?: string | null;
+  company_id?: string | null;
+  conversation_id?: string | null;
+  message_id?: string | null;
+  phone?: string | null;
+  direction?: string | null;
+  status?: string | null;
+  payload_summary?: JsonRecord | null;
+  error_message?: string | null;
+  latency_ms?: number | null;
+}
+function fireTrace(supabase: SupabaseClient, stage: string, fields: TraceFields = {}) {
+  try {
+    const p = supabase.rpc('log_message_trace', {
+      _tracking_id: fields.tracking_id ?? null,
+      _provider: fields.provider ?? null,
+      _instance_id: fields.instance_id ?? null,
+      _company_id: fields.company_id ?? null,
+      _conversation_id: fields.conversation_id ?? null,
+      _message_id: fields.message_id ?? null,
+      _phone: fields.phone ?? null,
+      _direction: fields.direction ?? null,
+      _stage: stage,
+      _status: fields.status ?? 'ok',
+      _payload_summary: fields.payload_summary ?? null,
+      _error_message: fields.error_message ?? null,
+      _latency_ms: fields.latency_ms ?? null,
+    });
+    // Fire-and-forget: jamais bloqueia o caller
+    if (p && typeof (p as any).then === 'function') {
+      (p as any).then(() => {}, () => {});
+    }
+  } catch (_e) {
+    // trace nunca pode quebrar o webhook
+  }
+}
+
 function normalizeZapiRemoteJid(rawPhone: string): string {
   const raw = (rawPhone || '').trim();
   if (!raw) return '';
@@ -5270,6 +5317,26 @@ async function processWebhookEvent(body: JsonRecord) {
       }
       const phone = (rj as string).replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace('@lid', '');
 
+      // [FASE 2 trace] payload_normalized — após classificar JID e extrair phone/msgId
+      fireTrace(supabase, 'payload_normalized', {
+        tracking_id: rawWebhookEventId,
+        provider: instance.provider || null,
+        instance_id: instance.instance_id || null,
+        company_id: instance.company_id || null,
+        message_id: typeof msgId === 'string' ? msgId : (msgId ? String(msgId) : null),
+        phone,
+        direction: fromMe ? 'outgoing' : 'incoming',
+        payload_summary: {
+          jid_kind: rjNorm.kind,
+          is_group: isGrp,
+          is_lid: isLidJid,
+          unresolved_lid: isUnresolvedInboundLid,
+          remote_jid: rj,
+        },
+        latency_ms: Date.now() - processingStartAt,
+      });
+
+
       // If we mapped a @lid → real phone, propagate the real phone to any existing
       // LID-based conversation rows so future plataforma → celular sends use the
       // real number instead of the LID digits (which Z-API silently drops).
@@ -5593,7 +5660,27 @@ async function processWebhookEvent(body: JsonRecord) {
         if (cPic) upd.contact_picture = cPic;
         
         // Await to ensure human_takeover flag is committed before next message arrives
-        await supabase.from('wapi_conversations').update(upd).eq('id', ex.id);
+        const { error: _convUpdErr } = await supabase.from('wapi_conversations').update(upd).eq('id', ex.id);
+
+        // [FASE 2 trace] conversation_update_success — update do last_message_at/unread/etc
+        fireTrace(supabase, 'conversation_update_success', {
+          tracking_id: rawWebhookEventId,
+          provider: instance.provider || null,
+          instance_id: instance.instance_id || null,
+          company_id: instance.company_id || null,
+          conversation_id: ex.id,
+          message_id: typeof msgId === 'string' ? msgId : (msgId ? String(msgId) : null),
+          phone,
+          direction: fromMe ? 'outgoing' : 'incoming',
+          status: _convUpdErr ? 'error' : 'ok',
+          error_message: _convUpdErr ? _convUpdErr.message : null,
+          payload_summary: {
+            fields_updated: Object.keys(upd),
+            bot_enabled_after: (upd.bot_enabled as boolean | undefined) ?? ex.bot_enabled ?? null,
+            bot_step_after: (upd.bot_step as string | undefined) ?? ex.bot_step ?? null,
+          },
+        });
+
         
         // If no profile picture, fetch it in background
         if (!cPic && !ex.contact_picture) {
@@ -5691,6 +5778,25 @@ async function processWebhookEvent(body: JsonRecord) {
       }
       
       console.log(`[Latency] conversation_ready: ${Date.now() - processingStartAt}ms`);
+
+      // [FASE 2 trace] conversation_resolved — conv pronta (existente OU recém-criada)
+      fireTrace(supabase, 'conversation_resolved', {
+        tracking_id: rawWebhookEventId,
+        provider: instance.provider || null,
+        instance_id: instance.instance_id || null,
+        company_id: instance.company_id || null,
+        conversation_id: conv?.id || null,
+        message_id: typeof msgId === 'string' ? msgId : (msgId ? String(msgId) : null),
+        phone,
+        direction: fromMe ? 'outgoing' : 'incoming',
+        payload_summary: {
+          was_existing: !!ex,
+          bot_enabled: conv?.bot_enabled ?? null,
+          bot_step: conv?.bot_step ?? null,
+          lead_id: conv?.lead_id ?? null,
+        },
+        latency_ms: Date.now() - processingStartAt,
+      });
       const existingConversationReconnectQuarantine = isExistingConversationInReconnectQuarantine(instance as JsonRecord, conv as JsonRecord);
       if (existingConversationReconnectQuarantine) {
         console.warn(`[Webhook] 🚫 Existing conversation inside reconnect quarantine; message will be saved but automation skipped (conv=${conv.id}, connectedAt=${instance.connected_at})`);
@@ -5719,6 +5825,18 @@ async function processWebhookEvent(body: JsonRecord) {
       }
 
 
+      // [FASE 2 trace] common fields para todos os stages de insert
+      const _traceCommon = {
+        tracking_id: rawWebhookEventId,
+        provider: instance.provider || null,
+        instance_id: instance.instance_id || null,
+        company_id: instance.company_id || null,
+        conversation_id: conv.id,
+        message_id: typeof msgId === 'string' ? msgId : (msgId ? String(msgId) : null),
+        phone,
+        direction: fromMe ? 'outgoing' : 'incoming',
+      };
+
       if (fromMe && msgId) {
         const { data: existingMsg } = await supabase.from('wapi_messages')
           .select('id')
@@ -5729,12 +5847,22 @@ async function processWebhookEvent(body: JsonRecord) {
         
         if (existingMsg) {
           console.log(`[Bot] Skipping duplicate outgoing message ${msgId} - already saved`);
+          // [FASE 2 trace] dedup detectado ANTES do upsert (outgoing)
+          fireTrace(supabase, 'message_insert_skipped_duplicate', {
+            ..._traceCommon,
+            payload_summary: { type, reason: 'pre_upsert_dedup_outgoing' },
+          });
         } else {
           const grpMeta1 = isGrp ? {
             participant: ((msg as JsonRecord).key?.participant || (msg as JsonRecord).participant || '').replace('@s.whatsapp.net',''),
             sender_name: (msg as JsonRecord).pushName || (msg as JsonRecord).sender?.pushName || null
           } : null;
-          await supabase.from('wapi_messages').upsert({
+          // [FASE 2 trace] tentativa de insert
+          fireTrace(supabase, 'message_insert_attempt', {
+            ..._traceCommon,
+            payload_summary: { type, has_media: !!url, is_group: isGrp },
+          });
+          const { error: _insErr1 } = await supabase.from('wapi_messages').upsert({
             conversation_id: conv.id, message_id: msgId, from_me: fromMe, message_type: type, content,
             media_url: url, media_key: key, media_direct_path: path, status: 'sent',
             timestamp: messageTimestamp,
@@ -5742,6 +5870,21 @@ async function processWebhookEvent(body: JsonRecord) {
             metadata: grpMeta1,
             quoted_message_id: quotedDbId,
           }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
+          if (_insErr1) {
+            fireTrace(supabase, 'message_insert_error', {
+              ..._traceCommon,
+              status: 'error',
+              error_message: _insErr1.message,
+              payload_summary: { type, code: (_insErr1 as any).code || null },
+              latency_ms: Date.now() - insertStartAt,
+            });
+          } else {
+            fireTrace(supabase, 'message_insert_success', {
+              ..._traceCommon,
+              payload_summary: { type, status: 'sent' },
+              latency_ms: Date.now() - insertStartAt,
+            });
+          }
         }
       } else {
         // Dedup incoming messages — W-API may fire the same webhook twice
@@ -5754,6 +5897,11 @@ async function processWebhookEvent(body: JsonRecord) {
             .maybeSingle();
           if (existingIncoming) {
             console.log(`[Webhook] Skipping duplicate incoming message ${msgId}`);
+            // [FASE 2 trace] dedup detectado ANTES do upsert (incoming)
+            fireTrace(supabase, 'message_insert_skipped_duplicate', {
+              ..._traceCommon,
+              payload_summary: { type, reason: 'pre_upsert_dedup_incoming' },
+            });
             break;
           }
         }
@@ -5761,7 +5909,12 @@ async function processWebhookEvent(body: JsonRecord) {
           participant: ((msg as JsonRecord).key?.participant || (msg as JsonRecord).participant || '').replace('@s.whatsapp.net',''),
           sender_name: (msg as JsonRecord).pushName || (msg as JsonRecord).sender?.pushName || null
         } : null;
-        await supabase.from('wapi_messages').upsert({
+        // [FASE 2 trace] tentativa de insert
+        fireTrace(supabase, 'message_insert_attempt', {
+          ..._traceCommon,
+          payload_summary: { type, has_media: !!url, is_group: isGrp },
+        });
+        const { error: _insErr2 } = await supabase.from('wapi_messages').upsert({
           conversation_id: conv.id, message_id: msgId, from_me: fromMe, message_type: type, content,
           media_url: url, media_key: key, media_direct_path: path, status: fromMe ? 'sent' : 'received',
           timestamp: messageTimestamp,
@@ -5769,9 +5922,25 @@ async function processWebhookEvent(body: JsonRecord) {
           metadata: grpMeta2,
           quoted_message_id: quotedDbId,
         }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
+        if (_insErr2) {
+          fireTrace(supabase, 'message_insert_error', {
+            ..._traceCommon,
+            status: 'error',
+            error_message: _insErr2.message,
+            payload_summary: { type, code: (_insErr2 as any).code || null },
+            latency_ms: Date.now() - insertStartAt,
+          });
+        } else {
+          fireTrace(supabase, 'message_insert_success', {
+            ..._traceCommon,
+            payload_summary: { type, status: fromMe ? 'sent' : 'received' },
+            latency_ms: Date.now() - insertStartAt,
+          });
+        }
       }
       
       console.log(`[Latency] message_inserted: ${Date.now() - insertStartAt}ms (total: ${Date.now() - processingStartAt}ms)`);
+
 
       // If media download was started, wait for it and update the message
       if (mediaPromise) {
@@ -5950,9 +6119,36 @@ async function processWebhookEvent(body: JsonRecord) {
           const allowPilotRestart = isMegaMagicPilotPhone(instance.id, phone) && conv.bot_step !== 'human_takeover';
           if ((conv.bot_enabled === false || conv.bot_step === 'human_takeover') && !allowPilotRestart) {
             console.log(`[Bot] Skipping — bot disabled after re-read (step: ${conv.bot_step}, enabled: ${conv.bot_enabled})`);
+            // [FASE 2 trace] bot_dispatch — pulado por estado do bot
+            fireTrace(supabase, 'bot_dispatch', {
+              tracking_id: rawWebhookEventId,
+              provider: instance.provider || null,
+              instance_id: instance.instance_id || null,
+              company_id: instance.company_id || null,
+              conversation_id: conv.id,
+              message_id: typeof msgId === 'string' ? msgId : (msgId ? String(msgId) : null),
+              phone,
+              direction: 'incoming',
+              status: 'skipped',
+              payload_summary: { reason: 'bot_disabled_or_human_takeover', bot_step: conv.bot_step, bot_enabled: conv.bot_enabled },
+            });
           } else {
+            // [FASE 2 trace] bot_dispatch — entrega da mensagem ao motor de qualificação
+            fireTrace(supabase, 'bot_dispatch', {
+              tracking_id: rawWebhookEventId,
+              provider: instance.provider || null,
+              instance_id: instance.instance_id || null,
+              company_id: instance.company_id || null,
+              conversation_id: conv.id,
+              message_id: typeof msgId === 'string' ? msgId : (msgId ? String(msgId) : null),
+              phone,
+              direction: 'incoming',
+              payload_summary: { bot_step: conv.bot_step, bot_enabled: conv.bot_enabled, content_len: (content || '').length },
+              latency_ms: Date.now() - processingStartAt,
+            });
             await processBotQualification(supabase, instance, conv, content, phone, cName as string | null);
           }
+
         } catch (err) {
           console.error('[Bot qualification error]', err);
         }
@@ -6443,6 +6639,19 @@ Deno.serve(async (req) => {
     // Log minimal info for debugging
     const evt = body.event || 'unknown';
     console.log(`Webhook: ${evt} from ${instanceId}`);
+
+    // [FASE 2 trace] webhook_received — entrada do payload no edge function
+    fireTrace(supabase, 'webhook_received', {
+      tracking_id: originalRawWebhookEventId,
+      instance_id: typeof instanceId === 'string' ? instanceId : String(instanceId),
+      payload_summary: {
+        event: evt,
+        is_zapi: isZapiPayload === true,
+        has_key: !!(body.key || (body.data as JsonRecord)?.key),
+        body_keys: Object.keys(body).slice(0, 20),
+      },
+    });
+
     
     // Process in background - return response immediately
     // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
