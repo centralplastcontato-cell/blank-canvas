@@ -5297,6 +5297,28 @@ async function processWebhookEvent(body: JsonRecord) {
       
       let rj = (msg as JsonRecord).key?.remoteJid || (msg as JsonRecord).from || (msg as JsonRecord).remoteJid || ((msg as JsonRecord).chat?.id ? `${(msg as JsonRecord).chat?.id}` : null) || ((msg as JsonRecord).sender?.id ? `${(msg as JsonRecord).sender?.id}@s.whatsapp.net` : null);
       if (!rj) break;
+      // 🛟 LID HARD-OVERRIDE: when chat.id is an @lid (WhatsApp private identifier)
+      // but sender.id contains the real phone, prefer the real phone. Otherwise
+      // first-time conversations on instances with no prior history get stuck
+      // forever in "unresolved @lid" and the bot never replies.
+      try {
+        const senderRaw = (msg as JsonRecord).sender?.id ? String((msg as JsonRecord).sender?.id) : null;
+        const isGroupChat = typeof rj === 'string' && rj.includes('@g.us');
+        if (
+          typeof rj === 'string'
+          && rj.includes('@lid')
+          && !isGroupChat
+          && senderRaw
+          && !senderRaw.includes('@lid')
+          && /^\d{8,15}(@.*)?$/.test(senderRaw.replace(/@.*$/, ''))
+        ) {
+          const realPhone = senderRaw.replace(/@.*$/, '');
+          const realJid = `${realPhone}@s.whatsapp.net`;
+          console.log(`[Webhook] 🛟 Overriding @lid chat.id (${rj}) with sender.id real phone → ${realJid}`);
+          rj = realJid;
+        }
+      } catch (_overrideErr) { /* never break ingestion */ }
+
       // Ignore WhatsApp status broadcasts — they are not real conversations and must
       // never create rows or trigger the bot. Examples: "status@broadcast", "*@broadcast".
       // Also check participant/author fields: WhatsApp Status events sometimes route the
