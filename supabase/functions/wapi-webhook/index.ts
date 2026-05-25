@@ -24,6 +24,53 @@ const MEGA_MAGIC_PILOT_PHONE = '15981121710';
 type Provider = 'wapi' | 'zapi';
 type JsonRecord = Record<string, any>;
 
+// ============================================================================
+// FASE 2 — RASTREABILIDADE (somente logs, nunca bloqueia o pipeline)
+// ----------------------------------------------------------------------------
+// Toda chamada é fire-and-forget; qualquer erro é silenciado pela RPC
+// `log_message_trace` (SECURITY DEFINER, EXCEPTION WHEN OTHERS THEN NULL).
+// NÃO altera regra de negócio. NÃO altera dedup/realtime/@lid/wapi-send.
+// ============================================================================
+interface TraceFields {
+  tracking_id?: string | null;
+  provider?: string | null;
+  instance_id?: string | null;
+  company_id?: string | null;
+  conversation_id?: string | null;
+  message_id?: string | null;
+  phone?: string | null;
+  direction?: string | null;
+  status?: string | null;
+  payload_summary?: JsonRecord | null;
+  error_message?: string | null;
+  latency_ms?: number | null;
+}
+function fireTrace(supabase: SupabaseClient, stage: string, fields: TraceFields = {}) {
+  try {
+    const p = supabase.rpc('log_message_trace', {
+      _tracking_id: fields.tracking_id ?? null,
+      _provider: fields.provider ?? null,
+      _instance_id: fields.instance_id ?? null,
+      _company_id: fields.company_id ?? null,
+      _conversation_id: fields.conversation_id ?? null,
+      _message_id: fields.message_id ?? null,
+      _phone: fields.phone ?? null,
+      _direction: fields.direction ?? null,
+      _stage: stage,
+      _status: fields.status ?? 'ok',
+      _payload_summary: fields.payload_summary ?? null,
+      _error_message: fields.error_message ?? null,
+      _latency_ms: fields.latency_ms ?? null,
+    });
+    // Fire-and-forget: jamais bloqueia o caller
+    if (p && typeof (p as any).then === 'function') {
+      (p as any).then(() => {}, () => {});
+    }
+  } catch (_e) {
+    // trace nunca pode quebrar o webhook
+  }
+}
+
 function normalizeZapiRemoteJid(rawPhone: string): string {
   const raw = (rawPhone || '').trim();
   if (!raw) return '';
