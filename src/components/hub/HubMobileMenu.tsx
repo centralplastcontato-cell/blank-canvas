@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { BarChart3, Building2, Users, LogOut, Smartphone, ClipboardList, Presentation, Brain, GraduationCap, Contact, Headset, Package, UserSearch, BookOpen } from "lucide-react";
+import { BarChart3, Building2, Users, LogOut, Smartphone, ClipboardList, Presentation, Brain, GraduationCap, Contact, Headset, Package, UserSearch, BookOpen, Activity } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +33,7 @@ const menuItems = [
   { id: "empresas", label: "Empresas", icon: Building2, path: "/hub/empresas" },
   { id: "comercial-b2b", label: "Comercial B2B", icon: Presentation, path: "/hub/comercial-b2b" },
   { id: "whatsapp", label: "WhatsApp", icon: Smartphone, path: "/hub/whatsapp" },
+  { id: "message-trace", label: "Diagnóstico Msg", icon: Activity, path: "/admin/message-trace" },
   { id: "users", label: "Usuários", icon: Users, path: "/hub/users" },
   { id: "onboarding", label: "Onboarding", icon: ClipboardList, path: "/hub/onboarding" },
   { id: "consumo-ia", label: "Consumo IA", icon: Brain, path: "/hub/consumo-ia" },
