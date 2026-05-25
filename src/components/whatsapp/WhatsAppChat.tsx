@@ -1210,52 +1210,26 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         }
       }
       
-      // Delete flow lead state for this conversation (FK constraint)
-      const { error: flowStateError } = await supabase
-        .from('flow_lead_state')
-        .delete()
-        .eq('conversation_id', selectedConversation.id);
-      
-      if (flowStateError) {
-        console.error("[Delete] Error deleting flow lead state:", flowStateError);
+      // Use SECURITY DEFINER RPC with extended timeout (60s) to delete cascade
+      // (evita "canceling statement due to statement timeout" em conversas grandes)
+      const { data: rpcData, error: rpcError } = await (supabase as any).rpc('delete_conversation_cascade', {
+        _conversation_id: selectedConversation.id,
+        _delete_lead: !!leadToDelete,
+      });
+
+      if (rpcError) {
+        console.error("[Delete] RPC error:", rpcError);
+        throw new Error(`Erro ao excluir conversa: ${rpcError.message}`);
       }
 
-      // Fix orphan messages with NULL company_id before deleting
-      // (RLS may block deletion of messages without company_id)
-      const { data: convData } = await supabase
-        .from('wapi_conversations')
-        .select('company_id')
-        .eq('id', selectedConversation.id)
-        .single();
-      
-      if (convData?.company_id) {
-        await supabase
-          .from('wapi_messages')
-          .update({ company_id: convData.company_id })
-          .eq('conversation_id', selectedConversation.id)
-          .is('company_id', null);
-      }
-
-      // Delete all messages for this conversation
-      const { error: messagesError } = await supabase
-        .from('wapi_messages')
-        .delete()
-        .eq('conversation_id', selectedConversation.id);
-      
-      if (messagesError) {
-        console.error("[Delete] Error deleting messages:", messagesError);
-        throw new Error(`Erro ao excluir mensagens: ${messagesError.message}`);
-      }
-      
-      // Delete the conversation itself
-      const { error: convError } = await supabase
-        .from('wapi_conversations')
-        .delete()
-        .eq('id', selectedConversation.id);
-      
-      if (convError) {
-        console.error("[Delete] Error deleting conversation:", convError);
-        throw new Error(`Erro ao excluir conversa: ${convError.message}`);
+      const result = rpcData as { ok?: boolean; error?: string } | null;
+      if (!result?.ok) {
+        const errMsg = result?.error === 'forbidden'
+          ? 'Você não tem permissão para excluir esta conversa.'
+          : result?.error === 'conversation_not_found'
+          ? 'Conversa não encontrada.'
+          : `Erro ao excluir: ${result?.error || 'desconhecido'}`;
+        throw new Error(errMsg);
       }
       
       // Update local state - remove conversation from list
