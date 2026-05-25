@@ -6490,6 +6490,19 @@ Deno.serve(async (req) => {
     // Log minimal info for debugging
     const evt = body.event || 'unknown';
     console.log(`Webhook: ${evt} from ${instanceId}`);
+
+    // [FASE 2 trace] webhook_received — entrada do payload no edge function
+    fireTrace(supabase, 'webhook_received', {
+      tracking_id: originalRawWebhookEventId,
+      instance_id: typeof instanceId === 'string' ? instanceId : String(instanceId),
+      payload_summary: {
+        event: evt,
+        is_zapi: isZapiPayload === true,
+        has_key: !!(body.key || (body.data as JsonRecord)?.key),
+        body_keys: Object.keys(body).slice(0, 20),
+      },
+    });
+
     
     // Process in background - return response immediately
     // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
