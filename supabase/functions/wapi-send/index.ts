@@ -21,6 +21,61 @@ function waitUntil(promise: Promise<unknown>): void {
   promise.catch((err) => console.error('[Background task] Unhandled error:', err));
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 2 — Outbound message trace (non-blocking, fire-and-forget)
+// Writes to public.message_trace_logs via RPC log_message_trace.
+// NEVER throws — any failure is swallowed so the send path is unaffected.
+// ─────────────────────────────────────────────────────────────────────────────
+function fireTrace(
+  supabase: any,
+  args: {
+    tracking_id: string;
+    stage: string;
+    status?: string;
+    provider?: string | null;
+    instance_id?: string | null;
+    company_id?: string | null;
+    conversation_id?: string | null;
+    message_id?: string | null;
+    phone?: string | null;
+    direction?: string;
+    error_message?: string | null;
+    latency_ms?: number | null;
+    payload_summary?: Record<string, unknown> | null;
+  },
+): void {
+  try {
+    const p = supabase.rpc('log_message_trace', {
+      _tracking_id: args.tracking_id,
+      _provider: args.provider ?? null,
+      _instance_id: args.instance_id ?? null,
+      _company_id: args.company_id ?? null,
+      _conversation_id: args.conversation_id ?? null,
+      _message_id: args.message_id ?? null,
+      _phone: args.phone ?? null,
+      _direction: args.direction ?? 'outbound',
+      _stage: args.stage,
+      _status: args.status ?? 'info',
+      _payload_summary: args.payload_summary ?? null,
+      _error_message: args.error_message ?? null,
+      _latency_ms: args.latency_ms ?? null,
+    });
+    if (p && typeof (p as Promise<unknown>).then === 'function') {
+      (p as Promise<unknown>).then(() => {}, () => {});
+    }
+  } catch (_e) {
+    // swallow — tracing must NEVER break the outbound send
+  }
+}
+
+function newTrackingId(): string {
+  try {
+    return `out_${crypto.randomUUID()}`;
+  } catch {
+    return `out_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+
 function getReconnectQuarantineUntil(instance: Record<string, unknown> | null | undefined): Date | null {
   const connectedAt = instance?.connected_at ? new Date(String(instance.connected_at)).getTime() : 0;
   if (!connectedAt || Number.isNaN(connectedAt)) return null;
