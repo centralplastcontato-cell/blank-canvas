@@ -78,6 +78,7 @@ const LandingPage = () => {
       <Footer />
       
       <FloatingCTA onClick={openChat} />
+      <BackgroundMusic src="/audio/castelo-theme.mp3" paused={isChatOpen} />
       <LeadChatbot isOpen={isChatOpen} onClose={closeChat} />
     </div>
   );
