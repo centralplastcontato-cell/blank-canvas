@@ -5444,6 +5444,44 @@ async function processWebhookEvent(body: JsonRecord) {
           console.warn(`[Webhook] Preserving unresolved @lid message without bot auto-reply: fromMe=${fromMe}, jid=${rj}`);
         }
       }
+
+      // Pseudo-LID detection: Z-API (multi-device) sometimes sends fromMe webhooks
+      // with WhatsApp's internal user ID (14+ digits without the +55 BR prefix) using
+      // the @s.whatsapp.net suffix instead of @lid. Example: 232259047174161@s.whatsapp.net
+      // for a contact whose real phone is 5535988683291. The normalizer classifies it as
+      // 'individual' (not 'lid'), so the @lid resolution path is skipped — resulting in
+      // a ghost conversation being created. Apply the same resolution strategy here.
+      const _pseudoLidDigits = rjNorm.phoneDigits;
+      const isPseudoLidJid = !isLidJid
+        && rjNorm.kind === 'individual'
+        && _pseudoLidDigits.length >= 14
+        && !_pseudoLidDigits.startsWith('55');
+      if (isPseudoLidJid) {
+        console.warn(`[Webhook] Pseudo-LID detected: ${rj} (${_pseudoLidDigits.length} digits, no 55 prefix). Attempting resolution.`);
+        const _pseudoResolved = await resolveLidConversation(supabase, instance.id, instance.company_id, rj as string, msgId, msg as JsonRecord);
+        if (_pseudoResolved?.remote_jid && !String(_pseudoResolved.remote_jid).includes('@lid')) {
+          console.log(`[Webhook] Pseudo-LID resolved: ${rj} → ${_pseudoResolved.remote_jid}`);
+          resolvedLidConv = _pseudoResolved;
+          rj = _pseudoResolved.remote_jid;
+        } else if (fromMe) {
+          // fromMe pseudo-LID that cannot be resolved → skip entirely.
+          // The message was either sent from the phone (wapi-send will not have it) or
+          // is a duplicate with a different JID alias. Creating a ghost conversation for
+          // an unresolvable internal ID is worse than dropping the event here — the
+          // attendant's messages sent via the platform are already saved by wapi-send.
+          console.warn(`[Webhook] fromMe pseudo-LID ${rj} unresolved — skipping to prevent ghost conversation creation.`);
+          await markRawWebhookEvent(supabase, rawWebhookEventId, {
+            processing_status: 'processed',
+            processing_note: 'fromme_pseudo_lid_unresolved',
+          });
+          break;
+        } else {
+          // Incoming message with pseudo-LID: preserve visibility but block bot.
+          isUnresolvedInboundLid = true;
+          console.warn(`[Webhook] Incoming pseudo-LID ${rj} unresolved — treating as unresolved LID, bot disabled.`);
+        }
+      }
+
       const phone = (rj as string).replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '').replace('@lid', '');
 
       // [FASE 2 trace] payload_normalized — após classificar JID e extrair phone/msgId
@@ -6000,15 +6038,20 @@ async function processWebhookEvent(body: JsonRecord) {
       };
 
       if (fromMe && msgId) {
+        // Search by message_id + company_id (not conversation_id) so we catch messages
+        // already saved by wapi-send to the CORRECT conversation even when the webhook
+        // arrives with a different JID alias (e.g. pseudo-LID resolved above, or a
+        // variant phone format). The unique constraint is (conversation_id, message_id),
+        // so a conv-scoped search would miss cross-conversation duplicates.
         const { data: existingMsg } = await supabase.from('wapi_messages')
-          .select('id')
-          .eq('conversation_id', conv.id)
-          .eq('message_id', msgId)
+          .select('id, conversation_id')
+          .eq('message_id', String(msgId))
+          .eq('company_id', instance.company_id)
           .limit(1)
           .maybeSingle();
-        
+
         if (existingMsg) {
-          console.log(`[Bot] Skipping duplicate outgoing message ${msgId} - already saved`);
+          console.log(`[Bot] Skipping duplicate outgoing message ${msgId} - already saved (conv=${existingMsg.conversation_id})`);
           // [FASE 2 trace] dedup detectado ANTES do upsert (outgoing)
           fireTrace(supabase, 'message_insert_skipped_duplicate', {
             ..._traceCommon,
