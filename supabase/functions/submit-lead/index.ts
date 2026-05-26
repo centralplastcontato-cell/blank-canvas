@@ -5,35 +5,26 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-// Simple in-memory rate limiting (resets on function restart)
-// In production, consider using Redis or a database table
-const rateLimitMap = new Map<string, { count: number; windowStart: number }>();
-const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour in milliseconds
-const MAX_REQUESTS_PER_WINDOW = 5; // 5 leads per hour per phone number
+const RATE_LIMIT_MAX = 5;      // máx submissões por telefone
+const RATE_LIMIT_WINDOW_H = 1; // janela em horas
 
-function isRateLimited(phone: string): boolean {
-  const now = Date.now();
-  const record = rateLimitMap.get(phone);
-  
-  if (!record) {
-    rateLimitMap.set(phone, { count: 1, windowStart: now });
+// Rate limiting persistido no banco — sobrevive a restarts da Edge Function.
+// Conta quantas vezes o telefone apareceu em campaign_leads na última hora.
+// Fail-open: se a query falhar, permite a requisição.
+async function isDbRateLimited(supabase: any, phone: string, companyId: string): Promise<boolean> {
+  try {
+    const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_H * 60 * 60 * 1000).toISOString();
+    const phoneVariants = [phone, phone.startsWith('55') ? phone.slice(2) : `55${phone}`];
+    const { count } = await supabase
+      .from('campaign_leads')
+      .select('id', { count: 'exact', head: true })
+      .in('whatsapp', phoneVariants)
+      .eq('company_id', companyId)
+      .gte('created_at', windowStart);
+    return (count ?? 0) >= RATE_LIMIT_MAX;
+  } catch {
     return false;
   }
-  
-  // Reset window if expired
-  if (now - record.windowStart > RATE_LIMIT_WINDOW) {
-    rateLimitMap.set(phone, { count: 1, windowStart: now });
-    return false;
-  }
-  
-  // Check if limit exceeded
-  if (record.count >= MAX_REQUESTS_PER_WINDOW) {
-    return true;
-  }
-  
-  // Increment count
-  record.count++;
-  return false;
 }
 
 // Validation functions
@@ -204,18 +195,27 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Rate limiting by phone number
     const normalizedPhone = whatsappValidation.normalized!;
+
+    // Supabase client único — usado para rate limit, routing e lead ops
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Rate limiting persistido no banco — sobrevive a restarts da Edge Function
+    if (await isDbRateLimited(supabase, normalizedPhone, company_id)) {
+      console.log(`Rate limit (DB) exceeded for phone: ${normalizedPhone}`);
+      return new Response(
+        JSON.stringify({ error: 'Muitas solicitações. Tente novamente mais tarde.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Resolve lead routing (which WhatsApp instance should receive this lead)
     let resolvedUnit = unit || null;
     if (company_id) {
       try {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-        const supabaseEarly = createClient(supabaseUrl, supabaseServiceKey);
-
-        const { data: routingSettings } = await supabaseEarly
+        const { data: routingSettings } = await supabase
           .from('lp_bot_settings')
           .select('lead_routing_mode, lead_routing_counter')
           .eq('company_id', company_id)
@@ -225,7 +225,7 @@ Deno.serve(async (req) => {
           const mode = routingSettings.lead_routing_mode || 'auto';
 
           // Fetch the actual active units for THIS company (not hardcoded names)
-          const { data: companyUnits } = await supabaseEarly
+          const { data: companyUnits } = await supabase
             .from('wapi_instances')
             .select('unit')
             .eq('company_id', company_id)
@@ -235,28 +235,23 @@ Deno.serve(async (req) => {
           const activeUnits = (companyUnits || []).map((u: { unit: string }) => u.unit).filter(Boolean);
 
           if (activeUnits.length === 0) {
-            // No active instances — keep original unit
             console.log(`No active instances for company ${company_id}, keeping original unit`);
           } else if (activeUnits.length === 1) {
-            // Single instance — always route there
             resolvedUnit = activeUnits[0];
           } else {
-            // Multiple instances — check routing mode
             if (mode === 'auto') {
-              // Round-robin across all active units
               const counter = routingSettings.lead_routing_counter || 0;
               resolvedUnit = activeUnits[counter % activeUnits.length];
-              await supabaseEarly
+              await supabase
                 .from('lp_bot_settings')
                 .update({ lead_routing_counter: counter + 1 })
                 .eq('company_id', company_id);
             } else if (mode.includes(',')) {
-              // Multi-unit selection (comma-separated) — round-robin only among selected
               const selectedUnits = mode.split(',').filter((u: string) => activeUnits.includes(u));
               if (selectedUnits.length > 0) {
                 const counter = routingSettings.lead_routing_counter || 0;
                 resolvedUnit = selectedUnits[counter % selectedUnits.length];
-                await supabaseEarly
+                await supabase
                   .from('lp_bot_settings')
                   .update({ lead_routing_counter: counter + 1 })
                   .eq('company_id', company_id);
@@ -264,35 +259,15 @@ Deno.serve(async (req) => {
                 resolvedUnit = activeUnits[0];
               }
             } else {
-              // Single unit mode — check if mode matches a specific unit name
               const fixedUnit = activeUnits.find((u: string) => u.toLowerCase().replace(/\s+/g, '') === mode.toLowerCase().replace(/\s+/g, ''));
-              if (fixedUnit) {
-                resolvedUnit = fixedUnit;
-              } else {
-                // Unknown mode — default to first unit
-                resolvedUnit = activeUnits[0];
-              }
+              resolvedUnit = fixedUnit || activeUnits[0];
             }
           }
         }
       } catch (routingErr) {
         console.error('Error resolving lead routing:', routingErr);
-        // Non-blocking — fall back to original unit
       }
     }
-
-    if (isRateLimited(normalizedPhone)) {
-      console.log(`Rate limit exceeded for phone: ${normalizedPhone}`);
-      return new Response(
-        JSON.stringify({ error: 'Muitas solicitações. Tente novamente mais tarde.' }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Create Supabase client with service role
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Check if lead already exists
     const { data: existingLead } = await supabase
