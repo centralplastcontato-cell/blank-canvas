@@ -619,7 +619,7 @@ function MMOffer({ onCta }: { onCta: () => void }) {
             ✨ Quero Meu Orçamento
           </motion.button>
 
-          <p className="text-white/40 text-sm">Sem compromisso · Resposta em até 24h</p>
+          <p className="text-white/40 text-sm">Sem compromisso · Orçamento imediato</p>
         </motion.div>
       </div>
     </section>
