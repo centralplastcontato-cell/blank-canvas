@@ -14,6 +14,7 @@ import { DLPHowItWorks } from "@/components/dynamic-lp/DLPHowItWorks";
 import { DLPFooter } from "@/components/dynamic-lp/DLPFooter";
 import { DLPFloatingCTA } from "@/components/dynamic-lp/DLPFloatingCTA";
 import { LeadChatbot } from "@/components/landing/LeadChatbot";
+import { BackgroundMusic } from "@/components/landing/BackgroundMusic";
 import { applyHeroAssetOverrides, getCompanyLogoOverride, getExtraGalleryPhotos, getGalleryPhotosOverride } from "@/lib/companyAssetOverrides";
 import type { LPHero, LPVideo, LPGallery, LPTestimonials, LPOffer, LPTheme, LPFooter, LPBenefits, LPSocialProof, LPHowItWorks } from "@/types/landing-page";
 
@@ -254,6 +255,9 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
       <DLPFooter footer={data.footer} theme={data.theme} companyName={data.company_name} companyLogo={data.company_logo} instagramHandle={data.company_instagram} whatsappNumber={data.company_whatsapp} />
 
       <DLPFloatingCTA theme={data.theme} onClick={openChat} />
+      {/castelo/i.test(data.company_slug) && (
+        <BackgroundMusic src="/audio/castelo-theme.mp3" paused={isChatOpen} />
+      )}
       <LeadChatbot
         isOpen={isChatOpen}
         onClose={closeChat}
