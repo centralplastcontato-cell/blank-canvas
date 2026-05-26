@@ -44,7 +44,7 @@ const MAGIC_COLORS = ["#7B2D8E", "#D4A017", "#9C4DBE", "#F5C518", "#B060D0", "#E
 const STATS = [
   { value: "500+", label: "festas realizadas" },
   { value: "10k+", label: "crianças felizes" },
-  { value: "5,0 ★", label: "no Google" },
+  { value: "4,5 ★", label: "no Google" },
 ];
 
 const BENEFITS = [
@@ -68,8 +68,8 @@ const BENEFITS = [
   },
   {
     icon: Sparkles,
-    title: "Decoração Temática",
-    desc: "Ambientes decorados com os temas mais pedidos do momento",
+    title: "Ambiente Temático",
+    desc: "Do Homem-Aranha à Frozen — o espaço abraça o tema favorito do seu filho",
     bg: "bg-gradient-to-br from-yellow-400 to-amber-500",
     text: "text-amber-950",
     sub: "text-amber-800/80",
@@ -546,8 +546,8 @@ function MMTestimonials() {
                 <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
               ))}
             </div>
-            <span className="font-bold text-gray-800">5,0</span>
-            <span className="text-gray-400 text-sm">no Google</span>
+            <span className="font-bold text-gray-800">4,5</span>
+            <span className="text-gray-400 text-sm">no Google · 337 avaliações</span>
           </div>
         </motion.div>
       </div>
