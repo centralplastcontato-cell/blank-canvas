@@ -94,17 +94,16 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
         const companyId = row.company_id;
         const companySlug = row.company_slug as string;
         let whatsapp: string | null = null;
-        const [{ data: onb }, { data: botSettingsArr }, { data: unitsData }] = await Promise.all([
+        const [{ data: onb }, { data: botSettingsArr }, { data: unitsRaw }] = await Promise.all([
           supabase.rpc('get_onboarding_public_fields', { _company_id: companyId }),
           supabase.rpc('get_lp_bot_settings_public', { _company_id: companyId }),
-          supabase
-            .from('company_units')
-            .select('name')
-            .eq('company_id', companyId)
-            .eq('is_active', true)
-            .not('name', 'ilike', '%trabalhe conosco%')
-            .order('sort_order'),
+          supabase.rpc('get_active_units_by_company_id', { _company_id: companyId }),
         ]);
+        const unitsData = Array.isArray(unitsRaw)
+          ? (unitsRaw as Array<{ name: string }>).filter(
+              (u) => !/trabalhe conosco/i.test(u?.name || '')
+            )
+          : null;
         const botSettings = botSettingsArr && Array.isArray(botSettingsArr) ? (botSettingsArr as any[])[0] : botSettingsArr;
         const onbRow = onb && Array.isArray(onb) ? (onb as any[])[0] : onb;
         if (onbRow?.whatsapp_numbers && onbRow.whatsapp_numbers.length > 0) {
