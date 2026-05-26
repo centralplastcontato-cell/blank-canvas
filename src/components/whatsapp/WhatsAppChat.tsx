@@ -2602,9 +2602,22 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       }
 
       // === PHASE 3: Check for provider/app-level graceful errors ===
+      if (response.data?.errorType === 'LID_UNRESOLVED') {
+        if (selectedConversationRef.current !== convId) return;
+        setMessages(prev => prev.map(m =>
+          m.id === optimisticId ? { ...m, status: 'failed' } : m
+        ));
+        toast({
+          title: "⚠️ Número não identificado",
+          description: "Este contato usa um ID interno do WhatsApp (LID). Peça para ele te enviar uma mensagem primeiro — depois o número sincroniza automaticamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       if (response.data?.errorType === 'SESSION_INCOMPLETE' || response.data?.blocked) {
         if (selectedConversationRef.current !== convId) return;
-        setMessages(prev => prev.map(m => 
+        setMessages(prev => prev.map(m =>
           m.id === optimisticId ? { ...m, status: 'failed' } : m
         ));
         toast({

@@ -1306,6 +1306,19 @@ Deno.serve(async (req) => {
           (original.replace(/\D/g, '').length >= 14 && !original.replace(/\D/g, '').startsWith('55'));
         if (looksLid) {
           console.error(`[wapi-send] ❌ Refusing to send to unresolved LID: ${original}`);
+          // 🔭 trace: lid_unresolved — registra no message_trace_logs para diagnóstico
+          fireTrace(supabase, {
+            tracking_id: trackingId,
+            stage: 'lid_unresolved',
+            status: 'error',
+            provider,
+            instance_id,
+            company_id: companyId,
+            conversation_id: conversationId ?? null,
+            phone: original,
+            error_message: 'LID_UNRESOLVED: não foi possível mapear @lid para um telefone BR real após todas as heurísticas',
+            payload_summary: { action, raw_phone: original },
+          });
           await persistBlockedMessage(supabase, conversationId, companyId, message, 'LID_UNRESOLVED');
           return new Response(JSON.stringify({
             error: 'Não foi possível identificar o número real deste contato. Peça para o cliente enviar uma mensagem primeiro para sincronizar o número.',
