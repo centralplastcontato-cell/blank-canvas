@@ -67,7 +67,8 @@ export function useLeadsRealtime(
   onInsert?: (payload: unknown) => void,
   onUpdate?: (payload: unknown) => void,
   onDelete?: (payload: unknown) => void,
-  options: UseRealtimeOptimizedOptions = {}
+  options: UseRealtimeOptimizedOptions = {},
+  companyId?: string
 ) {
   const { debounceMs = 300 } = options;
   const insertTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -82,15 +83,13 @@ export function useLeadsRealtime(
     if (isSubscribedRef.current) return;
     isSubscribedRef.current = true;
 
+    const companyFilter = companyId ? { filter: `company_id=eq.${companyId}` } : {};
+
     const channel = supabase
-      .channel("leads-realtime-optimized")
+      .channel(`leads-realtime-optimized-${companyId ?? "global"}`)
       .on(
         "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "campaign_leads",
-        },
+        { event: "INSERT", schema: "public", table: "campaign_leads", ...companyFilter },
         (payload) => {
           pendingInserts.current.push(payload.new);
           if (insertTimeoutRef.current) clearTimeout(insertTimeoutRef.current);
@@ -104,11 +103,7 @@ export function useLeadsRealtime(
       )
       .on(
         "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "campaign_leads",
-        },
+        { event: "UPDATE", schema: "public", table: "campaign_leads", ...companyFilter },
         (payload) => {
           pendingUpdates.current.push(payload.new);
           if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
@@ -122,11 +117,7 @@ export function useLeadsRealtime(
       )
       .on(
         "postgres_changes",
-        {
-          event: "DELETE",
-          schema: "public",
-          table: "campaign_leads",
-        },
+        { event: "DELETE", schema: "public", table: "campaign_leads", ...companyFilter },
         (payload) => {
           pendingDeletes.current.push(payload.old);
           if (deleteTimeoutRef.current) clearTimeout(deleteTimeoutRef.current);
@@ -147,7 +138,7 @@ export function useLeadsRealtime(
       });
       supabase.removeChannel(channel);
     };
-  }, [onInsert, onUpdate, onDelete, debounceMs]);
+  }, [onInsert, onUpdate, onDelete, debounceMs, companyId]);
 }
 
 /**
@@ -155,7 +146,8 @@ export function useLeadsRealtime(
  */
 export function useUnreadCountRealtime(
   onUnreadChange: RealtimeCallback,
-  options: UseRealtimeOptimizedOptions = {}
+  options: UseRealtimeOptimizedOptions = {},
+  companyId?: string
 ) {
   const { debounceMs = 1000 } = options; // Higher debounce for unread count
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -174,15 +166,13 @@ export function useUnreadCountRealtime(
     if (isSubscribedRef.current) return;
     isSubscribedRef.current = true;
 
+    const companyFilter = companyId ? { filter: `company_id=eq.${companyId}` } : {};
+
     const channel = supabase
-      .channel("unread-count-optimized")
+      .channel(`unread-count-optimized-${companyId ?? "global"}`)
       .on(
         "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "wapi_conversations",
-        },
+        { event: "UPDATE", schema: "public", table: "wapi_conversations", ...companyFilter },
         (payload) => {
           // Only trigger if unread_count actually changed
           const oldCount = (payload.old as { unread_count?: number })?.unread_count;
@@ -201,5 +191,5 @@ export function useUnreadCountRealtime(
       }
       supabase.removeChannel(channel);
     };
-  }, [debouncedCallback]);
+  }, [debouncedCallback, companyId]);
 }

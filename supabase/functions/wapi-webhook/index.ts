@@ -9,7 +9,7 @@ const corsHeaders = {
 
 const WAPI_BASE_URL = 'https://api.w-api.app/v1';
 const ZAPI_BASE_URL = 'https://api.z-api.io/instances';
-const ZAPI_NOTIFY_REINFORCE_TTL_MS = 10 * 60 * 1000;
+const ZAPI_NOTIFY_REINFORCE_TTL_MS = 3 * 60 * 1000; // reduzido de 10→3 min: resposta mais rápida após reconexão
 const zapiNotifyReinforceCache = new Map<string, number>();
 const RECONNECT_AUTOMATION_QUARANTINE_MS = 15 * 60 * 1000;
 
@@ -417,6 +417,78 @@ async function reinforceZapiNotifySentByMe(instance: JsonRecord, context: string
   } catch (err) {
     console.warn('[zapi-webhook] reinforce notify-sent-by-me failed:', err instanceof Error ? err.message : String(err));
   }
+}
+
+// Notifica os admins da empresa quando o bot-loop-guard pausa uma conversa.
+// Fire-and-forget — nunca lança exceção nem bloqueia o caminho principal.
+async function notifyBotLoopPause(
+  supabase: SupabaseClient,
+  companyId: string,
+  conv: JsonRecord,
+  reason: string,
+  pausedUntil: string,
+): Promise<void> {
+  try {
+    const { data: admins } = await supabase
+      .from('user_companies')
+      .select('user_id')
+      .eq('company_id', companyId)
+      .in('role', ['admin', 'owner']);
+
+    if (!admins?.length) return;
+
+    const contactLabel = (conv.contact_name && conv.contact_name !== conv.contact_phone)
+      ? `${conv.contact_name} (${conv.contact_phone})`
+      : (conv.contact_phone || conv.remote_jid || 'desconhecido');
+
+    const notifications = (admins as Array<{ user_id: string }>).map((a) => ({
+      user_id: a.user_id,
+      company_id: companyId,
+      type: 'bot_loop_guard',
+      title: '⚠️ Bot pausado automaticamente',
+      message: `Bot pausado por 24h na conversa com ${contactLabel}. Motivo: ${reason}. Verifique e reative manualmente se necessário.`,
+      data: {
+        conversation_id: conv.id,
+        contact_phone: conv.contact_phone,
+        reason,
+        paused_until: pausedUntil,
+      },
+      read: false,
+    }));
+
+    await supabase.from('notifications').insert(notifications);
+    console.log(`[BotLoopGuard] Notificação enviada para ${admins.length} admin(s) da empresa ${companyId}`);
+  } catch (err) {
+    console.warn('[BotLoopGuard] Falha ao notificar admins:', err instanceof Error ? err.message : String(err));
+  }
+}
+
+// Reforça o webhook URL em todas as variantes de endpoint da W-API.
+// Fire-and-forget — nunca lança exceção nem bloqueia o caminho principal.
+async function reinforceWapiWebhooks(instance: JsonRecord): Promise<void> {
+  if (!instance.instance_id || !instance.instance_token) return;
+  const instanceId = String(instance.instance_id);
+  const token = String(instance.instance_token);
+  const webhookUrl = `${(Deno.env.get('SUPABASE_URL') || 'https://rsezgnkfhodltrsewlhz.supabase.co').replace(/\/$/, '')}/functions/v1/wapi-webhook`;
+  const config = {
+    onConnect: webhookUrl, onDisconnect: webhookUrl,
+    onMessageSent: webhookUrl, onMessageReceived: webhookUrl, onMessageStatus: webhookUrl,
+  };
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', 'apikey': token };
+  const variants = [
+    { url: `${WAPI_BASE_URL}/instance/webhooks?instanceId=${instanceId}`, method: 'PUT' },
+    { url: `${WAPI_BASE_URL}/instance/webhooks?instanceId=${instanceId}`, method: 'POST' },
+    { url: `${WAPI_BASE_URL}/instance/webhook?instanceId=${instanceId}`, method: 'PUT' },
+    { url: `${WAPI_BASE_URL}/instance/update-webhook?instanceId=${instanceId}`, method: 'PUT' },
+  ];
+  for (const v of variants) {
+    try {
+      const res = await fetch(v.url, { method: v.method, headers, body: JSON.stringify(config) });
+      if (res.ok) { console.log(`[wapi-reinforce] W-API ${instanceId}: OK via ${v.method} ${v.url.split('/').pop()}`); return; }
+      if (res.status === 404 || res.status === 502 || res.status === 503) continue;
+    } catch { continue; }
+  }
+  console.warn(`[wapi-reinforce] W-API ${instanceId}: all variants failed`);
 }
 
 function isMegaMagicPilotPhone(instanceId: string, contactPhone: string): boolean {
@@ -5132,6 +5204,16 @@ async function processWebhookEvent(body: JsonRecord) {
     // Update local reference so rest of handler uses correct status
     instance.status = 'connected';
     instance.connected_at = recoveredAt;
+
+    // Força reconfiguração imediata ao detectar reconexão via webhook.
+    // Para Z-API: limpa o cache do TTL para que o reinforce logo abaixo (linha ~5120)
+    // não seja bloqueado pelo intervalo de 3 minutos.
+    // Para W-API: dispara reconfiguração direta do webhook URL.
+    if (instance.provider === 'zapi') {
+      zapiNotifyReinforceCache.delete(`${instanceId}:webhook-received`);
+    } else if (instance.provider === 'wapi') {
+      waitUntil(reinforceWapiWebhooks(instance as JsonRecord));
+    }
   }
 
   let evt = event || body.event;
@@ -5550,19 +5632,20 @@ async function processWebhookEvent(body: JsonRecord) {
       // bot flow.
       let allowCrossInstanceUnify = false;
       if (!ex && !isGrp && !resolvedLidConv) {
-        try {
-          const { count: activeInstancesCount } = await supabase
-            .from('whatsapp_instances')
-            .select('id', { count: 'exact', head: true })
-            .eq('company_id', instance.company_id)
-            .eq('is_active', true);
+        const { count: activeInstancesCount, error: instanceCountErr } = await supabase
+          .from('wapi_instances')
+          .select('id', { count: 'exact', head: true })
+          .eq('company_id', instance.company_id)
+          .eq('status', 'connected');
+        if (instanceCountErr) {
+          // Falha na contagem → padrão seguro: não unificar
+          console.error('[Webhook][CrossInstanceUnify] count check failed, defaulting to SKIP:', instanceCountErr.message);
+          allowCrossInstanceUnify = false;
+        } else {
           allowCrossInstanceUnify = (activeInstancesCount ?? 0) <= 1;
           if (!allowCrossInstanceUnify) {
-            console.log(`[Webhook][CrossInstanceUnify] SKIPPED company=${instance.company_id} has ${activeInstancesCount} active instances (multi-seller). Keeping per-instance isolation.`);
+            console.log(`[Webhook][CrossInstanceUnify] SKIPPED company=${instance.company_id} has ${activeInstancesCount} connected instances (multi-seller). Keeping per-instance isolation.`);
           }
-        } catch (countErr) {
-          console.error('[Webhook][CrossInstanceUnify] count check failed, defaulting to SKIP:', countErr);
-          allowCrossInstanceUnify = false;
         }
       }
       if (allowCrossInstanceUnify) {
@@ -5681,15 +5764,28 @@ async function processWebhookEvent(body: JsonRecord) {
           const isBotActive = isClassicBotStepActive(ex.bot_step) || isFlowStep;
 
           if (!isBotActive) {
-            const { data: existingMsg } = await supabase.from('wapi_messages')
+            let { data: existingMsg } = await supabase.from('wapi_messages')
               .select('id')
               .eq('message_id', msgId)
               .maybeSingle();
             if (!existingMsg) {
-              // Message not in DB → sent from phone by human → disable bot
+              // Race condition guard: Z-API dispara o webhook quase ao mesmo tempo que wapi-send
+              // grava no banco. Aguarda 3s e verifica novamente antes de concluir que é humano.
+              // Este delay é seguro pois roda em background (processWebhookEvent via waitUntil).
+              await new Promise<void>((res) => setTimeout(res, 3000));
+              const { data: retryMsg } = await supabase.from('wapi_messages')
+                .select('id')
+                .eq('message_id', msgId)
+                .maybeSingle();
+              existingMsg = retryMsg;
+            }
+            if (!existingMsg) {
+              // Mensagem ausente mesmo após retry → enviada pelo humano no celular → desativa bot
               console.log(`[Bot] Human phone message detected (msgId ${msgId}), disabling bot for conv ${ex.id}`);
               upd.bot_enabled = false;
               upd.bot_step = 'human_takeover';
+            } else {
+              console.log(`[Bot] Message ${msgId} found in DB after retry — bot-sent, skipping human_takeover`);
             }
           } else {
             console.log(`[Bot] Skipping human_takeover detection during active bot step (${ex.bot_step}) for conv ${ex.id}`);
@@ -6161,6 +6257,11 @@ async function processWebhookEvent(body: JsonRecord) {
           const alreadyPaused = loopResult.paused || await isConversationPaused(supabase, conv.id);
           if (alreadyPaused) {
             console.warn(`[Bot] ⏸ Conversation ${conv.id} is paused (loop guard) — skipping bot reply`);
+            // Notifica admins apenas quando a pausa foi recém-criada (loopResult.paused),
+            // não em chamadas subsequentes onde já estava pausado (alreadyPaused via DB).
+            if (loopResult.paused && loopResult.reason && loopResult.pausedUntil && instance.company_id) {
+              waitUntil(notifyBotLoopPause(supabase, String(instance.company_id), conv as JsonRecord, loopResult.reason, loopResult.pausedUntil));
+            }
             break;
           }
 

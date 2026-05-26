@@ -7,7 +7,7 @@ import { useChatNotificationToggle } from "./useChatNotificationToggle";
  * Hook that listens for new leads and plays a notification sound
  * This is separate from the notification system - it just plays sounds for new leads
  */
-export function useLeadNotifications() {
+export function useLeadNotifications(companyId?: string) {
   const { playLeadSound } = useNotificationSounds();
   const { notificationsEnabled } = useChatNotificationToggle();
   const isSubscribedRef = useRef(false);
@@ -21,28 +21,26 @@ export function useLeadNotifications() {
     if (isSubscribedRef.current) return;
     isSubscribedRef.current = true;
 
+    const channelConfig: { event: "INSERT"; schema: string; table: string; filter?: string } = {
+      event: "INSERT",
+      schema: "public",
+      table: "campaign_leads",
+      ...(companyId ? { filter: `company_id=eq.${companyId}` } : {}),
+    };
+
     const channel = supabase
-      .channel("leads-realtime-sound")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "campaign_leads",
-        },
-        (payload) => {
-          console.log("Novo lead recebido:", payload.new);
-          // Play the lead notification sound (respects mute toggle)
-          if (notificationsEnabledRef.current) {
-            playLeadSound();
-          }
+      .channel(`leads-realtime-sound-${companyId ?? "global"}`)
+      .on("postgres_changes", channelConfig, (payload) => {
+        console.log("Novo lead recebido:", payload.new);
+        if (notificationsEnabledRef.current) {
+          playLeadSound();
         }
-      )
+      })
       .subscribe();
 
     return () => {
       isSubscribedRef.current = false;
       supabase.removeChannel(channel);
     };
-  }, [playLeadSound]);
+  }, [playLeadSound, companyId]);
 }

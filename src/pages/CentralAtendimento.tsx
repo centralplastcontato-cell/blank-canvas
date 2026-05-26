@@ -182,8 +182,8 @@ export default function CentralAtendimento() {
   const canEditLeads = isAdmin || canEdit || hasPermission('leads.edit');
   const canViewContact = isAdmin || hasPermission('leads.contact.view');
   
-  // Sound notification for new leads
-  useLeadNotifications();
+  // Sound notification for new leads (filtrado pela empresa atual)
+  useLeadNotifications(currentCompany?.id);
   
   // Chat notifications toggle
   const { notificationsEnabled, toggleNotifications } = useChatNotificationToggle();
@@ -622,8 +622,8 @@ export default function CentralAtendimento() {
     fetchUnreadCount();
   }, [fetchUnreadCount]);
 
-  // Use optimized realtime hook with debounce (1s)
-  useUnreadCountRealtime(fetchUnreadCount, { debounceMs: 1000 });
+  // Use optimized realtime hook with debounce (1s) — filtrado pela empresa atual
+  useUnreadCountRealtime(fetchUnreadCount, { debounceMs: 1000 }, currentCompany?.id);
 
   // Optimized: Fetch new leads count
   const fetchNewLeadsCount = useCallback(async () => {
@@ -666,7 +666,7 @@ export default function CentralAtendimento() {
     setTotalCount((prev) => Math.max(0, prev - 1));
   }, [fetchNewLeadsCount]);
 
-  useLeadsRealtime(handleLeadInsert, handleLeadUpdate, handleLeadDelete, { debounceMs: 300 });
+  useLeadsRealtime(handleLeadInsert, handleLeadUpdate, handleLeadDelete, { debounceMs: 300 }, currentCompany?.id);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
