@@ -162,6 +162,13 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    // UUID format check — blocks obviously malformed IDs before hitting the DB
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(company_id)) {
+      return new Response(
+        JSON.stringify({ error: 'ID da empresa inválido' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const unitValidation = validateUnit(unit);
     if (!unitValidation.valid) {
@@ -201,6 +208,19 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify company exists — rejects leads for non-existent company IDs
+    const { data: companyExists } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('id', company_id)
+      .maybeSingle();
+    if (!companyExists) {
+      return new Response(
+        JSON.stringify({ error: 'Empresa não encontrada' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Rate limiting persistido no banco — sobrevive a restarts da Edge Function
     if (await isDbRateLimited(supabase, normalizedPhone, company_id)) {

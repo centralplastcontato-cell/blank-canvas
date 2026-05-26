@@ -222,17 +222,24 @@ async function getInstanceCredentials(
   
   // Direct credentials provided (backward compat for webhook/config flows)
   if (instanceId && instanceToken) {
-    // Prefer server-side credentials to avoid stale/cached frontend tokens or hidden whitespace.
+    // Always verify instance exists in DB — never fall back to caller-provided token
+    // if the instance is unknown. This prevents phantom-instance abuse.
     const { data: providerInfo } = await supabase
       .from('wapi_instances')
       .select('instance_token, provider, client_token')
       .eq('instance_id', instanceId)
       .maybeSingle();
+    if (!providerInfo) {
+      return new Response(JSON.stringify({ error: 'Instância não registrada no sistema' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     return {
       instance_id: instanceId,
-      instance_token: (providerInfo?.instance_token || instanceToken).trim(),
-      provider: (providerInfo?.provider as Provider) || 'wapi',
-      client_token: providerInfo?.client_token || null,
+      instance_token: providerInfo.instance_token.trim(),
+      provider: (providerInfo.provider as Provider) || 'wapi',
+      client_token: providerInfo.client_token || null,
     };
   }
 
