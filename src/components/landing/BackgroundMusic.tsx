@@ -55,18 +55,22 @@ export const BackgroundMusic = ({ src, paused = false, volume = 0.35 }: Backgrou
       <audio ref={audioRef} src={src} loop preload="auto" />
       <button
         onClick={toggle}
-        aria-label={isPlaying ? "Pausar música" : "Tocar música"}
-        className="fixed bottom-4 left-20 z-50 bg-card/80 backdrop-blur-md border border-border rounded-full p-3 shadow-lg hover:scale-110 transition-transform flex items-center gap-2"
+        aria-label={isPlaying ? "Pausar trilha" : "Ativar trilha"}
+        className={`fixed bottom-4 left-20 z-50 backdrop-blur-md border rounded-full px-4 py-3 shadow-lg hover:scale-110 transition-transform flex items-center gap-2 ${
+          isPlaying
+            ? "bg-card/80 border-border"
+            : "bg-primary text-primary-foreground border-primary animate-pulse"
+        }`}
       >
         {isPlaying ? (
           <>
-            <Volume2 className="w-5 h-5 text-primary animate-pulse" />
-            <span className="text-xs font-semibold text-foreground hidden sm:inline">Música</span>
+            <Volume2 className="w-5 h-5 text-primary" />
+            <span className="text-xs font-semibold text-foreground hidden sm:inline">Trilha ligada</span>
           </>
         ) : (
           <>
-            <VolumeX className="w-5 h-5 text-muted-foreground" />
-            <span className="text-xs font-semibold text-muted-foreground hidden sm:inline">Tocar música</span>
+            <Volume2 className="w-5 h-5" />
+            <span className="text-xs font-bold">🎵 Ativar trilha</span>
           </>
         )}
       </button>
