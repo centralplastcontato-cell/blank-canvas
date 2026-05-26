@@ -5436,6 +5436,17 @@ async function processWebhookEvent(body: JsonRecord) {
         resolvedLidConv = await resolveLidConversation(supabase, instance.id, instance.company_id, rj as string, msgId, msg as JsonRecord);
         if (resolvedLidConv?.remote_jid) {
           rj = resolvedLidConv.remote_jid;
+        } else if (fromMe) {
+          // fromMe @lid unresolved → skip entirely to prevent ghost conversation.
+          // resolveLidConversation fails for phone-sent fromMe because pushName is the
+          // buffet's own name (filtered by isSelfName) and there is no quoted-message
+          // context to cross-reference. A ghost conversation is worse than skipping.
+          console.warn(`[Webhook] fromMe @lid ${rj} unresolved — skipping ghost conversation creation.`);
+          await markRawWebhookEvent(supabase, rawWebhookEventId, {
+            processing_status: 'processed',
+            processing_note: 'fromme_lid_unresolved_skip',
+          });
+          break;
         } else {
           // W-API/Z-API can send only WhatsApp's private @lid identifier.
           // Dropping it makes real messages disappear from the platform. Keep it
