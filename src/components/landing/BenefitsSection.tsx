@@ -1,90 +1,130 @@
 import { motion } from "framer-motion";
 import { castleBenefits } from "@/config/campaignConfig";
-import { Star, PartyPopper, Heart, UtensilsCrossed, Users, Sparkles, Gamepad2 } from "lucide-react";
+import { Gamepad2, PartyPopper, UtensilsCrossed, Users, Sparkles } from "lucide-react";
 
-const iconMap: Record<string, React.ComponentType<any>> = {
-  "🎠": Gamepad2,
-  "🎉": PartyPopper,
-  "🍟": UtensilsCrossed,
-  "👨‍👩‍👧‍👦": Users,
-  "✨": Sparkles,
-};
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.12 },
+const bentoConfig = [
+  {
+    icon: Gamepad2,
+    bg: "bg-gradient-to-br from-pink-500 to-rose-600",
+    text: "text-white",
+    subtext: "text-white/75",
+    large: true,
+    iconColor: "text-white/80",
   },
-};
+  {
+    icon: PartyPopper,
+    bg: "bg-amber-400",
+    text: "text-amber-950",
+    subtext: "text-amber-800/80",
+    large: false,
+    iconColor: "text-amber-800",
+  },
+  {
+    icon: UtensilsCrossed,
+    bg: "bg-emerald-500",
+    text: "text-white",
+    subtext: "text-white/75",
+    large: false,
+    iconColor: "text-white",
+  },
+  {
+    icon: Users,
+    bg: "bg-violet-600",
+    text: "text-white",
+    subtext: "text-white/75",
+    large: false,
+    iconColor: "text-white",
+  },
+  {
+    icon: Sparkles,
+    bg: "bg-gray-900",
+    text: "text-white",
+    subtext: "text-white/55",
+    large: false,
+    iconColor: "text-yellow-400",
+  },
+];
 
-const cardVariants = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
-};
-
-const colorClasses = [
-  "from-blue-500 to-blue-600",
-  "from-green-500 to-green-600",
-  "from-orange-500 to-orange-600",
-  "from-purple-500 to-purple-600",
-  "from-pink-500 to-pink-600",
+const stats = [
+  { value: "9", label: "anos de tradição" },
+  { value: "+4.000", label: "festas realizadas" },
+  { value: "4,7★", label: "reputação no Google" },
 ];
 
 export function BenefitsSection() {
   return (
-    <section className="py-24 sm:py-32 bg-card">
-      <div className="section-container">
+    <section className="py-20 md:py-28 bg-white overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        {/* Left-aligned heading — breaks "everything centered" pattern */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, x: -30 }}
+          whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-20"
+          className="mb-12"
         >
-          <h2 className="text-5xl md:text-7xl font-display font-bold text-foreground mb-6">
-            Uma festa inesquecível para <span className="gradient-text">seu filho</span>
+          <span className="block text-sm font-bold tracking-[0.3em] uppercase text-pink-500 mb-3">
+            Por que escolher o Castelo
+          </span>
+          <h2 className="font-['Nunito'] text-4xl md:text-6xl font-extrabold text-gray-900 leading-[1.05]">
+            Tudo que sua festa<br className="hidden md:block" /> precisa, num só lugar
           </h2>
-          <p className="text-2xl md:text-3xl text-muted-foreground max-w-4xl mx-auto">
-            Conheça tudo que o Castelo da Diversão oferece para tornar esse dia único
-          </p>
         </motion.div>
 
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          className="grid sm:grid-cols-2 lg:grid-cols-3 gap-10 max-w-7xl mx-auto"
-        >
+        {/* Bento grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-5">
           {castleBenefits.map((benefit, index) => {
-            const IconComponent = iconMap[benefit.icon] || Sparkles;
+            const cfg = bentoConfig[index];
+            const Icon = cfg.icon;
             return (
               <motion.div
                 key={index}
-                variants={cardVariants}
-                whileHover={{ y: -8, scale: 1.02 }}
-                className="relative card-festive p-10 sm:p-12 text-center group cursor-default overflow-hidden"
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.45, delay: index * 0.08 }}
+                whileHover={{ scale: 1.02, y: -4 }}
+                className={`
+                  ${cfg.bg}
+                  ${cfg.large
+                    ? "col-span-2 md:col-span-1 md:row-span-2 min-h-[260px] md:min-h-[0]"
+                    : "min-h-[150px]"}
+                  rounded-3xl p-6 md:p-7 flex flex-col justify-between cursor-default transition-shadow hover:shadow-xl
+                `}
               >
-                <div className={`absolute inset-0 bg-gradient-to-br ${colorClasses[index % colorClasses.length]} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
-                
-                <motion.div
-                  whileHover={{ scale: 1.1, rotate: 5 }}
-                  transition={{ type: "spring", stiffness: 300 }}
-                  className={`relative mx-auto w-28 h-28 rounded-2xl bg-gradient-to-br ${colorClasses[index % colorClasses.length]} flex items-center justify-center mb-8 shadow-lg group-hover:shadow-xl transition-shadow duration-300`}
-                >
-                  <IconComponent className="w-14 h-14 text-white" strokeWidth={1.5} />
-                </motion.div>
-                
-                <h3 className="text-2xl sm:text-3xl font-display font-bold text-foreground mb-4 group-hover:text-primary transition-colors">
-                  {benefit.title}
-                </h3>
-                <p className="text-lg sm:text-xl text-muted-foreground relative z-10 leading-relaxed">
-                  {benefit.description}
-                </p>
+                <Icon className={`w-9 h-9 ${cfg.iconColor} ${cfg.large ? "w-12 h-12" : ""}`} strokeWidth={1.5} />
+                <div className="mt-4">
+                  <h3 className={`font-['Nunito'] font-extrabold ${cfg.text} ${cfg.large ? "text-2xl md:text-3xl mb-2" : "text-lg mb-1"}`}>
+                    {benefit.title}
+                  </h3>
+                  <p className={`${cfg.subtext} ${cfg.large ? "text-base" : "text-sm"} leading-snug`}>
+                    {benefit.description}
+                  </p>
+                </div>
               </motion.div>
             );
           })}
+        </div>
+
+        {/* Stats strip */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="mt-6 grid grid-cols-3 gap-2 md:gap-4 bg-gradient-to-r from-pink-50 via-rose-50 to-amber-50 rounded-3xl p-6 md:p-8"
+        >
+          {stats.map((s, i) => (
+            <div key={i} className={`text-center ${i !== 0 ? "border-l border-pink-200" : ""}`}>
+              <div className="font-['Nunito'] text-2xl md:text-4xl lg:text-5xl font-extrabold text-gray-900 leading-none">
+                {s.value}
+              </div>
+              <div className="mt-1.5 text-[10px] md:text-xs font-bold uppercase tracking-widest text-gray-400">
+                {s.label}
+              </div>
+            </div>
+          ))}
         </motion.div>
 
       </div>

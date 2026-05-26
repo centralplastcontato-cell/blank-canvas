@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
-import { Star, Sparkles, Crown } from "lucide-react";
+import { Star, Crown } from "lucide-react";
 import fachada1 from "@/assets/fachada-unidade-2.jpg";
-import logoCastelo from "@/assets/logo-castelo.png";
+import logoCastelo from "@/assets/logo-castelo-transparent.png";
 
 interface HeroSectionProps {
   onCtaClick: () => void;
@@ -10,8 +10,11 @@ interface HeroSectionProps {
 const stats = [
   { value: "9", suffix: "anos", label: "de tradição em Sorocaba" },
   { value: "+4.000", suffix: "", label: "celebrações realizadas" },
-  { value: "4,9", suffix: "★", label: "reputação no Google" },
+  { value: "4,7", suffix: "★", label: "reputação no Google" },
 ];
+
+// Cores festivas do Castelo
+const FESTIVE_COLORS = ["#E91E63", "#FF5722", "#FFC107", "#4CAF50", "#2196F3", "#9C27B0"];
 
 export function HeroSection({ onCtaClick }: HeroSectionProps) {
   return (
@@ -19,7 +22,14 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
       className="relative min-h-screen flex items-center justify-center overflow-hidden"
       aria-label="Seção principal"
     >
-      {/* Background image */}
+      {/* Barra colorida festiva no topo */}
+      <div className="absolute top-0 left-0 right-0 h-1.5 z-20 flex">
+        {FESTIVE_COLORS.map((color, i) => (
+          <div key={i} className="flex-1" style={{ backgroundColor: color }} />
+        ))}
+      </div>
+
+      {/* Background image — overlay bem mais leve para mostrar as cores reais */}
       <div className="absolute inset-0">
         <img
           src={fachada1}
@@ -28,33 +38,31 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
           loading="eager"
           fetchPriority="high"
         />
-        {/* Cinematic overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a1a]/85 via-[#1a1030]/70 to-background" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(10,10,26,0.5)_100%)]" />
+        {/* Overlay leve — preserva as cores vibrantes da fachada */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/25 to-black/65" />
       </div>
 
-      {/* Subtle floating sparkles */}
+      {/* Bolinhas festivas flutuantes */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(14)].map((_, i) => (
+        {FESTIVE_COLORS.map((color, i) => (
           <motion.div
             key={i}
-            className="absolute"
+            className="absolute w-3 h-3 rounded-full opacity-60"
             style={{
-              left: `${5 + Math.random() * 90}%`,
-              top: `${Math.random() * 100}%`,
+              backgroundColor: color,
+              left: `${10 + i * 15}%`,
+              top: `${15 + (i % 3) * 25}%`,
             }}
             animate={{
-              opacity: [0, 0.7, 0],
-              scale: [0.5, 1, 0.5],
+              y: [0, -20, 0],
+              opacity: [0.4, 0.8, 0.4],
             }}
             transition={{
-              duration: 3 + Math.random() * 3,
+              duration: 2.5 + i * 0.4,
               repeat: Infinity,
-              delay: Math.random() * 4,
+              delay: i * 0.3,
             }}
-          >
-            <Sparkles className="w-3 h-3 text-yellow-200/60" />
-          </motion.div>
+          />
         ))}
       </div>
 
@@ -64,9 +72,24 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-          className="space-y-7 max-w-4xl mx-auto"
+          className="space-y-6 max-w-4xl mx-auto"
         >
-          {/* Premium eyebrow */}
+          {/* Badge Copa */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.05, duration: 0.5 }}
+            className="flex justify-center"
+          >
+            <span
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider text-white shadow-lg"
+              style={{ background: "linear-gradient(110deg, #006400, #008000 60%, #FFD700)" }}
+            >
+              ⚽ Promoção Pré-Copa 2026
+            </span>
+          </motion.div>
+
+          {/* Eyebrow */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -90,15 +113,16 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
             initial={{ opacity: 0, scale: 0.85 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.25, duration: 0.7 }}
-            className="w-36 md:w-48 lg:w-56 mx-auto drop-shadow-[0_8px_24px_rgba(255,200,80,0.25)]"
+            className="w-36 md:w-48 lg:w-56 mx-auto drop-shadow-[0_8px_32px_rgba(0,0,0,0.6)]"
           />
 
-          {/* Editorial Title */}
+          {/* Headline */}
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.8 }}
-            className="font-['Fraunces'] text-[2.25rem] sm:text-5xl md:text-6xl lg:text-7xl font-light text-white leading-[1.05] tracking-tight"
+            className="font-['Nunito'] text-[2.25rem] sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-[1.05] tracking-tight"
+            style={{ textShadow: "0 2px 20px rgba(0,0,0,0.8)" }}
           >
             A festa que seu filho{" "}
             <span className="block italic font-medium bg-gradient-to-r from-yellow-200 via-yellow-300 to-amber-400 bg-clip-text text-transparent">
@@ -111,10 +135,11 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.55, duration: 0.7 }}
-            className="font-['Inter'] text-base sm:text-lg md:text-xl text-white/75 max-w-2xl mx-auto font-light leading-relaxed"
+            className="font-['Inter'] text-base sm:text-lg md:text-xl text-white/90 max-w-2xl mx-auto font-light leading-relaxed"
+            style={{ textShadow: "0 1px 8px rgba(0,0,0,0.7)" }}
           >
             Cada detalhe pensado para transformar o aniversário em memória de família.
-            <span className="block mt-1 text-white/60">Conheça o espaço numa visita rápida de 15 minutos.</span>
+            <span className="block mt-1 text-white/75">Conheça o espaço numa visita rápida de 15 minutos.</span>
           </motion.p>
 
           {/* CTA */}
@@ -126,63 +151,58 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
           >
             <button
               onClick={onCtaClick}
-              className="group relative inline-flex items-center gap-3 px-8 md:px-10 py-4 md:py-5 rounded-full bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 text-[#1a1030] font-bold text-base md:text-lg tracking-wide shadow-[0_10px_40px_-10px_rgba(255,200,60,0.6)] hover:shadow-[0_20px_60px_-10px_rgba(255,200,60,0.8)] transition-all duration-500 hover:scale-[1.03]"
+              className="group relative inline-flex items-center gap-3 px-8 md:px-10 py-4 md:py-5 rounded-full bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 text-[#1a1030] font-bold text-base md:text-lg tracking-wide shadow-[0_10px_40px_-10px_rgba(255,200,60,0.7)] hover:shadow-[0_20px_60px_-10px_rgba(255,200,60,0.9)] transition-all duration-500 hover:scale-[1.03]"
             >
               <span>Agendar visita de 15 min</span>
               <span className="text-lg group-hover:translate-x-1 transition-transform">→</span>
               <span className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-300/50 to-amber-300/50 blur-xl -z-10 opacity-60 group-hover:opacity-100 transition-opacity" />
             </button>
-            <p className="text-xs text-white/50 font-light tracking-wide">
+            <p className="text-xs text-white/60 font-light tracking-wide" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
               Sem compromisso · resposta em até 1h
             </p>
           </motion.div>
 
-          {/* Editorial Stats */}
+          {/* Stats — glassmorphism card */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.95, duration: 0.7 }}
-            className="pt-8 md:pt-10"
+            className="pt-6"
           >
-            <div className="relative mx-auto max-w-2xl">
-              {/* Hairline frame */}
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-yellow-300/40 to-transparent" />
-              <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-yellow-300/40 to-transparent" />
-
-              <div className="grid grid-cols-3 gap-2 md:gap-6 py-6 md:py-7">
+            <div className="relative mx-auto max-w-2xl bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-xl px-4 py-5">
+              <div className="grid grid-cols-3 gap-2 md:gap-6">
                 {stats.map((s, i) => (
                   <div
                     key={i}
-                    className={`flex flex-col items-center text-center ${
-                      i !== 0 ? "border-l border-white/10" : ""
-                    }`}
+                    className={`flex flex-col items-center text-center ${i !== 0 ? "border-l border-white/20" : ""}`}
                   >
                     <div className="flex items-baseline gap-1">
-                      <span className="font-['Fraunces'] text-3xl md:text-5xl font-light text-white tracking-tight">
+                      <span className="font-['Nunito'] text-3xl md:text-5xl font-light text-white tracking-tight"
+                        style={{ textShadow: "0 2px 10px rgba(0,0,0,0.5)" }}>
                         {s.value}
                       </span>
                       {s.suffix && (
-                        <span className="font-['Fraunces'] text-base md:text-xl font-light text-yellow-300/90">
+                        <span className="font-['Nunito'] text-base md:text-xl font-light text-yellow-300/90">
                           {s.suffix}
                         </span>
                       )}
                     </div>
-                    <span className="mt-1 font-['Inter'] text-[10px] md:text-xs uppercase tracking-[0.2em] text-white/50 font-medium">
+                    <span className="mt-1 font-['Inter'] text-[10px] md:text-xs uppercase tracking-[0.2em] text-white/70 font-medium">
                       {s.label}
                     </span>
                   </div>
                 ))}
               </div>
-            </div>
 
-            {/* Tiny stars row */}
-            <div className="mt-4 flex items-center justify-center gap-1.5">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="w-3 h-3 fill-yellow-300 text-yellow-300" />
-              ))}
-              <span className="ml-2 text-[11px] text-white/60 font-['Inter'] tracking-wide">
-                a confiança de quem já celebrou aqui
-              </span>
+              {/* Stars */}
+              <div className="mt-4 flex items-center justify-center gap-1.5">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="w-3 h-3 fill-yellow-300 text-yellow-300" />
+                ))}
+                <span className="ml-2 text-[11px] text-white/60 font-['Inter'] tracking-wide">
+                  a confiança de quem já celebrou aqui
+                </span>
+              </div>
             </div>
           </motion.div>
         </motion.div>
@@ -194,6 +214,7 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
         animate={{ opacity: 1, y: [0, 8, 0] }}
         transition={{ delay: 1.5, duration: 2, repeat: Infinity }}
         className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/40 text-xs font-['Inter'] tracking-[0.3em] uppercase"
+        style={{ textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}
       >
         Role para descobrir
       </motion.div>

@@ -11,8 +11,8 @@ import type { LPTheme } from "@/types/landing-page";
 // Para alterar o texto: mude MESSAGE
 // =====================================================================
 const ENABLED = true;
-const DEADLINE = "2026-05-16T23:59:59";
-const MESSAGE = "Promoção válida até 16/05 — só para os 10 primeiros contratos";
+const DEADLINE = "2026-06-11T23:59:59";
+const MESSAGE = "⚽ Promoção Pré-Copa 2026 — feche sua festa e ganhe +10 convidados grátis";
 
 interface DLPUrgencyBannerProps {
   theme: LPTheme;

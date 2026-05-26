@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Instagram, Sparkles } from "lucide-react";
+import { Instagram } from "lucide-react";
 import { motion } from "framer-motion";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
 
@@ -20,66 +20,67 @@ const photos = [
 
 export const InstagramSection = () => {
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
+
   return (
-    <section className="py-20 relative overflow-hidden bg-gradient-to-br from-primary/5 via-background to-secondary/10">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-10 left-10 w-32 h-32 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-10 right-10 w-40 h-40 bg-secondary/10 rounded-full blur-3xl" />
-      </div>
+    <section className="py-20 md:py-28 bg-pink-50 overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
-      <div className="container mx-auto px-4 relative z-10">
+        {/* Header — left-aligned, with Instagram handle on right */}
         <motion.div
-          className="text-center mb-10"
-          initial={{ opacity: 0, y: 30 }}
+          className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-10"
+          initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
           viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
         >
-          <motion.div
-            className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-2 rounded-full mb-6 shadow-lg"
-            initial={{ scale: 0.8, opacity: 0 }}
-            whileInView={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            viewport={{ once: true }}
+          <div>
+            <span className="block text-sm font-bold tracking-[0.3em] uppercase text-pink-500 mb-3">
+              Galeria de momentos
+            </span>
+            <h2 className="font-['Nunito'] text-4xl md:text-5xl font-extrabold text-gray-900 leading-tight">
+              Memórias que ficam<br className="hidden md:block" /> para sempre
+            </h2>
+          </div>
+          <a
+            href="https://instagram.com/castelodadiversao"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-pink-500 transition-colors group flex-shrink-0"
           >
-            <Sparkles className="w-4 h-4" />
-            <span className="text-sm font-medium">Galeria de momentos</span>
-            <Sparkles className="w-4 h-4" />
-          </motion.div>
-
-          <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4">
-            Momentos incríveis que já <span className="gradient-text">aconteceram aqui</span>
-          </h2>
-          <p className="text-muted-foreground text-lg max-w-lg mx-auto">
-            Centenas de famílias já comemoraram momentos inesquecíveis no Castelo da Diversão.
-          </p>
+            <Instagram className="w-4 h-4 group-hover:text-pink-500 transition-colors" />
+            @castelodadiversao
+            <span className="group-hover:translate-x-1 transition-transform">→</span>
+          </a>
         </motion.div>
 
-        {/* Photo Grid */}
+        {/* Photo grid — first photo is featured (col-span-2) */}
         <motion.div
-          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 max-w-5xl mx-auto"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
+          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 grid-flow-dense"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
         >
           {photos.map((src, index) => (
             <motion.div
               key={src}
-              className="group relative rounded-xl overflow-hidden shadow-lg aspect-square cursor-pointer"
+              className={`group relative rounded-2xl overflow-hidden cursor-pointer
+                ${index === 0 ? "col-span-2 row-span-2 aspect-square" : "aspect-square"}
+              `}
               onClick={() => setSelectedImage(index)}
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
               viewport={{ once: true }}
+              transition={{ duration: 0.35, delay: index * 0.04 }}
+              whileHover={{ scale: 1.02 }}
             >
               <img
                 src={src}
                 alt={`Castelo da Diversão - Foto ${index + 1}`}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 loading="lazy"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
             </motion.div>
           ))}
         </motion.div>
@@ -93,26 +94,6 @@ export const InstagramSection = () => {
           />
         )}
 
-        {/* Instagram CTA */}
-        <motion.div
-          className="text-center mt-10"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-          viewport={{ once: true }}
-        >
-          <motion.a
-            href="https://instagram.com/castelodadiversao"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-shadow"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <Instagram className="w-5 h-5" />
-            Siga-nos no Instagram
-          </motion.a>
-        </motion.div>
       </div>
     </section>
   );
