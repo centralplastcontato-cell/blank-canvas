@@ -122,6 +122,29 @@ async function isSelfName(supabase: SupabaseClient, companyId: string, candidate
   return false;
 }
 
+async function saveLidMapping(
+  supabase: SupabaseClient,
+  lidJid: string,
+  phoneJid: string,
+  instanceDbId: string,
+  companyId: string | null | undefined,
+): Promise<void> {
+  try {
+    const lidDig = lidJid.replace(/\D/g, '');
+    const phoneDig = String(phoneJid).replace(/@.*$/, '').replace(/\D/g, '');
+    if (!lidDig || !phoneDig || lidDig === phoneDig) return;
+    await supabase.from('wapi_lid_phone_map').upsert({
+      lid_digits: lidDig,
+      phone_digits: phoneDig,
+      instance_id: instanceDbId,
+      company_id: companyId ?? null,
+      last_seen: new Date().toISOString(),
+    }, { onConflict: 'lid_digits,instance_id' });
+  } catch (e) {
+    console.warn('[Webhook] saveLidMapping failed:', e instanceof Error ? e.message : String(e));
+  }
+}
+
 async function resolveLidConversation(
   supabase: SupabaseClient,
   instanceDbId: string,
@@ -131,6 +154,36 @@ async function resolveLidConversation(
   msg: JsonRecord,
 ): Promise<JsonRecord | null> {
   const selectFields = 'id, remote_jid, bot_enabled, bot_step, bot_data, unread_count, is_closed, contact_name, contact_picture, lead_id, updated_at, created_at';
+  const lidDigits = lidJid.replace(/\D/g, '');
+
+  // Step 0: cached @lid → phone mapping (populated on every successful resolution)
+  if (lidDigits) {
+    const { data: cachedMap } = await supabase
+      .from('wapi_lid_phone_map')
+      .select('phone_digits')
+      .eq('lid_digits', lidDigits)
+      .eq('instance_id', instanceDbId)
+      .maybeSingle();
+    if (cachedMap?.phone_digits) {
+      const pd = String(cachedMap.phone_digits);
+      const jidVariants = [pd, `55${pd}`, pd.startsWith('55') ? pd.slice(2) : pd]
+        .filter((v) => v.length >= 10)
+        .map((v) => `${v}@s.whatsapp.net`);
+      const { data: convByCache } = await supabase
+        .from('wapi_conversations')
+        .select(selectFields)
+        .eq('instance_id', instanceDbId)
+        .in('remote_jid', jidVariants)
+        .not('remote_jid', 'like', '%@lid%')
+        .order('last_message_at', { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+      if (convByCache?.remote_jid) {
+        console.log(`[Webhook] Resolved @lid ${lidJid} to ${convByCache.remote_jid} via lid_phone_map cache`);
+        return convByCache as JsonRecord;
+      }
+    }
+  }
 
   const ctx = msg.contextInfo
     || msg.message?.extendedTextMessage?.contextInfo
@@ -170,12 +223,12 @@ async function resolveLidConversation(
         if (candidateMsgId !== msgId) {
           console.log(`[Webhook] Resolved @lid ${lidJid} to ${convByMessage.remote_jid} by referenced message ${candidateMsgId} (same-instance)`);
         }
+        waitUntil(saveLidMapping(supabase, lidJid, String(convByMessage.remote_jid), instanceDbId, companyId));
         return convByMessage as JsonRecord;
       }
     }
   }
 
-  const lidDigits = lidJid.replace(/\D/g, '');
   const possibleNames = [
     msg.pushName,
     msg.chatName,
@@ -214,6 +267,7 @@ async function resolveLidConversation(
 
     if (matches?.length === 1) {
       console.log(`[Webhook] Resolved @lid ${lidJid} to ${matches[0].remote_jid} by contact_name=${name}`);
+      waitUntil(saveLidMapping(supabase, lidJid, String(matches[0].remote_jid), instanceDbId, companyId));
       return matches[0] as JsonRecord;
     }
   }
@@ -240,6 +294,7 @@ async function resolveLidConversation(
 
     if (picMatches?.length === 1) {
       console.log(`[Webhook] Resolved @lid ${lidJid} to ${picMatches[0].remote_jid} by contact_picture`);
+      waitUntil(saveLidMapping(supabase, lidJid, String(picMatches[0].remote_jid), instanceDbId, companyId));
       return picMatches[0] as JsonRecord;
     }
   }
@@ -5398,7 +5453,9 @@ async function processWebhookEvent(body: JsonRecord) {
           const realPhone = senderRaw.replace(/@.*$/, '');
           const realJid = `${realPhone}@s.whatsapp.net`;
           console.log(`[Webhook] 🛟 Overriding @lid chat.id (${rj}) with sender.id real phone → ${realJid}`);
+          const lidBeforeOverride = String(rj);
           rj = realJid;
+          waitUntil(saveLidMapping(supabase, lidBeforeOverride, realJid, instance.id, instance.company_id));
         }
       } catch (_overrideErr) { /* never break ingestion */ }
 
