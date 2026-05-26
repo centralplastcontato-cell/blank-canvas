@@ -2464,8 +2464,8 @@ Deno.serve(async (req) => {
             });
           }
           
-          // W-API returns 500 when instance needs restart — auto-restart and retry
-          if (res.status === 500) {
+          // W-API returns 500 OR 400 when instance needs restart/reinit — auto-restart and retry
+          if (res.status === 500 || res.status === 400) {
             console.warn('wapi-send: get-qr got 500 — attempting auto-restart for', instance_id);
             
             // Try restart endpoints
