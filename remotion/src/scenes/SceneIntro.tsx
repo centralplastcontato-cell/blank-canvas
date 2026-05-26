@@ -58,9 +58,9 @@ export const SceneIntro: React.FC = () => {
           <span style={{ fontSize: 60, transform: `rotate(${logoRotate * 0.02}deg)` }}>🎉</span>
         </div>
 
-        <AnimatedText text="FestejaAI" fontSize={80} delay={15} color="white" />
+        <AnimatedText text="Celebrei" fontSize={80} delay={15} color="white" />
         <AnimatedText
-          text="Plataforma Completa para Buffets"
+          text="Plataforma Completa para Buffets Infantis"
           fontSize={32}
           delay={25}
           color="rgba(255,255,255,0.7)"

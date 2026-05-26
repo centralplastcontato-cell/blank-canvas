@@ -1,4 +1,4 @@
-import { AbsoluteFill } from "remotion";
+import { AbsoluteFill, Audio, staticFile } from "remotion";
 import { TransitionSeries, springTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import { slide } from "@remotion/transitions/slide";
@@ -16,6 +16,7 @@ const timing = springTiming({ config: { damping: 200 }, durationInFrames: TRANSI
 export const MainVideo = () => {
   return (
     <AbsoluteFill>
+      <Audio src={staticFile("audio/trilha.mp3")} volume={0.7} />
       <PersistentBackground />
       <TransitionSeries>
         <TransitionSeries.Sequence durationInFrames={150}>

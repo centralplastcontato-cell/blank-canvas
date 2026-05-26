@@ -16,7 +16,6 @@ import { GuiaCRMDialog } from "@/components/guias/GuiaCRMDialog";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Menu, Brain } from "lucide-react";
 import { OutboundQueueSheet } from "@/components/whatsapp/OutboundQueueSheet";
-import { WarmupManagerDialog } from "@/components/whatsapp/WarmupManagerDialog";
 import { Button } from "@/components/ui/button";
 import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "@/hooks/use-toast";
@@ -131,7 +130,6 @@ export default function WhatsApp() {
               </div>
               <GuiaCRMDialog />
               <OutboundQueueSheet />
-              <WarmupManagerDialog />
               <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/inteligencia")}>
                 <Brain className="w-5 h-5 text-primary" />
               </Button>
@@ -161,7 +159,6 @@ export default function WhatsApp() {
         
         <SidebarInset className="flex-1 flex flex-col relative">
           <div className="absolute top-4 right-6 z-20 flex items-center gap-2">
-            <WarmupManagerDialog />
             <OutboundQueueSheet />
           </div>
           <main className="flex-1 flex flex-col h-screen p-4 pt-4">

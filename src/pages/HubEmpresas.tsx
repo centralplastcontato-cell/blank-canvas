@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Building2, Plus, Pencil, Users, Loader2, UserPlus, Link2, Copy, ClipboardList, MessageSquare, BarChart3, Clock, CheckCircle2, AlertCircle, Globe, AlertTriangle, ExternalLink, Settings2, Trash2, RotateCcw, Film, QrCode } from "lucide-react";
 import { CompanyQRCodeDialog } from "@/components/hub/CompanyQRCodeDialog";
+import { WarmupManagerDialog } from "@/components/whatsapp/WarmupManagerDialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
@@ -534,7 +535,7 @@ function HubEmpresasContent() {
                 <Separator />
 
                 {/* Actions */}
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Button variant="outline" size="sm" className="flex-1" onClick={() => { setEditingCompany(child); setFormOpen(true); }}>
                     <Pencil className="mr-1.5 h-3.5 w-3.5" /> Editar
                   </Button>
@@ -544,6 +545,7 @@ function HubEmpresasContent() {
                   <Button variant="outline" size="sm" onClick={() => setModulesCompany(child)} title="Módulos">
                     <Settings2 className="h-3.5 w-3.5" />
                   </Button>
+                  <WarmupManagerDialog companyId={child.id} />
                   <Button variant="outline" size="sm" onClick={() => { setResetConversations(true); setResetLeads(true); setResetCompany(child); }} title="Resetar dados" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30">
                     <RotateCcw className="h-3.5 w-3.5" />
                   </Button>

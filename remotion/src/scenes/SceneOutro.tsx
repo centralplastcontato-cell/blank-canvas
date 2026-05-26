@@ -62,7 +62,7 @@ export const SceneOutro: React.FC = () => {
         </div>
 
         <div style={{ marginTop: 20 }}>
-          <AnimatedText text="festejaai.com.br" fontSize={24} delay={45} color="rgba(255,255,255,0.4)" fontWeight={400} />
+          <AnimatedText text="celebrei.com.br" fontSize={24} delay={45} color="rgba(255,255,255,0.4)" fontWeight={400} />
         </div>
       </div>
     </AbsoluteFill>

@@ -32,26 +32,28 @@ function currentDay(startedAt: string | null): number {
   return Math.floor((Date.now() - new Date(startedAt).getTime()) / (24 * 60 * 60_000)) + 1;
 }
 
-export function WarmupManagerDialog() {
+export function WarmupManagerDialog({ companyId: propCompanyId }: { companyId?: string } = {}) {
   const { currentCompany } = useCompany();
   const [open, setOpen] = useState(false);
   const [instances, setInstances] = useState<WapiInstanceRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [reason, setReason] = useState<Record<string, string>>({});
 
+  const resolvedCompanyId = propCompanyId ?? currentCompany?.id;
+
   const load = async () => {
-    if (!currentCompany?.id) return;
+    if (!resolvedCompanyId) return;
     setLoading(true);
     const { data } = await supabase
       .from("wapi_instances")
       .select("id, unit, phone_number, status, warmup_enabled, warmup_started_at, warmup_days_total, warmup_reason, warmup_curve_per_hour, queue_max_per_hour")
-      .eq("company_id", currentCompany.id)
+      .eq("company_id", resolvedCompanyId)
       .order("unit");
     setInstances((data ?? []) as WapiInstanceRow[]);
     setLoading(false);
   };
 
-  useEffect(() => { if (open) load(); }, [open, currentCompany?.id]);
+  useEffect(() => { if (open) load(); }, [open, resolvedCompanyId]);
 
   const toggleWarmup = async (inst: WapiInstanceRow, enabled: boolean) => {
     const update: Record<string, unknown> = { warmup_enabled: enabled };

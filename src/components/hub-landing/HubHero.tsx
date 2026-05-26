@@ -1,14 +1,13 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Play } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
-import heroMockup from "@/assets/hub-hero-mockup.jpg";
+import heroMockup from "@/assets/hero-platform.png";
 
 interface HubHeroProps {
   onOpenWizard: () => void;
-  videoUrl?: string;
 }
 
-export default function HubHero({ onOpenWizard, videoUrl }: HubHeroProps) {
+export default function HubHero({ onOpenWizard }: HubHeroProps) {
   return (
     <section className="relative overflow-hidden bg-[hsl(225_35%_10%)]">
 
@@ -41,7 +40,7 @@ export default function HubHero({ onOpenWizard, videoUrl }: HubHeroProps) {
           </h1>
 
           <p className="mt-6 sm:mt-6 text-lg sm:text-xl text-white/70 leading-relaxed max-w-xl mx-auto">
-            A Celebrei automatiza seu WhatsApp, organiza seus leads e fecha festas enquanto você dorme.
+            Enquanto sua concorrência demora horas para responder, seus leads recebem uma proposta personalizada em segundos — automático, 24h por dia.
           </p>
 
           <div className="mt-8 sm:mt-9 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -67,41 +66,15 @@ export default function HubHero({ onOpenWizard, videoUrl }: HubHeroProps) {
           {/* Glow behind video */}
           <div className="absolute -inset-4 sm:-inset-8 rounded-3xl bg-gradient-to-b from-primary/10 via-transparent to-secondary/5 blur-2xl pointer-events-none" />
 
-          <div className="relative rounded-2xl sm:rounded-2xl overflow-hidden border border-white/[0.08] shadow-[0_30px_80px_-15px_rgba(0,0,0,0.6)] bg-black/20">
-
-            {videoUrl ? (
-              <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-                <iframe
-                  src={videoUrl}
-                  className="absolute inset-0 w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  title="Demonstração Celebrei"
-                />
-              </div>
-            ) : (
-              <div className="relative">
-                <img
-                  src={heroMockup}
-                  alt="Dashboard da plataforma Celebrei"
-                  className="w-full h-auto"
-                  loading="eager"
-                />
-                <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px] flex items-center justify-center">
-                  <motion.button
-                    whileHover={{ scale: 1.08 }}
-                    whileTap={{ scale: 0.96 }}
-                    className="flex items-center gap-3 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full px-7 py-4 sm:px-8 sm:py-4 text-white font-semibold text-base sm:text-base shadow-[0_16px_48px_rgba(0,0,0,0.3)] hover:bg-white/15 transition-colors"
-                    onClick={onOpenWizard}
-                  >
-                    <div className="w-10 h-10 sm:w-10 sm:h-10 rounded-full bg-white flex items-center justify-center flex-shrink-0">
-                      <Play className="h-5 w-5 sm:h-5 sm:w-5 text-[hsl(225_35%_10%)] ml-0.5" />
-                    </div>
-                    Assistir demonstração
-                  </motion.button>
-                </div>
-              </div>
-            )}
+          <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] shadow-[0_30px_80px_-15px_rgba(0,0,0,0.6)]">
+            <img
+              src={heroMockup}
+              alt="Dashboard da plataforma Celebrei"
+              className="w-full h-auto"
+              loading="eager"
+            />
+            {/* subtle top gradient so the mockup blends into the dark hero */}
+            <div className="absolute inset-0 bg-gradient-to-b from-[hsl(225_35%_10%/0.15)] via-transparent to-transparent pointer-events-none" />
           </div>
 
           {/* Floating metric pills */}
