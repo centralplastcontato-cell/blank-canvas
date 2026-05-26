@@ -1,16 +1,19 @@
 import { getCanonicalHost, isHubDomain, isPreviewDomain, getKnownBuffetDomain } from "@/hooks/useDomainDetection";
 import HubLandingPage from "./HubLandingPage";
 import LandingPage from "./LandingPage";
+import MegaMagicLandingPage from "./MegaMagicLandingPage";
 import DynamicLandingPage from "./DynamicLandingPage";
 import NotFound from "./NotFound";
 
 const CASTELO_DOMAINS = ["castelodadiversao.com.br", "castelodadiversao.online"];
+const MEGAMAGIC_DOMAINS = ["buffetmegamagic.com.br"];
 
 /**
  * Routes the root "/" path based on domain:
  * - hubcelebrei.com.br → Hub landing page (Celebrei platform)
  * - lovable.app / localhost → Castelo/Buffet landing page (default)
  * - castelodadiversao.online → Static Castelo LP (via canonical match)
+ * - buffetmegamagic.com.br → Static Mega Magic LP
  * - Any other domain → Dynamic LP (company custom domain)
  */
 export default function RootPage() {
@@ -30,6 +33,11 @@ export default function RootPage() {
   // Preview / localhost or Castelo domains → static promo LP
   if (isPreviewDomain() || CASTELO_DOMAINS.includes(canonical)) {
     return <LandingPage />;
+  }
+
+  // Mega Magic domain → dedicated LP
+  if (MEGAMAGIC_DOMAINS.includes(canonical)) {
+    return <MegaMagicLandingPage />;
   }
 
   // Known buffet domains — explicitly mapped, prevents LP crossover
