@@ -1,24 +1,22 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { getCurrentCompanyId } from "@/lib/supabase-helpers";
 
-const DEFAULT_COMPANY_ID = "a0000000-0000-0000-0000-000000000001";
-
 describe("getCurrentCompanyId", () => {
   beforeEach(() => {
     localStorage.clear();
   });
 
-  it("returns default when localStorage is empty", () => {
-    expect(getCurrentCompanyId()).toBe(DEFAULT_COMPANY_ID);
+  it("retorna null quando localStorage está vazio", () => {
+    expect(getCurrentCompanyId()).toBeNull();
   });
 
-  it("returns stored value from localStorage", () => {
+  it("retorna o valor armazenado no localStorage", () => {
     localStorage.setItem("selected_company_id", "custom-id-123");
     expect(getCurrentCompanyId()).toBe("custom-id-123");
   });
 
-  it("returns default when stored value is empty string", () => {
+  it("retorna null quando o valor armazenado é string vazia", () => {
     localStorage.setItem("selected_company_id", "");
-    expect(getCurrentCompanyId()).toBe(DEFAULT_COMPANY_ID);
+    expect(getCurrentCompanyId()).toBeNull();
   });
 });

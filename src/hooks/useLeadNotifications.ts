@@ -18,14 +18,15 @@ export function useLeadNotifications(companyId?: string) {
   }, [notificationsEnabled]);
 
   useEffect(() => {
-    if (isSubscribedRef.current) return;
+    // Nunca subscrever sem company_id — evita eventos cross-tenant
+    if (!companyId || isSubscribedRef.current) return;
     isSubscribedRef.current = true;
 
     const channelConfig: { event: "INSERT"; schema: string; table: string; filter?: string } = {
       event: "INSERT",
       schema: "public",
       table: "campaign_leads",
-      ...(companyId ? { filter: `company_id=eq.${companyId}` } : {}),
+      filter: `company_id=eq.${companyId}`,
     };
 
     const channel = supabase

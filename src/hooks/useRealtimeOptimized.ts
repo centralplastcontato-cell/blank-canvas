@@ -80,13 +80,14 @@ export function useLeadsRealtime(
   const isSubscribedRef = useRef(false);
 
   useEffect(() => {
-    if (isSubscribedRef.current) return;
+    // Nunca subscrever sem company_id — evita eventos cross-tenant
+    if (!companyId || isSubscribedRef.current) return;
     isSubscribedRef.current = true;
 
-    const companyFilter = companyId ? { filter: `company_id=eq.${companyId}` } : {};
+    const companyFilter = { filter: `company_id=eq.${companyId}` };
 
     const channel = supabase
-      .channel(`leads-realtime-optimized-${companyId ?? "global"}`)
+      .channel(`leads-realtime-optimized-${companyId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "campaign_leads", ...companyFilter },
@@ -163,13 +164,14 @@ export function useUnreadCountRealtime(
   }, [onUnreadChange, debounceMs]);
 
   useEffect(() => {
-    if (isSubscribedRef.current) return;
+    // Nunca subscrever sem company_id — evita eventos cross-tenant
+    if (!companyId || isSubscribedRef.current) return;
     isSubscribedRef.current = true;
 
-    const companyFilter = companyId ? { filter: `company_id=eq.${companyId}` } : {};
+    const companyFilter = { filter: `company_id=eq.${companyId}` };
 
     const channel = supabase
-      .channel(`unread-count-optimized-${companyId ?? "global"}`)
+      .channel(`unread-count-optimized-${companyId}`)
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "wapi_conversations", ...companyFilter },

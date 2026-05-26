@@ -104,6 +104,14 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
 
     await supabase.from("campaigns").update({ status: "sending", started_at: new Date().toISOString() }).eq("id", campaign.id);
 
+    // Limpa campanhas presas em "sending" de sessões anteriores (ex: browser fechado durante envio)
+    await supabase
+      .from("campaigns")
+      .update({ status: "draft" })
+      .eq("company_id", companyId)
+      .eq("status", "sending")
+      .neq("id", campaign.id);
+
     const variations = Array.isArray(campaign.message_variations) ? campaign.message_variations : [];
 
     // Seed counters with cumulative totals already persisted in campaign_recipients

@@ -101,8 +101,8 @@ export default function Admin() {
   const canEditLeads = isAdmin || canEdit || hasPermission('leads.edit');
   const canViewContact = isAdmin || hasPermission('leads.contact.view');
   
-  // Sound notification for new leads
-  useLeadNotifications();
+  // Som de notificação para novos leads
+  useLeadNotifications(currentCompany?.id);
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
