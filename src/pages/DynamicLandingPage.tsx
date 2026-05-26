@@ -14,6 +14,7 @@ import { DLPHowItWorks } from "@/components/dynamic-lp/DLPHowItWorks";
 import { DLPFooter } from "@/components/dynamic-lp/DLPFooter";
 import { DLPFloatingCTA } from "@/components/dynamic-lp/DLPFloatingCTA";
 import { LeadChatbot } from "@/components/landing/LeadChatbot";
+import { BackgroundMusic } from "@/components/landing/BackgroundMusic";
 import { applyHeroAssetOverrides, getCompanyLogoOverride, getExtraGalleryPhotos, getGalleryPhotosOverride } from "@/lib/companyAssetOverrides";
 import type { LPHero, LPVideo, LPGallery, LPTestimonials, LPOffer, LPTheme, LPFooter, LPBenefits, LPSocialProof, LPHowItWorks } from "@/types/landing-page";
 
