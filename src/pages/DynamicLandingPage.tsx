@@ -255,6 +255,9 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
       <DLPFooter footer={data.footer} theme={data.theme} companyName={data.company_name} companyLogo={data.company_logo} instagramHandle={data.company_instagram} whatsappNumber={data.company_whatsapp} />
 
       <DLPFloatingCTA theme={data.theme} onClick={openChat} />
+      {/castelo/i.test(data.company_slug) && (
+        <BackgroundMusic src="/audio/castelo-theme.mp3" paused={isChatOpen} />
+      )}
       <LeadChatbot
         isOpen={isChatOpen}
         onClose={closeChat}
