@@ -19,7 +19,7 @@ const FESTIVE_COLORS = ["#E91E63", "#FF5722", "#FFC107", "#4CAF50", "#2196F3", "
 export function HeroSection({ onCtaClick }: HeroSectionProps) {
   return (
     <section
-      className="relative min-h-screen flex items-center justify-center overflow-hidden"
+      className="relative min-h-[100dvh] flex items-center justify-center overflow-hidden"
       aria-label="Seção principal"
     >
       {/* Barra colorida festiva no topo */}
@@ -34,7 +34,7 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
         <img
           src={fachada1}
           alt="Fachada Castelo da Diversão"
-          className="w-full h-full object-cover scale-105"
+          className="w-full h-full object-cover object-[center_35%] md:object-center scale-105"
           loading="eager"
           fetchPriority="high"
         />
