@@ -19,6 +19,7 @@ import {
   Calendar, Megaphone, GraduationCap, Eye, DollarSign, Handshake
 } from "lucide-react";
 import { useCompanyModules, CompanyModules } from "@/hooks/useCompanyModules";
+import { InstanceVisibilityCard } from "./InstanceVisibilityCard";
 
 interface PermissionsPanelProps {
   targetUserId: string;
@@ -477,6 +478,16 @@ export function PermissionsPanel({
           </div>
         </CardContent>
       </Card>
+
+      {/* Instance visibility */}
+      <InstanceVisibilityCard
+        targetUserId={targetUserId}
+        targetUserName={targetUserName}
+        currentUserId={currentUserId}
+        targetCompanyId={targetCompanyId}
+      />
+
+
 
       {/* Preset buttons */}
       <Card>
