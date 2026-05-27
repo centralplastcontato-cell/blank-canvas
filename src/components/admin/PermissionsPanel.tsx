@@ -479,6 +479,16 @@ export function PermissionsPanel({
         </CardContent>
       </Card>
 
+      {/* Instance visibility */}
+      <InstanceVisibilityCard
+        targetUserId={targetUserId}
+        targetUserName={targetUserName}
+        currentUserId={currentUserId}
+        targetCompanyId={targetCompanyId}
+      />
+
+
+
       {/* Preset buttons */}
       <Card>
         <CardHeader className="pb-3">
