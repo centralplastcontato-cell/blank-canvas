@@ -987,11 +987,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch instances whenever allowedUnits changes (separate effect)
+  // Fetch instances whenever allowedUnits OR instance permissions change
   useEffect(() => {
+    if (isLoadingInstancePerms) return;
     fetchInstances();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allowedUnits.join(',')]);
+  }, [allowedUnits.join(','), canViewAllInstances, allowedInstanceIds.join(','), isLoadingInstancePerms]);
 
   const fetchCurrentUserName = async () => {
     const { data } = await supabase
