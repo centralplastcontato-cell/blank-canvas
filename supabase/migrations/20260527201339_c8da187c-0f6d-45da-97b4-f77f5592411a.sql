@@ -1,0 +1,2 @@
+SELECT merge_lid_into_real_conversation('f95b30c6-d2ac-443f-966f-228c00e7dfb7'::uuid, 'c13a4add-13fd-4100-8640-d80ab72e567a'::uuid);
+SELECT merge_lid_into_real_conversation('bcf98379-83c1-4505-9912-72b688a17fe5'::uuid, 'b5f18d25-6f64-474c-ad86-6444f6209680'::uuid);
