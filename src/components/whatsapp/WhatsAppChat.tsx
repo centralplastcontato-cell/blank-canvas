@@ -1872,9 +1872,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
     // Keep inactive/hidden instances available for historical conversations.
     // The Hub toggle should control visibility/connection preference, not erase old chats from the buffet panel.
-    const accessibleData = data || [];
+    let accessibleData = data || [];
 
-    if (accessibleData.length > 0) {
+    // Per-user WhatsApp instance restriction (whatsapp.instance.* permissions)
+    if (!canViewAllInstances) {
+      const allowedSet = new Set(allowedInstanceIds);
+      const before = accessibleData.length;
+      accessibleData = accessibleData.filter((i: any) => allowedSet.has(i.id));
+      console.log('[WhatsAppChat] Filtered by instance permissions:', { before, after: accessibleData.length, allowedInstanceIds });
+    }
       const activeInstances = accessibleData as WapiInstance[];
       const counts: Record<string, number> = {};
 
