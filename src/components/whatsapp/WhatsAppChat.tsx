@@ -482,9 +482,11 @@ import { AutomationTimelineSheet } from "@/components/whatsapp/AutomationTimelin
 import { useFilterOrder } from "@/hooks/useFilterOrder";
 import { useDraftMessages } from "@/hooks/useDraftMessages";
 import { configureWapiWebhooks } from "@/lib/wapi-webhook-config";
+import { useInstancePermissions } from "@/hooks/useInstancePermissions";
 
 export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded, onLeadClosedMobile, onUnreadCountChange }: WhatsAppChatProps) {
   const { currentCompany } = useCompany();
+  const { canViewAllInstances, allowedInstanceIds, isLoading: isLoadingInstancePerms } = useInstancePermissions(userId);
   const [instances, setInstances] = useState<WapiInstance[]>([]);
   const [selectedInstance, setSelectedInstance] = useState<WapiInstance | null>(null);
   const [instanceConversationCounts, setInstanceConversationCounts] = useState<Record<string, number>>({});
