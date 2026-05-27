@@ -482,9 +482,11 @@ import { AutomationTimelineSheet } from "@/components/whatsapp/AutomationTimelin
 import { useFilterOrder } from "@/hooks/useFilterOrder";
 import { useDraftMessages } from "@/hooks/useDraftMessages";
 import { configureWapiWebhooks } from "@/lib/wapi-webhook-config";
+import { useInstancePermissions } from "@/hooks/useInstancePermissions";
 
 export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded, onLeadClosedMobile, onUnreadCountChange }: WhatsAppChatProps) {
   const { currentCompany } = useCompany();
+  const { canViewAllInstances, allowedInstanceIds, isLoading: isLoadingInstancePerms } = useInstancePermissions(userId);
   const [instances, setInstances] = useState<WapiInstance[]>([]);
   const [selectedInstance, setSelectedInstance] = useState<WapiInstance | null>(null);
   const [instanceConversationCounts, setInstanceConversationCounts] = useState<Record<string, number>>({});
@@ -985,11 +987,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch instances whenever allowedUnits changes (separate effect)
+  // Fetch instances whenever allowedUnits OR instance permissions change
   useEffect(() => {
+    if (isLoadingInstancePerms) return;
     fetchInstances();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allowedUnits.join(',')]);
+  }, [allowedUnits.join(','), canViewAllInstances, allowedInstanceIds.join(','), isLoadingInstancePerms]);
 
   const fetchCurrentUserName = async () => {
     const { data } = await supabase
@@ -1869,7 +1872,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
     // Keep inactive/hidden instances available for historical conversations.
     // The Hub toggle should control visibility/connection preference, not erase old chats from the buffet panel.
-    const accessibleData = data || [];
+    let accessibleData = data || [];
+
+    // Per-user WhatsApp instance restriction (whatsapp.instance.* permissions)
+    if (!canViewAllInstances) {
+      const allowedSet = new Set(allowedInstanceIds);
+      const before = accessibleData.length;
+      accessibleData = accessibleData.filter((i: any) => allowedSet.has(i.id));
+      console.log('[WhatsAppChat] Filtered by instance permissions:', { before, after: accessibleData.length, allowedInstanceIds });
+    }
 
     if (accessibleData.length > 0) {
       const activeInstances = accessibleData as WapiInstance[];
