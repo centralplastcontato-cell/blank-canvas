@@ -1881,6 +1881,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       accessibleData = accessibleData.filter((i: any) => allowedSet.has(i.id));
       console.log('[WhatsAppChat] Filtered by instance permissions:', { before, after: accessibleData.length, allowedInstanceIds });
     }
+
+    if (accessibleData.length > 0) {
       const activeInstances = accessibleData as WapiInstance[];
       const counts: Record<string, number> = {};
 
