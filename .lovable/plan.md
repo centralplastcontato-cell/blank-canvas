@@ -1,29 +1,45 @@
-# Corrigir mistura de mensagens entre Vendas 1 e Vendas 2
+## O que está acontecendo
 
-## Diagnóstico
+Esses "números estranhos" (`6945029226653`, `238843164926026`, etc.) **não são telefones**. São **@lid (Linked ID)** — um identificador interno e anônimo que o WhatsApp envia quando o contato tem o recurso de privacidade avançada ativado **ou** quando é a primeira mensagem para uma instância sem histórico prévio.
 
-Em `supabase/functions/wapi-webhook/index.ts`, dentro de `resolveLidConversation` (~linhas 155-175), o lookup que resolve `@lid` via mensagem referenciada (`wapi_messages.message_id`) **não filtra por instância**.
+Confirmei no banco:
+- A tabela `wapi_webhook_raw_events` recebeu o `remote_jid` como `6945029226653@lid` (W-API/Z-API).
+- O webhook tentou resolver via `lid_phone_map`, `quoted message`, `contact_name` e `contact_picture` — **todos falharam** porque é a primeira mensagem ("Boa tarde", sem contexto).
+- Como `fromMe = false`, o código aplica o caminho `isUnresolvedInboundLid = true`: **preserva a mensagem visível** (para não perder o lead), mas com o ID anônimo aparecendo como nome.
 
-Quando o mesmo cliente já tem histórico no Vendas 1 e manda nova mensagem pelo Vendas 2, o resolver acha o registro antigo em `wapi_messages`, devolve a `conversation_id` daquela conversa (do Vendas 1) e o webhook injeta a mensagem nova dentro dela. Por isso aparecem mensagens dos dois números no mesmo thread.
+**Sua intuição está parcialmente certa**: pode acontecer de o MESMO contato aparecer depois com o telefone real numa conversa separada — aí ficam duas linhas (a do @lid + a real). Hoje não existe um merge automático posterior.
 
-As outras duas estratégias de resolução (por `contact_name` e por `contact_picture`) já estão corretamente filtradas por `instance_id` (linhas 207 e 233). Só o branch por `message_id` ficou sem o filtro.
+## Plano de correção (3 etapas, uma por vez)
 
-A safeguard de "cross-instance unification" (linha 5550) protege a criação de novas conversas em setups multi-instância, mas ela só roda **depois** de `resolveLidConversation` — então não cobre esse caminho.
+### Etapa 1 — UX: rotular conversas @lid não resolvidas
+- No componente da lista de conversas (`src/components/whatsapp/...ConversationList`):
+  - Detectar quando `contact_name` é puramente numérico **com 13–15 dígitos sem prefixo 55** ou quando `remote_jid` contém `@lid`.
+  - Exibir o rótulo `"Contato sem identificação"` + badge cinza pequeno `@lid` + ícone de cadeado, em vez do número cru.
+  - Manter a mensagem visível normalmente.
+- **Não muda backend, não muda bot.** Só apresentação.
 
-## Correção (1 alteração cirúrgica)
+### Etapa 2 — Reaproveitar a edge function `resolve-numeric-names` já existente
+- Ela já tenta consultar W-API/Z-API `contact-info` para resolver IDs numéricos.
+- Adicionar um **cron diário** (instrução manual no Supabase SQL Editor, conforme a regra de projeto) chamando a função para a Castelo da Diversão.
+- Resultado esperado: muitos @lid recebem o nome real automaticamente em 24h.
 
-`supabase/functions/wapi-webhook/index.ts`, função `resolveLidConversation`:
+### Etapa 3 — Merge automático quando o telefone real aparece
+- Criar uma função SQL `merge_lid_conversation(p_lid_conv_id uuid, p_real_conv_id uuid)` que:
+  - Move mensagens de `wapi_messages` da conv @lid para a conv real.
+  - Move `lead_id`, tags, notas se existirem.
+  - Apaga a conv @lid.
+- Disparar via trigger: quando `lid_phone_map` ganha um novo mapeamento, procurar conversa real correspondente e mergir.
 
-- Ao buscar `wapi_conversations` pelo `existingMessage.conversation_id`, **adicionar filtro `.eq('instance_id', instanceDbId)`**. Se a conversa pertencer a outra instância da mesma empresa, ignorar e seguir para as próximas estratégias (nome, foto). Se nada resolver, a mensagem cai no fluxo normal de criação de nova conversa naquela instância — exatamente como já acontece hoje em setups multi-seller.
+## Detalhes técnicos
 
-Zero alteração em: realtime, dedup, envio, `wapi-send`, regra de negócio do bot, cross-instance unification.
+- Arquivos envolvidos:
+  - `supabase/functions/wapi-webhook/index.ts` (linhas 5488–5551, fluxo `isLidJid`/`isPseudoLidJid`)
+  - `supabase/functions/resolve-numeric-names/index.ts` (já existe)
+  - `supabase/functions/_shared/jid-normalizer.ts` (classificação correta — não alterar)
+  - `src/components/whatsapp/` (componente da lista de conversas — identificar)
+- **Não tocar** na lógica de envio (`wapi-send`) nem na conexão WhatsApp (regra de projeto).
+- Multi-tenant: tudo escopado por `company_id` e `instance_id` (já é o padrão).
 
-## Verificação
+## Pergunta antes de executar
 
-1. Conferir nos logs do `wapi-webhook` que não há mais `Resolved @lid ... by referenced message` cruzando instâncias.
-2. Mandar mensagem nova pelo Vendas 2 de um contato que já fala no Vendas 1 → deve criar uma conversa nova isolada no Vendas 2 (ou, se já existir, reusar a do próprio Vendas 2).
-3. Abrir o thread no chat e confirmar que só aparecem mensagens da instância selecionada.
-
-## Não incluso neste passo (próximos, se necessário)
-
-- Script de "split" para separar mensagens que já foram salvas misturadas em conversas existentes. Faço como passo 2, depois de validar a correção do webhook, se você confirmar que há conversas atuais bagunçadas.
+Quer que eu comece pela **Etapa 1** (rotular as conversas @lid não resolvidas para parar de mostrar os números crus) e depois decidimos sobre as Etapas 2 e 3? Ou prefere outra ordem?
