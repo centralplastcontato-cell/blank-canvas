@@ -7033,7 +7033,7 @@ export type Database = {
         Returns: Json
       }
       merge_lid_into_real_conversation: {
-        Args: { _loser_id: string; _winner_id: string }
+        Args: { p_lid_conv_id: string; p_real_conv_id: string }
         Returns: Json
       }
       recalculate_lead_score: { Args: { _lead_id: string }; Returns: undefined }
