@@ -245,9 +245,22 @@ const isValidLeadDisplayName = (name: string | null | undefined): name is string
   );
 };
 
+// Helper: detecta @lid não resolvido (Linked ID anônimo do WhatsApp).
+// @lid = identificador interno de 13-16 dígitos SEM prefixo 55 (Brasil).
+// Aparece quando é a 1ª mensagem do contato ou ele usa privacidade avançada.
+const isUnresolvedLidIdentifier = (
+  remoteJid: string | null | undefined,
+  phone: string | null | undefined,
+): boolean => {
+  if (remoteJid && remoteJid.includes('@lid')) return true;
+  const digits = (phone || '').replace(/\D/g, '');
+  if (digits.length >= 13 && digits.length <= 16 && !digits.startsWith('55')) return true;
+  return false;
+};
+
 // Helper: resolve the best display name for a conversation
 const getConversationDisplayName = (
-  conv: { contact_name: string | null; contact_phone: string; id: string },
+  conv: { contact_name: string | null; contact_phone: string; id: string; remote_jid?: string | null },
   leadsMap: Record<string, Lead | null | undefined>
 ): string => {
   // 1. Prefer the real WhatsApp/contact name when it is usable.
@@ -257,7 +270,12 @@ const getConversationDisplayName = (
   const leadName = leadsMap[conv.id]?.name;
   if (isValidLeadDisplayName(leadName)) return leadName.trim();
 
-  // 3. Fallback to phone
+  // 3. @lid não resolvido → rótulo amigável em vez do ID anônimo.
+  if (isUnresolvedLidIdentifier(conv.remote_jid, conv.contact_phone)) {
+    return 'Contato sem identificação';
+  }
+
+  // 4. Fallback to phone
   return conv.contact_phone;
 };
 
