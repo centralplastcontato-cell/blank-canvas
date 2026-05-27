@@ -19,6 +19,7 @@ import {
   Calendar, Megaphone, GraduationCap, Eye, DollarSign, Handshake
 } from "lucide-react";
 import { useCompanyModules, CompanyModules } from "@/hooks/useCompanyModules";
+import { InstanceVisibilityCard } from "./InstanceVisibilityCard";
 
 interface PermissionsPanelProps {
   targetUserId: string;
