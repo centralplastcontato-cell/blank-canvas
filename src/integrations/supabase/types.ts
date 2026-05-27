@@ -6232,6 +6232,38 @@ export type Database = {
           },
         ]
       }
+      wapi_lid_phone_map: {
+        Row: {
+          company_id: string | null
+          instance_id: string
+          last_seen: string
+          lid_digits: string
+          phone_digits: string
+        }
+        Insert: {
+          company_id?: string | null
+          instance_id: string
+          last_seen?: string
+          lid_digits: string
+          phone_digits: string
+        }
+        Update: {
+          company_id?: string | null
+          instance_id?: string
+          last_seen?: string
+          lid_digits?: string
+          phone_digits?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wapi_lid_phone_map_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "wapi_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wapi_messages: {
         Row: {
           company_id: string | null
