@@ -18,24 +18,29 @@ export interface InstancePermissions {
  * When `canViewAllInstances` is true the caller should ignore `allowedInstanceIds`
  * and show every instance the user can see via unit permissions.
  */
-export function useInstancePermissions(userId: string | undefined): InstancePermissions {
+export function useInstancePermissions(userId?: string | undefined): InstancePermissions {
   const [canViewAllInstances, setCanViewAllInstances] = useState(true);
   const [allowedInstanceIds, setAllowedInstanceIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetch = useCallback(async () => {
-    if (!userId) {
+    setIsLoading(true);
+    let uid = userId;
+    if (!uid) {
+      const { data: { user } } = await supabase.auth.getUser();
+      uid = user?.id;
+    }
+    if (!uid) {
       setCanViewAllInstances(true);
       setAllowedInstanceIds([]);
       setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
     const { data, error } = await supabase
       .from("user_permissions")
       .select("permission, granted")
-      .eq("user_id", userId)
+      .eq("user_id", uid)
       .like("permission", "whatsapp.instance.%");
 
     if (error) {
