@@ -225,7 +225,10 @@ export default function Admin() {
   // Fetch leads
   useEffect(() => {
     const fetchLeads = async () => {
-      if (!role || isLoadingUnitPerms || !currentCompany?.id) return;
+      if (!role || isLoadingUnitPerms || isLoadingInstancePerms || !currentCompany?.id) return;
+
+      // Instance permission still loading the lead-id list
+      if (!canViewAllInstances && instanceLeadIds === null) return;
 
       setIsLoadingLeads(true);
 
@@ -249,6 +252,17 @@ export default function Admin() {
         setTotalCount(0);
         setIsLoadingLeads(false);
         return;
+      }
+
+      // Apply instance permission filter (restrict to leads that arrived via allowed WhatsApp instances)
+      if (!canViewAllInstances) {
+        if (!instanceLeadIds || instanceLeadIds.length === 0) {
+          setLeads([]);
+          setTotalCount(0);
+          setIsLoadingLeads(false);
+          return;
+        }
+        query = query.in("id", instanceLeadIds);
       }
 
       // Apply user-selected filters
