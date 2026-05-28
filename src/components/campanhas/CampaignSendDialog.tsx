@@ -10,10 +10,11 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Loader2, Send, Minus, CheckCircle2, XCircle, Clock, Megaphone, Pause, Smartphone } from "lucide-react";
+import { Loader2, Send, Minus, CheckCircle2, XCircle, Clock, Megaphone, Pause, Smartphone, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useCampaignSender } from "@/contexts/CampaignSenderContext";
 import { useInstancePermissions } from "@/hooks/useInstancePermissions";
 
@@ -56,6 +57,7 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
   const [statuses, setStatuses] = useState<Map<string, string>>(new Map());
   const [instances, setInstances] = useState<InstanceOption[]>([]);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string>("");
+  const [sendMode, setSendMode] = useState<"single" | "smart">("single");
 
   const sender = useCampaignSender();
   const { canViewAllInstances, allowedInstanceIds } = useInstancePermissions();
@@ -121,6 +123,7 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
       campaign,
       companyId,
       instanceId,
+      mode: sendMode,
       recipients,
       onStatusChange: (id, status) => {
         setStatuses((prev) => new Map(prev).set(id, status));
@@ -250,13 +253,52 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
         ) : (
           <div className="space-y-4 py-2">
             {instances.length > 1 && (
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Modo de disparo
+                </Label>
+                <RadioGroup value={sendMode} onValueChange={(v) => setSendMode(v as "single" | "smart")} className="space-y-2">
+                  <label
+                    htmlFor="mode-single"
+                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${sendMode === "single" ? "border-primary bg-primary/5" : "bg-white hover:bg-muted/30"}`}
+                  >
+                    <RadioGroupItem value="single" id="mode-single" className="mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 text-sm font-semibold">
+                        <Smartphone className="w-3.5 h-3.5 text-primary" />
+                        Enviar tudo por um número
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                        Todas as mensagens saem pela instância selecionada abaixo.
+                      </p>
+                    </div>
+                  </label>
+                  <label
+                    htmlFor="mode-smart"
+                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${sendMode === "smart" ? "border-primary bg-primary/5" : "bg-white hover:bg-muted/30"}`}
+                  >
+                    <RadioGroupItem value="smart" id="mode-smart" className="mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 text-sm font-semibold">
+                        <Sparkles className="w-3.5 h-3.5 text-primary" />
+                        Disparo inteligente
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                        Cada lead recebe pelo número onde já conversou. Leads sem histórico caem na instância selecionada abaixo (fallback).
+                      </p>
+                    </div>
+                  </label>
+                </RadioGroup>
+              </div>
+            )}
+            {instances.length > 1 && (
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                   <Smartphone className="w-3.5 h-3.5" />
-                  Enviar pelo WhatsApp
+                  {sendMode === "smart" ? "Número de fallback" : "Enviar pelo WhatsApp"}
                 </Label>
                 <Select value={selectedInstanceId} onValueChange={setSelectedInstanceId}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full bg-white">
                     <SelectValue placeholder="Selecione a instância" />
                   </SelectTrigger>
                   <SelectContent>
@@ -269,7 +311,9 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
                   </SelectContent>
                 </Select>
                 <p className="text-[11px] text-muted-foreground">
-                  Escolha por qual número os disparos serão feitos.
+                  {sendMode === "smart"
+                    ? "Usado apenas para leads que ainda não têm conversa em nenhum número."
+                    : "Escolha por qual número os disparos serão feitos."}
                 </p>
               </div>
             )}

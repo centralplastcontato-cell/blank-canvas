@@ -28,8 +28,24 @@ interface StartParams {
   companyId: string;
   instanceId: string;
   recipients: Recipient[];
+  /** "single": tudo pela instanceId. "smart": cada lead pela instância onde já conversou (fallback = instanceId). */
+  mode?: "single" | "smart";
   onStatusChange?: (recipientId: string, status: string) => void;
   onComplete?: (result: { success: number; errors: number; paused: boolean }) => void;
+}
+
+function normalizePhone(p: string): string {
+  return (p || "").replace(/\D/g, "");
+}
+function phoneVariantsList(p: string): string[] {
+  const n = normalizePhone(p);
+  const v = new Set<string>();
+  if (n) {
+    v.add(n);
+    v.add(n.replace(/^55/, ""));
+    if (!n.startsWith("55")) v.add(`55${n}`);
+  }
+  return [...v].filter(Boolean);
 }
 
 interface CampaignSenderContextValue {
@@ -80,7 +96,7 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(t);
   }, [countdown]);
 
-  const startCampaign = useCallback(async ({ campaign, companyId, instanceId, recipients, onStatusChange, onComplete }: StartParams) => {
+  const startCampaign = useCallback(async ({ campaign, companyId, instanceId, recipients, mode = "single", onStatusChange, onComplete }: StartParams) => {
     if (isSendingRef.current) {
       toast.error("Já existe uma campanha em andamento. Aguarde finalizar ou pause.");
       return;
@@ -112,7 +128,45 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
       .eq("status", "sending")
       .neq("id", campaign.id);
 
+    // Smart mode: pre-resolve phone -> instance_id (WAPI string id)
+    // Looks at wapi_conversations (most recent per phone) joined with wapi_instances.
+    const phoneToInstance = new Map<string, string>();
+    if (mode === "smart" && recipients.length > 0) {
+      try {
+        const allVariants = new Set<string>();
+        const jids = new Set<string>();
+        recipients.forEach((r) => {
+          phoneVariantsList(r.phone).forEach((v) => {
+            allVariants.add(v);
+            jids.add(`${v}@s.whatsapp.net`);
+            jids.add(`${v}@c.us`);
+          });
+        });
+        const { data: convs } = await supabase
+          .from("wapi_conversations")
+          .select("remote_jid, last_message_at, instance:wapi_instances!inner(instance_id, company_id)")
+          .eq("instance.company_id", companyId)
+          .in("remote_jid", [...jids])
+          .order("last_message_at", { ascending: false });
+
+        (convs || []).forEach((c: any) => {
+          const jid = c.remote_jid as string;
+          const phoneOnly = jid.split("@")[0];
+          const instStr = c.instance?.instance_id;
+          if (!instStr) return;
+          // Map every variant of this phone to the same instance (first wins = most recent due to ordering)
+          phoneVariantsList(phoneOnly).forEach((v) => {
+            if (!phoneToInstance.has(v)) phoneToInstance.set(v, instStr);
+          });
+        });
+        console.log(`[campaign-smart] Resolved ${phoneToInstance.size} phone→instance mappings for ${recipients.length} recipients`);
+      } catch (e) {
+        console.error("[campaign-smart] Failed to resolve instances, will fallback to selected:", e);
+      }
+    }
+
     const variations = Array.isArray(campaign.message_variations) ? campaign.message_variations : [];
+
 
     // Seed counters with cumulative totals already persisted in campaign_recipients
     // so that pausing/resuming a campaign does not overwrite previous progress.
@@ -159,17 +213,27 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
         .replace(/\{\{?\s*nome\s*\}?\}/gi, r.lead_name || "")
         .replace(/\{\{?\s*empresa\s*\}?\}/gi, companyName);
 
+      // Resolve which instance to use for this recipient
+      let useInstanceId = instanceId;
+      if (mode === "smart") {
+        const variants = phoneVariantsList(r.phone);
+        for (const v of variants) {
+          const mapped = phoneToInstance.get(v);
+          if (mapped) { useInstanceId = mapped; break; }
+        }
+      }
+
       try {
         let sendError: any = null;
 
         if (campaign.image_url) {
           const { error } = await supabase.functions.invoke("wapi-send", {
-            body: { action: "send-image", instanceId, phone: r.phone, mediaUrl: campaign.image_url, caption: text, source: "campaign", automation: true },
+            body: { action: "send-image", instanceId: useInstanceId, phone: r.phone, mediaUrl: campaign.image_url, caption: text, source: "campaign", automation: true },
           });
           sendError = error;
         } else {
           const { error } = await supabase.functions.invoke("wapi-send", {
-            body: { action: "send-text", instanceId, phone: r.phone, message: text, source: "campaign", automation: true },
+            body: { action: "send-text", instanceId: useInstanceId, phone: r.phone, message: text, source: "campaign", automation: true },
           });
           sendError = error;
         }
@@ -190,7 +254,7 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
               body: {
                 campaign_id: campaign.id,
                 phone: r.phone,
-                instance_id: instanceId,
+                instance_id: useInstanceId,
                 lead_name: r.lead_name,
                 soft: !campaign.pause_bot_on_reply,
               },
