@@ -28,8 +28,24 @@ interface StartParams {
   companyId: string;
   instanceId: string;
   recipients: Recipient[];
+  /** "single": tudo pela instanceId. "smart": cada lead pela instância onde já conversou (fallback = instanceId). */
+  mode?: "single" | "smart";
   onStatusChange?: (recipientId: string, status: string) => void;
   onComplete?: (result: { success: number; errors: number; paused: boolean }) => void;
+}
+
+function normalizePhone(p: string): string {
+  return (p || "").replace(/\D/g, "");
+}
+function phoneVariantsList(p: string): string[] {
+  const n = normalizePhone(p);
+  const v = new Set<string>();
+  if (n) {
+    v.add(n);
+    v.add(n.replace(/^55/, ""));
+    if (!n.startsWith("55")) v.add(`55${n}`);
+  }
+  return [...v].filter(Boolean);
 }
 
 interface CampaignSenderContextValue {
