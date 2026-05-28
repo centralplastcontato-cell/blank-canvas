@@ -37,20 +37,34 @@ export function InstanceVisibilityCard({
   const [perms, setPerms] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [savingCode, setSavingCode] = useState<string | null>(null);
+  const [resolvedCompanyId, setResolvedCompanyId] = useState<string | undefined>(targetCompanyId);
 
   useEffect(() => {
     const load = async () => {
-      if (!targetCompanyId) {
+      setIsLoading(true);
+
+      // Resolve company_id automaticamente via profile se não vier por prop
+      let companyId = targetCompanyId;
+      if (!companyId) {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("company_id")
+          .eq("user_id", targetUserId)
+          .maybeSingle();
+        companyId = prof?.company_id || undefined;
+      }
+      setResolvedCompanyId(companyId);
+
+      if (!companyId) {
         setIsLoading(false);
         return;
       }
-      setIsLoading(true);
 
       const [{ data: inst }, { data: up }] = await Promise.all([
         supabase
           .from("wapi_instances")
           .select("id, instance_id, phone_number, unit, status, provider")
-          .eq("company_id", targetCompanyId)
+          .eq("company_id", companyId)
           .eq("is_active", true)
           .order("unit", { ascending: true }),
         supabase
