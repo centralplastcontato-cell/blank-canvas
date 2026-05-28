@@ -213,17 +213,27 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
         .replace(/\{\{?\s*nome\s*\}?\}/gi, r.lead_name || "")
         .replace(/\{\{?\s*empresa\s*\}?\}/gi, companyName);
 
+      // Resolve which instance to use for this recipient
+      let useInstanceId = instanceId;
+      if (mode === "smart") {
+        const variants = phoneVariantsList(r.phone);
+        for (const v of variants) {
+          const mapped = phoneToInstance.get(v);
+          if (mapped) { useInstanceId = mapped; break; }
+        }
+      }
+
       try {
         let sendError: any = null;
 
         if (campaign.image_url) {
           const { error } = await supabase.functions.invoke("wapi-send", {
-            body: { action: "send-image", instanceId, phone: r.phone, mediaUrl: campaign.image_url, caption: text, source: "campaign", automation: true },
+            body: { action: "send-image", instanceId: useInstanceId, phone: r.phone, mediaUrl: campaign.image_url, caption: text, source: "campaign", automation: true },
           });
           sendError = error;
         } else {
           const { error } = await supabase.functions.invoke("wapi-send", {
-            body: { action: "send-text", instanceId, phone: r.phone, message: text, source: "campaign", automation: true },
+            body: { action: "send-text", instanceId: useInstanceId, phone: r.phone, message: text, source: "campaign", automation: true },
           });
           sendError = error;
         }
@@ -244,7 +254,7 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
               body: {
                 campaign_id: campaign.id,
                 phone: r.phone,
-                instance_id: instanceId,
+                instance_id: useInstanceId,
                 lead_name: r.lead_name,
                 soft: !campaign.pause_bot_on_reply,
               },
