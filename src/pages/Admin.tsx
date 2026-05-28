@@ -8,6 +8,7 @@ import { logActivity } from "@/lib/activityLog";
 import { User, Session } from "@supabase/supabase-js";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
+import { useInstancePermissions } from "@/hooks/useInstancePermissions";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useLeadNotifications } from "@/hooks/useLeadNotifications";
 import { Lead, LeadStatus, UserWithRole, Profile, AppRole } from "@/types/crm";
