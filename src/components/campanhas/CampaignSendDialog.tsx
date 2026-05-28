@@ -123,6 +123,7 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
       campaign,
       companyId,
       instanceId,
+      mode: sendMode,
       recipients,
       onStatusChange: (id, status) => {
         setStatuses((prev) => new Map(prev).set(id, status));
