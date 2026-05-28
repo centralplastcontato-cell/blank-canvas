@@ -128,7 +128,44 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
       .eq("status", "sending")
       .neq("id", campaign.id);
 
-    const variations = Array.isArray(campaign.message_variations) ? campaign.message_variations : [];
+    // Smart mode: pre-resolve phone -> instance_id (WAPI string id)
+    // Looks at wapi_conversations (most recent per phone) joined with wapi_instances.
+    const phoneToInstance = new Map<string, string>();
+    if (mode === "smart" && recipients.length > 0) {
+      try {
+        const allVariants = new Set<string>();
+        const jids = new Set<string>();
+        recipients.forEach((r) => {
+          phoneVariantsList(r.phone).forEach((v) => {
+            allVariants.add(v);
+            jids.add(`${v}@s.whatsapp.net`);
+            jids.add(`${v}@c.us`);
+          });
+        });
+        const { data: convs } = await supabase
+          .from("wapi_conversations")
+          .select("remote_jid, last_message_at, instance:wapi_instances!inner(instance_id, company_id)")
+          .eq("instance.company_id", companyId)
+          .in("remote_jid", [...jids])
+          .order("last_message_at", { ascending: false });
+
+        (convs || []).forEach((c: any) => {
+          const jid = c.remote_jid as string;
+          const phoneOnly = jid.split("@")[0];
+          const instStr = c.instance?.instance_id;
+          if (!instStr) return;
+          // Map every variant of this phone to the same instance (first wins = most recent due to ordering)
+          phoneVariantsList(phoneOnly).forEach((v) => {
+            if (!phoneToInstance.has(v)) phoneToInstance.set(v, instStr);
+          });
+        });
+        console.log(`[campaign-smart] Resolved ${phoneToInstance.size} phone→instance mappings for ${recipients.length} recipients`);
+      } catch (e) {
+        console.error("[campaign-smart] Failed to resolve instances, will fallback to selected:", e);
+      }
+    }
+
+
 
     // Seed counters with cumulative totals already persisted in campaign_recipients
     // so that pausing/resuming a campaign does not overwrite previous progress.
