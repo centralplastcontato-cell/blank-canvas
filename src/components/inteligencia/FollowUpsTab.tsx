@@ -232,11 +232,17 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
           fuNumber: leadMaxFu.get(lead.id) || 1,
           instanceUnit,
           fuSentAt: leadFuSentAt.get(lead.id) || null,
-        };
+          _instanceId: instanceId,
+        } as FollowUpLead & { _instanceId?: string };
       });
 
-      result.sort((a, b) => b.score - a.score);
-      setFollowUpLeads(result);
+      // Filter by allowed instances when user has restrictions
+      const filtered = canViewAllInstances
+        ? result
+        : result.filter((l: any) => l._instanceId && allowedSet?.has(l._instanceId));
+
+      filtered.sort((a, b) => b.score - a.score);
+      setFollowUpLeads(filtered);
     } catch (e) {
       console.error("Error loading follow-up data:", e);
     } finally {
