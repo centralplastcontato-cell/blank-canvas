@@ -611,7 +611,7 @@ export default function Admin() {
     });
   };
 
-  if (isLoading || isLoadingRole || isLoadingUnitPerms) {
+  if (isLoading || isLoadingRole || isLoadingUnitPerms || isLoadingInstancePerms) {
     return <LoadingScreen message="Carregando painel..." />;
   }
 
