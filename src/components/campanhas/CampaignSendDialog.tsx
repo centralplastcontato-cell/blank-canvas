@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useCampaignSender } from "@/contexts/CampaignSenderContext";
+import { useInstancePermissions } from "@/hooks/useInstancePermissions";
 
 interface Recipient {
   id: string;
@@ -57,6 +58,7 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
   const [selectedInstanceId, setSelectedInstanceId] = useState<string>("");
 
   const sender = useCampaignSender();
+  const { canViewAllInstances, allowedInstanceIds } = useInstancePermissions();
   const isThisActive = sender.isSending && sender.activeCampaignId === campaign.id;
   const sending = isThisActive;
   const progress = isThisActive ? sender.progress : null;
@@ -91,7 +93,11 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
       .eq("company_id", companyId)
       .eq("status", "connected")
       .order("unit", { ascending: true });
-    const list = (data as InstanceOption[]) || [];
+    let list = (data as InstanceOption[]) || [];
+    if (!canViewAllInstances) {
+      const allowed = new Set(allowedInstanceIds);
+      list = list.filter((i) => allowed.has(i.id));
+    }
     setInstances(list);
     if (list.length > 0 && !selectedInstanceId) {
       setSelectedInstanceId(list[0].instance_id);
