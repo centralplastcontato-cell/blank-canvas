@@ -165,6 +165,7 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    const variations = Array.isArray(campaign.message_variations) ? campaign.message_variations : [];
 
 
     // Seed counters with cumulative totals already persisted in campaign_recipients
