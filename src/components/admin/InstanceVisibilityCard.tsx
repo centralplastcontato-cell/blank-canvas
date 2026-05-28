@@ -43,15 +43,16 @@ export function InstanceVisibilityCard({
     const load = async () => {
       setIsLoading(true);
 
-      // Resolve company_id automaticamente via profile se não vier por prop
+      // Resolve company_id automaticamente via user_companies se não vier por prop
       let companyId = targetCompanyId;
       if (!companyId) {
-        const { data: prof } = await supabase
-          .from("profiles")
+        const { data: uc } = await supabase
+          .from("user_companies")
           .select("company_id")
           .eq("user_id", targetUserId)
+          .limit(1)
           .maybeSingle();
-        companyId = prof?.company_id || undefined;
+        companyId = uc?.company_id || undefined;
       }
       setResolvedCompanyId(companyId);
 
