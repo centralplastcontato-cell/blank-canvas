@@ -1,0 +1,1 @@
+UPDATE public.sales_materials SET is_active = false, updated_at = now() WHERE company_id = 'a0000000-0000-0000-0000-000000000001' AND unit IN ('Manchester', 'Vendas 2') AND is_active = true;
