@@ -8,6 +8,7 @@ import { logActivity } from "@/lib/activityLog";
 import { User, Session } from "@supabase/supabase-js";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
+import { useInstancePermissions } from "@/hooks/useInstancePermissions";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useLeadNotifications } from "@/hooks/useLeadNotifications";
 import { Lead, LeadStatus, UserWithRole, Profile, AppRole } from "@/types/crm";
@@ -91,6 +92,38 @@ export default function Admin() {
 
   const { role, isLoading: isLoadingRole, isAdmin, canEdit, canManageUsers } = useUserRole(user?.id);
   const { allowedUnits, canViewAll, isLoading: isLoadingUnitPerms } = useUnitPermissions(user?.id);
+  const { canViewAllInstances, allowedInstanceIds, isLoading: isLoadingInstancePerms } = useInstancePermissions(user?.id);
+
+  // Lead IDs allowed by instance permission (null = no restriction, [] = restricted but none match)
+  const [instanceLeadIds, setInstanceLeadIds] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    const loadInstanceLeadIds = async () => {
+      if (isLoadingInstancePerms || !currentCompany?.id) return;
+      if (canViewAllInstances) {
+        setInstanceLeadIds(null);
+        return;
+      }
+      if (allowedInstanceIds.length === 0) {
+        setInstanceLeadIds([]);
+        return;
+      }
+      const { data, error } = await supabase
+        .from("wapi_conversations")
+        .select("lead_id")
+        .eq("company_id", currentCompany.id)
+        .in("instance_id", allowedInstanceIds)
+        .not("lead_id", "is", null);
+      if (error) {
+        console.error("[Admin] erro ao filtrar leads por instância:", error);
+        setInstanceLeadIds([]);
+        return;
+      }
+      const ids = Array.from(new Set((data || []).map((r: any) => r.lead_id).filter(Boolean)));
+      setInstanceLeadIds(ids as string[]);
+    };
+    loadInstanceLeadIds();
+  }, [canViewAllInstances, allowedInstanceIds, isLoadingInstancePerms, currentCompany?.id, refreshKey]);
   const { hasPermission } = usePermissions(user?.id);
   const canEditName = isAdmin || hasPermission('leads.edit.name');
   const canEditDescription = isAdmin || hasPermission('leads.edit.description');
@@ -192,7 +225,10 @@ export default function Admin() {
   // Fetch leads
   useEffect(() => {
     const fetchLeads = async () => {
-      if (!role || isLoadingUnitPerms || !currentCompany?.id) return;
+      if (!role || isLoadingUnitPerms || isLoadingInstancePerms || !currentCompany?.id) return;
+
+      // Instance permission still loading the lead-id list
+      if (!canViewAllInstances && instanceLeadIds === null) return;
 
       setIsLoadingLeads(true);
 
@@ -216,6 +252,17 @@ export default function Admin() {
         setTotalCount(0);
         setIsLoadingLeads(false);
         return;
+      }
+
+      // Apply instance permission filter (restrict to leads that arrived via allowed WhatsApp instances)
+      if (!canViewAllInstances) {
+        if (!instanceLeadIds || instanceLeadIds.length === 0) {
+          setLeads([]);
+          setTotalCount(0);
+          setIsLoadingLeads(false);
+          return;
+        }
+        query = query.in("id", instanceLeadIds);
       }
 
       // Apply user-selected filters
@@ -338,22 +385,32 @@ export default function Admin() {
     };
 
     fetchLeads();
-  }, [filters, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms, currentPage, currentCompany?.id]);
+  }, [filters, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms, canViewAllInstances, instanceLeadIds, isLoadingInstancePerms, currentPage, currentCompany?.id]);
 
   // Fetch server-side metrics (independent of pagination)
   useEffect(() => {
     const fetchMetrics = async () => {
-      if (!role || isLoadingUnitPerms || !currentCompany?.id) return;
+      if (!role || isLoadingUnitPerms || isLoadingInstancePerms || !currentCompany?.id) return;
+      if (!canViewAllInstances && instanceLeadIds === null) return;
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayISO = today.toISOString();
+
+      // If restricted by instance and no leads match, all metrics are zero
+      if (!canViewAllInstances && instanceLeadIds && instanceLeadIds.length === 0) {
+        setLeadMetrics({ total: 0, today: 0, novo: 0, em_contato: 0, fechado: 0, perdido: 0 });
+        return;
+      }
 
       const buildQuery = (statusFilter?: string, dateFilter?: string) => {
         let q = supabase.from("campaign_leads").select("id", { count: "exact", head: true }).eq("company_id", currentCompany.id);
         if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes('all')) {
           const unitsFilter = [...allowedUnits, "As duas"];
           q = q.in("unit", unitsFilter);
+        }
+        if (!canViewAllInstances && instanceLeadIds && instanceLeadIds.length > 0) {
+          q = q.in("id", instanceLeadIds);
         }
         if (statusFilter) q = q.eq("status", statusFilter as LeadStatus);
         if (dateFilter) q = q.gte("created_at", dateFilter);
@@ -380,7 +437,7 @@ export default function Admin() {
     };
 
     fetchMetrics();
-  }, [role, canViewAll, allowedUnits, isLoadingUnitPerms, refreshKey, currentCompany?.id]);
+  }, [role, canViewAll, allowedUnits, isLoadingUnitPerms, canViewAllInstances, instanceLeadIds, isLoadingInstancePerms, refreshKey, currentCompany?.id]);
 
 
   useEffect(() => {
@@ -554,7 +611,7 @@ export default function Admin() {
     });
   };
 
-  if (isLoading || isLoadingRole || isLoadingUnitPerms) {
+  if (isLoading || isLoadingRole || isLoadingUnitPerms || isLoadingInstancePerms) {
     return <LoadingScreen message="Carregando painel..." />;
   }
 
