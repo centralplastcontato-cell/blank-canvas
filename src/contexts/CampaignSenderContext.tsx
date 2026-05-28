@@ -96,7 +96,7 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(t);
   }, [countdown]);
 
-  const startCampaign = useCallback(async ({ campaign, companyId, instanceId, recipients, onStatusChange, onComplete }: StartParams) => {
+  const startCampaign = useCallback(async ({ campaign, companyId, instanceId, recipients, mode = "single", onStatusChange, onComplete }: StartParams) => {
     if (isSendingRef.current) {
       toast.error("Já existe uma campanha em andamento. Aguarde finalizar ou pause.");
       return;
