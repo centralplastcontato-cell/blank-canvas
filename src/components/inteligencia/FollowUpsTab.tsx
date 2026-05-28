@@ -12,6 +12,7 @@ import { LeadIntelligence } from "@/hooks/useLeadIntelligence";
 import { LEAD_STATUS_LABELS, LeadStatus } from "@/types/crm";
 import { formatDistanceToNow, subDays, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useInstancePermissions } from "@/hooks/useInstancePermissions";
 
 const InlineAISummary = lazy(() => import("./InlineAISummary").then(m => ({ default: m.InlineAISummary })));
 
@@ -64,6 +65,7 @@ function formatDelayLabel(hours: number): string {
 export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabProps) {
   const navigate = useNavigate();
   const { currentCompany } = useCompany();
+  const { canViewAllInstances, allowedInstanceIds, isLoading: instancePermsLoading } = useInstancePermissions();
   const [isLoading, setIsLoading] = useState(true);
   const [followUpLeads, setFollowUpLeads] = useState<FollowUpLead[]>([]);
   const [instanceDelaysMap, setInstanceDelaysMap] = useState<Map<string, InstanceDelays>>(new Map());
@@ -73,9 +75,9 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
   const selectedLead = selectedLeadId ? followUpLeads.find(l => l.leadId === selectedLeadId) : null;
 
   useEffect(() => {
-    if (!currentCompany?.id) return;
+    if (!currentCompany?.id || instancePermsLoading) return;
     loadFollowUpData();
-  }, [currentCompany?.id]);
+  }, [currentCompany?.id, instancePermsLoading, canViewAllInstances, allowedInstanceIds.join(",")]);
 
   async function loadFollowUpData() {
     if (!currentCompany?.id) return;
@@ -93,11 +95,14 @@ export function FollowUpsTab({ intelligenceData, selectedUnit }: FollowUpsTabPro
         .select("id, unit")
         .eq("company_id", currentCompany.id);
 
-      // Build instance -> delays map
+      // Build instance -> delays map (filtered by user's allowed instances)
+      const allowedSet = canViewAllInstances ? null : new Set(allowedInstanceIds);
       const instMap = new Map<string, string>();
       if (instances) {
         for (const inst of instances) {
-          instMap.set((inst as any).id, (inst as any).unit);
+          const id = (inst as any).id;
+          if (allowedSet && !allowedSet.has(id)) continue;
+          instMap.set(id, (inst as any).unit);
         }
       }
 
