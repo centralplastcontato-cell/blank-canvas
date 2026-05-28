@@ -681,7 +681,11 @@ export function PermissionsPanel({
                 
                 return true;
               }).map((perm) => {
-                const isGranted = userPermissions[perm.code] ?? false;
+                // Default to true (granted) when no record exists — matches runtime semantics
+                // across the app (useFinancialPermissions, AdminSidebar, etc.).
+                // Exception: `financial.consent` opts-in (default false).
+                const defaultGranted = perm.code === 'financial.consent' ? false : true;
+                const isGranted = userPermissions[perm.code] ?? defaultGranted;
                 const isSavingThis = isSaving === perm.code;
                 
                 return (
