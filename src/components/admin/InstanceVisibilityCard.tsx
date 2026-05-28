@@ -137,7 +137,7 @@ export function InstanceVisibilityCard({
     }
   };
 
-  if (!targetCompanyId) return null;
+  if (!isLoading && !resolvedCompanyId) return null;
 
   return (
     <Card className="rounded-xl">
