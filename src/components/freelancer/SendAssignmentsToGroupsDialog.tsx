@@ -21,6 +21,7 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DEFAULT_ASSIGNMENT_GROUP_MESSAGE } from "@/components/whatsapp/settings/AssignmentGroupMessageCard";
 import type { EventData, Assignment } from "./FreelancerSchedulesTab";
+import { useInstancePermissions } from "@/hooks/useInstancePermissions";
 
 interface ScheduleData {
   id: string;
@@ -141,6 +142,8 @@ export function SendAssignmentsToGroupsDialog({
     loadData();
   }, [open]);
 
+  const { canViewAllInstances, allowedInstanceIds } = useInstancePermissions();
+
   const loadData = async () => {
     setLoading(true);
     const { data: instData } = await supabase
@@ -149,7 +152,11 @@ export function SendAssignmentsToGroupsDialog({
       .eq("company_id", companyId)
       .eq("status", "connected");
 
-    const insts = instData || [];
+    let insts = instData || [];
+    if (!canViewAllInstances) {
+      const allowed = new Set(allowedInstanceIds);
+      insts = insts.filter((i: any) => allowed.has(i.id));
+    }
     setInstances(insts);
 
     if (insts.length === 0) {

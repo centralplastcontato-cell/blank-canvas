@@ -20,6 +20,7 @@ import { Search, UsersRound, Loader2, Send, Minus, CheckCircle2, XCircle, Clock 
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DEFAULT_SCHEDULE_GROUP_MESSAGE } from "@/components/whatsapp/settings/ScheduleGroupMessageCard";
+import { useInstancePermissions } from "@/hooks/useInstancePermissions";
 
 interface ScheduleData {
   id: string;
@@ -119,6 +120,8 @@ export function SendScheduleToGroupsDialog({
     loadData();
   }, [open]);
 
+  const { canViewAllInstances, allowedInstanceIds } = useInstancePermissions();
+
   const loadData = async () => {
     setLoading(true);
     const { data: instData } = await supabase
@@ -127,7 +130,11 @@ export function SendScheduleToGroupsDialog({
       .eq("company_id", companyId)
       .eq("status", "connected");
 
-    const insts = instData || [];
+    let insts = instData || [];
+    if (!canViewAllInstances) {
+      const allowed = new Set(allowedInstanceIds);
+      insts = insts.filter((i: any) => allowed.has(i.id));
+    }
     setInstances(insts);
 
     if (insts.length === 0) {
