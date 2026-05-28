@@ -385,22 +385,32 @@ export default function Admin() {
     };
 
     fetchLeads();
-  }, [filters, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms, currentPage, currentCompany?.id]);
+  }, [filters, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms, canViewAllInstances, instanceLeadIds, isLoadingInstancePerms, currentPage, currentCompany?.id]);
 
   // Fetch server-side metrics (independent of pagination)
   useEffect(() => {
     const fetchMetrics = async () => {
-      if (!role || isLoadingUnitPerms || !currentCompany?.id) return;
+      if (!role || isLoadingUnitPerms || isLoadingInstancePerms || !currentCompany?.id) return;
+      if (!canViewAllInstances && instanceLeadIds === null) return;
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayISO = today.toISOString();
+
+      // If restricted by instance and no leads match, all metrics are zero
+      if (!canViewAllInstances && instanceLeadIds && instanceLeadIds.length === 0) {
+        setLeadMetrics({ total: 0, today: 0, novo: 0, em_contato: 0, fechado: 0, perdido: 0 });
+        return;
+      }
 
       const buildQuery = (statusFilter?: string, dateFilter?: string) => {
         let q = supabase.from("campaign_leads").select("id", { count: "exact", head: true }).eq("company_id", currentCompany.id);
         if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes('all')) {
           const unitsFilter = [...allowedUnits, "As duas"];
           q = q.in("unit", unitsFilter);
+        }
+        if (!canViewAllInstances && instanceLeadIds && instanceLeadIds.length > 0) {
+          q = q.in("id", instanceLeadIds);
         }
         if (statusFilter) q = q.eq("status", statusFilter as LeadStatus);
         if (dateFilter) q = q.gte("created_at", dateFilter);
@@ -427,7 +437,7 @@ export default function Admin() {
     };
 
     fetchMetrics();
-  }, [role, canViewAll, allowedUnits, isLoadingUnitPerms, refreshKey, currentCompany?.id]);
+  }, [role, canViewAll, allowedUnits, isLoadingUnitPerms, canViewAllInstances, instanceLeadIds, isLoadingInstancePerms, refreshKey, currentCompany?.id]);
 
 
   useEffect(() => {
