@@ -92,6 +92,38 @@ export default function Admin() {
 
   const { role, isLoading: isLoadingRole, isAdmin, canEdit, canManageUsers } = useUserRole(user?.id);
   const { allowedUnits, canViewAll, isLoading: isLoadingUnitPerms } = useUnitPermissions(user?.id);
+  const { canViewAllInstances, allowedInstanceIds, isLoading: isLoadingInstancePerms } = useInstancePermissions(user?.id);
+
+  // Lead IDs allowed by instance permission (null = no restriction, [] = restricted but none match)
+  const [instanceLeadIds, setInstanceLeadIds] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    const loadInstanceLeadIds = async () => {
+      if (isLoadingInstancePerms || !currentCompany?.id) return;
+      if (canViewAllInstances) {
+        setInstanceLeadIds(null);
+        return;
+      }
+      if (allowedInstanceIds.length === 0) {
+        setInstanceLeadIds([]);
+        return;
+      }
+      const { data, error } = await supabase
+        .from("wapi_conversations")
+        .select("lead_id")
+        .eq("company_id", currentCompany.id)
+        .in("instance_id", allowedInstanceIds)
+        .not("lead_id", "is", null);
+      if (error) {
+        console.error("[Admin] erro ao filtrar leads por instância:", error);
+        setInstanceLeadIds([]);
+        return;
+      }
+      const ids = Array.from(new Set((data || []).map((r: any) => r.lead_id).filter(Boolean)));
+      setInstanceLeadIds(ids as string[]);
+    };
+    loadInstanceLeadIds();
+  }, [canViewAllInstances, allowedInstanceIds, isLoadingInstancePerms, currentCompany?.id, refreshKey]);
   const { hasPermission } = usePermissions(user?.id);
   const canEditName = isAdmin || hasPermission('leads.edit.name');
   const canEditDescription = isAdmin || hasPermission('leads.edit.description');
