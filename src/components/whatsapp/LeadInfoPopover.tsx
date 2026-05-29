@@ -642,7 +642,12 @@ export function LeadInfoPopover({
                           <Pencil className="w-3 h-3" />
                         </Button>
                       </div>
-                      <p className="text-[11px] text-muted-foreground/70 font-medium">{linkedLead.whatsapp}</p>
+                      <div className="flex items-center gap-1">
+                        <p className="text-[11px] text-muted-foreground/70 font-medium">{linkedLead.whatsapp}</p>
+                        <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 rounded-md opacity-60 hover:opacity-100" onClick={openEditPhone} title="Editar telefone">
+                          <Pencil className="w-2.5 h-2.5" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 )}
