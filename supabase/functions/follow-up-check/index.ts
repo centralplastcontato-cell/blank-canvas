@@ -478,6 +478,7 @@ Deno.serve(async (req) => {
           followUpNumber: fu.followUpNumber,
           delayHours: fu.delayHours,
           message: fu.message,
+          imageUrl: fu.imageUrl,
           historyAction: fu.historyAction,
           checkPreviousAction: previousAction,
         });
