@@ -25,7 +25,9 @@ interface WapiInstance {
 }
 
 const ALL_CODE = "whatsapp.instance.all";
+const LEADS_ALL_CODE = "leads.unit.all";
 const instanceCode = (id: string) => `whatsapp.instance.${id}`;
+const leadsUnitCode = (slug: string) => `leads.unit.${slug}`;
 
 export function InstanceVisibilityCard({
   targetUserId,
