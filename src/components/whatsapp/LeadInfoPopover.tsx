@@ -450,6 +450,7 @@ export function LeadInfoPopover({
     } else if (e.key === "Escape") {
       cancelEditingName();
     }
+  };
 
   const openEditPhone = () => {
     const current = linkedLead?.whatsapp || selectedConversation.contact_phone || "";
