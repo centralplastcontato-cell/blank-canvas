@@ -17,6 +17,7 @@ import { PreFestaContent } from "./PreFesta";
 import { ContratoContent } from "./Contrato";
 import { CardapioContent } from "./Cardapio";
 import { EventStaffManager } from "@/components/agenda/EventStaffManager";
+import { AccessDeniedRedirect } from "@/components/AccessDeniedRedirect";
 
 import { PackagesManager } from "@/components/admin/PackagesManager";
 import { OptionalsManager } from "@/components/admin/OptionalsManager";
