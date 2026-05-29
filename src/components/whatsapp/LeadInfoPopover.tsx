@@ -190,6 +190,9 @@ export function LeadInfoPopover({
   const [isEditingObs, setIsEditingObs] = useState(false);
   const [editedObs, setEditedObs] = useState("");
   const [isSavingObs, setIsSavingObs] = useState(false);
+  const [editPhoneOpen, setEditPhoneOpen] = useState(false);
+  const [editedPhone, setEditedPhone] = useState("");
+  const [isSavingPhone, setIsSavingPhone] = useState(false);
   const [hasLinkedEvent, setHasLinkedEvent] = useState<boolean | null>(null);
   const [linkedEventData, setLinkedEventData] = useState<EventFormData | null>(null);
   const [eventFormOpen, setEventFormOpen] = useState(false);
