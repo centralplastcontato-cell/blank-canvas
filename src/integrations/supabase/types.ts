@@ -5841,15 +5841,19 @@ export type Database = {
           created_at: string
           follow_up_2_delay_hours: number | null
           follow_up_2_enabled: boolean | null
+          follow_up_2_image_url: string | null
           follow_up_2_message: string | null
           follow_up_3_delay_hours: number
           follow_up_3_enabled: boolean
+          follow_up_3_image_url: string | null
           follow_up_3_message: string | null
           follow_up_4_delay_hours: number
           follow_up_4_enabled: boolean
+          follow_up_4_image_url: string | null
           follow_up_4_message: string | null
           follow_up_delay_hours: number | null
           follow_up_enabled: boolean | null
+          follow_up_image_url: string | null
           follow_up_max_hour: number
           follow_up_message: string | null
           follow_up_min_hour: number
@@ -5898,15 +5902,19 @@ export type Database = {
           created_at?: string
           follow_up_2_delay_hours?: number | null
           follow_up_2_enabled?: boolean | null
+          follow_up_2_image_url?: string | null
           follow_up_2_message?: string | null
           follow_up_3_delay_hours?: number
           follow_up_3_enabled?: boolean
+          follow_up_3_image_url?: string | null
           follow_up_3_message?: string | null
           follow_up_4_delay_hours?: number
           follow_up_4_enabled?: boolean
+          follow_up_4_image_url?: string | null
           follow_up_4_message?: string | null
           follow_up_delay_hours?: number | null
           follow_up_enabled?: boolean | null
+          follow_up_image_url?: string | null
           follow_up_max_hour?: number
           follow_up_message?: string | null
           follow_up_min_hour?: number
@@ -5955,15 +5963,19 @@ export type Database = {
           created_at?: string
           follow_up_2_delay_hours?: number | null
           follow_up_2_enabled?: boolean | null
+          follow_up_2_image_url?: string | null
           follow_up_2_message?: string | null
           follow_up_3_delay_hours?: number
           follow_up_3_enabled?: boolean
+          follow_up_3_image_url?: string | null
           follow_up_3_message?: string | null
           follow_up_4_delay_hours?: number
           follow_up_4_enabled?: boolean
+          follow_up_4_image_url?: string | null
           follow_up_4_message?: string | null
           follow_up_delay_hours?: number | null
           follow_up_enabled?: boolean | null
+          follow_up_image_url?: string | null
           follow_up_max_hour?: number
           follow_up_message?: string | null
           follow_up_min_hour?: number
