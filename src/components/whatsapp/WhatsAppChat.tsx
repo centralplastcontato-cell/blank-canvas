@@ -246,7 +246,7 @@ const isValidLeadDisplayName = (name: string | null | undefined): name is string
 };
 
 // Helper: detecta @lid não resolvido (Linked ID anônimo do WhatsApp).
-// @lid = identificador interno de 13-16 dígitos SEM prefixo 55 (Brasil).
+// @lid = identificador interno de 13-16 dígitos SEM prefixo 55 (Brasil) ou 54 (Argentina).
 // Aparece quando é a 1ª mensagem do contato ou ele usa privacidade avançada.
 const isUnresolvedLidIdentifier = (
   remoteJid: string | null | undefined,
@@ -254,7 +254,7 @@ const isUnresolvedLidIdentifier = (
 ): boolean => {
   if (remoteJid && remoteJid.includes('@lid')) return true;
   const digits = (phone || '').replace(/\D/g, '');
-  if (digits.length >= 13 && digits.length <= 16 && !digits.startsWith('55')) return true;
+  if (digits.length >= 13 && !digits.startsWith('55') && !digits.startsWith('54')) return true;
   return false;
 };
 

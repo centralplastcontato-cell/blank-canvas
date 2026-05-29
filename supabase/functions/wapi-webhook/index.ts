@@ -5520,10 +5520,14 @@ async function processWebhookEvent(body: JsonRecord) {
       // 'individual' (not 'lid'), so the @lid resolution path is skipped — resulting in
       // a ghost conversation being created. Apply the same resolution strategy here.
       const _pseudoLidDigits = rjNorm.phoneDigits;
+      // Threshold lowered to 13: BR phones are always 13 digits starting with 55,
+      // so any 13+ digit number without 55 prefix is a WhatsApp internal LID.
+      // Guard: also exclude 54 (Argentina mobile 13-digit) to avoid false positives.
       const isPseudoLidJid = !isLidJid
         && rjNorm.kind === 'individual'
-        && _pseudoLidDigits.length >= 14
-        && !_pseudoLidDigits.startsWith('55');
+        && _pseudoLidDigits.length >= 13
+        && !_pseudoLidDigits.startsWith('55')
+        && !_pseudoLidDigits.startsWith('54');
       if (isPseudoLidJid) {
         console.warn(`[Webhook] Pseudo-LID detected: ${rj} (${_pseudoLidDigits.length} digits, no 55 prefix). Attempting resolution.`);
         const _pseudoResolved = await resolveLidConversation(supabase, instance.id, instance.company_id, rj as string, msgId, msg as JsonRecord);

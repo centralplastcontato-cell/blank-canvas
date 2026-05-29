@@ -107,6 +107,7 @@ const Campanhas = lazy(lazyImports["/campanhas"]);
 const PublicRecruitmentForm = lazy(() => import("./pages/PublicRecruitmentForm"));
 const DynamicLandingPage = lazy(() => import("./pages/DynamicLandingPage"));
 const MegaMagicLandingPage = lazy(() => import("./pages/MegaMagicLandingPage"));
+const PlanetaDivertidoLandingPage = lazy(() => import("./pages/PlanetaDivertidoLandingPage"));
 const PublicEvaluation = lazy(() => import("./pages/PublicEvaluation"));
 const PublicPreFesta = lazy(() => import("./pages/PublicPreFesta"));
 const PublicContrato = lazy(() => import("./pages/PublicContrato"));
@@ -196,6 +197,7 @@ const App = () => (
               <Route path="/lp/:slug" element={<DynamicLandingPage />} />
               {/* Preview routes for static LPs */}
               <Route path="/preview/mega-magic" element={<MegaMagicLandingPage />} />
+              <Route path="/preview/planeta-divertido" element={<PlanetaDivertidoLandingPage />} />
               {/* Public onboarding form */}
               <Route path="/onboarding/:slug" element={<Onboarding />} />
               {/* Public evaluation form */}

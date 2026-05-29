@@ -2,11 +2,13 @@ import { getCanonicalHost, isHubDomain, isPreviewDomain, getKnownBuffetDomain } 
 import HubLandingPage from "./HubLandingPage";
 import LandingPage from "./LandingPage";
 import MegaMagicLandingPage from "./MegaMagicLandingPage";
+import PlanetaDivertidoLandingPage from "./PlanetaDivertidoLandingPage";
 import DynamicLandingPage from "./DynamicLandingPage";
 import NotFound from "./NotFound";
 
 const CASTELO_DOMAINS = ["castelodadiversao.com.br", "castelodadiversao.online"];
 const MEGAMAGIC_DOMAINS = ["buffetmegamagic.com.br"];
+const PLANETA_DOMAINS = ["buffetplanetadivertido.online"];
 
 /**
  * Routes the root "/" path based on domain:
@@ -38,6 +40,11 @@ export default function RootPage() {
   // Mega Magic domain → dedicated LP
   if (MEGAMAGIC_DOMAINS.includes(canonical)) {
     return <MegaMagicLandingPage />;
+  }
+
+  // Planeta Divertido domain → dedicated LP
+  if (PLANETA_DOMAINS.includes(canonical)) {
+    return <PlanetaDivertidoLandingPage />;
   }
 
   // Known buffet domains — explicitly mapped, prevents LP crossover
