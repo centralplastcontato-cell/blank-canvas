@@ -121,7 +121,6 @@ export function ImageLightbox({ images, currentIndex, onClose, onNavigate, rotat
             exit="exit"
             transition={{ duration: 0.25 }}
             className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg shadow-2xl"
-            animate={{ x: 0, opacity: 1, rotate: rotations?.[currentIndex] ?? 0 }}
             onClick={(e) => e.stopPropagation()}
             draggable={false}
           />
