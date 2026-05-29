@@ -3846,7 +3846,7 @@ async function processBotQualification(
 
              // Notify team — needs human attention
              try {
-               const unitLower = (instance as { unit?: string }).unit?.toLowerCase() || '';
+               const unitLower = ((instance as { unit?: string }).unit || '').toLowerCase().trim().replace(/\s+/g, '-');
                const unitPermission = `leads.unit.${unitLower}`;
                const targetUserIds = await getCompanyNotificationTargets(supabase, instance.company_id, unitPermission);
                const notifs = targetUserIds.map((uid: string) => ({
