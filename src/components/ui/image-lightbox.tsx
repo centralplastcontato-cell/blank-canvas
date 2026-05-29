@@ -54,10 +54,11 @@ export function ImageLightbox({ images, currentIndex, onClose, onNavigate, rotat
     }
   };
 
+  const rot = rotations?.[currentIndex] ?? 0;
   const variants = {
-    enter: (d: number) => ({ x: d > 0 ? 300 : -300, opacity: 0 }),
-    center: { x: 0, opacity: 1 },
-    exit: (d: number) => ({ x: d > 0 ? -300 : 300, opacity: 0 }),
+    enter: (d: number) => ({ x: d > 0 ? 300 : -300, opacity: 0, rotate: rot }),
+    center: { x: 0, opacity: 1, rotate: rot },
+    exit: (d: number) => ({ x: d > 0 ? -300 : 300, opacity: 0, rotate: rot }),
   };
 
   return createPortal(
