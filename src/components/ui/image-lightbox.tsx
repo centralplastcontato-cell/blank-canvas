@@ -8,9 +8,11 @@ interface ImageLightboxProps {
   currentIndex: number;
   onClose: () => void;
   onNavigate: (index: number) => void;
+  /** Optional rotation (in degrees) per image index. Used to match thumbnail orientation when source EXIF is wrong. */
+  rotations?: number[];
 }
 
-export function ImageLightbox({ images, currentIndex, onClose, onNavigate }: ImageLightboxProps) {
+export function ImageLightbox({ images, currentIndex, onClose, onNavigate, rotations }: ImageLightboxProps) {
   const touchStartX = useRef(0);
   const [direction, setDirection] = useState(0);
 
