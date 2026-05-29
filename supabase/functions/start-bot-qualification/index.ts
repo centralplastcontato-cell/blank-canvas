@@ -46,9 +46,10 @@ Deno.serve(async (req) => {
       .from('wapi_conversations')
       .select('id, company_id, instance_id, remote_jid, contact_name, contact_phone, bot_step, bot_data, bot_enabled, lead_id')
       .eq('id', conversationId)
-      .single();
+      .maybeSingle();
     if (convErr || !conv) {
-      return new Response(JSON.stringify({ error: 'conversation not found' }), {
+      console.error('[start-bot-qualification] conversation lookup failed', { conversationId, convErr });
+      return new Response(JSON.stringify({ error: 'conversation not found', details: convErr?.message }), {
         status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -71,9 +72,10 @@ Deno.serve(async (req) => {
       .from('wapi_instances')
       .select('id, instance_id, instance_token, company_id, provider, status')
       .eq('id', conv.instance_id)
-      .single();
+      .maybeSingle();
     if (instErr || !instance) {
-      return new Response(JSON.stringify({ error: 'instance not found' }), {
+      console.error('[start-bot-qualification] instance lookup failed', { instance_id: conv.instance_id, instErr });
+      return new Response(JSON.stringify({ error: 'instance not found', details: instErr?.message }), {
         status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -94,7 +96,7 @@ Deno.serve(async (req) => {
 
     // Load company name for variable interpolation
     const { data: company } = await supabase
-      .from('companies').select('name').eq('id', instance.company_id).single();
+      .from('companies').select('name').eq('id', instance.company_id).maybeSingle();
 
     const botData: Record<string, string> = (conv.bot_data as Record<string, string>) || {};
     const vars: Record<string, string> = {
@@ -121,29 +123,51 @@ Deno.serve(async (req) => {
       bot_data: resetData,
     }).eq('id', conv.id);
 
+    const phone = (conv.remote_jid || conv.contact_phone || '')
+      .replace('@s.whatsapp.net', '')
+      .replace('@c.us', '')
+      .replace('@lid', '')
+      .replace(/\D/g, '');
+
+    if (!phone) {
+      console.error('[start-bot-qualification] empty phone', { remote_jid: conv.remote_jid, contact_phone: conv.contact_phone });
+      return new Response(JSON.stringify({ error: 'invalid_phone' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Send via wapi-send (handles both W-API and Z-API + loop guard)
-    const sendRes = await fetch(`${supabaseUrl}/functions/v1/wapi-send`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${serviceKey}`,
-      },
-      body: JSON.stringify({
-        instance_id: instance.instance_id,
-        instance_token: instance.instance_token,
-        phone: conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, ''),
-        message,
-        conversation_id: conv.id,
-        company_id: conv.company_id,
-        automation: true,
-        metadata: { source: 'manual_start_qualification' },
-      }),
-    });
+    let sendRes: Response;
+    try {
+      sendRes = await fetch(`${supabaseUrl}/functions/v1/wapi-send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({
+          instance_id: instance.instance_id,
+          instance_token: instance.instance_token,
+          phone,
+          message,
+          conversation_id: conv.id,
+          company_id: conv.company_id,
+          automation: true,
+          metadata: { source: 'manual_start_qualification' },
+        }),
+      });
+    } catch (fetchErr) {
+      console.error('[start-bot-qualification] wapi-send fetch threw:', fetchErr);
+      return new Response(JSON.stringify({ error: 'send_failed', details: String(fetchErr) }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const sendData = await sendRes.json().catch(() => ({}));
     if (!sendRes.ok) {
-      return new Response(JSON.stringify({ error: 'send_failed', details: sendData }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      console.error('[start-bot-qualification] wapi-send returned non-ok', { status: sendRes.status, sendData });
+      return new Response(JSON.stringify({ error: 'send_failed', status: sendRes.status, details: sendData }), {
+        status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
