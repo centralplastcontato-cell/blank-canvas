@@ -29,15 +29,19 @@ interface FollowUpSettings {
   follow_up_enabled: boolean;
   follow_up_delay_hours: number;
   follow_up_message: string | null;
+  follow_up_image_url: string | null;
   follow_up_2_enabled: boolean;
   follow_up_2_delay_hours: number;
   follow_up_2_message: string | null;
+  follow_up_2_image_url: string | null;
   follow_up_3_enabled: boolean;
   follow_up_3_delay_hours: number;
   follow_up_3_message: string | null;
+  follow_up_3_image_url: string | null;
   follow_up_4_enabled: boolean;
   follow_up_4_delay_hours: number;
   follow_up_4_message: string | null;
+  follow_up_4_image_url: string | null;
   follow_up_min_hour: number;
   follow_up_max_hour: number;
   follow_up_send_min_delay: number;
@@ -349,7 +353,7 @@ Deno.serve(async (req) => {
     // Fetch all bot settings with any follow-up enabled
     const { data: allSettings, error: settingsError } = await supabase
       .from("wapi_bot_settings")
-      .select("instance_id, test_mode_enabled, test_mode_number, follow_up_enabled, follow_up_delay_hours, follow_up_message, follow_up_2_enabled, follow_up_2_delay_hours, follow_up_2_message, follow_up_3_enabled, follow_up_3_delay_hours, follow_up_3_message, follow_up_4_enabled, follow_up_4_delay_hours, follow_up_4_message, follow_up_min_hour, follow_up_max_hour, follow_up_send_min_delay, follow_up_send_max_delay, auto_lost_enabled, auto_lost_delay_hours, next_step_reminder_enabled, next_step_reminder_delay_minutes, next_step_reminder_message, bot_inactive_followup_enabled, bot_inactive_followup_delay_minutes, bot_inactive_followup_message")
+      .select("instance_id, test_mode_enabled, test_mode_number, follow_up_enabled, follow_up_delay_hours, follow_up_message, follow_up_image_url, follow_up_2_enabled, follow_up_2_delay_hours, follow_up_2_message, follow_up_2_image_url, follow_up_3_enabled, follow_up_3_delay_hours, follow_up_3_message, follow_up_3_image_url, follow_up_4_enabled, follow_up_4_delay_hours, follow_up_4_message, follow_up_4_image_url, follow_up_min_hour, follow_up_max_hour, follow_up_send_min_delay, follow_up_send_max_delay, auto_lost_enabled, auto_lost_delay_hours, next_step_reminder_enabled, next_step_reminder_delay_minutes, next_step_reminder_message, bot_inactive_followup_enabled, bot_inactive_followup_delay_minutes, bot_inactive_followup_message")
       .or("follow_up_enabled.eq.true,follow_up_2_enabled.eq.true,follow_up_3_enabled.eq.true,follow_up_4_enabled.eq.true,next_step_reminder_enabled.eq.true,bot_inactive_followup_enabled.eq.true,auto_lost_enabled.eq.true");
 
     if (settingsError) {
@@ -427,6 +431,7 @@ Deno.serve(async (req) => {
         followUpNumber: number;
         delayHours: number;
         message: string;
+        imageUrl: string | null;
         historyAction: string;
       }> = [
         {
@@ -434,6 +439,7 @@ Deno.serve(async (req) => {
           followUpNumber: 1,
           delayHours: settings.follow_up_delay_hours || 24,
           message: settings.follow_up_message || getDefaultFollowUpMessage(1),
+          imageUrl: settings.follow_up_image_url || null,
           historyAction: "Follow-up automático enviado",
         },
         {
@@ -441,6 +447,7 @@ Deno.serve(async (req) => {
           followUpNumber: 2,
           delayHours: settings.follow_up_2_delay_hours || 48,
           message: settings.follow_up_2_message || getDefaultFollowUpMessage(2),
+          imageUrl: settings.follow_up_2_image_url || null,
           historyAction: "Follow-up #2 automático enviado",
         },
         {
@@ -448,6 +455,7 @@ Deno.serve(async (req) => {
           followUpNumber: 3,
           delayHours: settings.follow_up_3_delay_hours || 72,
           message: settings.follow_up_3_message || getDefaultFollowUpMessage(3),
+          imageUrl: settings.follow_up_3_image_url || null,
           historyAction: "Follow-up #3 automático enviado",
         },
         {
@@ -455,6 +463,7 @@ Deno.serve(async (req) => {
           followUpNumber: 4,
           delayHours: settings.follow_up_4_delay_hours || 96,
           message: settings.follow_up_4_message || getDefaultFollowUpMessage(4),
+          imageUrl: settings.follow_up_4_image_url || null,
           historyAction: "Follow-up #4 automático enviado",
         },
       ];
@@ -469,6 +478,7 @@ Deno.serve(async (req) => {
           followUpNumber: fu.followUpNumber,
           delayHours: fu.delayHours,
           message: fu.message,
+          imageUrl: fu.imageUrl,
           historyAction: fu.historyAction,
           checkPreviousAction: previousAction,
         });
@@ -657,6 +667,7 @@ interface ProcessFollowUpParams {
   followUpNumber: number;
   delayHours: number;
   message: string;
+  imageUrl?: string | null;
   historyAction: string;
   checkPreviousAction: string | null;
 }
@@ -667,6 +678,7 @@ async function processFollowUp({
   followUpNumber,
   delayHours,
   message,
+  imageUrl,
   historyAction,
   checkPreviousAction,
 }: ProcessFollowUpParams): Promise<{ successCount: number; errors: string[] }> {
@@ -895,7 +907,10 @@ async function processFollowUp({
         console.warn(`[follow-up-check] ⏸ Skipping follow-up to ${lead.name} — conversation paused (loop guard)`);
         continue;
       }
-      const sendResult = await providerSendText(instance, fuPhone, personalizedMessage);
+      const hasImage = !!(imageUrl && imageUrl.trim().length > 0);
+      const sendResult = hasImage
+        ? await providerSendImage(instance, fuPhone, imageUrl!, personalizedMessage).then(r => ({ ok: r.ok, messageId: r.messageId, error: r.ok ? undefined : 'send-image failed' }))
+        : await providerSendText(instance, fuPhone, personalizedMessage);
 
       if (!sendResult.ok) {
         console.error(`[follow-up-check] Failed to send message to ${lead.name}:`, sendResult.error);
@@ -903,7 +918,7 @@ async function processFollowUp({
         continue;
       }
 
-      console.log(`[follow-up-check] Follow-up #${followUpNumber} sent successfully to ${lead.name}`);
+      console.log(`[follow-up-check] Follow-up #${followUpNumber} sent successfully to ${lead.name}${hasImage ? ' (with image)' : ''}`);
 
       const sentMsgId = sendResult.messageId;
 
@@ -912,11 +927,12 @@ async function processFollowUp({
         conversation_id: conversation.id,
         content: personalizedMessage,
         from_me: true,
-        message_type: "text",
+        message_type: hasImage ? "image" : "text",
+        media_url: hasImage ? imageUrl : null,
         message_id: sentMsgId,
         status: "sent",
         timestamp: new Date().toISOString(),
-        metadata: { source: "auto_reminder", type: `follow_up_${followUpNumber}` },
+        metadata: { source: "auto_reminder", type: `follow_up_${followUpNumber}`, has_image: hasImage },
         company_id: instance.company_id,
       });
 
