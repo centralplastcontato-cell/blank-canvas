@@ -9,6 +9,16 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { 
   Info, MessageSquare, Clock, MapPin, Calendar, Users, 
@@ -180,6 +190,9 @@ export function LeadInfoPopover({
   const [isEditingObs, setIsEditingObs] = useState(false);
   const [editedObs, setEditedObs] = useState("");
   const [isSavingObs, setIsSavingObs] = useState(false);
+  const [editPhoneOpen, setEditPhoneOpen] = useState(false);
+  const [editedPhone, setEditedPhone] = useState("");
+  const [isSavingPhone, setIsSavingPhone] = useState(false);
   const [hasLinkedEvent, setHasLinkedEvent] = useState<boolean | null>(null);
   const [linkedEventData, setLinkedEventData] = useState<EventFormData | null>(null);
   const [eventFormOpen, setEventFormOpen] = useState(false);
@@ -439,6 +452,68 @@ export function LeadInfoPopover({
     }
   };
 
+  const openEditPhone = () => {
+    const current = linkedLead?.whatsapp || selectedConversation.contact_phone || "";
+    setEditedPhone(current);
+    setEditPhoneOpen(true);
+  };
+
+  const saveLeadPhone = async () => {
+    const newDigits = editedPhone.replace(/\D/g, "");
+    if (newDigits.length < 10) {
+      toast({ title: "Telefone inválido", description: "Informe um número válido com DDD.", variant: "destructive" });
+      return;
+    }
+    const oldPhone = (linkedLead?.whatsapp || selectedConversation.contact_phone || "").replace(/\D/g, "");
+    if (newDigits === oldPhone) {
+      setEditPhoneOpen(false);
+      return;
+    }
+
+    setIsSavingPhone(true);
+    try {
+      const newJid = `${newDigits}@s.whatsapp.net`;
+
+      // 1) Update conversation phone + remote_jid
+      const { error: convErr } = await supabase
+        .from("wapi_conversations")
+        .update({ contact_phone: newDigits, remote_jid: newJid })
+        .eq("id", selectedConversation.id);
+      if (convErr) throw convErr;
+
+      // 2) Update linked lead, if any
+      if (linkedLead) {
+        const { error: leadErr } = await supabase
+          .from("campaign_leads")
+          .update({ whatsapp: newDigits })
+          .eq("id", linkedLead.id);
+        if (leadErr) throw leadErr;
+
+        await supabase.from("lead_history").insert({
+          lead_id: linkedLead.id,
+          user_id: userId,
+          user_name: currentUserName,
+          action: "Alteração de telefone",
+          old_value: oldPhone,
+          new_value: newDigits,
+        });
+      }
+
+      toast({ title: "Telefone atualizado", description: "O número foi alterado com sucesso." });
+      setEditPhoneOpen(false);
+    } catch (error: unknown) {
+      console.error("Error updating phone:", error);
+      toast({
+        title: "Erro ao atualizar telefone",
+        description: error instanceof Error ? error.message : "Pode existir outra conversa com esse número.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingPhone(false);
+    }
+  };
+
+
   return (
     <>
     <Popover>
@@ -567,7 +642,12 @@ export function LeadInfoPopover({
                           <Pencil className="w-3 h-3" />
                         </Button>
                       </div>
-                      <p className="text-[11px] text-muted-foreground/70 font-medium">{linkedLead.whatsapp}</p>
+                      <div className="flex items-center gap-1">
+                        <p className="text-[11px] text-muted-foreground/70 font-medium">{linkedLead.whatsapp}</p>
+                        <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 rounded-md opacity-60 hover:opacity-100" onClick={openEditPhone} title="Editar telefone">
+                          <Pencil className="w-2.5 h-2.5" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -898,7 +978,14 @@ export function LeadInfoPopover({
             <div className="p-4 py-3">
               <PopoverSection title="Dados do Contato">
                 <div className="space-y-1.5">
-                  <InfoRow icon={MessageSquare}>{selectedConversation.contact_phone}</InfoRow>
+                  <div className="flex items-center gap-1">
+                    <div className="flex-1 min-w-0">
+                      <InfoRow icon={MessageSquare}>{selectedConversation.contact_phone}</InfoRow>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 rounded-md" onClick={openEditPhone} title="Editar telefone">
+                      <Pencil className="w-2.5 h-2.5 text-muted-foreground hover:text-foreground" />
+                    </Button>
+                  </div>
                   {selectedConversation.contact_name && (
                     <div className="flex items-center gap-1">
                       {isEditingName ? (
@@ -1112,6 +1199,36 @@ export function LeadInfoPopover({
         }}
       />
     )}
+    <AlertDialog open={editPhoneOpen} onOpenChange={setEditPhoneOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Editar telefone do contato</AlertDialogTitle>
+          <AlertDialogDescription>
+            O telefone é o identificador do WhatsApp. Use apenas se o número foi cadastrado errado.
+            Mensagens novas chegando do número antigo poderão criar uma nova conversa.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="space-y-2">
+          <Input
+            value={editedPhone}
+            onChange={(e) => setEditedPhone(e.target.value)}
+            placeholder="Ex: 5511999998888 (com DDI + DDD)"
+            disabled={isSavingPhone}
+            autoFocus
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Digite apenas números, incluindo DDI (55) e DDD.
+          </p>
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isSavingPhone}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={(e) => { e.preventDefault(); saveLeadPhone(); }} disabled={isSavingPhone}>
+            {isSavingPhone ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+            Salvar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }
