@@ -1847,7 +1847,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       .eq("company_id", companyId);
 
     // Filter by allowed units - if empty, show nothing (user has no unit access)
-    if (!allowedUnits.includes('all')) {
+    // EXCEÇÃO: se há restrição explícita por instância (whatsapp.instance.*),
+    // ela é a fonte de verdade — bypass do filtro por nome de unidade, pois
+    // wapi_instances.unit é texto livre e nem sempre casa com company_units.name.
+    if (!canViewAllInstances && allowedInstanceIds.length > 0) {
+      // skip unit filter — instance-level filter abaixo é autoritativo
+    } else if (!allowedUnits.includes('all')) {
       if (allowedUnits.length === 0) {
         console.log('[WhatsAppChat] No allowed units, showing empty');
         setInstances([]);
