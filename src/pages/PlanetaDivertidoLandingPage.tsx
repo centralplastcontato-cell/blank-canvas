@@ -598,6 +598,7 @@ function PlanetaGallerySection() {
             currentIndex={selectedImage}
             onClose={() => setSelectedImage(null)}
             onNavigate={setSelectedImage}
+            rotations={PHOTOS.map((_, i) => (i > 0 ? 180 : 0))}
           />
         )}
       </div>
