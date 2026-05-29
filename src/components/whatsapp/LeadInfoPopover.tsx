@@ -487,7 +487,7 @@ export function LeadInfoPopover({
         const { data: dup } = await supabase
           .from("campaign_leads")
           .select("id, name")
-          .eq("company_id", linkedLead.company_id)
+          .eq("company_id", currentCompany?.id)
           .eq("whatsapp", newDigits)
           .neq("id", linkedLead.id)
           .maybeSingle();
@@ -510,7 +510,7 @@ export function LeadInfoPopover({
 
         await supabase.from("lead_history").insert({
           lead_id: linkedLead.id,
-          company_id: linkedLead.company_id,
+          company_id: currentCompany?.id,
           user_id: userId,
           user_name: currentUserName,
           action: "Alteração de telefone",
