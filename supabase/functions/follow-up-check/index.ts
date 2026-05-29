@@ -907,7 +907,10 @@ async function processFollowUp({
         console.warn(`[follow-up-check] ⏸ Skipping follow-up to ${lead.name} — conversation paused (loop guard)`);
         continue;
       }
-      const sendResult = await providerSendText(instance, fuPhone, personalizedMessage);
+      const hasImage = !!(imageUrl && imageUrl.trim().length > 0);
+      const sendResult = hasImage
+        ? await providerSendImage(instance, fuPhone, imageUrl!, personalizedMessage).then(r => ({ ok: r.ok, messageId: r.messageId, error: r.ok ? undefined : 'send-image failed' }))
+        : await providerSendText(instance, fuPhone, personalizedMessage);
 
       if (!sendResult.ok) {
         console.error(`[follow-up-check] Failed to send message to ${lead.name}:`, sendResult.error);
@@ -915,7 +918,7 @@ async function processFollowUp({
         continue;
       }
 
-      console.log(`[follow-up-check] Follow-up #${followUpNumber} sent successfully to ${lead.name}`);
+      console.log(`[follow-up-check] Follow-up #${followUpNumber} sent successfully to ${lead.name}${hasImage ? ' (with image)' : ''}`);
 
       const sentMsgId = sendResult.messageId;
 
@@ -924,11 +927,12 @@ async function processFollowUp({
         conversation_id: conversation.id,
         content: personalizedMessage,
         from_me: true,
-        message_type: "text",
+        message_type: hasImage ? "image" : "text",
+        media_url: hasImage ? imageUrl : null,
         message_id: sentMsgId,
         status: "sent",
         timestamp: new Date().toISOString(),
-        metadata: { source: "auto_reminder", type: `follow_up_${followUpNumber}` },
+        metadata: { source: "auto_reminder", type: `follow_up_${followUpNumber}`, has_image: hasImage },
         company_id: instance.company_id,
       });
 
