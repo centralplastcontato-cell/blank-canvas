@@ -431,6 +431,7 @@ Deno.serve(async (req) => {
         followUpNumber: number;
         delayHours: number;
         message: string;
+        imageUrl: string | null;
         historyAction: string;
       }> = [
         {
@@ -438,6 +439,7 @@ Deno.serve(async (req) => {
           followUpNumber: 1,
           delayHours: settings.follow_up_delay_hours || 24,
           message: settings.follow_up_message || getDefaultFollowUpMessage(1),
+          imageUrl: settings.follow_up_image_url || null,
           historyAction: "Follow-up automático enviado",
         },
         {
@@ -445,6 +447,7 @@ Deno.serve(async (req) => {
           followUpNumber: 2,
           delayHours: settings.follow_up_2_delay_hours || 48,
           message: settings.follow_up_2_message || getDefaultFollowUpMessage(2),
+          imageUrl: settings.follow_up_2_image_url || null,
           historyAction: "Follow-up #2 automático enviado",
         },
         {
@@ -452,6 +455,7 @@ Deno.serve(async (req) => {
           followUpNumber: 3,
           delayHours: settings.follow_up_3_delay_hours || 72,
           message: settings.follow_up_3_message || getDefaultFollowUpMessage(3),
+          imageUrl: settings.follow_up_3_image_url || null,
           historyAction: "Follow-up #3 automático enviado",
         },
         {
@@ -459,6 +463,7 @@ Deno.serve(async (req) => {
           followUpNumber: 4,
           delayHours: settings.follow_up_4_delay_hours || 96,
           message: settings.follow_up_4_message || getDefaultFollowUpMessage(4),
+          imageUrl: settings.follow_up_4_image_url || null,
           historyAction: "Follow-up #4 automático enviado",
         },
       ];
