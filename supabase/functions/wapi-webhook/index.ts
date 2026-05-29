@@ -2442,7 +2442,7 @@ async function advanceFlowFromNode(
           
           // Create notification (scoped to company)
           try {
-            const unitLower = instance.unit?.toLowerCase() || '';
+            const unitLower = (instance.unit || '').toLowerCase().trim().replace(/\s+/g, '-');
             const unitPermission = `leads.unit.${unitLower}`;
             const targetUserIds = await getCompanyNotificationTargets(supabase, instance.company_id, unitPermission);
             
