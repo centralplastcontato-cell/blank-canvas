@@ -2442,7 +2442,7 @@ async function advanceFlowFromNode(
           
           // Create notification (scoped to company)
           try {
-            const unitLower = instance.unit?.toLowerCase() || '';
+            const unitLower = (instance.unit || '').toLowerCase().trim().replace(/\s+/g, '-');
             const unitPermission = `leads.unit.${unitLower}`;
             const targetUserIds = await getCompanyNotificationTargets(supabase, instance.company_id, unitPermission);
             
@@ -2676,7 +2676,7 @@ async function advanceFlowFromNode(
           
           // Notify team (scoped to company)
           try {
-            const unitLower = instance.unit?.toLowerCase() || '';
+            const unitLower = (instance.unit || '').toLowerCase().trim().replace(/\s+/g, '-');
             const unitPermission = `leads.unit.${unitLower}`;
             const targetUserIds = await getCompanyNotificationTargets(supabase, instance.company_id, unitPermission);
             
@@ -3513,7 +3513,7 @@ async function processBotQualification(
           
           // Create notifications for users with permission for this unit (scoped to company)
           try {
-            const unitLower = instance.unit?.toLowerCase() || '';
+            const unitLower = (instance.unit || '').toLowerCase().trim().replace(/\s+/g, '-');
             const unitPermission = `leads.unit.${unitLower}`;
             const targetUserIds = await getCompanyNotificationTargets(supabase, instance.company_id, unitPermission);
             
@@ -3846,7 +3846,7 @@ async function processBotQualification(
 
              // Notify team — needs human attention
              try {
-               const unitLower = (instance as { unit?: string }).unit?.toLowerCase() || '';
+               const unitLower = ((instance as { unit?: string }).unit || '').toLowerCase().trim().replace(/\s+/g, '-');
                const unitPermission = `leads.unit.${unitLower}`;
                const targetUserIds = await getCompanyNotificationTargets(supabase, instance.company_id, unitPermission);
                const notifs = targetUserIds.map((uid: string) => ({
@@ -3902,7 +3902,7 @@ async function processBotQualification(
           // Create notifications for team (scoped to company)
           if (notificationType) {
             try {
-              const unitLower = instance.unit?.toLowerCase() || '';
+              const unitLower = (instance.unit || '').toLowerCase().trim().replace(/\s+/g, '-');
               const unitPermission = `leads.unit.${unitLower}`;
               const targetUserIds = await getCompanyNotificationTargets(supabase, instance.company_id, unitPermission);
               
