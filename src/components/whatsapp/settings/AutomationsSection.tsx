@@ -66,6 +66,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { FollowUpImageUploader } from "./FollowUpImageUploader";
 
 interface WapiInstance {
   id: string;
@@ -113,6 +114,10 @@ interface BotSettings {
   follow_up_4_enabled: boolean;
   follow_up_4_delay_hours: number;
   follow_up_4_message: string | null;
+  follow_up_image_url: string | null;
+  follow_up_2_image_url: string | null;
+  follow_up_3_image_url: string | null;
+  follow_up_4_image_url: string | null;
   follow_up_min_hour: number;
   follow_up_max_hour: number;
   auto_lost_enabled: boolean;
@@ -1884,6 +1889,17 @@ export function AutomationsSection() {
                     Variáveis: {"{nome}"}, {"{empresa}"}, {"{unidade}"}, {"{mes}"}, {"{convidados}"}
                   </p>
                 </div>
+
+                <FollowUpImageUploader
+                  value={botSettings?.follow_up_image_url}
+                  onChange={(url) => {
+                    setBotSettings(prev => prev ? { ...prev, follow_up_image_url: url } : prev);
+                    updateBotSettings({ follow_up_image_url: url });
+                  }}
+                  companyId={currentCompanyId}
+                  followUpNumber={1}
+                  disabled={isSaving || !botSettings?.follow_up_enabled}
+                />
               </div>
 
               {/* Divider */}
@@ -1979,6 +1995,17 @@ export function AutomationsSection() {
                   </p>
                 </div>
 
+                <FollowUpImageUploader
+                  value={botSettings?.follow_up_2_image_url}
+                  onChange={(url) => {
+                    setBotSettings(prev => prev ? { ...prev, follow_up_2_image_url: url } : prev);
+                    updateBotSettings({ follow_up_2_image_url: url });
+                  }}
+                  companyId={currentCompanyId}
+                  followUpNumber={2}
+                  disabled={isSaving || !botSettings?.follow_up_2_enabled}
+                />
+
                 {/* ---- 3ª Mensagem ---- */}
                 <div className="flex items-center gap-2 mt-6">
                   <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">3ª Mensagem</Badge>
@@ -2067,6 +2094,17 @@ export function AutomationsSection() {
                   </p>
                 </div>
 
+                <FollowUpImageUploader
+                  value={botSettings?.follow_up_3_image_url}
+                  onChange={(url) => {
+                    setBotSettings(prev => prev ? { ...prev, follow_up_3_image_url: url } : prev);
+                    updateBotSettings({ follow_up_3_image_url: url });
+                  }}
+                  companyId={currentCompanyId}
+                  followUpNumber={3}
+                  disabled={isSaving || !botSettings?.follow_up_3_enabled}
+                />
+
                 {/* ---- 4ª Mensagem ---- */}
                 <div className="flex items-center gap-2 mt-6">
                   <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">4ª Mensagem</Badge>
@@ -2154,6 +2192,17 @@ export function AutomationsSection() {
                     Variáveis: {"{nome}"}, {"{empresa}"}, {"{unidade}"}, {"{mes}"}, {"{convidados}"}
                   </p>
                 </div>
+
+                <FollowUpImageUploader
+                  value={botSettings?.follow_up_4_image_url}
+                  onChange={(url) => {
+                    setBotSettings(prev => prev ? { ...prev, follow_up_4_image_url: url } : prev);
+                    updateBotSettings({ follow_up_4_image_url: url });
+                  }}
+                  companyId={currentCompanyId}
+                  followUpNumber={4}
+                  disabled={isSaving || !botSettings?.follow_up_4_enabled}
+                />
               </div>
             </CardContent>
           </Card>
