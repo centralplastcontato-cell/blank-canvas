@@ -667,6 +667,7 @@ interface ProcessFollowUpParams {
   followUpNumber: number;
   delayHours: number;
   message: string;
+  imageUrl?: string | null;
   historyAction: string;
   checkPreviousAction: string | null;
 }
@@ -677,6 +678,7 @@ async function processFollowUp({
   followUpNumber,
   delayHours,
   message,
+  imageUrl,
   historyAction,
   checkPreviousAction,
 }: ProcessFollowUpParams): Promise<{ successCount: number; errors: string[] }> {
