@@ -1199,6 +1199,36 @@ export function LeadInfoPopover({
         }}
       />
     )}
+    <AlertDialog open={editPhoneOpen} onOpenChange={setEditPhoneOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Editar telefone do contato</AlertDialogTitle>
+          <AlertDialogDescription>
+            O telefone é o identificador do WhatsApp. Use apenas se o número foi cadastrado errado.
+            Mensagens novas chegando do número antigo poderão criar uma nova conversa.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="space-y-2">
+          <Input
+            value={editedPhone}
+            onChange={(e) => setEditedPhone(e.target.value)}
+            placeholder="Ex: 5511999998888 (com DDI + DDD)"
+            disabled={isSavingPhone}
+            autoFocus
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Digite apenas números, incluindo DDI (55) e DDD.
+          </p>
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isSavingPhone}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={(e) => { e.preventDefault(); saveLeadPhone(); }} disabled={isSavingPhone}>
+            {isSavingPhone ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+            Salvar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }
