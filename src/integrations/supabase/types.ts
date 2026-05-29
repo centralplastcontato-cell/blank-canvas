@@ -7111,6 +7111,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      update_lead_contact_phone: {
+        Args: {
+          _conversation_id: string
+          _lead_id?: string
+          _new_phone: string
+          _user_name?: string
+        }
+        Returns: Json
+      }
       update_maintenance_entry_public: {
         Args: {
           _entry_id: string
