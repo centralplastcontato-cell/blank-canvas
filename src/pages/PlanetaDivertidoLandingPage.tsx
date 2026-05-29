@@ -23,7 +23,7 @@ const PHOTOS = [
   `${STORAGE_IMG}/photos/1771618699783.jpg?width=1200`,
   `${STORAGE_IMG}/photos/1771618700704.jpg?width=1200`,
   `${STORAGE_IMG}/photos/1771618701630.jpg?width=1200`,
-  `${STORAGE_IMG}/photos/1771618702758.jpg?width=1200`,
+  
   `${STORAGE_IMG}/photos/1771618704085.jpg?width=1200`,
   `${STORAGE_IMG}/photos/1771618705413.jpg?width=1200`,
   `${STORAGE_IMG}/photos/1771618706337.jpg?width=1200`,
