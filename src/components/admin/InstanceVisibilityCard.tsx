@@ -186,7 +186,8 @@ export function InstanceVisibilityCard({
         <CardDescription>
           Restrinja quais instâncias este usuário pode ver no Chat, Inteligência
           e no envio de mensagens. Quando "Todas" estiver ativo, ele enxerga
-          qualquer número conectado à empresa.
+          qualquer número conectado à empresa. A mesma restrição é aplicada
+          automaticamente aos leads da unidade correspondente.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
