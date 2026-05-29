@@ -1889,6 +1889,17 @@ export function AutomationsSection() {
                     Variáveis: {"{nome}"}, {"{empresa}"}, {"{unidade}"}, {"{mes}"}, {"{convidados}"}
                   </p>
                 </div>
+
+                <FollowUpImageUploader
+                  value={botSettings?.follow_up_image_url}
+                  onChange={(url) => {
+                    setBotSettings(prev => prev ? { ...prev, follow_up_image_url: url } : prev);
+                    updateBotSettings({ follow_up_image_url: url });
+                  }}
+                  companyId={currentCompanyId}
+                  followUpNumber={1}
+                  disabled={isSaving || !botSettings?.follow_up_enabled}
+                />
               </div>
 
               {/* Divider */}
