@@ -57,7 +57,7 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
   const [statuses, setStatuses] = useState<Map<string, string>>(new Map());
   const [instances, setInstances] = useState<InstanceOption[]>([]);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string>("");
-  const [sendMode, setSendMode] = useState<"single" | "smart">("single");
+  const [sendMode, setSendMode] = useState<"single" | "smart">("smart");
 
   const sender = useCampaignSender();
   const { canViewAllInstances, allowedInstanceIds } = useInstancePermissions();
