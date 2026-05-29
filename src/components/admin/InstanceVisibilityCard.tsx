@@ -36,6 +36,7 @@ export function InstanceVisibilityCard({
   targetCompanyId,
 }: InstanceVisibilityCardProps) {
   const [instances, setInstances] = useState<WapiInstance[]>([]);
+  const [unitSlugByName, setUnitSlugByName] = useState<Record<string, string>>({});
   const [perms, setPerms] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [savingCode, setSavingCode] = useState<string | null>(null);
