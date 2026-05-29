@@ -2159,6 +2159,17 @@ export function AutomationsSection() {
                     Variáveis: {"{nome}"}, {"{empresa}"}, {"{unidade}"}, {"{mes}"}, {"{convidados}"}
                   </p>
                 </div>
+
+                <FollowUpImageUploader
+                  value={botSettings?.follow_up_4_image_url}
+                  onChange={(url) => {
+                    setBotSettings(prev => prev ? { ...prev, follow_up_4_image_url: url } : prev);
+                    updateBotSettings({ follow_up_4_image_url: url });
+                  }}
+                  companyId={currentCompanyId}
+                  followUpNumber={4}
+                  disabled={isSaving || !botSettings?.follow_up_4_enabled}
+                />
               </div>
             </CardContent>
           </Card>
