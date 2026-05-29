@@ -114,12 +114,7 @@ export default function Configuracoes() {
 
   if (!canAccessConfig) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-lg font-semibold mb-2">Acesso restrito</h2>
-          <p className="text-muted-foreground">Você não tem permissão para acessar as configurações.</p>
-        </div>
-      </div>
+      <AccessDeniedRedirect message="Você não tem permissão para acessar as configurações." />
     );
   }
 
