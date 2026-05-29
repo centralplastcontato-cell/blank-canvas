@@ -978,7 +978,14 @@ export function LeadInfoPopover({
             <div className="p-4 py-3">
               <PopoverSection title="Dados do Contato">
                 <div className="space-y-1.5">
-                  <InfoRow icon={MessageSquare}>{selectedConversation.contact_phone}</InfoRow>
+                  <div className="flex items-center gap-1">
+                    <div className="flex-1 min-w-0">
+                      <InfoRow icon={MessageSquare}>{selectedConversation.contact_phone}</InfoRow>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 rounded-md" onClick={openEditPhone} title="Editar telefone">
+                      <Pencil className="w-2.5 h-2.5 text-muted-foreground hover:text-foreground" />
+                    </Button>
+                  </div>
                   {selectedConversation.contact_name && (
                     <div className="flex items-center gap-1">
                       {isEditingName ? (
