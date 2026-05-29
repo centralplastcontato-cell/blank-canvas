@@ -450,7 +450,68 @@ export function LeadInfoPopover({
     } else if (e.key === "Escape") {
       cancelEditingName();
     }
+
+  const openEditPhone = () => {
+    const current = linkedLead?.whatsapp || selectedConversation.contact_phone || "";
+    setEditedPhone(current);
+    setEditPhoneOpen(true);
   };
+
+  const saveLeadPhone = async () => {
+    const newDigits = editedPhone.replace(/\D/g, "");
+    if (newDigits.length < 10) {
+      toast({ title: "Telefone inválido", description: "Informe um número válido com DDD.", variant: "destructive" });
+      return;
+    }
+    const oldPhone = (linkedLead?.whatsapp || selectedConversation.contact_phone || "").replace(/\D/g, "");
+    if (newDigits === oldPhone) {
+      setEditPhoneOpen(false);
+      return;
+    }
+
+    setIsSavingPhone(true);
+    try {
+      const newJid = `${newDigits}@s.whatsapp.net`;
+
+      // 1) Update conversation phone + remote_jid
+      const { error: convErr } = await supabase
+        .from("wapi_conversations")
+        .update({ contact_phone: newDigits, remote_jid: newJid })
+        .eq("id", selectedConversation.id);
+      if (convErr) throw convErr;
+
+      // 2) Update linked lead, if any
+      if (linkedLead) {
+        const { error: leadErr } = await supabase
+          .from("campaign_leads")
+          .update({ whatsapp: newDigits })
+          .eq("id", linkedLead.id);
+        if (leadErr) throw leadErr;
+
+        await supabase.from("lead_history").insert({
+          lead_id: linkedLead.id,
+          user_id: userId,
+          user_name: currentUserName,
+          action: "Alteração de telefone",
+          old_value: oldPhone,
+          new_value: newDigits,
+        });
+      }
+
+      toast({ title: "Telefone atualizado", description: "O número foi alterado com sucesso." });
+      setEditPhoneOpen(false);
+    } catch (error: unknown) {
+      console.error("Error updating phone:", error);
+      toast({
+        title: "Erro ao atualizar telefone",
+        description: error instanceof Error ? error.message : "Pode existir outra conversa com esse número.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingPhone(false);
+    }
+  };
+
 
   return (
     <>
