@@ -1984,6 +1984,17 @@ export function AutomationsSection() {
                   </p>
                 </div>
 
+                <FollowUpImageUploader
+                  value={botSettings?.follow_up_2_image_url}
+                  onChange={(url) => {
+                    setBotSettings(prev => prev ? { ...prev, follow_up_2_image_url: url } : prev);
+                    updateBotSettings({ follow_up_2_image_url: url });
+                  }}
+                  companyId={currentCompanyId}
+                  followUpNumber={2}
+                  disabled={isSaving || !botSettings?.follow_up_2_enabled}
+                />
+
                 {/* ---- 3ª Mensagem ---- */}
                 <div className="flex items-center gap-2 mt-6">
                   <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">3ª Mensagem</Badge>
