@@ -18,6 +18,7 @@ import { GuiaInteligenciaDialog } from "@/components/inteligencia/GuiaInteligenc
 import { ReportDialog } from "@/components/reports/ReportDialog";
 import { generateComercialPDF, generateComercialXLSX } from "@/lib/generateComercialPDF";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AccessDeniedRedirect } from "@/components/AccessDeniedRedirect";
 import { PrioridadesTab } from "@/components/inteligencia/PrioridadesTab";
 import { FollowUpsTab } from "@/components/inteligencia/FollowUpsTab";
 import { FunilTab } from "@/components/inteligencia/FunilTab";
