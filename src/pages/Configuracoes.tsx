@@ -26,6 +26,7 @@ import { Menu, Settings, MessageSquare, PartyPopper, UserCircle, Users, Database
 import { Button } from "@/components/ui/button";
 import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "@/hooks/use-toast";
+import { AccessDeniedRedirect } from "@/components/AccessDeniedRedirect";
 
 interface Profile {
   id: string;
