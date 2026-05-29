@@ -64,7 +64,7 @@ export function InstanceVisibilityCard({
         return;
       }
 
-      const [{ data: inst }, { data: up }] = await Promise.all([
+      const [{ data: inst }, { data: up }, { data: cu }] = await Promise.all([
         supabase
           .from("wapi_instances")
           .select("id, instance_id, phone_number, unit, status, provider")
@@ -75,7 +75,11 @@ export function InstanceVisibilityCard({
           .from("user_permissions")
           .select("permission, granted")
           .eq("user_id", targetUserId)
-          .like("permission", "whatsapp.instance.%"),
+          .or("permission.like.whatsapp.instance.%,permission.like.leads.unit.%"),
+        supabase
+          .from("company_units")
+          .select("name, slug")
+          .eq("company_id", companyId),
       ]);
 
       const map: Record<string, boolean> = {};
@@ -83,7 +87,13 @@ export function InstanceVisibilityCard({
         map[p.permission] = p.granted;
       });
 
+      const slugMap: Record<string, string> = {};
+      (cu || []).forEach((u: any) => {
+        if (u?.name && u?.slug) slugMap[u.name] = u.slug;
+      });
+
       setInstances((inst as WapiInstance[]) || []);
+      setUnitSlugByName(slugMap);
       setPerms(map);
       setIsLoading(false);
     };
