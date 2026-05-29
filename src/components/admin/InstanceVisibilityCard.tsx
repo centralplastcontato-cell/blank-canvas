@@ -102,41 +102,65 @@ export function InstanceVisibilityCard({
 
   const canViewAll = perms[ALL_CODE] ?? true; // default = all (não quebra atual)
 
+  const upsertPerm = async (code: string, granted: boolean) => {
+    const { data: existing } = await supabase
+      .from("user_permissions")
+      .select("id")
+      .eq("user_id", targetUserId)
+      .eq("permission", code)
+      .maybeSingle();
+
+    if (existing) {
+      const { error } = await supabase
+        .from("user_permissions")
+        .update({
+          granted,
+          granted_by: currentUserId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existing.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from("user_permissions").insert({
+        user_id: targetUserId,
+        permission: code,
+        granted,
+        granted_by: currentUserId,
+      });
+      if (error) throw error;
+    }
+  };
+
+  /** Map a whatsapp.instance.* code to the matching leads.unit.* code, if any. */
+  const mirrorLeadsCode = (code: string): string | null => {
+    if (code === ALL_CODE) return LEADS_ALL_CODE;
+    if (!code.startsWith("whatsapp.instance.")) return null;
+    const instId = code.replace("whatsapp.instance.", "");
+    const inst = instances.find((i) => i.id === instId);
+    const slug = inst?.unit ? unitSlugByName[inst.unit] : null;
+    return slug ? leadsUnitCode(slug) : null;
+  };
+
   const toggle = async (code: string, granted: boolean) => {
     setSavingCode(code);
     try {
-      const { data: existing } = await supabase
-        .from("user_permissions")
-        .select("id")
-        .eq("user_id", targetUserId)
-        .eq("permission", code)
-        .maybeSingle();
+      await upsertPerm(code, granted);
+      const updates: Record<string, boolean> = { [code]: granted };
 
-      if (existing) {
-        const { error } = await supabase
-          .from("user_permissions")
-          .update({
-            granted,
-            granted_by: currentUserId,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", existing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("user_permissions").insert({
-          user_id: targetUserId,
-          permission: code,
-          granted,
-          granted_by: currentUserId,
-        });
-        if (error) throw error;
+      // Sync correspondente em leads.unit.*
+      const leadsCode = mirrorLeadsCode(code);
+      if (leadsCode) {
+        await upsertPerm(leadsCode, granted);
+        updates[leadsCode] = granted;
       }
 
-      setPerms((prev) => ({ ...prev, [code]: granted }));
+      setPerms((prev) => ({ ...prev, ...updates }));
 
       toast({
         title: granted ? "Acesso liberado" : "Acesso removido",
-        description: `Permissão atualizada para ${targetUserName}.`,
+        description: leadsCode
+          ? `Permissão sincronizada (WhatsApp + Leads) para ${targetUserName}.`
+          : `Permissão atualizada para ${targetUserName}.`,
       });
     } catch (err: any) {
       console.error("[InstanceVisibilityCard] toggle error:", err);
