@@ -483,6 +483,25 @@ export function LeadInfoPopover({
 
       // 2) Update linked lead, if any
       if (linkedLead) {
+        // Check duplicate lead with same phone in same company
+        const { data: dup } = await supabase
+          .from("campaign_leads")
+          .select("id, name")
+          .eq("company_id", currentCompany?.id)
+          .eq("whatsapp", newDigits)
+          .neq("id", linkedLead.id)
+          .maybeSingle();
+
+        if (dup) {
+          toast({
+            title: "Número já cadastrado",
+            description: `Já existe um lead (${dup.name || "sem nome"}) com esse número nessa empresa. Exclua ou edite o lead existente antes de reaproveitar o número.`,
+            variant: "destructive",
+          });
+          setIsSavingPhone(false);
+          return;
+        }
+
         const { error: leadErr } = await supabase
           .from("campaign_leads")
           .update({ whatsapp: newDigits })
@@ -491,6 +510,7 @@ export function LeadInfoPopover({
 
         await supabase.from("lead_history").insert({
           lead_id: linkedLead.id,
+          company_id: currentCompany?.id,
           user_id: userId,
           user_name: currentUserName,
           action: "Alteração de telefone",
@@ -503,15 +523,20 @@ export function LeadInfoPopover({
       setEditPhoneOpen(false);
     } catch (error: unknown) {
       console.error("Error updating phone:", error);
+      const msg = error instanceof Error ? error.message : String(error);
+      const friendly = msg.includes("duplicate key") || msg.includes("unique")
+        ? "Já existe outro registro com esse número nessa empresa."
+        : msg;
       toast({
         title: "Erro ao atualizar telefone",
-        description: error instanceof Error ? error.message : "Pode existir outra conversa com esse número.",
+        description: friendly,
         variant: "destructive",
       });
     } finally {
       setIsSavingPhone(false);
     }
   };
+
 
 
   return (
