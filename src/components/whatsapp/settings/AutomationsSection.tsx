@@ -66,6 +66,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { FollowUpImageUploader } from "./FollowUpImageUploader";
 
 interface WapiInstance {
   id: string;
