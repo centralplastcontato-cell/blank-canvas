@@ -113,6 +113,10 @@ interface BotSettings {
   follow_up_4_enabled: boolean;
   follow_up_4_delay_hours: number;
   follow_up_4_message: string | null;
+  follow_up_image_url: string | null;
+  follow_up_2_image_url: string | null;
+  follow_up_3_image_url: string | null;
+  follow_up_4_image_url: string | null;
   follow_up_min_hour: number;
   follow_up_max_hour: number;
   auto_lost_enabled: boolean;
