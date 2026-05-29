@@ -17,6 +17,7 @@ import { PreFestaContent } from "./PreFesta";
 import { ContratoContent } from "./Contrato";
 import { CardapioContent } from "./Cardapio";
 import { EventStaffManager } from "@/components/agenda/EventStaffManager";
+import { AccessDeniedRedirect } from "@/components/AccessDeniedRedirect";
 
 import { PackagesManager } from "@/components/admin/PackagesManager";
 import { OptionalsManager } from "@/components/admin/OptionalsManager";
@@ -122,20 +123,7 @@ export default function Formularios() {
 
   if (!canView) {
     return (
-      <SidebarProvider defaultOpen={false}>
-        <div className="min-h-screen flex w-full bg-background">
-          <AdminSidebar canManageUsers={canManageUsers} isAdmin={isAdmin} currentUserName={currentUser?.name || ""} onRefresh={handleRefresh} onLogout={handleLogout} />
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center space-y-4 p-8">
-              <ShieldAlert className="h-16 w-16 text-muted-foreground mx-auto" />
-              <h2 className="text-xl font-semibold">Acesso Restrito</h2>
-              <p className="text-muted-foreground max-w-md">
-                Você não tem permissão para acessar a seção de Operações. Solicite ao administrador.
-              </p>
-            </div>
-          </div>
-        </div>
-      </SidebarProvider>
+      <AccessDeniedRedirect message="Você não tem permissão para acessar a seção de Operações. Solicite ao administrador." />
     );
   }
 
