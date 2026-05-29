@@ -472,64 +472,53 @@ export function LeadInfoPopover({
 
     setIsSavingPhone(true);
     try {
-      const newJid = `${newDigits}@s.whatsapp.net`;
+      const { data, error } = await (supabase as any).rpc("update_lead_contact_phone", {
+        _conversation_id: selectedConversation.id,
+        _new_phone: newDigits,
+        _lead_id: linkedLead?.id ?? null,
+        _user_name: currentUserName || null,
+      });
 
-      // 1) Update conversation phone + remote_jid
-      const { error: convErr } = await supabase
-        .from("wapi_conversations")
-        .update({ contact_phone: newDigits, remote_jid: newJid })
-        .eq("id", selectedConversation.id);
-      if (convErr) throw convErr;
+      if (error) throw error;
 
-      // 2) Update linked lead, if any
-      if (linkedLead) {
-        // Check duplicate lead with same phone in same company
-        const { data: dup } = await supabase
-          .from("campaign_leads")
-          .select("id, name")
-          .eq("company_id", currentCompany?.id)
-          .eq("whatsapp", newDigits)
-          .neq("id", linkedLead.id)
-          .maybeSingle();
+      const result = data as {
+        ok?: boolean;
+        error?: string;
+        merged?: boolean;
+        lead_name?: string;
+      } | null;
 
-        if (dup) {
-          toast({
-            title: "Número já cadastrado",
-            description: `Já existe um lead (${dup.name || "sem nome"}) com esse número nessa empresa. Exclua ou edite o lead existente antes de reaproveitar o número.`,
-            variant: "destructive",
-          });
-          setIsSavingPhone(false);
-          return;
-        }
-
-        const { error: leadErr } = await supabase
-          .from("campaign_leads")
-          .update({ whatsapp: newDigits })
-          .eq("id", linkedLead.id);
-        if (leadErr) throw leadErr;
-
-        await supabase.from("lead_history").insert({
-          lead_id: linkedLead.id,
-          company_id: currentCompany?.id,
-          user_id: userId,
-          user_name: currentUserName,
-          action: "Alteração de telefone",
-          old_value: oldPhone,
-          new_value: newDigits,
-        });
+      if (!result?.ok) {
+        const code = result?.error;
+        const friendly =
+          code === "lead_phone_exists"
+            ? `Já existe um lead (${result?.lead_name || "sem nome"}) com esse número nessa empresa.`
+            : code === "conversation_has_other_lead"
+            ? "Já existe uma conversa com esse número vinculada a outro lead. Edite/exclua a outra antes."
+            : code === "invalid_phone"
+            ? "Informe um número válido com DDI e DDD."
+            : code === "forbidden"
+            ? "Você não tem permissão para alterar essa conversa."
+            : code === "conversation_not_found"
+            ? "Conversa não encontrada."
+            : "Não foi possível atualizar o telefone.";
+        toast({ title: "Erro ao atualizar telefone", description: friendly, variant: "destructive" });
+        return;
       }
 
-      toast({ title: "Telefone atualizado", description: "O número foi alterado com sucesso." });
+      toast({
+        title: "Telefone atualizado",
+        description: result?.merged
+          ? "O número foi alterado e a conversa existente foi unificada."
+          : "O número foi alterado com sucesso.",
+      });
       setEditPhoneOpen(false);
     } catch (error: unknown) {
       console.error("Error updating phone:", error);
       const msg = error instanceof Error ? error.message : String(error);
-      const friendly = msg.includes("duplicate key") || msg.includes("unique")
-        ? "Já existe outro registro com esse número nessa empresa."
-        : msg;
       toast({
         title: "Erro ao atualizar telefone",
-        description: friendly,
+        description: msg,
         variant: "destructive",
       });
     } finally {
