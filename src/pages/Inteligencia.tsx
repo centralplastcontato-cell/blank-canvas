@@ -128,14 +128,7 @@ export default function Inteligencia() {
   }
 
   if (!hasView) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-3">
-          <ShieldAlert className="h-12 w-12 text-muted-foreground mx-auto" />
-          <p className="text-muted-foreground">Você não tem permissão para acessar este módulo.</p>
-        </div>
-      </div>
-    );
+    return <AccessDeniedRedirect message="Você não tem permissão para acessar o módulo Inteligência." />;
   }
 
   // Skeleton component for loading state
