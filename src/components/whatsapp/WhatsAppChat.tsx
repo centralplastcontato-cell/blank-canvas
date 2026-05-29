@@ -3812,19 +3812,38 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
       const { data, error } = await supabase.functions.invoke('start-bot-qualification', {
         body: { conversation_id: selectedConversation.id, force },
       });
-      // supabase.functions.invoke returns error for non-2xx, but the body still comes
-      const payload = (data ?? (error as { context?: { body?: unknown } })?.context?.body) as
-        | { error?: string; current_step?: string; success?: boolean; message?: string }
-        | undefined;
+
+      // supabase.functions.invoke returns error for non-2xx; try to read the JSON body
+      let payload: { error?: string; current_step?: string; success?: boolean; message?: string; details?: unknown } | undefined = data ?? undefined;
+      if (error) {
+        const ctx = (error as { context?: { body?: unknown; response?: Response } }).context;
+        try {
+          if (ctx?.response && typeof ctx.response.clone === 'function') {
+            payload = await ctx.response.clone().json();
+          } else if (ctx?.body && typeof ctx.body === 'object') {
+            payload = ctx.body as typeof payload;
+          } else if (typeof ctx?.body === 'string') {
+            payload = JSON.parse(ctx.body);
+          }
+        } catch {
+          // keep payload as-is
+        }
+      }
 
       if (payload?.error === 'flow_in_progress' && !force) {
         setStartQualConfirm({ step: payload.current_step || 'desconhecido' });
         return;
       }
       if (error || payload?.error) {
+        const friendly =
+          payload?.error === 'send_failed' ? 'Falha ao enviar mensagem pelo WhatsApp. Verifique a conexão da instância.' :
+          payload?.error === 'instance not found' ? 'Instância de WhatsApp não encontrada.' :
+          payload?.error === 'conversation not found' ? 'Conversa não encontrada.' :
+          payload?.error === 'invalid_phone' ? 'Número de telefone inválido nesta conversa.' :
+          payload?.message || payload?.error || error?.message || 'Tente novamente.';
         toast({
           title: 'Erro ao iniciar qualificação',
-          description: payload?.error || error?.message || 'Tente novamente.',
+          description: friendly,
           variant: 'destructive',
         });
         return;
