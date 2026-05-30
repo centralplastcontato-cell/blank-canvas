@@ -659,19 +659,17 @@ export default function Agenda() {
     }
   }, [canViewAll, allowedUnits, permUnitLoading, isSalesChannelOnly]);
 
-  // Filtered events (respects unit permissions)
+  // Filtered events (respects unit permissions) — case-insensitive match
   const filteredEvents = useMemo(() => {
     let filtered = events;
-    // Apply permission filter first
     if (!canViewAll) {
-      const permitted = allowedUnits.filter(u => u !== "As duas");
-      filtered = filtered.filter(e => e.unit && permitted.includes(e.unit));
+      const permitted = allowedUnits.filter(u => u !== "As duas").map(u => u.toLowerCase().trim());
+      filtered = filtered.filter(e => e.unit && permitted.includes(e.unit.toLowerCase().trim()));
     }
-    // Then apply manual unit filter
     if (selectedUnit !== "all") {
-      filtered = filtered.filter(e => e.unit === selectedUnit);
+      const sel = selectedUnit.toLowerCase().trim();
+      filtered = filtered.filter(e => e.unit && e.unit.toLowerCase().trim() === sel);
     }
-    // Payment filter
     if (paymentFilter !== "all") {
       filtered = filtered.filter(e => {
         const ps = paymentStatus[e.id];
@@ -684,15 +682,16 @@ export default function Agenda() {
     return filtered;
   }, [events, selectedUnit, canViewAll, allowedUnits, paymentFilter, paymentStatus]);
 
-  // Filtered period events (same unit logic)
+  // Filtered period events (same unit logic, case-insensitive)
   const periodFilteredEvents = useMemo(() => {
     let filtered = periodEvents;
     if (!canViewAll) {
-      const permitted = allowedUnits.filter(u => u !== "As duas");
-      filtered = filtered.filter(e => e.unit && permitted.includes(e.unit));
+      const permitted = allowedUnits.filter(u => u !== "As duas").map(u => u.toLowerCase().trim());
+      filtered = filtered.filter(e => e.unit && permitted.includes(e.unit.toLowerCase().trim()));
     }
     if (selectedUnit !== "all") {
-      filtered = filtered.filter(e => e.unit === selectedUnit);
+      const sel = selectedUnit.toLowerCase().trim();
+      filtered = filtered.filter(e => e.unit && e.unit.toLowerCase().trim() === sel);
     }
     return filtered;
   }, [periodEvents, selectedUnit, canViewAll, allowedUnits]);
