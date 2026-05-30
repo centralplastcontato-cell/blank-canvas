@@ -203,6 +203,12 @@ export default function Agenda() {
   const { canViewAll, allowedUnits, unitAccess, isLoading: permUnitLoading } = useUnitPermissions(currentUser?.id, currentCompany?.id);
   const { hasPermission: userHasPermission } = usePermissions(currentUser?.id);
   const showRevenue = isAdmin || userHasPermission("agenda.faturamento");
+  const permissionUnits = useMemo(
+    () => allowedUnits.filter(u => u !== "As duas" && u !== "all"),
+    [allowedUnits],
+  );
+  const isSalesChannelPermissionOnly = permissionUnits.length > 0 && permissionUnits.every(u => u.toLowerCase().includes("vendas"));
+  const shouldRestrictEventUnits = !isSalesChannelPermissionOnly;
 
   // Fetch card fees for net value calculation
   useEffect(() => {
@@ -440,7 +446,7 @@ export default function Agenda() {
     if (unit && unit !== "all") {
       const sel = unit.toLowerCase().trim();
       evts = evts.filter(e => e.unit && e.unit.toLowerCase().trim() === sel);
-    } else if (!canViewAll) {
+    } else if (!canViewAll && shouldRestrictEventUnits) {
       const permitted = allowedUnits.filter(u => u !== "As duas").map(u => u.toLowerCase().trim());
       evts = evts.filter(e => e.unit && permitted.includes(e.unit.toLowerCase().trim()));
     }
@@ -463,7 +469,7 @@ export default function Agenda() {
     const count = enriched.length;
     const revenue = enriched.filter(e => !e.is_permuta).reduce((sum, e) => sum + getNetValue(e), 0);
     return { count, revenue, events: enriched };
-  }, [currentCompany?.id, canViewAll, allowedUnits, getNetValue]);
+  }, [currentCompany?.id, canViewAll, allowedUnits, shouldRestrictEventUnits, getNetValue]);
 
   const initialLoadDone = useRef(false);
   const fetchEvents = useCallback(async () => {
@@ -645,7 +651,7 @@ export default function Agenda() {
   // Auto-select unit based on permissions (and force "all" for sales-channel-only companies)
   useEffect(() => {
     if (permUnitLoading) return;
-    if (isSalesChannelOnly) {
+    if (isSalesChannelOnly || isSalesChannelPermissionOnly) {
       setSelectedUnit("all");
       return;
     }
@@ -655,12 +661,12 @@ export default function Agenda() {
         setSelectedUnit(permitted[0]);
       }
     }
-  }, [canViewAll, allowedUnits, permUnitLoading, isSalesChannelOnly]);
+  }, [canViewAll, allowedUnits, permUnitLoading, isSalesChannelOnly, isSalesChannelPermissionOnly]);
 
   // Filtered events (respects unit permissions) — case-insensitive match
   const filteredEvents = useMemo(() => {
     let filtered = events;
-    if (!canViewAll) {
+    if (!canViewAll && shouldRestrictEventUnits) {
       const permitted = allowedUnits.filter(u => u !== "As duas").map(u => u.toLowerCase().trim());
       filtered = filtered.filter(e => e.unit && permitted.includes(e.unit.toLowerCase().trim()));
     }
@@ -678,12 +684,12 @@ export default function Agenda() {
       });
     }
     return filtered;
-  }, [events, selectedUnit, canViewAll, allowedUnits, paymentFilter, paymentStatus]);
+  }, [events, selectedUnit, canViewAll, allowedUnits, shouldRestrictEventUnits, paymentFilter, paymentStatus]);
 
   // Filtered period events (same unit logic, case-insensitive)
   const periodFilteredEvents = useMemo(() => {
     let filtered = periodEvents;
-    if (!canViewAll) {
+    if (!canViewAll && shouldRestrictEventUnits) {
       const permitted = allowedUnits.filter(u => u !== "As duas").map(u => u.toLowerCase().trim());
       filtered = filtered.filter(e => e.unit && permitted.includes(e.unit.toLowerCase().trim()));
     }
@@ -692,7 +698,7 @@ export default function Agenda() {
       filtered = filtered.filter(e => e.unit && e.unit.toLowerCase().trim() === sel);
     }
     return filtered;
-  }, [periodEvents, selectedUnit, canViewAll, allowedUnits]);
+  }, [periodEvents, selectedUnit, canViewAll, allowedUnits, shouldRestrictEventUnits]);
 
   // Events for selected day
   const dayEvents = useMemo(() => {
@@ -711,7 +717,7 @@ export default function Agenda() {
   // Filtered pre-reservations (respects unit + permissions, case-insensitive)
   const filteredPreReservations = useMemo(() => {
     let filtered = preReservations;
-    if (!canViewAll) {
+    if (!canViewAll && shouldRestrictEventUnits) {
       const permitted = allowedUnits.filter(u => u !== "As duas").map(u => u.toLowerCase().trim());
       filtered = filtered.filter(pr => pr.unit && permitted.includes(pr.unit.toLowerCase().trim()));
     }
@@ -720,7 +726,7 @@ export default function Agenda() {
       filtered = filtered.filter(pr => pr.unit && pr.unit.toLowerCase().trim() === sel);
     }
     return filtered;
-  }, [preReservations, selectedUnit, canViewAll, allowedUnits]);
+  }, [preReservations, selectedUnit, canViewAll, allowedUnits, shouldRestrictEventUnits]);
 
   // Detect conflicts (same unit + overlapping time)
   // When end_time is missing, assume event lasts ~3 hours from start to avoid false conflicts
