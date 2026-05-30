@@ -796,8 +796,9 @@ export default function Visitas() {
                   )}
                   {!isDetailEntrega && (
                     <Button
+                      variant="outline"
                       size="sm"
-                      className="col-span-2 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                      className="col-span-2 text-xs gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
                       onClick={() => handleClosedAtVisit(detailVisit)}
                     >
                       <PartyPopper className="h-3.5 w-3.5" /> Fechou na Visita 🎉
