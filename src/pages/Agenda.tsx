@@ -708,14 +708,19 @@ export default function Agenda() {
     return preReservations.filter(pr => pr.event_date === dateStr && pr.status === "ativa");
   }, [preReservations, selectedDate]);
 
-  // Filtered pre-reservations (respects unit)
+  // Filtered pre-reservations (respects unit + permissions, case-insensitive)
   const filteredPreReservations = useMemo(() => {
     let filtered = preReservations;
+    if (!canViewAll) {
+      const permitted = allowedUnits.filter(u => u !== "As duas").map(u => u.toLowerCase().trim());
+      filtered = filtered.filter(pr => pr.unit && permitted.includes(pr.unit.toLowerCase().trim()));
+    }
     if (selectedUnit !== "all") {
-      filtered = filtered.filter(pr => pr.unit === selectedUnit);
+      const sel = selectedUnit.toLowerCase().trim();
+      filtered = filtered.filter(pr => pr.unit && pr.unit.toLowerCase().trim() === sel);
     }
     return filtered;
-  }, [preReservations, selectedUnit]);
+  }, [preReservations, selectedUnit, canViewAll, allowedUnits]);
 
   // Detect conflicts (same unit + overlapping time)
   // When end_time is missing, assume event lasts ~3 hours from start to avoid false conflicts
