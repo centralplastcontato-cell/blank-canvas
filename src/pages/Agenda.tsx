@@ -434,18 +434,16 @@ export default function Agenda() {
       .order("event_date", { ascending: true })
       .order("title", { ascending: true });
     
-    // Apply unit filter
-    if (unit && unit !== "all") {
-      query = query.eq("unit", unit);
-    } else if (!canViewAll) {
-      const permitted = allowedUnits.filter(u => u !== "As duas");
-      if (permitted.length > 0) {
-        query = query.in("unit", permitted);
-      }
-    }
-    
+    // Apply unit filter (fetch broad, then case-insensitive filter client-side)
     const { data } = await query;
-    const evts = (data || []) as CompanyEvent[];
+    let evts = (data || []) as CompanyEvent[];
+    if (unit && unit !== "all") {
+      const sel = unit.toLowerCase().trim();
+      evts = evts.filter(e => e.unit && e.unit.toLowerCase().trim() === sel);
+    } else if (!canViewAll) {
+      const permitted = allowedUnits.filter(u => u !== "As duas").map(u => u.toLowerCase().trim());
+      evts = evts.filter(e => e.unit && permitted.includes(e.unit.toLowerCase().trim()));
+    }
 
     // Enrich with lead name/phone
     const leadIds = [...new Set(evts.map(e => e.lead_id).filter(Boolean))] as string[];
@@ -659,19 +657,17 @@ export default function Agenda() {
     }
   }, [canViewAll, allowedUnits, permUnitLoading, isSalesChannelOnly]);
 
-  // Filtered events (respects unit permissions)
+  // Filtered events (respects unit permissions) — case-insensitive match
   const filteredEvents = useMemo(() => {
     let filtered = events;
-    // Apply permission filter first
     if (!canViewAll) {
-      const permitted = allowedUnits.filter(u => u !== "As duas");
-      filtered = filtered.filter(e => e.unit && permitted.includes(e.unit));
+      const permitted = allowedUnits.filter(u => u !== "As duas").map(u => u.toLowerCase().trim());
+      filtered = filtered.filter(e => e.unit && permitted.includes(e.unit.toLowerCase().trim()));
     }
-    // Then apply manual unit filter
     if (selectedUnit !== "all") {
-      filtered = filtered.filter(e => e.unit === selectedUnit);
+      const sel = selectedUnit.toLowerCase().trim();
+      filtered = filtered.filter(e => e.unit && e.unit.toLowerCase().trim() === sel);
     }
-    // Payment filter
     if (paymentFilter !== "all") {
       filtered = filtered.filter(e => {
         const ps = paymentStatus[e.id];
@@ -684,15 +680,16 @@ export default function Agenda() {
     return filtered;
   }, [events, selectedUnit, canViewAll, allowedUnits, paymentFilter, paymentStatus]);
 
-  // Filtered period events (same unit logic)
+  // Filtered period events (same unit logic, case-insensitive)
   const periodFilteredEvents = useMemo(() => {
     let filtered = periodEvents;
     if (!canViewAll) {
-      const permitted = allowedUnits.filter(u => u !== "As duas");
-      filtered = filtered.filter(e => e.unit && permitted.includes(e.unit));
+      const permitted = allowedUnits.filter(u => u !== "As duas").map(u => u.toLowerCase().trim());
+      filtered = filtered.filter(e => e.unit && permitted.includes(e.unit.toLowerCase().trim()));
     }
     if (selectedUnit !== "all") {
-      filtered = filtered.filter(e => e.unit === selectedUnit);
+      const sel = selectedUnit.toLowerCase().trim();
+      filtered = filtered.filter(e => e.unit && e.unit.toLowerCase().trim() === sel);
     }
     return filtered;
   }, [periodEvents, selectedUnit, canViewAll, allowedUnits]);
@@ -711,14 +708,19 @@ export default function Agenda() {
     return preReservations.filter(pr => pr.event_date === dateStr && pr.status === "ativa");
   }, [preReservations, selectedDate]);
 
-  // Filtered pre-reservations (respects unit)
+  // Filtered pre-reservations (respects unit + permissions, case-insensitive)
   const filteredPreReservations = useMemo(() => {
     let filtered = preReservations;
+    if (!canViewAll) {
+      const permitted = allowedUnits.filter(u => u !== "As duas").map(u => u.toLowerCase().trim());
+      filtered = filtered.filter(pr => pr.unit && permitted.includes(pr.unit.toLowerCase().trim()));
+    }
     if (selectedUnit !== "all") {
-      filtered = filtered.filter(pr => pr.unit === selectedUnit);
+      const sel = selectedUnit.toLowerCase().trim();
+      filtered = filtered.filter(pr => pr.unit && pr.unit.toLowerCase().trim() === sel);
     }
     return filtered;
-  }, [preReservations, selectedUnit]);
+  }, [preReservations, selectedUnit, canViewAll, allowedUnits]);
 
   // Detect conflicts (same unit + overlapping time)
   // When end_time is missing, assume event lasts ~3 hours from start to avoid false conflicts
