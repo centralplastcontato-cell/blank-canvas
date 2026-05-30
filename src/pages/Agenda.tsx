@@ -434,18 +434,16 @@ export default function Agenda() {
       .order("event_date", { ascending: true })
       .order("title", { ascending: true });
     
-    // Apply unit filter
-    if (unit && unit !== "all") {
-      query = query.eq("unit", unit);
-    } else if (!canViewAll) {
-      const permitted = allowedUnits.filter(u => u !== "As duas");
-      if (permitted.length > 0) {
-        query = query.in("unit", permitted);
-      }
-    }
-    
+    // Apply unit filter (fetch broad, then case-insensitive filter client-side)
     const { data } = await query;
-    const evts = (data || []) as CompanyEvent[];
+    let evts = (data || []) as CompanyEvent[];
+    if (unit && unit !== "all") {
+      const sel = unit.toLowerCase().trim();
+      evts = evts.filter(e => e.unit && e.unit.toLowerCase().trim() === sel);
+    } else if (!canViewAll) {
+      const permitted = allowedUnits.filter(u => u !== "As duas").map(u => u.toLowerCase().trim());
+      evts = evts.filter(e => e.unit && permitted.includes(e.unit.toLowerCase().trim()));
+    }
 
     // Enrich with lead name/phone
     const leadIds = [...new Set(evts.map(e => e.lead_id).filter(Boolean))] as string[];
