@@ -159,7 +159,10 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
     if (!deleteTarget) return;
     setIsDeleting(true);
     try {
-      const { error } = await supabase.from("wapi_instances").delete().eq("id", deleteTarget.id);
+      const { error } = await (supabase as any).rpc("delete_wapi_instance_deep", {
+        _instance_id: deleteTarget.id,
+        _batch_size: 500,
+      });
       if (error) throw error;
       toast({ title: "Instância excluída", description: `"${deleteTarget.unit || deleteTarget.instance_id}" foi removida.` });
       setDeleteTarget(null);

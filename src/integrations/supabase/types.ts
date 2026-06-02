@@ -6549,6 +6549,10 @@ export type Database = {
         Args: { _conversation_id: string; _delete_lead?: boolean }
         Returns: Json
       }
+      delete_wapi_instance_deep: {
+        Args: { _batch_size?: number; _instance_id: string }
+        Returns: Json
+      }
       get_active_units_by_company_id: {
         Args: { _company_id: string }
         Returns: {
