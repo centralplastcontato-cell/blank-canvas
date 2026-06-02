@@ -665,7 +665,10 @@ export default function Agenda() {
       return;
     }
     if (!canViewAll) {
-      const permitted = allowedUnits.filter(u => u !== "As duas");
+      // Só auto-seleciona unidades físicas. Canais de venda (ex.: "Vendas 4")
+      // não têm eventos próprios — manter "all" para o vendedor enxergar
+      // o calendário completo do buffet.
+      const permitted = physicalAllowedUnits;
       if (permitted.length === 1) {
         setSelectedUnit(permitted[0]);
       }
