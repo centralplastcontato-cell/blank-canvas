@@ -100,7 +100,8 @@ export function PermissionsPanel({
   targetCompanyId,
   onClose,
 }: PermissionsPanelProps) {
-  const { units: companyUnits } = useCompanyUnits(targetCompanyId);
+  // Use allUnits so admins can manage permissions for sales channels (VENDAS X) too.
+  const { allUnits: companyUnits } = useCompanyUnits(targetCompanyId);
   const modules = useCompanyModules();
   const { definitions, isLoading: isLoadingDefs, getPermissionsByCategory } = usePermissions(currentUserId);
   const [userPermissions, setUserPermissions] = useState<Record<string, boolean>>({});
