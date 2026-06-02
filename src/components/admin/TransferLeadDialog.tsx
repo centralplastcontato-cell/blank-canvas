@@ -43,7 +43,8 @@ export function TransferLeadDialog({
   currentUserId,
   currentUserName,
 }: TransferLeadDialogProps) {
-  const { units: companyUnits } = useCompanyUnits();
+  // Use allUnits so sales channels (VENDAS X) are also available for transfer/permission mapping.
+  const { allUnits: companyUnits } = useCompanyUnits();
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [isTransferring, setIsTransferring] = useState(false);
   const [filteredByUnit, setFilteredByUnit] = useState<UserWithRole[]>([]);

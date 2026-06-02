@@ -9,42 +9,42 @@ export interface CompanyUnit {
   is_active: boolean;
   sort_order: number;
   color: string | null;
+  is_physical?: boolean;
 }
 
+/**
+ * Returns company units.
+ *
+ * IMPORTANT: `units` returns ONLY physical units (places where parties happen).
+ * Sales-channel rows (VENDAS 1/2/3/4) live in the same table because their
+ * slugs power the WhatsApp instance ↔ leads.unit permission sync, but they
+ * must NOT appear in Agenda/Financeiro/Inteligência selectors.
+ *
+ * Use `allUnits` only in screens that need the full list for permission/slug
+ * mapping (InstanceVisibilityCard, TransferLeadDialog, CampaignAudienceStep,
+ * PermissionsPanel).
+ */
 export function useCompanyUnits(companyId?: string) {
-  const [units, setUnits] = useState<CompanyUnit[]>([]);
+  const [allUnits, setAllUnits] = useState<CompanyUnit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchUnits = useCallback(async () => {
-    if (!companyId) {
-      const storedCompanyId = localStorage.getItem('selected_company_id') || 'a0000000-0000-0000-0000-000000000001';
-      
-      const { data, error } = await supabase
-        .from('company_units')
-        .select('*')
-        .eq('company_id', storedCompanyId)
-        .eq('is_active', true)
-        .order('sort_order');
-
-      if (!error && data) {
-        setUnits(data as CompanyUnit[]);
-      }
-      setIsLoading(false);
-      return;
-    }
+    const cid = companyId
+      || localStorage.getItem('selected_company_id')
+      || 'a0000000-0000-0000-0000-000000000001';
 
     try {
       const { data, error } = await supabase
         .from('company_units')
         .select('*')
-        .eq('company_id', companyId)
+        .eq('company_id', cid)
         .eq('is_active', true)
         .order('sort_order');
 
       if (error) {
         console.error('[useCompanyUnits] Error:', error);
       } else {
-        setUnits((data || []) as CompanyUnit[]);
+        setAllUnits((data || []) as CompanyUnit[]);
       }
     } catch (err) {
       console.error('[useCompanyUnits] Error:', err);
@@ -61,12 +61,16 @@ export function useCompanyUnits(companyId?: string) {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        console.log('[useCompanyUnits] Auth state changed, re-fetching units');
         fetchUnits();
       }
     });
     return () => subscription.unsubscribe();
   }, [fetchUnits]);
+
+  // Default: only physical units (excludes sales channels like VENDAS 1/2/3/4).
+  // is_physical defaults to true server-side, so legacy rows continue to appear.
+  const units = allUnits.filter(u => u.is_physical !== false);
+
   // Helper: get unit names as simple string array
   const unitNames = units.map(u => u.name);
 
@@ -74,7 +78,8 @@ export function useCompanyUnits(companyId?: string) {
   const unitOptions = units.map(u => ({ value: u.name, label: u.name }));
 
   return {
-    units,
+    units,            // physical units only (default — backwards compatible for UI selectors)
+    allUnits,         // every active unit row, including sales channels (for permission/slug mapping)
     unitNames,
     unitOptions,
     isLoading,
