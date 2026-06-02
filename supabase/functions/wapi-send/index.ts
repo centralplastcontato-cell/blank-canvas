@@ -1067,10 +1067,16 @@ async function checkSessionHealth(
   conversationId?: string,
   companyId?: string | null,
   messageContent?: string,
+  isZapi?: boolean,
 ): Promise<Response | null> {
   // Only block send actions, not status/config actions
   const sendActions = ['send-text', 'send-image', 'send-audio', 'send-video', 'send-document', 'send-contact'];
   if (!sendActions.includes(action)) return null;
+
+  // 🛡️ Z-API: skip W-API-specific preflight (QR endpoint doesn't apply to Z-API,
+  // causing false SESSION_UNVERIFIED blocks + duplicate "blocked_" messages when
+  // the caller retries. Z-API has its own status validation downstream.)
+  if (isZapi) return null;
 
   // Check DB first
   const { data: dbInstance } = await supabase
@@ -1340,7 +1346,7 @@ Deno.serve(async (req) => {
     }
 
     // === PHASE 1: Preflight session health check for all send actions ===
-    const preflightResult = await checkSessionHealth(instance_id, instance_token, supabase, action, conversationId, companyId, message);
+    const preflightResult = await checkSessionHealth(instance_id, instance_token, supabase, action, conversationId, companyId, message, isZapi);
     if (preflightResult) return preflightResult;
 
     // === BOT LOOP GUARD: silently block automated outbound when convo is paused ===
