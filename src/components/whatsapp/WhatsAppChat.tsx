@@ -5309,8 +5309,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                  <div
                                    className={cn(
                                      "rounded-2xl text-sm",
-                                     (msg.message_type === 'image' || msg.message_type === 'video')
-                                       ? "max-w-[60%] sm:max-w-[45%] bg-transparent p-0 overflow-hidden"
+                                      (msg.message_type === 'image' || msg.message_type === 'video' || msg.message_type === 'sticker')
+                                        ? "max-w-[60%] sm:max-w-[45%] bg-transparent p-0 overflow-hidden shadow-none"
                                        : cn(
                                            "max-w-[85%] sm:max-w-[75%] px-3.5 py-2.5",
                                            msg.from_me
@@ -5353,7 +5353,19 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                       }}
                                     />
                                   </div>
-                                )}
+                                 )}
+                                 {msg.message_type === 'sticker' && (
+                                   msg.media_url && !msg.media_url.includes('.enc') ? (
+                                     <img
+                                       src={msg.media_url}
+                                       alt="Figurinha"
+                                       className="w-32 h-32 object-contain bg-transparent"
+                                       loading="lazy"
+                                     />
+                                   ) : (
+                                     <div className="text-2xl">🎭</div>
+                                   )
+                                 )}
                                 {msg.message_type === 'contact' && (() => {
                                   const raw = msg.content?.replace(/^\[Contato\]\s*/, '').replace(/^👤\s*/, '') || 'Contato';
                                   const parts = raw.split(' - ');
@@ -6485,8 +6497,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                 msg.from_me
                                   ? "bg-primary text-primary-foreground"
                                   : "bg-card border",
-                                (msg.message_type === 'image' || msg.message_type === 'video')
-                                  ? "p-0 overflow-hidden max-w-[82%]"
+                                (msg.message_type === 'image' || msg.message_type === 'video' || msg.message_type === 'sticker')
+                                  ? "p-0 overflow-hidden max-w-[82%] bg-transparent shadow-none border-0"
                                   : "px-3 py-2"
                               )}
                             >
@@ -6518,6 +6530,18 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                   }}
                                 />
                               </div>
+                            )}
+                            {msg.message_type === 'sticker' && (
+                              msg.media_url && !msg.media_url.includes('.enc') ? (
+                                <img
+                                  src={msg.media_url}
+                                  alt="Figurinha"
+                                  className="w-32 h-32 object-contain bg-transparent"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="text-2xl">🎭</div>
+                              )
                             )}
                             {msg.message_type === 'contact' && (() => {
                               const raw = msg.content?.replace(/^\[Contato\]\s*/, '').replace(/^👤\s*/, '') || 'Contato';
