@@ -164,7 +164,7 @@ const mapEventToFormData = (ev: CompanyEvent): EventFormData => ({
 
 export default function Agenda() {
   const navigate = useNavigate();
-  const { currentCompany } = useCompany();
+  const { currentCompany, isLoading: companyLoading } = useCompany();
   const modules = useCompanyModules();
   const { units } = useCompanyUnits(currentCompany?.id);
   const physicalUnits = units.filter(u => u.slug !== "trabalhe-conosco");
@@ -1197,7 +1197,7 @@ export default function Agenda() {
     navigate("/auth");
   };
 
-  if (permLoading) {
+  if (permLoading || companyLoading) {
     return <LoadingScreen message="Carregando agenda..." />;
   }
 
