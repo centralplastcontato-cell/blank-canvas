@@ -1,45 +1,50 @@
-## O que está acontecendo
+## Diagnóstico
 
-Esses "números estranhos" (`6945029226653`, `238843164926026`, etc.) **não são telefones**. São **@lid (Linked ID)** — um identificador interno e anônimo que o WhatsApp envia quando o contato tem o recurso de privacidade avançada ativado **ou** quando é a primeira mensagem para uma instância sem histórico prévio.
+**O que aconteceu:**
+1. O Castelo da Diversão sempre teve **uma única unidade física** (`Castelo da Diversão`).
+2. Em **29/05/2026**, ao criar as instâncias WhatsApp `VENDAS 1`, `VENDAS 3` e `VENDAS 4`, uma migração inseriu essas mesmas linhas como `company_units` ativas (junto com a já existente `VENDAS 2` legada).
+3. Motivo da migração: o sistema de permissões (`Instance↔Leads permission sync`) usa o **slug de `company_units`** para casar uma instância WhatsApp com a permissão `leads.unit.<slug>`. Sem a linha em `company_units` o sync não funcionava.
+4. **Efeito colateral indesejado:** a tabela `company_units` é usada **simultaneamente** como:
+   - **Unidades físicas** (Agenda, Eventos, Financeiro mostram esse seletor)
+   - **Slugs de permissão** (sync com `leads.unit.*` e `whatsapp.instance.*`)
+   
+   Quando inserimos VENDAS 1/3/4 só para fins de permissão, eles **vazaram** para o seletor da Agenda (imagem 2).
 
-Confirmei no banco:
-- A tabela `wapi_webhook_raw_events` recebeu o `remote_jid` como `6945029226653@lid` (W-API/Z-API).
-- O webhook tentou resolver via `lid_phone_map`, `quoted message`, `contact_name` e `contact_picture` — **todos falharam** porque é a primeira mensagem ("Boa tarde", sem contexto).
-- Como `fromMe = false`, o código aplica o caminho `isUnresolvedInboundLid = true`: **preserva a mensagem visível** (para não perder o lead), mas com o ID anônimo aparecendo como nome.
+**Por que afeta também notificações do "vendas 4":**
+Provavelmente o usuário "vendas 4" tem `leads.unit.castelo-da-diversao` desligado (porque só está marcado em `vendas-4`), e os leads/notificações de visitas chegam com `unit = 'Castelo da Diversão'`, então o filtro de unidade do usuário esconde tudo. Vou confirmar isso na próxima etapa — esta é a etapa 1.
 
-**Sua intuição está parcialmente certa**: pode acontecer de o MESMO contato aparecer depois com o telefone real numa conversa separada — aí ficam duas linhas (a do @lid + a real). Hoje não existe um merge automático posterior.
+## Estratégia (sem quebrar nada)
 
-## Plano de correção (3 etapas, uma por vez)
+Separar **unidade física** de **canal de vendas** dentro de `company_units` via uma flag.
 
-### Etapa 1 — UX: rotular conversas @lid não resolvidas
-- No componente da lista de conversas (`src/components/whatsapp/...ConversationList`):
-  - Detectar quando `contact_name` é puramente numérico **com 13–15 dígitos sem prefixo 55** ou quando `remote_jid` contém `@lid`.
-  - Exibir o rótulo `"Contato sem identificação"` + badge cinza pequeno `@lid` + ícone de cadeado, em vez do número cru.
-  - Manter a mensagem visível normalmente.
-- **Não muda backend, não muda bot.** Só apresentação.
+### Etapa 1 — Esta correção (Agenda + outros seletores)
 
-### Etapa 2 — Reaproveitar a edge function `resolve-numeric-names` já existente
-- Ela já tenta consultar W-API/Z-API `contact-info` para resolver IDs numéricos.
-- Adicionar um **cron diário** (instrução manual no Supabase SQL Editor, conforme a regra de projeto) chamando a função para a Castelo da Diversão.
-- Resultado esperado: muitos @lid recebem o nome real automaticamente em 24h.
+1. **DB:** Adicionar coluna `company_units.is_physical boolean NOT NULL DEFAULT true`.
+2. **DB:** `UPDATE company_units SET is_physical = false WHERE name ILIKE 'VENDAS %'` (atinge VENDAS 1/2/3/4 do Castelo). Linhas continuam ativas — permissões e sync continuam funcionando 100%.
+3. **Hook `useCompanyUnits`:** expor `physicalUnits` e `allUnits` separados, mantendo `units` como compat = `physicalUnits` (default) para não quebrar consumidores existentes que esperam apenas unidades físicas. O `InstanceVisibilityCard`, `TransferLeadDialog`, `CampaignAudienceStep`, `PermissionsPanel` (que precisam de TODAS as linhas para o sync de slugs) passarão a usar `allUnits`.
+4. **UI:** Seletor "Todas as unidades" da Agenda passa a mostrar **apenas a unidade física `Castelo da Diversão`**. Como restará 1 unidade, o seletor será automaticamente ocultado pela lógica já existente (ou exibirá só a opção real).
+5. **Financeiro / Inteligência / Relatórios** que também usam `useCompanyUnits` herdam a correção automaticamente.
 
-### Etapa 3 — Merge automático quando o telefone real aparece
-- Criar uma função SQL `merge_lid_conversation(p_lid_conv_id uuid, p_real_conv_id uuid)` que:
-  - Move mensagens de `wapi_messages` da conv @lid para a conv real.
-  - Move `lead_id`, tags, notas se existirem.
-  - Apaga a conv @lid.
-- Disparar via trigger: quando `lid_phone_map` ganha um novo mapeamento, procurar conversa real correspondente e mergir.
+### Etapa 2 (próxima) — Notificações do "vendas 4"
 
-## Detalhes técnicos
+Depois que esta etapa estiver validada visualmente, investigo por que as notificações de visita/atenção/dúvida não chegam para o usuário "vendas 4" (provável causa: permissões `leads.unit.*` desalinhadas — corrigível sem migração).
 
-- Arquivos envolvidos:
-  - `supabase/functions/wapi-webhook/index.ts` (linhas 5488–5551, fluxo `isLidJid`/`isPseudoLidJid`)
-  - `supabase/functions/resolve-numeric-names/index.ts` (já existe)
-  - `supabase/functions/_shared/jid-normalizer.ts` (classificação correta — não alterar)
-  - `src/components/whatsapp/` (componente da lista de conversas — identificar)
-- **Não tocar** na lógica de envio (`wapi-send`) nem na conexão WhatsApp (regra de projeto).
-- Multi-tenant: tudo escopado por `company_id` e `instance_id` (já é o padrão).
+## Arquivos afetados
 
-## Pergunta antes de executar
+- **Nova migração:** adiciona `is_physical` e marca VENDAS X como não-físicas.
+- `src/hooks/useCompanyUnits.ts` — separa `physicalUnits` (default) de `allUnits`.
+- `src/components/admin/InstanceVisibilityCard.tsx` — usar `allUnits` (precisa do slug de VENDAS X para sync).
+- `src/components/admin/TransferLeadDialog.tsx` — usar `allUnits` (transferência por canal).
+- `src/components/campanhas/CampaignAudienceStep.tsx` — usar `allUnits`.
+- `src/components/admin/PermissionsPanel.tsx` — usar `allUnits`.
+- Demais consumidores (Agenda, Financeiro, Inteligência, WhatsAppChat, Onboarding) **não mudam** — já recebem só físicas pelo default.
+- `src/integrations/supabase/types.ts` — atualizado pela migração.
 
-Quer que eu comece pela **Etapa 1** (rotular as conversas @lid não resolvidas para parar de mostrar os números crus) e depois decidimos sobre as Etapas 2 e 3? Ou prefere outra ordem?
+## O que NÃO muda
+
+- Nenhuma instância WhatsApp é alterada.
+- Sync de permissões `whatsapp.instance.* ↔ leads.unit.*` continua funcionando (linhas continuam existindo com slug).
+- Bots, automações, agenda, leads, eventos, financeiro: nada quebra.
+- Castelo da Diversão volta a aparecer como **unidade única** na Agenda.
+
+Após a aplicação, valido visualmente (etapa 1 concluída) e seguimos para a etapa 2 (notificações do vendas 4).
