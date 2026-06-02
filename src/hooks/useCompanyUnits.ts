@@ -69,13 +69,21 @@ export function useCompanyUnits(companyId?: string) {
 
   // Default: only physical units (excludes sales channels like VENDAS 1/2/3/4).
   // is_physical defaults to true server-side, so legacy rows continue to appear.
-  const units = allUnits.filter(u => u.is_physical !== false);
+  // Memoize derived arrays so consumers don't see a new reference on every render
+  // (this caused infinite re-fetch loops in dependent hooks like useUnitPermissions).
+  const units = useMemo(
+    () => allUnits.filter(u => u.is_physical !== false),
+    [allUnits],
+  );
 
   // Helper: get unit names as simple string array
-  const unitNames = units.map(u => u.name);
+  const unitNames = useMemo(() => units.map(u => u.name), [units]);
 
   // Helper: get units as {value, label} for Select components
-  const unitOptions = units.map(u => ({ value: u.name, label: u.name }));
+  const unitOptions = useMemo(
+    () => units.map(u => ({ value: u.name, label: u.name })),
+    [units],
+  );
 
   return {
     units,            // physical units only (default — backwards compatible for UI selectors)
