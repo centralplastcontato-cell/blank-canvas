@@ -4728,7 +4728,7 @@ function extractMsgContent(mc: JsonRecord, msg: JsonRecord) {
       content = phone ? `👤 ${displayName} - ${phone}` : `👤 ${displayName}`;
     }
   }
-  else if (mc.stickerMessage) { type = 'sticker'; content = '🎭 Figurinha'; }
+  else if (mc.stickerMessage) { const m = mc.stickerMessage as JsonRecord; type = 'sticker'; content = '🎭 Figurinha'; url = m.url as string || null; key = m.mediaKey as string || null; path = m.directPath as string || null; download = true; mime = (m.mimetype as string) || 'image/webp'; }
   // Z-API interactive response: button click
   else if (mc.buttonsResponseMessage) {
     const br = mc.buttonsResponseMessage as JsonRecord;
