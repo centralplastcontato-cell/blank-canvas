@@ -673,7 +673,7 @@ export default function Agenda() {
         setSelectedUnit(permitted[0]);
       }
     }
-  }, [canViewAll, allowedUnits, permUnitLoading, isSalesChannelOnly, isSalesChannelPermissionOnly]);
+  }, [canViewAll, physicalAllowedUnits, permUnitLoading, isSalesChannelOnly, isSalesChannelPermissionOnly]);
 
   // Filtered events (respects unit permissions) — case-insensitive match
   const filteredEvents = useMemo(() => {
