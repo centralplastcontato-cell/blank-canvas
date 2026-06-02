@@ -207,8 +207,17 @@ export default function Agenda() {
     () => allowedUnits.filter(u => u !== "As duas" && u !== "all"),
     [allowedUnits],
   );
-  const isSalesChannelPermissionOnly = permissionUnits.length > 0 && permissionUnits.every(u => u.toLowerCase().includes("vendas"));
-  const shouldRestrictEventUnits = !isSalesChannelPermissionOnly;
+  // Unidades físicas (não-canais de venda) que o usuário pode acessar.
+  // Vendedores de canais (ex.: "Vendas 4") precisam ver o calendário completo
+  // do buffet para saber a disponibilidade de datas — não devem ser restritos.
+  const physicalAllowedUnits = useMemo(
+    () => permissionUnits.filter(u => !u.toLowerCase().includes("vendas")),
+    [permissionUnits],
+  );
+  const isSalesChannelPermissionOnly = permissionUnits.length > 0 && physicalAllowedUnits.length === 0;
+  // Só restringe eventos por unidade quando o usuário tem acesso a alguma
+  // unidade física. Sem unidade física → mostra calendário completo do buffet.
+  const shouldRestrictEventUnits = physicalAllowedUnits.length > 0;
 
   // Fetch card fees for net value calculation
   useEffect(() => {
