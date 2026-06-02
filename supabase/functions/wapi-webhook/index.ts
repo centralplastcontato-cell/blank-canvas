@@ -839,40 +839,26 @@ function matchFlowOptionByReply<T extends { label?: string | null; value?: strin
 }
 
 // Helper: get notification targets scoped to a specific company
+// Uses an atomic SECURITY DEFINER RPC to ensure unit-specific permissions
+// (e.g. leads.unit.vendas-4) are correctly matched alongside leads.unit.all and admin role.
 async function getCompanyNotificationTargets(
   supabase: SupabaseClient,
   companyId: string,
   unitPermission: string
 ): Promise<string[]> {
-  // 1. Get users that belong to this company
-  const { data: companyUsers } = await supabase
-    .from('user_companies')
-    .select('user_id')
-    .eq('company_id', companyId);
+  const { data, error } = await supabase.rpc('get_company_notification_targets', {
+    p_company_id: companyId,
+    p_unit_permission: unitPermission,
+  });
 
-  const companyUserIds = companyUsers?.map((u: any) => u.user_id) || [];
-  if (companyUserIds.length === 0) return [];
+  if (error) {
+    console.error('[getCompanyNotificationTargets] RPC error:', error.message, { companyId, unitPermission });
+    return [];
+  }
 
-  // 2. Filter by permissions within company users
-  const { data: userPerms } = await supabase
-    .from('user_permissions')
-    .select('user_id')
-    .eq('granted', true)
-    .in('permission', [unitPermission, 'leads.unit.all'])
-    .in('user_id', companyUserIds);
-
-  // 3. Admin roles within company users
-  const { data: adminRoles } = await supabase
-    .from('user_roles')
-    .select('user_id')
-    .eq('role', 'admin')
-    .in('user_id', companyUserIds);
-
-  const targetIds = new Set<string>();
-  userPerms?.forEach((p: any) => targetIds.add(p.user_id));
-  adminRoles?.forEach((r: any) => targetIds.add(r.user_id));
-
-  return Array.from(targetIds);
+  const ids = (data as Array<{ user_id: string }> | null)?.map((r) => r.user_id) || [];
+  console.log(`[getCompanyNotificationTargets] company=${companyId} perm=${unitPermission} → ${ids.length} target(s)`);
+  return ids;
 }
 
 // Validation functions
