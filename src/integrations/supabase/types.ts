@@ -6658,6 +6658,12 @@ export type Database = {
         }[]
       }
       get_company_id_by_slug: { Args: { _slug: string }; Returns: string }
+      get_company_notification_targets: {
+        Args: { p_company_id: string; p_unit_permission: string }
+        Returns: {
+          user_id: string
+        }[]
+      }
       get_company_public_info: {
         Args: { _company_id: string }
         Returns: {
