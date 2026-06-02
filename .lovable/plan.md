@@ -1,50 +1,60 @@
+# Varredura concluída — 2 problemas distintos
+
 ## Diagnóstico
 
-**O que aconteceu:**
-1. O Castelo da Diversão sempre teve **uma única unidade física** (`Castelo da Diversão`).
-2. Em **29/05/2026**, ao criar as instâncias WhatsApp `VENDAS 1`, `VENDAS 3` e `VENDAS 4`, uma migração inseriu essas mesmas linhas como `company_units` ativas (junto com a já existente `VENDAS 2` legada).
-3. Motivo da migração: o sistema de permissões (`Instance↔Leads permission sync`) usa o **slug de `company_units`** para casar uma instância WhatsApp com a permissão `leads.unit.<slug>`. Sem a linha em `company_units` o sync não funcionava.
-4. **Efeito colateral indesejado:** a tabela `company_units` é usada **simultaneamente** como:
-   - **Unidades físicas** (Agenda, Eventos, Financeiro mostram esse seletor)
-   - **Slugs de permissão** (sync com `leads.unit.*` e `whatsapp.instance.*`)
-   
-   Quando inserimos VENDAS 1/3/4 só para fins de permissão, eles **vazaram** para o seletor da Agenda (imagem 2).
+**Problema 1 — Ingrid (Mega Magic) perde acesso intermitente**
+São duas race conditions:
 
-**Por que afeta também notificações do "vendas 4":**
-Provavelmente o usuário "vendas 4" tem `leads.unit.castelo-da-diversao` desligado (porque só está marcado em `vendas-4`), e os leads/notificações de visitas chegam com `unit = 'Castelo da Diversão'`, então o filtro de unidade do usuário esconde tudo. Vou confirmar isso na próxima etapa — esta é a etapa 1.
+- **Agenda flash de "módulo não habilitado":** `useCompanyModules` lê `currentCompany` sem expor `isLoading`, e o default é `agenda: false`. Quando o check de permissão termina antes do `CompanyContext`, a Agenda renderiza por 1 frame a tela de "Módulo não habilitado" e some.
+- **Central de Atendimento (WhatsApp) em branco:** se `useUserRole` falhar nos 3 retries (ou se a Ingrid não tiver linha em `user_roles`), `WhatsApp.tsx` faz `return null` silenciosamente → tela branca sem erro. Além disso, `useUnitPermissions` é chamado **sem `companyId`**, então cai num UUID hardcoded e calcula `allowedUnits` errado nessa janela.
 
-## Estratégia (sem quebrar nada)
+**Problema 2 — Lag ao avançar mês na Agenda (visível até para o Rodrigo admin)**
+A cada troca de mês, o `fetchEvents` em `src/pages/Agenda.tsx` dispara **~8 queries em paralelo**, sendo que **três delas não têm filtro de data** e baixam o histórico inteiro da empresa:
+- `event_checklist_items` (sem range)
+- `event_payments` (sem range)
+- `pre_reservations` "all" (sem range nem limite)
 
-Separar **unidade física** de **canal de vendas** dentro de `company_units` via uma flag.
+Pior ainda: depois da 1ª carga, **não há `loading = true`** nas trocas de mês → UI parece travada. E `allowedUnits` recria referência a cada render → invalida `useCallback` → dispara re-fetch extra.
 
-### Etapa 1 — Esta correção (Agenda + outros seletores)
+---
 
-1. **DB:** Adicionar coluna `company_units.is_physical boolean NOT NULL DEFAULT true`.
-2. **DB:** `UPDATE company_units SET is_physical = false WHERE name ILIKE 'VENDAS %'` (atinge VENDAS 1/2/3/4 do Castelo). Linhas continuam ativas — permissões e sync continuam funcionando 100%.
-3. **Hook `useCompanyUnits`:** expor `physicalUnits` e `allUnits` separados, mantendo `units` como compat = `physicalUnits` (default) para não quebrar consumidores existentes que esperam apenas unidades físicas. O `InstanceVisibilityCard`, `TransferLeadDialog`, `CampaignAudienceStep`, `PermissionsPanel` (que precisam de TODAS as linhas para o sync de slugs) passarão a usar `allUnits`.
-4. **UI:** Seletor "Todas as unidades" da Agenda passa a mostrar **apenas a unidade física `Castelo da Diversão`**. Como restará 1 unidade, o seletor será automaticamente ocultado pela lógica já existente (ou exibirá só a opção real).
-5. **Financeiro / Inteligência / Relatórios** que também usam `useCompanyUnits` herdam a correção automaticamente.
+## Plano de correção (passo a passo, conforme sua preferência)
 
-### Etapa 2 (próxima) — Notificações do "vendas 4"
+Vou dividir em **3 etapas independentes**, com validação visual entre cada uma.
 
-Depois que esta etapa estiver validada visualmente, investigo por que as notificações de visita/atenção/dúvida não chegam para o usuário "vendas 4" (provável causa: permissões `leads.unit.*` desalinhadas — corrigível sem migração).
+### Etapa 1 — Corrigir acesso da Ingrid (race conditions de permissão)
+**Arquivos:** `src/pages/Agenda.tsx`, `src/pages/WhatsApp.tsx`, `src/hooks/useUnitPermissions.ts`
 
-## Arquivos afetados
+- Em `Agenda.tsx`: ler `isLoading` do `useCompany()` e incluir no gate (`if (permLoading || companyLoading) return <LoadingScreen />`). Elimina o flash "Módulo Agenda não habilitado".
+- Em `WhatsApp.tsx`:
+  - Substituir `return null` por `<LoadingScreen message="Verificando permissões..." />` (com fallback para mostrar erro se persistir).
+  - Passar `currentCompany?.id` em `useUnitPermissions(user?.id, currentCompany?.id)` — hoje vai sem company.
+- Em `useUnitPermissions.ts`: estabilizar referência de `allowedUnits` (só atualizar state quando o conteúdo realmente mudar) para parar de invalidar caches em telas que dependem dele.
 
-- **Nova migração:** adiciona `is_physical` e marca VENDAS X como não-físicas.
-- `src/hooks/useCompanyUnits.ts` — separa `physicalUnits` (default) de `allUnits`.
-- `src/components/admin/InstanceVisibilityCard.tsx` — usar `allUnits` (precisa do slug de VENDAS X para sync).
-- `src/components/admin/TransferLeadDialog.tsx` — usar `allUnits` (transferência por canal).
-- `src/components/campanhas/CampaignAudienceStep.tsx` — usar `allUnits`.
-- `src/components/admin/PermissionsPanel.tsx` — usar `allUnits`.
-- Demais consumidores (Agenda, Financeiro, Inteligência, WhatsAppChat, Onboarding) **não mudam** — já recebem só físicas pelo default.
-- `src/integrations/supabase/types.ts` — atualizado pela migração.
+**Resultado esperado:** Ingrid passa a abrir Agenda e Central de Atendimento de forma consistente, sem flash de "sem permissão" nem tela branca.
 
-## O que NÃO muda
+### Etapa 2 — Eliminar o lag ao trocar de mês na Agenda
+**Arquivo:** `src/pages/Agenda.tsx` (apenas `fetchEvents` e o `useEffect` de re-fetch)
 
-- Nenhuma instância WhatsApp é alterada.
-- Sync de permissões `whatsapp.instance.* ↔ leads.unit.*` continua funcionando (linhas continuam existindo com slug).
-- Bots, automações, agenda, leads, eventos, financeiro: nada quebra.
-- Castelo da Diversão volta a aparecer como **unidade única** na Agenda.
+- Restringir `event_checklist_items` e `event_payments` aos IDs dos eventos do mês (`.in("event_id", ...)` após `eventsRes` resolver).
+- Adicionar range de data em `pre_reservations` "all" (ou substituir pela versão já filtrada).
+- Sempre ativar `setLoading(true)` na troca de mês (não só no primeiro load) → feedback visual imediato.
+- Estabilizar `allowedUnits` no Agenda via `useMemo` para parar re-fetches desnecessários.
+- Corrigir deps incompletas do `useEffect` que rebusca closed-in-period.
 
-Após a aplicação, valido visualmente (etapa 1 concluída) e seguimos para a etapa 2 (notificações do vendas 4).
+**Resultado esperado:** Trocar de mês fica responsivo, com loader visível e sem refetch global do histórico da empresa.
+
+### Etapa 3 — Verificar dados da Ingrid em `user_roles`
+- Rodar query de leitura no Supabase para confirmar que ela tem linha em `user_roles` (se não tiver, é a causa raiz da tela branca, e a correção da Etapa 1 só mostra mensagem de erro em vez de branco — precisaria criar a role).
+
+---
+
+## Fora de escopo
+- Não vou tocar em lógica de WhatsApp/conexão/bot.
+- Não vou alterar RLS nem schema do banco nesta passada (apenas leitura na Etapa 3).
+- Não vou refatorar o `Agenda.tsx` inteiro (2.428 linhas) — apenas os pontos identificados.
+
+## Validação
+Depois de cada etapa, te entrego o resumo visual + funcional para você testar com a Ingrid (Etapa 1) e com o Rodrigo passando os meses (Etapa 2) antes de seguir.
+
+Posso começar pela **Etapa 1** (acesso da Ingrid)?

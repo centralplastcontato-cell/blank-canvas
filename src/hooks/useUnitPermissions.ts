@@ -73,10 +73,20 @@ export function useUnitPermissions(userId: string | undefined, companyId?: strin
 
       console.log('[useUnitPermissions] companyUnits:', companyUnits.length, 'canViewAll:', canViewAll, 'allowedUnits:', allowedUnits);
 
-      setUnitPermissions({
-        canViewAll,
-        allowedUnits,
-        unitAccess,
+      // Estabiliza referência: só atualiza state quando o conteúdo realmente muda,
+      // evitando invalidar caches (useCallback/useMemo) em telas dependentes.
+      setUnitPermissions(prev => {
+        const sameCanViewAll = prev.canViewAll === canViewAll;
+        const sameUnits =
+          prev.allowedUnits.length === allowedUnits.length &&
+          prev.allowedUnits.every((u, i) => u === allowedUnits[i]);
+        const prevKeys = Object.keys(prev.unitAccess);
+        const nextKeys = Object.keys(unitAccess);
+        const sameAccess =
+          prevKeys.length === nextKeys.length &&
+          nextKeys.every(k => prev.unitAccess[k] === unitAccess[k]);
+        if (sameCanViewAll && sameUnits && sameAccess) return prev;
+        return { canViewAll, allowedUnits, unitAccess };
       });
     } catch (err) {
       console.error('[useUnitPermissions] Error:', err);

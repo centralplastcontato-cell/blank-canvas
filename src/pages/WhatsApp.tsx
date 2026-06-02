@@ -38,7 +38,7 @@ export default function WhatsApp() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const { role, isLoading: isLoadingRole, canManageUsers, isAdmin } = useUserRole(user?.id);
-  const { allowedUnits, canViewAll, isLoading: isLoadingUnitPerms } = useUnitPermissions(user?.id);
+  const { allowedUnits, canViewAll, isLoading: isLoadingUnitPerms } = useUnitPermissions(user?.id, currentCompany?.id);
   const { hasPermission } = usePermissions(user?.id);
   const isMobile = useIsMobile();
 
@@ -95,8 +95,27 @@ export default function WhatsApp() {
     return <LoadingScreen message="Carregando WhatsApp..." />;
   }
 
-  if (!user || !role) {
-    return null;
+  if (!user) {
+    return <LoadingScreen message="Verificando sessão..." />;
+  }
+
+  if (!role) {
+    // Role não carregou (retries esgotados ou usuário sem linha em user_roles).
+    // Mostra fallback explícito em vez de tela em branco.
+    return (
+      <div className="flex items-center justify-center min-h-screen p-6">
+        <div className="max-w-md text-center space-y-4">
+          <h2 className="text-lg font-semibold text-foreground">Não conseguimos verificar suas permissões</h2>
+          <p className="text-sm text-muted-foreground">
+            Tente recarregar a página. Se o problema continuar, peça ao administrador para conferir seu cadastro de usuário.
+          </p>
+          <div className="flex gap-2 justify-center">
+            <Button variant="outline" onClick={handleRefresh}>Recarregar</Button>
+            <Button onClick={handleLogout}>Sair</Button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // Mobile layout
