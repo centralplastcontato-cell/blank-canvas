@@ -758,12 +758,16 @@ async function processFollowUp({
   const allLeadIds = Array.from(allLeadIdsSet);
 
   // Filter only leads that have a conversation in THIS instance
-  const { data: instanceConversations } = await supabase
-    .from("wapi_conversations")
-    .select("lead_id")
-    .in("lead_id", allLeadIds)
-    .eq("instance_id", settings.instance_id)
-    .not("remote_jid", "like", "%@g.us%");
+  const { data: instanceConversations } = await chunkedInQuery(
+    (chunk) =>
+      supabase
+        .from("wapi_conversations")
+        .select("lead_id")
+        .in("lead_id", chunk)
+        .eq("instance_id", settings.instance_id)
+        .not("remote_jid", "like", "%@g.us%"),
+    allLeadIds,
+  );
 
   const leadsInThisInstance = new Set(
     (instanceConversations || []).map((c: { lead_id: string }) => c.lead_id)
@@ -773,12 +777,16 @@ async function processFollowUp({
   console.log(`[follow-up-check] ${leadIds.length} of ${allLeadIds.length} leads belong to instance ${settings.instance_id}`);
 
   // Check which leads already received this specific follow-up
-  const { data: existingFollowUps, error: followUpError } = await supabase
-    .from("lead_history")
-    .select("lead_id")
-    .in("lead_id", leadIds)
-    .eq("action", historyAction)
-    .limit(5000);
+  const { data: existingFollowUps, error: followUpError } = await chunkedInQuery(
+    (chunk) =>
+      supabase
+        .from("lead_history")
+        .select("lead_id")
+        .in("lead_id", chunk)
+        .eq("action", historyAction)
+        .limit(5000),
+    leadIds,
+  );
 
   if (followUpError) {
     console.error("[follow-up-check] Error checking existing follow-ups:", followUpError);
@@ -790,12 +798,16 @@ async function processFollowUp({
 
   // For second follow-up: only process leads that received the first follow-up
   if (checkPreviousAction) {
-    const { data: previousFollowUps, error: prevError } = await supabase
-      .from("lead_history")
-      .select("lead_id")
-      .in("lead_id", leadsNeedingFollowUp)
-      .eq("action", checkPreviousAction)
-      .limit(5000);
+    const { data: previousFollowUps, error: prevError } = await chunkedInQuery(
+      (chunk) =>
+        supabase
+          .from("lead_history")
+          .select("lead_id")
+          .in("lead_id", chunk)
+          .eq("action", checkPreviousAction)
+          .limit(5000),
+      leadsNeedingFollowUp,
+    );
 
     if (prevError) {
       console.error("[follow-up-check] Error checking previous follow-ups:", prevError);
@@ -808,11 +820,15 @@ async function processFollowUp({
 
   // Check if lead replied (last message is from contact) - skip follow-up if they did
   {
-    const { data: conversations } = await supabase
-      .from("wapi_conversations")
-      .select("lead_id, last_message_from_me")
-      .in("lead_id", leadsNeedingFollowUp)
-      .eq("last_message_from_me", false);
+    const { data: conversations } = await chunkedInQuery(
+      (chunk) =>
+        supabase
+          .from("wapi_conversations")
+          .select("lead_id, last_message_from_me")
+          .in("lead_id", chunk)
+          .eq("last_message_from_me", false),
+      leadsNeedingFollowUp,
+    );
 
     // If the last message is from the contact, they replied - skip follow-up
     const repliedLeads = new Set((conversations || []).map((c: any) => c.lead_id));
@@ -829,11 +845,15 @@ async function processFollowUp({
   console.log(`[follow-up-check] ${leadsNeedingFollowUp.length} leads need follow-up #${followUpNumber}`);
 
   // Get lead details and conversation info
-  const { data: leads, error: leadsError } = await supabase
-    .from("campaign_leads")
-    .select("id, name, whatsapp, unit, month, guests")
-    .in("id", leadsNeedingFollowUp)
-    .in("status", ["aguardando_resposta", "orcamento_enviado"]);
+  const { data: leads, error: leadsError } = await chunkedInQuery(
+    (chunk) =>
+      supabase
+        .from("campaign_leads")
+        .select("id, name, whatsapp, unit, month, guests")
+        .in("id", chunk)
+        .in("status", ["aguardando_resposta", "orcamento_enviado"]),
+    leadsNeedingFollowUp,
+  );
 
   if (leadsError) {
     console.error("[follow-up-check] Error fetching leads:", leadsError);
