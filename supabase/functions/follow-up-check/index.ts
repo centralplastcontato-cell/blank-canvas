@@ -1357,11 +1357,15 @@ async function processAutoLost({
   const leadIds = lastFollowUps.map((f: any) => f.lead_id);
 
   // Check which leads already have been auto-lost
-  const { data: alreadyLost } = await supabase
-    .from("lead_history")
-    .select("lead_id")
-    .in("lead_id", leadIds)
-    .eq("action", "Lead movido para perdido automaticamente");
+  const { data: alreadyLost } = await chunkedInQuery(
+    (chunk) =>
+      supabase
+        .from("lead_history")
+        .select("lead_id")
+        .in("lead_id", chunk)
+        .eq("action", "Lead movido para perdido automaticamente"),
+    leadIds,
+  );
 
   const alreadyLostSet = new Set((alreadyLost || []).map((l: any) => l.lead_id));
   const eligibleLeadIds = leadIds.filter((id: any) => !alreadyLostSet.has(id));
@@ -1372,11 +1376,15 @@ async function processAutoLost({
   }
 
   // Get leads that are still in aguardando_resposta
-  const { data: activeLeads, error: leadsError } = await supabase
-    .from("campaign_leads")
-    .select("id, name, whatsapp, responsavel_id")
-    .in("id", eligibleLeadIds)
-    .eq("status", "aguardando_resposta");
+  const { data: activeLeads, error: leadsError } = await chunkedInQuery(
+    (chunk) =>
+      supabase
+        .from("campaign_leads")
+        .select("id, name, whatsapp, responsavel_id")
+        .in("id", chunk)
+        .eq("status", "aguardando_resposta"),
+    eligibleLeadIds,
+  );
 
   if (leadsError) {
     console.error(`[follow-up-check] Error fetching active leads:`, leadsError);
@@ -1390,13 +1398,17 @@ async function processAutoLost({
 
   // Filter: only leads whose conversation belongs to this instance AND last_message_from_me = true (no reply)
   const activeLeadIds = activeLeads.map((l: any) => l.id);
-  const { data: conversations } = await supabase
-    .from("wapi_conversations")
-    .select("lead_id")
-    .in("lead_id", activeLeadIds)
-    .eq("instance_id", settings.instance_id)
-    .eq("last_message_from_me", true)
-    .not("remote_jid", "like", "%@g.us%");
+  const { data: conversations } = await chunkedInQuery(
+    (chunk) =>
+      supabase
+        .from("wapi_conversations")
+        .select("lead_id")
+        .in("lead_id", chunk)
+        .eq("instance_id", settings.instance_id)
+        .eq("last_message_from_me", true)
+        .not("remote_jid", "like", "%@g.us%"),
+    activeLeadIds,
+  );
 
   const leadsInInstance = new Set((conversations || []).map((c: { lead_id: string }) => c.lead_id));
   const leadsToMark = activeLeads.filter((l: any) => leadsInInstance.has(l.id));
