@@ -9,6 +9,25 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Chunked .in() query helper — Postgres/PostgREST has URL length limits, so
+// large IN lists (hundreds of UUIDs) cause "Bad Request" errors. This helper
+// runs the same query in batches of CHUNK_SIZE and concatenates the results.
+const IN_CHUNK_SIZE = 100;
+async function chunkedInQuery<T = any>(
+  buildQuery: (chunk: string[]) => Promise<{ data: T[] | null; error: any }>,
+  ids: string[],
+): Promise<{ data: T[]; error: any }> {
+  if (!ids || ids.length === 0) return { data: [], error: null };
+  const out: T[] = [];
+  for (let i = 0; i < ids.length; i += IN_CHUNK_SIZE) {
+    const slice = ids.slice(i, i + IN_CHUNK_SIZE);
+    const { data, error } = await buildQuery(slice);
+    if (error) return { data: out, error };
+    if (data && data.length) out.push(...data);
+  }
+  return { data: out, error: null };
+}
+
 function resolveFirstName(
   botData: Record<string, unknown>,
   contactName: string | null,
@@ -739,12 +758,16 @@ async function processFollowUp({
   const allLeadIds = Array.from(allLeadIdsSet);
 
   // Filter only leads that have a conversation in THIS instance
-  const { data: instanceConversations } = await supabase
-    .from("wapi_conversations")
-    .select("lead_id")
-    .in("lead_id", allLeadIds)
-    .eq("instance_id", settings.instance_id)
-    .not("remote_jid", "like", "%@g.us%");
+  const { data: instanceConversations } = await chunkedInQuery(
+    (chunk) =>
+      supabase
+        .from("wapi_conversations")
+        .select("lead_id")
+        .in("lead_id", chunk)
+        .eq("instance_id", settings.instance_id)
+        .not("remote_jid", "like", "%@g.us%"),
+    allLeadIds,
+  );
 
   const leadsInThisInstance = new Set(
     (instanceConversations || []).map((c: { lead_id: string }) => c.lead_id)
@@ -754,12 +777,16 @@ async function processFollowUp({
   console.log(`[follow-up-check] ${leadIds.length} of ${allLeadIds.length} leads belong to instance ${settings.instance_id}`);
 
   // Check which leads already received this specific follow-up
-  const { data: existingFollowUps, error: followUpError } = await supabase
-    .from("lead_history")
-    .select("lead_id")
-    .in("lead_id", leadIds)
-    .eq("action", historyAction)
-    .limit(5000);
+  const { data: existingFollowUps, error: followUpError } = await chunkedInQuery(
+    (chunk) =>
+      supabase
+        .from("lead_history")
+        .select("lead_id")
+        .in("lead_id", chunk)
+        .eq("action", historyAction)
+        .limit(5000),
+    leadIds,
+  );
 
   if (followUpError) {
     console.error("[follow-up-check] Error checking existing follow-ups:", followUpError);
@@ -771,12 +798,16 @@ async function processFollowUp({
 
   // For second follow-up: only process leads that received the first follow-up
   if (checkPreviousAction) {
-    const { data: previousFollowUps, error: prevError } = await supabase
-      .from("lead_history")
-      .select("lead_id")
-      .in("lead_id", leadsNeedingFollowUp)
-      .eq("action", checkPreviousAction)
-      .limit(5000);
+    const { data: previousFollowUps, error: prevError } = await chunkedInQuery(
+      (chunk) =>
+        supabase
+          .from("lead_history")
+          .select("lead_id")
+          .in("lead_id", chunk)
+          .eq("action", checkPreviousAction)
+          .limit(5000),
+      leadsNeedingFollowUp,
+    );
 
     if (prevError) {
       console.error("[follow-up-check] Error checking previous follow-ups:", prevError);
@@ -789,11 +820,15 @@ async function processFollowUp({
 
   // Check if lead replied (last message is from contact) - skip follow-up if they did
   {
-    const { data: conversations } = await supabase
-      .from("wapi_conversations")
-      .select("lead_id, last_message_from_me")
-      .in("lead_id", leadsNeedingFollowUp)
-      .eq("last_message_from_me", false);
+    const { data: conversations } = await chunkedInQuery(
+      (chunk) =>
+        supabase
+          .from("wapi_conversations")
+          .select("lead_id, last_message_from_me")
+          .in("lead_id", chunk)
+          .eq("last_message_from_me", false),
+      leadsNeedingFollowUp,
+    );
 
     // If the last message is from the contact, they replied - skip follow-up
     const repliedLeads = new Set((conversations || []).map((c: any) => c.lead_id));
@@ -810,11 +845,15 @@ async function processFollowUp({
   console.log(`[follow-up-check] ${leadsNeedingFollowUp.length} leads need follow-up #${followUpNumber}`);
 
   // Get lead details and conversation info
-  const { data: leads, error: leadsError } = await supabase
-    .from("campaign_leads")
-    .select("id, name, whatsapp, unit, month, guests")
-    .in("id", leadsNeedingFollowUp)
-    .in("status", ["aguardando_resposta", "orcamento_enviado"]);
+  const { data: leads, error: leadsError } = await chunkedInQuery(
+    (chunk) =>
+      supabase
+        .from("campaign_leads")
+        .select("id, name, whatsapp, unit, month, guests")
+        .in("id", chunk)
+        .in("status", ["aguardando_resposta", "orcamento_enviado"]),
+    leadsNeedingFollowUp,
+  );
 
   if (leadsError) {
     console.error("[follow-up-check] Error fetching leads:", leadsError);
@@ -1318,11 +1357,15 @@ async function processAutoLost({
   const leadIds = lastFollowUps.map((f: any) => f.lead_id);
 
   // Check which leads already have been auto-lost
-  const { data: alreadyLost } = await supabase
-    .from("lead_history")
-    .select("lead_id")
-    .in("lead_id", leadIds)
-    .eq("action", "Lead movido para perdido automaticamente");
+  const { data: alreadyLost } = await chunkedInQuery(
+    (chunk) =>
+      supabase
+        .from("lead_history")
+        .select("lead_id")
+        .in("lead_id", chunk)
+        .eq("action", "Lead movido para perdido automaticamente"),
+    leadIds,
+  );
 
   const alreadyLostSet = new Set((alreadyLost || []).map((l: any) => l.lead_id));
   const eligibleLeadIds = leadIds.filter((id: any) => !alreadyLostSet.has(id));
@@ -1333,11 +1376,15 @@ async function processAutoLost({
   }
 
   // Get leads that are still in aguardando_resposta
-  const { data: activeLeads, error: leadsError } = await supabase
-    .from("campaign_leads")
-    .select("id, name, whatsapp, responsavel_id")
-    .in("id", eligibleLeadIds)
-    .eq("status", "aguardando_resposta");
+  const { data: activeLeads, error: leadsError } = await chunkedInQuery(
+    (chunk) =>
+      supabase
+        .from("campaign_leads")
+        .select("id, name, whatsapp, responsavel_id")
+        .in("id", chunk)
+        .eq("status", "aguardando_resposta"),
+    eligibleLeadIds,
+  );
 
   if (leadsError) {
     console.error(`[follow-up-check] Error fetching active leads:`, leadsError);
@@ -1351,13 +1398,17 @@ async function processAutoLost({
 
   // Filter: only leads whose conversation belongs to this instance AND last_message_from_me = true (no reply)
   const activeLeadIds = activeLeads.map((l: any) => l.id);
-  const { data: conversations } = await supabase
-    .from("wapi_conversations")
-    .select("lead_id")
-    .in("lead_id", activeLeadIds)
-    .eq("instance_id", settings.instance_id)
-    .eq("last_message_from_me", true)
-    .not("remote_jid", "like", "%@g.us%");
+  const { data: conversations } = await chunkedInQuery(
+    (chunk) =>
+      supabase
+        .from("wapi_conversations")
+        .select("lead_id")
+        .in("lead_id", chunk)
+        .eq("instance_id", settings.instance_id)
+        .eq("last_message_from_me", true)
+        .not("remote_jid", "like", "%@g.us%"),
+    activeLeadIds,
+  );
 
   const leadsInInstance = new Set((conversations || []).map((c: { lead_id: string }) => c.lead_id));
   const leadsToMark = activeLeads.filter((l: any) => leadsInInstance.has(l.id));
