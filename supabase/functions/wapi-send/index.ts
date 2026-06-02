@@ -1346,7 +1346,7 @@ Deno.serve(async (req) => {
     }
 
     // === PHASE 1: Preflight session health check for all send actions ===
-    const preflightResult = await checkSessionHealth(instance_id, instance_token, supabase, action, conversationId, companyId, message);
+    const preflightResult = await checkSessionHealth(instance_id, instance_token, supabase, action, conversationId, companyId, message, isZapi);
     if (preflightResult) return preflightResult;
 
     // === BOT LOOP GUARD: silently block automated outbound when convo is paused ===
