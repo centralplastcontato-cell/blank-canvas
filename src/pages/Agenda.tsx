@@ -483,10 +483,13 @@ export default function Agenda() {
   const initialLoadDone = useRef(false);
   const fetchEvents = useCallback(async () => {
     if (!currentCompany?.id || permUnitLoading) return;
-    if (!initialLoadDone.current) setLoading(true);
+    // Always show loading on month change (not only first load) for clearer feedback
+    setLoading(true);
     const start = format(startOfMonth(month), "yyyy-MM-dd");
     const end = format(endOfMonth(month), "yyyy-MM-dd");
-    const [eventsRes, checklistRes, closedResult, preResRes, allPreResRes, paymentsRes] = await Promise.all([
+
+    // Phase 1: month-scoped queries in parallel (small payloads)
+    const [eventsRes, closedResult, preResRes] = await Promise.all([
       supabase
         .from("company_events")
         .select("*")
@@ -495,10 +498,6 @@ export default function Agenda() {
         .lte("event_date", end)
         .order("event_date")
         .order("start_time"),
-      supabase
-        .from("event_checklist_items")
-        .select("event_id, is_completed")
-        .eq("company_id", currentCompany.id),
       fetchClosedInPeriod(start, end, selectedUnit),
       (supabase as any)
         .from("pre_reservations")
@@ -507,23 +506,34 @@ export default function Agenda() {
         .gte("event_date", start)
         .lte("event_date", end)
         .in("status", ["ativa", "convertida"]),
-      (supabase as any)
-        .from("pre_reservations")
-        .select("*")
-        .eq("company_id", currentCompany.id)
-        .order("event_date", { ascending: true }),
-      supabase
-        .from("event_payments")
-        .select("id, event_id, status, due_date, amount, gross_amount")
-        .eq("company_id", currentCompany.id),
     ]);
 
-    if (!eventsRes.error && eventsRes.data) setEvents(eventsRes.data as CompanyEvent[]);
+    const eventsList = ((eventsRes.data || []) as CompanyEvent[]);
+    const eventIds = eventsList.map(e => e.id);
+
+    if (!eventsRes.error && eventsRes.data) setEvents(eventsList);
     if (!preResRes.error && preResRes.data) setPreReservations(preResRes.data as PreReservation[]);
-    if (!allPreResRes.error && allPreResRes.data) setAllPreReservations(allPreResRes.data as PreReservation[]);
     setClosedInPeriod(closedResult?.count || 0);
     setClosedRevenue(closedResult?.revenue || 0);
     setClosedEvents(closedResult?.events || []);
+
+    // Phase 2: scoped to current month's event ids only (was previously full-company)
+    let checklistRes: any = { data: [] };
+    let paymentsRes: any = { data: [] };
+    if (eventIds.length > 0) {
+      [checklistRes, paymentsRes] = await Promise.all([
+        supabase
+          .from("event_checklist_items")
+          .select("event_id, is_completed")
+          .eq("company_id", currentCompany.id)
+          .in("event_id", eventIds),
+        supabase
+          .from("event_payments")
+          .select("id, event_id, status, due_date, amount, gross_amount")
+          .eq("company_id", currentCompany.id)
+          .in("event_id", eventIds),
+      ]);
+    }
 
     // Fetch partial entries (entradas parciais) for all parcelas in scope
     const paymentIds = (paymentsRes.data || []).map((p: any) => p.id);
@@ -556,9 +566,6 @@ export default function Agenda() {
       if (!pmMap[p.event_id]) pmMap[p.event_id] = { total: 0, paid: 0, pending: 0, late: 0, paidAmount: 0, outstandingAmount: 0, details: [] };
       pmMap[p.event_id].total++;
       const isLate = p.status !== "paid" && p.due_date && p.due_date < today;
-      // For comparing against event total_value (which is the gross/contracted value),
-      // we must accumulate the GROSS amount the client actually paid, not the net
-      // amount after card fees. Otherwise card fees create a fake "uncovered balance".
       const grossAmount = Number(p.gross_amount ?? p.amount ?? 0);
       if (p.status === "paid") {
         pmMap[p.event_id].paid++;
@@ -576,7 +583,6 @@ export default function Agenda() {
     });
 
     // Compare against event total_value to detect uncovered balance (parcelas faltando)
-    const eventsList = (eventsRes.data || []) as CompanyEvent[];
     eventsList.forEach((ev: any) => {
       const totalValue = Number(ev.total_value || 0);
       if (totalValue <= 0) return;
@@ -584,7 +590,6 @@ export default function Agenda() {
       const entry = pmMap[ev.id];
       const outstanding = Math.round((totalValue - entry.paidAmount) * 100) / 100;
       entry.outstandingAmount = outstanding > 0 ? outstanding : 0;
-      // If there is uncovered balance not represented by any parcela, surface it
       if (entry.outstandingAmount > 0.01) {
         const sumOfPendingDetails = entry.details.reduce((s, d) => s + Number(d.amount || 0), 0);
         const uncovered = Math.round((entry.outstandingAmount - sumOfPendingDetails) * 100) / 100;
@@ -608,9 +613,25 @@ export default function Agenda() {
 
     setLoading(false);
     initialLoadDone.current = true;
-  }, [currentCompany?.id, month, selectedUnit, permUnitLoading, canViewAll, allowedUnits, fetchClosedInPeriod]);
+  }, [currentCompany?.id, month, selectedUnit, permUnitLoading, fetchClosedInPeriod]);
+
+  // Fetch the full pre-reservations list once per company (not on every month change)
+  useEffect(() => {
+    if (!currentCompany?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await (supabase as any)
+        .from("pre_reservations")
+        .select("*")
+        .eq("company_id", currentCompany.id)
+        .order("event_date", { ascending: true });
+      if (!cancelled && !error && data) setAllPreReservations(data as PreReservation[]);
+    })();
+    return () => { cancelled = true; };
+  }, [currentCompany?.id]);
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
+
 
   // Re-fetch closed count when unit changes (for period mode)
   useEffect(() => {
