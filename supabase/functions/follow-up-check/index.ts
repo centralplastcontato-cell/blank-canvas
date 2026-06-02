@@ -9,6 +9,25 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Chunked .in() query helper — Postgres/PostgREST has URL length limits, so
+// large IN lists (hundreds of UUIDs) cause "Bad Request" errors. This helper
+// runs the same query in batches of CHUNK_SIZE and concatenates the results.
+const IN_CHUNK_SIZE = 100;
+async function chunkedInQuery<T = any>(
+  buildQuery: (chunk: string[]) => Promise<{ data: T[] | null; error: any }>,
+  ids: string[],
+): Promise<{ data: T[]; error: any }> {
+  if (!ids || ids.length === 0) return { data: [], error: null };
+  const out: T[] = [];
+  for (let i = 0; i < ids.length; i += IN_CHUNK_SIZE) {
+    const slice = ids.slice(i, i + IN_CHUNK_SIZE);
+    const { data, error } = await buildQuery(slice);
+    if (error) return { data: out, error };
+    if (data && data.length) out.push(...data);
+  }
+  return { data: out, error: null };
+}
+
 function resolveFirstName(
   botData: Record<string, unknown>,
   contactName: string | null,
