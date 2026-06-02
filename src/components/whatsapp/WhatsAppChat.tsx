@@ -6497,8 +6497,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                 msg.from_me
                                   ? "bg-primary text-primary-foreground"
                                   : "bg-card border",
-                                (msg.message_type === 'image' || msg.message_type === 'video')
-                                  ? "p-0 overflow-hidden max-w-[82%]"
+                                (msg.message_type === 'image' || msg.message_type === 'video' || msg.message_type === 'sticker')
+                                  ? "p-0 overflow-hidden max-w-[82%] bg-transparent shadow-none border-0"
                                   : "px-3 py-2"
                               )}
                             >
