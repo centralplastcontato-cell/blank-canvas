@@ -5353,7 +5353,19 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                       }}
                                     />
                                   </div>
-                                )}
+                                 )}
+                                 {msg.message_type === 'sticker' && (
+                                   msg.media_url && !msg.media_url.includes('.enc') ? (
+                                     <img
+                                       src={msg.media_url}
+                                       alt="Figurinha"
+                                       className="w-32 h-32 object-contain bg-transparent"
+                                       loading="lazy"
+                                     />
+                                   ) : (
+                                     <div className="text-2xl">🎭</div>
+                                   )
+                                 )}
                                 {msg.message_type === 'contact' && (() => {
                                   const raw = msg.content?.replace(/^\[Contato\]\s*/, '').replace(/^👤\s*/, '') || 'Contato';
                                   const parts = raw.split(' - ');
