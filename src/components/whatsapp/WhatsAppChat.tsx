@@ -5221,6 +5221,18 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                     )}
                   </div>
 
+                  {/* Unresolved @lid banner - desktop */}
+                  {isUnresolvedLidIdentifier(selectedConversation?.remote_jid, selectedConversation?.contact_phone) && (
+                    <div className="flex items-start gap-2 px-4 py-2 bg-amber-50 border-b border-amber-200 text-xs text-amber-900">
+                      <Clock className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                      <div className="flex-1">
+                        <p className="font-medium">Aguardando o WhatsApp revelar o número real deste contato.</p>
+                        <p className="text-amber-800/80 mt-0.5">
+                          Este lead chegou com identificador anônimo (@lid). Será atualizado automaticamente na próxima mensagem dele — evite enviar manualmente até lá, pois a entrega pode falhar.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   {/* Pinned message banner - desktop */}
                   {selectedConversation?.pinned_message_id && (() => {
                     const pinnedMsg = messages.find(m => m.id === selectedConversation.pinned_message_id);
