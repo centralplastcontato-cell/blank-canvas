@@ -6436,6 +6436,17 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                   )}
                 </div>
 
+                {/* Unresolved @lid banner - mobile */}
+                {isUnresolvedLidIdentifier(selectedConversation?.remote_jid, selectedConversation?.contact_phone) && (
+                  <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border-b border-amber-200 text-[11px] text-amber-900">
+                    <Clock className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-600" />
+                    <div className="flex-1">
+                      <p className="font-medium">Aguardando número real deste contato.</p>
+                      <p className="text-amber-800/80 mt-0.5">Chegou com ID anônimo (@lid). Será atualizado na próxima resposta — evite envio manual.</p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex-1 relative min-h-0">
                   <ScrollArea ref={scrollAreaMobileRef} className="h-full whatsapp-chat-bg [&_[data-radix-scroll-area-viewport]>div]:!block [&_[data-radix-scroll-area-viewport]>div]:!w-full [&_[data-radix-scroll-area-viewport]>div]:!min-w-0">
                     <div className="space-y-2 p-3 overflow-hidden">
