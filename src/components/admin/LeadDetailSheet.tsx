@@ -87,6 +87,7 @@ export function LeadDetailSheet({
   const [history, setHistory] = useState<LeadHistory[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [hasLinkedEvent, setHasLinkedEvent] = useState<boolean | null>(null);
+  const [linkedEvents, setLinkedEvents] = useState<EventFormData[]>([]);
   const [linkedEventData, setLinkedEventData] = useState<EventFormData | null>(null);
   const [eventFormOpen, setEventFormOpen] = useState(false);
   const [isLoadingEvent, setIsLoadingEvent] = useState(false);
