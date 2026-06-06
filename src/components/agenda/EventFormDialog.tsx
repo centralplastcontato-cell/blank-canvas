@@ -1094,11 +1094,11 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   }, [open, currentCompany?.id]);
 
   const availableLeads = useMemo(() => {
-    const filtered = closedLeads.filter((lead) => !linkedLeadIds.has(lead.id) || lead.id === initialData?.lead_id);
-    if (!leadSearch) return filtered;
+    // Permite vincular o mesmo lead a múltiplas festas (ex: escolas com várias turmas)
+    if (!leadSearch) return closedLeads;
     const q = leadSearch.toLowerCase();
-    return filtered.filter((l) => l.name.toLowerCase().includes(q));
-  }, [closedLeads, linkedLeadIds, leadSearch, initialData?.lead_id]);
+    return closedLeads.filter((l) => l.name.toLowerCase().includes(q) || (l.whatsapp || "").includes(q));
+  }, [closedLeads, leadSearch]);
 
   const handleSubmit = async (e: React.FormEvent, keepOpen = false) => {
     e.preventDefault();
@@ -1606,7 +1606,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     )}
                     {showLeadDropdown && availableLeads.length === 0 && !loadingLeads && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        {closedLeads.length === 0 ? "Nenhum lead fechado encontrado." : "Todos os leads fechados já possuem festa vinculada."}
+                        {closedLeads.length === 0 ? "Nenhum lead fechado encontrado." : "Nenhum lead corresponde à busca."}
                       </p>
                     )}
                   </>
