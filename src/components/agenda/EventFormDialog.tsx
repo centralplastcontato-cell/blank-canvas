@@ -1606,7 +1606,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     )}
                     {showLeadDropdown && availableLeads.length === 0 && !loadingLeads && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        {closedLeads.length === 0 ? "Nenhum lead fechado encontrado." : "Todos os leads fechados já possuem festa vinculada."}
+                        {closedLeads.length === 0 ? "Nenhum lead fechado encontrado." : "Nenhum lead corresponde à busca."}
                       </p>
                     )}
                   </>
