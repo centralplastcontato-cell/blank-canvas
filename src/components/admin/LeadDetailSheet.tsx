@@ -299,35 +299,35 @@ export function LeadDetailSheet({
             </div>
           )}
 
-          {/* Festa shortcut for closed leads */}
-          {lead.status === "fechado" && hasLinkedEvent !== null && (
-            <div className={`flex items-center justify-between gap-2 p-3 rounded-xl border text-sm ${
-              hasLinkedEvent === false
+          {/* Linked events list (supports recurring clients with N parties) */}
+          {(linkedEvents.length > 0 || lead.status === "fechado") && (
+            <div className={`p-3 rounded-xl border ${
+              linkedEvents.length === 0
                 ? 'bg-amber-500/10 border-amber-300/30'
                 : 'bg-emerald-500/10 border-emerald-300/30'
             }`}>
-              <div className="flex items-center gap-2">
-                {hasLinkedEvent === false ? (
-                  <>
-                    <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-                    <span className="text-amber-700 dark:text-amber-400 font-medium">⚠ Festa ainda não criada</span>
-                  </>
-                ) : (
-                  <>
-                    <PartyPopper className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <span className="text-emerald-700 dark:text-emerald-400 font-medium">🎉 Festa vinculada</span>
-                  </>
-                )}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs shrink-0 gap-1.5"
-                disabled={isLoadingEvent}
-                onClick={() => {
-                  if (hasLinkedEvent && linkedEventData) {
-                    setEventFormOpen(true);
-                  } else {
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2 text-sm">
+                  {linkedEvents.length === 0 ? (
+                    <>
+                      <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                      <span className="text-amber-700 dark:text-amber-400 font-medium">⚠ Nenhuma festa vinculada</span>
+                    </>
+                  ) : (
+                    <>
+                      <PartyPopper className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <span className="text-emerald-700 dark:text-emerald-400 font-medium">
+                        🎉 {linkedEvents.length === 1 ? '1 festa vinculada' : `${linkedEvents.length} festas vinculadas`}
+                      </span>
+                    </>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs shrink-0 gap-1.5"
+                  disabled={isLoadingEvent}
+                  onClick={() => {
                     setLinkedEventData({
                       title: lead.name,
                       event_date: "",
@@ -342,20 +342,57 @@ export function LeadDetailSheet({
                       notes: "",
                       lead_id: lead.id,
                       lead_name: lead.name,
-                    });
+                    } as EventFormData);
                     setEventFormOpen(true);
-                  }
-                }}
-              >
-                {isLoadingEvent ? <Loader2 className="w-3 h-3 animate-spin" /> : (
-                  <>
-                    <PartyPopper className="w-3 h-3" />
-                    {hasLinkedEvent ? 'Ver Festa' : 'Criar Festa'}
-                  </>
-                )}
-              </Button>
+                  }}
+                >
+                  <PartyPopper className="w-3 h-3" />
+                  {linkedEvents.length === 0 ? 'Criar Festa' : '+ Nova Festa'}
+                </Button>
+              </div>
+
+              {linkedEvents.length > 0 && (
+                <div className="space-y-1.5 mt-2">
+                  {linkedEvents.map((ev) => (
+                    <button
+                      key={ev.id}
+                      onClick={() => {
+                        setLinkedEventData(ev);
+                        setEventFormOpen(true);
+                      }}
+                      className="w-full text-left flex items-center justify-between gap-2 p-2 rounded-lg bg-background/60 hover:bg-background border border-emerald-300/20 hover:border-emerald-400/40 transition-colors group"
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium text-foreground truncate">
+                            {ev.title}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {ev.event_date ? format(new Date(ev.event_date + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR }) : "Sem data"}
+                            {ev.guest_count ? ` • ${ev.guest_count} conv.` : ""}
+                            {ev.total_value ? ` • R$ ${Number(ev.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : ""}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={`text-[9px] h-5 shrink-0 ${
+                          ev.status === 'confirmado' ? 'bg-emerald-100 text-emerald-700 border-emerald-300' :
+                          ev.status === 'pendente' ? 'bg-amber-100 text-amber-700 border-amber-300' :
+                          ev.status === 'realizado' ? 'bg-blue-100 text-blue-700 border-blue-300' :
+                          'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {ev.status}
+                      </Badge>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
+
 
           {/* Lead Info */}
           <div className="grid grid-cols-2 gap-3 bg-muted/30 rounded-xl p-4">
