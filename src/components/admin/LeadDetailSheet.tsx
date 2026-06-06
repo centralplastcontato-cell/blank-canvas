@@ -598,6 +598,25 @@ export function LeadDetailSheet({
           setHasLinkedEvent(true);
         }
         setEventFormOpen(false);
+        // Refresh linked events list
+        if (lead) {
+          const { data: refreshed } = await supabase
+            .from("company_events")
+            .select("*")
+            .eq("lead_id", lead.id)
+            .order("event_date", { ascending: false });
+          const events = (refreshed || []).map((ev: any) => ({
+            id: ev.id, title: ev.title, event_date: ev.event_date,
+            start_time: ev.start_time || "", end_time: ev.end_time || "",
+            event_type: ev.event_type || "aniversario", guest_count: ev.guest_count,
+            unit: ev.unit || "", status: ev.status, package_name: ev.package_name || "",
+            total_value: ev.total_value, notes: ev.notes || "", lead_id: ev.lead_id || null,
+            data_fechamento_venda: ev.data_fechamento_venda || null,
+            vendedor_responsavel_id: ev.vendedor_responsavel_id || null,
+          })) as EventFormData[];
+          setLinkedEvents(events);
+          setHasLinkedEvent(events.length > 0);
+        }
         onUpdate();
       }}
     />
