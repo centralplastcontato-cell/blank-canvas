@@ -87,6 +87,7 @@ export function LeadDetailSheet({
   const [history, setHistory] = useState<LeadHistory[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [hasLinkedEvent, setHasLinkedEvent] = useState<boolean | null>(null);
+  const [linkedEvents, setLinkedEvents] = useState<EventFormData[]>([]);
   const [linkedEventData, setLinkedEventData] = useState<EventFormData | null>(null);
   const [eventFormOpen, setEventFormOpen] = useState(false);
   const [isLoadingEvent, setIsLoadingEvent] = useState(false);
@@ -116,42 +117,34 @@ export function LeadDetailSheet({
       setResponsavelId(lead.responsavel_id || "");
       setObservacoes(lead.observacoes || "");
       fetchHistory(lead.id);
-      // Check if lead has linked event and fetch its data
-      if (lead.status === "fechado") {
-        supabase
-          .from("company_events")
-          .select("*")
-          .eq("lead_id", lead.id)
-          .limit(1)
-          .then(({ data }) => {
-            setHasLinkedEvent((data || []).length > 0);
-            if (data && data.length > 0) {
-              const ev = data[0];
-              setLinkedEventData({
-                id: ev.id,
-                title: ev.title,
-                event_date: ev.event_date,
-                start_time: ev.start_time || "",
-                end_time: ev.end_time || "",
-                event_type: ev.event_type || "aniversario",
-                guest_count: ev.guest_count,
-                unit: ev.unit || "",
-                status: ev.status,
-                package_name: ev.package_name || "",
-                total_value: ev.total_value,
-                notes: ev.notes || "",
-                lead_id: ev.lead_id || null,
-                data_fechamento_venda: ev.data_fechamento_venda || null,
-                vendedor_responsavel_id: ev.vendedor_responsavel_id || null,
-              });
-            } else {
-              setLinkedEventData(null);
-            }
-          });
-      } else {
-        setHasLinkedEvent(null);
-        setLinkedEventData(null);
-      }
+      // Fetch all events linked to this lead (works for any status — handles recurring clients)
+      supabase
+        .from("company_events")
+        .select("*")
+        .eq("lead_id", lead.id)
+        .order("event_date", { ascending: false })
+        .then(({ data }) => {
+          const events = (data || []).map((ev: any) => ({
+            id: ev.id,
+            title: ev.title,
+            event_date: ev.event_date,
+            start_time: ev.start_time || "",
+            end_time: ev.end_time || "",
+            event_type: ev.event_type || "aniversario",
+            guest_count: ev.guest_count,
+            unit: ev.unit || "",
+            status: ev.status,
+            package_name: ev.package_name || "",
+            total_value: ev.total_value,
+            notes: ev.notes || "",
+            lead_id: ev.lead_id || null,
+            data_fechamento_venda: ev.data_fechamento_venda || null,
+            vendedor_responsavel_id: ev.vendedor_responsavel_id || null,
+          }));
+          setLinkedEvents(events);
+          setHasLinkedEvent(events.length > 0);
+          setLinkedEventData(events[0] || null);
+        });
     }
   }, [lead]);
 
@@ -306,35 +299,35 @@ export function LeadDetailSheet({
             </div>
           )}
 
-          {/* Festa shortcut for closed leads */}
-          {lead.status === "fechado" && hasLinkedEvent !== null && (
-            <div className={`flex items-center justify-between gap-2 p-3 rounded-xl border text-sm ${
-              hasLinkedEvent === false
+          {/* Linked events list (supports recurring clients with N parties) */}
+          {(linkedEvents.length > 0 || lead.status === "fechado") && (
+            <div className={`p-3 rounded-xl border ${
+              linkedEvents.length === 0
                 ? 'bg-amber-500/10 border-amber-300/30'
                 : 'bg-emerald-500/10 border-emerald-300/30'
             }`}>
-              <div className="flex items-center gap-2">
-                {hasLinkedEvent === false ? (
-                  <>
-                    <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-                    <span className="text-amber-700 dark:text-amber-400 font-medium">⚠ Festa ainda não criada</span>
-                  </>
-                ) : (
-                  <>
-                    <PartyPopper className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <span className="text-emerald-700 dark:text-emerald-400 font-medium">🎉 Festa vinculada</span>
-                  </>
-                )}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs shrink-0 gap-1.5"
-                disabled={isLoadingEvent}
-                onClick={() => {
-                  if (hasLinkedEvent && linkedEventData) {
-                    setEventFormOpen(true);
-                  } else {
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2 text-sm">
+                  {linkedEvents.length === 0 ? (
+                    <>
+                      <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                      <span className="text-amber-700 dark:text-amber-400 font-medium">⚠ Nenhuma festa vinculada</span>
+                    </>
+                  ) : (
+                    <>
+                      <PartyPopper className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <span className="text-emerald-700 dark:text-emerald-400 font-medium">
+                        🎉 {linkedEvents.length === 1 ? '1 festa vinculada' : `${linkedEvents.length} festas vinculadas`}
+                      </span>
+                    </>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs shrink-0 gap-1.5"
+                  disabled={isLoadingEvent}
+                  onClick={() => {
                     setLinkedEventData({
                       title: lead.name,
                       event_date: "",
@@ -349,20 +342,57 @@ export function LeadDetailSheet({
                       notes: "",
                       lead_id: lead.id,
                       lead_name: lead.name,
-                    });
+                    } as EventFormData);
                     setEventFormOpen(true);
-                  }
-                }}
-              >
-                {isLoadingEvent ? <Loader2 className="w-3 h-3 animate-spin" /> : (
-                  <>
-                    <PartyPopper className="w-3 h-3" />
-                    {hasLinkedEvent ? 'Ver Festa' : 'Criar Festa'}
-                  </>
-                )}
-              </Button>
+                  }}
+                >
+                  <PartyPopper className="w-3 h-3" />
+                  {linkedEvents.length === 0 ? 'Criar Festa' : '+ Nova Festa'}
+                </Button>
+              </div>
+
+              {linkedEvents.length > 0 && (
+                <div className="space-y-1.5 mt-2">
+                  {linkedEvents.map((ev) => (
+                    <button
+                      key={ev.id}
+                      onClick={() => {
+                        setLinkedEventData(ev);
+                        setEventFormOpen(true);
+                      }}
+                      className="w-full text-left flex items-center justify-between gap-2 p-2 rounded-lg bg-background/60 hover:bg-background border border-emerald-300/20 hover:border-emerald-400/40 transition-colors group"
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium text-foreground truncate">
+                            {ev.title}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {ev.event_date ? format(new Date(ev.event_date + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR }) : "Sem data"}
+                            {ev.guest_count ? ` • ${ev.guest_count} conv.` : ""}
+                            {ev.total_value ? ` • R$ ${Number(ev.total_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : ""}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={`text-[9px] h-5 shrink-0 ${
+                          ev.status === 'confirmado' ? 'bg-emerald-100 text-emerald-700 border-emerald-300' :
+                          ev.status === 'pendente' ? 'bg-amber-100 text-amber-700 border-amber-300' :
+                          ev.status === 'realizado' ? 'bg-blue-100 text-blue-700 border-blue-300' :
+                          'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {ev.status}
+                      </Badge>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
+
 
           {/* Lead Info */}
           <div className="grid grid-cols-2 gap-3 bg-muted/30 rounded-xl p-4">
@@ -568,6 +598,25 @@ export function LeadDetailSheet({
           setHasLinkedEvent(true);
         }
         setEventFormOpen(false);
+        // Refresh linked events list
+        if (lead) {
+          const { data: refreshed } = await supabase
+            .from("company_events")
+            .select("*")
+            .eq("lead_id", lead.id)
+            .order("event_date", { ascending: false });
+          const events = (refreshed || []).map((ev: any) => ({
+            id: ev.id, title: ev.title, event_date: ev.event_date,
+            start_time: ev.start_time || "", end_time: ev.end_time || "",
+            event_type: ev.event_type || "aniversario", guest_count: ev.guest_count,
+            unit: ev.unit || "", status: ev.status, package_name: ev.package_name || "",
+            total_value: ev.total_value, notes: ev.notes || "", lead_id: ev.lead_id || null,
+            data_fechamento_venda: ev.data_fechamento_venda || null,
+            vendedor_responsavel_id: ev.vendedor_responsavel_id || null,
+          })) as EventFormData[];
+          setLinkedEvents(events);
+          setHasLinkedEvent(events.length > 0);
+        }
         onUpdate();
       }}
     />
