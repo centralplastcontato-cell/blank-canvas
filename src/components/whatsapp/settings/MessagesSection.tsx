@@ -128,7 +128,8 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
             name: formData.name,
             template: formData.template,
             is_active: formData.is_active,
-          })
+            media_url: formData.media_url,
+          } as any)
           .eq("id", editingTemplate.id);
 
         if (error) throw error;
@@ -150,7 +151,8 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
             is_active: formData.is_active,
             sort_order: maxOrder,
             company_id: currentCompanyId,
-          });
+            media_url: formData.media_url,
+          } as any);
 
         if (error) throw error;
 
