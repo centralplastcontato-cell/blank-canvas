@@ -164,7 +164,7 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
 
       setIsDialogOpen(false);
       setEditingTemplate(null);
-      setFormData({ name: "", template: "", is_active: true });
+      setFormData({ name: "", template: "", is_active: true, media_url: null });
       fetchTemplates();
     } catch (error: any) {
       toast({
