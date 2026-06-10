@@ -56,7 +56,10 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
     name: "",
     template: "",
     is_active: true,
+    media_url: null as string | null,
   });
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (currentCompanyId) {
