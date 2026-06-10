@@ -16,7 +16,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { MessageSquare, Plus, Pencil, Trash2, GripVertical, Loader2, Copy } from "lucide-react";
+import { MessageSquare, Plus, Pencil, Trash2, GripVertical, Loader2, Copy, ImagePlus, X } from "lucide-react";
+import { useRef } from "react";
 import { CaptionsCard } from "./CaptionsCard";
 
 const DEFAULT_TEMPLATES = [
@@ -33,6 +34,7 @@ interface MessageTemplate {
   template: string;
   is_active: boolean;
   sort_order: number;
+  media_url?: string | null;
 }
 
 interface MessagesSectionProps {
@@ -54,7 +56,10 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
     name: "",
     template: "",
     is_active: true,
+    media_url: null as string | null,
   });
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (currentCompanyId) {
@@ -123,7 +128,8 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
             name: formData.name,
             template: formData.template,
             is_active: formData.is_active,
-          })
+            media_url: formData.media_url,
+          } as any)
           .eq("id", editingTemplate.id);
 
         if (error) throw error;
@@ -145,7 +151,8 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
             is_active: formData.is_active,
             sort_order: maxOrder,
             company_id: currentCompanyId,
-          });
+            media_url: formData.media_url,
+          } as any);
 
         if (error) throw error;
 
@@ -157,7 +164,7 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
 
       setIsDialogOpen(false);
       setEditingTemplate(null);
-      setFormData({ name: "", template: "", is_active: true });
+      setFormData({ name: "", template: "", is_active: true, media_url: null });
       fetchTemplates();
     } catch (error: any) {
       toast({
@@ -232,6 +239,39 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
     setIsSeeding(false);
   };
 
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentCompanyId) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Arquivo inválido", description: "Envie uma imagem.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "Arquivo muito grande", description: "Máximo 10MB.", variant: "destructive" });
+      return;
+    }
+    setIsUploadingMedia(true);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${currentCompanyId}/templates/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("whatsapp-media")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (upErr) throw upErr;
+      const { data: signed, error: signErr } = await supabase.storage
+        .from("whatsapp-media")
+        .createSignedUrl(path, 60 * 60 * 24 * 365 * 5); // 5 anos
+      if (signErr || !signed?.signedUrl) throw signErr ?? new Error("URL inválida");
+      setFormData((p) => ({ ...p, media_url: signed.signedUrl }));
+      toast({ title: "Foto adicionada", description: "A imagem será enviada junto com a mensagem." });
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar foto", description: err.message, variant: "destructive" });
+    } finally {
+      setIsUploadingMedia(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const handleOpenDialog = (template?: MessageTemplate) => {
     if (template) {
       setEditingTemplate(template);
@@ -239,10 +279,11 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
         name: template.name,
         template: template.template,
         is_active: template.is_active,
+        media_url: template.media_url ?? null,
       });
     } else {
       setEditingTemplate(null);
-      setFormData({ name: "", template: "", is_active: true });
+      setFormData({ name: "", template: "", is_active: true, media_url: null });
     }
     setIsDialogOpen(true);
   };
@@ -425,6 +466,53 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
                 Use variáveis como {"{{nome}}"} para personalizar a mensagem.
               </p>
             </div>
+
+            <div className="space-y-2">
+              <Label>Foto (opcional)</Label>
+              {formData.media_url ? (
+                <div className="relative inline-block">
+                  <img
+                    src={formData.media_url}
+                    alt="Pré-visualização"
+                    className="max-h-40 rounded-xl border border-border object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFormData((p) => ({ ...p, media_url: null }))}
+                    className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 shadow hover:opacity-90"
+                    aria-label="Remover foto"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingMedia}
+                  className="rounded-xl"
+                >
+                  {isUploadingMedia ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando...</>
+                  ) : (
+                    <><ImagePlus className="w-4 h-4 mr-2" /> Anexar foto</>
+                  )}
+                </Button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleMediaUpload}
+              />
+              <p className="text-xs text-muted-foreground">
+                A foto será enviada junto com a mensagem (como legenda).
+              </p>
+            </div>
+
 
             <div className="flex items-center justify-between">
               <Label htmlFor="is_active">Template ativo</Label>

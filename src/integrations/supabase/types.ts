@@ -4446,6 +4446,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          media_url: string | null
           name: string
           sort_order: number
           template: string
@@ -4456,6 +4457,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          media_url?: string | null
           name: string
           sort_order?: number
           template: string
@@ -4466,6 +4468,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          media_url?: string | null
           name?: string
           sort_order?: number
           template?: string

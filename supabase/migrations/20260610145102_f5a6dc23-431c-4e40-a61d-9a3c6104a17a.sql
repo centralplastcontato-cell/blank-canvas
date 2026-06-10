@@ -1,0 +1,1 @@
+ALTER TABLE public.message_templates ADD COLUMN IF NOT EXISTS media_url TEXT;
