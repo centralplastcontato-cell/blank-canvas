@@ -239,6 +239,39 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
     setIsSeeding(false);
   };
 
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentCompanyId) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Arquivo inválido", description: "Envie uma imagem.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "Arquivo muito grande", description: "Máximo 10MB.", variant: "destructive" });
+      return;
+    }
+    setIsUploadingMedia(true);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${currentCompanyId}/templates/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("whatsapp-media")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (upErr) throw upErr;
+      const { data: signed, error: signErr } = await supabase.storage
+        .from("whatsapp-media")
+        .createSignedUrl(path, 60 * 60 * 24 * 365 * 5); // 5 anos
+      if (signErr || !signed?.signedUrl) throw signErr ?? new Error("URL inválida");
+      setFormData((p) => ({ ...p, media_url: signed.signedUrl }));
+      toast({ title: "Foto adicionada", description: "A imagem será enviada junto com a mensagem." });
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar foto", description: err.message, variant: "destructive" });
+    } finally {
+      setIsUploadingMedia(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const handleOpenDialog = (template?: MessageTemplate) => {
     if (template) {
       setEditingTemplate(template);
