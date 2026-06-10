@@ -16,7 +16,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { MessageSquare, Plus, Pencil, Trash2, GripVertical, Loader2, Copy } from "lucide-react";
+import { MessageSquare, Plus, Pencil, Trash2, GripVertical, Loader2, Copy, ImagePlus, X } from "lucide-react";
+import { useRef } from "react";
 import { CaptionsCard } from "./CaptionsCard";
 
 const DEFAULT_TEMPLATES = [
