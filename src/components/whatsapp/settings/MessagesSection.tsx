@@ -467,6 +467,53 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
               </p>
             </div>
 
+            <div className="space-y-2">
+              <Label>Foto (opcional)</Label>
+              {formData.media_url ? (
+                <div className="relative inline-block">
+                  <img
+                    src={formData.media_url}
+                    alt="Pré-visualização"
+                    className="max-h-40 rounded-xl border border-border object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFormData((p) => ({ ...p, media_url: null }))}
+                    className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 shadow hover:opacity-90"
+                    aria-label="Remover foto"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingMedia}
+                  className="rounded-xl"
+                >
+                  {isUploadingMedia ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando...</>
+                  ) : (
+                    <><ImagePlus className="w-4 h-4 mr-2" /> Anexar foto</>
+                  )}
+                </Button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleMediaUpload}
+              />
+              <p className="text-xs text-muted-foreground">
+                A foto será enviada junto com a mensagem (como legenda).
+              </p>
+            </div>
+
+
             <div className="flex items-center justify-between">
               <Label htmlFor="is_active">Template ativo</Label>
               <Switch
