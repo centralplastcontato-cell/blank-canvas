@@ -246,10 +246,11 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
         name: template.name,
         template: template.template,
         is_active: template.is_active,
+        media_url: template.media_url ?? null,
       });
     } else {
       setEditingTemplate(null);
-      setFormData({ name: "", template: "", is_active: true });
+      setFormData({ name: "", template: "", is_active: true, media_url: null });
     }
     setIsDialogOpen(true);
   };
