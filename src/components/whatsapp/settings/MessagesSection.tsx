@@ -34,6 +34,7 @@ interface MessageTemplate {
   template: string;
   is_active: boolean;
   sort_order: number;
+  media_url?: string | null;
 }
 
 interface MessagesSectionProps {
