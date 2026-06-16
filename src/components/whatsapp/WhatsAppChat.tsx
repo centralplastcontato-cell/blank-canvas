@@ -4031,19 +4031,31 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
         return;
       }
 
-      // Create lead
-      const { data: leadData, error: leadError } = await insertSingleWithCompany('campaign_leads', {
-        name: newContactName.trim(),
-        whatsapp: phone,
-        unit: selectedInstance.unit || null,
-        status: 'novo',
-        campaign_id: 'manual',
-        campaign_name: 'Criado Manualmente',
-      }) as { data: any; error: any };
+      // Reuse existing lead with same whatsapp+company (unique constraint), otherwise create
+      let leadId: string | null = null;
+      const { data: existingLead } = await supabase
+        .from('campaign_leads')
+        .select('id')
+        .eq('company_id', currentCompany.id)
+        .eq('whatsapp', phone)
+        .maybeSingle();
 
-      if (leadError) throw leadError;
+      if (existingLead?.id) {
+        leadId = existingLead.id;
+        toast({ title: "Lead existente reutilizado", description: `Já existia um lead com o telefone ${phone}. Vinculando à nova conversa.` });
+      } else {
+        const { data: leadData, error: leadError } = await insertSingleWithCompany('campaign_leads', {
+          name: newContactName.trim(),
+          whatsapp: phone,
+          unit: selectedInstance.unit || null,
+          status: 'novo',
+          campaign_id: 'manual',
+          campaign_name: 'Criado Manualmente',
+        }) as { data: any; error: any };
 
-      const leadId = leadData?.id;
+        if (leadError) throw leadError;
+        leadId = leadData?.id ?? null;
+      }
 
       // Create conversation
       const remoteJid = `${phone}@s.whatsapp.net`;
