@@ -142,10 +142,14 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
             jids.add(`${v}@c.us`);
           });
         });
+        // Só considera instâncias ATIVAS e CONECTADAS — evita rotear para
+        // instâncias legadas/desligadas (ex: W-API antiga com assinatura vencida)
         const { data: convs } = await supabase
           .from("wapi_conversations")
-          .select("remote_jid, last_message_at, instance:wapi_instances!inner(instance_id, company_id)")
+          .select("remote_jid, last_message_at, instance:wapi_instances!inner(instance_id, company_id, is_active, status)")
           .eq("instance.company_id", companyId)
+          .eq("instance.is_active", true)
+          .eq("instance.status", "connected")
           .in("remote_jid", [...jids])
           .order("last_message_at", { ascending: false });
 
