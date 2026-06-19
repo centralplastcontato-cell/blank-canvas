@@ -1249,50 +1249,7 @@ export async function generateManualPDFBytes(companyName?: string): Promise<Uint
 }
 
 export async function generateManualPDF(companyName?: string) {
-  // Reset state
-  cursorY = MARGIN_T;
-  pageCount = 0;
-  tocEntries = [];
-
-  // Load logo
-  let logoBase64: string | undefined;
-  try {
-    const logoModule = await import("@/assets/logo-celebrei.png");
-    logoBase64 = await loadImageAsBase64(logoModule.default);
-  } catch (e) {
-    console.warn("Could not load logo for PDF:", e);
-  }
-
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-
-  // 1. Cover
-  addCoverPage(doc, companyName, logoBase64);
-
-  // 2. All chapters (to collect TOC data)
-  ch01(doc);
-  ch02(doc);
-  ch03(doc);
-  ch04(doc);
-  ch05(doc);
-  ch06(doc);
-  ch07(doc);
-  ch08(doc);
-  ch09(doc);
-  ch10(doc);
-  ch11(doc);
-  ch12(doc);
-  ch13(doc);
-  ch14(doc);
-  ch15(doc);
-  ch16(doc);
-  ch17(doc);
-  ch18(doc);
-  ch19(doc);
-  ch20(doc);
-  ch21(doc);
-
-  // Add footers to all pages (skip cover)
-  addAllFooters(doc, 2);
+  const doc = await buildManualDoc(companyName);
 
   const fileName = companyName
     ? `Manual_Celebrei_${companyName.replace(/\s+/g, "_")}.pdf`
@@ -1300,16 +1257,14 @@ export async function generateManualPDF(companyName?: string) {
 
   const pdfBlob = doc.output("blob");
   const blobUrl = URL.createObjectURL(pdfBlob);
-  
-  // Use a download link as fallback since window.open is often blocked by popup blockers
+
   const link = document.createElement("a");
   link.href = blobUrl;
   link.download = fileName;
   link.style.display = "none";
   document.body.appendChild(link);
   link.click();
-  
-  // Also try opening in new tab
+
   setTimeout(() => {
     window.open(blobUrl, "_blank");
     document.body.removeChild(link);
