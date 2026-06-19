@@ -762,24 +762,47 @@ function ch11(doc: jsPDF) {
 function ch12(doc: jsPDF) {
   addChapterTitle(doc, 12, "Usuários e Permissões");
 
-  addSectionTitle(doc, "Criar e editar usuários");
-  addParagraph(doc, "Administradores podem criar novos usuários com email e senha, definir o nome de exibição e atribuir um papel (role) que determina o nível de acesso.");
+  addSectionTitle(doc, "Onde acessar");
+  addParagraph(doc, "A tela de Usuários fica no menu lateral em Administração > Usuários (rota /admin/users). Apenas perfis Gestor ou Admin Global conseguem abrir essa tela — os demais são redirecionados automaticamente.");
 
-  addSectionTitle(doc, "Papéis disponíveis");
+  addSectionTitle(doc, "Como criar um novo usuário");
+  addParagraph(doc, "Clique no botão 'Novo Usuário' no topo direito. Preencha nome de exibição, email, senha provisória (mínimo 6 caracteres) e selecione o perfil. O usuário é criado já vinculado à sua empresa e recebe acesso imediato — não é enviado email de confirmação, então repasse a senha pelo canal que preferir.");
+
+  addSectionTitle(doc, "Perfis disponíveis");
   addBulletList(doc, [
-    "Owner: acesso total, incluindo configurações avançadas e exclusão de dados.",
-    "Admin: acesso quase total, sem permissões destrutivas.",
-    "Gestor: acesso ao CRM, WhatsApp e agenda, sem configurações do sistema.",
-    "Operador: acesso limitado a funções operacionais (checklist, presença, etc.).",
+    "Admin Global: perfil interno da Celebrei, com acesso a todas as empresas. Não é atribuído a usuários do buffet e fica oculto na listagem.",
+    "Gestor: acesso amplo à operação do buffet — CRM, WhatsApp, Agenda, Operações, Financeiro, Relatórios e gestão de usuários da própria empresa.",
+    "Comercial: foco em atendimento e vendas — leads, conversas no WhatsApp, agenda comercial, visitas e contratos. Não vê Financeiro nem configurações sensíveis por padrão.",
+    "Visualização: somente leitura. Útil para sócios, contadores e auditores que precisam acompanhar sem alterar dados.",
+  ]);
+  addTipBox(doc, "O perfil define o ponto de partida das permissões. Tudo pode ser refinado depois no painel de Permissões granulares — inclusive abrir acessos extras para um Comercial ou restringir um Gestor.");
+
+  addSectionTitle(doc, "Ações disponíveis em cada card de usuário");
+  addBulletList(doc, [
+    "Alterar perfil: o seletor de papel ao lado do nome troca o role na hora (Gestor, Comercial, Visualização).",
+    "Resetar senha: ícone de cadeado abre uma janela para definir uma nova senha (mínimo 6 caracteres). Útil quando o colaborador esquece o acesso.",
+    "Gerenciar permissões: ícone de escudo abre o painel lateral com todas as permissões granulares e restrições por unidade e por instância de WhatsApp.",
+    "Excluir usuário: remove o acesso definitivamente. O histórico de ações fica preservado, mas o login deixa de funcionar.",
   ]);
 
   addSectionTitle(doc, "Permissões granulares");
-  addParagraph(doc, "Além dos papéis, é possível conceder ou restringir permissões específicas por módulo: CRM, WhatsApp, Agenda, Configurações, etc. Isso permite criar perfis de acesso sob medida.");
+  addParagraph(doc, "Dentro do painel de permissões, cada módulo aparece como uma lista de chaves ligadas ou desligadas — por exemplo: agenda.faturamento, financial.view, financial.consent, whatsapp.instance.*, leads.unit.*, operacoes.formularios, contratos.editar_template. Por padrão tudo vem permitido (whitelist) e você desliga o que aquele perfil não deve ver. Permissões marcadas com cadeado são exclusivas do Admin Global e não aparecem para o Gestor.");
 
-  addSectionTitle(doc, "Permissões por unidade");
-  addParagraph(doc, "Em empresas com múltiplas unidades, você pode restringir o acesso do usuário a uma ou mais unidades específicas. Assim, um gestor de filial só vê os leads e eventos da sua unidade.");
+  addSectionTitle(doc, "Restrições por unidade");
+  addParagraph(doc, "Em empresas com mais de uma unidade, na aba 'Unidades' do painel de permissões você marca quais filiais o usuário enxerga. Quem só tem 'Unidade A' marcada nunca verá leads, eventos, conversas ou relatórios da 'Unidade B' — o filtro é aplicado em todas as telas automaticamente.");
 
-  addTipBox(doc, "Revise as permissões periodicamente. À medida que a equipe cresce, é importante manter os acessos atualizados.");
+  addSectionTitle(doc, "Restrições por instância de WhatsApp");
+  addParagraph(doc, "Também é possível restringir quais números de WhatsApp o usuário acessa. Marque 'Todas as instâncias' para liberar tudo, ou selecione instâncias específicas. As permissões de unidade e de instância são sincronizadas: ao liberar um número da unidade, os leads daquela unidade também são liberados em consequência.");
+
+  addSectionTitle(doc, "Boas práticas");
+  addBulletList(doc, [
+    "Crie um usuário por pessoa — nunca compartilhe login. O histórico (lead_history, audit trail) usa o usuário logado para registrar quem fez cada ação.",
+    "Para vendedores externos / freelancers comerciais, use o perfil Comercial restrito à unidade e à instância de WhatsApp correspondente.",
+    "Para sócios e contadores que só acompanham, use Visualização. Eles conseguem ver dashboards sem risco de alterar nada.",
+    "Ao desligar um colaborador, prefira excluir o usuário em vez de só trocar a senha — assim ele perde acesso imediato a todas as conversas.",
+  ]);
+
+  addTipBox(doc, "Revise os acessos a cada novo ciclo (mensal ou trimestral). À medida que a equipe muda de função, é comum que permissões antigas continuem ligadas sem necessidade.");
 }
 
 function ch13(doc: jsPDF) {
