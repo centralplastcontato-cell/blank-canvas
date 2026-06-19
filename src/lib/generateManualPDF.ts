@@ -1214,6 +1214,40 @@ function ch21(doc: jsPDF) {
 
 // ── Main export ────────────────────────────────────────────────
 
+async function buildManualDoc(companyName?: string) {
+  // Reset state
+  cursorY = MARGIN_T;
+  pageCount = 0;
+  tocEntries = [];
+
+  // Load logo (optional)
+  let logoBase64: string | undefined;
+  try {
+    const logoModule = await import("@/assets/logo-celebrei.png");
+    logoBase64 = await loadImageAsBase64(logoModule.default);
+  } catch (e) {
+    console.warn("Could not load logo for PDF:", e);
+  }
+
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+  addCoverPage(doc, companyName, logoBase64);
+
+  ch01(doc); ch02(doc); ch03(doc); ch04(doc); ch05(doc);
+  ch06(doc); ch07(doc); ch08(doc); ch09(doc); ch10(doc);
+  ch11(doc); ch12(doc); ch13(doc); ch14(doc); ch15(doc);
+  ch16(doc); ch17(doc); ch18(doc); ch19(doc); ch20(doc);
+  ch21(doc);
+
+  addAllFooters(doc, 2);
+  return doc;
+}
+
+export async function generateManualPDFBytes(companyName?: string): Promise<Uint8Array> {
+  const doc = await buildManualDoc(companyName);
+  return doc.output("arraybuffer") as unknown as Uint8Array;
+}
+
 export async function generateManualPDF(companyName?: string) {
   // Reset state
   cursorY = MARGIN_T;
