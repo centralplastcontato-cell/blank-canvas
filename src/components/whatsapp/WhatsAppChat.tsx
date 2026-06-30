@@ -218,6 +218,15 @@ interface Conversation {
 
 const isConnectedStatus = (status: string | null | undefined) => status === 'connected' || status === 'degraded';
 
+const ACTIVE_CONVERSATION_STORAGE_PREFIX = 'whatsapp:last-active-conversation';
+
+type StoredActiveConversation = {
+  conversationId: string;
+  instanceId: string;
+  unit: string | null;
+  savedAt: number;
+};
+
 // Helper: check if a contact_name is a valid display name (not a placeholder)
 const isValidContactName = (name: string | null | undefined): name is string => {
   if (!name) return false;
@@ -515,6 +524,56 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const externalSelectedUnitRef = useRef(externalSelectedUnit);
   externalSelectedUnitRef.current = externalSelectedUnit;
+  const previousExternalSelectedUnitRef = useRef<string | null | undefined>(externalSelectedUnit);
+
+  const activeConversationStorageKey = useMemo(() => {
+    const companyId = currentCompany?.id || getCurrentCompanyId();
+    return `${ACTIVE_CONVERSATION_STORAGE_PREFIX}:${companyId}:${userId}`;
+  }, [currentCompany?.id, userId]);
+
+  const readLastActiveConversation = useCallback((): StoredActiveConversation | null => {
+    try {
+      const raw = localStorage.getItem(activeConversationStorageKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as Partial<StoredActiveConversation>;
+      if (!parsed.conversationId || !parsed.instanceId) return null;
+      // Avoid reopening very old conversations after a new work session.
+      if (parsed.savedAt && Date.now() - parsed.savedAt > 24 * 60 * 60 * 1000) return null;
+      return {
+        conversationId: parsed.conversationId,
+        instanceId: parsed.instanceId,
+        unit: parsed.unit ?? null,
+        savedAt: parsed.savedAt ?? 0,
+      };
+    } catch {
+      return null;
+    }
+  }, [activeConversationStorageKey]);
+
+  const clearLastActiveConversation = useCallback(() => {
+    try {
+      localStorage.removeItem(activeConversationStorageKey);
+    } catch {
+      // ignore storage errors
+    }
+  }, [activeConversationStorageKey]);
+
+  const persistActiveConversation = useCallback((conversation: Conversation) => {
+    try {
+      const unit = selectedInstance?.id === conversation.instance_id
+        ? selectedInstance.unit
+        : instances.find((instance) => instance.id === conversation.instance_id)?.unit ?? selectedInstance?.unit ?? null;
+
+      localStorage.setItem(activeConversationStorageKey, JSON.stringify({
+        conversationId: conversation.id,
+        instanceId: conversation.instance_id,
+        unit,
+        savedAt: Date.now(),
+      } satisfies StoredActiveConversation));
+    } catch {
+      // ignore storage errors
+    }
+  }, [activeConversationStorageKey, instances, selectedInstance?.id, selectedInstance?.unit]);
 
   const pickBestInstance = useCallback((list: WapiInstance[], countsMap = instanceConversationCounts) => {
     return [...list].sort((a, b) => {
@@ -557,16 +616,31 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
   // Sync with external unit selection from header
   useEffect(() => {
-    if (externalSelectedUnit && instances.length > 0) {
-      const match = pickBestInstance(instances.filter(i => i.unit === externalSelectedUnit));
-      if (match && match.id !== selectedInstance?.id) {
-        setSelectedInstance(match);
-        setSelectedConversation(null);
-        setMessages([]);
-        setConversations([]);
-      }
+    if (!externalSelectedUnit || instances.length === 0) {
+      previousExternalSelectedUnitRef.current = externalSelectedUnit;
+      return;
     }
-  }, [externalSelectedUnit, instances, selectedInstance?.id, pickBestInstance]);
+
+    const previousExternalSelectedUnit = previousExternalSelectedUnitRef.current;
+    const didExternalUnitChange = previousExternalSelectedUnit !== externalSelectedUnit;
+    previousExternalSelectedUnitRef.current = externalSelectedUnit;
+
+    const storedConversation = readLastActiveConversation();
+    // On remount/focus return, restore the last open chat before honoring
+    // a possibly stale header unit selection. Only a real unit change should
+    // intentionally close the current conversation.
+    if (storedConversation && (!selectedConversation || !didExternalUnitChange)) return;
+
+    const match = pickBestInstance(instances.filter(i => i.unit === externalSelectedUnit));
+    if (match && match.id !== selectedInstance?.id) {
+      const shouldClearStoredConversation = !!selectedConversation;
+      setSelectedInstance(match);
+      if (shouldClearStoredConversation) clearLastActiveConversation();
+      setSelectedConversation(null);
+      setMessages([]);
+      setConversations([]);
+    }
+  }, [externalSelectedUnit, instances, selectedInstance?.id, selectedConversation, pickBestInstance, clearLastActiveConversation, readLastActiveConversation]);
 
   const [hasUserScrolledToTop, setHasUserScrolledToTop] = useState(false); // Track if user manually scrolled to top
   const [isAtBottom, setIsAtBottom] = useState(true); // Track if scroll is at bottom (for scroll-to-bottom button visibility)
@@ -1257,6 +1331,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       setConversations(prev => prev.filter(c => c.id !== selectedConversation.id));
       
       // Clear selection
+      clearLastActiveConversation();
       setSelectedConversation(null);
       setMessages([]);
       setLinkedLead(null);
@@ -1308,6 +1383,24 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   messagesRef.current = messages;
   // Keep activeConversationIdRef in sync (used by async guards)
   activeConversationIdRef.current = selectedConversation?.id ?? null;
+
+  useEffect(() => {
+    if (selectedConversation) {
+      persistActiveConversation(selectedConversation);
+    }
+  }, [selectedConversation, persistActiveConversation]);
+
+  useEffect(() => {
+    if (selectedConversation || conversations.length === 0 || initialPhone) return;
+
+    const storedConversation = readLastActiveConversation();
+    if (!storedConversation) return;
+
+    const restoredConversation = conversations.find((conv) => conv.id === storedConversation.conversationId);
+    if (restoredConversation) {
+      setSelectedConversation(restoredConversation);
+    }
+  }, [selectedConversation, conversations, initialPhone, readLastActiveConversation]);
 
   // Save/restore drafts when switching conversations (uses its own ref to avoid conflicting with fetch effect)
   const draftPrevConvIdRef = useRef<string | null>(null);
@@ -1919,6 +2012,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           if (stillExists && (!betterSameUnit || betterSameUnit.id === prev.id)) return prev;
           if (betterSameUnit) return betterSameUnit;
         }
+        // Prefer the instance/unit from the last open chat when the user returns
+        // to this browser tab. This prevents Atendimento from coming back blank.
+        const storedConversation = readLastActiveConversation();
+        if (storedConversation) {
+          const storedInstance = activeInstances.find((inst) => inst.id === storedConversation.instanceId);
+          if (storedInstance) return storedInstance;
+
+          if (storedConversation.unit) {
+            const storedUnitMatches = activeInstances.filter((inst) => inst.unit === storedConversation.unit);
+            const bestStoredUnit = pickBestInstance(storedUnitMatches, counts);
+            if (bestStoredUnit) return bestStoredUnit;
+          }
+        }
         // Prefer the instance matching externalSelectedUnit (from localStorage persistence)
         const extUnit = externalSelectedUnitRef.current;
         if (extUnit) {
@@ -2025,6 +2131,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       });
       
       setConversations(dedupeConversations(sortedConversations as Conversation[]));
+
+      // If the component was remounted/refreshed after the operator changed
+      // browser tabs, reopen the exact chat they were viewing.
+      if (!selectPhone && !selectedConversationRef.current) {
+        const storedConversation = readLastActiveConversation();
+        const restoredConversation = storedConversation
+          ? sortedConversations.find((conv: Conversation) => conv.id === storedConversation.conversationId)
+          : null;
+
+        if (restoredConversation) {
+          setSelectedConversation(restoredConversation as Conversation);
+        }
+      }
       
       const leadIds = Array.from(new Set(
         sortedConversations
@@ -4136,6 +4255,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
     const instance = instances.find(i => i.id === instanceId);
     if (instance) {
       setSelectedInstance(instance);
+      clearLastActiveConversation();
       setSelectedConversation(null);
       setMessages([]);
       setConversations([]);
@@ -5463,6 +5583,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                                 setSearchQuery('');
                                               } else {
                                                 setSearchQuery(cleanPhone);
+                                                clearLastActiveConversation();
                                                 setSelectedConversation(null);
                                               }
                                             }}
@@ -5966,7 +6087,10 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 shrink-0"
-                      onClick={() => setSelectedConversation(null)}
+                      onClick={() => {
+                        clearLastActiveConversation();
+                        setSelectedConversation(null);
+                      }}
                     >
                       <ArrowLeft className="w-5 h-5" />
                     </Button>
@@ -6648,6 +6772,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                             setSearchQuery('');
                                           } else {
                                             setSearchQuery(cleanPhone);
+                                            clearLastActiveConversation();
                                             setSelectedConversation(null);
                                           }
                                         }}
