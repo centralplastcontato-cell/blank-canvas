@@ -1983,6 +1983,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           const bestExternal = pickBestInstance(extMatches, counts);
           if (bestExternal) return bestExternal;
         }
+        // Prefer the instance/unit from the last open chat when the user returns
+        // to this browser tab. This prevents Atendimento from coming back blank.
+        const storedConversation = readLastActiveConversation();
+        if (storedConversation) {
+          const storedInstance = activeInstances.find((inst) => inst.id === storedConversation.instanceId);
+          if (storedInstance) return storedInstance;
+
+          if (storedConversation.unit) {
+            const storedUnitMatches = activeInstances.filter((inst) => inst.unit === storedConversation.unit);
+            const bestStoredUnit = pickBestInstance(storedUnitMatches, counts);
+            if (bestStoredUnit) return bestStoredUnit;
+          }
+        }
         return pickBestInstance(activeInstances, counts);
       });
 
