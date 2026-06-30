@@ -618,15 +618,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     if (externalSelectedUnit && instances.length > 0) {
       const match = pickBestInstance(instances.filter(i => i.unit === externalSelectedUnit));
       if (match && match.id !== selectedInstance?.id) {
-        const isChangingFromAnotherInstance = !!selectedInstance;
+        const shouldClearStoredConversation = !!selectedConversation;
         setSelectedInstance(match);
-        if (isChangingFromAnotherInstance) clearLastActiveConversation();
+        if (shouldClearStoredConversation) clearLastActiveConversation();
         setSelectedConversation(null);
         setMessages([]);
         setConversations([]);
       }
     }
-  }, [externalSelectedUnit, instances, selectedInstance?.id, pickBestInstance, clearLastActiveConversation]);
+  }, [externalSelectedUnit, instances, selectedInstance?.id, selectedConversation, pickBestInstance, clearLastActiveConversation]);
 
   const [hasUserScrolledToTop, setHasUserScrolledToTop] = useState(false); // Track if user manually scrolled to top
   const [isAtBottom, setIsAtBottom] = useState(true); // Track if scroll is at bottom (for scroll-to-bottom button visibility)
