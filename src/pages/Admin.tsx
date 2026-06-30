@@ -138,9 +138,19 @@ export default function Admin() {
   useLeadNotifications(currentCompany?.id);
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+      (event, newSession) => {
+        // Ignora TOKEN_REFRESHED quando o usuário continua o mesmo
+        // (acontece ao voltar de outra aba) — evita reset de scroll/aba ativa
+        setSession((prev) => {
+          if (prev?.user?.id === newSession?.user?.id && event === "TOKEN_REFRESHED") {
+            return prev;
+          }
+          return newSession;
+        });
+        setUser((prev) => {
+          if (prev?.id === newSession?.user?.id) return prev;
+          return newSession?.user ?? null;
+        });
         setIsLoading(false);
       }
     );
