@@ -524,6 +524,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const externalSelectedUnitRef = useRef(externalSelectedUnit);
   externalSelectedUnitRef.current = externalSelectedUnit;
+  const previousExternalSelectedUnitRef = useRef<string | null | undefined>(externalSelectedUnit);
 
   const activeConversationStorageKey = useMemo(() => {
     const companyId = currentCompany?.id || getCurrentCompanyId();
@@ -615,20 +616,29 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
   // Sync with external unit selection from header
   useEffect(() => {
-    if (externalSelectedUnit && instances.length > 0) {
-      // On remount/focus return, restore the last open chat before honoring
-      // a possibly stale header unit selection.
-      if (!selectedConversation && readLastActiveConversation()) return;
+    if (!externalSelectedUnit || instances.length === 0) {
+      previousExternalSelectedUnitRef.current = externalSelectedUnit;
+      return;
+    }
 
-      const match = pickBestInstance(instances.filter(i => i.unit === externalSelectedUnit));
-      if (match && match.id !== selectedInstance?.id) {
-        const shouldClearStoredConversation = !!selectedConversation;
-        setSelectedInstance(match);
-        if (shouldClearStoredConversation) clearLastActiveConversation();
-        setSelectedConversation(null);
-        setMessages([]);
-        setConversations([]);
-      }
+    const previousExternalSelectedUnit = previousExternalSelectedUnitRef.current;
+    const didExternalUnitChange = previousExternalSelectedUnit !== externalSelectedUnit;
+    previousExternalSelectedUnitRef.current = externalSelectedUnit;
+
+    const storedConversation = readLastActiveConversation();
+    // On remount/focus return, restore the last open chat before honoring
+    // a possibly stale header unit selection. Only a real unit change should
+    // intentionally close the current conversation.
+    if (storedConversation && (!selectedConversation || !didExternalUnitChange)) return;
+
+    const match = pickBestInstance(instances.filter(i => i.unit === externalSelectedUnit));
+    if (match && match.id !== selectedInstance?.id) {
+      const shouldClearStoredConversation = !!selectedConversation;
+      setSelectedInstance(match);
+      if (shouldClearStoredConversation) clearLastActiveConversation();
+      setSelectedConversation(null);
+      setMessages([]);
+      setConversations([]);
     }
   }, [externalSelectedUnit, instances, selectedInstance?.id, selectedConversation, pickBestInstance, clearLastActiveConversation, readLastActiveConversation]);
 
