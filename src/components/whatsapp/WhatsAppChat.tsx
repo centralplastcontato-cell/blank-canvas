@@ -616,6 +616,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Sync with external unit selection from header
   useEffect(() => {
     if (externalSelectedUnit && instances.length > 0) {
+      // On remount/focus return, restore the last open chat before honoring
+      // a possibly stale header unit selection.
+      if (!selectedConversation && readLastActiveConversation()) return;
+
       const match = pickBestInstance(instances.filter(i => i.unit === externalSelectedUnit));
       if (match && match.id !== selectedInstance?.id) {
         const shouldClearStoredConversation = !!selectedConversation;
@@ -626,7 +630,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         setConversations([]);
       }
     }
-  }, [externalSelectedUnit, instances, selectedInstance?.id, selectedConversation, pickBestInstance, clearLastActiveConversation]);
+  }, [externalSelectedUnit, instances, selectedInstance?.id, selectedConversation, pickBestInstance, clearLastActiveConversation, readLastActiveConversation]);
 
   const [hasUserScrolledToTop, setHasUserScrolledToTop] = useState(false); // Track if user manually scrolled to top
   const [isAtBottom, setIsAtBottom] = useState(true); // Track if scroll is at bottom (for scroll-to-bottom button visibility)
