@@ -2097,6 +2097,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       });
       
       setConversations(dedupeConversations(sortedConversations as Conversation[]));
+
+      // If the component was remounted/refreshed after the operator changed
+      // browser tabs, reopen the exact chat they were viewing.
+      if (!selectPhone && !selectedConversationRef.current) {
+        const storedConversation = readLastActiveConversation();
+        const restoredConversation = storedConversation
+          ? sortedConversations.find((conv: Conversation) => conv.id === storedConversation.conversationId)
+          : null;
+
+        if (restoredConversation) {
+          setSelectedConversation(restoredConversation as Conversation);
+        }
+      }
       
       const leadIds = Array.from(new Set(
         sortedConversations
