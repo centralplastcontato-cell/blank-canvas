@@ -618,8 +618,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     if (externalSelectedUnit && instances.length > 0) {
       const match = pickBestInstance(instances.filter(i => i.unit === externalSelectedUnit));
       if (match && match.id !== selectedInstance?.id) {
+        const isChangingFromAnotherInstance = !!selectedInstance;
         setSelectedInstance(match);
-        clearLastActiveConversation();
+        if (isChangingFromAnotherInstance) clearLastActiveConversation();
         setSelectedConversation(null);
         setMessages([]);
         setConversations([]);
