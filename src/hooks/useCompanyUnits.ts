@@ -60,7 +60,9 @@ export function useCompanyUnits(companyId?: string) {
   // Re-fetch when auth state changes (fixes RLS race condition)
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      // Only refetch on real sign-in. TOKEN_REFRESHED fires on tab focus and
+      // would cause UI state (open chat, filters) to be lost.
+      if (event === 'SIGNED_IN') {
         fetchUnits();
       }
     });
