@@ -1369,6 +1369,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Keep activeConversationIdRef in sync (used by async guards)
   activeConversationIdRef.current = selectedConversation?.id ?? null;
 
+  useEffect(() => {
+    if (selectedConversation) {
+      persistActiveConversation(selectedConversation);
+    }
+  }, [selectedConversation, persistActiveConversation]);
+
   // Save/restore drafts when switching conversations (uses its own ref to avoid conflicting with fetch effect)
   const draftPrevConvIdRef = useRef<string | null>(null);
   useEffect(() => {
