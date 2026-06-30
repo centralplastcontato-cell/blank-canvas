@@ -166,7 +166,10 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     fetchUserCompanies();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      // NOTE: Do NOT refetch on TOKEN_REFRESHED — that event fires every time
+      // the browser tab regains focus and would reset state (closing the
+      // currently open WhatsApp chat, leads filters, scroll position, etc.).
+      if (event === 'SIGNED_IN') {
         fetchUserCompanies();
       } else if (event === 'SIGNED_OUT') {
         setUserCompanies([]);
