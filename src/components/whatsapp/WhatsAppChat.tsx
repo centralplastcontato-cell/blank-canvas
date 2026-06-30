@@ -536,6 +536,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       if (!raw) return null;
       const parsed = JSON.parse(raw) as Partial<StoredActiveConversation>;
       if (!parsed.conversationId || !parsed.instanceId) return null;
+      // Avoid reopening very old conversations after a new work session.
+      if (parsed.savedAt && Date.now() - parsed.savedAt > 24 * 60 * 60 * 1000) return null;
       return {
         conversationId: parsed.conversationId,
         instanceId: parsed.instanceId,
