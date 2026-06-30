@@ -1998,13 +1998,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           if (stillExists && (!betterSameUnit || betterSameUnit.id === prev.id)) return prev;
           if (betterSameUnit) return betterSameUnit;
         }
-        // Prefer the instance matching externalSelectedUnit (from localStorage persistence)
-        const extUnit = externalSelectedUnitRef.current;
-        if (extUnit) {
-          const extMatches = activeInstances.filter((inst) => inst.unit === extUnit);
-          const bestExternal = pickBestInstance(extMatches, counts);
-          if (bestExternal) return bestExternal;
-        }
         // Prefer the instance/unit from the last open chat when the user returns
         // to this browser tab. This prevents Atendimento from coming back blank.
         const storedConversation = readLastActiveConversation();
@@ -2017,6 +2010,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             const bestStoredUnit = pickBestInstance(storedUnitMatches, counts);
             if (bestStoredUnit) return bestStoredUnit;
           }
+        }
+        // Prefer the instance matching externalSelectedUnit (from localStorage persistence)
+        const extUnit = externalSelectedUnitRef.current;
+        if (extUnit) {
+          const extMatches = activeInstances.filter((inst) => inst.unit === extUnit);
+          const bestExternal = pickBestInstance(extMatches, counts);
+          if (bestExternal) return bestExternal;
         }
         return pickBestInstance(activeInstances, counts);
       });
