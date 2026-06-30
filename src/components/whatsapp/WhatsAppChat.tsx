@@ -1317,6 +1317,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       setConversations(prev => prev.filter(c => c.id !== selectedConversation.id));
       
       // Clear selection
+      clearLastActiveConversation();
       setSelectedConversation(null);
       setMessages([]);
       setLinkedLead(null);
@@ -4228,6 +4229,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
     const instance = instances.find(i => i.id === instanceId);
     if (instance) {
       setSelectedInstance(instance);
+      clearLastActiveConversation();
       setSelectedConversation(null);
       setMessages([]);
       setConversations([]);
