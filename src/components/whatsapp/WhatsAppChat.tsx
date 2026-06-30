@@ -5557,6 +5557,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                                 setSearchQuery('');
                                               } else {
                                                 setSearchQuery(cleanPhone);
+                                                clearLastActiveConversation();
                                                 setSelectedConversation(null);
                                               }
                                             }}
@@ -6060,7 +6061,10 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 shrink-0"
-                      onClick={() => setSelectedConversation(null)}
+                      onClick={() => {
+                        clearLastActiveConversation();
+                        setSelectedConversation(null);
+                      }}
                     >
                       <ArrowLeft className="w-5 h-5" />
                     </Button>
@@ -6742,6 +6746,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                             setSearchQuery('');
                                           } else {
                                             setSearchQuery(cleanPhone);
+                                            clearLastActiveConversation();
                                             setSelectedConversation(null);
                                           }
                                         }}
