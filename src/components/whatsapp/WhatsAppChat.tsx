@@ -1376,6 +1376,18 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
   }, [selectedConversation, persistActiveConversation]);
 
+  useEffect(() => {
+    if (selectedConversation || conversations.length === 0 || initialPhone) return;
+
+    const storedConversation = readLastActiveConversation();
+    if (!storedConversation) return;
+
+    const restoredConversation = conversations.find((conv) => conv.id === storedConversation.conversationId);
+    if (restoredConversation) {
+      setSelectedConversation(restoredConversation);
+    }
+  }, [selectedConversation, conversations, initialPhone, readLastActiveConversation]);
+
   // Save/restore drafts when switching conversations (uses its own ref to avoid conflicting with fetch effect)
   const draftPrevConvIdRef = useRef<string | null>(null);
   useEffect(() => {
