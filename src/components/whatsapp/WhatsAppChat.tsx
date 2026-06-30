@@ -524,6 +524,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const externalSelectedUnitRef = useRef(externalSelectedUnit);
   externalSelectedUnitRef.current = externalSelectedUnit;
+  const previousExternalSelectedUnitRef = useRef(externalSelectedUnit);
 
   const activeConversationStorageKey = useMemo(() => {
     const companyId = currentCompany?.id || getCurrentCompanyId();
@@ -616,9 +617,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Sync with external unit selection from header
   useEffect(() => {
     if (externalSelectedUnit && instances.length > 0) {
+      const didExternalUnitChange = previousExternalSelectedUnitRef.current !== externalSelectedUnit;
+      previousExternalSelectedUnitRef.current = externalSelectedUnit;
+
       // On remount/focus return, restore the last open chat before honoring
       // a possibly stale header unit selection.
-      if (!selectedConversation && readLastActiveConversation()) return;
+      if (!didExternalUnitChange && readLastActiveConversation()) return;
 
       const match = pickBestInstance(instances.filter(i => i.unit === externalSelectedUnit));
       if (match && match.id !== selectedInstance?.id) {
