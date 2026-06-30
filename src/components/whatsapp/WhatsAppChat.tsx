@@ -218,6 +218,15 @@ interface Conversation {
 
 const isConnectedStatus = (status: string | null | undefined) => status === 'connected' || status === 'degraded';
 
+const ACTIVE_CONVERSATION_STORAGE_PREFIX = 'whatsapp:last-active-conversation';
+
+type StoredActiveConversation = {
+  conversationId: string;
+  instanceId: string;
+  unit: string | null;
+  savedAt: number;
+};
+
 // Helper: check if a contact_name is a valid display name (not a placeholder)
 const isValidContactName = (name: string | null | undefined): name is string => {
   if (!name) return false;
@@ -516,6 +525,53 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const externalSelectedUnitRef = useRef(externalSelectedUnit);
   externalSelectedUnitRef.current = externalSelectedUnit;
 
+  const activeConversationStorageKey = useMemo(() => {
+    const companyId = currentCompany?.id || getCurrentCompanyId();
+    return `${ACTIVE_CONVERSATION_STORAGE_PREFIX}:${companyId}:${userId}`;
+  }, [currentCompany?.id, userId]);
+
+  const readLastActiveConversation = useCallback((): StoredActiveConversation | null => {
+    try {
+      const raw = localStorage.getItem(activeConversationStorageKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as Partial<StoredActiveConversation>;
+      if (!parsed.conversationId || !parsed.instanceId) return null;
+      return {
+        conversationId: parsed.conversationId,
+        instanceId: parsed.instanceId,
+        unit: parsed.unit ?? null,
+        savedAt: parsed.savedAt ?? 0,
+      };
+    } catch {
+      return null;
+    }
+  }, [activeConversationStorageKey]);
+
+  const clearLastActiveConversation = useCallback(() => {
+    try {
+      localStorage.removeItem(activeConversationStorageKey);
+    } catch {
+      // ignore storage errors
+    }
+  }, [activeConversationStorageKey]);
+
+  const persistActiveConversation = useCallback((conversation: Conversation) => {
+    try {
+      const unit = selectedInstance?.id === conversation.instance_id
+        ? selectedInstance.unit
+        : instances.find((instance) => instance.id === conversation.instance_id)?.unit ?? selectedInstance?.unit ?? null;
+
+      localStorage.setItem(activeConversationStorageKey, JSON.stringify({
+        conversationId: conversation.id,
+        instanceId: conversation.instance_id,
+        unit,
+        savedAt: Date.now(),
+      } satisfies StoredActiveConversation));
+    } catch {
+      // ignore storage errors
+    }
+  }, [activeConversationStorageKey, instances, selectedInstance?.id, selectedInstance?.unit]);
+
   const pickBestInstance = useCallback((list: WapiInstance[], countsMap = instanceConversationCounts) => {
     return [...list].sort((a, b) => {
       // Active instances first (is_active !== false)
@@ -561,12 +617,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const match = pickBestInstance(instances.filter(i => i.unit === externalSelectedUnit));
       if (match && match.id !== selectedInstance?.id) {
         setSelectedInstance(match);
+        clearLastActiveConversation();
         setSelectedConversation(null);
         setMessages([]);
         setConversations([]);
       }
     }
-  }, [externalSelectedUnit, instances, selectedInstance?.id, pickBestInstance]);
+  }, [externalSelectedUnit, instances, selectedInstance?.id, pickBestInstance, clearLastActiveConversation]);
 
   const [hasUserScrolledToTop, setHasUserScrolledToTop] = useState(false); // Track if user manually scrolled to top
   const [isAtBottom, setIsAtBottom] = useState(true); // Track if scroll is at bottom (for scroll-to-bottom button visibility)
