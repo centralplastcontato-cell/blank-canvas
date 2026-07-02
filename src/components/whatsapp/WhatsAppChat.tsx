@@ -986,7 +986,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
   }, [getConversationScrollStorageKey]);
 
-  const saveConversationScroll = useCallback((conversationId: string | null = selectedConversationRef.current) => {
+  const saveConversationScroll = useCallback((conversationId: string | null = activeConversationIdRef.current) => {
     if (!conversationId) return;
     const viewport = getActiveMessagesViewport();
     if (!viewport || viewport.clientHeight === 0) return;
