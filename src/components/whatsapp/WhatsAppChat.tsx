@@ -1940,12 +1940,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const conversationId = selectedConversation?.id;
     const messagesLength = messages.length;
     
-    // When messages load for a NEW conversation, scroll to bottom immediately (no animation)
+    // When messages load for a NEW conversation, restore the operator's last reading
+    // position first. Only fall back to bottom for chats without a saved position.
     if (conversationId && messagesLength > 0 && pendingScrollConversationRef.current !== conversationId) {
       pendingScrollConversationRef.current = conversationId;
+      if (restoreConversationScroll(conversationId)) {
+        skipNextMessageAutoScrollRef.current = conversationId;
+        return;
+      }
       forceScrollToBottom(false); // behavior: 'auto' for instant scroll on open
     }
-  }, [selectedConversation?.id, messages.length, forceScrollToBottom]);
+  }, [selectedConversation?.id, messages.length, forceScrollToBottom, restoreConversationScroll]);
   
   // Effect for new incoming/outgoing messages (WhatsApp-style behavior)
   useEffect(() => {
@@ -1955,6 +1960,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const isFromMe = lastMessage?.from_me;
     
     if (isNewMessage && messagesLength > 0 && !isLoadingMoreRef.current) {
+      if (selectedConversation?.id && skipNextMessageAutoScrollRef.current === selectedConversation.id) {
+        skipNextMessageAutoScrollRef.current = null;
+        prevMessagesLengthRef.current = messagesLength;
+        lastMessageFromMeRef.current = isFromMe || false;
+        return;
+      }
       // Always scroll for my sent messages
       // For incoming messages, only scroll if user is near bottom
       if (isFromMe || isAtBottomRef.current) {
@@ -1965,7 +1976,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     
     prevMessagesLengthRef.current = messagesLength;
     lastMessageFromMeRef.current = isFromMe || false;
-  }, [messages, forceScrollToBottom]);
+  }, [messages, forceScrollToBottom, selectedConversation?.id]);
   
   // Reset pending scroll conversation when changing conversations
   useEffect(() => {
