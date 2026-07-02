@@ -219,11 +219,23 @@ interface Conversation {
 const isConnectedStatus = (status: string | null | undefined) => status === 'connected' || status === 'degraded';
 
 const ACTIVE_CONVERSATION_STORAGE_PREFIX = 'whatsapp:last-active-conversation';
+const CONVERSATION_SCROLL_STORAGE_PREFIX = 'whatsapp:conversation-scroll';
 
 type StoredActiveConversation = {
   conversationId: string;
   instanceId: string;
   unit: string | null;
+  savedAt: number;
+};
+
+type StoredConversationScroll = {
+  conversationId: string;
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+  isAtBottom: boolean;
+  anchorMessageId: string | null;
+  anchorOffsetTop: number;
   savedAt: number;
 };
 
@@ -529,6 +541,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const activeConversationStorageKey = useMemo(() => {
     const companyId = currentCompany?.id || getCurrentCompanyId();
     return `${ACTIVE_CONVERSATION_STORAGE_PREFIX}:${companyId}:${userId}`;
+  }, [currentCompany?.id, userId]);
+
+  const conversationScrollStoragePrefix = useMemo(() => {
+    const companyId = currentCompany?.id || getCurrentCompanyId();
+    return `${CONVERSATION_SCROLL_STORAGE_PREFIX}:${companyId}:${userId}`;
   }, [currentCompany?.id, userId]);
 
   const readLastActiveConversation = useCallback((): StoredActiveConversation | null => {
@@ -932,6 +949,105 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const videoInputRef = useRef<HTMLInputElement>(null);
   const messageTextareaRef = useRef<HTMLTextAreaElement>(null);
   const isLoadingMoreRef = useRef(false);
+  const scrollSaveRafRef = useRef<number | null>(null);
+  const skipNextMessageAutoScrollRef = useRef<string | null>(null);
+
+  const getActiveMessagesViewport = useCallback((): HTMLElement | null => {
+    const desktopViewport = scrollAreaDesktopRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+    const mobileViewport = scrollAreaMobileRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+    if (desktopViewport && desktopViewport.clientHeight > 0) return desktopViewport;
+    if (mobileViewport && mobileViewport.clientHeight > 0) return mobileViewport;
+    return desktopViewport || mobileViewport;
+  }, []);
+
+  const getConversationScrollStorageKey = useCallback((conversationId: string) => {
+    return `${conversationScrollStoragePrefix}:${conversationId}`;
+  }, [conversationScrollStoragePrefix]);
+
+  const readConversationScroll = useCallback((conversationId: string): StoredConversationScroll | null => {
+    try {
+      const raw = sessionStorage.getItem(getConversationScrollStorageKey(conversationId));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as Partial<StoredConversationScroll>;
+      if (!parsed.conversationId || parsed.conversationId !== conversationId) return null;
+      if (parsed.savedAt && Date.now() - parsed.savedAt > 12 * 60 * 60 * 1000) return null;
+      return {
+        conversationId,
+        scrollTop: Number(parsed.scrollTop) || 0,
+        scrollHeight: Number(parsed.scrollHeight) || 0,
+        clientHeight: Number(parsed.clientHeight) || 0,
+        isAtBottom: Boolean(parsed.isAtBottom),
+        anchorMessageId: parsed.anchorMessageId ?? null,
+        anchorOffsetTop: Number(parsed.anchorOffsetTop) || 0,
+        savedAt: parsed.savedAt ?? 0,
+      };
+    } catch {
+      return null;
+    }
+  }, [getConversationScrollStorageKey]);
+
+  const saveConversationScroll = useCallback((conversationId: string | null = selectedConversationRef.current) => {
+    if (!conversationId) return;
+    const viewport = getActiveMessagesViewport();
+    if (!viewport || viewport.clientHeight === 0) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = viewport;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight <= 120;
+    const viewportRect = viewport.getBoundingClientRect();
+    const messageElements = Array.from(viewport.querySelectorAll<HTMLElement>('[id^="msg-"]'));
+    const anchorElement = messageElements.find((element) => element.getBoundingClientRect().bottom >= viewportRect.top + 8) || null;
+    const anchorMessageId = anchorElement?.id.replace(/^msg-/, '') || null;
+    const anchorOffsetTop = anchorElement ? anchorElement.getBoundingClientRect().top - viewportRect.top : 0;
+
+    try {
+      sessionStorage.setItem(getConversationScrollStorageKey(conversationId), JSON.stringify({
+        conversationId,
+        scrollTop,
+        scrollHeight,
+        clientHeight,
+        isAtBottom: isNearBottom,
+        anchorMessageId,
+        anchorOffsetTop,
+        savedAt: Date.now(),
+      } satisfies StoredConversationScroll));
+    } catch {
+      // ignore storage errors
+    }
+  }, [getActiveMessagesViewport, getConversationScrollStorageKey]);
+
+  const restoreConversationScroll = useCallback((conversationId: string): boolean => {
+    const savedScroll = readConversationScroll(conversationId);
+    if (!savedScroll || savedScroll.isAtBottom) return false;
+
+    const restore = () => {
+      const viewport = getActiveMessagesViewport();
+      if (!viewport) return;
+
+      const anchorElement = savedScroll.anchorMessageId
+        ? document.getElementById(`msg-${savedScroll.anchorMessageId}`)
+        : null;
+
+      if (anchorElement) {
+        anchorElement.scrollIntoView({ behavior: 'auto', block: 'start' });
+        viewport.scrollTop += savedScroll.anchorOffsetTop;
+      } else {
+        const maxScrollTop = Math.max(viewport.scrollHeight - viewport.clientHeight, 0);
+        const proportionalTop = savedScroll.scrollHeight > savedScroll.clientHeight
+          ? (savedScroll.scrollTop / (savedScroll.scrollHeight - savedScroll.clientHeight)) * maxScrollTop
+          : savedScroll.scrollTop;
+        viewport.scrollTop = Math.max(0, Math.min(proportionalTop, maxScrollTop));
+      }
+
+      const nearBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= 120;
+      setIsAtBottom(nearBottom);
+      if (nearBottom) setUnreadNewMessagesCount(0);
+    };
+
+    restore();
+    requestAnimationFrame(restore);
+    [80, 250, 600].forEach((delay) => setTimeout(restore, delay));
+    return true;
+  }, [getActiveMessagesViewport, readConversationScroll]);
 
   // Audio recording hook
   const {
