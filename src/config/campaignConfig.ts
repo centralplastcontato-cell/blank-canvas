@@ -11,19 +11,27 @@ export const campaignConfig = {
 
   // OFERTA PRINCIPAL
   offer: {
-    headline: "Conheça o Castelo da Diversão",
-    description: "Agende uma visita de 15 minutos e descubra por que somos referência em festas infantis em Sorocaba.",
+    headline: "Feche sua festa até 18/07 e ganhe 2 bônus incríveis",
+    description: "Garanta a data da festa do seu filho até 18 de julho e leve rodízio de mini pizza + decoração completa, sem custo extra.",
     benefits: [
-      "Estrutura completa para sua festa",
-      "Equipe especializada e dedicada",
-      "Cardápio variado para todas as idades",
-      "Ambiente seguro e preparado para crianças",
+      "🍕 Rodízio de mini pizza incluso",
+      "✨ Decoração linda e completa",
+      "🏰 Estrutura completa do Castelo da Diversão",
+      "🎯 Atendimento personalizado e dedicado",
     ],
-    validUntil: "",
+    validUntil: "18/07/2026",
     conditions: [
-      "Visita rápida de 15 minutos com horário agendado",
-      "Atendimento personalizado por nossa equipe comercial",
+      "Válido para festas fechadas até 18/07/2026",
+      "Consulte disponibilidade de datas com nossa equipe",
     ],
+  },
+
+  // URGÊNCIA
+  urgency: {
+    message: "Feche sua festa até 18/07 e ganhe 2 bônus",
+    spotsLeft: 0,
+    deadline: "Promoção válida até 18 de julho",
+    endDate: "2026-07-18T23:59:59",
   },
 
   // URGÊNCIA
