@@ -1,5 +1,5 @@
 import logoCastelo from "@/assets/logo-castelo.png";
-import { Instagram, Facebook, MessageCircle, MapPin, Building2 } from "lucide-react";
+import { Instagram, Facebook, MessageCircle, MapPin, Building2, Clock, Phone } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export function Footer() {
