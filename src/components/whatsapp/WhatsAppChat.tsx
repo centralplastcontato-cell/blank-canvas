@@ -2661,6 +2661,39 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
   };
 
+  useEffect(() => {
+    const conversationId = selectedConversation?.id;
+    if (!conversationId || messages.length === 0) return;
+
+    const savedScroll = readConversationScroll(conversationId);
+    if (!savedScroll || savedScroll.isAtBottom || !savedScroll.anchorMessageId) return;
+
+    const anchorElement = document.getElementById(`msg-${savedScroll.anchorMessageId}`);
+    if (anchorElement) {
+      scrollRestoreLoadingRef.current = false;
+      scrollRestoreAttemptsRef.current = 0;
+      restoreConversationScroll(conversationId);
+      return;
+    }
+
+    if (
+      !hasMoreMessages ||
+      isLoadingMoreRef.current ||
+      scrollRestoreLoadingRef.current ||
+      scrollRestoreAttemptsRef.current >= 12
+    ) {
+      return;
+    }
+
+    scrollRestoreLoadingRef.current = true;
+    scrollRestoreAttemptsRef.current += 1;
+    void loadMoreMessages(false).finally(() => {
+      setTimeout(() => {
+        scrollRestoreLoadingRef.current = false;
+      }, 80);
+    });
+  }, [selectedConversation?.id, messages.length, hasMoreMessages, readConversationScroll, restoreConversationScroll]);
+
   const fetchLinkedLead = async (leadId: string | null, conversation?: Conversation | null) => {
     if (leadId) {
       // Lead already linked, just fetch it
