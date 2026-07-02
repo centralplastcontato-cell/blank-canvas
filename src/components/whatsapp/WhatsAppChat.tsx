@@ -534,6 +534,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [isLoadingMoreMessages, setIsLoadingMoreMessages] = useState(false);
   const [oldestMessageTimestamp, setOldestMessageTimestamp] = useState<string | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const oldestMessageTimestampRef = useRef<string | null>(null);
   const externalSelectedUnitRef = useRef(externalSelectedUnit);
   externalSelectedUnitRef.current = externalSelectedUnit;
   const previousExternalSelectedUnitRef = useRef<string | null | undefined>(externalSelectedUnit);
@@ -951,6 +952,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const isLoadingMoreRef = useRef(false);
   const scrollSaveRafRef = useRef<number | null>(null);
   const skipNextMessageAutoScrollRef = useRef<string | null>(null);
+  const scrollRestoreLoadingRef = useRef(false);
+  const scrollRestoreAttemptsRef = useRef(0);
 
   const getActiveMessagesViewport = useCallback((): HTMLElement | null => {
     const desktopViewport = scrollAreaDesktopRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
@@ -966,7 +969,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
   const readConversationScroll = useCallback((conversationId: string): StoredConversationScroll | null => {
     try {
-      const raw = sessionStorage.getItem(getConversationScrollStorageKey(conversationId));
+      const key = getConversationScrollStorageKey(conversationId);
+      const raw = localStorage.getItem(key) || sessionStorage.getItem(key);
       if (!raw) return null;
       const parsed = JSON.parse(raw) as Partial<StoredConversationScroll>;
       if (!parsed.conversationId || parsed.conversationId !== conversationId) return null;
@@ -1000,7 +1004,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const anchorOffsetTop = anchorElement ? anchorElement.getBoundingClientRect().top - viewportRect.top : 0;
 
     try {
-      sessionStorage.setItem(getConversationScrollStorageKey(conversationId), JSON.stringify({
+      localStorage.setItem(getConversationScrollStorageKey(conversationId), JSON.stringify({
         conversationId,
         scrollTop,
         scrollHeight,
@@ -1808,6 +1812,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         setIsLoadingMessages(true);
         setHasMoreMessages(true);
         setOldestMessageTimestamp(null);
+        oldestMessageTimestampRef.current = null;
         setIsInitialLoad(true);
         setHasUserScrolledToTop(false);
         setIsAtBottom(true);
@@ -2569,6 +2574,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         // Update cursor with oldest message timestamp
         const oldestMsg = orderedMessages[0];
         setOldestMessageTimestamp(oldestMsg.timestamp);
+        oldestMessageTimestampRef.current = oldestMsg.timestamp;
         
         // Check if there are more messages
         const moreAvailable = data.length >= MESSAGES_LIMIT;
@@ -2623,7 +2629,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
   };
   
-  const loadMoreMessages = async () => {
+  const loadMoreMessages = async (preserveScrollPosition = true) => {
     if (selectedConversation && !isLoadingMoreRef.current && hasMoreMessages) {
       // Get viewport and save scroll position before loading
       const viewport = scrollAreaDesktopRef.current?.querySelector('[data-radix-scroll-area-viewport]') 
@@ -2635,7 +2641,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       await fetchMessages(selectedConversation.id, true);
       
       // Restore scroll position after messages are prepended - use double rAF for Safari
-      if (viewport) {
+      if (viewport && preserveScrollPosition) {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             const newScrollHeight = viewport.scrollHeight;
@@ -2645,9 +2651,48 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             isLoadingMoreRef.current = false;
           });
         });
+      } else {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            isLoadingMoreRef.current = false;
+          });
+        });
       }
     }
   };
+
+  useEffect(() => {
+    const conversationId = selectedConversation?.id;
+    if (!conversationId || messages.length === 0) return;
+
+    const savedScroll = readConversationScroll(conversationId);
+    if (!savedScroll || savedScroll.isAtBottom || !savedScroll.anchorMessageId) return;
+
+    const anchorElement = document.getElementById(`msg-${savedScroll.anchorMessageId}`);
+    if (anchorElement) {
+      scrollRestoreLoadingRef.current = false;
+      scrollRestoreAttemptsRef.current = 0;
+      restoreConversationScroll(conversationId);
+      return;
+    }
+
+    if (
+      !hasMoreMessages ||
+      isLoadingMoreRef.current ||
+      scrollRestoreLoadingRef.current ||
+      scrollRestoreAttemptsRef.current >= 12
+    ) {
+      return;
+    }
+
+    scrollRestoreLoadingRef.current = true;
+    scrollRestoreAttemptsRef.current += 1;
+    void loadMoreMessages(false).finally(() => {
+      setTimeout(() => {
+        scrollRestoreLoadingRef.current = false;
+      }, 80);
+    });
+  }, [selectedConversation?.id, messages.length, hasMoreMessages, readConversationScroll, restoreConversationScroll]);
 
   const fetchLinkedLead = async (leadId: string | null, conversation?: Conversation | null) => {
     if (leadId) {
