@@ -2629,7 +2629,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
   };
   
-  const loadMoreMessages = async () => {
+  const loadMoreMessages = async (preserveScrollPosition = true) => {
     if (selectedConversation && !isLoadingMoreRef.current && hasMoreMessages) {
       // Get viewport and save scroll position before loading
       const viewport = scrollAreaDesktopRef.current?.querySelector('[data-radix-scroll-area-viewport]') 
@@ -2641,13 +2641,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       await fetchMessages(selectedConversation.id, true);
       
       // Restore scroll position after messages are prepended - use double rAF for Safari
-      if (viewport) {
+      if (viewport && preserveScrollPosition) {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             const newScrollHeight = viewport.scrollHeight;
             const scrollDiff = newScrollHeight - previousScrollHeight;
             viewport.scrollTop = previousScrollTop + scrollDiff;
             // Reset flag AFTER scroll restoration so auto-scroll effect doesn't fire in between
+            isLoadingMoreRef.current = false;
+          });
+        });
+      } else {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
             isLoadingMoreRef.current = false;
           });
         });
