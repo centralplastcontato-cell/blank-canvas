@@ -34,13 +34,6 @@ export const campaignConfig = {
     endDate: "2026-07-18T23:59:59",
   },
 
-  // URGÊNCIA
-  urgency: {
-    message: "Garanta a data da festa do seu filho",
-    spotsLeft: 0,
-    deadline: "Datas se esgotam rapidamente",
-    endDate: "2026-06-11T23:59:59",
-  },
 
   // CHATBOT - Opções configuráveis
   chatbot: {
