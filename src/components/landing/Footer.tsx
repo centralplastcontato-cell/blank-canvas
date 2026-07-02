@@ -50,6 +50,39 @@ export function Footer() {
             </a>
           </div>
 
+          <div className="grid sm:grid-cols-3 gap-6 text-left max-w-3xl mx-auto mb-8 text-sm">
+            <div className="flex items-start gap-3">
+              <MapPin size={18} className="mt-0.5 flex-shrink-0 text-white/70" />
+              <div>
+                <p className="font-semibold text-white mb-1">Endereço</p>
+                <address className="not-italic text-white/70 leading-relaxed">
+                  Avenida General Osório, 1442<br />
+                  Trujillo, Sorocaba/SP
+                </address>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <Clock size={18} className="mt-0.5 flex-shrink-0 text-white/70" />
+              <div>
+                <p className="font-semibold text-white mb-1">Horário</p>
+                <p className="text-white/70 leading-relaxed">
+                  Seg a Sex: 9h às 18h<br />
+                  Sábado: 9h às 13h
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <Phone size={18} className="mt-0.5 flex-shrink-0 text-white/70" />
+              <div>
+                <p className="font-semibold text-white mb-1">WhatsApp</p>
+                <a href="https://wa.me/5515974034646" className="text-white/70 hover:text-white transition-colors">
+                  (15) 97403-4646
+                </a>
+              </div>
+            </div>
+          </div>
+
+
           <div className="border-t border-white/20 pt-6">
             <div className="mb-4">
               <Link
