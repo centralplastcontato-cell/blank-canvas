@@ -969,7 +969,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
   const readConversationScroll = useCallback((conversationId: string): StoredConversationScroll | null => {
     try {
-      const raw = localStorage.getItem(getConversationScrollStorageKey(conversationId));
+      const key = getConversationScrollStorageKey(conversationId);
+      const raw = localStorage.getItem(key) || sessionStorage.getItem(key);
       if (!raw) return null;
       const parsed = JSON.parse(raw) as Partial<StoredConversationScroll>;
       if (!parsed.conversationId || parsed.conversationId !== conversationId) return null;
