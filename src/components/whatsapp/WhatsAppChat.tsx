@@ -2027,6 +2027,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       if (scrollTop < 80 && hasMoreMessages && !isLoadingMoreRef.current && !isInitialLoad && messages.length > 0 && canLoadMoreRef.current) {
         loadMoreMessages();
       }
+
+      if (scrollSaveRafRef.current !== null) {
+        cancelAnimationFrame(scrollSaveRafRef.current);
+      }
+      scrollSaveRafRef.current = requestAnimationFrame(() => {
+        saveConversationScroll();
+        scrollSaveRafRef.current = null;
+      });
     };
     
     // Add listeners with passive flag for performance
@@ -2036,8 +2044,39 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     return () => {
       desktopViewport?.removeEventListener('scroll', handleScroll);
       mobileViewport?.removeEventListener('scroll', handleScroll);
+      if (scrollSaveRafRef.current !== null) {
+        cancelAnimationFrame(scrollSaveRafRef.current);
+        scrollSaveRafRef.current = null;
+      }
     };
-  }, [hasMoreMessages, isInitialLoad, messages.length]);
+  }, [hasMoreMessages, isInitialLoad, messages.length, saveConversationScroll]);
+
+  useEffect(() => {
+    const persistCurrentScroll = () => saveConversationScroll();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        persistCurrentScroll();
+      } else if (selectedConversationRef.current) {
+        requestAnimationFrame(() => restoreConversationScroll(selectedConversationRef.current!));
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', persistCurrentScroll);
+    window.addEventListener('pagehide', persistCurrentScroll);
+    window.addEventListener('focus', () => {
+      if (selectedConversationRef.current) {
+        requestAnimationFrame(() => restoreConversationScroll(selectedConversationRef.current!));
+      }
+    });
+
+    return () => {
+      persistCurrentScroll();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', persistCurrentScroll);
+      window.removeEventListener('pagehide', persistCurrentScroll);
+    };
+  }, [restoreConversationScroll, saveConversationScroll]);
 
   const fetchInstances = async (retryCount = 0) => {
     setIsLoading(true);
