@@ -534,6 +534,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [isLoadingMoreMessages, setIsLoadingMoreMessages] = useState(false);
   const [oldestMessageTimestamp, setOldestMessageTimestamp] = useState<string | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const oldestMessageTimestampRef = useRef<string | null>(null);
   const externalSelectedUnitRef = useRef(externalSelectedUnit);
   externalSelectedUnitRef.current = externalSelectedUnit;
   const previousExternalSelectedUnitRef = useRef<string | null | undefined>(externalSelectedUnit);
@@ -951,6 +952,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const isLoadingMoreRef = useRef(false);
   const scrollSaveRafRef = useRef<number | null>(null);
   const skipNextMessageAutoScrollRef = useRef<string | null>(null);
+  const scrollRestoreLoadingRef = useRef(false);
+  const scrollRestoreAttemptsRef = useRef(0);
 
   const getActiveMessagesViewport = useCallback((): HTMLElement | null => {
     const desktopViewport = scrollAreaDesktopRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
@@ -966,7 +969,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
   const readConversationScroll = useCallback((conversationId: string): StoredConversationScroll | null => {
     try {
-      const raw = sessionStorage.getItem(getConversationScrollStorageKey(conversationId));
+      const raw = localStorage.getItem(getConversationScrollStorageKey(conversationId));
       if (!raw) return null;
       const parsed = JSON.parse(raw) as Partial<StoredConversationScroll>;
       if (!parsed.conversationId || parsed.conversationId !== conversationId) return null;
@@ -1000,7 +1003,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const anchorOffsetTop = anchorElement ? anchorElement.getBoundingClientRect().top - viewportRect.top : 0;
 
     try {
-      sessionStorage.setItem(getConversationScrollStorageKey(conversationId), JSON.stringify({
+      localStorage.setItem(getConversationScrollStorageKey(conversationId), JSON.stringify({
         conversationId,
         scrollTop,
         scrollHeight,
