@@ -1812,6 +1812,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         setIsLoadingMessages(true);
         setHasMoreMessages(true);
         setOldestMessageTimestamp(null);
+        oldestMessageTimestampRef.current = null;
         setIsInitialLoad(true);
         setHasUserScrolledToTop(false);
         setIsAtBottom(true);
@@ -2573,6 +2574,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         // Update cursor with oldest message timestamp
         const oldestMsg = orderedMessages[0];
         setOldestMessageTimestamp(oldestMsg.timestamp);
+        oldestMessageTimestampRef.current = oldestMsg.timestamp;
         
         // Check if there are more messages
         const moreAvailable = data.length >= MESSAGES_LIMIT;
