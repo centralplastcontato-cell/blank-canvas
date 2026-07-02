@@ -59,22 +59,22 @@ export function DLPPromoSection({ theme, onCtaClick }: DLPPromoSectionProps) {
           transition={{ duration: 0.6 }}
           className="text-center mb-14"
         >
-          {/* Copa badge */}
+          {/* Promo badge */}
           <div className="flex justify-center mb-4">
             <span
               className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold uppercase tracking-wider shadow-md text-white"
-              style={{ background: `linear-gradient(110deg, ${COPA_GREEN}, #008000)` }}
+              style={{ background: `linear-gradient(110deg, ${PROMO_DARK}, #A83259)` }}
             >
-              ⚽ Promoção Pré-Copa 2026
+              🍕 Promoção especial · até 18/07
             </span>
           </div>
 
           <span
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-wider mb-5 shadow-sm"
-            style={{ backgroundColor: `${COPA_YELLOW}30`, color: COPA_GREEN }}
+            style={{ backgroundColor: `${PROMO_GOLD}30`, color: PROMO_DARK }}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Condições especiais por tempo limitado
+            Rodízio de mini pizza + decoração inclusos
           </span>
           <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-4 leading-tight">
             Tudo pensado para a sua festa{" "}
