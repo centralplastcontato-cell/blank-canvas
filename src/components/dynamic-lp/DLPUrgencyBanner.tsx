@@ -11,8 +11,8 @@ import type { LPTheme } from "@/types/landing-page";
 // Para alterar o texto: mude MESSAGE
 // =====================================================================
 const ENABLED = true;
-const DEADLINE = "2026-06-11T23:59:59";
-const MESSAGE = "⚽ Promoção Pré-Copa 2026 — feche sua festa e ganhe +10 convidados grátis";
+const DEADLINE = "2026-07-18T23:59:59";
+const MESSAGE = "🍕 Feche sua festa até 18/07 e ganhe Rodízio de Mini Pizza + Decoração completa";
 
 interface DLPUrgencyBannerProps {
   theme: LPTheme;
