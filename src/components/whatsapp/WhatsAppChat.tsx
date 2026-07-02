@@ -2060,21 +2060,23 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         requestAnimationFrame(() => restoreConversationScroll(selectedConversationRef.current!));
       }
     };
+    const handleWindowFocus = () => {
+      if (selectedConversationRef.current) {
+        requestAnimationFrame(() => restoreConversationScroll(selectedConversationRef.current!));
+      }
+    };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('blur', persistCurrentScroll);
     window.addEventListener('pagehide', persistCurrentScroll);
-    window.addEventListener('focus', () => {
-      if (selectedConversationRef.current) {
-        requestAnimationFrame(() => restoreConversationScroll(selectedConversationRef.current!));
-      }
-    });
+    window.addEventListener('focus', handleWindowFocus);
 
     return () => {
       persistCurrentScroll();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('blur', persistCurrentScroll);
       window.removeEventListener('pagehide', persistCurrentScroll);
+      window.removeEventListener('focus', handleWindowFocus);
     };
   }, [restoreConversationScroll, saveConversationScroll]);
 
