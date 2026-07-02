@@ -1,9 +1,9 @@
 import { motion } from "framer-motion";
-import { Gift, CreditCard, CalendarCheck, Sparkles } from "lucide-react";
+import { Pizza, Sparkles, CalendarCheck } from "lucide-react";
 import type { LPTheme } from "@/types/landing-page";
 
-const COPA_GREEN = "#006400";
-const COPA_YELLOW = "#FFD700";
+const PROMO_DARK = "#7A1F3D";
+const PROMO_GOLD = "#FFD700";
 
 interface DLPPromoSectionProps {
   theme: LPTheme;
@@ -12,25 +12,25 @@ interface DLPPromoSectionProps {
 
 const benefits = [
   {
-    icon: Gift,
-    badge: "Bônus exclusivo",
-    title: "+10 convidados",
-    suffix: "grátis",
-    description: "Feche sua festa e ganhe 10 convidados a mais, sem custo adicional.",
-  },
-  {
-    icon: CreditCard,
-    badge: "Facilidade",
-    title: "12x",
-    suffix: "sem juros",
-    description: "Parcele o valor da sua festa em até 12 vezes no cartão, sem juros.",
-  },
-  {
     icon: CalendarCheck,
-    badge: "Novidade",
-    title: "Agenda 2027",
-    suffix: "já aberta",
-    description: "Garanta a data ideal com antecedência — as melhores datas saem primeiro.",
+    badge: "Prazo especial",
+    title: "Até 18/07",
+    suffix: "para fechar",
+    description: "Feche a festa do seu filho até 18 de julho e garanta os dois bônus abaixo, sem custo extra.",
+  },
+  {
+    icon: Pizza,
+    badge: "Bônus 1",
+    title: "Rodízio",
+    suffix: "de mini pizza",
+    description: "Delicioso rodízio de mini pizza incluso no seu evento — as crianças e os adultos amam!",
+  },
+  {
+    icon: Sparkles,
+    badge: "Bônus 2",
+    title: "Decoração",
+    suffix: "linda e completa",
+    description: "Ganhe uma decoração temática linda para deixar sua festa ainda mais inesquecível.",
   },
 ];
 
