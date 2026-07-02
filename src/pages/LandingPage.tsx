@@ -10,6 +10,7 @@ import { UrgencySection } from "@/components/landing/UrgencySection";
 import { LeadChatbot } from "@/components/landing/LeadChatbot";
 import { FloatingCTA } from "@/components/landing/FloatingCTA";
 import { Footer } from "@/components/landing/Footer";
+import { LocationSection } from "@/components/landing/LocationSection";
 import { BackgroundMusic } from "@/components/landing/BackgroundMusic";
 import { DLPPromoSection } from "@/components/dynamic-lp/DLPPromoSection";
 import { DLPUrgencyBanner } from "@/components/dynamic-lp/DLPUrgencyBanner";
