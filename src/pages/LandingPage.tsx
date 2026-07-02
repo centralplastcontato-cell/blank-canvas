@@ -62,6 +62,7 @@ const LandingPage = () => {
       <VideoGallerySection />
       <UrgencySection onCtaClick={openChat} />
       <InstagramSection />
+      <LocationSection />
       <Footer />
       
       <FloatingCTA onClick={openChat} />
