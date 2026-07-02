@@ -219,11 +219,23 @@ interface Conversation {
 const isConnectedStatus = (status: string | null | undefined) => status === 'connected' || status === 'degraded';
 
 const ACTIVE_CONVERSATION_STORAGE_PREFIX = 'whatsapp:last-active-conversation';
+const CONVERSATION_SCROLL_STORAGE_PREFIX = 'whatsapp:conversation-scroll';
 
 type StoredActiveConversation = {
   conversationId: string;
   instanceId: string;
   unit: string | null;
+  savedAt: number;
+};
+
+type StoredConversationScroll = {
+  conversationId: string;
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+  isAtBottom: boolean;
+  anchorMessageId: string | null;
+  anchorOffsetTop: number;
   savedAt: number;
 };
 
@@ -529,6 +541,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const activeConversationStorageKey = useMemo(() => {
     const companyId = currentCompany?.id || getCurrentCompanyId();
     return `${ACTIVE_CONVERSATION_STORAGE_PREFIX}:${companyId}:${userId}`;
+  }, [currentCompany?.id, userId]);
+
+  const conversationScrollStoragePrefix = useMemo(() => {
+    const companyId = currentCompany?.id || getCurrentCompanyId();
+    return `${CONVERSATION_SCROLL_STORAGE_PREFIX}:${companyId}:${userId}`;
   }, [currentCompany?.id, userId]);
 
   const readLastActiveConversation = useCallback((): StoredActiveConversation | null => {
@@ -932,6 +949,105 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const videoInputRef = useRef<HTMLInputElement>(null);
   const messageTextareaRef = useRef<HTMLTextAreaElement>(null);
   const isLoadingMoreRef = useRef(false);
+  const scrollSaveRafRef = useRef<number | null>(null);
+  const skipNextMessageAutoScrollRef = useRef<string | null>(null);
+
+  const getActiveMessagesViewport = useCallback((): HTMLElement | null => {
+    const desktopViewport = scrollAreaDesktopRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+    const mobileViewport = scrollAreaMobileRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+    if (desktopViewport && desktopViewport.clientHeight > 0) return desktopViewport;
+    if (mobileViewport && mobileViewport.clientHeight > 0) return mobileViewport;
+    return desktopViewport || mobileViewport;
+  }, []);
+
+  const getConversationScrollStorageKey = useCallback((conversationId: string) => {
+    return `${conversationScrollStoragePrefix}:${conversationId}`;
+  }, [conversationScrollStoragePrefix]);
+
+  const readConversationScroll = useCallback((conversationId: string): StoredConversationScroll | null => {
+    try {
+      const raw = sessionStorage.getItem(getConversationScrollStorageKey(conversationId));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as Partial<StoredConversationScroll>;
+      if (!parsed.conversationId || parsed.conversationId !== conversationId) return null;
+      if (parsed.savedAt && Date.now() - parsed.savedAt > 12 * 60 * 60 * 1000) return null;
+      return {
+        conversationId,
+        scrollTop: Number(parsed.scrollTop) || 0,
+        scrollHeight: Number(parsed.scrollHeight) || 0,
+        clientHeight: Number(parsed.clientHeight) || 0,
+        isAtBottom: Boolean(parsed.isAtBottom),
+        anchorMessageId: parsed.anchorMessageId ?? null,
+        anchorOffsetTop: Number(parsed.anchorOffsetTop) || 0,
+        savedAt: parsed.savedAt ?? 0,
+      };
+    } catch {
+      return null;
+    }
+  }, [getConversationScrollStorageKey]);
+
+  const saveConversationScroll = useCallback((conversationId: string | null = activeConversationIdRef.current) => {
+    if (!conversationId) return;
+    const viewport = getActiveMessagesViewport();
+    if (!viewport || viewport.clientHeight === 0) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = viewport;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight <= 120;
+    const viewportRect = viewport.getBoundingClientRect();
+    const messageElements = Array.from(viewport.querySelectorAll<HTMLElement>('[id^="msg-"]'));
+    const anchorElement = messageElements.find((element) => element.getBoundingClientRect().bottom >= viewportRect.top + 8) || null;
+    const anchorMessageId = anchorElement?.id.replace(/^msg-/, '') || null;
+    const anchorOffsetTop = anchorElement ? anchorElement.getBoundingClientRect().top - viewportRect.top : 0;
+
+    try {
+      sessionStorage.setItem(getConversationScrollStorageKey(conversationId), JSON.stringify({
+        conversationId,
+        scrollTop,
+        scrollHeight,
+        clientHeight,
+        isAtBottom: isNearBottom,
+        anchorMessageId,
+        anchorOffsetTop,
+        savedAt: Date.now(),
+      } satisfies StoredConversationScroll));
+    } catch {
+      // ignore storage errors
+    }
+  }, [getActiveMessagesViewport, getConversationScrollStorageKey]);
+
+  const restoreConversationScroll = useCallback((conversationId: string): boolean => {
+    const savedScroll = readConversationScroll(conversationId);
+    if (!savedScroll || savedScroll.isAtBottom) return false;
+
+    const restore = () => {
+      const viewport = getActiveMessagesViewport();
+      if (!viewport) return;
+
+      const anchorElement = savedScroll.anchorMessageId
+        ? document.getElementById(`msg-${savedScroll.anchorMessageId}`)
+        : null;
+
+      if (anchorElement) {
+        anchorElement.scrollIntoView({ behavior: 'auto', block: 'start' });
+        viewport.scrollTop += savedScroll.anchorOffsetTop;
+      } else {
+        const maxScrollTop = Math.max(viewport.scrollHeight - viewport.clientHeight, 0);
+        const proportionalTop = savedScroll.scrollHeight > savedScroll.clientHeight
+          ? (savedScroll.scrollTop / (savedScroll.scrollHeight - savedScroll.clientHeight)) * maxScrollTop
+          : savedScroll.scrollTop;
+        viewport.scrollTop = Math.max(0, Math.min(proportionalTop, maxScrollTop));
+      }
+
+      const nearBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= 120;
+      setIsAtBottom(nearBottom);
+      if (nearBottom) setUnreadNewMessagesCount(0);
+    };
+
+    restore();
+    requestAnimationFrame(restore);
+    [80, 250, 600].forEach((delay) => setTimeout(restore, delay));
+    return true;
+  }, [getActiveMessagesViewport, readConversationScroll]);
 
   // Audio recording hook
   const {
@@ -1824,12 +1940,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const conversationId = selectedConversation?.id;
     const messagesLength = messages.length;
     
-    // When messages load for a NEW conversation, scroll to bottom immediately (no animation)
+    // When messages load for a NEW conversation, restore the operator's last reading
+    // position first. Only fall back to bottom for chats without a saved position.
     if (conversationId && messagesLength > 0 && pendingScrollConversationRef.current !== conversationId) {
       pendingScrollConversationRef.current = conversationId;
+      if (restoreConversationScroll(conversationId)) {
+        skipNextMessageAutoScrollRef.current = conversationId;
+        return;
+      }
       forceScrollToBottom(false); // behavior: 'auto' for instant scroll on open
     }
-  }, [selectedConversation?.id, messages.length, forceScrollToBottom]);
+  }, [selectedConversation?.id, messages.length, forceScrollToBottom, restoreConversationScroll]);
   
   // Effect for new incoming/outgoing messages (WhatsApp-style behavior)
   useEffect(() => {
@@ -1839,6 +1960,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const isFromMe = lastMessage?.from_me;
     
     if (isNewMessage && messagesLength > 0 && !isLoadingMoreRef.current) {
+      if (selectedConversation?.id && skipNextMessageAutoScrollRef.current === selectedConversation.id) {
+        skipNextMessageAutoScrollRef.current = null;
+        prevMessagesLengthRef.current = messagesLength;
+        lastMessageFromMeRef.current = isFromMe || false;
+        return;
+      }
       // Always scroll for my sent messages
       // For incoming messages, only scroll if user is near bottom
       if (isFromMe || isAtBottomRef.current) {
@@ -1849,7 +1976,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     
     prevMessagesLengthRef.current = messagesLength;
     lastMessageFromMeRef.current = isFromMe || false;
-  }, [messages, forceScrollToBottom]);
+  }, [messages, forceScrollToBottom, selectedConversation?.id]);
   
   // Reset pending scroll conversation when changing conversations
   useEffect(() => {
@@ -1900,6 +2027,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       if (scrollTop < 80 && hasMoreMessages && !isLoadingMoreRef.current && !isInitialLoad && messages.length > 0 && canLoadMoreRef.current) {
         loadMoreMessages();
       }
+
+      if (scrollSaveRafRef.current !== null) {
+        cancelAnimationFrame(scrollSaveRafRef.current);
+      }
+      scrollSaveRafRef.current = requestAnimationFrame(() => {
+        saveConversationScroll();
+        scrollSaveRafRef.current = null;
+      });
     };
     
     // Add listeners with passive flag for performance
@@ -1909,8 +2044,41 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     return () => {
       desktopViewport?.removeEventListener('scroll', handleScroll);
       mobileViewport?.removeEventListener('scroll', handleScroll);
+      if (scrollSaveRafRef.current !== null) {
+        cancelAnimationFrame(scrollSaveRafRef.current);
+        scrollSaveRafRef.current = null;
+      }
     };
-  }, [hasMoreMessages, isInitialLoad, messages.length]);
+  }, [hasMoreMessages, isInitialLoad, messages.length, saveConversationScroll]);
+
+  useEffect(() => {
+    const persistCurrentScroll = () => saveConversationScroll();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        persistCurrentScroll();
+      } else if (selectedConversationRef.current) {
+        requestAnimationFrame(() => restoreConversationScroll(selectedConversationRef.current!));
+      }
+    };
+    const handleWindowFocus = () => {
+      if (selectedConversationRef.current) {
+        requestAnimationFrame(() => restoreConversationScroll(selectedConversationRef.current!));
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', persistCurrentScroll);
+    window.addEventListener('pagehide', persistCurrentScroll);
+    window.addEventListener('focus', handleWindowFocus);
+
+    return () => {
+      persistCurrentScroll();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', persistCurrentScroll);
+      window.removeEventListener('pagehide', persistCurrentScroll);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, [restoreConversationScroll, saveConversationScroll]);
 
   const fetchInstances = async (retryCount = 0) => {
     setIsLoading(true);
