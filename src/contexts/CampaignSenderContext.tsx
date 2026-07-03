@@ -291,8 +291,13 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
           await supabase.from("campaign_recipients").update({ status: "error", error_message: String(sendError) }).eq("id", r.id);
         } else {
           successCount++;
+          dailySentToday++;
           onStatusChange?.(r.id, "sent");
           await supabase.from("campaign_recipients").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", r.id);
+
+          if (dailySentToday >= DAILY_LIMIT) {
+            dailyLimitHit = true;
+          }
 
           // Sempre marcar a conversa para que o vendedor seja avisado quando o lead responder.
           // Quando pause_bot_on_reply = false, usa modo "soft" (não desliga o bot).
