@@ -324,7 +324,7 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    const wasPaused = pauseRequestedRef.current;
+    const wasPaused = pauseRequestedRef.current || dailyLimitHit;
 
     await supabase.from("campaigns").update({
       status: wasPaused ? "draft" : "completed",
@@ -333,7 +333,12 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
       error_count: errorCount,
     }).eq("id", campaign.id);
 
-    if (wasPaused) {
+    if (dailyLimitHit) {
+      toast.error(
+        `Limite diário de ${DAILY_LIMIT} mensagens atingido! Campanha pausada automaticamente para proteger seu número do WhatsApp contra bloqueio. Retome amanhã. (${successCount} enviados nesta sessão)`,
+        { duration: 12000 }
+      );
+    } else if (wasPaused) {
       toast.success(`Campanha pausada. ${successCount} enviados, ${recipients.length - successCount - errorCount} pendentes.`);
     } else {
       toast.success(`Campanha finalizada! ${successCount} enviados${errorCount ? `, ${errorCount} falhas` : ""}.`);
