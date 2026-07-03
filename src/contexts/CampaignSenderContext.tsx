@@ -193,8 +193,51 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
       console.warn("Could not seed campaign counters from recipients:", e);
     }
 
+    // Limite diário anti-bloqueio WhatsApp (Z-API / W-API): 50 mensagens/dia por empresa.
+    // Acima disso o WhatsApp bloqueia o número. Somamos os envios já feitos hoje
+    // (em qualquer campanha desta empresa) e paramos ao atingir o teto.
+    const DAILY_LIMIT = 50;
+    let dailySentToday = 0;
+    let dailyLimitHit = false;
+    try {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const { data: todayCampaigns } = await supabase
+        .from("campaigns")
+        .select("id")
+        .eq("company_id", companyId);
+      const campaignIds = (todayCampaigns || []).map((c: any) => c.id);
+      if (campaignIds.length > 0) {
+        const { count } = await supabase
+          .from("campaign_recipients")
+          .select("id", { count: "exact", head: true })
+          .in("campaign_id", campaignIds)
+          .eq("status", "sent")
+          .gte("sent_at", startOfDay.toISOString());
+        dailySentToday = count || 0;
+      }
+    } catch (e) {
+      console.warn("Could not compute daily sent count:", e);
+    }
+
+    if (dailySentToday >= DAILY_LIMIT) {
+      toast.error(
+        `Limite diário de ${DAILY_LIMIT} mensagens atingido. Para evitar bloqueio do WhatsApp, a campanha só poderá continuar amanhã.`,
+        { duration: 10000 }
+      );
+      await supabase.from("campaigns").update({ status: "draft" }).eq("id", campaign.id);
+      setIsSending(false);
+      isSendingRef.current = false;
+      setProgress(null);
+      setCountdown(null);
+      setActiveCampaignId(null);
+      setActiveCampaignName(null);
+      return;
+    }
+
     for (let i = 0; i < recipients.length; i++) {
       if (pauseRequestedRef.current) break;
+      if (dailyLimitHit) break;
       const r = recipients[i];
 
       if (i > 0) {
@@ -248,8 +291,13 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
           await supabase.from("campaign_recipients").update({ status: "error", error_message: String(sendError) }).eq("id", r.id);
         } else {
           successCount++;
+          dailySentToday++;
           onStatusChange?.(r.id, "sent");
           await supabase.from("campaign_recipients").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", r.id);
+
+          if (dailySentToday >= DAILY_LIMIT) {
+            dailyLimitHit = true;
+          }
 
           // Sempre marcar a conversa para que o vendedor seja avisado quando o lead responder.
           // Quando pause_bot_on_reply = false, usa modo "soft" (não desliga o bot).
@@ -276,7 +324,7 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    const wasPaused = pauseRequestedRef.current;
+    const wasPaused = pauseRequestedRef.current || dailyLimitHit;
 
     await supabase.from("campaigns").update({
       status: wasPaused ? "draft" : "completed",
@@ -285,7 +333,12 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
       error_count: errorCount,
     }).eq("id", campaign.id);
 
-    if (wasPaused) {
+    if (dailyLimitHit) {
+      toast.error(
+        `Limite diário de ${DAILY_LIMIT} mensagens atingido! Campanha pausada automaticamente para proteger seu número do WhatsApp contra bloqueio. Retome amanhã. (${successCount} enviados nesta sessão)`,
+        { duration: 12000 }
+      );
+    } else if (wasPaused) {
       toast.success(`Campanha pausada. ${successCount} enviados, ${recipients.length - successCount - errorCount} pendentes.`);
     } else {
       toast.success(`Campanha finalizada! ${successCount} enviados${errorCount ? `, ${errorCount} falhas` : ""}.`);
