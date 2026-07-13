@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Env local (credenciais ficam na Vercel/Supabase, nao no git)
+.env
+.env.*
+!.env.example
+
+# Vercel
+.vercel
