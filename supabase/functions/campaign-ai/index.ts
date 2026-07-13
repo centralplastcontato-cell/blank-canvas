@@ -15,8 +15,8 @@ serve(async (req) => {
   try {
     const { context, companyName, company_id } = await req.json();
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
 
     const systemPrompt = `Você é um copywriter especializado em marketing via WhatsApp para buffets infantis.
 Dado o contexto da campanha e o nome da empresa, gere exatamente 5 variações de mensagem.
@@ -32,15 +32,15 @@ Regras:
 - As mensagens devem parecer naturais como se fossem escritas por uma pessoa`;
 
     const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      "https://api.openai.com/v1/chat/completions",
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: "gpt-4o-mini",
           messages: [
             { role: "system", content: systemPrompt },
             {
@@ -102,15 +102,15 @@ Regras:
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
+      if (response.status === 401) {
         return new Response(
-          JSON.stringify({ error: "Créditos insuficientes para IA." }),
+          JSON.stringify({ error: "OPENAI_API_KEY inválida ou sem créditos." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      throw new Error(`AI gateway error: ${response.status}`);
+      console.error("OpenAI error:", response.status, errorText);
+      throw new Error(`OpenAI error: ${response.status}`);
     }
 
     const data = await response.json();
@@ -139,7 +139,7 @@ Regras:
         const { error: logError } = await sb.from("ai_usage_logs").insert({
           company_id,
           function_name: "campaign-ai",
-          model: "gemini-3-flash-preview",
+          model: "gpt-4o-mini",
           prompt_tokens: promptTokens,
           completion_tokens: completionTokens,
           total_tokens: totalTokens,

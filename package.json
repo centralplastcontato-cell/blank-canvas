@@ -10,7 +10,10 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "sb:login": "supabase login",
+    "sb:fn:list": "supabase functions list --project-ref rsezgnkfhodltrsewlhz",
+    "sb:fn:deploy": "supabase functions deploy --project-ref rsezgnkfhodltrsewlhz"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

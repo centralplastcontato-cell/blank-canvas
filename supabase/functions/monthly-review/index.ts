@@ -305,8 +305,8 @@ async function generateAISummary(
   previousMetrics: any,
   reviewMonth: Date
 ): Promise<string> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) {
+  const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+  if (!OPENAI_API_KEY) {
     return generateFallbackSummary(companyName, metrics, previousMetrics, reviewMonth);
   }
 
@@ -347,14 +347,14 @@ Regras:
 9. Linguagem profissional mas acessível`;
 
   try {
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: "Você é um consultor especializado em buffets infantis. Responda em português brasileiro." },
           { role: "user", content: prompt },
