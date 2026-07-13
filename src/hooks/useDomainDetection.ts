@@ -51,6 +51,7 @@ export function isHubDomain(): boolean {
 export function isPreviewDomain(): boolean {
   const canonical = getCanonicalHost();
   return (
+    canonical.includes("vercel.app") ||
     canonical.includes("lovable.app") ||
     canonical.includes("lovableproject.com") ||
     canonical === "localhost"
