@@ -101,13 +101,43 @@ quebra é a hospedagem do front-end. Banco, WhatsApp, funções, imagens, vídeo
 as 5 landing pages já rodam 100% em infraestrutura própria.**
 
 ### Fase 4 — Virada de DNS (um domínio por vez)
-- [ ] **24h antes:** baixar o TTL de todos os domínios para 300s (rollback rápido)
-- [ ] Adicionar os domínios no projeto da Vercel (use os registros que o painel mandar)
-- [ ] Virar **castelodadiversao** primeiro — é o buffet do Rodrigo. Se quebrar,
-      o prejuízo é dele, não de cliente. Observar 24–48h.
+- [x] TTL de todos os domínios em 300s (só `espacocarrossel.online` raiz ficou
+      em 14400s — corrigir antes de virar esse)
+- [x] **castelodadiversao.online — NO AR PELA VERCEL, verificado:**
+      HTTPS + cert Let's Encrypt, rotas profundas (`/auth`, `/agenda`,
+      `/atendimento`, `/contratos`) todas 200, apex→www 308, assets 200,
+      servidor Vercel, zero menção a Lovable.
+- [ ] Observar o Castelo por 24–48h
 - [ ] Virar **buffetplanetadivertido**
 - [ ] Virar **buffetmegamagic**
-- [ ] Virar os demais (aventurakids, espacocarrossel, hubcelebrei, celebrei)
+- [ ] Virar os demais (aventurakids, espacocarrossel, hubcelebrei)
+- [ ] `celebrei.com.br` — **investigar antes**: está na Cloudflare apontando
+      para `35.219.200.14` (Google Cloud), não na Lovable. O código o trata como
+      domínio do Hub, mas o DNS discorda. Entender o que é antes de mexer.
+
+#### Receita da virada (validada no Castelo)
+
+Para cada domínio, na Hostinger:
+1. `A` `@` : trocar `185.158.133.1` → **`216.150.1.1`**
+2. `A` `www` : **apagar** (não pode coexistir com CNAME)
+3. Criar `CNAME` `www` → o alvo que a Vercel mostrar (é **específico por
+   projeto**, ex.: `a83df4bb1fc5d553.vercel-dns-016.com`). Não reutilizar de
+   outro domínio sem conferir.
+4. **NÃO tocar** nos TXT `_lovable` / `_lovable.www` — são o que mantém a Lovable
+   capaz de reassumir no rollback. Só apagar na Fase 5.
+
+⚠️ **ARMADILHA DO CERTIFICADO (aconteceu no Castelo, vai acontecer de novo):**
+depois de trocar o DNS, a Vercel **não emite o certificado sozinha na hora**. Ela
+guarda o estado "Invalid Configuration" do primeiro check (quando o DNS ainda
+apontava pra Lovable) e só re-verifica em ciclos lentos. Enquanto isso, o HTTPS
+fica **fora do ar** — a conexão TLS é derrubada, porque não há certificado.
+
+**Vá IMEDIATAMENTE em Vercel → Domains e clique em "Refresh" nas duas linhas**
+(apex e www). Isso força a verificação e dispara a emissão. Sem isso, o site
+pode ficar ~20 min sem HTTPS.
+
+Rollback (5 min, graças ao TTL 300): `A` `@` → `185.158.133.1`; apagar o CNAME
+`www` e recriar como `A` `www` → `185.158.133.1`.
 
 ### Fase 5 — Adeus Lovable (só depois de tudo estável)
 - [ ] Remover `lovable-tagger` do `package.json` e do `vite.config.ts`
