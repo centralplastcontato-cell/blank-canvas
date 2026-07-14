@@ -83,12 +83,22 @@ Não bloqueia a virada de DNS, mas **precisa estar funcionando antes de cancelar
 - [ ] Testar na URL de preview: login, agenda, WhatsApp, contratos, as 5 LPs
 - [ ] Merge para a `main`
 
-### Fase 3 — Cortar as amarras (ANTES de mexer no DNS)
-- [ ] Subir `aventura-kids.mp4` para o Supabase Storage
-- [ ] Rodar `01-varredura-lovable.sql` e conferir o resultado
-- [ ] Rodar `02-corrige-aventura-kids.sql`
-- [ ] Migrar `campaign-ai` e `monthly-review` para fora do gateway da Lovable
-- [ ] Configurar deploy de edge functions via Supabase CLI e testar
+### Fase 3 — Cortar as amarras — CONCLUÍDA
+- [x] `aventura-kids.mp4` no Supabase Storage (3.627.085 bytes, idêntico ao original)
+- [x] `01-varredura-lovable.sql` rodada no banco inteiro. Resultado: 5 achados,
+      sendo **3 falsos positivos** (dois contatos "Teste Lovable" e um payload de
+      webhook com a palavra no texto — nenhum é URL, nenhum quebra).
+- [x] `02-corrige-aventura-kids.sql` rodada. Os 3 campos (`hero.background_images[0]`,
+      `video.videos[0].poster_url`, `video.videos[1].video_url`) agora apontam para
+      o Supabase Storage. Verificado pela RPC pública: **0 menções a lovable**.
+- [x] `campaign-ai` (v167→168) e `monthly-review` (v135→136) migradas para
+      `api.openai.com` + `OPENAI_API_KEY` + `gpt-4o-mini`. Deployadas e ACTIVE.
+- [x] Deploy de edge functions via Supabase CLI validado
+      (`npx supabase functions deploy <nome> --use-api` — sem Docker).
+
+**Estado atual: se a assinatura da Lovable for cancelada hoje, a ÚNICA coisa que
+quebra é a hospedagem do front-end. Banco, WhatsApp, funções, imagens, vídeos e
+as 5 landing pages já rodam 100% em infraestrutura própria.**
 
 ### Fase 4 — Virada de DNS (um domínio por vez)
 - [ ] **24h antes:** baixar o TTL de todos os domínios para 300s (rollback rápido)
