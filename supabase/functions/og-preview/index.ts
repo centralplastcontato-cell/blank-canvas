@@ -24,8 +24,8 @@ const STATIC_BRANDS: Record<string, { title: string; description: string; image:
   buffetplanetadivertido: {
     title: "Buffet Planeta Divertido | Festa Infantil",
     description: "Venha celebrar no Planeta Divertido! O melhor buffet infantil para a festa inesquecível do seu filho.",
-    image: "https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/object/public/company-logos/planeta-divertido-1771620883350.png",
-    url: "https://buffetplanetadivertido.online",
+    image: "https://www.buffetplanetadivertido.online/og-planeta.jpg",
+    url: "https://www.buffetplanetadivertido.online",
   },
   buffetmegamagic: {
     title: "Buffet Mega Magic | Festa Infantil em São Paulo",

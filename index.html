@@ -33,37 +33,62 @@
 
     <script>
       (function() {
-        var h = window.location.hostname;
-        var brand;
-
-        if (h.indexOf('buffetplanetadivertido') !== -1) {
-          brand = {
+        // Um buffet por domínio. Todo domínio de buffet precisa estar aqui: quem
+        // não estiver cai no HUB e exibe o título comercial da Celebrei no site
+        // do cliente até o React montar. Manter em sintonia com o STATIC_BRANDS
+        // da edge function og-preview.
+        var BRANDS = [
+          ['buffetplanetadivertido', {
             title: 'Buffet Planeta Divertido | Festa Infantil',
             desc: 'Venha celebrar no Planeta Divertido! O melhor buffet infantil para a festa inesquecível do seu filho.',
-            img: 'https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/object/public/company-logos/planeta-divertido-1771620883350.png',
-            url: 'https://buffetplanetadivertido.online',
-            site: 'Buffet Planeta Divertido',
-            author: 'Buffet Planeta Divertido'
-          };
-        } else if (h.indexOf('castelodadiversao') !== -1 || h.indexOf('castelodadiversao') !== -1) {
-          brand = {
+            img: 'https://www.buffetplanetadivertido.online/og-planeta.jpg',
+            url: 'https://www.buffetplanetadivertido.online',
+            site: 'Buffet Planeta Divertido'
+          }],
+          ['buffetmegamagic', {
+            title: 'Buffet Mega Magic | Festa Infantil em São Paulo',
+            desc: 'A festa mágica que seu filho sempre sonhou! Diversão, decoração temática e cardápio completo em São Paulo.',
+            img: 'https://www.buffetmegamagic.com.br/og-megamagic.jpg',
+            url: 'https://www.buffetmegamagic.com.br',
+            site: 'Buffet Mega Magic'
+          }],
+          ['castelodadiversao', {
             title: 'Castelo da Diversão | Buffet Infantil',
             desc: 'O melhor buffet infantil para a festa do seu filho! Conheça nossos pacotes e agende uma visita.',
             img: 'https://www.castelodadiversao.online/og-image.jpg',
             url: 'https://www.castelodadiversao.online',
-            site: 'Castelo da Diversão',
-            author: 'Castelo da Diversão'
-          };
-        } else {
-          brand = {
-            title: 'Celebrei | A melhor plataforma para buffets infantis',
-            desc: 'Plataforma completa para buffets infantis. Automatize seu atendimento, capture leads e aumente suas vendas com a Celebrei.',
-            img: 'https://hubcelebrei.com.br/og-para-buffets.jpg',
-            url: 'https://hubcelebrei.com.br',
-            site: 'Celebrei',
-            author: 'Celebrei'
-          };
+            site: 'Castelo da Diversão'
+          }],
+          ['aventurakids', {
+            title: 'Aventura Kids | Buffet Infantil',
+            desc: 'Onde cada sorriso vira uma lembrança pra sempre. Conheça o Aventura Kids e agende uma visita.',
+            img: 'https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/object/public/onboarding-uploads/eb1776f0-142e-41db-9134-7d352d02c5bd/migrated/logo-aventura-kids.png',
+            url: 'https://www.aventurakids.online',
+            site: 'Aventura Kids'
+          }],
+          ['espacocarrossel', {
+            title: 'Espaço Carrossel | Buffet Infantil',
+            desc: 'Festas inesquecíveis para o seu filho. Conheça o Espaço Carrossel e agende uma visita.',
+            img: 'https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/object/public/company-logos/espaco-carrossel-1777335404414.png',
+            url: 'https://www.espacocarrossel.online',
+            site: 'Espaço Carrossel'
+          }]
+        ];
+
+        var HUB = {
+          title: 'Celebrei | A melhor plataforma para buffets infantis',
+          desc: 'Plataforma completa para buffets infantis. Automatize seu atendimento, capture leads e aumente suas vendas com a Celebrei.',
+          img: 'https://hubcelebrei.com.br/og-para-buffets.jpg',
+          url: 'https://hubcelebrei.com.br',
+          site: 'Celebrei'
+        };
+
+        var h = window.location.hostname;
+        var brand = HUB;
+        for (var i = 0; i < BRANDS.length; i++) {
+          if (h.indexOf(BRANDS[i][0]) !== -1) { brand = BRANDS[i][1]; break; }
         }
+        brand.author = brand.site;
 
         document.write('<title>' + brand.title + '<\/title>');
         document.write('<meta name="description" content="' + brand.desc + '" \/>');
