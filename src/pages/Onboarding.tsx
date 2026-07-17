@@ -135,14 +135,16 @@ export default function Onboarding() {
 
   const isOptionalStep = step >= 8;
 
-  // Persist draft to localStorage on every change
+  // Persist draft to localStorage on every change.
+  // Inclui onboardingId para que, ao recarregar, o upsert atualize a MESMA linha
+  // (sem duplicar) — a tabela não é mais lida pela chave anon.
   useEffect(() => {
     if (!slug || loading) return;
     try {
-      const draft = JSON.stringify({ step, data, opData });
+      const draft = JSON.stringify({ step, data, opData, onboardingId });
       localStorage.setItem(LOCAL_STORAGE_KEY(slug), draft);
     } catch { /* ignore quota errors */ }
-  }, [slug, data, opData, step, loading]);
+  }, [slug, data, opData, step, onboardingId, loading]);
 
   useEffect(() => {
     const fetchCompany = async () => {
@@ -156,55 +158,19 @@ export default function Onboarding() {
       const company = companyIdResult.data ? { id: companyIdResult.data } : null;
       if (company) {
         setCompanyId(company.id);
-        // Leitura via porta controlada (SECURITY DEFINER): a tabela não é mais
-        // legível direto pela chave anon. Se a RPC ainda não existir, cai no
-        // rascunho de localStorage abaixo.
-        const { data: existing } = await supabase
-          .rpc("get_onboarding_draft", { _company_id: company.id });
-        if (existing && existing.length > 0) {
-          const e = existing[0] as any;
-          if (e.status === 'completo') {
-            setWasCompleted(true);
+        // Segurança: o formulário público NÃO lê a company_onboarding (que tem
+        // contato e dados comerciais dos donos). O progresso é retomado apenas do
+        // rascunho salvo neste navegador; o admin vê os cadastros pelo painel.
+        try {
+          const raw = localStorage.getItem(LOCAL_STORAGE_KEY(slug!));
+          if (raw) {
+            const draft = JSON.parse(raw);
+            if (draft.data) setData(prev => ({ ...prev, ...draft.data }));
+            if (draft.opData) setOpData(prev => ({ ...prev, ...draft.opData }));
+            if (draft.step && draft.step > 1) setStep(draft.step);
+            if (draft.onboardingId) setOnboardingId(draft.onboardingId);
           }
-            setOnboardingId(e.id);
-            setStep(e.status === 'completo' ? 1 : (e.current_step || 1));
-            setData({
-              buffet_name: e.buffet_name || "", city: e.city || "", state: e.state || "",
-              full_address: e.full_address || "", instagram: e.instagram || "", website: e.website || "",
-              contact_name: e.contact_name || "", contact_role: e.contact_role || "",
-              contact_phone: e.contact_phone || "", contact_email: e.contact_email || "",
-              secondary_contact: e.secondary_contact || "",
-              lead_volume: e.lead_volume || "", lead_sources: e.lead_sources || [],
-              current_service_method: e.current_service_method || "",
-              has_automation_system: e.has_automation_system || false,
-              automation_system_name: e.automation_system_name || "",
-              budget_format: e.budget_format || "",
-              budget_file_urls: e.budget_file_urls || [],
-              service_screenshots: e.service_screenshots || [],
-              uses_paid_traffic: e.uses_paid_traffic || false, monthly_investment: e.monthly_investment || "",
-              cost_per_lead: e.cost_per_lead || "", current_agency: e.current_agency || "",
-              whatsapp_numbers: e.whatsapp_numbers?.length ? e.whatsapp_numbers : [""],
-              attendants_count: e.attendants_count || 1, service_hours: e.service_hours || "",
-              multiple_units: e.multiple_units || false,
-              logo_url: e.logo_url || "", photo_urls: e.photo_urls || [],
-              video_urls: e.video_urls || [], brand_notes: e.brand_notes || "",
-              main_goal: e.main_goal || "", additional_notes: e.additional_notes || "",
-            });
-            if (e.operational_data) {
-              setOpData({ ...initialOperationalData, ...(e.operational_data as any) });
-            }
-        } else {
-          // Fallback: restore from localStorage draft
-          try {
-            const raw = localStorage.getItem(LOCAL_STORAGE_KEY(slug!));
-            if (raw) {
-              const draft = JSON.parse(raw);
-              if (draft.data) setData(prev => ({ ...prev, ...draft.data }));
-              if (draft.opData) setOpData(prev => ({ ...prev, ...draft.opData }));
-              if (draft.step && draft.step > 1) setStep(draft.step);
-            }
-          } catch { /* ignore parse errors */ }
-        }
+        } catch { /* ignore parse errors */ }
       }
       setLoading(false);
     };
