@@ -80,10 +80,13 @@ function buildHTML(meta: { title: string; description: string; image: string; ur
   <meta name="twitter:title" content="${meta.title}" />
   <meta name="twitter:description" content="${meta.description}" />
   <meta name="twitter:image" content="${image}" />
-  <meta http-equiv="refresh" content="0;url=${finalUrl}" />
 </head>
 <body>
   <p>Redirecionando para <a href="${finalUrl}">${meta.title}</a>...</p>
+  <!-- Redirect via JS only: crawlers (que não executam JS) leem o OG e param;
+       navegadores reais são encaminhados ao destino. Sem meta-refresh, que os
+       bots seguem e assim perdem as tags OG desta página. -->
+  <script>window.location.replace(${JSON.stringify(finalUrl)});</script>
 </body>
 </html>`;
 }
