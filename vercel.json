@@ -3,7 +3,7 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "rewrites": [
+  "redirects": [
     {
       "source": "/",
       "has": [
@@ -13,10 +13,11 @@
           "value": "(?i).*(facebookexternalhit|Facebot|WhatsApp|Twitterbot|LinkedInBot|Slackbot|Slack-ImgProxy|TelegramBot|Discordbot|Pinterest|redditbot|vkShare|Embedly|SkypeUriPreview|Applebot|W3C_Validator).*"
         }
       ],
-      "destination": "/api/og?path=/"
-    },
-    { "source": "/(.*)", "destination": "/index.html" }
+      "destination": "/api/og?path=/",
+      "permanent": false
+    }
   ],
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/sw.js",
