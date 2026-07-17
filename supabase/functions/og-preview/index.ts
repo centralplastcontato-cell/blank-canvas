@@ -27,6 +27,12 @@ const STATIC_BRANDS: Record<string, { title: string; description: string; image:
     image: "https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/object/public/company-logos/planeta-divertido-1771620883350.png",
     url: "https://buffetplanetadivertido.online",
   },
+  buffetmegamagic: {
+    title: "Buffet Mega Magic | Festa Infantil em São Paulo",
+    description: "A festa mágica que seu filho sempre sonhou! Diversão, decoração temática e cardápio completo em São Paulo.",
+    image: "https://www.buffetmegamagic.com.br/og-megamagic.jpg",
+    url: "https://www.buffetmegamagic.com.br",
+  },
 };
 
 // Form type display labels
