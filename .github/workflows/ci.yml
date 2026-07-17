@@ -1,0 +1,43 @@
+# Rede de segurança (Fase 0): roda a verificação a cada mudança.
+# Bloqueante (required check): o job "site" (testes + build) — nasce verde hoje.
+# Informativos por ora: testes do backend (Deno) e lint — viram bloqueantes
+# quando validados/limpos nas próximas fases.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  site:
+    name: Site — testes e build (bloqueante)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - name: Instalar dependências
+        run: npm ci
+      - name: Testes (Vitest)
+        run: npm test
+      - name: Build de produção
+        run: npm run build
+      - name: Lint (informativo — não bloqueia)
+        run: npm run lint
+        continue-on-error: true
+
+  edge-functions:
+    name: Automações backend — Deno (informativo)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Testes das edge functions
+        run: deno test --allow-all --no-check supabase/functions/
