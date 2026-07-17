@@ -3,6 +3,21 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "redirects": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|WhatsApp|Twitterbot|LinkedInBot|Slackbot|Slack-ImgProxy|TelegramBot|Discordbot|Pinterest|redditbot|vkShare|Embedly|SkypeUriPreview|Applebot|W3C_Validator).*"
+        },
+        { "type": "host", "value": "(?<oghost>.*)" }
+      ],
+      "destination": "https://rsezgnkfhodltrsewlhz.supabase.co/functions/v1/og-preview?domain=:oghost",
+      "permanent": false
+    }
+  ],
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
   "headers": [
     {
