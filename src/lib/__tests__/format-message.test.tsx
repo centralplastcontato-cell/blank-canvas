@@ -13,7 +13,9 @@ describe("formatMessageContent", () => {
 
   it("returns plain text unchanged", () => {
     const result = formatMessageContent("hello world");
-    expect(result).toBe("hello world");
+    const { container } = render(<>{result}</>);
+    expect(container.textContent).toBe("hello world");
+    expect(container.querySelector("a")).toBeNull();
   });
 
   it("converts URLs to clickable links", () => {

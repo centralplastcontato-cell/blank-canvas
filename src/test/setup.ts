@@ -13,3 +13,12 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: () => {},
   }),
 });
+
+// jsdom não implementa URL.createObjectURL / revokeObjectURL, usadas para
+// baixar arquivos (CSV, PDF). Stubs para que testes de exportação possam rodar.
+if (typeof URL.createObjectURL === "undefined") {
+  URL.createObjectURL = () => "blob:mock";
+}
+if (typeof URL.revokeObjectURL === "undefined") {
+  URL.revokeObjectURL = () => {};
+}
