@@ -156,12 +156,11 @@ export default function Onboarding() {
       const company = companyIdResult.data ? { id: companyIdResult.data } : null;
       if (company) {
         setCompanyId(company.id);
+        // Leitura via porta controlada (SECURITY DEFINER): a tabela não é mais
+        // legível direto pela chave anon. Se a RPC ainda não existir, cai no
+        // rascunho de localStorage abaixo.
         const { data: existing } = await supabase
-          .from("company_onboarding")
-          .select("*")
-          .eq("company_id", company.id)
-          .order("created_at", { ascending: false })
-          .limit(1);
+          .rpc("get_onboarding_draft", { _company_id: company.id });
         if (existing && existing.length > 0) {
           const e = existing[0] as any;
           if (e.status === 'completo') {
@@ -218,28 +217,15 @@ export default function Onboarding() {
 
   const saveProgress = async (nextStep: number) => {
     if (!companyId) return;
-    const payload: any = { ...data, company_id: companyId, current_step: nextStep, status: wasCompleted ? 'completo' : 'em_andamento', operational_data: opData };
-    delete payload.photo_urls_files;
-
+    // id gerado no cliente: dispensa ler a tabela de volta (que exigiria SELECT anon).
     let targetId = onboardingId;
     if (!targetId) {
-      const { data: existing } = await supabase
-        .from("company_onboarding")
-        .select("id")
-        .eq("company_id", companyId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-      targetId = existing?.id || null;
-      if (targetId) setOnboardingId(targetId);
+      targetId = crypto.randomUUID();
+      setOnboardingId(targetId);
     }
-
-    if (targetId) {
-      await supabase.from("company_onboarding").update(payload).eq("id", targetId);
-    } else {
-      const { data: inserted } = await supabase.from("company_onboarding").insert(payload).select("id").single();
-      if (inserted) setOnboardingId(inserted.id);
-    }
+    const payload: any = { ...data, id: targetId, company_id: companyId, current_step: nextStep, status: wasCompleted ? 'completo' : 'em_andamento', operational_data: opData };
+    delete payload.photo_urls_files;
+    await supabase.from("company_onboarding").upsert(payload);
   };
 
   const handleNext = () => {
@@ -365,33 +351,16 @@ export default function Onboarding() {
     if (!companyId) return;
     setSubmitting(true);
     try {
-      const payload: any = { ...data, company_id: companyId, current_step: TOTAL_STEPS, status: 'completo', operational_data: opData };
-      delete payload.photo_urls_files;
-
       let targetId = onboardingId;
       if (!targetId) {
-        const { data: existing } = await supabase
-          .from("company_onboarding")
-          .select("id")
-          .eq("company_id", companyId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
-        targetId = existing?.id || null;
+        targetId = crypto.randomUUID();
+        setOnboardingId(targetId);
       }
+      const payload: any = { ...data, id: targetId, company_id: companyId, current_step: TOTAL_STEPS, status: 'completo', operational_data: opData };
+      delete payload.photo_urls_files;
 
-      if (targetId) {
-        const { error } = await supabase.from("company_onboarding").update(payload).eq("id", targetId);
-        if (error) throw error;
-      } else {
-        const { data: inserted, error } = await supabase
-          .from("company_onboarding")
-          .insert(payload)
-          .select("id")
-          .single();
-        if (error) throw error;
-        if (inserted) setOnboardingId(inserted.id);
-      }
+      const { error } = await supabase.from("company_onboarding").upsert(payload);
+      if (error) throw error;
       // Auto-import operational data into company settings
       await syncOperationalDataToSettings(companyId, opData);
 
