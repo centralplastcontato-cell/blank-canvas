@@ -45,8 +45,21 @@ const FORM_TABLE_MAP: Record<string, string> = {
   cardapio: "cardapio_templates",
 };
 
+/** Facebook/WhatsApp exigem og:image ABSOLUTA. Se vier relativa ("/logo.png"),
+ *  resolve contra o domínio do buffet; senão o crawler descarta e cai no cache antigo. */
+function absoluteImage(image: string, baseUrl: string): string {
+  if (!image) return image;
+  if (/^https?:\/\//i.test(image)) return image;
+  try {
+    return new URL(image, baseUrl).toString();
+  } catch {
+    return image;
+  }
+}
+
 function buildHTML(meta: { title: string; description: string; image: string; url: string }, redirectUrl?: string): string {
   const finalUrl = redirectUrl || meta.url;
+  const image = absoluteImage(meta.image, meta.url);
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -58,14 +71,15 @@ function buildHTML(meta: { title: string; description: string; image: string; ur
   <meta property="og:url" content="${meta.url}" />
   <meta property="og:title" content="${meta.title}" />
   <meta property="og:description" content="${meta.description}" />
-  <meta property="og:image" content="${meta.image}" />
+  <meta property="og:image" content="${image}" />
+  <meta property="og:image:secure_url" content="${image}" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:locale" content="pt_BR" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="${meta.title}" />
   <meta name="twitter:description" content="${meta.description}" />
-  <meta name="twitter:image" content="${meta.image}" />
+  <meta name="twitter:image" content="${image}" />
   <meta http-equiv="refresh" content="0;url=${finalUrl}" />
 </head>
 <body>
