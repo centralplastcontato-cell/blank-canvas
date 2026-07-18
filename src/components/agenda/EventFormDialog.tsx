@@ -26,11 +26,9 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { getDayType, getDayTypeLabel, findMatchingTier, getShiftFromTime, DEFAULT_DAY_TYPES, DEFAULT_GUEST_TIERS } from "@/lib/brazilian-holidays";
 import { DEFAULT_EVENT_TYPES } from "@/components/admin/EventTypesConfig";
 import { splitNonAntecipadoInstallments } from "@/lib/cardFees";
+import { buildParcelasDetails, type ParcelaDetail } from "@/lib/parcelas";
 
-export interface ParcelaDetail {
-  valor: number | null;
-  vencimento: string; // yyyy-MM-dd
-}
+export type { ParcelaDetail };
 
 export interface PaymentDetails {
   entrada_valor: number | null;
@@ -309,26 +307,6 @@ function ClientDataStatusBadge({ status }: { status: string }) {
       {c.label}
     </Badge>
   );
-}
-
-function buildParcelasDetails(parcelas: number | null, saldo: number | null, existing: ParcelaDetail[] = []): ParcelaDetail[] {
-  if (!parcelas || parcelas < 1) return [];
-
-  if (!saldo || saldo <= 0) {
-    return Array.from({ length: parcelas }, (_, i) => ({
-      valor: existing[i]?.valor ?? null,
-      vencimento: existing[i]?.vencimento ?? "",
-    }));
-  }
-
-  const saldoEmCentavos = Math.round(saldo * 100);
-  const valorBase = Math.floor(saldoEmCentavos / parcelas);
-  const restante = saldoEmCentavos - valorBase * parcelas;
-
-  return Array.from({ length: parcelas }, (_, i) => ({
-    valor: (valorBase + (i < restante ? 1 : 0)) / 100,
-    vencimento: existing[i]?.vencimento ?? "",
-  }));
 }
 
 export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, units, userId, draftStorageKey }: EventFormDialogProps) {
@@ -976,13 +954,21 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
   }, [open, form.discount_value]);
 
-  // Update payment saldo when optionals or base value changes
+  // Update payment saldo when optionals/base value/desconto change.
+  // Reconstrói TAMBÉM a lista de parcelas para acompanhar o saldo (já com o
+  // desconto) — senão parcelas_details fica congelado no valor pré-desconto e a
+  // taxa de cartão passa a ser calculada sobre o valor errado. As datas de
+  // vencimento já informadas são preservadas por buildParcelasDetails.
   useEffect(() => {
     const entrada = payment.entrada_valor ?? 0;
     const novoSaldo = Math.max(0, grandTotal - entrada);
     setPayment(prev => {
       if (prev.saldo_valor === novoSaldo) return prev;
-      return { ...prev, saldo_valor: novoSaldo };
+      return {
+        ...prev,
+        saldo_valor: novoSaldo,
+        parcelas_details: buildParcelasDetails(prev.parcelas, novoSaldo, prev.parcelas_details || []),
+      };
     });
   }, [grandTotal, payment.entrada_valor]);
 
