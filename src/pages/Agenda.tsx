@@ -2,6 +2,7 @@ import { LoadingScreen } from "@/components/ui/loading-screen";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
+import { pendingPlanParcelas, isAdjustmentRow } from "@/lib/parcelasSync";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -875,7 +876,7 @@ export default function Agenda() {
       // Check if there are already manually-managed payments (paid ones should not be wiped)
       const { data: existing } = await supabase
         .from("event_payments")
-        .select("id, status, amount, gross_amount, type, payment_method")
+        .select("id, status, amount, gross_amount, type, payment_method, notes")
         .eq("event_id", eventId);
       const paidPayments = (existing || []).filter((p: any) => p.status === "paid");
       const hasPaidPayments = paidPayments.length > 0;
@@ -886,8 +887,13 @@ export default function Agenda() {
       }, 0);
 
       if (hasPaidPayments) {
-        // Only delete pending payments, keep paid ones intact
-        const pendingIds = (existing || []).filter((p: any) => p.status !== "paid").map((p: any) => p.id);
+        // Only delete pending payments, keep paid ones intact.
+        // A parcela de ajuste ("Adicional - Ajuste pós-contrato") também é preservada:
+        // o EventFormDialog a reconcilia (atualiza/remove) após o save — recriá-la aqui
+        // resetava o vencimento para "hoje" e gerava spam na timeline a cada salvar.
+        const pendingIds = (existing || [])
+          .filter((p: any) => p.status !== "paid" && !isAdjustmentRow(p))
+          .map((p: any) => p.id);
         if (pendingIds.length > 0) {
           await supabase.from("event_payments").delete().in("id", pendingIds);
         }
@@ -1070,6 +1076,32 @@ export default function Agenda() {
               status: "pending",
             });
           }
+        }
+      } else if (!saldoIsCard) {
+        // Há parcela paga: o comportamento legado não recriava NADA e o restante do
+        // plano sumia da tela Financeiro (caso Herly/Mega Magic — as parcelas 3-6
+        // não apareciam e um "bolo" de ajuste tomava o lugar). Quando o plano bate
+        // com o saldo e as pagas casam com o plano, recria só as pendentes,
+        // preservando valores e datas combinadas. Se algo não bate (dado torto),
+        // pendingPlanParcelas devolve null e nada muda em relação ao legado.
+        const paidSaldoRows = paidPayments.filter(
+          (p: any) => p.type === "parcela" && !isOpcionalParcel(p) && !isAdjustmentRow(p),
+        );
+        const pendingPlan = pendingPlanParcelas(pd.parcelas_details, pd.saldo_valor, paidSaldoRows);
+        if (pendingPlan) {
+          pendingPlan.forEach((p: any) => {
+            if (p.valor && p.valor > 0) {
+              rows.push({
+                event_id: eventId,
+                company_id: companyId,
+                type: "parcela",
+                amount: p.valor,
+                due_date: p.vencimento || pd.saldo_data || new Date().toISOString().split("T")[0],
+                payment_method: saldoForma || null,
+                status: "pending",
+              });
+            }
+          });
         }
       }
 
