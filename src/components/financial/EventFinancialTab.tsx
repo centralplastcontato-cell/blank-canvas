@@ -21,6 +21,7 @@ import { BankAccountSelect } from "./BankAccountSelect";
 import { useBankAccounts } from "@/hooks/useBankAccounts";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrencyInput, parseCurrencyInput } from "@/lib/currency-input";
+import { computeCardFeeLoss } from "@/lib/cardFeeLoss";
 
 const METHOD_LABELS: Record<string, string> = {
   pix: "PIX",
@@ -755,73 +756,16 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
 
   // Compute card fee losses iterating REAL parcelas (event_payments).
   // Source of truth = each parcela's frozen stamp; falls back to payment_details snapshot, then current operator rate.
-  const cardFeeLoss = useMemo(() => {
-    const pd: any = paymentDetails || {};
-    const isCardMethod = (m?: string | null) => {
-      if (!m) return false;
-      const s = String(m).toLowerCase();
-      return s.includes("cart") || s === "cartao" || s === "cartao_credito" || s === "cartao_debito";
-    };
-    const isDebitMethod = (m?: string | null) => {
-      if (!m) return false;
-      return String(m).toLowerCase().includes("deb");
-    };
-
-    const cardPayments = (financial.payments || []).filter((p: any) => isCardMethod(p.payment_method));
-    if (cardPayments.length === 0) return null;
-
-    // Pick operator: row's own → snapshot → first available
-    const firstRowOpId = (cardPayments.find((p: any) => p.card_operator_id) as any)?.card_operator_id;
-    const opId = pd.card_operator_id || firstRowOpId;
-    const operator: any = (opId && cardFees.find((f: any) => f.id === opId)) || cardFees[0] || null;
-    const operatorName: string =
-      pd.card_operator_name || operator?.operator_name || "Operadora";
-
-    const rateForRow = (rowOp: any, parcelas: number, debit: boolean) => {
-      const op = rowOp || operator;
-      if (!op) return 0;
-      if (debit) return Number(op.taxa_debito || 0);
-      const key = `taxa_credito_${Math.min(Math.max(1, parcelas), 12)}x`;
-      return Number(op[key] || 0);
-    };
-
-    let totalLoss = 0;
-    const details: Array<{ type: string; bruto: number; taxa: number; desconto: number; parcelas: number }> = [];
-
-    for (const pRaw of cardPayments) {
-      const p: any = pRaw;
-      const isDebit = isDebitMethod(p.payment_method);
-      const isEntradaRow = p.type === "entrada";
-      const snapshotPct = isEntradaRow ? pd.entrada_taxa_percent : pd.saldo_taxa_percent;
-      const parcelas = isDebit
-        ? 1
-        : Math.max(1, Number(p.card_installments) || Number(isEntradaRow ? pd.entrada_parcelas : pd.parcelas) || 1);
-
-      // Tax priority: row stamp → payment_details snapshot → current operator rate
-      let taxa = 0;
-      if (p.card_fee_percent != null && Number(p.card_fee_percent) > 0) {
-        taxa = Number(p.card_fee_percent);
-      } else if (snapshotPct != null) {
-        taxa = Number(snapshotPct);
-      } else {
-        const rowOp = (p.card_operator_id && cardFees.find((f: any) => f.id === p.card_operator_id)) || operator;
-        taxa = rateForRow(rowOp, parcelas, isDebit);
-      }
-      if (!(taxa > 0)) continue;
-
-      // Gross priority: row gross_amount → derive from net amount
-      const gross = p.gross_amount != null && Number(p.gross_amount) > 0
-        ? Number(p.gross_amount)
-        : Math.round((Number(p.amount) / (1 - taxa / 100)) * 100) / 100;
-      if (!(gross > 0)) continue;
-
-      const desconto = Math.round((gross * taxa / 100) * 100) / 100;
-      totalLoss += desconto;
-      details.push({ type: p.type, bruto: gross, taxa, desconto, parcelas });
-    }
-
-    return totalLoss > 0 ? { operator: operatorName, totalLoss, details } : null;
-  }, [cardFees, paymentDetails, financial.payments]);
+  // Régua única (src/lib/cardFeeLoss.ts) — mesma conta que ficava embutida aqui,
+  // agora compartilhada com o painel/relatórios para os números não divergirem.
+  const cardFeeLoss = useMemo(
+    () => computeCardFeeLoss(
+      (financial.payments || []) as any,
+      paymentDetails as any,
+      cardFees as any,
+    ),
+    [cardFees, paymentDetails, financial.payments],
+  );
 
   // Adjust summary for unaccounted card fees (legacy records where gross_amount === amount)
   const adjustedSummary = useMemo(() => {
