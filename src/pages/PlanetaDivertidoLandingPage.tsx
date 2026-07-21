@@ -581,10 +581,19 @@ function PlanetaGallerySection() {
               transition={{ duration: 0.35, delay: index * 0.04 }}
               whileHover={{ scale: 1.02 }}
             >
+              {/* Fundo desfocado da propria foto preenche o espaco (foto vertical em moldura quadrada) */}
+              <img
+                src={src}
+                alt=""
+                aria-hidden="true"
+                className={`absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-60${index > 0 ? " rotate-180" : ""}`}
+                loading="lazy"
+              />
+              {/* Foto inteira, sem corte */}
               <img
                 src={src}
                 alt={`Planeta Divertido - Foto ${index + 1}`}
-                className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500${index > 0 ? " rotate-180" : ""}`}
+                className={`absolute inset-0 w-full h-full object-contain group-hover:scale-105 transition-transform duration-500${index > 0 ? " rotate-180" : ""}`}
                 loading="lazy"
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
