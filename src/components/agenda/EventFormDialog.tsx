@@ -27,6 +27,7 @@ import { getDayType, getDayTypeLabel, findMatchingTier, getShiftFromTime, DEFAUL
 import { DEFAULT_EVENT_TYPES } from "@/components/admin/EventTypesConfig";
 import { splitNonAntecipadoInstallments } from "@/lib/cardFees";
 import { buildParcelasDetails, type ParcelaDetail } from "@/lib/parcelas";
+import { computeAdjustment, isAdjustmentRow, ADJUSTMENT_NOTE_PREFIX } from "@/lib/parcelasSync";
 
 export type { ParcelaDetail };
 
@@ -1205,20 +1206,17 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       if (resultId) {
         setPersistedEventId(resultId);
         setForm(prev => ({ ...prev, id: prev.id || resultId }));
-        // Auto-create pending payment for additional value (e.g. optionals added post-contract)
+        // Reconcile the auto "Ajuste pós-contrato" parcela (e.g. optionals added
+        // post-contract). Regras em src/lib/parcelasSync.computeAdjustment:
+        // não recria em loop, atualiza quando o total muda, remove quando as
+        // parcelas cobrem o contrato, e vence na data da festa (não "hoje").
         if (isEdit && grandTotal > 0 && currentCompany?.id) {
           try {
             const { data: existingPayments } = await supabase
               .from('event_payments')
-              .select('amount, gross_amount, payment_method, card_installments')
+              .select('id, amount, gross_amount, status, notes, payment_method, card_installments')
               .eq('event_id', resultId);
-            // Use gross_amount when available so card fees aren't mistaken for unpaid balance.
-            const totalPayments = (existingPayments || []).reduce(
-              (s: number, p: any) => s + Number(p.gross_amount ?? p.amount),
-              0,
-            );
-            const diff = grandTotal - totalPayments;
-            // Skip phantom "Ajuste pós-contrato" when saldo is card without anticipation:
+            // Skip phantom adjustment when saldo is card without anticipation:
             // split into N parcels causes <R$1 rounding residuals that must NOT become a fake row.
             const saldoForma = String(paymentWithDiscount?.saldo_forma || '');
             const saldoIsCard = saldoForma === 'cartao' || saldoForma === 'cartao_credito' || saldoForma === 'cartao_debito';
@@ -1228,22 +1226,55 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             );
             // Tolerance of R$ 1,00 normally; raise to R$ 5,00 when card non-antecipado split is in play.
             const tolerance = (saldoIsCard && saldoParcelas > 1) || hasCardSplitRows ? 5 : 1;
-            if (diff > tolerance) {
+            const today = new Date().toISOString().split('T')[0];
+            const decision = computeAdjustment(grandTotal, (existingPayments || []) as any, {
+              tolerance,
+              eventDate: finalForm.event_date || null,
+              today,
+            });
+            const adjustRows = (existingPayments || []).filter(
+              (p: any) => p.status !== 'paid' && isAdjustmentRow(p),
+            );
+            if (decision.action === 'insert') {
               await supabase.from('event_payments').insert({
                 event_id: resultId,
                 company_id: currentCompany.id,
                 type: 'parcela',
-                amount: diff,
-                due_date: new Date().toISOString().split('T')[0],
+                amount: decision.amount,
+                due_date: decision.dueDate,
                 status: 'pending',
                 payment_method: null,
-                notes: `Adicional - Ajuste pós-contrato (R$ ${diff.toFixed(2)})`,
+                notes: `${ADJUSTMENT_NOTE_PREFIX} (R$ ${decision.amount.toFixed(2)})`,
               });
               await supabase.from('event_financial_timeline').insert({
                 event_id: resultId,
                 company_id: currentCompany.id,
                 type: 'payment_created',
-                description: `Parcela de R$ ${diff.toFixed(2)} criada automaticamente (adicional)`,
+                description: `Parcela de R$ ${decision.amount.toFixed(2)} criada automaticamente (adicional)`,
+              });
+            } else if (decision.action === 'update') {
+              await supabase.from('event_payments')
+                .update({
+                  amount: decision.amount,
+                  notes: `${ADJUSTMENT_NOTE_PREFIX} (R$ ${decision.amount.toFixed(2)})`,
+                })
+                .eq('id', (adjustRows[0] as any).id);
+              if (adjustRows.length > 1) {
+                await supabase.from('event_payments').delete().in('id', adjustRows.slice(1).map((p: any) => p.id));
+              }
+              await supabase.from('event_financial_timeline').insert({
+                event_id: resultId,
+                company_id: currentCompany.id,
+                type: 'payment_updated',
+                description: `Parcela adicional ajustada para R$ ${decision.amount.toFixed(2)}`,
+              });
+            } else if (decision.action === 'delete') {
+              await supabase.from('event_payments').delete().in('id', adjustRows.map((p: any) => p.id));
+              await supabase.from('event_financial_timeline').insert({
+                event_id: resultId,
+                company_id: currentCompany.id,
+                type: 'payment_deleted',
+                description: 'Parcela adicional de ajuste removida (parcelas cobrem o contrato)',
               });
             }
           } catch (err) {
