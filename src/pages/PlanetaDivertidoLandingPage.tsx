@@ -9,24 +9,27 @@ import { LeadChatbot } from "@/components/landing/LeadChatbot";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
 import { Link } from "react-router-dom";
 import planetaLogoImg from "@/assets/thumb-planeta-logo-transparent.png";
+import planetaFoto01 from "@/assets/planeta-gallery-fixed/1771618696306.jpg";
+import planetaFoto02 from "@/assets/planeta-gallery-fixed/1771618697238.jpg";
+import planetaFoto03 from "@/assets/planeta-gallery-fixed/1771618698659.jpg";
+import planetaFoto04 from "@/assets/planeta-gallery-fixed/1771618699783.jpg";
+import planetaFoto05 from "@/assets/planeta-gallery-fixed/1771618700704.jpg";
+import planetaFoto06 from "@/assets/planeta-gallery-fixed/1771618701630.jpg";
+import planetaFoto07 from "@/assets/planeta-gallery-fixed/1771618704085.jpg";
+import planetaFoto08 from "@/assets/planeta-gallery-fixed/1771618705413.jpg";
+import planetaFoto09 from "@/assets/planeta-gallery-fixed/1771618706337.jpg";
 
 // ─────────────────────────────────────────────
 // CONSTANTS
 // ─────────────────────────────────────────────
 const STORAGE = "https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/object/public/onboarding-uploads/6bc204ae-1311-4c67-bb6b-9ab55dae9d11";
-const STORAGE_IMG = "https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/render/image/public/onboarding-uploads/6bc204ae-1311-4c67-bb6b-9ab55dae9d11";
-
+// Fotos locais com orientacao ja corrigida (planeta-gallery-fixed) e otimizadas.
+// Substituem as do render do Supabase, que vinham giradas 90 graus e esticadas —
+// por isso so a 1a abria certa (a unica sem o "remendo" de rotacao). Agora nenhuma
+// precisa de rotacao.
 const PHOTOS = [
-  `${STORAGE_IMG}/photos/1771618696306.jpg?width=1200`,
-  `${STORAGE_IMG}/photos/1771618697238.jpg?width=1200`,
-  `${STORAGE_IMG}/photos/1771618698659.jpg?width=1200`,
-  `${STORAGE_IMG}/photos/1771618699783.jpg?width=1200`,
-  `${STORAGE_IMG}/photos/1771618700704.jpg?width=1200`,
-  `${STORAGE_IMG}/photos/1771618701630.jpg?width=1200`,
-  
-  `${STORAGE_IMG}/photos/1771618704085.jpg?width=1200`,
-  `${STORAGE_IMG}/photos/1771618705413.jpg?width=1200`,
-  `${STORAGE_IMG}/photos/1771618706337.jpg?width=1200`,
+  planetaFoto01, planetaFoto02, planetaFoto03, planetaFoto04, planetaFoto05,
+  planetaFoto06, planetaFoto07, planetaFoto08, planetaFoto09,
 ];
 
 const VIDEO_URL = `${STORAGE}/videos/1771618735052.mp4`;
@@ -163,7 +166,7 @@ function PlanetaHeroSection({ onCtaClick }: { onCtaClick: () => void }) {
               key={src}
               src={src}
               alt={`Planeta Divertido - Foto ${i + 1}`}
-              className={`absolute inset-0 w-full h-full object-cover${i > 0 ? " rotate-180" : ""}`}
+              className="absolute inset-0 w-full h-full object-cover"
               initial={{ opacity: 0 }}
               animate={{ opacity: activeImage === i ? 1 : 0 }}
               transition={{ duration: 1.2 }}
@@ -584,7 +587,7 @@ function PlanetaGallerySection() {
               <img
                 src={src}
                 alt={`Planeta Divertido - Foto ${index + 1}`}
-                className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500${index > 0 ? " rotate-180" : ""}`}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 loading="lazy"
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
@@ -598,7 +601,6 @@ function PlanetaGallerySection() {
             currentIndex={selectedImage}
             onClose={() => setSelectedImage(null)}
             onNavigate={setSelectedImage}
-            rotations={PHOTOS.map((_, i) => (i > 0 ? 180 : 0))}
           />
         )}
       </div>
