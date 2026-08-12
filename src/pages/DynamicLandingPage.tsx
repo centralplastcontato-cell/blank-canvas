@@ -65,6 +65,10 @@ interface DynamicLandingPageProps {
   domain?: string;
 }
 
+// Empresas que não usam mais o robô/plataforma: os CTAs abrem o WhatsApp
+// da própria empresa direto, em vez do chat de captação de leads.
+const DIRECT_WHATSAPP_SLUGS = new Set(["aventura-kids"]);
+
 export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) {
   const { slug } = useParams<{ slug: string }>();
   const [data, setData] = useState<LPData | null>(null);
@@ -213,7 +217,21 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
     );
   }
 
-  const openChat = () => setIsChatOpen(true);
+  const directWhatsApp =
+    DIRECT_WHATSAPP_SLUGS.has(data.company_slug) && data.company_whatsapp
+      ? `55${data.company_whatsapp.replace(/\D/g, "")}`
+      : null;
+
+  const openChat = () => {
+    if (directWhatsApp) {
+      const text = encodeURIComponent(
+        `Olá! 👋 Vim pelo site do ${data.company_name} e gostaria de saber mais 🎉`
+      );
+      window.open(`https://wa.me/${directWhatsApp}?text=${text}`, "_blank", "noopener,noreferrer");
+      return;
+    }
+    setIsChatOpen(true);
+  };
   const closeChat = () => setIsChatOpen(false);
 
   return (
