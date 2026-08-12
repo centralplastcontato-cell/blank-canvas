@@ -14,6 +14,25 @@ export const config = { runtime: "edge" };
 
 const OG_PREVIEW = "https://rsezgnkfhodltrsewlhz.supabase.co/functions/v1/og-preview";
 
+/**
+ * Miniatura por domínio: a og-preview usa o logo cadastrado da empresa, mas o
+ * WhatsApp recusa imagens pesadas (o logo da Aventura Kids é um PNG de 430 KB)
+ * e a miniatura some. Para estes domínios trocamos a imagem da prévia por um
+ * JPEG 1200x630 otimizado, servido pela própria Vercel (pasta public/).
+ */
+const OG_IMAGE_OVERRIDES: Array<[string, string]> = [
+  ["aventurakids", "https://www.aventurakids.online/og-aventura.jpg"],
+];
+
+function applyImageOverride(html: string, host: string): string {
+  const override = OG_IMAGE_OVERRIDES.find(([key]) => host.includes(key));
+  if (!override) return html;
+  const img = override[1];
+  return html
+    .replace(/(property="og:image(?::secure_url)?" content=")[^"]*(")/g, `$1${img}$2`)
+    .replace(/(name="twitter:image" content=")[^"]*(")/g, `$1${img}$2`);
+}
+
 export default async function handler(req: Request): Promise<Response> {
   const reqUrl = new URL(req.url);
   const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
@@ -31,7 +50,7 @@ export default async function handler(req: Request): Promise<Response> {
       return new Response(null, { status: 302, headers: { location: `https://${host}${path}` } });
     }
 
-    return new Response(html, {
+    return new Response(applyImageOverride(html, host), {
       status: 200,
       headers: {
         "content-type": "text/html; charset=utf-8",
