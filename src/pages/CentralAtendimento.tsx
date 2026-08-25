@@ -1293,14 +1293,14 @@ export default function CentralAtendimento() {
 
                   {/* Unit selector in header when on chat tab */}
                   {activeTab === "chat" && chatInstances.length > 1 && (
-                    <div className="flex items-center gap-1 ml-2 bg-border rounded-lg p-1 shrink-0">
+                    <div className="flex items-center gap-1 ml-2 bg-border rounded-lg p-1 min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       {chatInstances.map((inst) => (
                         <Button
                           key={inst.id}
                           variant={selectedChatUnit === inst.unit ? "default" : "ghost"}
                           size="sm"
                           onClick={() => handleSetSelectedChatUnit(inst.unit)}
-                          className={`h-7 px-3 rounded-md transition-all text-xs ${
+                          className={`h-7 px-3 rounded-md transition-all text-xs shrink-0 whitespace-nowrap ${
                             selectedChatUnit === inst.unit ? "shadow-sm" : "hover:bg-background/80"
                           }`}
                         >
