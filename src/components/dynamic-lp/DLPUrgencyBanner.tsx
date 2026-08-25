@@ -12,7 +12,7 @@ import type { LPTheme } from "@/types/landing-page";
 // =====================================================================
 const ENABLED = false;
 const DEADLINE = "2026-07-18T23:59:59";
-const MESSAGE = "💳 Entrada de R$ 500 e parcele sua festa em até 12x no boleto";
+const MESSAGE = "💳 Entrada de R$ 500,00 e parcele sua festa em até 12x no boleto";
 
 interface DLPUrgencyBannerProps {
   theme: LPTheme;
