@@ -11,27 +11,28 @@ export const campaignConfig = {
 
   // OFERTA PRINCIPAL
   offer: {
-    headline: "Feche sua festa até 18/07 e ganhe 2 bônus incríveis",
-    description: "Garanta a data da festa do seu filho até 18 de julho e leve rodízio de mini pizza + decoração completa, sem custo extra.",
+    headline: "Entrada de R$ 500 e parcele sua festa em até 12x no boleto",
+    description: "Garanta a data do seu filho com apenas R$ 500 de entrada e parcele o restante em até 12 boletos — o último vence até 15 dias antes da festa.",
     benefits: [
-      "🍕 Rodízio de mini pizza incluso",
-      "✨ Decoração linda e completa",
+      "💳 Apenas R$ 500 de entrada",
+      "🧾 Parcele em até 12x no boleto",
+      "🗓️ Último boleto até 15 dias antes da festa",
       "🏰 Estrutura completa do Castelo da Diversão",
-      "🎯 Atendimento personalizado e dedicado",
     ],
-    validUntil: "18/07/2026",
+    validUntil: "",
     conditions: [
-      "Válido para festas fechadas até 18/07/2026",
+      "Entrada de R$ 500 para reservar a data",
+      "Parcelamento em até 12x no boleto, com o último vencimento até 15 dias antes da festa",
       "Consulte disponibilidade de datas com nossa equipe",
     ],
   },
 
   // URGÊNCIA
   urgency: {
-    message: "Feche sua festa até 18/07 e ganhe 2 bônus",
+    message: "Entrada de R$ 500 e parcele em até 12x no boleto",
     spotsLeft: 0,
-    deadline: "Promoção válida até 18 de julho",
-    endDate: "2026-07-18T23:59:59",
+    deadline: "",
+    endDate: "",
   },
 
 

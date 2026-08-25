@@ -40,6 +40,10 @@ export function UrgencySection({ onCtaClick }: UrgencySectionProps) {
     return () => clearInterval(timer);
   }, []);
 
+  // Só mostra a contagem regressiva quando há um prazo válido e futuro.
+  const endTs = new Date(campaignConfig.urgency.endDate).getTime();
+  const hasCountdown = Number.isFinite(endTs) && endTs > Date.now();
+
   return (
     <section className="py-16 bg-gradient-to-br from-accent via-accent/90 to-accent/70 relative overflow-hidden">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -82,6 +86,7 @@ export function UrgencySection({ onCtaClick }: UrgencySectionProps) {
             Datas para festas infantis costumam esgotar rapidamente. Clique no botão abaixo e verifique agora as datas disponíveis.
           </p>
 
+          {hasCountdown && (
           <div className="flex flex-wrap justify-center gap-4 md:gap-6 mb-8">
             {/* Countdown */}
             <motion.div
@@ -111,6 +116,7 @@ export function UrgencySection({ onCtaClick }: UrgencySectionProps) {
               </div>
             </motion.div>
           </div>
+          )}
 
           <motion.button
             onClick={onCtaClick}
