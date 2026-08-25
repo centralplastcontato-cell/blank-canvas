@@ -11,17 +11,17 @@ export const campaignConfig = {
 
   // OFERTA PRINCIPAL
   offer: {
-    headline: "Entrada de R$ 500 e parcele sua festa em até 12x no boleto",
-    description: "Garanta a data do seu filho com apenas R$ 500 de entrada e parcele o restante em até 12 boletos — o último vence até 15 dias antes da festa.",
+    headline: "Entrada de R$ 500,00 e parcele sua festa em até 12x no boleto",
+    description: "Garanta a data do seu filho com apenas R$ 500,00 de entrada e parcele o restante em até 12 boletos — o último vence até 15 dias antes da festa.",
     benefits: [
-      "💳 Apenas R$ 500 de entrada",
+      "💳 Apenas R$ 500,00 de entrada",
       "🧾 Parcele em até 12x no boleto",
       "🗓️ Último boleto até 15 dias antes da festa",
       "🏰 Estrutura completa do Castelo da Diversão",
     ],
     validUntil: "",
     conditions: [
-      "Entrada de R$ 500 para reservar a data",
+      "Entrada de R$ 500,00 para reservar a data",
       "Parcelamento em até 12x no boleto, com o último vencimento até 15 dias antes da festa",
       "Consulte disponibilidade de datas com nossa equipe",
     ],
@@ -29,7 +29,7 @@ export const campaignConfig = {
 
   // URGÊNCIA
   urgency: {
-    message: "Entrada de R$ 500 e parcele em até 12x no boleto",
+    message: "Entrada de R$ 500,00 e parcele em até 12x no boleto",
     spotsLeft: 0,
     deadline: "",
     endDate: "",

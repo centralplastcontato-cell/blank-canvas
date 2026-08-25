@@ -14,9 +14,9 @@ const benefits = [
   {
     icon: Wallet,
     badge: "Entrada",
-    title: "R$ 500",
+    title: "R$ 500,00",
     suffix: "de entrada",
-    description: "Garanta a data da festa do seu filho com apenas R$ 500 de entrada. Simples, rápido e sem burocracia.",
+    description: "Garanta a data da festa do seu filho com apenas R$ 500,00 de entrada. Simples, rápido e sem burocracia.",
   },
   {
     icon: CreditCard,
@@ -74,7 +74,7 @@ export function DLPPromoSection({ theme, onCtaClick }: DLPPromoSectionProps) {
             style={{ backgroundColor: `${PROMO_GOLD}30`, color: PROMO_DARK }}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Entrada de R$ 500 + parcelamento em até 12x
+            Entrada de R$ 500,00 + parcelamento em até 12x
           </span>
           <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-4 leading-tight">
             Tudo pensado para a sua festa{" "}
