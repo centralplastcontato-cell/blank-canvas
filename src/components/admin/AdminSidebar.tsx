@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useLocation } from "react-router-dom";
-import { Users, LogOut, RefreshCw, Headset, Settings, Building2, Brain, CalendarDays, FolderOpen, GraduationCap, Megaphone, MapPin, FileSignature, DollarSign, Handshake, Lightbulb } from "lucide-react";
+import { Users, LogOut, RefreshCw, Headset, Settings, Building2, Brain, CalendarDays, FolderOpen, GraduationCap, Megaphone, MapPin, FileSignature, DollarSign, Handshake, Lightbulb, X } from "lucide-react";
 import { prefetchRoute } from "@/App";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { NavLink } from "@/components/NavLink";
@@ -43,8 +43,9 @@ export function AdminSidebar({
   onRefresh, 
   onLogout 
 }: AdminSidebarProps) {
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile, setOpen } = useSidebar();
   const collapsed = state === "collapsed";
+  const closeSidebar = () => (isMobile ? setOpenMobile(false) : setOpen(false));
   const location = useLocation();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const modules = useCompanyModules();
@@ -103,6 +104,17 @@ export function AdminSidebar({
                 {currentUserName}
               </p>
             </div>
+          )}
+          {!collapsed && (
+            <button
+              type="button"
+              onClick={closeSidebar}
+              aria-label="Fechar menu"
+              title="Fechar menu"
+              className="ml-auto shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
           )}
         </div>
       </SidebarHeader>
