@@ -10,9 +10,9 @@ import type { LPTheme } from "@/types/landing-page";
 // Para alterar a data limite: mude DEADLINE (formato AAAA-MM-DDTHH:mm)
 // Para alterar o texto: mude MESSAGE
 // =====================================================================
-const ENABLED = true;
+const ENABLED = false;
 const DEADLINE = "2026-07-18T23:59:59";
-const MESSAGE = "🍕 Feche sua festa até 18/07 e ganhe Rodízio de Mini Pizza + Decoração completa";
+const MESSAGE = "💳 Entrada de R$ 500 e parcele sua festa em até 12x no boleto";
 
 interface DLPUrgencyBannerProps {
   theme: LPTheme;

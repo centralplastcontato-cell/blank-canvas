@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Pizza, Sparkles, CalendarCheck } from "lucide-react";
+import { Wallet, CreditCard, CalendarClock, Sparkles } from "lucide-react";
 import type { LPTheme } from "@/types/landing-page";
 
 const PROMO_DARK = "#7A1F3D";
@@ -12,25 +12,25 @@ interface DLPPromoSectionProps {
 
 const benefits = [
   {
-    icon: CalendarCheck,
-    badge: "Prazo especial",
-    title: "Até 18/07",
-    suffix: "para fechar",
-    description: "Feche a festa do seu filho até 18 de julho e garanta os dois bônus abaixo, sem custo extra.",
+    icon: Wallet,
+    badge: "Entrada",
+    title: "R$ 500",
+    suffix: "de entrada",
+    description: "Garanta a data da festa do seu filho com apenas R$ 500 de entrada. Simples, rápido e sem burocracia.",
   },
   {
-    icon: Pizza,
-    badge: "Bônus 1",
-    title: "Rodízio",
-    suffix: "de mini pizza",
-    description: "Delicioso rodízio de mini pizza incluso no seu evento — as crianças e os adultos amam!",
+    icon: CreditCard,
+    badge: "Parcelamento",
+    title: "Até 12x",
+    suffix: "no boleto",
+    description: "Divida o valor da sua festa em até 12 boletos e organize tudo no seu ritmo, sem pesar no orçamento.",
   },
   {
-    icon: Sparkles,
-    badge: "Bônus 2",
-    title: "Decoração",
-    suffix: "linda e completa",
-    description: "Ganhe uma decoração temática linda para deixar sua festa ainda mais inesquecível.",
+    icon: CalendarClock,
+    badge: "Prazo flexível",
+    title: "15 dias",
+    suffix: "antes da festa",
+    description: "Você tem folga para pagar: o último boleto vence até 15 dias antes da data da festa.",
   },
 ];
 
@@ -65,7 +65,7 @@ export function DLPPromoSection({ theme, onCtaClick }: DLPPromoSectionProps) {
               className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold uppercase tracking-wider shadow-md text-white"
               style={{ background: `linear-gradient(110deg, ${PROMO_DARK}, #A83259)` }}
             >
-              🍕 Promoção especial · até 18/07
+              💳 Condição especial de pagamento
             </span>
           </div>
 
@@ -74,14 +74,14 @@ export function DLPPromoSection({ theme, onCtaClick }: DLPPromoSectionProps) {
             style={{ backgroundColor: `${PROMO_GOLD}30`, color: PROMO_DARK }}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Rodízio de mini pizza + decoração inclusos
+            Entrada de R$ 500 + parcelamento em até 12x
           </span>
           <h2 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-4 leading-tight">
             Tudo pensado para a sua festa{" "}
             <span style={{ color: primary }}>acontecer</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Bônus, parcelamento e agenda aberta — três motivos para fechar a celebração com tranquilidade.
+            Entrada facilitada, parcelamento no boleto e prazo flexível — três motivos para fechar a celebração com tranquilidade.
           </p>
         </motion.div>
 
