@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Star, Crown } from "lucide-react";
 import fachada1 from "@/assets/fachada-unidade-2.jpg";
-import logoCastelo from "@/assets/logo-castelo-transparent.png";
+import mascoteCastelo from "@/assets/mascote-castelo.png";
 
 interface HeroSectionProps {
   onCtaClick: () => void;
@@ -67,12 +67,27 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 section-container text-center py-20 md:py-24 px-4">
+      <div className="relative z-10 section-container py-20 md:py-24 px-4">
+        <div className="flex flex-col lg:flex-row items-center justify-center gap-6 lg:gap-12 max-w-6xl mx-auto">
+          {/* Mascote do Castelo */}
+          <motion.img
+            src={mascoteCastelo}
+            alt="Mascote do Castelo da Diversão"
+            initial={{ opacity: 0, scale: 0.85, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: [0, -12, 0] }}
+            transition={{
+              opacity: { delay: 0.2, duration: 0.7 },
+              scale: { delay: 0.2, duration: 0.7 },
+              y: { delay: 0.9, duration: 4, repeat: Infinity, ease: "easeInOut" },
+            }}
+            className="w-44 sm:w-56 lg:w-[360px] xl:w-[400px] shrink-0 drop-shadow-[0_16px_40px_rgba(0,0,0,0.55)] select-none pointer-events-none"
+          />
+
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-          className="space-y-6 max-w-4xl mx-auto"
+          className="space-y-6 max-w-2xl text-center"
         >
           {/* Eyebrow */}
           <motion.div
@@ -90,16 +105,6 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
               <span className="h-px w-8 bg-gradient-to-l from-transparent to-yellow-400/70" />
             </div>
           </motion.div>
-
-          {/* Logo */}
-          <motion.img
-            src={logoCastelo}
-            alt="Castelo da Diversão"
-            initial={{ opacity: 0, scale: 0.85 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.25, duration: 0.7 }}
-            className="w-36 md:w-48 lg:w-56 mx-auto drop-shadow-[0_8px_32px_rgba(0,0,0,0.6)]"
-          />
 
           {/* Headline */}
           <motion.h1
@@ -191,6 +196,7 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
             </div>
           </motion.div>
         </motion.div>
+        </div>
       </div>
 
       {/* Scroll hint */}
