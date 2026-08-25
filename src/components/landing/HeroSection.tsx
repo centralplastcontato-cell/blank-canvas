@@ -74,21 +74,6 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
           transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
           className="space-y-6 max-w-4xl mx-auto"
         >
-          {/* Badge Copa */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.05, duration: 0.5 }}
-            className="flex justify-center"
-          >
-            <span
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider text-white shadow-lg"
-              style={{ background: "linear-gradient(110deg, #006400, #008000 60%, #FFD700)" }}
-            >
-              ⚽ Promoção Pré-Copa 2026
-            </span>
-          </motion.div>
-
           {/* Eyebrow */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
