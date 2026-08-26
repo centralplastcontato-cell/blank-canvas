@@ -87,6 +87,9 @@ export default function CentralAtendimento() {
   });
   const [refreshKey, setRefreshKey] = useState(0);
   const [leads, setLeads] = useState<Lead[]>([]);
+  // Leads "realizados" (fechados cuja festa ja aconteceu) — carregados de forma
+  // independente da paginacao, para a coluna "Realizada" mostrar o historico completo.
+  const [realizadaLeads, setRealizadaLeads] = useState<Lead[]>([]);
   const [isLoadingLeads, setIsLoadingLeads] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -469,6 +472,80 @@ export default function CentralAtendimento() {
     fetchLeads();
   }, [filters, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms, currentPage, viewMode, currentCompany?.id]);
 
+  // Coluna "Realizada" (CRM): carrega TODOS os leads fechados cuja festa vinculada
+  // ja aconteceu, independente da paginacao de 20 — porque festas realizadas costumam
+  // ser de leads antigos, que nao entram na pagina atual.
+  useEffect(() => {
+    const fetchRealizadas = async () => {
+      if (viewMode !== "kanban" || !role || isLoadingUnitPerms || !currentCompany?.id) {
+        setRealizadaLeads([]);
+        return;
+      }
+      if (!canViewAll && allowedUnits.length === 0) {
+        setRealizadaLeads([]);
+        return;
+      }
+
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+      // 1) Todas as festas (eventos) da empresa com data — para achar a data mais recente por lead.
+      const { data: eventsData, error: evErr } = await supabase
+        .from("company_events")
+        .select("lead_id, event_date")
+        .eq("company_id", currentCompany.id)
+        .not("lead_id", "is", null)
+        .not("event_date", "is", null);
+
+      if (evErr || !eventsData || eventsData.length === 0) {
+        setRealizadaLeads([]);
+        return;
+      }
+
+      // Data mais recente da festa por lead; "realizada" = a mais recente ja passou.
+      const maxDateByLead = new Map<string, string>();
+      for (const e of eventsData as { lead_id: string | null; event_date: string | null }[]) {
+        if (!e.lead_id || !e.event_date) continue;
+        const cur = maxDateByLead.get(e.lead_id);
+        if (!cur || e.event_date > cur) maxDateByLead.set(e.lead_id, e.event_date);
+      }
+      const pastLeadIds = [...maxDateByLead.entries()]
+        .filter(([, d]) => d < todayStr)
+        .map(([id]) => id);
+
+      if (pastLeadIds.length === 0) {
+        setRealizadaLeads([]);
+        return;
+      }
+
+      // 2) Desses leads, os que estao com status "fechado" (venda fechada).
+      let q = supabase
+        .from("campaign_leads")
+        .select("*")
+        .eq("company_id", currentCompany.id)
+        .eq("status", "fechado")
+        .in("id", pastLeadIds);
+
+      if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes("all")) {
+        q = q.in("unit", [...allowedUnits, "As duas"]);
+      }
+
+      const { data: leadsData, error: leadsErr } = await q;
+      if (leadsErr || !leadsData) {
+        setRealizadaLeads([]);
+        return;
+      }
+
+      const withDate = (leadsData as Lead[]).map((lead) => ({
+        ...lead,
+        party_date: maxDateByLead.get(lead.id) || null,
+      }));
+      setRealizadaLeads(withDate);
+    };
+
+    fetchRealizadas();
+  }, [viewMode, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms, currentCompany?.id]);
+
   // Fetch server-side metrics (respects active filters including unit)
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -697,11 +774,20 @@ export default function CentralAtendimento() {
     setIsDetailOpen(true);
   };
 
+  // Procura o lead tanto na página atual quanto na lista de "realizados" (que é
+  // carregada à parte), para que arrastar/editar funcione mesmo em leads antigos.
+  const findLead = (leadId: string): Lead | undefined =>
+    leads.find((l) => l.id === leadId) || realizadaLeads.find((l) => l.id === leadId);
+
   const handleStatusChange = (leadId: string, newStatus: LeadStatus) => {
     setLeads((prev) =>
       prev.map((lead) =>
         lead.id === leadId ? { ...lead, status: newStatus } : lead
       )
+    );
+    // Se saiu de "fechado", tira da coluna Realizada na hora.
+    setRealizadaLeads((prev) =>
+      newStatus === "fechado" ? prev : prev.filter((l) => l.id !== leadId)
     );
   };
 
@@ -1154,11 +1240,12 @@ export default function CentralAtendimento() {
                 ) : (
                   <LeadsKanban
                     leads={leads}
+                    realizadaLeads={realizadaLeads}
                     responsaveis={responsaveis}
                     onLeadClick={handleLeadClick}
                     onStatusChange={async (leadId, newStatus) => {
                       try {
-                        const lead = leads.find((l) => l.id === leadId);
+                        const lead = findLead(leadId);
                         if (!lead) return;
                         await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de status", old_value: lead.status, new_value: newStatus });
                         const { error } = await supabase.from("campaign_leads").update({ status: newStatus }).eq("id", leadId);
@@ -1168,7 +1255,7 @@ export default function CentralAtendimento() {
                         }
                         handleStatusChange(leadId, newStatus);
                         if (newStatus === "fechado") {
-                          const closedLead = leads.find((l) => l.id === leadId);
+                          const closedLead = findLead(leadId);
                           if (closedLead) handleLeadClosed({ ...closedLead, status: "fechado" });
                         }
                       } catch (error) {
@@ -1177,7 +1264,7 @@ export default function CentralAtendimento() {
                       }
                     }}
                     onNameUpdate={async (leadId, newName) => {
-                      const lead = leads.find((l) => l.id === leadId);
+                      const lead = findLead(leadId);
                       if (!lead) return;
                       await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de nome", old_value: lead.name, new_value: newName });
                       const { error } = await supabase.from("campaign_leads").update({ name: newName }).eq("id", leadId);
@@ -1187,7 +1274,7 @@ export default function CentralAtendimento() {
                       toast({ title: "Nome atualizado", description: `O nome foi alterado para "${newName}".` });
                     }}
                     onDescriptionUpdate={async (leadId, newDescription) => {
-                      const lead = leads.find((l) => l.id === leadId);
+                      const lead = findLead(leadId);
                       if (!lead) return;
                       await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de observações", old_value: lead.observacoes || "", new_value: newDescription });
                       const { error } = await supabase.from("campaign_leads").update({ observacoes: newDescription }).eq("id", leadId);
@@ -1572,11 +1659,12 @@ export default function CentralAtendimento() {
                 ) : (
                   <LeadsKanban
                     leads={leads}
+                    realizadaLeads={realizadaLeads}
                     responsaveis={responsaveis}
                     onLeadClick={handleLeadClick}
                     onStatusChange={async (leadId, newStatus) => {
                       try {
-                        const lead = leads.find((l) => l.id === leadId);
+                        const lead = findLead(leadId);
                         if (!lead) return;
                         await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de status", old_value: lead.status, new_value: newStatus });
                         const { error } = await supabase.from("campaign_leads").update({ status: newStatus }).eq("id", leadId);
@@ -1586,7 +1674,7 @@ export default function CentralAtendimento() {
                         }
                         handleStatusChange(leadId, newStatus);
                         if (newStatus === "fechado") {
-                          const closedLead = leads.find((l) => l.id === leadId);
+                          const closedLead = findLead(leadId);
                           if (closedLead) handleLeadClosed({ ...closedLead, status: "fechado" });
                         }
                       } catch (error) {
@@ -1595,7 +1683,7 @@ export default function CentralAtendimento() {
                       }
                     }}
                     onNameUpdate={async (leadId, newName) => {
-                      const lead = leads.find((l) => l.id === leadId);
+                      const lead = findLead(leadId);
                       if (!lead) return;
                       await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de nome", old_value: lead.name, new_value: newName });
                       const { error } = await supabase.from("campaign_leads").update({ name: newName }).eq("id", leadId);
@@ -1605,7 +1693,7 @@ export default function CentralAtendimento() {
                       toast({ title: "Nome atualizado", description: `O nome foi alterado para "${newName}".` });
                     }}
                     onDescriptionUpdate={async (leadId, newDescription) => {
-                      const lead = leads.find((l) => l.id === leadId);
+                      const lead = findLead(leadId);
                       if (!lead) return;
                       await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de observações", old_value: lead.observacoes || "", new_value: newDescription });
                       const { error } = await supabase.from("campaign_leads").update({ observacoes: newDescription }).eq("id", leadId);
