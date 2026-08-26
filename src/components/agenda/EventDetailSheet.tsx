@@ -5,7 +5,8 @@ import { Separator } from "@/components/ui/separator";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { X, Clock, Users, MapPin, Package, DollarSign, Pencil, Trash2, AlertTriangle, UserCheck, Gamepad2, Copy, Check, ExternalLink, Briefcase, CalendarIcon, Loader2, CreditCard, MessageCircle, FileSignature } from "lucide-react";
+import { X, Clock, Users, MapPin, Package, DollarSign, Pencil, Trash2, AlertTriangle, UserCheck, Gamepad2, Copy, Check, ExternalLink, Briefcase, CalendarIcon, Loader2, CreditCard, MessageCircle, FileSignature, ChevronRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { ContractReadinessPanel } from "@/components/contracts/ContractReadinessPanel";
 import { EventContractDialog } from "@/components/contracts/EventContractDialog";
 import { logContractAction, sendContractViaWhatsApp, getContractSendTemplate, resolveContractSendMessage } from "@/components/contracts/contractAuditHelpers";
@@ -76,7 +77,15 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
 export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, conflicts = [], userId, onEventPatch }: EventDetailSheetProps) {
   const financialPerms = useFinancialPermissions(userId);
   const consentHook = useFinancialConsent();
-  
+  const navigate = useNavigate();
+
+  // Abre as informações do lead vinculado na Central de Atendimento.
+  const openLinkedLead = () => {
+    if (!event?.lead_id) return;
+    onOpenChange(false);
+    navigate(`/atendimento?lead=${event.lead_id}`);
+  };
+
   const [leadName, setLeadName] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -392,13 +401,19 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
               </div>
               <div className="p-4 space-y-4">
                 {event.lead_id && leadName && (
-                  <div className="flex items-center gap-3 text-sm">
+                  <button
+                    type="button"
+                    onClick={openLinkedLead}
+                    title="Abrir informações do lead"
+                    className="w-full flex items-center gap-3 text-sm text-left rounded-lg -m-1 p-1 hover:bg-primary/5 active:bg-primary/10 transition-colors group"
+                  >
                     <div className="p-1.5 rounded-lg bg-primary/10"><UserCheck className="h-4 w-4 text-primary" /></div>
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="text-[11px] text-muted-foreground font-medium">Lead vinculado</p>
-                      <p className="font-medium text-foreground">{leadName}</p>
+                      <p className="font-medium text-primary group-hover:underline truncate">{leadName}</p>
                     </div>
-                  </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
+                  </button>
                 )}
                 {event.lead_id && leadName && event.notes && <Separator className="opacity-40" />}
                 {event.notes && (
