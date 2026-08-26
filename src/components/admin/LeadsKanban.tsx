@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 
 interface LeadsKanbanProps {
   leads: Lead[];
+  /** Leads "realizados" (fechados com festa em data passada), carregados independente da paginação. */
+  realizadaLeads?: Lead[];
   responsaveis: UserWithRole[];
   onLeadClick: (lead: Lead) => void;
   onStatusChange: (leadId: string, newStatus: LeadStatus) => void;
@@ -29,6 +31,7 @@ interface LeadsKanbanProps {
 
 export function LeadsKanban({
   leads,
+  realizadaLeads = [],
   responsaveis,
   onLeadClick,
   onStatusChange,
@@ -75,12 +78,17 @@ export function LeadsKanban({
   // Mobile column navigation state
   const [mobileColumnIndex, setMobileColumnIndex] = useState(0);
 
+  const realizadaIds = new Set(realizadaLeads.map((l) => l.id));
+
   const getLeadsByStatus = (status: KanbanColumn) => {
+    // "Realizada" vem de uma busca dedicada (todas as festas passadas, sem paginação).
     if (status === "realizada") {
-      return leads.filter((lead) => lead.status === "fechado" && isPastParty(lead));
+      return realizadaLeads;
     }
     if (status === "fechado") {
-      return leads.filter((lead) => lead.status === "fechado" && !isPastParty(lead));
+      return leads.filter(
+        (lead) => lead.status === "fechado" && !isPastParty(lead) && !realizadaIds.has(lead.id),
+      );
     }
     return leads.filter((lead) => lead.status === status);
   };
