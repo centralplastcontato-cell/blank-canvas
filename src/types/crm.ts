@@ -60,6 +60,7 @@ export interface Lead {
   has_follow_up_3?: boolean; // From lead_history - third follow-up
   has_follow_up_4?: boolean; // From lead_history - fourth follow-up
   has_return?: boolean; // From lead_history - lead retornou pela LP
+  party_date?: string | null; // From company_events - data da festa vinculada (mais recente)
 }
 
 export interface LeadWithResponsavel extends Lead {
