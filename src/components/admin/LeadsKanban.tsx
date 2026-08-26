@@ -77,6 +77,9 @@ export function LeadsKanban({
 
   // Mobile column navigation state
   const [mobileColumnIndex, setMobileColumnIndex] = useState(0);
+  // Paginação interna da coluna "Realizada" (pode ter muitos cartões).
+  const REALIZADA_PAGE = 20;
+  const [realizadaLimit, setRealizadaLimit] = useState(REALIZADA_PAGE);
 
   const realizadaIds = new Set(realizadaLeads.map((l) => l.id));
 
@@ -151,6 +154,10 @@ export function LeadsKanban({
 
   const currentMobileColumn = columns[mobileColumnIndex];
   const mobileColumnLeads = getLeadsByStatus(currentMobileColumn);
+  const mobileIsRealizada = currentMobileColumn === "realizada";
+  const mobileVisibleLeads = mobileIsRealizada
+    ? mobileColumnLeads.slice(0, realizadaLimit)
+    : mobileColumnLeads;
 
   return (
     <>
@@ -221,27 +228,39 @@ export function LeadsKanban({
                   Nenhum lead
                 </div>
               ) : (
-                mobileColumnLeads.map((lead) => (
-                  <div key={lead.id} className="group">
-                    <KanbanCard
-                      lead={lead}
-                      responsavelName={getResponsavelName(lead.responsavel_id)}
-                      canEdit={canEdit}
-                      canEditName={canEditName}
-                      canEditDescription={canEditDescription}
-                      canViewContact={canViewContact}
-                      onLeadClick={onLeadClick}
-                      onStatusChange={onStatusChange}
-                      onNameUpdate={handleNameUpdate}
-                      onDescriptionUpdate={handleDescriptionUpdate}
-                      onTransfer={onTransfer}
-                      onDelete={onDelete}
-                      canDelete={canDelete}
-                      getPreviousStatus={getPreviousStatus}
-                      getNextStatus={getNextStatus}
-                    />
-                  </div>
-                ))
+                <>
+                  {mobileVisibleLeads.map((lead) => (
+                    <div key={lead.id} className="group">
+                      <KanbanCard
+                        lead={lead}
+                        responsavelName={getResponsavelName(lead.responsavel_id)}
+                        canEdit={canEdit}
+                        canEditName={canEditName}
+                        canEditDescription={canEditDescription}
+                        canViewContact={canViewContact}
+                        onLeadClick={onLeadClick}
+                        onStatusChange={onStatusChange}
+                        onNameUpdate={handleNameUpdate}
+                        onDescriptionUpdate={handleDescriptionUpdate}
+                        onTransfer={onTransfer}
+                        onDelete={onDelete}
+                        canDelete={canDelete}
+                        getPreviousStatus={getPreviousStatus}
+                        getNextStatus={getNextStatus}
+                      />
+                    </div>
+                  ))}
+                  {mobileIsRealizada && mobileColumnLeads.length > realizadaLimit && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-1 text-xs"
+                      onClick={() => setRealizadaLimit((n) => n + REALIZADA_PAGE)}
+                    >
+                      Mostrar mais ({mobileColumnLeads.length - realizadaLimit} restantes)
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           </ScrollArea>
@@ -252,6 +271,8 @@ export function LeadsKanban({
       <div className="hidden md:flex gap-4 overflow-x-auto pb-4 h-full scrollbar-thin scrollbar-thumb-muted-foreground/30 hover:scrollbar-thumb-muted-foreground/50 scrollbar-track-transparent">
         {columns.map((status) => {
           const columnLeads = getLeadsByStatus(status);
+          const isRealizada = status === "realizada";
+          const visibleLeads = isRealizada ? columnLeads.slice(0, realizadaLimit) : columnLeads;
           return (
             <div
               key={status}
@@ -284,27 +305,39 @@ export function LeadsKanban({
                       {status === "realizada" ? "Nenhuma festa realizada" : "Arraste leads aqui"}
                     </div>
                   ) : (
-                    columnLeads.map((lead) => (
-                      <div key={lead.id} className="group">
-                        <KanbanCard
-                          lead={lead}
-                          responsavelName={getResponsavelName(lead.responsavel_id)}
-                          canEdit={canEdit}
-                          canEditName={canEditName}
-                          canEditDescription={canEditDescription}
-                          canViewContact={canViewContact}
-                          onLeadClick={onLeadClick}
-                          onStatusChange={onStatusChange}
-                          onNameUpdate={handleNameUpdate}
-                          onDescriptionUpdate={handleDescriptionUpdate}
-                          onTransfer={onTransfer}
-                          onDelete={onDelete}
-                          canDelete={canDelete}
-                          getPreviousStatus={getPreviousStatus}
-                          getNextStatus={getNextStatus}
-                        />
-                      </div>
-                    ))
+                    <>
+                      {visibleLeads.map((lead) => (
+                        <div key={lead.id} className="group">
+                          <KanbanCard
+                            lead={lead}
+                            responsavelName={getResponsavelName(lead.responsavel_id)}
+                            canEdit={canEdit}
+                            canEditName={canEditName}
+                            canEditDescription={canEditDescription}
+                            canViewContact={canViewContact}
+                            onLeadClick={onLeadClick}
+                            onStatusChange={onStatusChange}
+                            onNameUpdate={handleNameUpdate}
+                            onDescriptionUpdate={handleDescriptionUpdate}
+                            onTransfer={onTransfer}
+                            onDelete={onDelete}
+                            canDelete={canDelete}
+                            getPreviousStatus={getPreviousStatus}
+                            getNextStatus={getNextStatus}
+                          />
+                        </div>
+                      ))}
+                      {isRealizada && columnLeads.length > realizadaLimit && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full mt-1 text-xs"
+                          onClick={() => setRealizadaLimit((n) => n + REALIZADA_PAGE)}
+                        >
+                          Mostrar mais ({columnLeads.length - realizadaLimit} restantes)
+                        </Button>
+                      )}
+                    </>
                   )}
                 </div>
               </ScrollArea>

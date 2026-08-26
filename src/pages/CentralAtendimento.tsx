@@ -536,7 +536,9 @@ export default function CentralAtendimento() {
           const d = maxDateByLead.get(lead.id);
           return !!d && d < todayStr;
         })
-        .map((lead) => ({ ...lead, party_date: maxDateByLead.get(lead.id) || null }));
+        .map((lead) => ({ ...lead, party_date: maxDateByLead.get(lead.id) || null }))
+        // Festas mais recentes primeiro.
+        .sort((a, b) => (b.party_date || "").localeCompare(a.party_date || ""));
       setRealizadaLeads(withDate);
     };
 
