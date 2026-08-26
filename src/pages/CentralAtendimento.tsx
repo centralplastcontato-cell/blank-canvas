@@ -489,57 +489,54 @@ export default function CentralAtendimento() {
       const now = new Date();
       const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
-      // 1) Todas as festas (eventos) da empresa com data — para achar a data mais recente por lead.
-      const { data: eventsData, error: evErr } = await supabase
-        .from("company_events")
-        .select("lead_id, event_date")
-        .eq("company_id", currentCompany.id)
-        .not("lead_id", "is", null)
-        .not("event_date", "is", null);
-
-      if (evErr || !eventsData || eventsData.length === 0) {
-        setRealizadaLeads([]);
-        return;
-      }
-
-      // Data mais recente da festa por lead; "realizada" = a mais recente ja passou.
-      const maxDateByLead = new Map<string, string>();
-      for (const e of eventsData as { lead_id: string | null; event_date: string | null }[]) {
-        if (!e.lead_id || !e.event_date) continue;
-        const cur = maxDateByLead.get(e.lead_id);
-        if (!cur || e.event_date > cur) maxDateByLead.set(e.lead_id, e.event_date);
-      }
-      const pastLeadIds = [...maxDateByLead.entries()]
-        .filter(([, d]) => d < todayStr)
-        .map(([id]) => id);
-
-      if (pastLeadIds.length === 0) {
-        setRealizadaLeads([]);
-        return;
-      }
-
-      // 2) Desses leads, os que estao com status "fechado" (venda fechada).
-      let q = supabase
+      // 1) Começa pelos leads FECHADOS (conjunto pequeno) — evita listas gigantes de IDs
+      //    que estouram o limite da consulta.
+      let lq = supabase
         .from("campaign_leads")
         .select("*")
         .eq("company_id", currentCompany.id)
         .eq("status", "fechado")
-        .in("id", pastLeadIds);
+        .limit(2000);
 
       if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes("all")) {
-        q = q.in("unit", [...allowedUnits, "As duas"]);
+        lq = lq.in("unit", [...allowedUnits, "As duas"]);
       }
 
-      const { data: leadsData, error: leadsErr } = await q;
-      if (leadsErr || !leadsData) {
+      const { data: fechados, error: lErr } = await lq;
+      if (lErr || !fechados || fechados.length === 0) {
         setRealizadaLeads([]);
         return;
       }
 
-      const withDate = (leadsData as Lead[]).map((lead) => ({
-        ...lead,
-        party_date: maxDateByLead.get(lead.id) || null,
-      }));
+      const fechadoIds = (fechados as Lead[]).map((l) => l.id);
+
+      // 2) Festas (eventos) vinculadas SÓ a esses leads fechados.
+      const { data: eventsData, error: evErr } = await supabase
+        .from("company_events")
+        .select("lead_id, event_date")
+        .in("lead_id", fechadoIds)
+        .not("event_date", "is", null);
+
+      if (evErr) {
+        setRealizadaLeads([]);
+        return;
+      }
+
+      // Data mais recente da festa por lead.
+      const maxDateByLead = new Map<string, string>();
+      for (const e of (eventsData || []) as { lead_id: string | null; event_date: string | null }[]) {
+        if (!e.lead_id || !e.event_date) continue;
+        const cur = maxDateByLead.get(e.lead_id);
+        if (!cur || e.event_date > cur) maxDateByLead.set(e.lead_id, e.event_date);
+      }
+
+      // 3) Fechados cuja festa mais recente JÁ passou = realizadas.
+      const withDate = (fechados as Lead[])
+        .filter((lead) => {
+          const d = maxDateByLead.get(lead.id);
+          return !!d && d < todayStr;
+        })
+        .map((lead) => ({ ...lead, party_date: maxDateByLead.get(lead.id) || null }));
       setRealizadaLeads(withDate);
     };
 
