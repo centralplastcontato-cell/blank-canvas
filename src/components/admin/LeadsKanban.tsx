@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { Lead, LEAD_STATUS_LABELS, LEAD_STATUS_COLORS, LeadStatus } from "@/types/crm";
+
+// Colunas do quadro: os status reais + a coluna virtual "realizada" (derivada por data)
+type KanbanColumn = LeadStatus | "realizada";
 import { UserWithRole } from "@/types/crm";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -39,12 +42,16 @@ export function LeadsKanban({
   canDelete = false,
   canViewContact = true,
 }: LeadsKanbanProps) {
-  const columns: LeadStatus[] = [
+  // "realizada" é uma coluna VIRTUAL: não é um status salvo no banco.
+  // Ela agrupa os leads "fechado" cuja festa vinculada já aconteceu (data passada).
+  // O status guardado continua "fechado" — então relatórios de vendas não mudam.
+  const columns: KanbanColumn[] = [
     "novo",
     "em_contato",
     "aguardando_resposta",
     "orcamento_enviado",
     "fechado",
+    "realizada",
     "perdido",
     "transferido",
     "cliente_retorno",
@@ -52,10 +59,29 @@ export function LeadsKanban({
     "fornecedor",
   ];
 
+  // Colunas que representam status reais (para as setas de mover o card)
+  const realColumns = columns.filter((c): c is LeadStatus => c !== "realizada");
+
+  const columnLabel = (c: KanbanColumn) =>
+    c === "realizada" ? "Realizada" : LEAD_STATUS_LABELS[c];
+  const columnColor = (c: KanbanColumn) =>
+    c === "realizada" ? "bg-blue-500" : LEAD_STATUS_COLORS[c];
+
+  // Data de hoje (local) em formato AAAA-MM-DD para comparar com event_date.
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const isPastParty = (lead: Lead) => !!lead.party_date && lead.party_date < todayStr;
+
   // Mobile column navigation state
   const [mobileColumnIndex, setMobileColumnIndex] = useState(0);
 
-  const getLeadsByStatus = (status: LeadStatus) => {
+  const getLeadsByStatus = (status: KanbanColumn) => {
+    if (status === "realizada") {
+      return leads.filter((lead) => lead.status === "fechado" && isPastParty(lead));
+    }
+    if (status === "fechado") {
+      return leads.filter((lead) => lead.status === "fechado" && !isPastParty(lead));
+    }
     return leads.filter((lead) => lead.status === status);
   };
 
@@ -69,8 +95,10 @@ export function LeadsKanban({
     e.preventDefault();
   };
 
-  const handleDrop = (e: React.DragEvent, status: LeadStatus) => {
+  const handleDrop = (e: React.DragEvent, status: KanbanColumn) => {
     e.preventDefault();
+    // "realizada" é derivada da data — não é um status salvável, então ignoramos o drop.
+    if (status === "realizada") return;
     const leadId = e.dataTransfer.getData("leadId");
     if (leadId && canEdit) {
       onStatusChange(leadId, status);
@@ -78,17 +106,17 @@ export function LeadsKanban({
   };
 
   const getPreviousStatus = (currentStatus: LeadStatus): LeadStatus | null => {
-    const currentIndex = columns.indexOf(currentStatus);
+    const currentIndex = realColumns.indexOf(currentStatus);
     if (currentIndex > 0) {
-      return columns[currentIndex - 1];
+      return realColumns[currentIndex - 1];
     }
     return null;
   };
 
   const getNextStatus = (currentStatus: LeadStatus): LeadStatus | null => {
-    const currentIndex = columns.indexOf(currentStatus);
-    if (currentIndex < columns.length - 1) {
-      return columns[currentIndex + 1];
+    const currentIndex = realColumns.indexOf(currentStatus);
+    if (currentIndex < realColumns.length - 1) {
+      return realColumns[currentIndex + 1];
     }
     return null;
   };
@@ -134,10 +162,10 @@ export function LeadsKanban({
           
           <div className="flex-1 flex items-center justify-center gap-2 min-w-0 bg-card/80 backdrop-blur-sm rounded-lg px-4 py-2 border border-border/60">
             <div
-              className={cn("w-3 h-3 rounded-full shrink-0 shadow-sm", LEAD_STATUS_COLORS[currentMobileColumn])}
+              className={cn("w-3 h-3 rounded-full shrink-0 shadow-sm", columnColor(currentMobileColumn))}
             />
             <span className="font-semibold text-sm truncate">
-              {LEAD_STATUS_LABELS[currentMobileColumn]}
+              {columnLabel(currentMobileColumn)}
             </span>
             <Badge variant="secondary" className="text-xs shrink-0 bg-muted/80">
               {mobileColumnLeads.length}
@@ -163,11 +191,11 @@ export function LeadsKanban({
               onClick={() => setMobileColumnIndex(index)}
               className={cn(
                 "w-2 h-2 rounded-full transition-all duration-200",
-                index === mobileColumnIndex 
-                  ? `${LEAD_STATUS_COLORS[status]} ring-2 ring-offset-1 ring-offset-background ring-primary/30`
+                index === mobileColumnIndex
+                  ? `${columnColor(status)} ring-2 ring-offset-1 ring-offset-background ring-primary/30`
                   : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
               )}
-              title={LEAD_STATUS_LABELS[status]}
+              title={columnLabel(status)}
             />
           ))}
         </div>
@@ -228,10 +256,10 @@ export function LeadsKanban({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div
-                      className={`w-3 h-3 rounded-full shadow-sm ${LEAD_STATUS_COLORS[status]}`}
+                      className={`w-3 h-3 rounded-full shadow-sm ${columnColor(status)}`}
                     />
                     <span className="font-semibold text-sm">
-                      {LEAD_STATUS_LABELS[status]}
+                      {columnLabel(status)}
                     </span>
                   </div>
                   <Badge variant="secondary" className="text-xs font-medium bg-background/80 shadow-sm">
@@ -245,7 +273,7 @@ export function LeadsKanban({
                 <div className="p-2 space-y-2">
                   {columnLeads.length === 0 ? (
                     <div className="p-4 text-center text-sm text-muted-foreground/70 border-2 border-dashed border-border/40 rounded-lg m-2">
-                      Arraste leads aqui
+                      {status === "realizada" ? "Nenhuma festa realizada" : "Arraste leads aqui"}
                     </div>
                   ) : (
                     columnLeads.map((lead) => (

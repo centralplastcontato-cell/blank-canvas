@@ -385,7 +385,7 @@ export default function CentralAtendimento() {
           const leadIds = leadsData.map(l => l.id);
           
           // Parallel fetch for visit, follow-up 1 and follow-up 2 data
-          const [convResult, historyResult, historyResult2, historyResult3, historyResult4, returnResult] = await Promise.all([
+          const [convResult, historyResult, historyResult2, historyResult3, historyResult4, returnResult, eventsResult] = await Promise.all([
             supabase
               .from("wapi_conversations")
               .select("lead_id, has_scheduled_visit")
@@ -415,7 +415,12 @@ export default function CentralAtendimento() {
               .from("lead_history")
               .select("lead_id")
               .in("lead_id", leadIds)
-              .eq("action", "Lead retornou pela Landing Page")
+              .eq("action", "Lead retornou pela Landing Page"),
+            supabase
+              .from("company_events")
+              .select("lead_id, event_date")
+              .in("lead_id", leadIds)
+              .not("event_date", "is", null)
           ]);
           
           const scheduledVisitLeadIds = new Set((convResult.data || []).map(c => c.lead_id));
@@ -424,7 +429,16 @@ export default function CentralAtendimento() {
           const followUp3LeadIds = new Set((historyResult3.data || []).map(h => h.lead_id));
           const followUp4LeadIds = new Set((historyResult4.data || []).map(h => h.lead_id));
           const returnLeadIds = new Set((returnResult.data || []).map(h => h.lead_id));
-          
+
+          // Data da festa vinculada (mais recente) por lead — usada para separar
+          // festas "Fechadas" (ainda vão acontecer) de "Realizadas" (já passaram).
+          const partyDateByLead = new Map<string, string>();
+          (eventsResult.data || []).forEach((e: { lead_id: string | null; event_date: string | null }) => {
+            if (!e.lead_id || !e.event_date) return;
+            const current = partyDateByLead.get(e.lead_id);
+            if (!current || e.event_date > current) partyDateByLead.set(e.lead_id, e.event_date);
+          });
+
           let leadsWithExtraInfo = leadsData.map(lead => ({
             ...lead,
             has_scheduled_visit: scheduledVisitLeadIds.has(lead.id),
@@ -432,7 +446,8 @@ export default function CentralAtendimento() {
             has_follow_up_2: followUp2LeadIds.has(lead.id),
             has_follow_up_3: followUp3LeadIds.has(lead.id),
             has_follow_up_4: followUp4LeadIds.has(lead.id),
-            has_return: returnLeadIds.has(lead.id)
+            has_return: returnLeadIds.has(lead.id),
+            party_date: partyDateByLead.get(lead.id) || null
           }));
           
           // Apply scheduled visit filter if enabled
