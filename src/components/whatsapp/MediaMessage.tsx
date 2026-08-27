@@ -41,6 +41,13 @@ function isPersistedMediaUrl(url: string | null): boolean {
   return true;
 }
 
+// Limite global de downloads automáticos simultâneos de áudio. Sem isso, abrir
+// uma conversa longa disparava dezenas de downloads de uma vez (um por áudio
+// expirado renderizado), contribuindo para congelar Safari/iPad. O download
+// manual pelo botão não passa por este limite.
+let activeAutoDownloads = 0;
+const MAX_CONCURRENT_AUTO_DOWNLOADS = 3;
+
 /**
  * Check if URL points to an encrypted WhatsApp file
  */
@@ -97,7 +104,11 @@ export function MediaMessage({
   // Auto-download audio messages when they have WhatsApp URLs (they expire quickly)
   useEffect(() => {
     if (mediaType === 'audio' && canAttemptDownload && !isDownloading && !downloadError) {
-      handleDownload();
+      if (activeAutoDownloads >= MAX_CONCURRENT_AUTO_DOWNLOADS) return; // botão manual continua disponível
+      activeAutoDownloads++;
+      void Promise.resolve(handleDownload()).finally(() => {
+        activeAutoDownloads = Math.max(0, activeAutoDownloads - 1);
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mediaType, canAttemptDownload]);

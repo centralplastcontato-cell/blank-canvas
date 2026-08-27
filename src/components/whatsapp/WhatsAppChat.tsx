@@ -2661,6 +2661,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
   };
 
+  // Zera o estado de restauração ao trocar de conversa — sem isso, o contador
+  // de tentativas vazava de uma conversa para outra.
+  useEffect(() => {
+    scrollRestoreAttemptsRef.current = 0;
+    scrollRestoreLoadingRef.current = false;
+  }, [selectedConversation?.id]);
+
   useEffect(() => {
     const conversationId = selectedConversation?.id;
     if (!conversationId || messages.length === 0) return;
@@ -2676,12 +2683,20 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       return;
     }
 
-    if (
-      !hasMoreMessages ||
-      isLoadingMoreRef.current ||
-      scrollRestoreLoadingRef.current ||
-      scrollRestoreAttemptsRef.current >= 12
-    ) {
+    // Máximo de 3 cargas extras atrás da mensagem-âncora. Rajadas maiores (12+)
+    // renderizavam centenas de mensagens de uma vez e congelavam Safari/iPad.
+    if (scrollRestoreAttemptsRef.current >= 3) {
+      // Âncora inalcançável (mensagem antiga demais ou removida): descarta a
+      // marcação salva para não travar de novo nas próximas aberturas.
+      try {
+        const key = getConversationScrollStorageKey(conversationId);
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
+      } catch { /* ignore storage errors */ }
+      return;
+    }
+
+    if (!hasMoreMessages || isLoadingMoreRef.current || scrollRestoreLoadingRef.current) {
       return;
     }
 
@@ -2692,7 +2707,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         scrollRestoreLoadingRef.current = false;
       }, 80);
     });
-  }, [selectedConversation?.id, messages.length, hasMoreMessages, readConversationScroll, restoreConversationScroll]);
+  }, [selectedConversation?.id, messages.length, hasMoreMessages, readConversationScroll, restoreConversationScroll, getConversationScrollStorageKey]);
 
   const fetchLinkedLead = async (leadId: string | null, conversation?: Conversation | null) => {
     if (leadId) {
