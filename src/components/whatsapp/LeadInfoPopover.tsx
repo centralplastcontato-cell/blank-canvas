@@ -201,7 +201,11 @@ export function LeadInfoPopover({
   const [latestVisit, setLatestVisit] = useState<{ data_visita: string; horario_visita: string | null; status_visita: string } | null>(null);
   const { currentCompany } = useCompany();
   const { units } = useCompanyUnits(currentCompany?.id);
-  const eventDraftStorageKey = linkedLead && currentCompany?.id ? `whatsapp-event-form-draft:${currentCompany.id}:${linkedLead.id}` : null;
+  // Inclui a festa na chave do rascunho: sem isso, o rascunho de uma festa
+  // sobrescrevia os dados da outra em clientes com varias festas vinculadas.
+  const eventDraftStorageKey = linkedLead && currentCompany?.id
+    ? `whatsapp-event-form-draft:${currentCompany.id}:${linkedLead.id}:${linkedEventData?.id || "new"}`
+    : null;
   const eventOpenStorageKey = linkedLead && currentCompany?.id ? `whatsapp-event-form-open:${currentCompany.id}:${linkedLead.id}` : null;
 
   const handleEventFormOpenChange = (nextOpen: boolean) => {
