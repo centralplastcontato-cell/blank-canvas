@@ -195,6 +195,8 @@ export function LeadInfoPopover({
   const [isSavingPhone, setIsSavingPhone] = useState(false);
   const [hasLinkedEvent, setHasLinkedEvent] = useState<boolean | null>(null);
   const [linkedEventData, setLinkedEventData] = useState<EventFormData | null>(null);
+  // Todas as festas vinculadas ao lead (cliente recorrente pode ter N festas)
+  const [linkedEvents, setLinkedEvents] = useState<EventFormData[]>([]);
   const [eventFormOpen, setEventFormOpen] = useState(false);
   const [latestVisit, setLatestVisit] = useState<{ data_visita: string; horario_visita: string | null; status_visita: string } | null>(null);
   const { currentCompany } = useCompany();
@@ -217,54 +219,53 @@ export function LeadInfoPopover({
     }
   };
 
-  // Check if closed lead has linked event
+  // Check if closed lead has linked event(s) — busca TODAS as festas do lead
+  // (cliente recorrente pode ter mais de uma; antes o .limit(1) escondia as demais)
   useEffect(() => {
     if (linkedLead && linkedLead.status === "fechado") {
       supabase
         .from("company_events")
         .select("*")
         .eq("lead_id", linkedLead.id)
-        .limit(1)
+        .order("event_date", { ascending: false })
         .then(({ data }) => {
-          setHasLinkedEvent((data || []).length > 0);
-          if (data && data.length > 0) {
-            const ev = data[0];
-            setLinkedEventData({
-              id: ev.id,
-              title: ev.title,
-              event_date: ev.event_date,
-              start_time: ev.start_time || "",
-              end_time: ev.end_time || "",
-              event_type: ev.event_type || "aniversario",
-              guest_count: ev.guest_count,
-              unit: ev.unit || "",
-              status: ev.status,
-              package_name: ev.package_name || "",
-              total_value: ev.total_value,
-              notes: ev.notes || "",
-              lead_id: ev.lead_id || null,
-              data_fechamento_venda: ev.data_fechamento_venda || null,
-              vendedor_responsavel_id: ev.vendedor_responsavel_id || null,
-              child_name: ev.child_name || null,
-              child_age: ev.child_age || null,
-              child_birthdate: ev.child_birthdate || null,
-              birthday_children: (ev.birthday_children as any) || null,
-              parent_names: ev.parent_names || null,
-              gifts: ev.gifts || null,
-              extra_guest_value: ev.extra_guest_value || null,
-              payment_method: ev.payment_method || null,
-              payment_details: ev.payment_details as any || null,
-              event_optionals: (ev.event_optionals as any) || null,
-              is_permuta: ev.is_permuta ?? false,
-              internal_notes: ev.internal_notes || null,
-            });
-          } else {
-            setLinkedEventData(null);
-          }
+          const mapped: EventFormData[] = (data || []).map((ev) => ({
+            id: ev.id,
+            title: ev.title,
+            event_date: ev.event_date,
+            start_time: ev.start_time || "",
+            end_time: ev.end_time || "",
+            event_type: ev.event_type || "aniversario",
+            guest_count: ev.guest_count,
+            unit: ev.unit || "",
+            status: ev.status,
+            package_name: ev.package_name || "",
+            total_value: ev.total_value,
+            notes: ev.notes || "",
+            lead_id: ev.lead_id || null,
+            data_fechamento_venda: ev.data_fechamento_venda || null,
+            vendedor_responsavel_id: ev.vendedor_responsavel_id || null,
+            child_name: ev.child_name || null,
+            child_age: ev.child_age || null,
+            child_birthdate: ev.child_birthdate || null,
+            birthday_children: (ev.birthday_children as any) || null,
+            parent_names: ev.parent_names || null,
+            gifts: ev.gifts || null,
+            extra_guest_value: ev.extra_guest_value || null,
+            payment_method: ev.payment_method || null,
+            payment_details: ev.payment_details as any || null,
+            event_optionals: (ev.event_optionals as any) || null,
+            is_permuta: ev.is_permuta ?? false,
+            internal_notes: ev.internal_notes || null,
+          }));
+          setLinkedEvents(mapped);
+          setHasLinkedEvent(mapped.length > 0);
+          setLinkedEventData(mapped[0] || null);
         });
     } else {
       setHasLinkedEvent(null);
       setLinkedEventData(null);
+      setLinkedEvents([]);
     }
   }, [linkedLead?.id, linkedLead?.status]);
 
@@ -896,14 +897,39 @@ export function LeadInfoPopover({
                   </div>
                 )}
 
-                {linkedLead.status === "fechado" && hasLinkedEvent !== null && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                {linkedLead.status === "fechado" && hasLinkedEvent !== null && linkedEvents.length > 1 && (
+                  <div className="space-y-1.5">
+                    {linkedEvents.map((ev) => (
+                      <Button
+                        key={ev.id}
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs h-9 gap-2 rounded-xl font-medium transition-all text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 border-emerald-200/60 justify-start"
+                        onClick={() => {
+                          setLinkedEventData(ev);
+                          handleEventFormOpenChange(true);
+                        }}
+                      >
+                        <PartyPopper className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate flex-1 text-left">{ev.title}</span>
+                        {ev.event_date && (
+                          <span className="text-[10px] text-muted-foreground shrink-0">
+                            {ev.event_date.split("-").reverse().join("/")}
+                          </span>
+                        )}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+
+                {linkedLead.status === "fechado" && hasLinkedEvent !== null && linkedEvents.length <= 1 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className={cn(
                       "w-full text-xs h-9 gap-2 rounded-xl font-medium transition-all",
-                      hasLinkedEvent 
-                        ? "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 border-emerald-200/60" 
+                      hasLinkedEvent
+                        ? "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 border-emerald-200/60"
                         : "text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/20 border-amber-200/60"
                     )}
                     onClick={() => {
