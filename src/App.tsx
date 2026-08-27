@@ -138,6 +138,24 @@ const SupportChatbot = lazy(() => import("./components/support/SupportChatbot").
 
 const PageLoader = () => <LoadingScreen message="Carregando..." />;
 
+// Aba "hibernada": o Safari (especialmente no iPad) congela abas em segundo plano
+// e, ao voltar, a tela exibe dados de horas/dias atrás (ex.: festa desatualizada).
+// Se a aba ficou oculta por mais de 30 minutos, recarrega para buscar tudo fresco.
+const STALE_TAB_RELOAD_MS = 30 * 60 * 1000;
+let staleTabHiddenSince: number | null = null;
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      staleTabHiddenSince = Date.now();
+    } else {
+      if (staleTabHiddenSince && Date.now() - staleTabHiddenSince > STALE_TAB_RELOAD_MS) {
+        window.location.reload();
+      }
+      staleTabHiddenSince = null;
+    }
+  });
+}
+
 const queryClient = new QueryClient();
 
 const App = () => (
