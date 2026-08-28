@@ -832,15 +832,20 @@ async function findOrCreateConversation(
       return null;
     }
 
+    // Procura lead existente em QUALQUER formato do número (com/sem 55, com/sem
+    // 9º dígito) — vale para LP e também para envio manual da equipe, para a
+    // conversa nascer já vinculada ao lead antigo (evita lead duplicado).
     let matchedLeadId: string | null = null;
-    if (lpMode) {
-      const leadPhoneVariants = getBrazilianPhoneVariants(cleanPhone).map((v) => v.startsWith('55') ? v.slice(2) : v);
-      const { data: matchedLead } = await supabase
+    {
+      const leadPhoneVariants = getBrazilianPhoneVariants(cleanPhone);
+      let leadQuery = supabase
         .from('campaign_leads')
         .select('id, whatsapp')
         .eq('company_id', instanceRecord.company_id)
-        .in('whatsapp', leadPhoneVariants)
-        .not('campaign_id', 'like', 'whatsapp%')
+        .in('whatsapp', leadPhoneVariants);
+      // Na LP, evita casar com lead criado pelo próprio chat (prioriza o lead da LP)
+      if (lpMode) leadQuery = leadQuery.not('campaign_id', 'like', 'whatsapp%');
+      const { data: matchedLead } = await leadQuery
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -893,6 +898,12 @@ async function findOrCreateConversation(
         await supabase.from('wapi_conversations').update(updateData).eq('id', existing.id);
         console.log('findOrCreateConversation: reset bot_step to lp_sent for existing conversation', existing.id);
       } else {
+        // Envio manual: se a conversa está órfã e existe lead com esse número,
+        // vincula agora (evita que a régua de status crie um lead duplicado).
+        if (matchedLeadId && !existing.lead_id) {
+          await supabase.from('wapi_conversations').update({ lead_id: matchedLeadId }).eq('id', existing.id);
+          console.log('findOrCreateConversation: linked orphan conversation to existing lead', existing.id, matchedLeadId);
+        }
         console.log('findOrCreateConversation: found existing conversation', existing.id);
       }
       return { conversationId: existing.id, companyId: existing.company_id };
