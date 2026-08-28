@@ -245,13 +245,17 @@ async function getInstanceCredentials(
 
   // Fetch by unit (public chatbot flow)
   if (unit) {
+    // limit(1)+maybeSingle: uma unidade pode ter mais de uma instância conectada —
+    // .single() estourava erro e derrubava o envio da LP nesse caso.
     const { data: instance, error } = await supabase
       .from('wapi_instances')
       .select('instance_id, instance_token, provider, client_token')
       .eq('unit', unit)
       .eq('status', 'connected')
-      .single();
-    
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
     if (error || !instance) {
       return new Response(JSON.stringify({ error: `Instância não encontrada para unidade ${unit}` }), {
         status: 400,
@@ -1227,8 +1231,9 @@ Deno.serve(async (req) => {
 
     const creds = await getInstanceCredentials(supabase, req, body);
     if (creds instanceof Response) return creds;
-    const { instance_id, instance_token, provider, client_token } = creds;
-    const isZapi = provider === 'zapi';
+    // Mutáveis: o failover de LP (número bloqueado) pode trocar a instância no meio do envio.
+    let { instance_id, instance_token, provider, client_token } = creds;
+    let isZapi = provider === 'zapi';
 
     console.log('wapi-send:', action, phone ? `phone:${phone}` : '', 'instance:', instance_id, 'trace:', trackingId);
 
@@ -1544,11 +1549,99 @@ Deno.serve(async (req) => {
           },
         });
 
-        const sendResult = isZapi
+        let sendResult = isZapi
           ? await zapiSendText(instance_id, instance_token, client_token, phone, message, quotedProviderMessageId)
           : await sendTextWithFallback(instance_id, instance_token, phone, message, quotedProviderMessageId);
 
         console.log('send-text response:', JSON.stringify(sendResult));
+
+        // 🚑 Failover da LP: se o número sorteado falhou (ex.: bloqueado pelo WhatsApp,
+        // que muitas vezes ainda consta como "connected"), tenta as demais instâncias
+        // conectadas da MESMA empresa para o lead não ficar sem a mensagem de boas-vindas.
+        if (!sendResult.ok && body.lpMode && body.unit) {
+          try {
+            const { data: primaryRow } = await supabase
+              .from('wapi_instances')
+              .select('company_id, unit')
+              .eq('instance_id', instance_id)
+              .maybeSingle();
+
+            if (primaryRow?.company_id) {
+              const { data: altInstances } = await supabase
+                .from('wapi_instances')
+                .select('instance_id, instance_token, provider, client_token, unit')
+                .eq('company_id', primaryRow.company_id)
+                .eq('status', 'connected')
+                .neq('instance_id', instance_id)
+                .order('created_at', { ascending: true });
+
+              for (const alt of (altInstances || [])) {
+                const altIsZapi = (alt.provider || 'wapi') === 'zapi';
+                const altResult = altIsZapi
+                  ? await zapiSendText(alt.instance_id, alt.instance_token, alt.client_token, phone, message, quotedProviderMessageId)
+                  : await sendTextWithFallback(alt.instance_id, alt.instance_token, phone, message, quotedProviderMessageId);
+
+                if (!altResult.ok) {
+                  console.error(`LP failover: alternativa ${alt.unit} também falhou:`, altResult.error);
+                  continue;
+                }
+
+                console.log(`LP failover: unidade ${primaryRow.unit || body.unit} falhou; enviado via ${alt.unit}`);
+                fireTrace(supabase, {
+                  tracking_id: trackingId,
+                  stage: 'send_provider_failed',
+                  status: 'error',
+                  provider,
+                  instance_id,
+                  company_id: primaryRow.company_id,
+                  phone: phone ?? null,
+                  error_message: sendResult.error ?? 'unknown_provider_error',
+                  payload_summary: { lp_failover: true, failover_to_unit: alt.unit || null },
+                });
+
+                // Passa a operar como a instância alternativa daqui em diante
+                instance_id = alt.instance_id;
+                instance_token = alt.instance_token;
+                provider = (alt.provider as Provider) || 'wapi';
+                client_token = alt.client_token || null;
+                isZapi = altIsZapi;
+                sendResult = altResult;
+
+                // Atualiza o lead para a unidade que realmente entregou a mensagem
+                try {
+                  const digits = String(phone || '').replace(/\D/g, '');
+                  const noCountry = digits.startsWith('55') ? digits.slice(2) : digits;
+                  const variants = Array.from(new Set([digits, noCountry, `55${noCountry}`]));
+                  const { data: leadRow } = await supabase
+                    .from('campaign_leads')
+                    .select('id, unit')
+                    .eq('company_id', primaryRow.company_id)
+                    .in('whatsapp', variants)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                  if (leadRow) {
+                    await supabase.from('campaign_leads').update({ unit: alt.unit }).eq('id', leadRow.id);
+                    await supabase.from('lead_history').insert({
+                      lead_id: leadRow.id,
+                      company_id: primaryRow.company_id,
+                      action: 'Lead redirecionado automaticamente',
+                      old_value: `Falha no envio pela unidade ${primaryRow.unit || body.unit || '?'}`,
+                      new_value: `Mensagem entregue pela unidade ${alt.unit}`,
+                      user_name: 'Sistema',
+                    });
+                  }
+                } catch (leadErr) {
+                  console.error('LP failover: erro ao atualizar unidade do lead', leadErr);
+                }
+
+                break;
+              }
+            }
+          } catch (foErr) {
+            console.error('LP failover: erro inesperado', foErr);
+          }
+        }
 
         if (!sendResult.ok) {
           console.error('send-text failed:', sendResult.error);
