@@ -512,6 +512,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [selectedInstance, setSelectedInstance] = useState<WapiInstance | null>(null);
   const [instanceConversationCounts, setInstanceConversationCounts] = useState<Record<string, number>>({});
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  // Versao da busca de conversas: invalida respostas atrasadas de uma instancia
+  // anterior (trocar VENDAS 1 -> 2 nao pode deixar a lista antiga sobrescrever a nova).
+  const conversationsFetchSeqRef = useRef(0);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessageRaw] = useState("");
@@ -652,6 +655,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const match = pickBestInstance(instances.filter(i => i.unit === externalSelectedUnit));
     if (match && match.id !== selectedInstance?.id) {
       const shouldClearStoredConversation = !!selectedConversation;
+      conversationsFetchSeqRef.current++; // invalida buscas em andamento da instancia anterior
       setSelectedInstance(match);
       if (shouldClearStoredConversation) clearLastActiveConversation();
       setSelectedConversation(null);
@@ -1592,6 +1596,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       if (wasPhoneJustHandled) {
         // Phone was handled successfully - don't clear conversations or re-fetch
       } else {
+        conversationsFetchSeqRef.current++; // invalida buscas da instancia anterior
         setConversations([]);
         // Pass initialPhone only on first load if not yet processed
         if (initialPhone && !initialPhoneProcessed) {
@@ -2261,6 +2266,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const fetchConversations = async (selectPhone?: string, skipLeadRefresh?: boolean) => {
     if (!selectedInstance) return;
 
+    // Marca esta busca; qualquer troca de instancia (ou nova busca) a invalida.
+    const fetchSeq = ++conversationsFetchSeqRef.current;
+    const isStale = () => fetchSeq !== conversationsFetchSeqRef.current;
+
     // Load all conversations in batches to avoid Supabase default row limits in large buffets
     const allConversationRows: Conversation[] = [];
     const batchSize = 1000;
@@ -2273,6 +2282,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         .in("instance_id", selectedUnitInstanceIds)
         .order("last_message_at", { ascending: false, nullsFirst: true })
         .range(from, from + batchSize - 1);
+
+      if (isStale()) return; // instancia trocou no meio da busca — descarta
 
       if (error) {
         console.error("[WhatsAppChat] Error loading conversations:", error);
@@ -2351,6 +2362,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           .select("id, name, whatsapp, unit, status, month, day_of_month, day_preference, guests, observacoes, created_at, responsavel_id, campaign_name")
           .in("id", chunk);
 
+        if (isStale()) return;
         appendLeads(freshLeads as Lead[] | undefined);
       }
 
@@ -2365,6 +2377,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           .eq("company_id", getCurrentCompanyId())
           .in("whatsapp", chunk);
 
+        if (isStale()) return;
         appendLeads(phoneMatchedLeads as Lead[] | undefined);
       }
 
@@ -2426,6 +2439,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             .order("last_message_at", { ascending: false })
             .limit(1)
             .maybeSingle();
+
+          if (isStale()) return;
 
           if (crossInstanceConv) {
             // Found in another instance — switch to it
