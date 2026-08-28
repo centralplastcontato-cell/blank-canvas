@@ -2815,12 +2815,15 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const contactName = getConversationDisplayName(selectedConversation, conversationLeadsMap);
       const cleanPhone = selectedConversation.contact_phone.replace(/\D/g, '');
 
-      // Check if a lead already exists for this whatsapp number to prevent duplicates
+      // Check if a lead already exists for this whatsapp number to prevent duplicates.
+      // Busca por TODAS as variações do número (com/sem 55, com/sem 9º dígito) —
+      // comparação exata deixava passar duplicatas quando o lead antigo foi salvo
+      // em outro formato (ex.: lead da LP sem o 55).
       const { data: existingLead } = await supabase
         .from('campaign_leads')
         .select('id, name, whatsapp, unit, status')
         .eq('company_id', getCurrentCompanyId())
-        .eq('whatsapp', cleanPhone)
+        .in('whatsapp', getPhoneVariants(cleanPhone))
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
