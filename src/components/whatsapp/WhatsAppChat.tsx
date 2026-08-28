@@ -1498,6 +1498,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
   // Track if initialPhone has been processed
   const [initialPhoneProcessed, setInitialPhoneProcessed] = useState(false);
+
+  // Cada novo pedido de "abrir conversa por telefone" re-arma o processamento.
+  // Sem isso, so o PRIMEIRO clique da sessao abria a conversa — os seguintes
+  // disparavam a busca sem telefone e nada era selecionado.
+  useEffect(() => {
+    if (initialPhone) setInitialPhoneProcessed(false);
+  }, [initialPhone]);
   const [draftApplied, setDraftApplied] = useState(false);
 
   // Ref to track selected conversation ID inside realtime callbacks without re-triggering the effect
@@ -1595,6 +1602,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
       if (wasPhoneJustHandled) {
         // Phone was handled successfully - don't clear conversations or re-fetch
+      } else if (initialPhone && initialPhoneProcessed) {
+        // Abertura por telefone em andamento — nao dispara uma busca concorrente
+        // sem telefone, que invalidaria (isStale) a busca que vai abrir a conversa.
       } else {
         conversationsFetchSeqRef.current++; // invalida buscas da instancia anterior
         setConversations([]);
@@ -2866,6 +2876,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
       supabase.from('lead_history').insert({
         lead_id: leadToLink.id,
+        company_id: getCurrentCompanyId(), // sem isso o registro ficava invisivel no historico do lead
         action: existingLead ? 'status_update' : 'lead_created',
         new_value: existingLead
           ? `Status atualizado para: ${statusLabels[status]}`
