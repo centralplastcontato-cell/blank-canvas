@@ -515,6 +515,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Versao da busca de conversas: invalida respostas atrasadas de uma instancia
   // anterior (trocar VENDAS 1 -> 2 nao pode deixar a lista antiga sobrescrever a nova).
   const conversationsFetchSeqRef = useRef(0);
+  // Seq da busca por telefone mais recente (abertura de conversa via "phone")
+  const phoneFetchSeqRef = useRef(0);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessageRaw] = useState("");
@@ -642,6 +644,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       return;
     }
 
+    // Abertura de conversa por telefone em andamento: esta sincronizacao nao
+    // pode invalidar a busca nem fechar a conversa que esta sendo aberta
+    if (initialPhone) {
+      previousExternalSelectedUnitRef.current = externalSelectedUnit;
+      return;
+    }
+
     const previousExternalSelectedUnit = previousExternalSelectedUnitRef.current;
     const didExternalUnitChange = previousExternalSelectedUnit !== externalSelectedUnit;
     previousExternalSelectedUnitRef.current = externalSelectedUnit;
@@ -662,7 +671,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       setMessages([]);
       setConversations([]);
     }
-  }, [externalSelectedUnit, instances, selectedInstance?.id, selectedConversation, pickBestInstance, clearLastActiveConversation, readLastActiveConversation]);
+  }, [externalSelectedUnit, instances, selectedInstance?.id, selectedConversation, initialPhone, pickBestInstance, clearLastActiveConversation, readLastActiveConversation]);
 
   const [hasUserScrolledToTop, setHasUserScrolledToTop] = useState(false); // Track if user manually scrolled to top
   const [isAtBottom, setIsAtBottom] = useState(true); // Track if scroll is at bottom (for scroll-to-bottom button visibility)
@@ -1498,6 +1507,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
   // Track if initialPhone has been processed
   const [initialPhoneProcessed, setInitialPhoneProcessed] = useState(false);
+  const initialPhoneRef = useRef(initialPhone);
+  initialPhoneRef.current = initialPhone;
 
   // Cada novo pedido de "abrir conversa por telefone" re-arma o processamento.
   // Sem isso, so o PRIMEIRO clique da sessao abria a conversa — os seguintes
@@ -2278,7 +2289,18 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
     // Marca esta busca; qualquer troca de instancia (ou nova busca) a invalida.
     const fetchSeq = ++conversationsFetchSeqRef.current;
-    const isStale = () => fetchSeq !== conversationsFetchSeqRef.current;
+    if (selectPhone) phoneFetchSeqRef.current = fetchSeq;
+    const isStale = () => {
+      if (fetchSeq === conversationsFetchSeqRef.current) return false;
+      // Busca de "abrir por telefone" invalidada no meio: rearma o processamento
+      // para que o proximo ciclo tente abrir de novo — senao a abertura morre
+      // em silencio e o chat fica em "Selecione uma conversa". So a busca por
+      // telefone mais recente rearma, para nao derrubar uma tentativa nova.
+      if (selectPhone && initialPhoneRef.current === selectPhone && phoneFetchSeqRef.current === fetchSeq) {
+        setInitialPhoneProcessed(false);
+      }
+      return true;
+    };
 
     // Load all conversations in batches to avoid Supabase default row limits in large buffets
     const allConversationRows: Conversation[] = [];
