@@ -73,7 +73,9 @@ Deno.serve(async (req) => {
         : `55${cleanPhone}`;
 
       const dateStr = `${lead.day_of_month || ""}/${lead.month || ""}`;
-      const message = `Olá! 👋🏼✨\n\nVim pelo site do *Castelo da Diversão* e gostaria de saber mais!\n\n📋 *Dados:*\n👤 Nome: ${lead.name}\n📍 Local: Castelo da Diversão\n📅 Data: ${dateStr}\n👥 Convidados: ${lead.guests || ""}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n1️⃣ - 📩 Receber agora o orçamento\n2️⃣ - 💬 Falar com um atendente`;
+      const firstName = (lead.name || "").trim().split(/\s+/)[0] || "";
+      const greeting = firstName ? `Olá, *${firstName}*! 👋` : "Olá! 👋";
+      const message = `${greeting} Recebemos seu pedido pelo site do *Castelo da Diversão*! ✨\n\nAnotei por aqui:\n📅 Data: ${dateStr}\n👥 Convidados: ${lead.guests || ""}\n\nPara agilizar, me diz o que você prefere 👇\n\n1️⃣ - 📩 Receber o orçamento agora\n2️⃣ - 💬 Falar com um atendente`;
 
       const sendResp = await fetch(`${supabaseUrl}/functions/v1/wapi-send`, {
         method: "POST",
