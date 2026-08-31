@@ -2302,6 +2302,71 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       return true;
     };
 
+    const conversationColumns = "id, instance_id, lead_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, bot_paused_until, bot_paused_reason, pinned_message_id, created_at, bot_data";
+
+    // Abertura por telefone: acha e abre a conversa JA, com uma consulta
+    // direta e pequena — sem esperar a lista inteira (que pode levar varios
+    // segundos em buffets grandes). A lista continua carregando em seguida.
+    let effectiveInstanceIds = selectedUnitInstanceIds;
+    if (selectPhone) {
+      const cleanPhone = selectPhone.replace(/\D/g, '');
+      const phoneVariants = [cleanPhone, cleanPhone.replace(/^55/, ''), `55${cleanPhone}`];
+      const phoneFilter = phoneVariants.map(p => `contact_phone.ilike.%${p}%`).join(',');
+
+      const { data: quickMatch } = await supabase
+        .from("wapi_conversations")
+        .select(conversationColumns)
+        .in("instance_id", selectedUnitInstanceIds)
+        .or(phoneFilter)
+        .order("last_message_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (isStale()) return;
+
+      if (quickMatch) {
+        setSelectedConversation(quickMatch as unknown as Conversation);
+        onPhoneHandled?.();
+      } else {
+        // Nao esta na unidade atual — procura em todas as instancias
+        const { data: crossInstanceConv } = await supabase
+          .from("wapi_conversations")
+          .select(conversationColumns)
+          .or(phoneFilter)
+          .order("last_message_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (isStale()) return;
+
+        const targetInstance = crossInstanceConv
+          ? instances.find(i => i.id === crossInstanceConv.instance_id)
+          : null;
+
+        if (crossInstanceConv && targetInstance) {
+          // Troca para a instancia da conversa e ja carrega a lista dela abaixo
+          setSelectedInstance(targetInstance);
+          setSelectedConversation(crossInstanceConv as unknown as Conversation);
+          onPhoneHandled?.();
+          effectiveInstanceIds = instances
+            .filter(i => (i.unit || null) === (targetInstance.unit || null))
+            .map(i => i.id);
+        } else if (selectedInstance) {
+          // Nenhuma conversa em lugar nenhum — cria uma nova
+          await createNewConversation(selectPhone);
+          if (isStale()) return;
+          onPhoneHandled?.();
+        } else {
+          toast({
+            title: "Conversa não encontrada",
+            description: "Não há histórico de conversa com este número na plataforma.",
+            variant: "destructive",
+          });
+          onPhoneHandled?.();
+        }
+      }
+    }
+
     // Load all conversations in batches to avoid Supabase default row limits in large buffets
     const allConversationRows: Conversation[] = [];
     const batchSize = 1000;
@@ -2310,8 +2375,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     while (true) {
       const { data: batch, error } = await supabase
         .from("wapi_conversations")
-        .select("id, instance_id, lead_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, bot_paused_until, bot_paused_reason, pinned_message_id, created_at, bot_data")
-        .in("instance_id", selectedUnitInstanceIds)
+        .select(conversationColumns)
+        .in("instance_id", effectiveInstanceIds)
         .order("last_message_at", { ascending: false, nullsFirst: true })
         .range(from, from + batchSize - 1);
 
@@ -2444,61 +2509,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       });
 
       setConversationLeadsMap(leadsMap);
-      
-      // If initialPhone is provided, try to select that conversation
-      if (selectPhone) {
-        const cleanPhone = selectPhone.replace(/\D/g, '');
-        const phoneVariants = [
-          cleanPhone,
-          cleanPhone.replace(/^55/, ''),
-          `55${cleanPhone}`,
-        ];
-        
-        const matchingConv = data.find((conv: Conversation) => {
-          const convPhone = conv.contact_phone.replace(/\D/g, '');
-          return phoneVariants.some(p => convPhone.includes(p) || p.includes(convPhone));
-        });
-        
-        if (matchingConv) {
-          setSelectedConversation(matchingConv as Conversation);
-          onPhoneHandled?.();
-        } else {
-          // Not found in current instance — search across ALL instances
-          const { data: crossInstanceConv } = await supabase
-            .from("wapi_conversations")
-            .select("id, instance_id, remote_jid, contact_name, contact_phone, contact_picture, last_message_at, unread_count, is_favorite, is_closed, has_scheduled_visit, is_freelancer, is_equipe, last_message_content, last_message_from_me, bot_enabled, bot_step, bot_paused_until, bot_paused_reason, lead_id, is_imported, company_id, pinned_message_id, bot_data")
-            .or(phoneVariants.map(p => `contact_phone.ilike.%${p}%`).join(','))
-            .order("last_message_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (isStale()) return;
-
-          if (crossInstanceConv) {
-            // Found in another instance — switch to it
-            const targetInstance = instances.find(i => i.id === crossInstanceConv.instance_id);
-            if (targetInstance) {
-              setSelectedInstance(targetInstance);
-              setSelectedConversation(crossInstanceConv as unknown as Conversation);
-              onPhoneHandled?.();
-              return;
-            }
-          }
-
-          // Truly no conversation anywhere — create new
-          if (selectedInstance) {
-            await createNewConversation(selectPhone);
-            onPhoneHandled?.();
-          } else {
-            toast({
-              title: "Conversa não encontrada",
-              description: "Não há histórico de conversa com este número na plataforma.",
-              variant: "destructive",
-            });
-            onPhoneHandled?.();
-          }
-        }
-      }
     }
   };
 
