@@ -22,7 +22,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { 
   Info, MessageSquare, Clock, MapPin, Calendar, Users, 
-  ArrowRightLeft, Bot, Loader2, Pencil, Check, X, Trash2, UsersRound, Star, RotateCcw, PartyPopper, Package
+  ArrowRightLeft, Bot, Loader2, Pencil, Check, X, Trash2, UsersRound, Star, RotateCcw, PartyPopper, Package, AlertTriangle
 } from "lucide-react";
 import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -199,6 +199,8 @@ export function LeadInfoPopover({
   const [linkedEvents, setLinkedEvents] = useState<EventFormData[]>([]);
   const [eventFormOpen, setEventFormOpen] = useState(false);
   const [latestVisit, setLatestVisit] = useState<{ data_visita: string; horario_visita: string | null; status_visita: string } | null>(null);
+  // Evita mostrar o alerta de "visita sem data" antes da busca terminar
+  const [visitLoaded, setVisitLoaded] = useState(false);
   const { currentCompany } = useCompany();
   const { units } = useCompanyUnits(currentCompany?.id);
   // Inclui a festa na chave do rascunho: sem isso, o rascunho de uma festa
@@ -290,8 +292,10 @@ export function LeadInfoPopover({
   useEffect(() => {
     if (!linkedLead) {
       setLatestVisit(null);
+      setVisitLoaded(false);
       return;
     }
+    setVisitLoaded(false);
     (supabase as any)
       .from("lead_visits")
       .select("data_visita, horario_visita, status_visita")
@@ -301,6 +305,7 @@ export function LeadInfoPopover({
       .maybeSingle()
       .then(({ data }: any) => {
         setLatestVisit(data || null);
+        setVisitLoaded(true);
       });
   }, [linkedLead?.id, visitRefreshKey]);
 
@@ -839,6 +844,34 @@ export function LeadInfoPopover({
                       </InfoRow>
                     </div>
                   </PopoverSection>
+                </div>
+              </div>
+            )}
+
+            {/* Lead marcado como "Visita" mas sem nenhuma visita registrada */}
+            {!latestVisit && visitLoaded && linkedLead.status === "em_contato" && (
+              <div className="px-5 pb-3.5 -mt-1">
+                <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3.5 space-y-2.5">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="text-xs leading-relaxed">
+                      <p className="font-semibold text-amber-700 dark:text-amber-400">Visita sem data registrada</p>
+                      <p className="text-amber-700/80 dark:text-amber-400/80">
+                        Este lead está como "Visita", mas nenhuma data foi registrada.
+                      </p>
+                    </div>
+                  </div>
+                  {onShowVisitDialog && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full h-8 text-xs gap-1.5 rounded-lg border-amber-500/40 text-amber-700 hover:bg-amber-500/10 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
+                      onClick={() => onShowVisitDialog("visita")}
+                    >
+                      <MapPin className="w-3.5 h-3.5" />
+                      Registrar data da visita
+                    </Button>
+                  )}
                 </div>
               </div>
             )}

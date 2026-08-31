@@ -4367,6 +4367,14 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
       }
       return prevLead;
     });
+
+    // Mudou para "Visita" pelo menu da lista de conversas: abre o registro de
+    // data da visita (o diálogo é vinculado ao lead da conversa aberta, por
+    // isso só abre quando é ele)
+    if (newStatus === 'em_contato' && linkedLead?.id === leadId) {
+      setQuickVisitType("visita");
+      setShowQuickVisitDialog(true);
+    }
   };
 
   // Handle creating a new contact manually
