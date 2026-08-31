@@ -554,11 +554,16 @@ export function LeadInfoPopover({
           )} />
         </Button>
       </PopoverTrigger>
-      <PopoverContent 
-        align="end" 
+      <PopoverContent
+        align="end"
+        collisionPadding={12}
         className={cn(
           "p-0 rounded-2xl shadow-2xl shadow-black/10 border-border/30 overflow-hidden backdrop-blur-sm",
-          mobile ? "w-[310px] max-h-[70vh] overflow-y-auto" : "w-[360px] max-h-[80vh] overflow-y-auto"
+          // max-h usa o espaço real disponível na tela a partir de onde o card
+          // abre (var do Radix); só vh deixava o card estourar o rodapé no iPad
+          mobile
+            ? "w-[310px] max-h-[min(70vh,var(--radix-popover-content-available-height))] overflow-y-auto"
+            : "w-[360px] max-h-[min(80vh,var(--radix-popover-content-available-height))] overflow-y-auto"
         )}
       >
         {isGroup ? (
