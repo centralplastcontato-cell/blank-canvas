@@ -465,9 +465,13 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
 
       const dateStr = `${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}`;
       const interestLine = effectiveInterestContext ? `\n🎯 Interesse: ${effectiveInterestContext}` : '';
-      const defaultNormalMsg = `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Local: ${displayName}${interestLine}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n1️⃣ - 📩 Receber agora o orçamento\n2️⃣ - 💬 Falar com um atendente`;
-      
+      // Mensagem na voz do buffet (quem envia), cumprimentando pelo primeiro nome
+      const firstName = (leadInfo.name || '').trim().split(/\s+/)[0] || '';
+      const greeting = firstName ? `Olá, *${firstName}*! 👋` : 'Olá! 👋';
+      const defaultNormalMsg = `${greeting} Recebemos seu pedido pelo site do *${displayName}*! ✨\n\nAnotei por aqui:${interestLine}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\nPara agilizar, me diz o que você prefere 👇\n\n1️⃣ - 📩 Receber o orçamento agora\n2️⃣ - 💬 Falar com um atendente`;
+
       const applyTemplate = (template: string) => template
+        .replace(/\{primeiro_nome\}/g, firstName)
         .replace(/\{nome\}/g, leadInfo.name || '')
         .replace(/\{unidade\}/g, unit)
         .replace(/\{data\}/g, dateStr)
@@ -475,7 +479,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         .replace(/\{empresa\}/g, displayName)
         .replace(/\{interesse\}/g, effectiveInterestContext || '');
 
-      const redirectDefaultMsg = `Olá! 👋✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Dados:*\n👤 Nome: ${leadInfo.name || ''}\n📍 Local: ${displayName}${interestLine}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\n${redirectText}\n\nObrigado pelo interesse! 💜`;
+      const redirectDefaultMsg = `${greeting} Recebemos seu pedido pelo site do *${displayName}*! ✨\n\nAnotei por aqui:${interestLine}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\n${redirectText}\n\nObrigado pelo interesse! 💜`;
 
       const message = redirectInfo
         ? redirectDefaultMsg
@@ -657,9 +661,11 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
 
   if (!isOpen) return null;
 
-  // Build WhatsApp message for final buttons
+  // Build WhatsApp message for final buttons.
+  // Esta mensagem e enviada PELO CLIENTE (pre-preenchida no wa.me), por isso
+  // fica na voz dele — sem trechos na voz do buffet.
   const buildWhatsAppMessage = () => {
-    return `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadData.name || ''}\n📍 Local: ${displayName}\n📅 Data: ${leadData.dayOfMonth || ''}/${leadData.month || ''}\n👥 Convidados: ${leadData.guests || ''}\n\nVou dar continuidade no seu atendimento!! 🚀\n\nEscolha a opção que mais te agrada 👇\n\n1️⃣ - 📩 Receber agora meu orçamento\n2️⃣ - 💬 Falar com um atendente`;
+    return `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadData.name || ''}\n📅 Data: ${leadData.dayOfMonth || ''}/${leadData.month || ''}\n👥 Convidados: ${leadData.guests || ''}`;
   };
 
   return (
