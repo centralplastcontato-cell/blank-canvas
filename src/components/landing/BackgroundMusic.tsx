@@ -12,12 +12,43 @@ export const BackgroundMusic = ({ src, paused = false, volume = 0.35 }: Backgrou
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const wasPlayingRef = useRef(false);
+  const startedRef = useRef(false);
+  const userStoppedRef = useRef(false);
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
 
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = volume;
     }
   }, [volume]);
+
+  // Inicia a trilha na primeira interacao da pessoa com a pagina (rolagem,
+  // toque, clique ou tecla). Navegadores bloqueiam audio sem gesto do usuario:
+  // rolagem por toque conta como gesto; rolagem de mouse nem sempre — nesse
+  // caso a tentativa falha em silencio e tenta de novo no proximo gesto.
+  // Se a pessoa desligar a trilha pelo botao, nao religa sozinha.
+  useEffect(() => {
+    const events: (keyof WindowEventMap)[] = ["scroll", "wheel", "touchend", "pointerdown", "keydown"];
+    const tryStart = () => {
+      const audio = audioRef.current;
+      if (!audio || startedRef.current || userStoppedRef.current || pausedRef.current) return;
+      if (!audio.paused) return;
+      audio
+        .play()
+        .then(() => {
+          startedRef.current = true;
+          setIsPlaying(true);
+          cleanup();
+        })
+        .catch(() => {
+          /* bloqueado pelo navegador — aguarda o proximo gesto valido */
+        });
+    };
+    const cleanup = () => events.forEach((e) => window.removeEventListener(e, tryStart));
+    events.forEach((e) => window.addEventListener(e, tryStart, { passive: true }));
+    return cleanup;
+  }, []);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -40,12 +71,15 @@ export const BackgroundMusic = ({ src, paused = false, volume = 0.35 }: Backgrou
     if (audio.paused) {
       try {
         await audio.play();
+        startedRef.current = true;
+        userStoppedRef.current = false;
         setIsPlaying(true);
       } catch {
         // browser blocked
       }
     } else {
       audio.pause();
+      userStoppedRef.current = true;
       setIsPlaying(false);
     }
   };
