@@ -853,16 +853,27 @@ export function AutomationsSection() {
         {/* ============ TAB: GERAL ============ */}
         <TabsContent value="geral" className="space-y-6 mt-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bot className="w-5 h-5" />
-                Bot de Qualificação
-              </CardTitle>
-              <CardDescription>
-                Qualifica leads automaticamente perguntando nome, mês, dia e número de convidados
-              </CardDescription>
+            <CardHeader className="pb-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Bot className="w-5 h-5 text-primary" />
+                    Atendimento automático
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    Quem responde os contatos novos desta unidade — bot fixo, fluxo visual ou IA
+                  </CardDescription>
+                </div>
+                {botSettings?.bot_enabled ? (
+                  <Badge variant="default" className="bg-green-500 shrink-0">Bot Ativo para Todos</Badge>
+                ) : botSettings?.test_mode_enabled ? (
+                  <Badge variant="outline" className="text-yellow-600 border-yellow-500 shrink-0">Apenas Modo Teste</Badge>
+                ) : (
+                  <Badge variant="secondary" className="shrink-0">Bot Desativado</Badge>
+                )}
+              </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3">
               {/* Global Toggle */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg">
                 <div className="flex items-start sm:items-center gap-3 min-w-0">
@@ -882,70 +893,6 @@ export function AutomationsSection() {
                   disabled={isSaving}
                   className="shrink-0 self-end sm:self-auto"
                 />
-              </div>
-
-              {/* Test Mode Toggle */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg border-dashed border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-950/10">
-                <div className="flex items-start sm:items-center gap-3 min-w-0">
-                  <div className={`p-2 rounded-full shrink-0 ${botSettings?.test_mode_enabled ? "bg-yellow-100 text-yellow-600" : "bg-muted text-muted-foreground"}`}>
-                    <Beaker className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className="font-medium text-sm sm:text-base flex flex-wrap items-center gap-2">
-                      Modo de Teste
-                      <Badge variant="outline" className="text-yellow-600 border-yellow-500 text-xs">Beta</Badge>
-                    </h4>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      Ativa o bot apenas para o número de teste (ignora toggle global)
-                    </p>
-                  </div>
-                </div>
-                <Switch
-                  checked={botSettings?.test_mode_enabled || false}
-                  onCheckedChange={(checked) => updateBotSettings({ test_mode_enabled: checked })}
-                  disabled={isSaving}
-                  className="shrink-0 self-end sm:self-auto"
-                />
-              </div>
-
-              {/* Test Number Input */}
-              {botSettings?.test_mode_enabled && (
-                <div className="ml-2 sm:ml-4 p-3 sm:p-4 border-l-2 border-yellow-500 bg-yellow-50/30 dark:bg-yellow-950/5 rounded-r-lg">
-                  <Label htmlFor="test-number" className="text-sm font-medium">Número de Teste</Label>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    O bot será ativado apenas para este número, independente do toggle global
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <Input
-                      id="test-number"
-                      placeholder="+55 15 98112-1710"
-                      value={botSettings?.test_mode_number || ""}
-                      onChange={(e) => setBotSettings({ ...botSettings, test_mode_number: e.target.value })}
-                      className="flex-1 sm:max-w-[200px] text-base"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => updateBotSettings({ test_mode_number: botSettings?.test_mode_number })}
-                      disabled={isSaving}
-                      className="w-full sm:w-auto"
-                    >
-                      {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar"}
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Status Summary */}
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-muted-foreground">Status atual:</span>
-                {botSettings?.bot_enabled ? (
-                  <Badge variant="default" className="bg-green-500">Bot Ativo para Todos</Badge>
-                ) : botSettings?.test_mode_enabled ? (
-                  <Badge variant="outline" className="text-yellow-600 border-yellow-500">Apenas Modo Teste</Badge>
-                ) : (
-                  <Badge variant="secondary">Bot Desativado</Badge>
-                )}
               </div>
 
               {/* Flow Builder Toggle */}
@@ -978,7 +925,73 @@ export function AutomationsSection() {
 
               {/* IA Conversacional (beta) */}
               <AiAgentSection />
+            </CardContent>
+          </Card>
 
+          {/* ── Modo de Teste ── */}
+          <Card className="border-dashed border-yellow-500/50">
+            <CardHeader className="pb-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Beaker className="w-5 h-5 text-yellow-600" />
+                    Modo de Teste
+                    <Badge variant="outline" className="text-yellow-600 border-yellow-500 text-xs">Beta</Badge>
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    Ativa o bot apenas para o número de teste (ignora o Bot Global)
+                  </CardDescription>
+                </div>
+                <Switch
+                  checked={botSettings?.test_mode_enabled || false}
+                  onCheckedChange={(checked) => updateBotSettings({ test_mode_enabled: checked })}
+                  disabled={isSaving}
+                  className="shrink-0"
+                />
+              </div>
+            </CardHeader>
+            {botSettings?.test_mode_enabled && (
+              <CardContent className="pt-0">
+                <div className="p-3 sm:p-4 border-l-2 border-yellow-500 bg-yellow-50/30 dark:bg-yellow-950/5 rounded-r-lg">
+                  <Label htmlFor="test-number" className="text-sm font-medium">Número de Teste</Label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    O bot será ativado apenas para este número, independente do toggle global
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Input
+                      id="test-number"
+                      placeholder="+55 15 98112-1710"
+                      value={botSettings?.test_mode_number || ""}
+                      onChange={(e) => setBotSettings({ ...botSettings, test_mode_number: e.target.value })}
+                      className="flex-1 sm:max-w-[200px] text-base"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => updateBotSettings({ test_mode_number: botSettings?.test_mode_number })}
+                      disabled={isSaving}
+                      className="w-full sm:w-auto"
+                    >
+                      {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar"}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            )}
+          </Card>
+
+          {/* ── Ajustes do bot ── */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Clock className="w-5 h-5 text-muted-foreground" />
+                Ajustes do bot
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Ritmo de envio das mensagens e limite de convidados
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
               {/* Message Delay Setting */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg">
                 <div className="flex items-start sm:items-center gap-3 min-w-0">
