@@ -438,7 +438,7 @@ export function AiAgentSection() {
                     <Input
                       value={infoValues[f.key] || ""}
                       onChange={(e) => setInfoValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                      className="h-10 text-sm bg-card border-border shadow-sm"
+                      className="h-10 text-base sm:text-sm bg-card border-border shadow-sm"
                       placeholder={`Ex.: ${f.placeholder}`}
                     />
                   </div>
@@ -456,7 +456,7 @@ export function AiAgentSection() {
                       value={infoValues[f.key] || ""}
                       onChange={(e) => setInfoValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
                       rows={4}
-                      className="text-sm bg-card border-border shadow-sm resize-none"
+                      className="text-base sm:text-sm bg-card border-border shadow-sm resize-none"
                       placeholder={`Ex.: ${f.placeholder}`}
                     />
                   </div>
