@@ -852,82 +852,96 @@ export function AutomationsSection() {
 
         {/* ============ TAB: GERAL ============ */}
         <TabsContent value="geral" className="space-y-6 mt-4">
-          <Card>
-            <CardHeader className="pb-4">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Bot className="w-5 h-5 text-primary" />
-                    Atendimento automático
-                  </CardTitle>
-                  <CardDescription className="mt-1">
-                    Quem responde os contatos novos desta unidade — bot fixo, fluxo visual ou IA
-                  </CardDescription>
-                </div>
-                {botSettings?.bot_enabled ? (
-                  <Badge variant="default" className="bg-green-500 shrink-0">Bot Ativo para Todos</Badge>
-                ) : botSettings?.test_mode_enabled ? (
-                  <Badge variant="outline" className="text-yellow-600 border-yellow-500 shrink-0">Apenas Modo Teste</Badge>
-                ) : (
-                  <Badge variant="secondary" className="shrink-0">Bot Desativado</Badge>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {/* Global Toggle */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg">
-                <div className="flex items-start sm:items-center gap-3 min-w-0">
-                  <div className={`p-2 rounded-full shrink-0 ${botSettings?.bot_enabled ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground"}`}>
-                    <Power className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className="font-medium text-sm sm:text-base">Bot Global</h4>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      Ativa o bot para todos os novos contatos nesta unidade
-                    </p>
-                  </div>
-                </div>
-                <Switch
-                  checked={botSettings?.bot_enabled || false}
-                  onCheckedChange={(checked) => updateBotSettings({ bot_enabled: checked })}
-                  disabled={isSaving}
-                  className="shrink-0 self-end sm:self-auto"
-                />
-              </div>
+          {/* ── Quem atende os contatos novos? (central de comando) ── */}
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-display font-semibold text-lg">Quem atende os contatos novos?</h3>
+              {botSettings?.bot_enabled ? (
+                <span className="inline-flex items-center gap-2 rounded-full bg-card border border-border px-4 py-1.5 text-xs font-bold shadow-sm">
+                  <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                  Atendimento ligado
+                </span>
+              ) : botSettings?.test_mode_enabled ? (
+                <span className="inline-flex items-center gap-2 rounded-full bg-card border border-yellow-400/60 px-4 py-1.5 text-xs font-bold text-yellow-700 shadow-sm">
+                  <span className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+                  Apenas modo teste
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-2 rounded-full bg-card border border-border px-4 py-1.5 text-xs font-bold text-muted-foreground shadow-sm">
+                  <span className="w-2.5 h-2.5 rounded-full bg-muted-foreground/50" />
+                  Atendimento desligado
+                </span>
+              )}
+            </div>
 
-              {/* Flow Builder Toggle */}
-              {modules.flow_builder && (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg border-dashed border-primary/50 bg-primary/5">
-                  <div className="flex items-start sm:items-center gap-3 min-w-0">
-                    <div className={`p-2 rounded-full shrink-0 ${botSettings?.use_flow_builder ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
-                      <GitBranch className="w-4 h-4 sm:w-5 sm:h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="font-medium text-sm sm:text-base">Flow Builder</h4>
-                      <p className="text-xs sm:text-sm text-muted-foreground">
-                        Substituir bot fixo pelo fluxo visual personalizado
-                      </p>
-                      {botSettings?.use_flow_builder && (
-                        <p className="text-xs text-primary mt-1">
-                          ⚡ O fluxo padrão ativo será usado no lugar do bot de qualificação fixo
-                        </p>
-                      )}
-                    </div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 items-stretch">
+              {/* Bot fixo */}
+              <div className={`relative rounded-2xl bg-card p-5 flex flex-col gap-3 transition-all ${botSettings?.bot_enabled && !botSettings?.use_flow_builder ? "border-2 border-primary shadow-md shadow-primary/10" : "border border-border shadow-sm"}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Bot className="w-6 h-6 text-primary" />
                   </div>
                   <Switch
-                    checked={botSettings?.use_flow_builder || false}
-                    onCheckedChange={(checked) => updateBotSettings({ use_flow_builder: checked })}
+                    checked={botSettings?.bot_enabled || false}
+                    onCheckedChange={(checked) => updateBotSettings({ bot_enabled: checked })}
                     disabled={isSaving}
-                    className="shrink-0 self-end sm:self-auto"
                   />
                 </div>
-              )}
+                <div>
+                  <h4 className="font-display font-medium text-base">Bot fixo</h4>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
+                    Roteiro pronto: pergunta mês, dia e convidados e envia os materiais
+                  </p>
+                </div>
+                <div className="mt-auto pt-1">
+                  {botSettings?.bot_enabled && !botSettings?.use_flow_builder ? (
+                    <span className="text-[11px] font-extrabold tracking-wide text-green-700 bg-green-500/15 rounded-full px-3 py-1">EM USO</span>
+                  ) : botSettings?.bot_enabled ? (
+                    <span className="text-[11px] font-extrabold tracking-wide text-muted-foreground bg-muted rounded-full px-3 py-1">SUBSTITUÍDO PELO FLUXO</span>
+                  ) : (
+                    <span className="text-[11px] font-extrabold tracking-wide text-muted-foreground bg-muted rounded-full px-3 py-1">DESLIGADO</span>
+                  )}
+                </div>
+              </div>
 
               {/* IA Conversacional (beta) */}
               <AiAgentSection />
-            </CardContent>
-          </Card>
 
+              {/* Fluxo visual (Flow Builder) */}
+              {modules.flow_builder && (
+                <div className={`relative rounded-2xl bg-card p-5 flex flex-col gap-3 transition-all ${botSettings?.use_flow_builder ? "border-2 border-secondary shadow-md" : "border border-border shadow-sm"}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="w-11 h-11 rounded-xl bg-secondary/15 flex items-center justify-center">
+                      <GitBranch className="w-6 h-6 text-secondary" />
+                    </div>
+                    <Switch
+                      checked={botSettings?.use_flow_builder || false}
+                      onCheckedChange={(checked) => updateBotSettings({ use_flow_builder: checked })}
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <div>
+                    <h4 className="font-display font-medium text-base">Fluxo visual</h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
+                      Você desenha cada passo da conversa em caixinhas ligadas
+                    </p>
+                    {botSettings?.use_flow_builder && (
+                      <p className="text-xs text-primary mt-1">⚡ Usado no lugar do bot fixo</p>
+                    )}
+                  </div>
+                  <div className="mt-auto pt-1">
+                    {botSettings?.use_flow_builder ? (
+                      <span className="text-[11px] font-extrabold tracking-wide text-green-700 bg-green-500/15 rounded-full px-3 py-1">EM USO</span>
+                    ) : (
+                      <span className="text-[11px] font-extrabold tracking-wide text-muted-foreground bg-muted rounded-full px-3 py-1">DESLIGADO</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-2 items-start">
           {/* ── Modo de Teste ── */}
           <Card className="border-dashed border-yellow-500/50">
             <CardHeader className="pb-4">
@@ -1105,6 +1119,7 @@ export function AutomationsSection() {
               )}
             </CardContent>
           </Card>
+          </div>
 
         </TabsContent>
 
