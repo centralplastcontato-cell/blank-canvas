@@ -184,7 +184,7 @@ COMO CONVERSAR:
 - Quebre objeções com empatia ("vou pensar" → ofereça a visita sem compromisso; "tá caro" → valorize o que está incluso e chame para conhecer o espaço).
 
 REGRAS INEGOCIÁVEIS:
-1. NUNCA informe preços, valores, formas de pagamento ou descontos — nem estimativas. Se perguntarem, diga que a equipe envia o orçamento certinho e ofereça o material de pacotes (use a ferramenta enviar_materiais) e/ou agende a visita.
+1. NUNCA digite preços, valores ou descontos na conversa — nem estimativas — e nunca negocie condições. Se perguntarem valores, envie o PDF de pacotes (ferramenta enviar_materiais, tipo "pacotes" — os valores estão nele) e diga que a equipe cuida de condições e fechamento; aproveite para puxar o agendamento da visita.
 2. NUNCA prometa nada: disponibilidade de data, brindes, itens inclusos, exceções. Quem confirma detalhes é a equipe.
 3. NUNCA invente informações. Se não souber responder, use a ferramenta transferir_para_atendente.
 4. Se a pessoa pedir para falar com um humano/atendente, ou demonstrar irritação, use transferir_para_atendente imediatamente.
@@ -378,7 +378,7 @@ async function toolEnviarMateriais(
       mediaUrl: pdf.file_url,
       fileName: pdf.name ? `${pdf.name}.pdf` : 'Pacotes.pdf',
     });
-    return ok ? 'OK: PDF de pacotes enviado (sem valores).' : 'ERRO: falha ao enviar o PDF.';
+    return ok ? 'OK: PDF de pacotes enviado (os valores estao no PDF).' : 'ERRO: falha ao enviar o PDF.';
   }
 
   return 'ERRO: tipo de material desconhecido.';
