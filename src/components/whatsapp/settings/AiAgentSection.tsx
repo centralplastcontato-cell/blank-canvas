@@ -35,6 +35,53 @@ interface AiAgentSettings {
 
 const DEFAULT_VISIT_HOURS = "Segunda a sexta, das 10:00 às 17:00, de meia em meia hora";
 
+const DAY_NAMES = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
+const DAY_SHORT = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+const TIME_OPTIONS = Array.from({ length: 25 }, (_, i) => {
+  const h = String(Math.floor(i / 2) + 8).padStart(2, "0");
+  return `${h}:${i % 2 === 0 ? "00" : "30"}`;
+});
+
+// Os horários são editados de forma estruturada (dias + das/até + intervalo)
+// e serializados na frase que a IA lê; a frase salva é desmontada ao reabrir.
+function serializeVisitHours(days: number[], start: string, end: string, halfHour: boolean): string {
+  const sorted = [...days].sort((a, b) => a - b);
+  const key = sorted.join(",");
+  let daysText: string;
+  if (key === "0,1,2,3,4") daysText = "Segunda a sexta";
+  else if (key === "0,1,2,3,4,5") daysText = "Segunda a sábado";
+  else if (key === "0,1,2,3,4,5,6") daysText = "Todos os dias";
+  else if (sorted.length === 1) daysText = DAY_NAMES[sorted[0]];
+  else daysText = sorted.map((d) => DAY_NAMES[d]).join(", ").replace(/, ([^,]*)$/, " e $1");
+  return `${daysText}, das ${start} às ${end}, ${halfHour ? "de meia em meia hora" : "de hora em hora"}`;
+}
+
+function parseVisitHours(text: string | null): { days: number[]; start: string; end: string; halfHour: boolean } {
+  const fallback = { days: [0, 1, 2, 3, 4], start: "10:00", end: "17:00", halfHour: true };
+  if (!text || !text.trim()) return fallback;
+  const t = text.toLowerCase();
+  let days: number[] = [];
+  if (t.includes("todos os dias")) days = [0, 1, 2, 3, 4, 5, 6];
+  else if (t.includes("segunda a sábado") || t.includes("segunda a sabado")) days = [0, 1, 2, 3, 4, 5];
+  else if (t.includes("segunda a sexta")) days = [0, 1, 2, 3, 4];
+  else {
+    const tokens: [string, number][] = [["segunda", 0], ["terça", 1], ["terca", 1], ["quarta", 2], ["quinta", 3], ["sexta", 4], ["sábado", 5], ["sabado", 5], ["domingo", 6]];
+    tokens.forEach(([tok, idx]) => { if (t.includes(tok) && !days.includes(idx)) days.push(idx); });
+  }
+  if (days.length === 0) days = fallback.days;
+  const norm = (s: string) => {
+    const mm = s.replace("h", ":").match(/(\d{1,2}):?(\d{2})?/);
+    return mm ? `${mm[1].padStart(2, "0")}:${mm[2] || "00"}` : null;
+  };
+  const m = t.match(/das\s+(\d{1,2}[:h]?\d{0,2})\s+às?\s+(\d{1,2}[:h]?\d{0,2})/);
+  return {
+    days,
+    start: (m && norm(m[1])) || fallback.start,
+    end: (m && norm(m[2])) || fallback.end,
+    halfHour: !t.includes("hora em hora"),
+  };
+}
+
 // Campos estruturados do modal. São serializados em texto rotulado dentro de
 // extra_instructions ("Endereço: ...\nDuração da festa: ...") — o mesmo texto
 // que vai para o prompt da IA — e desserializados de volta ao abrir o modal.
@@ -95,7 +142,10 @@ export function AiAgentSection() {
   const [configOpen, setConfigOpen] = useState(false);
   const [configTab, setConfigTab] = useState("basico");
   const [editUnit, setEditUnit] = useState<string | null>(null);
-  const [editVisitHours, setEditVisitHours] = useState(DEFAULT_VISIT_HOURS);
+  const [visitDays, setVisitDays] = useState<number[]>([0, 1, 2, 3, 4]);
+  const [visitStart, setVisitStart] = useState("10:00");
+  const [visitEnd, setVisitEnd] = useState("17:00");
+  const [visitHalfHour, setVisitHalfHour] = useState(true);
   const [infoValues, setInfoValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -195,16 +245,32 @@ export function AiAgentSection() {
   const openConfig = () => {
     if (!settings) return;
     setEditUnit(settings.unit);
-    setEditVisitHours(settings.visit_hours || DEFAULT_VISIT_HOURS);
+    const parsed = parseVisitHours(settings.visit_hours);
+    setVisitDays(parsed.days);
+    setVisitStart(parsed.start);
+    setVisitEnd(parsed.end);
+    setVisitHalfHour(parsed.halfHour);
     setInfoValues(parseBuffetInfo(settings.extra_instructions));
     setConfigTab("basico");
     setConfigOpen(true);
   };
 
+  const toggleVisitDay = (day: number) => {
+    setVisitDays((prev) => prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]);
+  };
+
   const saveConfig = async () => {
+    if (visitDays.length === 0) {
+      toast({ title: "Escolha os dias de visita", description: "Marque pelo menos um dia da semana.", variant: "destructive" });
+      return;
+    }
+    if (visitEnd <= visitStart) {
+      toast({ title: "Horário inválido", description: "O horário final precisa ser depois do inicial.", variant: "destructive" });
+      return;
+    }
     const saved = await persist({
       unit: editUnit,
-      visit_hours: editVisitHours.trim() || DEFAULT_VISIT_HOURS,
+      visit_hours: serializeVisitHours(visitDays, visitStart, visitEnd, visitHalfHour),
       extra_instructions: serializeBuffetInfo(infoValues),
     });
     if (saved) {
@@ -313,14 +379,58 @@ export function AiAgentSection() {
                     )}
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-bold">Horários que ela pode oferecer visita</Label>
-                    <Input
-                      value={editVisitHours}
-                      onChange={(e) => setEditVisitHours(e.target.value)}
-                      className="h-10 text-sm bg-card border-border shadow-sm"
-                      placeholder={DEFAULT_VISIT_HOURS}
-                    />
+                    <Label className="text-xs font-bold">Dias em que ela pode oferecer visita</Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {DAY_SHORT.map((d, idx) => {
+                        const on = visitDays.includes(idx);
+                        return (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() => toggleVisitDay(idx)}
+                            className={`min-w-[44px] h-9 px-2 rounded-lg text-xs font-bold transition-all border ${on ? "bg-violet-600 text-white border-violet-600 shadow-sm" : "bg-card text-muted-foreground border-border"}`}
+                          >
+                            {d}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold">Das</Label>
+                      <Select value={visitStart} onValueChange={setVisitStart}>
+                        <SelectTrigger className="h-10 bg-card border-border shadow-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {TIME_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold">Até</Label>
+                      <Select value={visitEnd} onValueChange={setVisitEnd}>
+                        <SelectTrigger className="h-10 bg-card border-border shadow-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {TIME_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold">Horários oferecidos</Label>
+                    <Select value={visitHalfHour ? "meia" : "hora"} onValueChange={(v) => setVisitHalfHour(v === "meia")}>
+                      <SelectTrigger className="h-10 bg-card border-border shadow-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="meia">De meia em meia hora</SelectItem>
+                        <SelectItem value="hora">De hora em hora</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {visitDays.length > 0 && (
+                    <p className="text-[11px] text-violet-700 bg-violet-500/10 rounded-lg px-3 py-2">
+                      A IA vai oferecer: <span className="font-bold">{serializeVisitHours(visitDays, visitStart, visitEnd, visitHalfHour)}</span>
+                    </p>
+                  )}
                 </div>
                 {BUFFET_FIELDS.filter((f) => f.group === "basico").map((f) => (
                   <div key={f.key} className="space-y-1.5">
