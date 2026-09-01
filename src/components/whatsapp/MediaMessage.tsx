@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, memo } from "react";
 import { cn } from "@/lib/utils";
 import { FileText, ImageIcon, Mic, Video, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -64,7 +64,7 @@ function isEncryptedUrl(url: string | null): boolean {
  * MediaMessage component - Displays media with automatic download for persistence
  * Shows preview immediately when possible, downloads in background
  */
-export function MediaMessage({
+function MediaMessageImpl({
   messageId,
   mediaType,
   mediaUrl,
@@ -416,3 +416,15 @@ export function MediaMessage({
 
   return renderMedia();
 }
+
+// memo com comparador que ignora onMediaUrlUpdate (funcao recriada a cada
+// render do pai): evita redesenhar dezenas de midias a cada tecla digitada.
+// O callback capturado continua valido — usa updates funcionais de estado.
+export const MediaMessage = memo(MediaMessageImpl, (prev, next) =>
+  prev.messageId === next.messageId &&
+  prev.mediaType === next.mediaType &&
+  prev.mediaUrl === next.mediaUrl &&
+  prev.content === next.content &&
+  prev.fromMe === next.fromMe &&
+  prev.instanceId === next.instanceId
+);

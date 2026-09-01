@@ -532,6 +532,18 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       return next;
     });
   }, []);
+  // Renderiza SO o layout em uso (mobile OU desktop). Antes os dois eram
+  // montados juntos (escondidos por CSS), dobrando o custo de cada render —
+  // no iPad isso deixava a digitacao visivelmente lenta.
+  const [isNarrowLayout, setIsNarrowLayout] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 767px)");
+    const onChange = () => setIsNarrowLayout(mql.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
   const [isLoading, setIsLoading] = useState(true);
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
@@ -4127,7 +4139,9 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
   };
 
 
-  const filteredConversations = conversations
+  // useMemo: filtrar/ordenar centenas de conversas a cada tecla digitada
+  // (qualquer re-render) pesava na digitacao em tablets
+  const filteredConversations = useMemo(() => conversations
     .filter((conv) => {
       // Apply text search (normalize phone digits for matching)
       const searchLower = searchQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -4177,7 +4191,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
       const timeA = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
       const timeB = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
       return timeB - timeA;
-    });
+    }), [conversations, searchQuery, monthFilter, filter, conversationLeadsMap, leadStatusConversationIds]);
 
   const toggleConversationClosed = async (conv: Conversation) => {
     if (!canCloseConversations) {
@@ -4758,6 +4772,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
       {selectedInstance && (
         <div className="flex flex-1 w-full max-w-full min-w-0 border-0 md:border border-border/60 rounded-none md:rounded-xl overflow-hidden bg-gradient-to-br from-card via-card to-muted/20 min-h-0 md:shadow-lg">
           {/* Mobile: Show full width list or chat */}
+          {isNarrowLayout && (
           <div className={cn(
             "w-full min-w-0 flex flex-col overflow-hidden md:hidden",
             selectedConversation && "hidden"
@@ -4916,8 +4931,10 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
               )}
             </ScrollArea>
           </div>
+          )}
 
           {/* Desktop: Resizable Panels */}
+          {!isNarrowLayout && (
           <ResizablePanelGroup direction="horizontal" className="hidden md:flex flex-1">
             {/* Conversations Panel - Resizable */}
             <ResizablePanel 
@@ -5466,29 +5483,6 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         <X className="w-4 h-4" />
                       </Button>
                     </div>
-      )}
-
-      {/* Quick Visit Dialog */}
-      {linkedLead && quickVisitType === "visita" && (
-        <QuickVisitDialog
-          open={showQuickVisitDialog}
-          onOpenChange={(v) => { setShowQuickVisitDialog(v); if (!v) setQuickVisitType("visita"); }}
-          leadId={linkedLead.id}
-          currentUserId={userId}
-          leadUnit={linkedLead.unit}
-          onVisitRegistered={() => setVisitRefreshKey(k => k + 1)}
-          initialVisitType="visita"
-        />
-      )}
-      {linkedLead && quickVisitType === "atendimento" && (
-        <VisitFormDialog
-          open={showQuickVisitDialog}
-          onOpenChange={(v) => { setShowQuickVisitDialog(v); if (!v) setQuickVisitType("visita"); }}
-          visitType="atendimento"
-          currentUserId={userId}
-          fixedLead={{ id: linkedLead.id, name: linkedLead.name, unit: linkedLead.unit }}
-          onCreated={() => setVisitRefreshKey(k => k + 1)}
-        />
       )}
 
                   {/* Lead Classification Panel - Always visible */}
@@ -6368,8 +6362,10 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
               </div>
             </ResizablePanel>
           </ResizablePanelGroup>
+          )}
 
           {/* Mobile: Show chat when conversation is selected */}
+          {isNarrowLayout && (
           <div className={cn(
             "w-full max-w-full min-w-0 flex flex-col overflow-hidden md:hidden",
             !selectedConversation && "hidden"
@@ -7488,7 +7484,32 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
               </>
             )}
           </div>
+          )}
         </div>
+      )}
+
+      {/* Quick Visit Dialog — fora dos blocos de layout (portal): precisa
+          existir tanto no layout mobile quanto no desktop */}
+      {linkedLead && quickVisitType === "visita" && (
+        <QuickVisitDialog
+          open={showQuickVisitDialog}
+          onOpenChange={(v) => { setShowQuickVisitDialog(v); if (!v) setQuickVisitType("visita"); }}
+          leadId={linkedLead.id}
+          currentUserId={userId}
+          leadUnit={linkedLead.unit}
+          onVisitRegistered={() => setVisitRefreshKey(k => k + 1)}
+          initialVisitType="visita"
+        />
+      )}
+      {linkedLead && quickVisitType === "atendimento" && (
+        <VisitFormDialog
+          open={showQuickVisitDialog}
+          onOpenChange={(v) => { setShowQuickVisitDialog(v); if (!v) setQuickVisitType("visita"); }}
+          visitType="atendimento"
+          currentUserId={userId}
+          fixedLead={{ id: linkedLead.id, name: linkedLead.name, unit: linkedLead.unit }}
+          onCreated={() => setVisitRefreshKey(k => k + 1)}
+        />
       )}
 
       {/* Hidden file inputs */}
