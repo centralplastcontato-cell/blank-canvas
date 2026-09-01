@@ -38,14 +38,20 @@ const DEFAULT_VISIT_HOURS = "Segunda a sexta, das 10:00 às 17:00, de meia em me
 // Campos estruturados do modal. São serializados em texto rotulado dentro de
 // extra_instructions ("Endereço: ...\nDuração da festa: ...") — o mesmo texto
 // que vai para o prompt da IA — e desserializados de volta ao abrir o modal.
-const BUFFET_FIELDS: { key: string; label: string; multiline: boolean; placeholder: string }[] = [
-  { key: "endereco", label: "Endereço", multiline: false, placeholder: "Rua X, 123 — Sorocaba/SP" },
-  { key: "duracao", label: "Duração da festa", multiline: false, placeholder: "3 horas" },
-  { key: "faixa_etaria", label: "Faixa etária", multiline: false, placeholder: "Brinquedos para crianças de 1 a 12 anos" },
-  { key: "estrutura", label: "Estrutura e brinquedos", multiline: true, placeholder: "Cama elástica, piscina de bolinhas, arena de games, fraldário, área para os pais..." },
-  { key: "diferenciais", label: "Diferenciais", multiline: true, placeholder: "9 anos de tradição, +4.000 festas realizadas, nota 4,7 no Google, estacionamento próprio..." },
-  { key: "regras", label: "Regras e o que não fazemos", multiline: true, placeholder: "Não fazemos festas externas. Visitas somente com agendamento..." },
-  { key: "outros", label: "Outras informações", multiline: true, placeholder: "Qualquer outra informação que a IA pode afirmar com segurança" },
+const BUFFET_FIELDS: { key: string; label: string; multiline: boolean; placeholder: string; group: string; hint?: string }[] = [
+  { key: "endereco", label: "Endereço", multiline: false, placeholder: "Rua X, 123 — Sorocaba/SP", group: "basico" },
+  { key: "duracao", label: "Duração da festa", multiline: false, placeholder: "3 horas", group: "basico" },
+  { key: "faixa_etaria", label: "Faixa etária", multiline: false, placeholder: "Crianças de 1 a 12 anos", group: "basico" },
+  { key: "estrutura", label: "Estrutura e brinquedos", multiline: true, placeholder: "Cama elástica, piscina de bolinhas, arena de games, fraldário, área para os pais...", group: "estrutura", hint: "O que o espaço tem — é daqui que a IA responde \"o que tem aí?\"" },
+  { key: "diferenciais", label: "Diferenciais", multiline: true, placeholder: "9 anos de tradição, +4.000 festas realizadas, nota 4,7 no Google, estacionamento próprio...", group: "estrutura", hint: "Argumentos que a IA usa para convencer e quebrar objeções" },
+  { key: "regras", label: "Regras e o que não fazemos", multiline: true, placeholder: "Não fazemos festas externas. Visitas somente com agendamento...", group: "regras", hint: "Limites claros evitam que a IA prometa o que vocês não fazem" },
+  { key: "outros", label: "Outras informações", multiline: true, placeholder: "Qualquer outra informação que a IA pode afirmar com segurança", group: "regras" },
+];
+
+const FIELD_GROUPS = [
+  { id: "basico", label: "Básico" },
+  { id: "estrutura", label: "Estrutura" },
+  { id: "regras", label: "Regras" },
 ];
 
 function serializeBuffetInfo(values: Record<string, string>): string | null {
@@ -87,6 +93,7 @@ export function AiAgentSection() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
+  const [configTab, setConfigTab] = useState("basico");
   const [editUnit, setEditUnit] = useState<string | null>(null);
   const [editVisitHours, setEditVisitHours] = useState(DEFAULT_VISIT_HOURS);
   const [infoValues, setInfoValues] = useState<Record<string, string>>({});
@@ -190,6 +197,7 @@ export function AiAgentSection() {
     setEditUnit(settings.unit);
     setEditVisitHours(settings.visit_hours || DEFAULT_VISIT_HOURS);
     setInfoValues(parseBuffetInfo(settings.extra_instructions));
+    setConfigTab("basico");
     setConfigOpen(true);
   };
 
@@ -212,8 +220,6 @@ export function AiAgentSection() {
       </div>
     );
   }
-
-  const filledCount = BUFFET_FIELDS.filter((f) => (parseBuffetInfo(settings.extra_instructions)[f.key] || "").trim()).length;
 
   return (
     <>
@@ -247,85 +253,113 @@ export function AiAgentSection() {
         </div>
       </div>
 
-      {/* Modal único de configuração da IA */}
+      {/* Modal único de configuração da IA — organizado em abinhas */}
       <Dialog open={configOpen} onOpenChange={setConfigOpen}>
-        <DialogContent className="max-w-[580px] max-h-[90vh] flex flex-col p-0 gap-0">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/40">
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-violet-600" />
-              Configurar IA Conversacional
+        <DialogContent className="max-w-[580px] max-h-[92vh] flex flex-col p-0 gap-0 rounded-2xl">
+          <DialogHeader className="px-5 sm:px-6 pt-5 pb-3 border-b border-border/40">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5 text-violet-600" />
+              </div>
+              Configurar IA
             </DialogTitle>
-            <p className="text-xs text-muted-foreground mt-1">
-              A IA nunca fala preços nem promete nada — valores só via PDF de pacotes e equipe. O que não estiver aqui, ela transfere para um atendente.
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Preencha só o que a IA pode afirmar — ela nunca fala preços nem promete nada.
             </p>
           </DialogHeader>
-          <div className="overflow-y-auto px-6 py-4 space-y-4 flex-1">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Número (unidade) do teste</Label>
-                <Select value={editUnit || ""} onValueChange={setEditUnit} disabled={settings.enabled}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Selecione a unidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {units.map((u) => (
-                      <SelectItem key={u} value={u}>{u}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {settings.enabled && (
-                  <p className="text-[11px] text-muted-foreground">Desligue a IA para trocar o número.</p>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Horários de visita</Label>
-                <Input
-                  value={editVisitHours}
-                  onChange={(e) => setEditVisitHours(e.target.value)}
-                  className="h-9 text-sm"
-                  placeholder={DEFAULT_VISIT_HOURS}
-                />
-              </div>
-            </div>
 
-            <div className="pt-1 border-t border-border/40">
-              <div className="flex items-center justify-between py-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Informações do buffet</Label>
-                <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                  {filledCount > 0 && <Check className="w-3 h-3 text-green-600" />}
-                  {filledCount} de {BUFFET_FIELDS.length} preenchidos
-                </span>
-              </div>
+          {/* Abinhas de navegação */}
+          <div className="px-5 sm:px-6 pt-3 pb-1">
+            <div className="grid grid-cols-3 gap-1.5 bg-muted rounded-xl p-1">
+              {FIELD_GROUPS.map((g) => {
+                const groupFields = BUFFET_FIELDS.filter((f) => f.group === g.id);
+                const filled = groupFields.filter((f) => (infoValues[f.key] || "").trim()).length;
+                const active = configTab === g.id;
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    onClick={() => setConfigTab(g.id)}
+                    className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-bold transition-all ${active ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"}`}
+                  >
+                    {g.label}
+                    <span className={`text-[10px] font-extrabold rounded-full px-1.5 py-0.5 ${filled === groupFields.length ? "bg-green-500/15 text-green-700" : "bg-border/70 text-muted-foreground"}`}>
+                      {filled === groupFields.length ? <Check className="w-3 h-3" /> : `${filled}/${groupFields.length}`}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="overflow-y-auto px-5 sm:px-6 py-4 space-y-4 flex-1">
+            {configTab === "basico" && (
               <div className="space-y-4">
-                {BUFFET_FIELDS.map((f) => (
-                  <div key={f.key} className="space-y-1.5">
-                    <Label className="text-xs font-medium">{f.label}</Label>
-                    {f.multiline ? (
-                      <Textarea
-                        value={infoValues[f.key] || ""}
-                        onChange={(e) => setInfoValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                        rows={3}
-                        className="text-sm"
-                        placeholder={f.placeholder}
-                      />
-                    ) : (
-                      <Input
-                        value={infoValues[f.key] || ""}
-                        onChange={(e) => setInfoValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                        className="text-sm"
-                        placeholder={f.placeholder}
-                      />
+                <div className="rounded-xl border border-violet-300/50 bg-violet-500/5 p-3.5 space-y-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold">Número que a IA atende</Label>
+                    <Select value={editUnit || ""} onValueChange={setEditUnit} disabled={settings.enabled}>
+                      <SelectTrigger className="h-10 bg-background">
+                        <SelectValue placeholder="Selecione a unidade" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {units.map((u) => (
+                          <SelectItem key={u} value={u}>{u}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {settings.enabled && (
+                      <p className="text-[11px] text-muted-foreground">Desligue a IA para trocar o número.</p>
                     )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold">Horários que ela pode oferecer visita</Label>
+                    <Input
+                      value={editVisitHours}
+                      onChange={(e) => setEditVisitHours(e.target.value)}
+                      className="h-10 text-sm bg-background"
+                      placeholder={DEFAULT_VISIT_HOURS}
+                    />
+                  </div>
+                </div>
+                {BUFFET_FIELDS.filter((f) => f.group === "basico").map((f) => (
+                  <div key={f.key} className="space-y-1.5">
+                    <Label className="text-xs font-bold">{f.label}</Label>
+                    <Input
+                      value={infoValues[f.key] || ""}
+                      onChange={(e) => setInfoValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                      className="h-10 text-sm bg-background"
+                      placeholder={`Ex.: ${f.placeholder}`}
+                    />
                   </div>
                 ))}
               </div>
-            </div>
+            )}
+
+            {configTab !== "basico" && (
+              <div className="space-y-4">
+                {BUFFET_FIELDS.filter((f) => f.group === configTab).map((f) => (
+                  <div key={f.key} className="space-y-1.5">
+                    <Label className="text-xs font-bold">{f.label}</Label>
+                    {f.hint && <p className="text-[11px] text-muted-foreground">{f.hint}</p>}
+                    <Textarea
+                      value={infoValues[f.key] || ""}
+                      onChange={(e) => setInfoValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                      rows={4}
+                      className="text-sm bg-background resize-none"
+                      placeholder={`Ex.: ${f.placeholder}`}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          <DialogFooter className="px-6 py-4 border-t border-border/40">
-            <Button variant="ghost" onClick={() => setConfigOpen(false)} disabled={saving}>Cancelar</Button>
-            <Button onClick={saveConfig} disabled={saving}>
+
+          <DialogFooter className="px-5 sm:px-6 py-3.5 border-t border-border/40 flex-col-reverse sm:flex-row gap-2">
+            <Button variant="ghost" onClick={() => setConfigOpen(false)} disabled={saving} className="w-full sm:w-auto">Cancelar</Button>
+            <Button onClick={saveConfig} disabled={saving} className="w-full sm:w-auto">
               {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-              Salvar
+              Salvar tudo
             </Button>
           </DialogFooter>
         </DialogContent>
