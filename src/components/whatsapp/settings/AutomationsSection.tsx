@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 import { ReactivationSection } from "./ReactivationSection";
+import { AiAgentSection } from "./AiAgentSection";
 import { VisitConfirmationSection } from "./VisitConfirmationSection";
 
 import { PreReservationAutomationSection } from "./PreReservationAutomationSection";
@@ -974,6 +975,9 @@ export function AutomationsSection() {
                   />
                 </div>
               )}
+
+              {/* IA Conversacional (beta) */}
+              <AiAgentSection />
 
               {/* Message Delay Setting */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg">

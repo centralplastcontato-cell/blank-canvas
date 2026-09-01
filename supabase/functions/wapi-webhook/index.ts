@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { detectAndPauseBotLoop, isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { normalizeJid, type NormalizedJid } from "../_shared/jid-normalizer.ts";
+import { maybeHandleWithAiAgent } from "./ai-agent.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -6371,6 +6372,30 @@ async function processWebhookEvent(body: JsonRecord) {
           // A proteção continua valendo para follow-up/reativação/campanhas (via wapi-send).
           // (bloco antigo de quarentena removido intencionalmente)
 
+          // 🤖 IA conversacional (beta): quando habilitada para esta unidade e a
+          // conversa é elegível (lead novo pós-ativação), a IA cuida da resposta
+          // e o bot fixo não roda. Erros da IA nunca derrubam o fluxo normal.
+          try {
+            const aiHandled = await maybeHandleWithAiAgent(supabase, instance, conv, content, phone, cName as string | null);
+            if (aiHandled) {
+              fireTrace(supabase, 'bot_dispatch', {
+                tracking_id: rawWebhookEventId,
+                provider: instance.provider || null,
+                instance_id: instance.instance_id || null,
+                company_id: instance.company_id || null,
+                conversation_id: conv.id,
+                message_id: typeof msgId === 'string' ? msgId : (msgId ? String(msgId) : null),
+                phone,
+                direction: 'incoming',
+                status: 'handled',
+                payload_summary: { reason: 'ai_agent', bot_step: conv.bot_step },
+                latency_ms: Date.now() - processingStartAt,
+              });
+              break;
+            }
+          } catch (aiErr) {
+            console.error('[AI Agent] hook error (fallback to fixed bot):', aiErr);
+          }
 
           const recoveredStep = shouldRecoverAccidentalHumanTakeover(instance.provider, conv);
           if (recoveredStep) {
