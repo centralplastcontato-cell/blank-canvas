@@ -280,7 +280,7 @@ export function AiAgentSection() {
                     key={g.id}
                     type="button"
                     onClick={() => setConfigTab(g.id)}
-                    className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-bold transition-all ${active ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"}`}
+                    className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-bold transition-all ${active ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"}`}
                   >
                     {g.label}
                     <span className={`text-[10px] font-extrabold rounded-full px-1.5 py-0.5 ${filled === groupFields.length ? "bg-green-500/15 text-green-700" : "bg-border/70 text-muted-foreground"}`}>
@@ -299,7 +299,7 @@ export function AiAgentSection() {
                   <div className="space-y-1.5">
                     <Label className="text-xs font-bold">Número que a IA atende</Label>
                     <Select value={editUnit || ""} onValueChange={setEditUnit} disabled={settings.enabled}>
-                      <SelectTrigger className="h-10 bg-background">
+                      <SelectTrigger className="h-10 bg-card border-border shadow-sm">
                         <SelectValue placeholder="Selecione a unidade" />
                       </SelectTrigger>
                       <SelectContent>
@@ -317,7 +317,7 @@ export function AiAgentSection() {
                     <Input
                       value={editVisitHours}
                       onChange={(e) => setEditVisitHours(e.target.value)}
-                      className="h-10 text-sm bg-background"
+                      className="h-10 text-sm bg-card border-border shadow-sm"
                       placeholder={DEFAULT_VISIT_HOURS}
                     />
                   </div>
@@ -328,7 +328,7 @@ export function AiAgentSection() {
                     <Input
                       value={infoValues[f.key] || ""}
                       onChange={(e) => setInfoValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                      className="h-10 text-sm bg-background"
+                      className="h-10 text-sm bg-card border-border shadow-sm"
                       placeholder={`Ex.: ${f.placeholder}`}
                     />
                   </div>
@@ -346,7 +346,7 @@ export function AiAgentSection() {
                       value={infoValues[f.key] || ""}
                       onChange={(e) => setInfoValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
                       rows={4}
-                      className="text-sm bg-background resize-none"
+                      className="text-sm bg-card border-border shadow-sm resize-none"
                       placeholder={`Ex.: ${f.placeholder}`}
                     />
                   </div>
