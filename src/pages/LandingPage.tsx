@@ -30,7 +30,7 @@ const LandingPage = () => {
     <div className="min-h-screen bg-background">
       <Helmet>
         <title>Castelo da Diversão | Buffet Infantil em Sorocaba</title>
-        <meta name="description" content="Há 9 anos transformando aniversários em memórias inesquecíveis. +4.000 festas realizadas. Agende uma visita de 15 minutos." />
+        <meta name="description" content="Há 9 anos transformando aniversários em memórias inesquecíveis. +4.000 festas realizadas. Consulte datas e valores." />
         <meta property="og:title" content="Castelo da Diversão | Buffet Infantil em Sorocaba" />
         <meta property="og:url" content="https://www.castelodadiversao.online" />
       </Helmet>
