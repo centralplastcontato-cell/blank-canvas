@@ -129,7 +129,7 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
             style={{ textShadow: "0 1px 8px rgba(0,0,0,0.7)" }}
           >
             Cada detalhe pensado para transformar o aniversário em memória de família.
-            <span className="block mt-1 text-white/75">Conheça o espaço numa visita rápida de 15 minutos.</span>
+            <span className="block mt-1 text-white/75">Consulte datas e valores em menos de 1 minuto.</span>
           </motion.p>
 
           {/* CTA */}
@@ -143,7 +143,7 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
               onClick={onCtaClick}
               className="group relative inline-flex items-center gap-3 px-8 md:px-10 py-4 md:py-5 rounded-full bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 text-[#1a1030] font-bold text-base md:text-lg tracking-wide shadow-[0_10px_40px_-10px_rgba(255,200,60,0.7)] hover:shadow-[0_20px_60px_-10px_rgba(255,200,60,0.9)] transition-all duration-500 hover:scale-[1.03]"
             >
-              <span>Agendar visita de 15 min</span>
+              <span>Consultar datas e valores</span>
               <span className="text-lg group-hover:translate-x-1 transition-transform">→</span>
               <span className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-300/50 to-amber-300/50 blur-xl -z-10 opacity-60 group-hover:opacity-100 transition-opacity" />
             </button>
