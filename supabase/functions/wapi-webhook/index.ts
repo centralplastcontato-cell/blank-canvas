@@ -5502,6 +5502,10 @@ async function processWebhookEvent(body: JsonRecord) {
           const lidBeforeOverride = String(rj);
           rj = realJid;
           waitUntil(saveLidMapping(supabase, lidBeforeOverride, realJid, instance.id, instance.company_id));
+          // O chat.id @lid pode ter deixado uma conversa órfã ("Contato sem
+          // identificação") criada por um envio anterior — funde antes de seguir
+          const lidNormForMerge = `${lidBeforeOverride.replace(/@.*$/, '').replace(/\D/g, '')}@lid`;
+          await mergeLidConversationIntoReal(supabase, instance.id, lidNormForMerge, realJid);
         }
       } catch (_overrideErr) { /* never break ingestion */ }
 
