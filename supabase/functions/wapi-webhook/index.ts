@@ -3346,8 +3346,16 @@ async function processBotQualification(
           // Re-read conv with updated step and fall through to normal processing
           conv.bot_step = 'proximo_passo';
         } else {
-          // For other steps (like qualified_from_lp), return
-          return;
+          // Passo ativo do questionário: a pergunta JÁ foi enviada ao cliente,
+          // então a resposta dele precisa ser processada mesmo com o lead
+          // qualificado — retornar aqui deixava o cliente sem NENHUMA resposta
+          // (ex.: conversa religada no passo 'tipo' com lead antigo vinculado).
+          const activeQuestionSteps = ['tipo', 'nome', 'mes', 'dia', 'convidados'];
+          if (!activeQuestionSteps.includes(conv.bot_step || '')) {
+            // For other steps (like qualified_from_lp), return
+            return;
+          }
+          console.log(`[Bot] Qualified lead but active questionnaire step "${conv.bot_step}" — continuing to process the answer.`);
         }
       }
   }
