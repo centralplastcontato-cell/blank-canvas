@@ -146,6 +146,65 @@ async function saveLidMapping(
   }
 }
 
+// 🔗 Funde uma conversa @lid órfã na conversa do número real (mesma instância).
+// Cenário: o buffet inicia papo com contato sem histórico → o provedor cria a
+// conversa com @lid ("Contato sem identificação"); quando o contato responde,
+// o webhook chega com o número real + o campo senderLid. Sem esta fusão, a
+// mesma pessoa fica com dois chats separados para sempre.
+async function mergeLidConversationIntoReal(
+  supabase: SupabaseClient,
+  instanceDbId: string,
+  lidJid: string,
+  realJid: string,
+): Promise<void> {
+  try {
+    const { data: lidConv } = await supabase
+      .from('wapi_conversations')
+      .select('id, remote_jid, lead_id, contact_name, contact_picture')
+      .eq('instance_id', instanceDbId)
+      .eq('remote_jid', lidJid)
+      .maybeSingle();
+    if (!lidConv) return;
+
+    const realPhone = String(realJid).replace(/@.*$/, '').replace(/\D/g, '');
+    const { data: realConv } = await supabase
+      .from('wapi_conversations')
+      .select('id, lead_id')
+      .eq('instance_id', instanceDbId)
+      .eq('remote_jid', realJid)
+      .maybeSingle();
+
+    if (!realConv) {
+      // Ainda não existe conversa com o número real: renomeia a @lid em vez de
+      // deixar o fluxo criar outra — o histórico fica todo num chat só.
+      const { error } = await supabase
+        .from('wapi_conversations')
+        .update({ remote_jid: realJid, contact_phone: realPhone })
+        .eq('id', lidConv.id);
+      if (error) console.warn(`[Webhook] LID merge: rename failed:`, error.message);
+      else console.log(`[Webhook] 🔗 LID conversation ${lidJid} renamed to ${realJid} (merge-in-place)`);
+      return;
+    }
+
+    // Conversa real já existe: move as mensagens da @lid para ela e apaga a órfã.
+    const { error: moveErr } = await supabase
+      .from('wapi_messages')
+      .update({ conversation_id: realConv.id })
+      .eq('conversation_id', lidConv.id);
+    if (moveErr) {
+      console.warn(`[Webhook] LID merge: failed moving messages:`, moveErr.message);
+      return; // nunca apaga sem ter movido as mensagens
+    }
+    if (!realConv.lead_id && lidConv.lead_id) {
+      await supabase.from('wapi_conversations').update({ lead_id: lidConv.lead_id }).eq('id', realConv.id);
+    }
+    await supabase.from('wapi_conversations').delete().eq('id', lidConv.id);
+    console.log(`[Webhook] 🔗 Merged LID conversation ${lidJid} into ${realJid} (conv ${realConv.id})`);
+  } catch (err) {
+    console.warn('[Webhook] mergeLidConversationIntoReal error:', err);
+  }
+}
+
 async function resolveLidConversation(
   supabase: SupabaseClient,
   instanceDbId: string,
@@ -5583,8 +5642,31 @@ async function processWebhookEvent(body: JsonRecord) {
           })());
         }
       }
-      
-      
+
+      // 🔗 FUSÃO @lid → número real: payloads com o número real às vezes trazem
+      // também o identificador anônimo (senderLid/chatLid). Se existir uma
+      // conversa órfã criada com esse @lid nesta instância, funde-a na conversa
+      // do número real (ou renomeia, se a real ainda não existir) — evita a
+      // mesma pessoa aparecer em dois chats separados.
+      if (!isGrp && !isLidJid && !isPseudoLidJid && typeof rj === 'string' && rj.includes('@s.whatsapp.net')) {
+        try {
+          const lidCandidates = [
+            (msg as JsonRecord).senderLid,
+            (msg as JsonRecord).chatLid,
+            (msg as JsonRecord).sender?.lid,
+            (msg as JsonRecord).chat?.lid,
+            (msg as JsonRecord).key?.senderLid,
+            (msg as JsonRecord).key?.participantLid,
+          ].filter((v) => typeof v === 'string' && (v as string).replace(/\D/g, '').length >= 8) as string[];
+          if (lidCandidates.length > 0) {
+            const lidJidNorm = `${lidCandidates[0].replace(/@.*$/, '').replace(/\D/g, '')}@lid`;
+            await mergeLidConversationIntoReal(supabase, instance.id, lidJidNorm, rj as string);
+            waitUntil(saveLidMapping(supabase, lidJidNorm, rj as string, instance.id, instance.company_id));
+          }
+        } catch (_mergeErr) { /* nunca quebra a ingestão */ }
+      }
+
+
       let cName = isGrp ? ((msg as JsonRecord).chat?.name || (msg as JsonRecord).groupName || (msg as JsonRecord).subject || null) : ((msg as JsonRecord).pushName || (msg as JsonRecord).verifiedBizName || (msg as JsonRecord).sender?.pushName || (msg as JsonRecord).sender?.name || (msg as JsonRecord).senderName || (msg as JsonRecord).chat?.name || phone);
       const cPic = (msg as JsonRecord).chat?.profilePicture || (msg as JsonRecord).sender?.profilePicture || null;
 
