@@ -31,6 +31,7 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
   const [leadData, setLeadData] = useState<any>(null);
   const [clientData, setClientData] = useState<Record<string, string>>({});
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
+  const [firstContractDate, setFirstContractDate] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !currentCompany?.id) return;
@@ -48,7 +49,7 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
       setEventData(evData);
       setPaymentDetails(evData?.payment_details);
 
-      const [leadRes, clientReqRes] = await Promise.all([
+      const [leadRes, clientReqRes, firstContractRes] = await Promise.all([
         evData?.lead_id
           ? supabase.from("campaign_leads").select("id, name, whatsapp, month, guests, unit").eq("id", evData.lead_id).single()
           : Promise.resolve({ data: null }),
@@ -59,9 +60,17 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
           .eq("status", "completed")
           .order("created_at", { ascending: false })
           .limit(1),
+        (supabase as any)
+          .from("generated_contracts")
+          .select("created_at")
+          .eq("event_id", eventId)
+          .order("created_at", { ascending: true })
+          .limit(1),
       ]);
 
       setLeadData(leadRes.data);
+      const firstCreatedAt = firstContractRes.data?.[0]?.created_at;
+      setFirstContractDate(firstCreatedAt ? new Date(firstCreatedAt).toLocaleDateString("pt-BR") : null);
       const cd = clientReqRes.data?.[0]?.client_data as Record<string, any> | null;
       setClientData(cd || {});
       setLoading(false);
@@ -237,10 +246,11 @@ export function EventContractDialog({ open, onOpenChange, eventId, modelId, user
         valor_por_adulto: pd?.price_per_adult ? `R$ ${Number(pd.price_per_adult).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "",
         valor_por_crianca: pd?.price_per_child ? `R$ ${Number(pd.price_per_child).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "",
         observacoes_evento: eventData?.notes || "",
-        date: new Date().toLocaleDateString("pt-BR"),
+        // Data de fechamento: preservada do primeiro contrato gerado desta festa
+        date: firstContractDate || new Date().toLocaleDateString("pt-BR"),
       },
     };
-  }, [leadData, eventData, clientData, paymentDetails, currentCompany?.name]);
+  }, [leadData, eventData, clientData, paymentDetails, currentCompany?.name, firstContractDate]);
 
   const renderedContent = useMemo(() => {
     if (!model) return "";

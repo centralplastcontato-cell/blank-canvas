@@ -35,6 +35,7 @@ export function ContractGenerator({ userId, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [existingContracts, setExistingContracts] = useState<any[]>([]);
+  const [firstContractDate, setFirstContractDate] = useState<string | null>(null);
   const [clientReqData, setClientReqData] = useState<Record<string, any> | null>(null);
   const [fullPreviewOpen, setFullPreviewOpen] = useState(false);
   const [cpfError, setCpfError] = useState<string | null>(null);
@@ -65,8 +66,11 @@ export function ContractGenerator({ userId, onClose }: Props) {
         .from("generated_contracts")
         .select("id, nome_documento, status, created_at")
         .eq("event_id", selectedEventId)
-        .neq("status", "cancelado");
-      setExistingContracts(existing || []);
+        .order("created_at", { ascending: true });
+      const allContracts = existing || [];
+      setExistingContracts(allContracts.filter((c: any) => c.status !== "cancelado"));
+      // Data de fechamento: preservada do primeiro contrato gerado desta festa
+      setFirstContractDate(allContracts[0]?.created_at ? new Date(allContracts[0].created_at).toLocaleDateString("pt-BR") : null);
 
       if (!ev?.lead_id) { setLoading(false); return; }
 
@@ -196,9 +200,9 @@ export function ContractGenerator({ userId, onClose }: Props) {
           return `• ${o.name}${qty}${val}`;
         }).join("\n");
       })(),
-      date: new Date().toLocaleDateString("pt-BR"),
+      date: firstContractDate || new Date().toLocaleDateString("pt-BR"),
     },
-  }), [leadData, eventData, contractData, currentCompany?.name, clientReqData]);
+  }), [leadData, eventData, contractData, currentCompany?.name, clientReqData, firstContractDate]);
 
   const renderedContent = useMemo(() => {
     if (!selectedModel) return "";
