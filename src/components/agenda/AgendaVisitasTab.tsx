@@ -12,6 +12,14 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+
+// Horários oferecidos ao remarcar (08:00–21:30, meia em meia hora)
+const RESCHED_TIME_OPTIONS = Array.from({ length: 28 }, (_, i) => {
+  const h = String(Math.floor((i + 16) / 2)).padStart(2, "0");
+  const m = (i + 16) % 2 === 0 ? "00" : "30";
+  return `${h}:${m}`;
+});
 import { Loader2, Clock, MapPin, ChevronLeft, ChevronRight, Phone, MessageSquare, Check, RefreshCw, X, Plus, User as UserIcon, AlertTriangle, Trash2, PartyPopper, Package } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
@@ -88,6 +96,10 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
   const [filterUnit, setFilterUnit] = useState("all");
   const [filterType, setFilterType] = useState("all");
   const [detailVisit, setDetailVisit] = useState<Visit | null>(null);
+  // Remarcação com nova data/horário (aberta para a visita deste id)
+  const [reschedForId, setReschedForId] = useState<string | null>(null);
+  const [reschedDate, setReschedDate] = useState("");
+  const [reschedTime, setReschedTime] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [createType, setCreateType] = useState<"visita" | "atendimento">("visita");
   const [confirmationOpen, setConfirmationOpen] = useState(false);
@@ -195,6 +207,31 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
       toast({ title: "Status atualizado!" });
       fetchVisits();
       if (detailVisit?.id === visitId) setDetailVisit(prev => prev ? { ...prev, status_visita: newStatus } : null);
+    }
+  };
+
+  // Remarcar de verdade: grava nova data/horário e marca como "remarcada"
+  const rescheduleVisit = async (visitId: string) => {
+    if (!reschedDate) {
+      toast({ title: "Escolha a nova data", variant: "destructive" });
+      return;
+    }
+    const { error } = await (supabase as any)
+      .from("lead_visits")
+      .update({ data_visita: reschedDate, horario_visita: reschedTime || null, status_visita: "remarcada" })
+      .eq("id", visitId);
+    if (error) {
+      toast({ title: "Erro ao remarcar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({
+      title: "Remarcada!",
+      description: `Nova data: ${reschedDate.split("-").reverse().join("/")}${reschedTime ? ` às ${reschedTime}` : ""}`,
+    });
+    setReschedForId(null);
+    fetchVisits();
+    if (detailVisit?.id === visitId) {
+      setDetailVisit(prev => prev ? { ...prev, data_visita: reschedDate, horario_visita: reschedTime || null, status_visita: "remarcada" } : null);
     }
   };
 
@@ -724,7 +761,17 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
                     )}
                     <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={() => updateVisitStatus(detailVisit.id, "realizada")}><Check className="h-3.5 w-3.5" /> Realizada</Button>
                     <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={() => updateVisitStatus(detailVisit.id, "confirmada")}><Check className="h-3.5 w-3.5 text-green-600" /> Confirmar</Button>
-                    <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={() => updateVisitStatus(detailVisit.id, "remarcada")}><RefreshCw className="h-3.5 w-3.5" /> Remarcar</Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn("text-xs gap-1.5", reschedForId === detailVisit.id && "border-primary text-primary")}
+                      onClick={() => {
+                        if (reschedForId === detailVisit.id) { setReschedForId(null); return; }
+                        setReschedDate(detailVisit.data_visita);
+                        setReschedTime(detailVisit.horario_visita || "");
+                        setReschedForId(detailVisit.id);
+                      }}
+                    ><RefreshCw className="h-3.5 w-3.5" /> Remarcar</Button>
                     <Button variant="outline" size="sm" className="text-xs gap-1.5 text-destructive hover:text-destructive" onClick={() => updateVisitStatus(detailVisit.id, "cancelada")}><X className="h-3.5 w-3.5" /> Cancelar</Button>
                     {!isDetailEntrega && detailVisit.lead_phone && (
                       <Button
@@ -746,6 +793,25 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
                       </Button>
                     )}
                   </div>
+                  {reschedForId === detailVisit.id && (
+                    <div className="mt-2 rounded-lg border border-dashed border-primary/40 bg-primary/5 p-3 space-y-2">
+                      <Label className="text-xs font-medium">Nova data e horário</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input type="date" value={reschedDate} onChange={(e) => setReschedDate(e.target.value)} className="h-9 text-base sm:text-sm" />
+                        <Select value={reschedTime || "none"} onValueChange={(v) => setReschedTime(v === "none" ? "" : v)}>
+                          <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Horário" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Sem horário</SelectItem>
+                            {RESCHED_TIME_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" className="flex-1 text-xs" onClick={() => rescheduleVisit(detailVisit.id)}>Salvar nova data</Button>
+                        <Button size="sm" variant="ghost" className="text-xs" onClick={() => setReschedForId(null)}>Cancelar</Button>
+                      </div>
+                    </div>
+                  )}
                   <div className="pt-2 border-t border-border/30 mt-3">
                     <Label className="text-xs text-muted-foreground">Alterar status manualmente</Label>
                     <Select value={detailVisit.status_visita} onValueChange={(v) => updateVisitStatus(detailVisit.id, v)}>
