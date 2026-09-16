@@ -6470,7 +6470,7 @@ async function processWebhookEvent(body: JsonRecord) {
           // conversa é elegível (lead novo pós-ativação), a IA cuida da resposta
           // e o bot fixo não roda. Erros da IA nunca derrubam o fluxo normal.
           try {
-            const aiHandled = await maybeHandleWithAiAgent(supabase, instance, conv, content, phone, cName as string | null);
+            const aiHandled = await maybeHandleWithAiAgent(supabase, instance, conv, content, phone, cName as string | null, settings);
             if (aiHandled) {
               fireTrace(supabase, 'bot_dispatch', {
                 tracking_id: rawWebhookEventId,
