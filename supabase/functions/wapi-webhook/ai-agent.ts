@@ -409,9 +409,21 @@ export async function maybeHandleWithAiAgent(
   content: string,
   phone: string,
   contactName: string | null,
+  botSettings?: any, // Bot settings para test mode check
 ): Promise<boolean> {
   try {
     if (!instance.unit || !instance.company_id) return false;
+
+    // Test mode: se ativado, apenas deixa passar o número de teste configurado
+    if (botSettings?.test_mode_enabled && botSettings?.test_mode_number) {
+      const testPhoneVariants = getPhoneVariantsBR(botSettings.test_mode_number);
+      const incomingPhoneVariants = getPhoneVariantsBR(phone);
+      const isTestPhone = incomingPhoneVariants.some(v => testPhoneVariants.includes(v));
+      if (!isTestPhone) {
+        console.log(`[AI Agent] Test mode ON — phone ${phone} is NOT test number, skipping`);
+        return false;
+      }
+    }
 
     const settings = await loadSettings(supabase, instance.company_id);
     if (!settings || !settings.enabled || !settings.unit) return false;
