@@ -791,7 +791,7 @@ export function AutomationsSection() {
 
       {/* Tabs */}
       <Tabs defaultValue="geral" className="w-full">
-        <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex-wrap flex overflow-x-auto">
+        <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex flex-nowrap overflow-x-auto md:flex-wrap md:overflow-x-visible [&>*]:shrink-0">
           <TabsTrigger value="geral" className="rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
             <Power className="w-3.5 h-3.5" />
             <span>Geral</span>
@@ -941,7 +941,9 @@ export function AutomationsSection() {
             </div>
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-2 items-start">
+          {/* Largura total nos dois cartões: "Modo de Teste" é um toggle curto e
+              "Ajustes do bot" é bem alto — lado a lado deixava metade da tela vazia */}
+          <div className="space-y-6">
           {/* ── Modo de Teste ── */}
           <Card className="border-dashed border-yellow-500/50">
             <CardHeader className="pb-4">
