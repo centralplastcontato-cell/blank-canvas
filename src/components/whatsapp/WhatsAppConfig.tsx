@@ -172,7 +172,7 @@ export function WhatsAppConfig({ userId, isAdmin, isGestor = false }: WhatsAppCo
     <div className="flex flex-col h-full gap-4">
       {/* Horizontal Tabs - scrollable on mobile */}
       <div className="shrink-0 -mx-3 px-3 md:mx-0 md:px-0">
-        <div className="flex gap-1 p-0.5 rounded-xl bg-muted/50 border border-border/40 shadow-sm overflow-x-auto scrollbar-thin md:flex-wrap md:justify-center md:gap-2 md:p-1.5 md:rounded-2xl">
+        <div className="flex gap-1 p-0.5 rounded-xl bg-muted/50 border border-border/40 shadow-sm overflow-x-auto scrollbar-thin md:flex-wrap md:overflow-x-visible md:justify-center md:gap-2 md:p-1.5 md:rounded-2xl">
           {configSections.map((section) => (
             <button
               key={section.id}
