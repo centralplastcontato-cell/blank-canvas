@@ -96,6 +96,21 @@ export function useFinancialConsent() {
       }
     }
 
+    // Busca o valor da despesa. Serve de reserva para pedidos gravados sem
+    // amount (antes da correção) e mantém o card correto se a despesa mudar.
+    let expenseAmountMap: Record<string, number> = {};
+    if (expenseEntityIds.length > 0) {
+      const { data: expenses } = await supabase
+        .from('company_expenses')
+        .select('id, amount')
+        .in('id', expenseEntityIds);
+      if (expenses) {
+        for (const e of expenses as any[]) {
+          if (e.amount != null) expenseAmountMap[e.id] = Number(e.amount);
+        }
+      }
+    }
+
     // Fetch bank account names
     const bankIds = data
       .map((c: any) => c.payload?.bank_account_id)
@@ -114,6 +129,7 @@ export function useFinancialConsent() {
     const enriched: FinancialConsent[] = data.map((c: any) => ({
       ...c,
       payload: c.payload || {},
+      amount: c.amount ?? expenseAmountMap[c.entity_id] ?? null,
       event_title: paymentEventMap[c.entity_id]?.event_title || null,
       event_type: paymentEventMap[c.entity_id]?.event_type || null,
       event_date: paymentEventMap[c.entity_id]?.event_date || null,
