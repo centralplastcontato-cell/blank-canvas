@@ -1,5 +1,5 @@
 import { LoadingScreen } from "@/components/ui/loading-screen";
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFinancialPermissions } from '@/hooks/useFinancialPermissions';
 import { useFinanceiroDashboard } from '@/hooks/useFinanceiroDashboard';
@@ -124,6 +124,9 @@ export default function Financeiro() {
   const [customPopoverOpen, setCustomPopoverOpen] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [markPaidExpense, setMarkPaidExpense] = useState<{ id: string; description: string; amount: number } | null>(null);
+  // Aba ativa fica aqui em cima para sobreviver ao recarregamento dos dados
+  const [activeTab, setActiveTab] = useState('receitas');
+  const hasLoadedOnce = useRef(false);
   const [statementAccount, setStatementAccount] = useState<BankAccountBalance | null>(null);
   const [markPaidPayment, setMarkPaidPayment] = useState<any>(null);
   const [markPaidBankId, setMarkPaidBankId] = useState<string | null>(null);
@@ -246,7 +249,12 @@ export default function Financeiro() {
     }, 350);
   };
 
-  if (dashboard.isLoading) {
+  // Tela de carregamento só na primeira carga. Nos recarregamentos (ex.: depois
+  // de aprovar um consentimento) a página segue montada com os dados anteriores,
+  // então a aba aberta e a posição da rolagem não se perdem.
+  if (!dashboard.isLoading) hasLoadedOnce.current = true;
+
+  if (dashboard.isLoading && !hasLoadedOnce.current) {
       return <LoadingScreen message="Carregando financeiro..." />;
   }
 
@@ -425,7 +433,7 @@ export default function Financeiro() {
               </div>
 
               {/* Tabs */}
-              <Tabs defaultValue="receitas" className="w-full">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex-wrap">
                   {(() => {
                     const tabs = ['receitas', 'despesas', 'festas', 'resultado'];
