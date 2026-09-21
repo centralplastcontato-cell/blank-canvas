@@ -123,7 +123,7 @@ export default function Financeiro() {
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [customPopoverOpen, setCustomPopoverOpen] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
-  const [markPaidExpense, setMarkPaidExpense] = useState<{ id: string; description: string } | null>(null);
+  const [markPaidExpense, setMarkPaidExpense] = useState<{ id: string; description: string; amount: number } | null>(null);
   const [statementAccount, setStatementAccount] = useState<BankAccountBalance | null>(null);
   const [markPaidPayment, setMarkPaidPayment] = useState<any>(null);
   const [markPaidBankId, setMarkPaidBankId] = useState<string | null>(null);
@@ -846,7 +846,7 @@ export default function Financeiro() {
                                               )}
                                               disabled={pendingConsentExpenseIds.has(e.id)}
                                               title={pendingConsentExpenseIds.has(e.id) ? 'Aguardando aprovação no consentimento' : 'Marcar como paga'}
-                                              onClick={() => setMarkPaidExpense({ id: e.id, description: e.description })}
+                                              onClick={() => setMarkPaidExpense({ id: e.id, description: e.description, amount: e.amount })}
                                             >
                                               {pendingConsentExpenseIds.has(e.id) ? 'Aguardando' : 'Baixar'}
                                             </Button>
@@ -1177,7 +1177,7 @@ export default function Financeiro() {
           onOpenChange={(open) => { if (!open) setMarkPaidExpense(null); }}
           expenseId={markPaidExpense.id}
           expenseDescription={markPaidExpense.description}
-          expenseAmount={(markPaidExpense as any).amount}
+          expenseAmount={markPaidExpense.amount}
           onConfirm={(id, data) => dashboard.updateExpense(id, data)}
           onConsentSubmit={financialPerms.requiresConsent ? consentHook.submitForConsent : undefined}
         />
