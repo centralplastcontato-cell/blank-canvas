@@ -26,7 +26,8 @@ import {
 import { toast } from "@/hooks/use-toast";
 import {
   Smartphone, Wifi, WifiOff, RefreshCw, Plus, Building2,
-  Phone, MessageSquare, Loader2, BarChart3, QrCode, Power, Pencil, Check, X, Trash2, Settings2
+  Phone, MessageSquare, Loader2, BarChart3, QrCode, Power, Pencil, Check, X, Trash2, Settings2,
+  Eye, EyeOff
 } from "lucide-react";
 import {
   AlertDialog,
@@ -89,6 +90,8 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [showClientToken, setShowClientToken] = useState(false);
+  const [showEditClientToken, setShowEditClientToken] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     instanceId: "",
@@ -118,6 +121,7 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
 
   const openEditDialog = (inst: HubInstance) => {
     setEditTarget(inst);
+    setShowEditClientToken(false); // volta a ficar oculto a cada abertura
     setEditData({
       instanceId: inst.instance_id,
       instanceToken: inst.instance_token,
@@ -392,7 +396,7 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
             <RefreshCw className={`h-4 w-4 mr-1.5 ${isSyncing ? "animate-spin" : ""}`} />
             Sincronizar
           </Button>
-          <Button size="sm" onClick={() => setIsCreateOpen(true)}>
+          <Button size="sm" onClick={() => { setShowClientToken(false); setIsCreateOpen(true); }}>
             <Plus className="h-4 w-4 mr-1.5" />
             Nova Instância
           </Button>
@@ -652,12 +656,25 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
             {formData.provider === 'zapi' && (
               <div>
                 <Label>Client Token (Segurança) *</Label>
-                <Input
-                  type="password"
-                  placeholder="Token de segurança da conta Z-API"
-                  value={formData.clientToken}
-                  onChange={(e) => setFormData(prev => ({ ...prev, clientToken: e.target.value }))}
-                />
+                <div className="relative">
+                  <Input
+                    type={showClientToken ? "text" : "password"}
+                    placeholder="Token de segurança da conta Z-API"
+                    value={formData.clientToken}
+                    onChange={(e) => setFormData(prev => ({ ...prev, clientToken: e.target.value }))}
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                    onClick={() => setShowClientToken(!showClientToken)}
+                    aria-label={showClientToken ? "Ocultar Client Token" : "Mostrar Client Token"}
+                  >
+                    {showClientToken ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Painel Z-API → Segurança → Token da conta
                 </p>
@@ -772,12 +789,25 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
             {editData.provider === 'zapi' && (
               <div>
                 <Label>Client Token (Segurança) *</Label>
-                <Input
-                  type="password"
-                  placeholder="Token de segurança da conta Z-API"
-                  value={editData.clientToken}
-                  onChange={(e) => setEditData(prev => ({ ...prev, clientToken: e.target.value }))}
-                />
+                <div className="relative">
+                  <Input
+                    type={showEditClientToken ? "text" : "password"}
+                    placeholder="Token de segurança da conta Z-API"
+                    value={editData.clientToken}
+                    onChange={(e) => setEditData(prev => ({ ...prev, clientToken: e.target.value }))}
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                    onClick={() => setShowEditClientToken(!showEditClientToken)}
+                    aria-label={showEditClientToken ? "Ocultar Client Token" : "Mostrar Client Token"}
+                  >
+                    {showEditClientToken ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Painel Z-API → Segurança → Token da conta
                 </p>
