@@ -17,7 +17,15 @@
       "permanent": false
     }
   ],
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "rewrites": [
+    {
+      "source": "/brand-icon.png",
+      "has": [{ "type": "host", "value": "(www\\.)?castelodadiversao\\.online" }],
+      "destination": "/favicon-castelo.png"
+    },
+    { "source": "/brand-icon.png", "destination": "/favicon.png" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/sw.js",

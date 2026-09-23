@@ -123,9 +123,14 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,600;0,700;0,800;0,900;1,700;1,800&display=swap" rel="stylesheet" />
     
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="apple-touch-icon" href="/favicon.png" />
+    <!-- Favicon por domínio.
+         /brand-icon.png não existe como arquivo: o vercel.json o redireciona
+         para o ícone do buffet conforme o domínio (e para /favicon.png nos
+         demais). Fica em HTML estático de propósito — o buscador de favicon
+         do Google não executa JavaScript, então declarar por script não
+         funcionaria na busca. -->
+    <link rel="icon" type="image/png" href="/brand-icon.png" />
+    <link rel="apple-touch-icon" href="/brand-icon.png" />
 
     <!-- PWA Manifest (dynamic per tenant) -->
     <script>
