@@ -30,6 +30,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { LeadOriginBadge } from "./LeadOriginBadge";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { maskPhone } from "@/lib/mask-utils";
@@ -265,6 +266,7 @@ export function KanbanCard({
             ) : (
               <div className="flex items-center gap-1 flex-1 min-w-0 flex-wrap">
                 <p className="font-bold text-sm truncate max-w-[140px] flex-shrink min-w-0" title={lead.name}>{lead.name.length > 22 ? lead.name.substring(0, 22) + '…' : lead.name}</p>
+                <LeadOriginBadge origem={lead.origem} />
                 {lead.has_scheduled_visit && (
                   <Tooltip>
                     <TooltipTrigger asChild>

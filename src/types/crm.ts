@@ -54,6 +54,7 @@ export interface Lead {
   status: LeadStatus;
   responsavel_id: string | null;
   observacoes: string | null;
+  origem?: string | null; // Canal de captação rastreado (ex.: "mesa" = QR Code das mesas)
   has_scheduled_visit?: boolean; // From wapi_conversations link
   has_follow_up?: boolean; // From lead_history - follow-up automático enviado
   has_follow_up_2?: boolean; // From lead_history - second follow-up
