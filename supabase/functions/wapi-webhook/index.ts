@@ -3547,6 +3547,15 @@ async function processBotQualification(
         });
         console.log(`[Bot] Registered bot_invalid_reply for lead ${conv.lead_id}`);
       }
+
+      // Pergunta final ("E agora, como gostaria de continuar? 1, 2 ou 3"): o lead já
+      // está qualificado. Se ele escreve outra coisa ("obrigada", "já fechei"...),
+      // cobrar "responda apenas com o número" a cada mensagem é chato e repetitivo.
+      // O robô fica quieto, pausa nesta conversa e avisa a equipe para assumir.
+      if (step === 'proximo_passo' || step === 'proximo_passo_reminded') {
+        await handOverFreeTextToTeam(supabase, instance, conv, updated, contactName, contactPhone);
+        return;
+      }
     } else {
       // Valid answer - save and proceed
       updated[step] = validation.value || content.trim();
@@ -4142,6 +4151,45 @@ async function processBotQualification(
     await supabase.from('wapi_conversations').update({
       bot_enabled: false
     }).eq('id', conv.id);
+  }
+}
+
+// Cliente escreveu texto livre na pergunta final: pausa o robô por 24h nesta
+// conversa (sem mandar nada) e avisa a equipe. Mensagens seguintes do cliente
+// já encontram a conversa pausada, então o aviso sai uma vez só.
+async function handOverFreeTextToTeam(
+  supabase: SupabaseClient,
+  instance: { unit: string | null; company_id: string },
+  conv: { id: string; lead_id: string | null },
+  botData: Record<string, unknown>,
+  contactName: string | null,
+  contactPhone: string,
+) {
+  const pausedUntil = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+  await supabase.from('wapi_conversations').update({
+    bot_data: botData,
+    bot_paused_until: pausedUntil,
+    bot_paused_reason: 'free_text_handover',
+    bot_paused_at: new Date().toISOString(),
+  }).eq('id', conv.id);
+  console.log(`[Bot] 🤝 Texto livre na pergunta final — robô pausado e equipe avisada (conv ${conv.id})`);
+
+  try {
+    const unitLower = (instance.unit || '').toLowerCase().trim().replace(/\s+/g, '-');
+    const targetUserIds = await getCompanyNotificationTargets(supabase, instance.company_id, `leads.unit.${unitLower}`);
+    const name = (botData.nome as string | undefined) || contactName || contactPhone;
+    const notifs = targetUserIds.map((uid: string) => ({
+      user_id: uid,
+      company_id: instance.company_id,
+      type: 'lead_needs_human',
+      title: '🤝 Lead precisa de atenção humana',
+      message: `${name} respondeu com uma mensagem — o robô parou, assuma a conversa.`,
+      data: { conversation_id: conv.id, lead_id: conv.lead_id, reason: 'free_text_final_question' },
+      read: false,
+    }));
+    if (notifs.length) await supabase.from('notifications').insert(notifs);
+  } catch (e) {
+    console.error('[Bot] Erro ao avisar equipe (texto livre na pergunta final):', e);
   }
 }
 
