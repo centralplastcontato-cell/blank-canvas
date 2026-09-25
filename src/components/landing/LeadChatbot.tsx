@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Send, Loader2, MessageCircle, MapPin, Smile } from "lucide-react";
 import { campaignConfig } from "@/config/campaignConfig";
-import { originLabel } from "@/lib/landingOrigin";
+import { originLabel, originWelcomeIntro } from "@/lib/landingOrigin";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import logoCastelo from "@/assets/logo-castelo.png";
@@ -471,7 +471,9 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
       // Mensagem na voz do buffet (quem envia), cumprimentando pelo primeiro nome
       const firstName = (leadInfo.name || '').trim().split(/\s+/)[0] || '';
       const greeting = firstName ? `Olá, *${firstName}*! 👋` : 'Olá! 👋';
-      const defaultNormalMsg = `${greeting} Recebemos seu pedido pelo site do *${displayName}*! ✨\n\nAnotei por aqui:${interestLine}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\nPara agilizar, me diz o que você prefere 👇\n\n1️⃣ - 📩 Receber o orçamento agora\n2️⃣ - 💬 Falar com um atendente`;
+      // Quem veio do QR Code da mesa é recebido pela festa; os demais, pela frase de sempre
+      const intro = originWelcomeIntro(origem, displayName) ?? `Recebemos seu pedido pelo site do *${displayName}*! ✨`;
+      const defaultNormalMsg = `${greeting} ${intro}\n\nAnotei por aqui:${interestLine}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\nPara agilizar, me diz o que você prefere 👇\n\n1️⃣ - 📩 Receber o orçamento agora\n2️⃣ - 💬 Falar com um atendente`;
 
       const applyTemplate = (template: string) => template
         .replace(/\{primeiro_nome\}/g, firstName)
@@ -482,7 +484,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         .replace(/\{empresa\}/g, displayName)
         .replace(/\{interesse\}/g, effectiveInterestContext || '');
 
-      const redirectDefaultMsg = `${greeting} Recebemos seu pedido pelo site do *${displayName}*! ✨\n\nAnotei por aqui:${interestLine}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\n${redirectText}\n\nObrigado pelo interesse! 💜`;
+      const redirectDefaultMsg = `${greeting} ${intro}\n\nAnotei por aqui:${interestLine}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\n${redirectText}\n\nObrigado pelo interesse! 💜`;
 
       const message = redirectInfo
         ? redirectDefaultMsg

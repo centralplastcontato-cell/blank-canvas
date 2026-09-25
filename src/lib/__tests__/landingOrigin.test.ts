@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { captureLandingOrigin, originLabel, directWhatsAppMessage } from "@/lib/landingOrigin";
+import { captureLandingOrigin, originLabel, directWhatsAppMessage, originWelcomeIntro } from "@/lib/landingOrigin";
 
 function visit(search: string) {
   window.history.replaceState(null, "", `/${search}`);
@@ -56,5 +56,15 @@ describe("messages by origin", () => {
 
   it("keeps direct links blank for a normal visit", () => {
     expect(directWhatsAppMessage(null, "Castelo da Diversão")).toBeNull();
+  });
+
+  it("welcomes table QR visitors by the party", () => {
+    expect(originWelcomeIntro("mesa", "Castelo da Diversão"))
+      .toBe("Que bom que você conheceu o *Castelo da Diversão* numa festa aqui com a gente! ✨");
+  });
+
+  it("keeps the default welcome for normal visits and unknown origins", () => {
+    expect(originWelcomeIntro(null, "Castelo da Diversão")).toBeNull();
+    expect(originWelcomeIntro("balcao", "Castelo da Diversão")).toBeNull();
   });
 });

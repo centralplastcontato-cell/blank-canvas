@@ -38,6 +38,20 @@ export function originLabel(origem: string | null | undefined): string | null {
   return origem ? ORIGIN_LABELS[origem] ?? null : null;
 }
 
+/** Frase de abertura da mensagem de boas-vindas do buffet, por origem. */
+const ORIGIN_WELCOME_INTROS: Record<string, (empresa: string) => string> = {
+  mesa: (empresa) => `Que bom que você conheceu o *${empresa}* numa festa aqui com a gente! ✨`,
+};
+
+/**
+ * Abertura das boas-vindas para quem chegou por uma origem conhecida, ou null
+ * para manter a frase padrão ("Recebemos seu pedido pelo site...").
+ */
+export function originWelcomeIntro(origem: string | null | undefined, empresa: string): string | null {
+  const build = origem ? ORIGIN_WELCOME_INTROS[origem] : undefined;
+  return build ? build(empresa) : null;
+}
+
 /**
  * Mensagem pré-preenchida dos atalhos diretos de WhatsApp (rodapé, localização)
  * para quem chegou por uma origem conhecida. O robô reconhece esse texto.
