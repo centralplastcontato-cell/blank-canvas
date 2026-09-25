@@ -377,11 +377,12 @@ export function LeadsTable({
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{lead.name}</span>
-                      <LeadOriginBadge origem={lead.origem} />
                       {lead.observacoes && (
                         <MessageSquare className="w-3 h-3 text-primary" />
                       )}
                     </div>
+                    {/* Embaixo do nome: ao lado, a coluna estreita no iPad empurrava o telefone */}
+                    <LeadOriginBadge origem={lead.origem} className="mt-1" />
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
