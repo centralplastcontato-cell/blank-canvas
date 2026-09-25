@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Send, Loader2, MessageCircle, MapPin, Smile } from "lucide-react";
 import { campaignConfig } from "@/config/campaignConfig";
+import { originLabel } from "@/lib/landingOrigin";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import logoCastelo from "@/assets/logo-castelo.png";
@@ -60,12 +61,14 @@ interface LeadChatbotProps {
   lpBotConfig?: LPBotConfig | null;
   unitOptions?: string[];
   interestContext?: string | null;
+  /** Origem da visita (ex.: "mesa"). Só a LP do Castelo informa; nas demais fica vazio e nada muda. */
+  origem?: string | null;
 }
 
 // Default month options (all months from current month forward)
 const DEFAULT_MONTH_OPTIONS = ["Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
-export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLogo, companyWhatsApp, lpBotConfig, unitOptions, interestContext }: LeadChatbotProps) {
+export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLogo, companyWhatsApp, lpBotConfig, unitOptions, interestContext, origem }: LeadChatbotProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
   const [leadData, setLeadData] = useState<LeadData>({});
@@ -573,6 +576,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
             campaign_name: effectiveCampaignName,
             company_id: effectiveCompanyId,
           };
+          if (origem) body.origem = origem;
           if (isRedirected) {
             body.status = 'transferido';
             body.observacoes = `Redirecionado para ${lpBotConfig?.guest_limit_redirect_name || 'buffet parceiro'} - acima de ${lpBotConfig?.guest_limit} convidados`;
@@ -665,7 +669,8 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
   // Esta mensagem e enviada PELO CLIENTE (pre-preenchida no wa.me), por isso
   // fica na voz dele — sem trechos na voz do buffet.
   const buildWhatsAppMessage = () => {
-    return `Olá! 👋🏼✨\n\nVim pelo site do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadData.name || ''}\n📅 Data: ${leadData.dayOfMonth || ''}/${leadData.month || ''}\n👥 Convidados: ${leadData.guests || ''}`;
+    const via = originLabel(origem) ?? 'site';
+    return `Olá! 👋🏼✨\n\nVim pelo ${via} do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadData.name || ''}\n📅 Data: ${leadData.dayOfMonth || ''}/${leadData.month || ''}\n👥 Convidados: ${leadData.guests || ''}`;
   };
 
   return (

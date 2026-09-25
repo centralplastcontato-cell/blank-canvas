@@ -1,8 +1,19 @@
 import logoCastelo from "@/assets/logo-castelo.png";
 import { Instagram, Facebook, MessageCircle, MapPin, Building2, Clock, Phone } from "lucide-react";
 import { Link } from "react-router-dom";
+import { directWhatsAppMessage } from "@/lib/landingOrigin";
 
-export function Footer() {
+interface FooterProps {
+  origem?: string | null;
+}
+
+export function Footer({ origem }: FooterProps = {}) {
+  // Sem origem (visita normal), o link continua abrindo o WhatsApp em branco, como sempre
+  const message = directWhatsAppMessage(origem, "Castelo da Diversão");
+  const whatsappHref = message
+    ? `https://wa.me/5515974034646?text=${encodeURIComponent(message)}`
+    : "https://wa.me/5515974034646";
+
   return (
     <footer className="bg-[hsl(260_30%_15%)] text-white py-12">
       <div className="section-container">
@@ -39,7 +50,7 @@ export function Footer() {
           
           <div className="flex flex-wrap justify-center gap-4 mb-8">
             <a
-              href="https://wa.me/5515974034646"
+              href={whatsappHref}
               target="_blank"
               rel="noopener noreferrer"
               className="group flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full transition-all duration-300 text-sm font-medium hover:scale-105 hover:shadow-lg"
@@ -75,7 +86,7 @@ export function Footer() {
               <Phone size={18} className="mt-0.5 flex-shrink-0 text-white/70" />
               <div>
                 <p className="font-semibold text-white mb-1">WhatsApp</p>
-                <a href="https://wa.me/5515974034646" className="text-white/70 hover:text-white transition-colors">
+                <a href={whatsappHref} className="text-white/70 hover:text-white transition-colors">
                   (15) 97403-4646
                 </a>
               </div>

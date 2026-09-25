@@ -14,6 +14,7 @@ import { LocationSection } from "@/components/landing/LocationSection";
 import { BackgroundMusic } from "@/components/landing/BackgroundMusic";
 import { DLPPromoSection } from "@/components/dynamic-lp/DLPPromoSection";
 import { DLPUrgencyBanner } from "@/components/dynamic-lp/DLPUrgencyBanner";
+import { captureLandingOrigin } from "@/lib/landingOrigin";
 
 const CASTELO_THEME = {
   primary_color: "#E91E63",
@@ -22,6 +23,8 @@ const CASTELO_THEME = {
 
 const LandingPage = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
+  // Lida uma vez ao abrir a página: sobrevive à navegação interna (?origem=mesa some da URL)
+  const [origem] = useState(captureLandingOrigin);
 
   const openChat = () => setIsChatOpen(true);
   const closeChat = () => setIsChatOpen(false);
@@ -62,12 +65,12 @@ const LandingPage = () => {
       <VideoGallerySection />
       <UrgencySection onCtaClick={openChat} />
       <InstagramSection />
-      <LocationSection />
-      <Footer />
-      
+      <LocationSection origem={origem} />
+      <Footer origem={origem} />
+
       <FloatingCTA onClick={openChat} />
       <BackgroundMusic src="/audio/castelo-theme.mp3" paused={isChatOpen} />
-      <LeadChatbot isOpen={isChatOpen} onClose={closeChat} />
+      <LeadChatbot isOpen={isChatOpen} onClose={closeChat} origem={origem} />
     </div>
   );
 };
