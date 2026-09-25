@@ -12,7 +12,9 @@ import {
   type CommercialFilters, type PeriodPreset,
 } from "@/hooks/useCommercialReports";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
+import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { useCompany } from "@/contexts/CompanyContext";
+import { LeadsPorOrigemCard } from "./LeadsPorOrigemCard";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -53,6 +55,7 @@ interface RelatoriosProps {
 export function RelatoriosComerciais({ selectedUnit: externalUnit, canViewRevenue = true }: RelatoriosProps) {
   const { currentCompany } = useCompany();
   const { units } = useCompanyUnits(currentCompany?.id);
+  const modules = useCompanyModules();
   const physicalUnits = units.filter(u => u.slug !== "trabalhe-conosco");
 
   const [filters, setFilters] = useState<CommercialFilters>(getDefaultFilters());
@@ -223,6 +226,9 @@ export function RelatoriosComerciais({ selectedUnit: externalUnit, canViewRevenu
           />
         )}
       </div>
+
+      {/* Origem dos leads (módulo opcional, ligado por empresa no Hub) */}
+      {modules.relatorio_origem && <LeadsPorOrigemCard rows={data.channelBreakdown} />}
 
       {/* Funnel */}
       <Card>
