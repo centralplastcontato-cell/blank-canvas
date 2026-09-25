@@ -153,30 +153,55 @@ export function parseVisitHours(text: string | null): ParsedVisitHours {
 // Campos estruturados do modal. São serializados em texto rotulado dentro de
 // extra_instructions ("Endereço: ...\nDuração da festa: ...") — o mesmo texto
 // que vai para o prompt da IA — e desserializados de volta ao abrir o modal.
-const BUFFET_FIELDS: { key: string; label: string; multiline: boolean; placeholder: string; group: string; hint?: string }[] = [
-  { key: "endereco", label: "Endereço", multiline: false, placeholder: "Rua X, 123 — Sorocaba/SP", group: "basico" },
-  { key: "duracao", label: "Duração da festa", multiline: false, placeholder: "3 horas", group: "basico" },
-  { key: "faixa_etaria", label: "Faixa etária", multiline: false, placeholder: "Crianças de 1 a 12 anos", group: "basico" },
-  { key: "estrutura", label: "Estrutura e brinquedos", multiline: true, placeholder: "Cama elástica, piscina de bolinhas, arena de games, fraldário, área para os pais...", group: "estrutura", hint: "O que o espaço tem — é daqui que a IA responde \"o que tem aí?\"" },
-  { key: "diferenciais", label: "Diferenciais", multiline: true, placeholder: "9 anos de tradição, +4.000 festas realizadas, nota 4,7 no Google, estacionamento próprio...", group: "estrutura", hint: "Argumentos que a IA usa para convencer e quebrar objeções" },
-  { key: "regras", label: "Regras e o que não fazemos", multiline: true, placeholder: "Não fazemos festas externas. Visitas somente com agendamento...", group: "regras", hint: "Limites claros evitam que a IA prometa o que vocês não fazem" },
-  { key: "outros", label: "Outras informações", multiline: true, placeholder: "Qualquer outra informação que a IA pode afirmar com segurança", group: "regras" },
+// "select" é para perguntas objetivas (2-4 respostas fixas, sem valor/promessa);
+// "text"/"textarea" continuam livres para o que só cada buffet sabe descrever.
+interface BuffetField {
+  key: string;
+  label: string;
+  type: "text" | "textarea" | "select";
+  placeholder?: string;
+  options?: string[];
+  group: string;
+  hint?: string;
+}
+
+const BUFFET_FIELDS: BuffetField[] = [
+  { key: "endereco", label: "Endereço", type: "text", placeholder: "Rua X, 123 — Sorocaba/SP", group: "basico" },
+  { key: "duracao", label: "Duração da festa", type: "text", placeholder: "3 horas", group: "basico" },
+  { key: "faixa_etaria", label: "Faixa etária", type: "text", placeholder: "Crianças de 1 a 12 anos", group: "basico" },
+  { key: "estrutura", label: "Estrutura e brinquedos", type: "textarea", placeholder: "Cama elástica, piscina de bolinhas, arena de games, fraldário, área para os pais...", group: "estrutura", hint: "O que o espaço tem — é daqui que a IA responde \"o que tem aí?\"" },
+  { key: "diferenciais", label: "Diferenciais", type: "textarea", placeholder: "9 anos de tradição, +4.000 festas realizadas, nota 4,7 no Google, estacionamento próprio...", group: "estrutura", hint: "Argumentos que a IA usa para convencer e quebrar objeções" },
+  // Perguntas rápidas: as mesmas que todo cliente faz no WhatsApp, com poucas
+  // respostas possíveis. Nunca incluem valor/desconto — a IA nunca fala preço.
+  { key: "comida_externa", label: "Pode levar comida/bolo de fora?", type: "select", options: ["À vontade", "Só bolo e doces", "Não, é tudo do buffet"], group: "perguntas" },
+  { key: "bebida_alcoolica", label: "Bebida alcoólica", type: "select", options: ["Servimos", "Não servimos", "Só os pais podem trazer"], group: "perguntas" },
+  { key: "espaco_coberto", label: "O espaço é coberto (funciona com chuva)?", type: "select", options: ["Totalmente coberto", "Parcialmente coberto", "Ao ar livre"], group: "perguntas" },
+  { key: "estacionamento", label: "Estacionamento", type: "select", options: ["Vaga própria grátis", "Vaga própria paga", "Só na rua", "Não tem"], group: "perguntas" },
+  { key: "acessibilidade", label: "Acessibilidade (cadeirante)", type: "select", options: ["Sim, rampa e banheiro adaptado", "Parcial", "Não"], group: "perguntas" },
+  { key: "hora_extra", label: "Hora extra", type: "select", options: ["Dá para estender, a equipe combina", "Não é possível"], group: "perguntas" },
+  { key: "fraldario", label: "Área para bebês/fraldário", type: "select", options: ["Sim", "Não"], group: "perguntas" },
+  { key: "fotografo", label: "Fotógrafo/filmagem", type: "select", options: ["O buffet oferece", "É por conta da família", "Não oferecemos"], group: "perguntas" },
+  { key: "animal", label: "Animal de estimação", type: "select", options: ["Pode levar", "Não pode"], group: "perguntas" },
+  { key: "monitores", label: "Monitores acompanhando as crianças", type: "select", options: ["O tempo todo", "Só nos brinquedos", "Não temos"], group: "perguntas" },
+  { key: "regras", label: "Regras e o que não fazemos", type: "textarea", placeholder: "Não fazemos festas externas. Visitas somente com agendamento...", group: "regras", hint: "Limites claros evitam que a IA prometa o que vocês não fazem" },
+  { key: "outros", label: "Outras informações", type: "textarea", placeholder: "Qualquer outra informação que a IA pode afirmar com segurança", group: "regras" },
 ];
 
 const FIELD_GROUPS = [
   { id: "basico", label: "Básico" },
   { id: "estrutura", label: "Estrutura" },
+  { id: "perguntas", label: "Rápidas" },
   { id: "regras", label: "Regras" },
 ];
 
-function serializeBuffetInfo(values: Record<string, string>): string | null {
+export function serializeBuffetInfo(values: Record<string, string>): string | null {
   const parts = BUFFET_FIELDS
     .filter((f) => (values[f.key] || "").trim())
     .map((f) => `${f.label}: ${values[f.key].trim()}`);
   return parts.length > 0 ? parts.join("\n") : null;
 }
 
-function parseBuffetInfo(text: string | null): Record<string, string> {
+export function parseBuffetInfo(text: string | null): Record<string, string> {
   const values: Record<string, string> = {};
   if (!text) return values;
   let currentKey: string | null = null;
@@ -416,7 +441,7 @@ export function AiAgentSection() {
 
           {/* Abinhas de navegação */}
           <div className="px-5 sm:px-6 pt-3 pb-1">
-            <div className="grid grid-cols-3 gap-1.5 bg-muted rounded-xl p-1">
+            <div className="grid grid-cols-4 gap-1.5 bg-muted rounded-xl p-1">
               {FIELD_GROUPS.map((g) => {
                 const groupFields = BUFFET_FIELDS.filter((f) => f.group === g.id);
                 const filled = groupFields.filter((f) => (infoValues[f.key] || "").trim()).length;
@@ -562,13 +587,29 @@ export function AiAgentSection() {
                   <div key={f.key} className="space-y-1.5">
                     <Label className="text-xs font-bold">{f.label}</Label>
                     {f.hint && <p className="text-[11px] text-muted-foreground">{f.hint}</p>}
-                    <Textarea
-                      value={infoValues[f.key] || ""}
-                      onChange={(e) => setInfoValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                      rows={4}
-                      className="text-base sm:text-sm bg-card border-border shadow-sm resize-none"
-                      placeholder={`Ex.: ${f.placeholder}`}
-                    />
+                    {f.type === "select" ? (
+                      <Select
+                        value={infoValues[f.key] || ""}
+                        onValueChange={(v) => setInfoValues((prev) => ({ ...prev, [f.key]: v }))}
+                      >
+                        <SelectTrigger className="h-10 bg-card border-border shadow-sm">
+                          <SelectValue placeholder="Selecione uma opção" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(f.options || []).map((opt) => (
+                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Textarea
+                        value={infoValues[f.key] || ""}
+                        onChange={(e) => setInfoValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                        rows={4}
+                        className="text-base sm:text-sm bg-card border-border shadow-sm resize-none"
+                        placeholder={`Ex.: ${f.placeholder}`}
+                      />
+                    )}
                   </div>
                 ))}
               </div>

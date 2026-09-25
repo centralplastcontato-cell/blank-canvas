@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseVisitHours, serializeVisitHours } from "../AiAgentSection";
+import { parseBuffetInfo, parseVisitHours, serializeBuffetInfo, serializeVisitHours } from "../AiAgentSection";
 
 describe("serializeVisitHours", () => {
   it("horário único para todos os dias selecionados", () => {
@@ -67,5 +67,34 @@ describe("parseVisitHours", () => {
       satStart: "08:00",
       satEnd: "12:00",
     });
+  });
+});
+
+describe("serializeBuffetInfo / parseBuffetInfo", () => {
+  it("ida e volta preserva texto livre e perguntas rápidas (múltipla escolha)", () => {
+    const values = {
+      endereco: "Rua X, 123",
+      estrutura: "Cama elástica, piscina de bolinhas",
+      comida_externa: "Só bolo e doces",
+      bebida_alcoolica: "Não servimos",
+      outros: "Fechamos no Natal",
+    };
+    const serialized = serializeBuffetInfo(values);
+    expect(serialized).toContain("Pode levar comida/bolo de fora?: Só bolo e doces");
+    expect(serialized).toContain("Bebida alcoólica: Não servimos");
+
+    const parsed = parseBuffetInfo(serialized);
+    expect(parsed).toMatchObject(values);
+  });
+
+  it("campo não respondido não aparece no texto nem na leitura de volta", () => {
+    const serialized = serializeBuffetInfo({ endereco: "Rua X, 123" });
+    expect(serialized).not.toContain("Bebida alcoólica");
+    expect(parseBuffetInfo(serialized).bebida_alcoolica).toBeUndefined();
+  });
+
+  it("texto vazio (nada preenchido) devolve null", () => {
+    expect(serializeBuffetInfo({})).toBeNull();
+    expect(serializeBuffetInfo({ endereco: "   " })).toBeNull();
   });
 });
