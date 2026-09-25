@@ -129,6 +129,9 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     const { name, whatsapp, unit, month, day_of_month, guests, campaign_id, campaign_name, company_id, status: customStatus, observacoes } = body;
+    // Origem da visita na LP (ex.: "mesa" do QR Code). Opcional; valor fora do formato é ignorado.
+    const rawOrigem = typeof body.origem === 'string' ? body.origem.trim().toLowerCase() : '';
+    const origem = /^[a-z0-9_-]{1,32}$/.test(rawOrigem) ? rawOrigem : null;
 
     // Validate all inputs
     const nameValidation = validateName(name);
@@ -340,29 +343,45 @@ Deno.serve(async (req) => {
         user_name: 'Sistema',
         action: 'Lead retornou pela Landing Page',
         old_value: `Status atual: ${existingLead.status}`,
-        new_value: changeSummary,
+        // A origem original do lead não é alterada; o retorno por outra origem só fica registrado aqui
+        new_value: origem ? `${changeSummary} | Voltou pela origem: ${origem}` : changeSummary,
       });
 
       console.log(`Returning lead updated: ${name.trim()} - ${normalizedPhone} (company: ${company_id})`);
     } else {
       // New lead — insert and retrieve the ID
-      const { data: newLead, error: insertError } = await supabase
+      const leadRow: Record<string, unknown> = {
+        name: name.trim(),
+        whatsapp: normalizedPhone,
+        unit: resolvedUnit || unit || null,
+        month: month || null,
+        day_of_month: day_of_month || null,
+        guests: guests || null,
+        campaign_id: campaign_id,
+        campaign_name: campaign_name || null,
+        status: customStatus || 'novo',
+        company_id: company_id,
+        observacoes: observacoes || null,
+      };
+      if (origem) leadRow.origem = origem;
+
+      let { data: newLead, error: insertError } = await supabase
         .from('campaign_leads')
-        .insert({
-          name: name.trim(),
-          whatsapp: normalizedPhone,
-          unit: resolvedUnit || unit || null,
-          month: month || null,
-          day_of_month: day_of_month || null,
-          guests: guests || null,
-          campaign_id: campaign_id,
-          campaign_name: campaign_name || null,
-          status: customStatus || 'novo',
-          company_id: company_id,
-          observacoes: observacoes || null,
-        })
+        .insert(leadRow)
         .select('id')
         .single();
+
+      // Se a coluna "origem" ainda não existir no banco, o lead não pode se perder:
+      // grava sem a origem e segue.
+      if (insertError && origem && String(insertError.message || '').includes('origem')) {
+        console.error('Coluna origem indisponível; gravando lead sem origem:', insertError.message);
+        delete leadRow.origem;
+        ({ data: newLead, error: insertError } = await supabase
+          .from('campaign_leads')
+          .insert(leadRow)
+          .select('id')
+          .single());
+      }
 
       if (insertError || !newLead) {
         console.error('Error inserting lead:', insertError);

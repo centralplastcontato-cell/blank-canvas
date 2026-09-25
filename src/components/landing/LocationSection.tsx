@@ -1,7 +1,17 @@
 import { MapPin, Clock, MessageCircle } from "lucide-react";
+import { directWhatsAppMessage } from "@/lib/landingOrigin";
 
-export function LocationSection() {
+interface LocationSectionProps {
+  origem?: string | null;
+}
+
+export function LocationSection({ origem }: LocationSectionProps = {}) {
   const mapsQuery = encodeURIComponent("Avenida General Osório, 1442, Trujillo, Sorocaba - SP");
+  // Sem origem (visita normal), o link continua abrindo o WhatsApp em branco, como sempre
+  const message = directWhatsAppMessage(origem, "Castelo da Diversão");
+  const whatsappHref = message
+    ? `https://wa.me/5515974034646?text=${encodeURIComponent(message)}`
+    : "https://wa.me/5515974034646";
 
   return (
     <section id="onde-estamos" className="py-16 bg-background">
@@ -40,7 +50,7 @@ export function LocationSection() {
             </div>
             <h3 className="font-bold mb-2">WhatsApp</h3>
             <a
-              href="https://wa.me/5515974034646"
+              href={whatsappHref}
               target="_blank"
               rel="noopener noreferrer"
               className="text-muted-foreground text-sm hover:text-primary transition-colors"

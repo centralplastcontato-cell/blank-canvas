@@ -1284,6 +1284,53 @@ async function getBotSettings(supabase: SupabaseClient, instanceId: string) {
   return data;
 }
 
+// ── Origem de leads que chegam direto no WhatsApp ──
+// Os atalhos de WhatsApp da LP do Castelo, para quem veio do QR Code das mesas,
+// abrem com "Vim pelo QR Code da mesa do Castelo da Diversão". Por enquanto só o
+// Castelo usa isso: nos números das outras empresas nem consultamos as mensagens.
+const CASTELO_COMPANY_ID = 'a0000000-0000-0000-0000-000000000001';
+
+async function detectDirectLeadOrigin(
+  supabase: SupabaseClient,
+  companyId: string | null | undefined,
+  conversationId: string,
+): Promise<string | null> {
+  if (companyId !== CASTELO_COMPANY_ID) return null;
+  try {
+    const { data: firstMessages } = await supabase
+      .from('wapi_messages')
+      .select('content')
+      .eq('conversation_id', conversationId)
+      .eq('from_me', false)
+      .order('timestamp', { ascending: true })
+      .limit(5);
+    const cameFromTable = (firstMessages || []).some((m: { content: string | null }) =>
+      (m.content || '').toLowerCase().includes('qr code da mesa'));
+    return cameFromTable ? 'mesa' : null;
+  } catch (err) {
+    console.error('[Origem] Falha ao detectar origem do lead:', err);
+    return null;
+  }
+}
+
+// Grava o lead com a origem; se a coluna "origem" ainda não existir no banco,
+// grava sem ela para o lead nunca se perder.
+async function insertLeadWithOrigin(
+  supabase: SupabaseClient,
+  row: Record<string, unknown>,
+  origem: string | null,
+) {
+  if (!origem) {
+    return await supabase.from('campaign_leads').insert(row).select('id').single();
+  }
+  const withOrigin = await supabase.from('campaign_leads').insert({ ...row, origem }).select('id').single();
+  if (withOrigin.error && String(withOrigin.error.message || '').includes('origem')) {
+    console.error('[Origem] Coluna origem indisponível; gravando lead sem origem:', withOrigin.error.message);
+    return await supabase.from('campaign_leads').insert(row).select('id').single();
+  }
+  return withOrigin;
+}
+
 async function getBotQuestions(supabase: SupabaseClient, instanceId: string): Promise<Record<string, { question: string; confirmation: string | null; next: string }>> {
   const { data } = await supabase.from('wapi_bot_questions')
     .select('step, question_text, confirmation_text, sort_order')
@@ -3744,7 +3791,8 @@ async function processBotQualification(
               observacoes: obs,
             }).eq('id', conv.lead_id);
           } else {
-            const { data: newLead } = await supabase.from('campaign_leads').insert({
+            const origem = await detectDirectLeadOrigin(supabase, instance.company_id, conv.id);
+            const { data: newLead } = await insertLeadWithOrigin(supabase, {
               name: leadName,
               whatsapp: n,
               unit: instance.unit,
@@ -3756,7 +3804,7 @@ async function processBotQualification(
               guests: guestAnswer,
               observacoes: obs,
               company_id: instance.company_id,
-            }).select('id').single();
+            }, origem);
             
             if (newLead) {
               await supabase.from('wapi_conversations').update({ lead_id: newLead.id }).eq('id', conv.id);
@@ -3807,7 +3855,9 @@ async function processBotQualification(
           }
         } else {
           console.log(`[Bot] Creating new lead for phone ${n}, unit ${instance.unit}`);
-          const { data: newLead, error } = await supabase.from('campaign_leads').insert({
+          const origem = await detectDirectLeadOrigin(supabase, instance.company_id, conv.id);
+          if (origem) console.log(`[Bot] Lead direto com origem "${origem}" (conv ${conv.id})`);
+          const { data: newLead, error } = await insertLeadWithOrigin(supabase, {
             name: updated.nome || contactName || contactPhone,
             whatsapp: n,
             unit: instance.unit,
@@ -3818,7 +3868,7 @@ async function processBotQualification(
             day_preference: updated.dia || null,
             guests: updated.convidados || null,
             company_id: instance.company_id,
-          }).select('id').single();
+          }, origem);
           
           if (error) {
             console.error(`[Bot] Error creating lead:`, error.message);

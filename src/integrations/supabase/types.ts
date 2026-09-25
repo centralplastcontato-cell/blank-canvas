@@ -564,6 +564,7 @@ export type Database = {
           month: string | null
           name: string
           observacoes: string | null
+          origem: string | null
           responsavel_id: string | null
           status: Database["public"]["Enums"]["lead_status"]
           unit: string | null
@@ -581,6 +582,7 @@ export type Database = {
           month?: string | null
           name: string
           observacoes?: string | null
+          origem?: string | null
           responsavel_id?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           unit?: string | null
@@ -598,6 +600,7 @@ export type Database = {
           month?: string | null
           name?: string
           observacoes?: string | null
+          origem?: string | null
           responsavel_id?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           unit?: string | null
