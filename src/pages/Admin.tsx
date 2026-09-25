@@ -21,6 +21,7 @@ import { NotificationBell } from "@/components/admin/NotificationBell";
 import { TransferLeadDialog } from "@/components/admin/TransferLeadDialog";
 import { exportLeadsToCSV } from "@/components/admin/exportLeads";
 import { MetricsCards, LeadMetrics } from "@/components/admin/MetricsCards";
+import { summarizeLegacyReturns, withReturnInfo } from "@/lib/leadReturns";
 import { MonthlyReviewBanner } from "@/components/admin/MonthlyReviewBanner";
 import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
@@ -76,7 +77,7 @@ export default function Admin() {
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 20;
-  const [leadMetrics, setLeadMetrics] = useState<LeadMetrics>({ total: 0, today: 0, novo: 0, em_contato: 0, fechado: 0, perdido: 0 });
+  const [leadMetrics, setLeadMetrics] = useState<LeadMetrics>({ total: 0, today: 0, returned_today: 0, novo: 0, em_contato: 0, fechado: 0, perdido: 0 });
   const [responsaveis, setResponsaveis] = useState<UserWithRole[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -249,7 +250,8 @@ export default function Admin() {
         .from("campaign_leads")
         .select("*", { count: "exact" })
         .eq("company_id", currentCompany.id)
-        .order("created_at", { ascending: false })
+        // Lead que voltou a pedir orçamento sobe para o topo (mantendo a data de chegada)
+        .order("last_entry_at", { ascending: false })
         .range(from, to);
 
       // Apply unit permission filter (before user-selected filters)
@@ -301,13 +303,13 @@ export default function Admin() {
       }
 
       if (filters.startDate) {
-        query = query.gte("created_at", filters.startDate.toISOString());
+        query = query.gte("last_entry_at", filters.startDate.toISOString());
       }
 
       if (filters.endDate) {
         const endOfDay = new Date(filters.endDate);
         endOfDay.setHours(23, 59, 59, 999);
-        query = query.lte("created_at", endOfDay.toISOString());
+        query = query.lte("last_entry_at", endOfDay.toISOString());
       }
 
       if (filters.search) {
@@ -356,7 +358,7 @@ export default function Admin() {
               .eq("action", "Follow-up #4 automático enviado"),
             supabase
               .from("lead_history")
-              .select("lead_id")
+              .select("lead_id, created_at")
               .in("lead_id", leadIds)
               .eq("action", "Lead retornou pela Landing Page")
           ]);
@@ -366,16 +368,15 @@ export default function Admin() {
           const followUp2LeadIds = new Set((historyResult2.data || []).map(h => h.lead_id));
           const followUp3LeadIds = new Set((historyResult3.data || []).map(h => h.lead_id));
           const followUp4LeadIds = new Set((historyResult4.data || []).map(h => h.lead_id));
-          const returnLeadIds = new Set((returnResult.data || []).map(h => h.lead_id));
+          const legacyReturns = summarizeLegacyReturns(returnResult.data || []);
           
           let leadsWithExtraInfo = leadsData.map(lead => ({
-            ...lead,
+            ...withReturnInfo(lead, legacyReturns),
             has_scheduled_visit: scheduledVisitLeadIds.has(lead.id),
             has_follow_up: followUpLeadIds.has(lead.id),
             has_follow_up_2: followUp2LeadIds.has(lead.id),
             has_follow_up_3: followUp3LeadIds.has(lead.id),
             has_follow_up_4: followUp4LeadIds.has(lead.id),
-            has_return: returnLeadIds.has(lead.id)
           }));
           
           // Apply scheduled visit filter if enabled
@@ -409,11 +410,11 @@ export default function Admin() {
 
       // If restricted by instance and no leads match, all metrics are zero
       if (!canViewAllInstances && instanceLeadIds && instanceLeadIds.length === 0) {
-        setLeadMetrics({ total: 0, today: 0, novo: 0, em_contato: 0, fechado: 0, perdido: 0 });
+        setLeadMetrics({ total: 0, today: 0, returned_today: 0, novo: 0, em_contato: 0, fechado: 0, perdido: 0 });
         return;
       }
 
-      const buildQuery = (statusFilter?: string, dateFilter?: string) => {
+      const buildQuery = (statusFilter?: string, since?: { column: "created_at" | "last_return_at"; iso: string }) => {
         let q = supabase.from("campaign_leads").select("id", { count: "exact", head: true }).eq("company_id", currentCompany.id);
         if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes('all')) {
           const unitsFilter = [...allowedUnits, "As duas"];
@@ -423,13 +424,14 @@ export default function Admin() {
           q = q.in("id", instanceLeadIds);
         }
         if (statusFilter) q = q.eq("status", statusFilter as LeadStatus);
-        if (dateFilter) q = q.gte("created_at", dateFilter);
+        if (since) q = q.gte(since.column, since.iso);
         return q;
       };
 
-      const [totalRes, todayRes, novoRes, contatoRes, fechadoRes, perdidoRes] = await Promise.all([
+      const [totalRes, todayRes, returnedTodayRes, novoRes, contatoRes, fechadoRes, perdidoRes] = await Promise.all([
         buildQuery(),
-        buildQuery(undefined, todayISO),
+        buildQuery(undefined, { column: "created_at", iso: todayISO }),
+        buildQuery(undefined, { column: "last_return_at", iso: todayISO }),
         buildQuery("novo"),
         buildQuery("em_contato"),
         buildQuery("fechado"),
@@ -439,6 +441,7 @@ export default function Admin() {
       setLeadMetrics({
         total: totalRes.count || 0,
         today: todayRes.count || 0,
+        returned_today: returnedTodayRes.count || 0,
         novo: novoRes.count || 0,
         em_contato: contatoRes.count || 0,
         fechado: fechadoRes.count || 0,

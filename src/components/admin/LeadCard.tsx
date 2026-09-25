@@ -37,9 +37,9 @@ import {
   Trash2,
   MessageSquare,
   ChevronRight,
-  RotateCcw,
 } from "lucide-react";
 import { LeadOriginBadge } from "./LeadOriginBadge";
+import { LeadReturnBadge } from "./LeadReturnBadge";
 import { maskPhone } from "@/lib/mask-utils";
 
 interface LeadCardProps {
@@ -107,12 +107,11 @@ export function LeadCard({
             <div className="flex items-center gap-2">
               <h3 className="font-semibold text-foreground truncate">{lead.name}</h3>
               <LeadOriginBadge origem={lead.origem} />
-              {lead.has_return && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-violet-500/25 to-fuchsia-500/15 border border-violet-400/40 rounded-full shrink-0 shadow-sm shadow-violet-500/10 animate-pulse">
-                  <RotateCcw className="w-3 h-3 text-violet-500" />
-                  <span className="text-[10px] font-bold text-violet-600 uppercase tracking-wider">Retornou</span>
-                </span>
-              )}
+              <LeadReturnBadge
+                returnCount={lead.return_count}
+                lastReturnAt={lead.last_return_at}
+                createdAt={lead.created_at}
+              />
               {lead.observacoes && (
                 <MessageSquare className="w-3 h-3 text-primary shrink-0" />
               )}

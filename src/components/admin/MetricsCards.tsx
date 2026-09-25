@@ -1,10 +1,13 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, UserPlus, Clock, CheckCircle, XCircle, TrendingUp } from "lucide-react";
+import { Users, UserPlus, Clock, CheckCircle, XCircle, TrendingUp, RotateCcw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export interface LeadMetrics {
   total: number;
+  /** Leads que chegaram hoje pela primeira vez */
   today: number;
+  /** Leads que já existiam e voltaram a pedir orçamento hoje */
+  returned_today: number;
   novo: number;
   em_contato: number;
   fechado: number;
@@ -35,6 +38,15 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
       iconBg: "bg-sky-500/15",
       iconColor: "text-sky-600",
       borderColor: "border-sky-500/20",
+    },
+    {
+      title: "Retornaram Hoje",
+      value: metrics.returned_today,
+      icon: RotateCcw,
+      gradient: "from-violet-500/20 via-violet-500/10 to-transparent",
+      iconBg: "bg-violet-500/15",
+      iconColor: "text-violet-600",
+      borderColor: "border-violet-500/20",
     },
     {
       title: "Novos",
@@ -76,8 +88,8 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
-        {Array.from({ length: 6 }).map((_, i) => (
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
+        {Array.from({ length: 7 }).map((_, i) => (
           <Card key={i} className="border-border/50 overflow-hidden">
             <CardContent className="p-4">
               <Skeleton className="h-3 w-20 mb-2" />
@@ -90,7 +102,7 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-4">
       {cards.map((metric) => (
         <Card 
           key={metric.title} 

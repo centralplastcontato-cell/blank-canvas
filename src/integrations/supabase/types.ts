@@ -565,6 +565,9 @@ export type Database = {
           name: string
           observacoes: string | null
           origem: string | null
+          last_entry_at: string
+          last_return_at: string | null
+          return_count: number
           responsavel_id: string | null
           status: Database["public"]["Enums"]["lead_status"]
           unit: string | null
@@ -583,6 +586,8 @@ export type Database = {
           name: string
           observacoes?: string | null
           origem?: string | null
+          last_return_at?: string | null
+          return_count?: number
           responsavel_id?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           unit?: string | null
@@ -601,6 +606,8 @@ export type Database = {
           name?: string
           observacoes?: string | null
           origem?: string | null
+          last_return_at?: string | null
+          return_count?: number
           responsavel_id?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           unit?: string | null

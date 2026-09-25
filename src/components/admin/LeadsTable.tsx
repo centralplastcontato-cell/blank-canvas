@@ -62,6 +62,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { LeadCard } from "./LeadCard";
 import { LeadOriginBadge } from "./LeadOriginBadge";
+import { LeadReturnBadge } from "./LeadReturnBadge";
 import { maskPhone } from "@/lib/mask-utils";
 
 interface LeadsTableProps {
@@ -382,7 +383,14 @@ export function LeadsTable({
                       )}
                     </div>
                     {/* Embaixo do nome: ao lado, a coluna estreita no iPad empurrava o telefone */}
-                    <LeadOriginBadge origem={lead.origem} className="mt-1" />
+                    <div className="flex flex-wrap items-center gap-1 empty:hidden mt-1">
+                      <LeadOriginBadge origem={lead.origem} />
+                      <LeadReturnBadge
+                        returnCount={lead.return_count}
+                        lastReturnAt={lead.last_return_at}
+                        createdAt={lead.created_at}
+                      />
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">

@@ -31,6 +31,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { LeadOriginBadge } from "@/components/admin/LeadOriginBadge";
+import { LeadReturnBadge } from "@/components/admin/LeadReturnBadge";
 
 interface Lead {
   id: string;
@@ -46,6 +47,8 @@ interface Lead {
   created_at: string;
   responsavel_id: string | null;
   origem?: string | null;
+  return_count?: number | null;
+  last_return_at?: string | null;
 }
 
 interface Conversation {
@@ -679,7 +682,14 @@ export function LeadInfoPopover({
                           <Pencil className="w-2.5 h-2.5" />
                         </Button>
                       </div>
-                      <LeadOriginBadge origem={linkedLead.origem} className="mt-1" />
+                      <div className="flex flex-wrap items-center gap-1 empty:hidden mt-1">
+                        <LeadOriginBadge origem={linkedLead.origem} />
+                        <LeadReturnBadge
+                          returnCount={linkedLead.return_count}
+                          lastReturnAt={linkedLead.last_return_at}
+                          createdAt={linkedLead.created_at}
+                        />
+                      </div>
                     </div>
                   </div>
                 )}

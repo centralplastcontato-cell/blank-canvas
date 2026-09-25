@@ -55,6 +55,9 @@ export interface Lead {
   responsavel_id: string | null;
   observacoes: string | null;
   origem?: string | null; // Canal de captação rastreado (ex.: "mesa" = QR Code das mesas)
+  last_entry_at?: string; // Entrada mais recente (chegada ou retorno) — ordena as listas
+  last_return_at?: string | null; // Último retorno (pediu orçamento de novo)
+  return_count?: number; // Quantas vezes voltou (0 = nunca)
   has_scheduled_visit?: boolean; // From wapi_conversations link
   has_follow_up?: boolean; // From lead_history - follow-up automático enviado
   has_follow_up_2?: boolean; // From lead_history - second follow-up

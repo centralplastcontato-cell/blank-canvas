@@ -15,7 +15,10 @@ export interface CommercialFilters {
 
 export interface CommercialReportData {
   // Conversion
+  /** Leads que chegaram pela primeira vez no período */
   leadsReceived: number;
+  /** Leads antigos que voltaram a pedir orçamento no período (não entram em "recebidos") */
+  leadsReturned: number;
   leadsClosed: number;
   conversionRate: number;
 
@@ -96,7 +99,7 @@ export function useCommercialReports(filters: CommercialFilters) {
       console.log('[RelatoriosComerciais] Fetching', { companyId, from: fromISO, to: toISO, unit: filters.unit });
 
       // Parallel queries
-      const [leadsResult, visitsResult, eventsResult] = await Promise.all([
+      const [leadsResult, visitsResult, eventsResult, returnedResult] = await Promise.all([
         // 1. All leads created in the period
         (() => {
           let q = supabase
@@ -139,6 +142,21 @@ export function useCommercialReports(filters: CommercialFilters) {
           }
           return q;
         })(),
+
+        // 4. Leads antigos que voltaram a pedir orçamento no período
+        (() => {
+          let q = supabase
+            .from('campaign_leads')
+            .select('id', { count: 'exact', head: true })
+            .eq('company_id', companyId)
+            .gte('last_return_at', fromISO)
+            .lte('last_return_at', toISO)
+            .not('status', 'in', '("transferido","trabalhe_conosco","fornecedor","outros")');
+          if (filters.unit !== 'all') {
+            q = q.or(`unit.eq.${filters.unit},unit.eq.As duas`);
+          }
+          return q;
+        })(),
       ]);
 
       if (leadsResult.error) throw leadsResult.error;
@@ -155,6 +173,8 @@ export function useCommercialReports(filters: CommercialFilters) {
 
       // --- Conversion ---
       const leadsReceived = leads.length;
+      // Informativo: se a contagem falhar, o relatório segue sem ela
+      const leadsReturned = returnedResult.error ? 0 : returnedResult.count || 0;
       const leadsClosed = leads.filter(l => l.status === 'fechado').length;
       const conversionRate = leadsReceived > 0 ? (leadsClosed / leadsReceived) * 100 : 0;
 
@@ -193,6 +213,7 @@ export function useCommercialReports(filters: CommercialFilters) {
 
       const result: CommercialReportData = {
         leadsReceived,
+        leadsReturned,
         leadsClosed,
         conversionRate,
         funnelSteps,
