@@ -61,6 +61,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { LeadCard } from "./LeadCard";
+import { LeadOriginBadge } from "./LeadOriginBadge";
 import { maskPhone } from "@/lib/mask-utils";
 
 interface LeadsTableProps {
@@ -376,6 +377,7 @@ export function LeadsTable({
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{lead.name}</span>
+                      <LeadOriginBadge origem={lead.origem} />
                       {lead.observacoes && (
                         <MessageSquare className="w-3 h-3 text-primary" />
                       )}

@@ -39,6 +39,7 @@ import {
   ChevronRight,
   RotateCcw,
 } from "lucide-react";
+import { LeadOriginBadge } from "./LeadOriginBadge";
 import { maskPhone } from "@/lib/mask-utils";
 
 interface LeadCardProps {
@@ -105,6 +106,7 @@ export function LeadCard({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h3 className="font-semibold text-foreground truncate">{lead.name}</h3>
+              <LeadOriginBadge origem={lead.origem} />
               {lead.has_return && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-violet-500/25 to-fuchsia-500/15 border border-violet-400/40 rounded-full shrink-0 shadow-sm shadow-violet-500/10 animate-pulse">
                   <RotateCcw className="w-3 h-3 text-violet-500" />
