@@ -30,6 +30,7 @@ import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { LeadOriginBadge } from "@/components/admin/LeadOriginBadge";
 
 interface Lead {
   id: string;
@@ -44,6 +45,7 @@ interface Lead {
   observacoes: string | null;
   created_at: string;
   responsavel_id: string | null;
+  origem?: string | null;
 }
 
 interface Conversation {
@@ -677,6 +679,7 @@ export function LeadInfoPopover({
                           <Pencil className="w-2.5 h-2.5" />
                         </Button>
                       </div>
+                      <LeadOriginBadge origem={linkedLead.origem} className="mt-1" />
                     </div>
                   </div>
                 )}
