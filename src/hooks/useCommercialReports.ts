@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/contexts/CompanyContext';
 import { startOfDay, endOfDay, subDays, startOfMonth, endOfMonth } from 'date-fns';
+import { buildChannelBreakdown, type ChannelBreakdownRow } from '@/lib/leadChannel';
 
 export type PeriodPreset = 'today' | '7d' | '30d' | 'month' | 'custom';
 
@@ -20,6 +21,9 @@ export interface CommercialReportData {
 
   // Funnel
   funnelSteps: { status: string; label: string; count: number; pct: number }[];
+
+  // Origem (canal de captação)
+  channelBreakdown: ChannelBreakdownRow[];
 
   // Visits
   visitsTotal: number;
@@ -97,7 +101,7 @@ export function useCommercialReports(filters: CommercialFilters) {
         (() => {
           let q = supabase
             .from('campaign_leads')
-            .select('id, status, unit, created_at')
+            .select('id, status, unit, created_at, origem, campaign_id')
             .eq('company_id', companyId)
             .gte('created_at', fromISO)
             .lte('created_at', toISO)
@@ -192,6 +196,7 @@ export function useCommercialReports(filters: CommercialFilters) {
         leadsClosed,
         conversionRate,
         funnelSteps,
+        channelBreakdown: buildChannelBreakdown(leads),
         visitsTotal,
         visitsRealized,
         visitsNoShow,
