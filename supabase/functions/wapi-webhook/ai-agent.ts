@@ -7,6 +7,8 @@
 // Módulo autocontido: não importa nada de index.ts (evita import circular).
 
 // deno-lint-ignore-file no-explicit-any
+import { findLeadByPhone } from "../_shared/lead-phone.ts";
+
 type Json = Record<string, unknown>;
 
 interface AgentInstance {
@@ -261,6 +263,16 @@ async function ensureLead(
     return conv.lead_id;
   }
   const clean = phone.replace(/\D/g, '');
+  // Pessoa que já é lead da empresa (qualquer formato de telefone/unidade): reaproveita
+  const existing = await findLeadByPhone<{ id: string }>(supabase, instance.company_id, clean, 'id');
+  if (existing) {
+    if (nomeCliente) {
+      await supabase.from('campaign_leads').update({ name: nomeCliente }).eq('id', existing.id);
+    }
+    await supabase.from('wapi_conversations').update({ lead_id: existing.id }).eq('id', conv.id);
+    conv.lead_id = existing.id;
+    return existing.id;
+  }
   const { data: newLead } = await supabase.from('campaign_leads').insert({
     name: nomeCliente || contactName || clean,
     whatsapp: clean.startsWith('55') ? clean : `55${clean}`,

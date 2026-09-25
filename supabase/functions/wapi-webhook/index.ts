@@ -2,6 +2,8 @@ import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { detectAndPauseBotLoop, isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { normalizeJid, type NormalizedJid } from "../_shared/jid-normalizer.ts";
 import { maybeHandleWithAiAgent } from "./ai-agent.ts";
+import { findLeadByPhone } from "../_shared/lead-phone.ts";
+import { detectWhatsAppReturn } from "../_shared/lead-return.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1329,6 +1331,42 @@ async function insertLeadWithOrigin(
     return await supabase.from('campaign_leads').insert(row).select('id').single();
   }
   return withOrigin;
+}
+
+// O robô terminou de qualificar uma conversa que não estava ligada a nenhum lead.
+// Se a pessoa já é lead da empresa (veio pelo site, escreveu para outro número ou
+// o telefone está gravado em outro formato), atualiza esse lead em vez de criar
+// outro: era assim que a mesma pessoa virava dois ou três leads.
+async function saveBotLead(
+  supabase: SupabaseClient,
+  row: Record<string, unknown>,
+  origem: string | null,
+  conversationId: string,
+): Promise<{ data: { id: string } | null; error: { message: string } | null }> {
+  const existing = await findLeadByPhone<{ id: string }>(
+    supabase, row.company_id as string, row.whatsapp as string, 'id');
+  if (!existing) return await insertLeadWithOrigin(supabase, row, origem);
+
+  // Campanha, unidade e origem do primeiro contato ficam como estão
+  const { campaign_id: _c, campaign_name: _cn, whatsapp: _w, company_id: _co, unit: _u, status, ...fields } = row;
+  const patch = status && status !== 'novo' ? { ...fields, status } : fields;
+  const { error } = await supabase.from('campaign_leads').update(patch).eq('id', existing.id);
+  if (error) console.error(`[Bot] Erro ao atualizar lead existente ${existing.id}:`, error.message);
+  console.log(`[Bot] Telefone já é o lead ${existing.id}; reaproveitando em vez de criar outro`);
+
+  // A conversa só agora foi ligada ao lead: vê se ela foi um retorno, contando a
+  // partir da primeira mensagem do cliente nesta conversa.
+  const { data: firstMsg } = await supabase.from('wapi_messages')
+    .select('timestamp')
+    .eq('conversation_id', conversationId)
+    .eq('from_me', false)
+    .order('timestamp', { ascending: true })
+    .limit(1);
+  const firstAt = firstMsg?.[0]?.timestamp as string | undefined;
+  if (firstAt) {
+    await detectWhatsAppReturn(supabase, { companyId: row.company_id as string, leadId: existing.id, messageAt: firstAt });
+  }
+  return { data: { id: existing.id }, error: null };
 }
 
 async function getBotQuestions(supabase: SupabaseClient, instanceId: string): Promise<Record<string, { question: string; confirmation: string | null; next: string }>> {
@@ -2985,7 +3023,7 @@ async function syncCollectedDataToLead(
     await supabase.from('campaign_leads').update(leadData).eq('id', conv.lead_id);
     console.log(`[FlowBuilder] Updated lead ${conv.lead_id}`);
   } else {
-    const { data: newLead } = await supabase.from('campaign_leads').insert({
+    const { data: newLead } = await saveBotLead(supabase, {
       name: data.nome || contactName || contactPhone,
       whatsapp: n,
       unit: instance.unit,
@@ -2994,7 +3032,7 @@ async function syncCollectedDataToLead(
       status: 'novo',
       company_id: instance.company_id,
       ...leadData,
-    }).select('id').single();
+    }, null, conv.id);
     
     if (newLead) {
       await supabase.from('wapi_conversations').update({ lead_id: newLead.id }).eq('id', conv.id);
@@ -3792,7 +3830,7 @@ async function processBotQualification(
             }).eq('id', conv.lead_id);
           } else {
             const origem = await detectDirectLeadOrigin(supabase, instance.company_id, conv.id);
-            const { data: newLead } = await insertLeadWithOrigin(supabase, {
+            const { data: newLead } = await saveBotLead(supabase, {
               name: leadName,
               whatsapp: n,
               unit: instance.unit,
@@ -3804,7 +3842,7 @@ async function processBotQualification(
               guests: guestAnswer,
               observacoes: obs,
               company_id: instance.company_id,
-            }, origem);
+            }, origem, conv.id);
             
             if (newLead) {
               await supabase.from('wapi_conversations').update({ lead_id: newLead.id }).eq('id', conv.id);
@@ -3857,7 +3895,7 @@ async function processBotQualification(
           console.log(`[Bot] Creating new lead for phone ${n}, unit ${instance.unit}`);
           const origem = await detectDirectLeadOrigin(supabase, instance.company_id, conv.id);
           if (origem) console.log(`[Bot] Lead direto com origem "${origem}" (conv ${conv.id})`);
-          const { data: newLead, error } = await insertLeadWithOrigin(supabase, {
+          const { data: newLead, error } = await saveBotLead(supabase, {
             name: updated.nome || contactName || contactPhone,
             whatsapp: n,
             unit: instance.unit,
@@ -3868,13 +3906,13 @@ async function processBotQualification(
             day_preference: updated.dia || null,
             guests: updated.convidados || null,
             company_id: instance.company_id,
-          }, origem);
+          }, origem, conv.id);
           
           if (error) {
             console.error(`[Bot] Error creating lead:`, error.message);
           } else {
-            console.log(`[Bot] Lead created successfully: ${newLead.id}`);
-            await supabase.from('wapi_conversations').update({ lead_id: newLead.id }).eq('id', conv.id);
+            console.log(`[Bot] Lead saved: ${newLead!.id}`);
+            await supabase.from('wapi_conversations').update({ lead_id: newLead!.id }).eq('id', conv.id);
           }
         }
         
@@ -6121,13 +6159,11 @@ async function processWebhookEvent(body: JsonRecord) {
             last_message_from_me: fromMe 
           }).eq('id', raceCheck.id).then(() => {});
         } else {
-          const n = phone.replace(/\D/g, ''), vars = [n, n.replace(/^55/, ''), `55${n}`];
-          const { data: lead } = await supabase.from('campaign_leads')
-            .select('id, name, month, day_preference, guests')
-            .or(vars.map(p => `whatsapp.ilike.%${p}%`).join(','))
-            .eq('unit', instance.unit)
-            .limit(1)
-            .single();
+          // Lead existente com esse telefone em qualquer formato, em qualquer unidade
+          // da empresa (antes filtrava por unidade e não por empresa, e a mesma
+          // pessoa virava um lead novo).
+          const lead = isGrp ? null : await findLeadByPhone<{ id: string; name: string | null; month: string | null; day_preference: string | null; guests: string | null }>(
+            supabase, instance.company_id, phone, 'id, name, month, day_preference, guests');
           
           const hasCompleteLead = lead?.name && lead?.month && lead?.day_preference && lead?.guests;
           const isGroupJid = rj.includes('@g.us');
@@ -6312,6 +6348,16 @@ async function processWebhookEvent(body: JsonRecord) {
             });
             break;
           }
+        }
+        // Cliente que já era lead voltou a escrever depois de um bom tempo parado
+        // (ou depois de ser marcado Perdido): registra o retorno. Roda antes de
+        // salvar esta mensagem e só olha mensagens anteriores a ela.
+        if (!fromMe && !isGrp && conv.lead_id && !reconnectHistoryReplay && !existingConversationReconnectQuarantine) {
+          waitUntil(detectWhatsAppReturn(supabase, {
+            companyId: instance.company_id,
+            leadId: conv.lead_id,
+            messageAt: messageTimestamp,
+          }));
         }
         const grpMeta2 = isGrp ? {
           participant: ((msg as JsonRecord).key?.participant || (msg as JsonRecord).participant || '').replace('@s.whatsapp.net',''),

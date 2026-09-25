@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
+import { findLeadByPhone } from "../_shared/lead-phone.ts";
+import { fetchLastReturns, leadsWithActionSinceReturn } from "../_shared/lead-return.ts";
 
 type SupabaseAdmin = any;
 
@@ -776,12 +778,16 @@ async function processFollowUp({
 
   console.log(`[follow-up-check] ${leadIds.length} of ${allLeadIds.length} leads belong to instance ${settings.instance_id}`);
 
+  // Lead que voltou a pedir orçamento recomeça a sequência: só contam os
+  // follow-ups enviados depois do último retorno.
+  const lastReturns = await fetchLastReturns(supabase, leadIds);
+
   // Check which leads already received this specific follow-up
   const { data: existingFollowUps, error: followUpError } = await chunkedInQuery(
     (chunk) =>
       supabase
         .from("lead_history")
-        .select("lead_id")
+        .select("lead_id, created_at")
         .in("lead_id", chunk)
         .eq("action", historyAction)
         .limit(5000),
@@ -793,7 +799,7 @@ async function processFollowUp({
     return { successCount: 0, errors: [String(followUpError)] };
   }
 
-  const alreadyFollowedUp = new Set((existingFollowUps || []).map((f: any) => f.lead_id));
+  const alreadyFollowedUp = leadsWithActionSinceReturn(existingFollowUps || [], lastReturns);
   let leadsNeedingFollowUp = leadIds.filter(id => !alreadyFollowedUp.has(id));
 
   // For second follow-up: only process leads that received the first follow-up
@@ -802,7 +808,7 @@ async function processFollowUp({
       (chunk) =>
         supabase
           .from("lead_history")
-          .select("lead_id")
+          .select("lead_id, created_at")
           .in("lead_id", chunk)
           .eq("action", checkPreviousAction)
           .limit(5000),
@@ -814,7 +820,7 @@ async function processFollowUp({
       return { successCount: 0, errors: [String(prevError)] };
     }
 
-    const receivedPrevious = new Set((previousFollowUps || []).map((f: any) => f.lead_id));
+    const receivedPrevious = leadsWithActionSinceReturn(previousFollowUps || [], lastReturns);
     leadsNeedingFollowUp = leadsNeedingFollowUp.filter(id => receivedPrevious.has(id));
   }
 
@@ -1354,20 +1360,24 @@ async function processAutoLost({
     return { successCount: 0, errors: [] };
   }
 
-  const leadIds = lastFollowUps.map((f: any) => f.lead_id);
+  // Lead que voltou recomeça a sequência: o último follow-up e o perdido
+  // automático da tentativa anterior não contam.
+  const candidateIds: string[] = [...new Set<string>(lastFollowUps.map((f: any) => f.lead_id as string))];
+  const lastReturns = await fetchLastReturns(supabase, candidateIds);
+  const leadIds = [...leadsWithActionSinceReturn(lastFollowUps, lastReturns)];
 
   // Check which leads already have been auto-lost
   const { data: alreadyLost } = await chunkedInQuery(
     (chunk) =>
       supabase
         .from("lead_history")
-        .select("lead_id")
+        .select("lead_id, created_at")
         .in("lead_id", chunk)
         .eq("action", "Lead movido para perdido automaticamente"),
     leadIds,
   );
 
-  const alreadyLostSet = new Set((alreadyLost || []).map((l: any) => l.lead_id));
+  const alreadyLostSet = leadsWithActionSinceReturn(alreadyLost || [], lastReturns);
   const eligibleLeadIds = leadIds.filter((id: any) => !alreadyLostSet.has(id));
 
   if (eligibleLeadIds.length === 0) {
@@ -2552,7 +2562,16 @@ async function processStuckBotRecovery({
             guests: updated.convidados || null,
           }).eq('id', conv.lead_id);
         } else {
-          const { data: newLead } = await supabase.from('campaign_leads').insert({
+          // Pessoa que já é lead da empresa (qualquer formato de telefone/unidade): reaproveita
+          const existing = await findLeadByPhone<{ id: string }>(supabase, instance.company_id, n, 'id');
+          const { data: newLead } = existing
+            ? await supabase.from('campaign_leads').update({
+                name: updated.nome || conv.contact_name || phone,
+                month: updated.mes || null,
+                day_preference: updated.dia || null,
+                guests: updated.convidados || null,
+              }).eq('id', existing.id).select('id').single()
+            : await supabase.from('campaign_leads').insert({
             name: updated.nome || conv.contact_name || phone,
             whatsapp: n,
             unit: instance.unit,
