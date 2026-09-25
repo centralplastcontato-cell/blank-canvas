@@ -42,23 +42,41 @@ const TIME_OPTIONS = Array.from({ length: 25 }, (_, i) => {
   return `${h}:${i % 2 === 0 ? "00" : "30"}`;
 });
 
-// Os horários são editados de forma estruturada (dias + das/até + intervalo)
-// e serializados na frase que a IA lê; a frase salva é desmontada ao reabrir.
-function serializeVisitHours(days: number[], start: string, end: string, halfHour: boolean): string {
-  const sorted = [...days].sort((a, b) => a - b);
-  const key = sorted.join(",");
-  let daysText: string;
-  if (key === "0,1,2,3,4") daysText = "Segunda a sexta";
-  else if (key === "0,1,2,3,4,5") daysText = "Segunda a sábado";
-  else if (key === "0,1,2,3,4,5,6") daysText = "Todos os dias";
-  else if (sorted.length === 1) daysText = DAY_NAMES[sorted[0]];
-  else daysText = sorted.map((d) => DAY_NAMES[d]).join(", ").replace(/, ([^,]*)$/, " e $1");
-  return `${daysText}, das ${start} às ${end}, ${halfHour ? "de meia em meia hora" : "de hora em hora"}`;
+// Os horários são editados de forma estruturada (dias + das/até + intervalo,
+// com um horário à parte para o sábado quando ele é diferente do resto da
+// semana) e serializados na frase que a IA lê; a frase salva é desmontada ao
+// reabrir. As duas partes (dias de semana; sábado) ficam separadas por ";".
+function daysToText(sortedDays: number[]): string {
+  const key = sortedDays.join(",");
+  if (key === "0,1,2,3,4") return "Segunda a sexta";
+  if (key === "0,1,2,3,4,5") return "Segunda a sábado";
+  if (key === "0,1,2,3,4,5,6") return "Todos os dias";
+  if (sortedDays.length === 1) return DAY_NAMES[sortedDays[0]];
+  return sortedDays.map((d) => DAY_NAMES[d]).join(", ").replace(/, ([^,]*)$/, " e $1");
 }
 
-function parseVisitHours(text: string | null): { days: number[]; start: string; end: string; halfHour: boolean } {
-  const fallback = { days: [0, 1, 2, 3, 4], start: "10:00", end: "17:00", halfHour: true };
-  if (!text || !text.trim()) return fallback;
+export function serializeVisitHours(
+  days: number[],
+  start: string,
+  end: string,
+  halfHour: boolean,
+  satDifferent = false,
+  satStart = "",
+  satEnd = "",
+): string {
+  const sorted = [...days].sort((a, b) => a - b);
+  const useSatSplit = satDifferent && sorted.includes(5);
+  const mainDays = useSatSplit ? sorted.filter((d) => d !== 5) : sorted;
+  const intervalText = (h: boolean) => (h ? "de meia em meia hora" : "de hora em hora");
+  const parts: string[] = [];
+  if (mainDays.length > 0) parts.push(`${daysToText(mainDays)}, das ${start} às ${end}, ${intervalText(halfHour)}`);
+  if (useSatSplit) parts.push(`sábado, das ${satStart} às ${satEnd}, ${intervalText(halfHour)}`);
+  return parts.join("; ");
+}
+
+// Lê um trecho ("Segunda a sexta, das 10:00 às 17:00, de meia em meia hora")
+// e devolve os dias/horário que ele descreve, ou dias=[] se não reconhecer nada.
+function parseVisitHoursSegment(text: string): { days: number[]; start: string | null; end: string | null; halfHour: boolean } {
   const t = text.toLowerCase();
   let days: number[] = [];
   if (t.includes("todos os dias")) days = [0, 1, 2, 3, 4, 5, 6];
@@ -68,7 +86,6 @@ function parseVisitHours(text: string | null): { days: number[]; start: string; 
     const tokens: [string, number][] = [["segunda", 0], ["terça", 1], ["terca", 1], ["quarta", 2], ["quinta", 3], ["sexta", 4], ["sábado", 5], ["sabado", 5], ["domingo", 6]];
     tokens.forEach(([tok, idx]) => { if (t.includes(tok) && !days.includes(idx)) days.push(idx); });
   }
-  if (days.length === 0) days = fallback.days;
   const norm = (s: string) => {
     const mm = s.replace("h", ":").match(/(\d{1,2}):?(\d{2})?/);
     return mm ? `${mm[1].padStart(2, "0")}:${mm[2] || "00"}` : null;
@@ -76,9 +93,60 @@ function parseVisitHours(text: string | null): { days: number[]; start: string; 
   const m = t.match(/das\s+(\d{1,2}[:h]?\d{0,2})\s+às?\s+(\d{1,2}[:h]?\d{0,2})/);
   return {
     days,
-    start: (m && norm(m[1])) || fallback.start,
-    end: (m && norm(m[2])) || fallback.end,
+    start: m && norm(m[1]),
+    end: m && norm(m[2]),
     halfHour: !t.includes("hora em hora"),
+  };
+}
+
+interface ParsedVisitHours {
+  days: number[];
+  start: string;
+  end: string;
+  halfHour: boolean;
+  satDifferent: boolean;
+  satStart: string;
+  satEnd: string;
+}
+
+export function parseVisitHours(text: string | null): ParsedVisitHours {
+  const fallback: ParsedVisitHours = {
+    days: [0, 1, 2, 3, 4],
+    start: "10:00",
+    end: "17:00",
+    halfHour: true,
+    satDifferent: false,
+    satStart: "09:00",
+    satEnd: "13:00",
+  };
+  if (!text || !text.trim()) return fallback;
+  const segments = text.split(/;\s*/).map(parseVisitHoursSegment).filter((s) => s.days.length > 0);
+  if (segments.length === 0) return fallback;
+
+  // Um trecho isolado só de sábado, junto com outro dos demais dias: horário diferente.
+  const satSeg = segments.find((s) => s.days.length === 1 && s.days[0] === 5);
+  const mainSeg = segments.find((s) => s !== satSeg);
+  if (satSeg && mainSeg) {
+    return {
+      days: Array.from(new Set([...mainSeg.days, 5])),
+      start: mainSeg.start || fallback.start,
+      end: mainSeg.end || fallback.end,
+      halfHour: mainSeg.halfHour,
+      satDifferent: true,
+      satStart: satSeg.start || fallback.satStart,
+      satEnd: satSeg.end || fallback.satEnd,
+    };
+  }
+
+  const s = segments[0];
+  return {
+    days: s.days,
+    start: s.start || fallback.start,
+    end: s.end || fallback.end,
+    halfHour: s.halfHour,
+    satDifferent: false,
+    satStart: fallback.satStart,
+    satEnd: fallback.satEnd,
   };
 }
 
@@ -146,6 +214,9 @@ export function AiAgentSection() {
   const [visitStart, setVisitStart] = useState("10:00");
   const [visitEnd, setVisitEnd] = useState("17:00");
   const [visitHalfHour, setVisitHalfHour] = useState(true);
+  const [visitSatDifferent, setVisitSatDifferent] = useState(false);
+  const [visitSatStart, setVisitSatStart] = useState("09:00");
+  const [visitSatEnd, setVisitSatEnd] = useState("13:00");
   const [infoValues, setInfoValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -250,12 +321,17 @@ export function AiAgentSection() {
     setVisitStart(parsed.start);
     setVisitEnd(parsed.end);
     setVisitHalfHour(parsed.halfHour);
+    setVisitSatDifferent(parsed.satDifferent);
+    setVisitSatStart(parsed.satStart);
+    setVisitSatEnd(parsed.satEnd);
     setInfoValues(parseBuffetInfo(settings.extra_instructions));
     setConfigTab("basico");
     setConfigOpen(true);
   };
 
   const toggleVisitDay = (day: number) => {
+    // Sábado saiu da seleção: o horário diferente dele não faz mais sentido.
+    if (day === 5 && visitDays.includes(5)) setVisitSatDifferent(false);
     setVisitDays((prev) => prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]);
   };
 
@@ -268,9 +344,13 @@ export function AiAgentSection() {
       toast({ title: "Horário inválido", description: "O horário final precisa ser depois do inicial.", variant: "destructive" });
       return;
     }
+    if (visitSatDifferent && visitDays.includes(5) && visitSatEnd <= visitSatStart) {
+      toast({ title: "Horário de sábado inválido", description: "O horário final precisa ser depois do inicial.", variant: "destructive" });
+      return;
+    }
     const saved = await persist({
       unit: editUnit,
-      visit_hours: serializeVisitHours(visitDays, visitStart, visitEnd, visitHalfHour),
+      visit_hours: serializeVisitHours(visitDays, visitStart, visitEnd, visitHalfHour, visitSatDifferent, visitSatStart, visitSatEnd),
       extra_instructions: serializeBuffetInfo(infoValues),
     });
     if (saved) {
@@ -426,9 +506,39 @@ export function AiAgentSection() {
                       </SelectContent>
                     </Select>
                   </div>
+                  {visitDays.includes(5) && (
+                    <div className="space-y-2 rounded-lg border border-violet-300/40 bg-card/60 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-xs font-bold">Sábado tem horário diferente</Label>
+                        <Switch checked={visitSatDifferent} onCheckedChange={setVisitSatDifferent} />
+                      </div>
+                      {visitSatDifferent && (
+                        <div className="grid grid-cols-2 gap-3 pt-1">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-bold">Das (sábado)</Label>
+                            <Select value={visitSatStart} onValueChange={setVisitSatStart}>
+                              <SelectTrigger className="h-10 bg-card border-border shadow-sm"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {TIME_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-bold">Até (sábado)</Label>
+                            <Select value={visitSatEnd} onValueChange={setVisitSatEnd}>
+                              <SelectTrigger className="h-10 bg-card border-border shadow-sm"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {TIME_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {visitDays.length > 0 && (
                     <p className="text-[11px] text-violet-700 bg-violet-500/10 rounded-lg px-3 py-2">
-                      A IA vai oferecer: <span className="font-bold">{serializeVisitHours(visitDays, visitStart, visitEnd, visitHalfHour)}</span>
+                      A IA vai oferecer: <span className="font-bold">{serializeVisitHours(visitDays, visitStart, visitEnd, visitHalfHour, visitSatDifferent, visitSatStart, visitSatEnd)}</span>
                     </p>
                   )}
                 </div>
