@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { findLeadByPhone } from "../_shared/lead-phone.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -292,20 +293,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Check if lead already exists
-    const { data: existingLead } = await supabase
-      .from('campaign_leads')
-      .select('id, name, unit, month, day_of_month, guests, status')
-      .eq('whatsapp', normalizedPhone)
-      .eq('company_id', company_id)
-      .limit(1)
-      .maybeSingle();
+    // Check if lead already exists (mesmo telefone em qualquer formato, qualquer unidade)
+    const existingLead = await findLeadByPhone<Record<string, any>>(supabase, company_id, normalizedPhone, '*');
 
     let leadId: string;
 
     if (existingLead) {
-      // Lead already exists — update created_at to move to top + log return in history
+      // Lead retornou: a data do primeiro contato (created_at) é preservada. O retorno
+      // fica em last_return_at/return_count, e o banco recalcula last_entry_at, que é
+      // o que mantém o lead no topo das listas.
       leadId = existingLead.id;
+      const now = new Date().toISOString();
       const newData = {
         name: name.trim(),
         unit: resolvedUnit || unit || null,
@@ -313,13 +311,30 @@ Deno.serve(async (req) => {
         day_of_month: day_of_month || null,
         guests: guests || null,
         campaign_name: campaign_name || null,
-        created_at: new Date().toISOString(),
       };
 
-      const { error: updateError } = await supabase
+      // Leads que voltaram antes desta mudança só têm o retorno no histórico
+      const { count: pastReturns } = await supabase
+        .from('lead_history')
+        .select('id', { count: 'exact', head: true })
+        .eq('lead_id', existingLead.id)
+        .eq('action', 'Lead retornou pela Landing Page');
+      const returnCount = Math.max(Number(existingLead.return_count) || 0, pastReturns || 0) + 1;
+
+      let { error: updateError } = await supabase
         .from('campaign_leads')
-        .update(newData)
+        .update({ ...newData, last_return_at: now, return_count: returnCount })
         .eq('id', existingLead.id);
+
+      // Colunas de retorno ainda não criadas no banco: comportamento antigo, para o
+      // lead ao menos subir para o topo.
+      if (updateError && /last_return_at|return_count/.test(String(updateError.message || ''))) {
+        console.error('Colunas de retorno indisponíveis; usando created_at:', updateError.message);
+        ({ error: updateError } = await supabase
+          .from('campaign_leads')
+          .update({ ...newData, created_at: now })
+          .eq('id', existingLead.id));
+      }
 
       if (updateError) {
         console.error('Error updating returning lead:', updateError);
@@ -344,7 +359,7 @@ Deno.serve(async (req) => {
         action: 'Lead retornou pela Landing Page',
         old_value: `Status atual: ${existingLead.status}`,
         // A origem original do lead não é alterada; o retorno por outra origem só fica registrado aqui
-        new_value: origem ? `${changeSummary} | Voltou pela origem: ${origem}` : changeSummary,
+        new_value: `${returnCount + 1}ª vez | ${changeSummary}${origem ? ` | Voltou pela origem: ${origem}` : ''}`,
       });
 
       console.log(`Returning lead updated: ${name.trim()} - ${normalizedPhone} (company: ${company_id})`);

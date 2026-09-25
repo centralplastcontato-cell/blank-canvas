@@ -290,10 +290,17 @@ export function LeadDetailSheet({
                   <RotateCcw className="w-5 h-5 text-violet-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-bold text-violet-700 dark:text-violet-400">🔄 Lead retornou pela Landing Page!</h4>
+                  <h4 className="text-sm font-bold text-violet-700 dark:text-violet-400">
+                    🔄 Retornou · {(lead.return_count || 1) + 1}ª vez que pede orçamento!
+                  </h4>
                   <p className="text-xs text-violet-600/80 dark:text-violet-400/70 mt-0.5 leading-relaxed">
-                    Este lead já preencheu o formulário anteriormente e voltou com interesse renovado. Priorize o atendimento!
+                    Este lead já tinha falado com vocês antes e voltou com interesse renovado. Priorize o atendimento!
                   </p>
+                  {lead.last_return_at && (
+                    <p className="text-[11px] text-violet-600/70 dark:text-violet-400/60 mt-1">
+                      Voltou por último em {format(new Date(lead.last_return_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

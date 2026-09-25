@@ -14,6 +14,7 @@ import { useLeadNotifications } from "@/hooks/useLeadNotifications";
 import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
 import { useUnreadCountRealtime, useLeadsRealtime } from "@/hooks/useRealtimeOptimized";
 import { Lead, LeadStatus, UserWithRole, Profile, AppRole } from "@/types/crm";
+import { mergeLeadUpdate, summarizeLegacyReturns, withReturnInfo } from "@/lib/leadReturns";
 import { LeadsTable } from "@/components/admin/LeadsTable";
 import { LeadsFilters } from "@/components/admin/LeadsFilters";
 import { LeadsKanban } from "@/components/admin/LeadsKanban";
@@ -94,7 +95,7 @@ export default function CentralAtendimento() {
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 20;
-  const [leadMetrics, setLeadMetrics] = useState<LeadMetrics>({ total: 0, today: 0, novo: 0, em_contato: 0, fechado: 0, perdido: 0 });
+  const [leadMetrics, setLeadMetrics] = useState<LeadMetrics>({ total: 0, today: 0, returned_today: 0, novo: 0, em_contato: 0, fechado: 0, perdido: 0 });
   const [responsaveis, setResponsaveis] = useState<UserWithRole[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -319,7 +320,8 @@ export default function CentralAtendimento() {
         .from("campaign_leads")
         .select("*", { count: "exact" })
         .eq("company_id", currentCompany.id)
-        .order("created_at", { ascending: false });
+        // Entrada mais recente (chegada ou retorno): quem voltou sobe sem perder a data de chegada
+        .order("last_entry_at", { ascending: false });
 
       query = query.range(from, to);
 
@@ -360,14 +362,15 @@ export default function CentralAtendimento() {
         query = query.eq("month", filters.month);
       }
 
+      // Período pela entrada mais recente: "Hoje" mostra quem chegou e quem voltou hoje
       if (filters.startDate) {
-        query = query.gte("created_at", filters.startDate.toISOString());
+        query = query.gte("last_entry_at", filters.startDate.toISOString());
       }
 
       if (filters.endDate) {
         const endOfDay = new Date(filters.endDate);
         endOfDay.setHours(23, 59, 59, 999);
-        query = query.lte("created_at", endOfDay.toISOString());
+        query = query.lte("last_entry_at", endOfDay.toISOString());
       }
 
       if (filters.search) {
@@ -416,7 +419,7 @@ export default function CentralAtendimento() {
               .eq("action", "Follow-up #4 automático enviado"),
             supabase
               .from("lead_history")
-              .select("lead_id")
+              .select("lead_id, created_at")
               .in("lead_id", leadIds)
               .eq("action", "Lead retornou pela Landing Page"),
             supabase
@@ -431,7 +434,7 @@ export default function CentralAtendimento() {
           const followUp2LeadIds = new Set((historyResult2.data || []).map(h => h.lead_id));
           const followUp3LeadIds = new Set((historyResult3.data || []).map(h => h.lead_id));
           const followUp4LeadIds = new Set((historyResult4.data || []).map(h => h.lead_id));
-          const returnLeadIds = new Set((returnResult.data || []).map(h => h.lead_id));
+          const legacyReturns = summarizeLegacyReturns(returnResult.data || []);
 
           // Data da festa vinculada (mais recente) por lead — usada para separar
           // festas "Fechadas" (ainda vão acontecer) de "Realizadas" (já passaram).
@@ -443,13 +446,12 @@ export default function CentralAtendimento() {
           });
 
           let leadsWithExtraInfo = leadsData.map(lead => ({
-            ...lead,
+            ...withReturnInfo(lead, legacyReturns),
             has_scheduled_visit: scheduledVisitLeadIds.has(lead.id),
             has_follow_up: followUpLeadIds.has(lead.id),
             has_follow_up_2: followUp2LeadIds.has(lead.id),
             has_follow_up_3: followUp3LeadIds.has(lead.id),
             has_follow_up_4: followUp4LeadIds.has(lead.id),
-            has_return: returnLeadIds.has(lead.id),
             party_date: partyDateByLead.get(lead.id) || null
           }));
           
@@ -554,7 +556,8 @@ export default function CentralAtendimento() {
       today.setHours(0, 0, 0, 0);
       const todayISO = today.toISOString();
 
-      const buildQuery = (statusFilter?: string, dateFilter?: string) => {
+      // since: conta só quem chegou (created_at) ou voltou (last_return_at) a partir da data
+      const buildQuery = (statusFilter?: string, since?: { column: "created_at" | "last_return_at"; iso: string }) => {
         let q = supabase.from("campaign_leads").select("id", { count: "exact", head: true }).eq("company_id", currentCompany.id);
         // Apply unit permission filter
         if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes('all')) {
@@ -580,18 +583,18 @@ export default function CentralAtendimento() {
           q = q.eq("month", filters.month);
         }
         if (filters.startDate) {
-          q = q.gte("created_at", filters.startDate.toISOString());
+          q = q.gte("last_entry_at", filters.startDate.toISOString());
         }
         if (filters.endDate) {
           const endOfDay = new Date(filters.endDate);
           endOfDay.setHours(23, 59, 59, 999);
-          q = q.lte("created_at", endOfDay.toISOString());
+          q = q.lte("last_entry_at", endOfDay.toISOString());
         }
         if (filters.search) {
           q = q.or(`name.ilike.%${filters.search}%,whatsapp.ilike.%${filters.search}%`);
         }
         if (statusFilter) q = q.eq("status", statusFilter as LeadStatus);
-        if (dateFilter) q = q.gte("created_at", dateFilter);
+        if (since) q = q.gte(since.column, since.iso);
         return q;
       };
 
@@ -632,9 +635,10 @@ export default function CentralAtendimento() {
         return q;
       };
 
-      const [totalRes, todayRes, novoRes, contatoRes, fechadoRes, perdidoRes] = await Promise.all([
+      const [totalRes, todayRes, returnedTodayRes, novoRes, contatoRes, fechadoRes, perdidoRes] = await Promise.all([
         buildQuery(),
-        buildQuery(undefined, todayISO),
+        buildQuery(undefined, { column: "created_at", iso: todayISO }),
+        buildQuery(undefined, { column: "last_return_at", iso: todayISO }),
         buildQuery("novo"),
         buildQuery("em_contato"),
         buildFechadosQuery(),
@@ -644,6 +648,7 @@ export default function CentralAtendimento() {
       setLeadMetrics({
         total: totalRes.count || 0,
         today: todayRes.count || 0,
+        returned_today: returnedTodayRes.count || 0,
         novo: novoRes.count || 0,
         em_contato: contatoRes.count || 0,
         fechado: fechadoRes.count || 0,
@@ -744,9 +749,7 @@ export default function CentralAtendimento() {
   const handleLeadUpdate = useCallback((payload: unknown) => {
     const updatedLead = payload as Lead;
     fetchNewLeadsCount();
-    setLeads((prev) =>
-      prev.map((lead) => lead.id === updatedLead.id ? updatedLead : lead)
-    );
+    setLeads((prev) => mergeLeadUpdate(prev, updatedLead));
   }, [fetchNewLeadsCount]);
 
   const handleLeadDelete = useCallback((payload: unknown) => {

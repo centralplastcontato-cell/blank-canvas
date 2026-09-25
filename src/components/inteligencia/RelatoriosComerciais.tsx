@@ -188,6 +188,7 @@ export function RelatoriosComerciais({ selectedUnit: externalUnit, canViewRevenu
           icon={<Users className="h-4 w-4" />}
           label="Leads recebidos"
           value={String(data.leadsReceived)}
+          hint={data.leadsReturned > 0 ? `+ ${data.leadsReturned} ${data.leadsReturned === 1 ? "voltou" : "voltaram"} a pedir orçamento` : undefined}
         />
         <SummaryCard
           icon={<Target className="h-4 w-4" />}
@@ -377,7 +378,7 @@ export function RelatoriosComerciais({ selectedUnit: externalUnit, canViewRevenu
 
 // --- Sub-components ---
 
-function SummaryCard({ icon, label, value, highlight }: { icon: React.ReactNode; label: string; value: string; highlight?: boolean }) {
+function SummaryCard({ icon, label, value, highlight, hint }: { icon: React.ReactNode; label: string; value: string; highlight?: boolean; hint?: string }) {
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-3 sm:p-4">
@@ -388,6 +389,7 @@ function SummaryCard({ icon, label, value, highlight }: { icon: React.ReactNode;
         </div>
         <p className={`text-lg sm:text-xl font-bold ${highlight ? "text-green-600" : "text-foreground"}`}>{value}</p>
         <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight">{label}</p>
+        {hint && <p className="text-[10px] text-violet-600 font-medium leading-tight mt-1">{hint}</p>}
       </CardContent>
     </Card>
   );

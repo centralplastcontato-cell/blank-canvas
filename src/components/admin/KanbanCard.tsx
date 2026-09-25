@@ -27,10 +27,10 @@ import {
   Trash2,
   CalendarCheck,
   RefreshCw,
-  RotateCcw,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { LeadOriginBadge } from "./LeadOriginBadge";
+import { LeadReturnBadge } from "./LeadReturnBadge";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { maskPhone } from "@/lib/mask-utils";
@@ -332,20 +332,11 @@ export function KanbanCard({
                     </TooltipContent>
                   </Tooltip>
                 )}
-                {lead.has_return && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex-shrink-0 flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-violet-500/25 to-fuchsia-500/15 border border-violet-400/40 rounded-full shadow-sm shadow-violet-500/10 animate-pulse">
-                        <RotateCcw className="w-3 h-3 text-violet-500" />
-                        <span className="text-[10px] font-bold text-violet-600 uppercase tracking-wider">Retornou</span>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="text-xs max-w-[200px]">
-                      <p className="font-semibold">🔄 Lead retornou pela LP</p>
-                      <p className="text-muted-foreground mt-0.5">Este lead já preencheu o formulário antes e voltou com interesse renovado!</p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
+                <LeadReturnBadge
+                  returnCount={lead.return_count}
+                  lastReturnAt={lead.last_return_at}
+                  createdAt={lead.created_at}
+                />
                 {isIncomplete && (
                   <Tooltip>
                     <TooltipTrigger asChild>
