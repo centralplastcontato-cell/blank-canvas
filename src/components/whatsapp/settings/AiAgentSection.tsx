@@ -180,7 +180,7 @@ const BUFFET_FIELDS: BuffetField[] = [
   { key: "acessibilidade", label: "Acessibilidade (cadeirante)", type: "select", options: ["Sim, rampa e banheiro adaptado", "Parcial", "Não"], group: "perguntas" },
   { key: "hora_extra", label: "Hora extra", type: "select", options: ["Dá para estender, a equipe combina", "Não é possível"], group: "perguntas" },
   { key: "fraldario", label: "Área para bebês/fraldário", type: "select", options: ["Sim", "Não"], group: "perguntas" },
-  { key: "fotografo", label: "Fotógrafo/filmagem", type: "select", options: ["O buffet oferece", "É por conta da família", "Não oferecemos"], group: "perguntas" },
+  { key: "fotografo", label: "Fotógrafo/filmagem", type: "select", options: ["O buffet oferece, incluso na festa", "O buffet indica um parceiro (pais contratam e pagam)", "É por conta da família, sem indicação", "Não oferecemos nem indicamos"], group: "perguntas" },
   { key: "animal", label: "Animal de estimação", type: "select", options: ["Pode levar", "Não pode"], group: "perguntas" },
   { key: "monitores", label: "Monitores acompanhando as crianças", type: "select", options: ["O tempo todo", "Só nos brinquedos", "Não temos"], group: "perguntas" },
   { key: "regras", label: "Regras e o que não fazemos", type: "textarea", placeholder: "Não fazemos festas externas. Visitas somente com agendamento...", group: "regras", hint: "Limites claros evitam que a IA prometa o que vocês não fazem" },
