@@ -220,7 +220,10 @@ export function WhatsAppConfig({ userId, isAdmin, isGestor = false }: WhatsAppCo
         </div>
 
         {/* Section Content */}
-        <ScrollArea className="h-[calc(100vh-230px)] md:h-[calc(100vh-320px)]">
+        {/* O Radix ScrollArea envolve o conteúdo numa div "display:table" (para medir
+            a altura) que se alarga pelo conteúdo em vez de respeitar a largura da tela —
+            é isso que cortava texto/abas no celular. Mesma correção já usada no chat. */}
+        <ScrollArea className="h-[calc(100vh-230px)] md:h-[calc(100vh-320px)] [&_[data-radix-scroll-area-viewport]>div]:!block [&_[data-radix-scroll-area-viewport]>div]:!w-full [&_[data-radix-scroll-area-viewport]>div]:!min-w-0">
           {renderContent()}
         </ScrollArea>
       </div>
