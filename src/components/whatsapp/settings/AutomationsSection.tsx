@@ -874,7 +874,7 @@ export function AutomationsSection() {
               )}
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 items-stretch">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 items-stretch">
               {/* Bot fixo */}
               <div className={`relative rounded-2xl bg-card p-5 flex flex-col gap-3 transition-all ${botSettings?.bot_enabled && !botSettings?.use_flow_builder ? "border-2 border-primary shadow-md shadow-primary/10" : "border border-border shadow-sm"}`}>
                 <div className="flex items-start justify-between gap-2">
