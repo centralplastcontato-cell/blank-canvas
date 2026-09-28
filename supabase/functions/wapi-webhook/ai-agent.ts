@@ -137,19 +137,27 @@ async function isEligible(
 ): Promise<boolean> {
   const botData = (conv.bot_data || {}) as Json;
   if (botData.ai_agent === 'on') return true;
-  if (botData.ai_agent === 'off') return false;
+  if (botData.ai_agent === 'off') {
+    console.log(`[AI Agent] Conversa ${conv.id} já tinha sido marcada como não-elegível antes (decisão não é reavaliada a cada mensagem)`);
+    return false;
+  }
 
   const activatedAt = settings.activated_at ? new Date(settings.activated_at).getTime() : 0;
   const convCreatedAt = conv.created_at ? new Date(conv.created_at).getTime() : 0;
 
   let eligible = true;
+  let reason = '';
 
   // Só conversas criadas depois da ativação da IA
-  if (!activatedAt || !convCreatedAt || convCreatedAt < activatedAt) eligible = false;
+  if (!activatedAt || !convCreatedAt || convCreatedAt < activatedAt) {
+    eligible = false;
+    reason = `conversa criada em ${conv.created_at ?? '?'}, IA ligada em ${settings.activated_at ?? '?'}`;
+  }
 
   // Bot fixo já engajado no meio de uma qualificação: não rouba a conversa
   if (eligible && conv.bot_step && conv.bot_step !== 'lp_sent' && conv.bot_step !== AI_STEP) {
     eligible = false;
+    reason = `conversa já estava no passo "${conv.bot_step}" do bot fixo`;
   }
 
   // Lead antigo (criado antes da ativação, já trabalhado ou com orçamento): fora
@@ -167,10 +175,13 @@ async function isEligible(
       const workedStatus = !['novo', 'em_contato'].includes(lead.status);
       if (oldLead || workedStatus) {
         eligible = false;
+        reason = `lead ${lead.id} (status "${lead.status}", criado em ${lead.created_at}) é anterior à IA ou já foi trabalhado`;
         break;
       }
     }
   }
+
+  console.log(`[AI Agent] Avaliação de elegibilidade da conversa ${conv.id}: ${eligible ? 'ELEGÍVEL' : `NÃO elegível — ${reason}`}`);
 
   // Grava a decisão
   const newBotData = { ...(conv.bot_data || {}), ai_agent: eligible ? 'on' : 'off' } as Json;
@@ -429,7 +440,10 @@ export async function maybeHandleWithAiAgent(
   botSettings?: any, // Bot settings para test mode check
 ): Promise<boolean> {
   try {
-    if (!instance.unit || !instance.company_id) return false;
+    if (!instance.unit || !instance.company_id) {
+      console.log(`[AI Agent] Sem unidade/empresa na instância — pulando (conv ${conv.id})`);
+      return false;
+    }
 
     // Test mode: se ativado, apenas deixa passar o número de teste configurado
     if (botSettings?.test_mode_enabled && botSettings?.test_mode_number) {
@@ -443,8 +457,14 @@ export async function maybeHandleWithAiAgent(
     }
 
     const settings = await loadSettings(supabase, instance.company_id);
-    if (!settings || !settings.enabled || !settings.unit) return false;
-    if ((settings.unit || '').trim().toLowerCase() !== (instance.unit || '').trim().toLowerCase()) return false;
+    if (!settings || !settings.enabled || !settings.unit) {
+      console.log(`[AI Agent] IA desligada ou sem unidade configurada para a empresa ${instance.company_id} — pulando`);
+      return false;
+    }
+    if ((settings.unit || '').trim().toLowerCase() !== (instance.unit || '').trim().toLowerCase()) {
+      console.log(`[AI Agent] IA configurada para "${settings.unit}", mensagem chegou em "${instance.unit}" — pulando`);
+      return false;
+    }
 
     // Modo de Teste da IA: enquanto ligado, ela só conversa com este número.
     // Para qualquer outro, devolve false e a conversa segue com o bot fixo
@@ -460,10 +480,19 @@ export async function maybeHandleWithAiAgent(
     }
 
     // Equipe assumiu (botão Inativo, mensagem humana ou transferência): IA fica fora
-    if (conv.bot_step === 'human_takeover') return false;
-    if (conv.bot_step === AI_STEP && conv.bot_enabled === false) return false;
+    if (conv.bot_step === 'human_takeover') {
+      console.log(`[AI Agent] Conversa ${conv.id} em human_takeover — pulando`);
+      return false;
+    }
+    if (conv.bot_step === AI_STEP && conv.bot_enabled === false) {
+      console.log(`[AI Agent] Conversa ${conv.id} estava com a IA mas foi desligada (bot_enabled=false) — pulando`);
+      return false;
+    }
 
-    if (!(await isEligible(supabase, settings, conv, phone, instance.company_id))) return false;
+    if (!(await isEligible(supabase, settings, conv, phone, instance.company_id))) {
+      console.log(`[AI Agent] Conversa ${conv.id} não elegível (ver motivo acima) — seguindo com o bot fixo`);
+      return false;
+    }
 
     const openaiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openaiKey) {
