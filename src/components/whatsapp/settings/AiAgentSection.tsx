@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sparkles, Loader2, Save, Pencil, Check } from "lucide-react";
+import { Sparkles, Loader2, Save, Pencil, Check, FlaskConical } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -31,6 +31,11 @@ interface AiAgentSettings {
   activated_at: string | null;
   extra_instructions: string | null;
   visit_hours: string;
+  // Modo de Teste da própria IA — separado do Modo de Teste do bot fixo.
+  // Ligado, a IA só conversa com este número; para os demais, nada muda,
+  // a conversa segue com o bot fixo normalmente.
+  test_mode_enabled: boolean;
+  test_mode_number: string | null;
 }
 
 const DEFAULT_VISIT_HOURS = "Segunda a sexta, das 10:00 às 17:00, de meia em meia hora";
@@ -243,6 +248,8 @@ export function AiAgentSection() {
   const [visitSatStart, setVisitSatStart] = useState("09:00");
   const [visitSatEnd, setVisitSatEnd] = useState("13:00");
   const [infoValues, setInfoValues] = useState<Record<string, string>>({});
+  const [testModeEnabled, setTestModeEnabled] = useState(false);
+  const [testModeNumber, setTestModeNumber] = useState("");
 
   useEffect(() => {
     if (!currentCompany?.id) return;
@@ -251,7 +258,7 @@ export function AiAgentSection() {
       const [{ data: row }, { data: instances }] = await Promise.all([
         (supabase as any)
           .from("ai_agent_settings")
-          .select("id, enabled, unit, activated_at, extra_instructions, visit_hours")
+          .select("id, enabled, unit, activated_at, extra_instructions, visit_hours, test_mode_enabled, test_mode_number")
           .eq("company_id", currentCompany.id)
           .maybeSingle(),
         supabase
@@ -266,6 +273,8 @@ export function AiAgentSection() {
         activated_at: null,
         extra_instructions: null,
         visit_hours: DEFAULT_VISIT_HOURS,
+        test_mode_enabled: false,
+        test_mode_number: null,
       };
       setSettings(loaded);
       const unitList = Array.from(
@@ -290,11 +299,13 @@ export function AiAgentSection() {
           activated_at: next.activated_at,
           extra_instructions: next.extra_instructions,
           visit_hours: next.visit_hours,
+          test_mode_enabled: next.test_mode_enabled,
+          test_mode_number: next.test_mode_number,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "company_id" }
       )
-      .select("id, enabled, unit, activated_at, extra_instructions, visit_hours")
+      .select("id, enabled, unit, activated_at, extra_instructions, visit_hours, test_mode_enabled, test_mode_number")
       .single();
     setSaving(false);
     if (error) {
@@ -350,6 +361,8 @@ export function AiAgentSection() {
     setVisitSatStart(parsed.satStart);
     setVisitSatEnd(parsed.satEnd);
     setInfoValues(parseBuffetInfo(settings.extra_instructions));
+    setTestModeEnabled(settings.test_mode_enabled || false);
+    setTestModeNumber(settings.test_mode_number || "");
     setConfigTab("basico");
     setConfigOpen(true);
   };
@@ -373,10 +386,16 @@ export function AiAgentSection() {
       toast({ title: "Horário de sábado inválido", description: "O horário final precisa ser depois do inicial.", variant: "destructive" });
       return;
     }
+    if (testModeEnabled && !testModeNumber.trim()) {
+      toast({ title: "Informe o número de teste", description: "Preencha o WhatsApp que vai testar a IA sozinho.", variant: "destructive" });
+      return;
+    }
     const saved = await persist({
       unit: editUnit,
       visit_hours: serializeVisitHours(visitDays, visitStart, visitEnd, visitHalfHour, visitSatDifferent, visitSatStart, visitSatEnd),
       extra_instructions: serializeBuffetInfo(infoValues),
+      test_mode_enabled: testModeEnabled,
+      test_mode_number: testModeEnabled ? testModeNumber.trim() : null,
     });
     if (saved) {
       setConfigOpen(false);
@@ -567,6 +586,31 @@ export function AiAgentSection() {
                     </p>
                   )}
                 </div>
+
+                {/* Modo de Teste da IA: diferente do Modo de Teste do bot fixo (que
+                    pausa TODO o número). Aqui só a IA fica restrita a um telefone —
+                    o resto dos clientes continua sendo atendido normalmente. */}
+                <div className="rounded-xl border border-dashed border-amber-400/60 bg-amber-500/5 p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label className="text-xs font-bold flex items-center gap-1.5">
+                      <FlaskConical className="w-3.5 h-3.5 text-amber-600" />
+                      Testar só com um número
+                    </Label>
+                    <Switch checked={testModeEnabled} onCheckedChange={setTestModeEnabled} />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Enquanto ligado, só esse WhatsApp conversa com a IA. Os outros clientes continuam com o bot de sempre, sem nenhuma mudança.
+                  </p>
+                  {testModeEnabled && (
+                    <Input
+                      value={testModeNumber}
+                      onChange={(e) => setTestModeNumber(e.target.value)}
+                      className="h-10 text-base sm:text-sm bg-card border-border shadow-sm"
+                      placeholder="Ex.: 15 98112-1710"
+                    />
+                  )}
+                </div>
+
                 {BUFFET_FIELDS.filter((f) => f.group === "basico").map((f) => (
                   <div key={f.key} className="space-y-1.5">
                     <Label className="text-xs font-bold">{f.label}</Label>

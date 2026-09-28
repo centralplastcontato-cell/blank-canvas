@@ -37,6 +37,11 @@ interface AiSettings {
   extra_instructions: string | null;
   visit_hours: string;
   model: string;
+  // Modo de Teste da própria IA — separado do Modo de Teste do bot fixo
+  // (wapi_bot_settings). Deixa testar só a IA, com um número específico,
+  // sem desligar o bot fixo para os clientes de verdade.
+  test_mode_enabled: boolean;
+  test_mode_number: string | null;
 }
 
 const AI_STEP = 'ai_agent';
@@ -115,7 +120,7 @@ async function sendViaWapiSend(
 async function loadSettings(supabase: any, companyId: string): Promise<AiSettings | null> {
   const { data } = await supabase
     .from('ai_agent_settings')
-    .select('enabled, unit, activated_at, extra_instructions, visit_hours, model')
+    .select('enabled, unit, activated_at, extra_instructions, visit_hours, model, test_mode_enabled, test_mode_number')
     .eq('company_id', companyId)
     .maybeSingle();
   return (data as AiSettings) || null;
@@ -440,6 +445,19 @@ export async function maybeHandleWithAiAgent(
     const settings = await loadSettings(supabase, instance.company_id);
     if (!settings || !settings.enabled || !settings.unit) return false;
     if ((settings.unit || '').trim().toLowerCase() !== (instance.unit || '').trim().toLowerCase()) return false;
+
+    // Modo de Teste da IA: enquanto ligado, ela só conversa com este número.
+    // Para qualquer outro, devolve false e a conversa segue com o bot fixo
+    // normalmente — nada muda para os clientes de verdade.
+    if (settings.test_mode_enabled) {
+      const aiTestVariants = getPhoneVariantsBR(settings.test_mode_number || '');
+      const incomingVariants = getPhoneVariantsBR(phone);
+      const isAiTestPhone = aiTestVariants.length > 0 && incomingVariants.some(v => aiTestVariants.includes(v));
+      if (!isAiTestPhone) {
+        console.log(`[AI Agent] Modo de Teste da IA ligado — ${phone} não é o número de teste, seguindo com o bot fixo`);
+        return false;
+      }
+    }
 
     // Equipe assumiu (botão Inativo, mensagem humana ou transferência): IA fica fora
     if (conv.bot_step === 'human_takeover') return false;
