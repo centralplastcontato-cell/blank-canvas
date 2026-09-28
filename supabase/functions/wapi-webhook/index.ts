@@ -5431,6 +5431,17 @@ async function processWebhookEvent(body: JsonRecord) {
     return;
   }
 
+  // Número desativado na plataforma (ex.: dono passou a usar em outro sistema).
+  // Ignora o evento por completo, ANTES de qualquer escrita — não salva mensagem,
+  // não roda bot, e crucialmente não deixa a auto-recuperação de status (abaixo)
+  // reviver o número só porque a Z-API/W-API continua entregando eventos dele.
+  // O histórico existente não é tocado.
+  if (instance.is_active === false) {
+    console.log(`[Webhook] Instância ${instanceId} está desativada na plataforma — ignorando evento`);
+    await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'ignored', processing_note: 'instance_inactive' });
+    return;
+  }
+
   // Set active provider for all bot send functions in this request
   setActiveProvider(instance.provider, instance.client_token);
 

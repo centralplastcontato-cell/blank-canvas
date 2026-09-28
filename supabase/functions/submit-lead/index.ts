@@ -254,6 +254,7 @@ Deno.serve(async (req) => {
             .select('unit')
             .eq('company_id', company_id)
             .eq('status', 'connected')
+            .eq('is_active', true) // número desativado não recebe leads novos
             .order('created_at', { ascending: true });
 
           const activeUnits = (companyUnits || []).map((u: { unit: string }) => u.unit).filter(Boolean);

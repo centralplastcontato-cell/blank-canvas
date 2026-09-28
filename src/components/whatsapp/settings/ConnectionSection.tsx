@@ -27,10 +27,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { 
-  Wifi, WifiOff, Plus, RefreshCw, Settings2, Copy, Check, 
-  MessageSquare, CreditCard, Calendar, Building2, Pencil, 
-  Trash2, QrCode, Loader2, Phone, Eraser
+import {
+  Wifi, WifiOff, Plus, RefreshCw, Settings2, Copy, Check,
+  MessageSquare, CreditCard, Calendar, Building2, Pencil,
+  Trash2, QrCode, Loader2, Phone, Eraser, Power, PowerOff
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -49,6 +49,7 @@ interface WapiInstance {
   unit: string | null;
   provider?: string;
   client_token?: string | null;
+  is_active?: boolean;
 }
 
 interface ConnectionSectionProps {
@@ -100,18 +101,24 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
 
   const fetchInstances = async () => {
     setIsLoading(true);
+    // Esta tela é onde se gerencia as instâncias, então mostra também as
+    // desativadas (para poder reativar) — os outros lugares do sistema
+    // (seletor de unidade, roteamento de leads, chat, automações) continuam
+    // filtrando só as ativas.
     const { data } = await supabase
       .from("wapi_instances")
       .select("*")
-      .eq("is_active", true)
       .order("unit", { ascending: true });
 
     if (data) {
       setInstances(data as WapiInstance[]);
       setIsLoading(false);
-      
-      if (data.length > 0) {
-        syncInstancesInBackground(data as WapiInstance[]);
+
+      // Instância desativada não precisa (nem deve) ter o status consultado —
+      // o dono pode já estar usando esse número em outro sistema.
+      const toSync = (data as WapiInstance[]).filter((i) => i.is_active !== false);
+      if (toSync.length > 0) {
+        syncInstancesInBackground(toSync);
       }
     } else {
       setIsLoading(false);
@@ -294,6 +301,50 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
     }
 
     setIsSaving(false);
+  };
+
+  // Desativa/reativa uma instância SEM apagar nada — diferente de "Excluir",
+  // que apaga conversas, mensagens e configurações para sempre. Desativada,
+  // o número some das listas de unidade ativa (bot, IA, roteamento de leads,
+  // chat) e a plataforma passa a ignorar qualquer mensagem que chegar dele,
+  // mas todo o histórico continua acessível.
+  const [togglingActiveId, setTogglingActiveId] = useState<string | null>(null);
+  const handleToggleActive = async (instance: WapiInstance) => {
+    if (!isAdmin) {
+      toast({
+        title: "Sem permissão",
+        description: "Apenas administradores podem desativar instâncias.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const nextActive = instance.is_active === false;
+    if (!nextActive) {
+      const confirmMsg = `Desativar o número ${instance.unit || ""}?\n\n` +
+        `• Nenhuma mensagem nova dele será processada (bot, IA, notificações)\n` +
+        `• Ele some das listas de unidade ativa e não recebe leads novos\n` +
+        `• Todo o histórico (conversas, mensagens, leads) continua salvo\n` +
+        `• Pode reativar quando quiser\n\n` +
+        `Se o número ainda estiver conectado na Z-API/W-API por fora, desconecte-o por lá também.`;
+      if (!confirm(confirmMsg)) return;
+    }
+    setTogglingActiveId(instance.id);
+    const { error } = await supabase
+      .from("wapi_instances")
+      .update({ is_active: nextActive })
+      .eq("id", instance.id);
+    setTogglingActiveId(null);
+    if (error) {
+      toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
+      return;
+    }
+    setInstances((prev) => prev.map((i) => (i.id === instance.id ? { ...i, is_active: nextActive } : i)));
+    toast({
+      title: nextActive ? "Número reativado" : "Número desativado",
+      description: nextActive
+        ? `${instance.unit} volta a receber mensagens e leads normalmente.`
+        : `${instance.unit} não processa mais nada na plataforma. O histórico continua salvo.`,
+    });
   };
 
   const handleDeleteInstance = async (instance: WapiInstance) => {
@@ -843,10 +894,12 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   };
 
   // Filter instances based on unit permissions (admins see all)
-  const filteredInstances = isAdmin || canViewAll
+  // Instância desativada só aparece para admin (só quem pode reativar precisa vê-la).
+  const filteredInstances = isAdmin
     ? instances
-    : instances.filter(instance => 
-        instance.unit && allowedUnits.includes(instance.unit)
+    : instances.filter(instance =>
+        instance.is_active !== false &&
+        (canViewAll || (instance.unit && allowedUnits.includes(instance.unit)))
       );
 
   const isLoadingAll = isLoading || isLoadingPermissions || isLoadingUnits;
@@ -1178,7 +1231,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
           ) : (
             <div className="space-y-4">
               {filteredInstances.map((instance) => (
-                <Card key={instance.id}>
+                <Card key={instance.id} className={instance.is_active === false ? "opacity-60" : undefined}>
                   <CardContent className="pt-4">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
@@ -1193,9 +1246,13 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                           <p className="font-semibold flex items-center gap-2 flex-wrap">
                             <Building2 className="w-4 h-4 shrink-0" />
                             <span>{instance.unit || "Sem unidade"}</span>
-                            <Badge variant={instance.status === 'connected' ? 'default' : 'secondary'}>
-                              {instance.status === 'connected' ? 'Online' : 'Offline'}
-                            </Badge>
+                            {instance.is_active === false ? (
+                              <Badge variant="secondary" className="text-amber-700 bg-amber-500/15 hover:bg-amber-500/15">Desativado</Badge>
+                            ) : (
+                              <Badge variant={instance.status === 'connected' ? 'default' : 'secondary'}>
+                                {instance.status === 'connected' ? 'Online' : 'Offline'}
+                              </Badge>
+                            )}
                             {instance.provider === 'zapi' ? (
                               <Badge className="text-xs font-bold bg-blue-600 hover:bg-blue-600 text-white border-0 gap-1.5">
                                 <span className="w-1.5 h-1.5 rounded-full bg-white" />
@@ -1230,8 +1287,8 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                       </div>
                       
                       <div className="flex items-center gap-2 sm:shrink-0 flex-wrap">
-                        {/* Restart button for connected/degraded instances */}
-                        {(instance.status === 'connected' || instance.status === 'degraded') && (
+                        {/* Restart button for connected/degraded instances (não para instância desativada) */}
+                        {instance.is_active !== false && (instance.status === 'connected' || instance.status === 'degraded') && (
                           <Button 
                             size="sm" 
                             variant="outline"
@@ -1248,7 +1305,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                           </Button>
                         )}
                         {/* Repair button for degraded instances */}
-                        {(instance.status === 'degraded' || ((instance as any)._degradedType === 'SESSION_INCOMPLETE')) && (
+                        {instance.is_active !== false && (instance.status === 'degraded' || ((instance as any)._degradedType === 'SESSION_INCOMPLETE')) && (
                           <Button 
                             size="sm" 
                             variant="outline"
@@ -1264,32 +1321,50 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                             Reparar Sessão
                           </Button>
                         )}
-                        {instance.status !== 'connected' && (
-                          <Button 
-                            size="sm" 
+                        {instance.is_active !== false && instance.status !== 'connected' && (
+                          <Button
+                            size="sm"
                             onClick={() => connection.openDialog(instance)}
                           >
                             <QrCode className="w-4 h-4 mr-2" />
                             Conectar
                           </Button>
                         )}
-                        <Button 
-                          variant="outline" 
-                          size="icon"
-                          onClick={() => handleRefreshStatus(instance)}
-                          disabled={isRefreshing}
-                        >
-                          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                        </Button>
-                        <Button 
-                          variant="outline" 
+                        {instance.is_active !== false && (
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleRefreshStatus(instance)}
+                            disabled={isRefreshing}
+                          >
+                            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
                           size="icon"
                           onClick={() => handleOpenDialog(instance)}
                         >
                           <Pencil className="w-4 h-4" />
                         </Button>
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleToggleActive(instance)}
+                          disabled={togglingActiveId === instance.id}
+                          title={instance.is_active === false ? "Reativar número" : "Desativar número (mantém o histórico)"}
+                          className={instance.is_active === false ? "text-emerald-600 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-950/20" : "text-amber-600 border-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-700 dark:hover:bg-amber-950/20"}
+                        >
+                          {togglingActiveId === instance.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : instance.is_active === false ? (
+                            <Power className="w-4 h-4" />
+                          ) : (
+                            <PowerOff className="w-4 h-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
                           size="icon"
                           onClick={() => handleDeleteInstance(instance)}
                           className="text-destructive hover:text-destructive"
