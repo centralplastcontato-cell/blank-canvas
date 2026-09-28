@@ -214,13 +214,22 @@ async function checkInstanceHealth(
 
   const { data: inst } = await supabase
     .from("wapi_instances")
-    .select("instance_id, instance_token, status, connected_at")
+    .select("instance_id, instance_token, status, connected_at, is_active")
     .eq("id", instanceDbId)
     .single();
 
   if (!inst) {
     const result = { healthy: false, reason: "instance_not_found" };
     instanceHealthCache.set(instanceDbId, result);
+    return result;
+  }
+
+  // Número desativado na plataforma: nenhuma automação roda para ele (follow-up,
+  // perdido automático, lembrete, recuperação de bot travado), mas o histórico
+  // continua intacto no banco.
+  if (inst.is_active === false) {
+    const result = { healthy: false, reason: "instance_inactive" };
+    instanceHealthCache.set(cacheKey, result);
     return result;
   }
 
@@ -2892,6 +2901,7 @@ async function processInstanceHealthCheck(
   const { data: instances, error: instError } = await supabase
     .from("wapi_instances")
     .select("id, instance_id, instance_token, company_id, unit, status, last_health_check, auto_recovery_attempts, last_restart_attempt")
+    .eq("is_active", true) // número desativado não deve ser reconectado/reiniciado sozinho
     .in("status", ["connected", "degraded", "disconnected"]);
 
   if (instError || !instances || instances.length === 0) {
