@@ -618,6 +618,10 @@ function isMegaMagicPilotPhone(instanceId: string, contactPhone: string): boolea
   return cleanPhone === MEGA_MAGIC_PILOT_PHONE || rawPhone.endsWith(MEGA_MAGIC_PILOT_PHONE);
 }
 
+export function isPilotRestartCommand(content: string | null | undefined): boolean {
+  return (content || '').trim().toLowerCase() === '#reiniciar';
+}
+
 function zapiUrl(instanceId: string, token: string, path: string): string {
   return `${ZAPI_BASE_URL}/${instanceId}/token/${token}/${path}`;
 }
@@ -3109,7 +3113,16 @@ async function processBotQualification(
       'work_interest',
     ];
 
-    if (conv.bot_enabled === false || completedPilotSteps.includes(conv.bot_step || '')) {
+    // Só recomeça o teste quando o piloto pede explicitamente. Antes qualquer
+    // mensagem depois do fim do fluxo reiniciava tudo — e o piloto também
+    // conversa de verdade com o dono do buffet por esse número.
+    // Sem o comando, a mensagem segue o caminho normal de qualquer cliente.
+    const pilotAskedRestart = isPilotRestartCommand(content);
+    if (!pilotAskedRestart && (conv.bot_enabled === false || completedPilotSteps.includes(conv.bot_step || ''))) {
+      console.log(`[Bot] 🧪 Pilot conv ${conv.id} já terminou o fluxo (step: ${conv.bot_step}) — mande "#reiniciar" para testar de novo`);
+    }
+
+    if (pilotAskedRestart && (conv.bot_enabled === false || completedPilotSteps.includes(conv.bot_step || ''))) {
       // 🛡️ Anti-burst guard: evita restart duplicado quando várias mensagens
       // chegam em sequência rápida (ex.: lead manda "1","2","3" um atrás do outro,
       // ou Z-API entrega o mesmo evento mais de uma vez). Se a conversa já foi
