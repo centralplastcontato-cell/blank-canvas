@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Bell, Check, Trash2, UserPlus, ArrowRightLeft, Crown, CalendarCheck,
   ExternalLink, MessageCircle, Search, Send, UserX, Clock, AlertTriangle, Headset,
+  WifiOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +26,7 @@ const TAB_GROUPS = [
   { key: "visitas", label: "Visitas", types: ["visit_scheduled"] },
   { key: "clientes", label: "Clientes", types: ["existing_client"] },
   { key: "transferencias", label: "Transf.", types: ["lead_transfer", "lead_assigned"] },
-  { key: "outros", label: "Outros", types: ["lead_questions", "lead_analyzing", "follow_up_sent", "lead_lost", "stale_reminded", "lead_risk"] },
+  { key: "outros", label: "Outros", types: ["lead_questions", "lead_analyzing", "follow_up_sent", "lead_lost", "stale_reminded", "lead_risk", "message_stuck"] },
 ] as const;
 
 /* ── icon map ────────────────────────────────────────── */
@@ -41,6 +42,7 @@ const ICON_MAP: Record<string, { icon: React.ElementType; className: string }> =
   lead_lost:       { icon: UserX,          className: "text-red-500" },
   stale_reminded:  { icon: Clock,          className: "text-gray-500" },
   lead_risk:       { icon: AlertTriangle,  className: "text-red-500" },
+  message_stuck:   { icon: WifiOff,        className: "text-amber-500" },
   new_support_ticket: { icon: Headset,    className: "text-purple-500" },
 };
 
@@ -226,7 +228,7 @@ export function NotificationBell() {
         setIsOpen(false);
         navigate(`/atendimento?phone=${notification.data.contact_phone}`);
       }
-    } else if (notification.type === "visit_scheduled" && notification.data && typeof notification.data === "object") {
+    } else if ((notification.type === "visit_scheduled" || notification.type === "message_stuck") && notification.data && typeof notification.data === "object") {
       if ("contact_phone" in notification.data) {
         setIsOpen(false);
         navigate(`/atendimento?phone=${notification.data.contact_phone}`);
