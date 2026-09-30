@@ -2008,7 +2008,17 @@ async function processStuckSentMessages({
         .order("received_at", { ascending: false })
         .limit(1);
       const lastWebhookEventAt = lastEvent?.[0]?.received_at ?? null;
-      const decision = decideStuckAlert({ conversationCount: g.convs.size, lastWebhookEventAt, now: nowMs });
+      // Quantas conversas desse número receberam mensagem da plataforma no mesmo período
+      const { data: sentRows } = await supabase
+        .from("wapi_messages")
+        .select("conversation_id, wapi_conversations!inner(instance_id)")
+        .eq("from_me", true)
+        .eq("wapi_conversations.instance_id", instId)
+        .lte("timestamp", cutoff)
+        .gte("timestamp", tooOld)
+        .limit(5000);
+      const activeConversationCount = new Set((sentRows || []).map((r: any) => r.conversation_id)).size;
+      const decision = decideStuckAlert({ conversationCount: g.convs.size, activeConversationCount, lastWebhookEventAt, now: nowMs });
 
       if (!decision.notify) {
         // Só um ou dois clientes sem o segundo tique: normalmente é o celular do

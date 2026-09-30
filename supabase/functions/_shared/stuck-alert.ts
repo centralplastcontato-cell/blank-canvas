@@ -5,13 +5,18 @@
 // o problema é do NÚMERO do buffet:
 //  - o número parou de mandar qualquer aviso para a plataforma (webhook caiu):
 //    mensagens de clientes deixam de aparecer e nada recebe o segundo tique; ou
-//  - várias conversas do mesmo número travaram ao mesmo tempo.
+//  - várias conversas do mesmo número travaram ao mesmo tempo — e são a maioria
+//    das conversas que receberam mensagem no período (número com muito movimento
+//    sempre tem alguns clientes com celular desligado ou sem WhatsApp).
 
 export const STUCK_MIN_CONVERSATIONS = 3;
+export const STUCK_MIN_RATIO = 0.5;
 export const WEBHOOK_SILENT_MINUTES = 20;
 
 export interface StuckAlertInput {
   conversationCount: number;
+  // conversas desse número que receberam mensagem da plataforma no mesmo período
+  activeConversationCount: number;
   lastWebhookEventAt: string | null;
   now: number;
 }
@@ -21,11 +26,14 @@ export interface StuckAlertDecision {
   webhookSilent: boolean;
 }
 
-export function decideStuckAlert({ conversationCount, lastWebhookEventAt, now }: StuckAlertInput): StuckAlertDecision {
+export function decideStuckAlert({ conversationCount, activeConversationCount, lastWebhookEventAt, now }: StuckAlertInput): StuckAlertDecision {
   const lastMs = lastWebhookEventAt ? new Date(lastWebhookEventAt).getTime() : 0;
   const webhookSilent = !Number.isFinite(lastMs) || lastMs < now - WEBHOOK_SILENT_MINUTES * 60 * 1000;
   return {
-    notify: webhookSilent || conversationCount >= STUCK_MIN_CONVERSATIONS,
+    notify: webhookSilent || (
+      conversationCount >= STUCK_MIN_CONVERSATIONS &&
+      conversationCount >= STUCK_MIN_RATIO * Math.max(activeConversationCount, conversationCount)
+    ),
     webhookSilent,
   };
 }
