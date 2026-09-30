@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { findLeadByPhone } from "../_shared/lead-phone.ts";
 import { fetchLastReturns, leadsWithActionSinceReturn } from "../_shared/lead-return.ts";
+import { decideStuckAlert, formatContactList } from "../_shared/stuck-alert.ts";
 
 type SupabaseAdmin = any;
 
@@ -1883,9 +1884,15 @@ async function processFlowTimerTimeouts({
 // um tempo razoável ela não virou "delivered"/"read", o mais provável é que a
 // sessão do número caiu bem na hora do envio e a mensagem nunca chegou de verdade
 // ao cliente — sem isso, ninguém percebe até o cliente reclamar.
+//
+// O alerta é por NÚMERO do buffet (regras em _shared/stuck-alert.ts): um cliente
+// isolado sem o segundo tique costuma ser o celular dele desligado, então só
+// avisamos quando várias conversas travam juntas ou quando o número parou de
+// mandar qualquer aviso para a plataforma — nesse caso também religamos o webhook.
 
 const STUCK_MESSAGE_MINUTES = 15; // tempo sem confirmação para considerar "travada"
 const STUCK_MESSAGE_MAX_AGE_HOURS = 6; // não alerta de casos muito antigos (já esfriaram)
+const STUCK_INSTANCE_ALERT_COOLDOWN_MINUTES = 60; // no máximo um alerta por número por hora
 
 async function resolveUnitNotificationTargets(
   supabase: SupabaseAdmin,
@@ -1924,19 +1931,21 @@ async function processStuckSentMessages({
 }: { supabase: SupabaseAdmin }): Promise<{ successCount: number; errors: string[] }> {
   const errors: string[] = [];
   let successCount = 0;
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
 
-  const cutoff = new Date(Date.now() - STUCK_MESSAGE_MINUTES * 60 * 1000).toISOString();
-  const tooOld = new Date(Date.now() - STUCK_MESSAGE_MAX_AGE_HOURS * 60 * 60 * 1000).toISOString();
+  const cutoff = new Date(nowMs - STUCK_MESSAGE_MINUTES * 60 * 1000).toISOString();
+  const tooOld = new Date(nowMs - STUCK_MESSAGE_MAX_AGE_HOURS * 60 * 60 * 1000).toISOString();
 
   const { data: stuckMessages, error } = await supabase
     .from("wapi_messages")
-    .select("id, conversation_id, content, message_type, timestamp")
+    .select("id, conversation_id, timestamp")
     .eq("from_me", true)
     .eq("status", "sent")
     .is("stuck_alert_sent_at", null)
     .lte("timestamp", cutoff)
     .gte("timestamp", tooOld)
-    .limit(200);
+    .limit(500);
 
   if (error) {
     console.error("[follow-up-check] Erro ao buscar mensagens travadas:", error);
@@ -1944,68 +1953,142 @@ async function processStuckSentMessages({
   }
   if (!stuckMessages || stuckMessages.length === 0) return { successCount: 0, errors: [] };
 
-  // Agrupa por conversa: uma notificação por conversa, não uma por mensagem
-  const byConv = new Map<string, typeof stuckMessages>();
-  for (const m of stuckMessages) {
-    const arr = byConv.get(m.conversation_id) || [];
-    arr.push(m);
-    byConv.set(m.conversation_id, arr);
-  }
+  // Toda mensagem olhada aqui é marcada no fim, com ou sem alerta, para não ser
+  // reavaliada a cada execução.
+  const markChecked = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    const { error: markErr } = await supabase.from("wapi_messages").update({ stuck_alert_sent_at: nowIso }).in("id", ids);
+    if (markErr) errors.push(String(markErr));
+  };
 
+  const convIds = Array.from(new Set(stuckMessages.map((m: any) => m.conversation_id)));
   const { data: convs } = await supabase
     .from("wapi_conversations")
     .select("id, contact_name, contact_phone, remote_jid, instance_id, lead_id")
-    .in("id", Array.from(byConv.keys()));
+    .in("id", convIds);
   const convById = new Map((convs || []).map((c: any) => [c.id, c]));
 
   const instanceIds = Array.from(new Set((convs || []).map((c: any) => c.instance_id).filter(Boolean)));
   const { data: instances } = instanceIds.length
-    ? await supabase.from("wapi_instances").select("id, unit, company_id, is_active").in("id", instanceIds)
+    ? await supabase.from("wapi_instances").select("id, instance_id, instance_token, unit, company_id, is_active").in("id", instanceIds)
     : { data: [] as any[] };
   const instById = new Map((instances || []).map((i: any) => [i.id, i]));
 
-  for (const [convId, msgs] of byConv) {
-    const conv = convById.get(convId) as any;
-    const messageIds = msgs.map((m: any) => m.id);
-    if (!conv) {
-      // Conversa não encontrada (ex.: apagada) — marca como avisada para não tentar de novo
-      await supabase.from("wapi_messages").update({ stuck_alert_sent_at: new Date().toISOString() }).in("id", messageIds);
-      continue;
-    }
-    const inst = instById.get(conv.instance_id) as any;
-    // Número desativado (ver PR "Desativar número sem apagar histórico") ou sem
-    // instância: não faz sentido avisar de algo que não vai ser reenviado por aqui
-    if (!inst || inst.is_active === false) {
-      await supabase.from("wapi_messages").update({ stuck_alert_sent_at: new Date().toISOString() }).in("id", messageIds);
-      continue;
-    }
+  const { data: tmRows } = instanceIds.length
+    ? await supabase.from("wapi_bot_settings").select("instance_id, test_mode_enabled, test_mode_number").in("instance_id", instanceIds)
+    : { data: [] as any[] };
+  const tmByInstance = new Map((tmRows || []).map((t: any) => [t.instance_id, t]));
 
+  // Agrupa por NÚMERO do buffet: o alerta é sobre o número, não sobre cada cliente
+  type Group = { inst: any; msgIds: string[]; convs: Map<string, any>; oldest: string };
+  const groups = new Map<string, Group>();
+  const skipIds: string[] = [];
+  for (const m of stuckMessages as any[]) {
+    const conv = convById.get(m.conversation_id) as any;
+    const inst = conv ? instById.get(conv.instance_id) as any : null;
+    // Conversa apagada, número desativado ou sem instância: nada a avisar
+    if (!conv || !inst || inst.is_active === false) { skipIds.push(m.id); continue; }
+    const tm = tmByInstance.get(inst.id) as any;
+    if (shouldSkipTestMode(tm?.test_mode_enabled, tm?.test_mode_number, conv.remote_jid || "")) { skipIds.push(m.id); continue; }
+    const g: Group = groups.get(inst.id) || { inst, msgIds: [], convs: new Map(), oldest: m.timestamp };
+    g.msgIds.push(m.id);
+    g.convs.set(conv.id, conv);
+    if (m.timestamp < g.oldest) g.oldest = m.timestamp;
+    groups.set(inst.id, g);
+  }
+  await markChecked(skipIds);
+
+  for (const [instId, g] of groups) {
+    const inst = g.inst;
     try {
-      const { data: tmSettings } = await supabase
-        .from("wapi_bot_settings")
-        .select("test_mode_enabled, test_mode_number")
-        .eq("instance_id", conv.instance_id)
-        .maybeSingle();
-      if (shouldSkipTestMode(tmSettings?.test_mode_enabled, tmSettings?.test_mode_number, conv.remote_jid || "")) {
-        console.log(`[follow-up-check] 🧪 Test mode ativo — pulando alerta de mensagem travada para ${conv.remote_jid}`);
-        await supabase.from("wapi_messages").update({ stuck_alert_sent_at: new Date().toISOString() }).in("id", messageIds);
+      const { data: lastEvent } = await supabase
+        .from("wapi_webhook_raw_events")
+        .select("received_at")
+        .eq("instance_id", inst.instance_id)
+        .order("received_at", { ascending: false })
+        .limit(1);
+      const lastWebhookEventAt = lastEvent?.[0]?.received_at ?? null;
+      const decision = decideStuckAlert({ conversationCount: g.convs.size, lastWebhookEventAt, now: nowMs });
+
+      if (!decision.notify) {
+        // Só um ou dois clientes sem o segundo tique: normalmente é o celular do
+        // cliente desligado/sem internet — não é problema do número do buffet.
+        await markChecked(g.msgIds);
         continue;
       }
 
-      const oldestStuck = msgs.reduce((min: string, m: any) => (m.timestamp < min ? m.timestamp : min), msgs[0].timestamp);
-      const minutesStuck = Math.max(STUCK_MESSAGE_MINUTES, Math.round((Date.now() - new Date(oldestStuck).getTime()) / 60000));
-      const contactLabel = conv.contact_name || conv.contact_phone || "o contato";
-      const countLabel = msgs.length > 1 ? `${msgs.length} mensagens` : "1 mensagem";
+      const cooldownSince = new Date(nowMs - STUCK_INSTANCE_ALERT_COOLDOWN_MINUTES * 60 * 1000).toISOString();
+      const { data: recentAlert } = await supabase
+        .from("notifications")
+        .select("id")
+        .eq("company_id", inst.company_id)
+        .eq("type", "message_stuck")
+        .eq("data->>instance_id", instId)
+        .gte("created_at", cooldownSince)
+        .limit(1);
+      if (recentAlert && recentAlert.length > 0) {
+        console.log(`[follow-up-check] Alerta de mensagem travada para ${inst.unit} já enviado há pouco — só marcando`);
+        await markChecked(g.msgIds);
+        continue;
+      }
+
+      // Número mudo: o provedor costuma "perder" a configuração de webhook (ver
+      // src/lib/wapi-webhook-config.ts). Religa automaticamente antes de avisar.
+      let webhookReconfigured = false;
+      if (decision.webhookSilent) {
+        try {
+          const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/wapi-send`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              action: "configure-webhooks",
+              webhookUrl: `${Deno.env.get("SUPABASE_URL")}/functions/v1/wapi-webhook`,
+              instanceId: inst.instance_id,
+              instanceToken: inst.instance_token,
+            }),
+          });
+          const resBody = await res.json().catch(() => null);
+          webhookReconfigured = res.ok && resBody?.success !== false;
+          console.log(`[follow-up-check] 🔌 ${inst.unit} sem avisos do WhatsApp desde ${lastWebhookEventAt ?? "nunca"} — reconfigurar webhooks: ${webhookReconfigured ? "OK" : `falhou (${res.status} ${JSON.stringify(resBody)?.substring(0, 200)})`}`);
+        } catch (e) {
+          console.error(`[follow-up-check] Erro ao reconfigurar webhooks de ${inst.unit}:`, e);
+        }
+      }
+
+      const convList = Array.from(g.convs.values());
+      const contacts = formatContactList(convList.map((c: any) => c.contact_name || c.contact_phone || ""));
+      const unitLabel = inst.unit || "WhatsApp";
+      const minutesStuck = Math.max(STUCK_MESSAGE_MINUTES, Math.round((nowMs - new Date(g.oldest).getTime()) / 60000));
+      const countLabel = g.msgIds.length > 1 ? `${g.msgIds.length} mensagens` : "1 mensagem";
+
+      const title = decision.webhookSilent
+        ? `⚠️ ${unitLabel}: mensagens podem não estar chegando`
+        : `⚠️ ${unitLabel}: mensagens sem confirmação de entrega`;
+      const message = decision.webhookSilent
+        ? `O WhatsApp do ${unitLabel} parou de mandar avisos para a plataforma. Mensagens de clientes podem não aparecer aqui e ${countLabel} enviada(s) (${contacts}) seguem sem confirmação. ${webhookReconfigured ? "Já religamos a conexão automaticamente — se em alguns minutos continuar igual, reconecte o número pelo QR Code." : "Reconecte o número pelo QR Code."}`
+        : `${countLabel} para ${g.convs.size} contatos (${contacts}) sem confirmação de entrega há mais de ${minutesStuck} min. Pode ser instabilidade na conexão do número — vale conferir e reenviar.`;
 
       const targetUserIds = await resolveUnitNotificationTargets(supabase, inst.company_id, inst.unit);
       if (targetUserIds.length > 0) {
+        const single = convList.length === 1 ? convList[0] : null;
         const notifications = targetUserIds.map((uid: string) => ({
           user_id: uid,
           company_id: inst.company_id,
           type: "message_stuck",
-          title: "⚠️ Mensagem pode não ter chegado",
-          message: `${countLabel} para ${contactLabel} (${inst.unit || "sem unidade"}) sem confirmação de entrega há mais de ${minutesStuck} min. Pode ser queda de conexão do número na hora do envio — vale conferir e reenviar.`,
-          data: { conversation_id: convId, instance_id: conv.instance_id, unit: inst.unit, lead_id: conv.lead_id, message_ids: messageIds, contact_phone: conv.contact_phone },
+          title,
+          message,
+          data: {
+            instance_id: instId,
+            unit: inst.unit,
+            conversation_ids: convList.map((c: any) => c.id),
+            message_count: g.msgIds.length,
+            webhook_silent: decision.webhookSilent,
+            webhook_reconfigured: webhookReconfigured,
+            ...(single ? { conversation_id: single.id, lead_id: single.lead_id, contact_phone: single.contact_phone } : {}),
+          },
         }));
         const { error: notifErr } = await supabase.from("notifications").insert(notifications);
         if (notifErr) {
@@ -2015,18 +2098,11 @@ async function processStuckSentMessages({
         }
       }
 
-      const { error: markErr } = await supabase
-        .from("wapi_messages")
-        .update({ stuck_alert_sent_at: new Date().toISOString() })
-        .in("id", messageIds);
-      if (markErr) {
-        errors.push(String(markErr));
-        continue;
-      }
-      console.log(`[follow-up-check] ⚠️ Alerta de mensagem travada criado: conv ${convId} (${msgs.length} msg, ${minutesStuck} min)`);
+      await markChecked(g.msgIds);
+      console.log(`[follow-up-check] ⚠️ Alerta de mensagem travada: ${unitLabel} (${g.msgIds.length} msg em ${g.convs.size} conversas, webhook mudo=${decision.webhookSilent})`);
       successCount++;
     } catch (e) {
-      console.error(`[follow-up-check] Erro inesperado no alerta de mensagem travada (conv ${convId}):`, e);
+      console.error(`[follow-up-check] Erro inesperado no alerta de mensagem travada (instância ${instId}):`, e);
       errors.push(String(e));
     }
   }
