@@ -380,6 +380,14 @@ Deno.serve(async (req) => {
     // === INSTANCE HEALTH CHECK (auto-recovery) ===
     await processInstanceHealthCheck(supabase);
 
+    // Mensagem enviada mas nunca confirmada como entregue: avisa a equipe. Roda
+    // sempre, mesmo para empresas sem nenhum follow-up ligado (por isso fica antes
+    // do "return" logo abaixo, que só cobre as automações de follow-up).
+    const stuckResult = await processStuckSentMessages({ supabase });
+    if (stuckResult.errors.length > 0) {
+      console.error("[follow-up-check] Erros ao verificar mensagens travadas:", stuckResult.errors);
+    }
+
     // Fetch all bot settings with any follow-up enabled
     const { data: allSettings, error: settingsError } = await supabase
       .from("wapi_bot_settings")
@@ -1863,6 +1871,163 @@ async function processFlowTimerTimeouts({
     } catch (err) {
       console.error(`[follow-up-check] Error processing timer timeout for state ${state.id}:`, err);
       errors.push(`Timer error state ${state.id}: ${String(err)}`);
+    }
+  }
+
+  return { successCount, errors };
+}
+
+// ============= STUCK MESSAGE ALERTS (mensagem enviada mas nunca confirmada como entregue) =============
+//
+// "sent" é o status mais baixo (o WhatsApp só recebeu do provedor); se depois de
+// um tempo razoável ela não virou "delivered"/"read", o mais provável é que a
+// sessão do número caiu bem na hora do envio e a mensagem nunca chegou de verdade
+// ao cliente — sem isso, ninguém percebe até o cliente reclamar.
+
+const STUCK_MESSAGE_MINUTES = 15; // tempo sem confirmação para considerar "travada"
+const STUCK_MESSAGE_MAX_AGE_HOURS = 6; // não alerta de casos muito antigos (já esfriaram)
+
+async function resolveUnitNotificationTargets(
+  supabase: SupabaseAdmin,
+  companyId: string,
+  unit: string | null,
+): Promise<string[]> {
+  const { data: companyUsers } = await supabase
+    .from("user_companies")
+    .select("user_id")
+    .eq("company_id", companyId);
+  const companyUserIds = (companyUsers || []).map((u: any) => u.user_id);
+  if (companyUserIds.length === 0) return [];
+
+  const unitLower = (unit || "all").toLowerCase();
+  const unitPermission = `leads.unit.${unitLower}`;
+  const { data: perms } = await supabase
+    .from("user_permissions")
+    .select("user_id")
+    .or(`permission.eq.leads.unit.all,permission.eq.${unitPermission}`)
+    .eq("granted", true)
+    .in("user_id", companyUserIds);
+  const { data: adminRoles } = await supabase
+    .from("user_roles")
+    .select("user_id")
+    .eq("role", "admin")
+    .in("user_id", companyUserIds);
+
+  const ids = new Set<string>();
+  (perms || []).forEach((p: any) => ids.add(p.user_id));
+  (adminRoles || []).forEach((r: any) => ids.add(r.user_id));
+  return Array.from(ids);
+}
+
+async function processStuckSentMessages({
+  supabase,
+}: { supabase: SupabaseAdmin }): Promise<{ successCount: number; errors: string[] }> {
+  const errors: string[] = [];
+  let successCount = 0;
+
+  const cutoff = new Date(Date.now() - STUCK_MESSAGE_MINUTES * 60 * 1000).toISOString();
+  const tooOld = new Date(Date.now() - STUCK_MESSAGE_MAX_AGE_HOURS * 60 * 60 * 1000).toISOString();
+
+  const { data: stuckMessages, error } = await supabase
+    .from("wapi_messages")
+    .select("id, conversation_id, content, message_type, timestamp")
+    .eq("from_me", true)
+    .eq("status", "sent")
+    .is("stuck_alert_sent_at", null)
+    .lte("timestamp", cutoff)
+    .gte("timestamp", tooOld)
+    .limit(200);
+
+  if (error) {
+    console.error("[follow-up-check] Erro ao buscar mensagens travadas:", error);
+    return { successCount: 0, errors: [String(error)] };
+  }
+  if (!stuckMessages || stuckMessages.length === 0) return { successCount: 0, errors: [] };
+
+  // Agrupa por conversa: uma notificação por conversa, não uma por mensagem
+  const byConv = new Map<string, typeof stuckMessages>();
+  for (const m of stuckMessages) {
+    const arr = byConv.get(m.conversation_id) || [];
+    arr.push(m);
+    byConv.set(m.conversation_id, arr);
+  }
+
+  const { data: convs } = await supabase
+    .from("wapi_conversations")
+    .select("id, contact_name, contact_phone, remote_jid, instance_id, lead_id")
+    .in("id", Array.from(byConv.keys()));
+  const convById = new Map((convs || []).map((c: any) => [c.id, c]));
+
+  const instanceIds = Array.from(new Set((convs || []).map((c: any) => c.instance_id).filter(Boolean)));
+  const { data: instances } = instanceIds.length
+    ? await supabase.from("wapi_instances").select("id, unit, company_id, is_active").in("id", instanceIds)
+    : { data: [] as any[] };
+  const instById = new Map((instances || []).map((i: any) => [i.id, i]));
+
+  for (const [convId, msgs] of byConv) {
+    const conv = convById.get(convId) as any;
+    const messageIds = msgs.map((m: any) => m.id);
+    if (!conv) {
+      // Conversa não encontrada (ex.: apagada) — marca como avisada para não tentar de novo
+      await supabase.from("wapi_messages").update({ stuck_alert_sent_at: new Date().toISOString() }).in("id", messageIds);
+      continue;
+    }
+    const inst = instById.get(conv.instance_id) as any;
+    // Número desativado (ver PR "Desativar número sem apagar histórico") ou sem
+    // instância: não faz sentido avisar de algo que não vai ser reenviado por aqui
+    if (!inst || inst.is_active === false) {
+      await supabase.from("wapi_messages").update({ stuck_alert_sent_at: new Date().toISOString() }).in("id", messageIds);
+      continue;
+    }
+
+    try {
+      const { data: tmSettings } = await supabase
+        .from("wapi_bot_settings")
+        .select("test_mode_enabled, test_mode_number")
+        .eq("instance_id", conv.instance_id)
+        .maybeSingle();
+      if (shouldSkipTestMode(tmSettings?.test_mode_enabled, tmSettings?.test_mode_number, conv.remote_jid || "")) {
+        console.log(`[follow-up-check] 🧪 Test mode ativo — pulando alerta de mensagem travada para ${conv.remote_jid}`);
+        await supabase.from("wapi_messages").update({ stuck_alert_sent_at: new Date().toISOString() }).in("id", messageIds);
+        continue;
+      }
+
+      const oldestStuck = msgs.reduce((min: string, m: any) => (m.timestamp < min ? m.timestamp : min), msgs[0].timestamp);
+      const minutesStuck = Math.max(STUCK_MESSAGE_MINUTES, Math.round((Date.now() - new Date(oldestStuck).getTime()) / 60000));
+      const contactLabel = conv.contact_name || conv.contact_phone || "o contato";
+      const countLabel = msgs.length > 1 ? `${msgs.length} mensagens` : "1 mensagem";
+
+      const targetUserIds = await resolveUnitNotificationTargets(supabase, inst.company_id, inst.unit);
+      if (targetUserIds.length > 0) {
+        const notifications = targetUserIds.map((uid: string) => ({
+          user_id: uid,
+          company_id: inst.company_id,
+          type: "message_stuck",
+          title: "⚠️ Mensagem pode não ter chegado",
+          message: `${countLabel} para ${contactLabel} (${inst.unit || "sem unidade"}) sem confirmação de entrega há mais de ${minutesStuck} min. Pode ser queda de conexão do número na hora do envio — vale conferir e reenviar.`,
+          data: { conversation_id: convId, instance_id: conv.instance_id, unit: inst.unit, lead_id: conv.lead_id, message_ids: messageIds, contact_phone: conv.contact_phone },
+        }));
+        const { error: notifErr } = await supabase.from("notifications").insert(notifications);
+        if (notifErr) {
+          console.error("[follow-up-check] Erro ao criar alerta de mensagem travada:", notifErr);
+          errors.push(String(notifErr));
+          continue;
+        }
+      }
+
+      const { error: markErr } = await supabase
+        .from("wapi_messages")
+        .update({ stuck_alert_sent_at: new Date().toISOString() })
+        .in("id", messageIds);
+      if (markErr) {
+        errors.push(String(markErr));
+        continue;
+      }
+      console.log(`[follow-up-check] ⚠️ Alerta de mensagem travada criado: conv ${convId} (${msgs.length} msg, ${minutesStuck} min)`);
+      successCount++;
+    } catch (e) {
+      console.error(`[follow-up-check] Erro inesperado no alerta de mensagem travada (conv ${convId}):`, e);
+      errors.push(String(e));
     }
   }
 
