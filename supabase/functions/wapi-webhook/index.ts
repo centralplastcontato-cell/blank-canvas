@@ -7151,6 +7151,12 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
       pushName: contactName,
       senderName: contactName,
       chat: body.chatName ? { name: body.chatName } : undefined,
+      // Z-API manda o número real junto com o identificador @lid do contato.
+      // Repassar estes campos deixa o webhook gravar o par @lid ↔ telefone, e
+      // assim as mensagens que a equipe manda pelo celular (que chegam só com o
+      // @lid) caem na conversa certa em vez de serem descartadas.
+      ...(typeof body.chatLid === 'string' ? { chatLid: body.chatLid } : {}),
+      ...(typeof body.senderLid === 'string' ? { senderLid: body.senderLid } : {}),
       message: quotedContext
         ? Object.fromEntries(
           Object.entries(message).map(([key, value]) => [
