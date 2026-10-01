@@ -4,6 +4,7 @@ import { normalizeJid, type NormalizedJid } from "../_shared/jid-normalizer.ts";
 import { maybeHandleWithAiAgent } from "./ai-agent.ts";
 import { findLeadByPhone } from "../_shared/lead-phone.ts";
 import { detectWhatsAppReturn } from "../_shared/lead-return.ts";
+import { isLiveReplyToBotQuestion } from "../_shared/reconnect-quarantine.ts";
 import { collectStatusMessageIds, isPlayedStatus, mapProviderMessageStatus, statusUpdateFilter } from "../_shared/message-status.ts";
 
 const corsHeaders = {
@@ -6309,7 +6310,27 @@ async function processWebhookEvent(body: JsonRecord) {
         },
         latency_ms: Date.now() - processingStartAt,
       });
-      const existingConversationReconnectQuarantine = isExistingConversationInReconnectQuarantine(instance as JsonRecord, conv as JsonRecord);
+      let existingConversationReconnectQuarantine = isExistingConversationInReconnectQuarantine(instance as JsonRecord, conv as JsonRecord);
+      if (existingConversationReconnectQuarantine && !fromMe && !reconnectHistoryReplay) {
+        // Resposta nova a uma pergunta recente do robô não é reenvio do WhatsApp
+        const { data: lastBotMsg } = await supabase.from('wapi_messages')
+          .select('timestamp')
+          .eq('conversation_id', conv.id)
+          .eq('from_me', true)
+          .order('timestamp', { ascending: false })
+          .limit(1);
+        if (isLiveReplyToBotQuestion({
+          fromMe: false,
+          botEnabled: (conv as JsonRecord).bot_enabled,
+          botStep: (conv as JsonRecord).bot_step,
+          lastBotMessageAt: lastBotMsg?.[0]?.timestamp ?? null,
+          incomingAt: messageTimestamp,
+          now: Date.now(),
+        })) {
+          console.log(`[Webhook] ✅ Reconnect quarantine bypassed: live reply to recent bot question (conv=${conv.id}, step=${(conv as JsonRecord).bot_step})`);
+          existingConversationReconnectQuarantine = false;
+        }
+      }
       if (existingConversationReconnectQuarantine) {
         console.warn(`[Webhook] 🚫 Existing conversation inside reconnect quarantine; message will be saved but automation skipped (conv=${conv.id}, connectedAt=${instance.connected_at})`);
       }
