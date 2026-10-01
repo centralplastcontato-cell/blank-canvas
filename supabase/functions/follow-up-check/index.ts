@@ -3,6 +3,7 @@ import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { findLeadByPhone } from "../_shared/lead-phone.ts";
 import { fetchLastReturns, leadsWithActionSinceReturn } from "../_shared/lead-return.ts";
 import { decideStuckAlert, formatContactList } from "../_shared/stuck-alert.ts";
+import { BOT_STEPS_WAITING_ANSWER, botShouldHaveAnswered, UNANSWERED_MAX_AGE_HOURS, UNANSWERED_MINUTES } from "../_shared/unanswered-bot.ts";
 
 type SupabaseAdmin = any;
 
@@ -387,6 +388,12 @@ Deno.serve(async (req) => {
     const stuckResult = await processStuckSentMessages({ supabase });
     if (stuckResult.errors.length > 0) {
       console.error("[follow-up-check] Erros ao verificar mensagens travadas:", stuckResult.errors);
+    }
+
+    // Cliente respondeu e o robô não continuou: pausa e avisa a equipe
+    const unansweredResult = await processUnansweredBotConversations({ supabase });
+    if (unansweredResult.errors.length > 0) {
+      console.error("[follow-up-check] Erros ao verificar clientes sem resposta do robô:", unansweredResult.errors);
     }
 
     // Fetch all bot settings with any follow-up enabled
@@ -2113,6 +2120,99 @@ async function processStuckSentMessages({
       successCount++;
     } catch (e) {
       console.error(`[follow-up-check] Erro inesperado no alerta de mensagem travada (instância ${instId}):`, e);
+      errors.push(String(e));
+    }
+  }
+
+  return { successCount, errors };
+}
+
+// ============= CLIENTE SEM RESPOSTA DO ROBÔ (rede de segurança) =============
+//
+// Regras em _shared/unanswered-bot.ts. Pega qualquer causa: reconexão do número,
+// mensagem que a plataforma não consegue ler ("[Mensagem]"), falha nova.
+
+async function processUnansweredBotConversations({
+  supabase,
+}: { supabase: SupabaseAdmin }): Promise<{ successCount: number; errors: string[] }> {
+  const errors: string[] = [];
+  let successCount = 0;
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+  const cutoff = new Date(nowMs - UNANSWERED_MINUTES * 60 * 1000).toISOString();
+  const oldest = new Date(nowMs - UNANSWERED_MAX_AGE_HOURS * 60 * 60 * 1000).toISOString();
+
+  const { data: convs, error } = await supabase
+    .from("wapi_conversations")
+    .select("id, instance_id, lead_id, contact_name, contact_phone, remote_jid, bot_step, last_message_at")
+    .eq("bot_enabled", true)
+    .in("bot_step", BOT_STEPS_WAITING_ANSWER)
+    .eq("last_message_from_me", false)
+    .lte("last_message_at", cutoff)
+    .gte("last_message_at", oldest)
+    .not("remote_jid", "like", "%@g.us%")
+    .or(`bot_paused_until.is.null,bot_paused_until.lt.${nowIso}`)
+    .limit(100);
+
+  if (error) {
+    console.error("[follow-up-check] Erro ao buscar conversas sem resposta do robô:", error);
+    return { successCount: 0, errors: [String(error)] };
+  }
+  if (!convs || convs.length === 0) return { successCount: 0, errors: [] };
+
+  const instanceIds = Array.from(new Set(convs.map((c: any) => c.instance_id).filter(Boolean)));
+  const { data: instances } = await supabase
+    .from("wapi_instances")
+    .select("id, unit, company_id, is_active")
+    .in("id", instanceIds);
+  const instById = new Map((instances || []).map((i: any) => [i.id, i]));
+  const { data: settingsRows } = await supabase
+    .from("wapi_bot_settings")
+    .select("instance_id, bot_enabled, test_mode_enabled, test_mode_number")
+    .in("instance_id", instanceIds);
+  const settingsByInstance = new Map((settingsRows || []).map((s: any) => [s.instance_id, s]));
+
+  for (const conv of convs as any[]) {
+    try {
+      const inst = instById.get(conv.instance_id) as any;
+      if (!inst || inst.is_active === false) continue;
+      const s = settingsByInstance.get(conv.instance_id) as any;
+      const isTestNumber = !!s?.test_mode_enabled && !!s?.test_mode_number && !shouldSkipTestMode(true, s.test_mode_number, conv.remote_jid || "");
+      if (!botShouldHaveAnswered(s, isTestNumber)) continue;
+
+      // Pausa atômica: só a primeira execução que pegar essa mensagem avisa a equipe
+      const pausedUntil = new Date(nowMs + 24 * 3600 * 1000).toISOString();
+      const { data: claimed } = await supabase
+        .from("wapi_conversations")
+        .update({ bot_paused_until: pausedUntil, bot_paused_reason: "unanswered_handover", bot_paused_at: nowIso })
+        .eq("id", conv.id)
+        .eq("last_message_from_me", false)
+        .eq("last_message_at", conv.last_message_at)
+        .or(`bot_paused_until.is.null,bot_paused_until.lt.${nowIso}`)
+        .select("id");
+      if (!claimed || claimed.length === 0) continue;
+
+      const name = conv.contact_name || conv.contact_phone || "Cliente";
+      const unitLabel = inst.unit || "WhatsApp";
+      const targetUserIds = await resolveUnitNotificationTargets(supabase, inst.company_id, inst.unit);
+      if (targetUserIds.length > 0) {
+        const { error: notifErr } = await supabase.from("notifications").insert(
+          targetUserIds.map((uid: string) => ({
+            user_id: uid,
+            company_id: inst.company_id,
+            type: "lead_needs_human",
+            title: "🤝 Cliente ficou sem resposta do robô",
+            message: `${name} respondeu no ${unitLabel} e o robô não continuou a conversa. O robô foi pausado nela — assuma o atendimento.`,
+            data: { conversation_id: conv.id, lead_id: conv.lead_id, contact_phone: conv.contact_phone, unit: inst.unit, reason: "bot_unanswered", bot_step: conv.bot_step },
+            read: false,
+          })),
+        );
+        if (notifErr) errors.push(String(notifErr));
+      }
+      console.log(`[follow-up-check] 🤝 Cliente sem resposta do robô: conv ${conv.id} (${unitLabel}, step ${conv.bot_step}) — pausado e equipe avisada`);
+      successCount++;
+    } catch (e) {
+      console.error(`[follow-up-check] Erro na conversa sem resposta ${conv.id}:`, e);
       errors.push(String(e));
     }
   }
