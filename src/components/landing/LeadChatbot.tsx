@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Send, Loader2, MessageCircle, MapPin, Smile } from "lucide-react";
 import { campaignConfig } from "@/config/campaignConfig";
 import { originLabel, originWelcomeIntro } from "@/lib/landingOrigin";
+import { captureLandingUtms } from "@/lib/landingUtm";
+import { trackMetaPixelEvent } from "@/lib/metaPixel";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import logoCastelo from "@/assets/logo-castelo.png";
@@ -70,6 +72,8 @@ const DEFAULT_MONTH_OPTIONS = ["Fevereiro", "Março", "Abril", "Maio", "Junho", 
 
 export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLogo, companyWhatsApp, lpBotConfig, unitOptions, interestContext, origem }: LeadChatbotProps) {
   const [messages, setMessages] = useState<Message[]>([]);
+  // UTMs do anúncio: lidas ao abrir a página (a URL pode mudar até o envio do lead)
+  const [initialUtms] = useState(captureLandingUtms);
   const [currentStep, setCurrentStep] = useState(0);
   const [leadData, setLeadData] = useState<LeadData>({});
   const [inputValue, setInputValue] = useState("");
@@ -94,6 +98,8 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
   const isDynamic = !!companyName;
   const displayName = companyName || "Castelo da Diversão";
   const displayLogo = isDynamic ? companyLogo : logoCastelo;
+  // Visual novo só no chat do Castelo; as LPs dos outros buffets ficam como estão
+  const castelo = !isDynamic;
 
   const emojis = [
     "😀","😂","😍","🥰","😎","🤩","😇","🥳","😘","😜",
@@ -579,6 +585,8 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
             company_id: effectiveCompanyId,
           };
           if (origem) body.origem = origem;
+          const utms = captureLandingUtms() ?? initialUtms;
+          if (utms) body.utm = utms;
           if (isRedirected) {
             body.status = 'transferido';
             body.observacoes = `Redirecionado para ${lpBotConfig?.guest_limit_redirect_name || 'buffet parceiro'} - acima de ${lpBotConfig?.guest_limit} convidados`;
@@ -591,6 +599,8 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         };
         
         const resolvedUnit = await submitLead(leadData.unit!);
+        // Pixel da Meta: só dispara nas LPs que carregaram o Pixel (hoje, a do Castelo)
+        trackMetaPixelEvent("Lead");
 
         // Send welcome message(s) in background
         const redirectInfo = isRedirected ? {
@@ -693,18 +703,28 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="bg-gradient-hero p-4 flex items-center justify-between">
+          <div
+            className={castelo ? "p-4 flex items-center justify-between" : "bg-gradient-hero p-4 flex items-center justify-between"}
+            style={castelo ? { background: "linear-gradient(110deg, #E91E63 0%, #C2185B 45%, #F57C00 100%)" } : undefined}
+          >
             <div className="flex items-center gap-3">
-              {displayLogo && (
+              {displayLogo && (castelo ? (
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-full bg-white shadow-md ring-2 ring-white/60 flex items-center justify-center overflow-hidden">
+                    <img src={displayLogo} alt={displayName} className="w-10 h-auto" />
+                  </div>
+                  <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-green-400 ring-2 ring-white" />
+                </div>
+              ) : (
                 <img 
                   src={displayLogo} 
                   alt={displayName} 
                   className="h-10 w-auto rounded-lg"
                 />
-              )}
+              ))}
               <div>
-                <h3 className="font-display font-bold bg-gradient-to-r from-yellow-300 via-white to-pink-200 bg-clip-text text-transparent drop-shadow-sm">{displayName}</h3>
-                <p className="text-sm text-white/90">Online agora</p>
+                <h3 className={castelo ? "font-display font-bold text-white text-lg leading-tight" : "font-display font-bold bg-gradient-to-r from-yellow-300 via-white to-pink-200 bg-clip-text text-transparent drop-shadow-sm"}>{displayName}</h3>
+                <p className="text-sm text-white/90">{castelo ? "Online agora · resposta rápida" : "Online agora"}</p>
               </div>
             </div>
             <button
@@ -716,28 +736,43 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div
+            className="flex-1 overflow-y-auto p-4 space-y-4"
+            style={castelo ? { background: "linear-gradient(180deg, #FFF5F9 0%, #FFFDF5 100%)" } : undefined}
+          >
             <AnimatePresence>
               {messages.map((message) => (
                 <motion.div
                   key={message.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}
+                  className={`flex ${message.type === "user" ? "justify-end" : "justify-start"} ${castelo ? "items-end gap-2" : ""}`}
                 >
+                  {castelo && message.type === "bot" && (
+                    <div className="w-8 h-8 flex-shrink-0 rounded-full bg-white shadow ring-1 ring-pink-100 flex items-center justify-center overflow-hidden">
+                      <img src={logoCastelo} alt="" className="w-7 h-auto" />
+                    </div>
+                  )}
                   <div
-                    className={`max-w-[80%] rounded-2xl p-4 ${
-                      message.type === "user"
-                        ? "bg-primary text-primary-foreground rounded-br-md"
-                        : "bg-muted text-foreground rounded-bl-md"
+                    className={`${castelo ? "max-w-[85%]" : "max-w-[80%]"} rounded-2xl p-4 ${
+                      castelo
+                        ? message.type === "user"
+                          ? "text-white rounded-br-md shadow-md"
+                          : "bg-white text-foreground rounded-bl-md shadow-sm ring-1 ring-pink-100"
+                        : message.type === "user"
+                          ? "bg-primary text-primary-foreground rounded-br-md"
+                          : "bg-muted text-foreground rounded-bl-md"
                     }`}
+                    style={castelo && message.type === "user" ? { background: "linear-gradient(110deg, #E91E63, #F57C00)" } : undefined}
                   >
                     <p className="whitespace-pre-line">{message.content}</p>
                     {message.options && (
                       <div className={`mt-3 ${
                         message.id === "day-of-month" 
                           ? "" 
-                          : "flex flex-wrap gap-2"
+                          : castelo && message.options.length >= 6
+                            ? "grid grid-cols-3 gap-2"
+                            : "flex flex-wrap gap-2"
                       }`}>
                         {message.id === "day-of-month" && (
                           <div className="grid grid-cols-7 gap-1 mb-1">
@@ -764,10 +799,14 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
                                 }
                                 className={`${
                                   message.id === "day-of-month"
-                                    ? "bg-card text-foreground w-9 h-9 rounded-lg text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm flex items-center justify-center"
+                                    ? castelo
+                                      ? "bg-pink-50 text-foreground w-9 h-9 rounded-lg text-sm font-semibold ring-1 ring-pink-100 hover:bg-[#E91E63] hover:text-white transition-colors flex items-center justify-center"
+                                      : "bg-card text-foreground w-9 h-9 rounded-lg text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm flex items-center justify-center"
                                     : isPromoMonth
                                       ? "bg-gradient-to-r from-primary to-festive text-primary-foreground px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-all shadow-md ring-2 ring-primary/30"
-                                      : "bg-card text-foreground px-4 py-2 rounded-full text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"
+                                      : castelo
+                                        ? "bg-white text-[#AD1457] px-1 sm:px-3 py-2.5 rounded-xl text-[13px] sm:text-sm font-semibold whitespace-nowrap ring-1 ring-pink-200 shadow-sm hover:bg-[#E91E63] hover:text-white hover:ring-[#E91E63] hover:-translate-y-0.5 active:scale-95 transition-all"
+                                        : "bg-card text-foreground px-4 py-2 rounded-full text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"
                                 }`}
                               >
                                 {isPromoMonth ? `🎉 ${option}` : option}
@@ -840,7 +879,8 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
                 <button
                   onClick={handleInputSubmit}
                   disabled={isSaving}
-                  className="bg-primary text-primary-foreground p-3 rounded-full hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  className={castelo ? "text-white p-3 rounded-full shadow-md hover:scale-105 transition-transform disabled:opacity-50" : "bg-primary text-primary-foreground p-3 rounded-full hover:bg-primary/90 transition-colors disabled:opacity-50"}
+                  style={castelo ? { background: "linear-gradient(110deg, #E91E63, #F57C00)" } : undefined}
                 >
                   {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                 </button>

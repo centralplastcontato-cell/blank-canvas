@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { findLeadByPhone } from "../_shared/lead-phone.ts";
+import { formatLeadUtm, sanitizeLeadUtm } from "../_shared/lead-utm.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -133,6 +134,8 @@ Deno.serve(async (req) => {
     // Origem da visita na LP (ex.: "mesa" do QR Code). Opcional; valor fora do formato é ignorado.
     const rawOrigem = typeof body.origem === 'string' ? body.origem.trim().toLowerCase() : '';
     const origem = /^[a-z0-9_-]{1,32}$/.test(rawOrigem) ? rawOrigem : null;
+    // UTMs do anúncio que trouxe a visita (opcional)
+    const utm = sanitizeLeadUtm(body.utm);
 
     // Validate all inputs
     const nameValidation = validateName(name);
@@ -360,7 +363,7 @@ Deno.serve(async (req) => {
         action: 'Lead retornou pela Landing Page',
         old_value: `Status atual: ${existingLead.status}`,
         // A origem original do lead não é alterada; o retorno por outra origem só fica registrado aqui
-        new_value: `${returnCount + 1}ª vez | ${changeSummary}${origem ? ` | Voltou pela origem: ${origem}` : ''}`,
+        new_value: `${returnCount + 1}ª vez | ${changeSummary}${origem ? ` | Voltou pela origem: ${origem}` : ''}${utm ? ` | Anúncio: ${formatLeadUtm(utm)}` : ''}`,
       });
 
       console.log(`Returning lead updated: ${name.trim()} - ${normalizedPhone} (company: ${company_id})`);
@@ -380,12 +383,25 @@ Deno.serve(async (req) => {
         observacoes: observacoes || null,
       };
       if (origem) leadRow.origem = origem;
+      if (utm) Object.assign(leadRow, utm);
 
       let { data: newLead, error: insertError } = await supabase
         .from('campaign_leads')
         .insert(leadRow)
         .select('id')
         .single();
+
+      // Se as colunas de UTM ainda não existirem no banco, o lead não pode se perder:
+      // grava sem as UTMs e segue.
+      if (insertError && utm && String(insertError.message || '').includes('utm_')) {
+        console.error('Colunas de UTM indisponíveis; gravando lead sem UTM:', insertError.message);
+        for (const key of Object.keys(utm)) delete leadRow[key];
+        ({ data: newLead, error: insertError } = await supabase
+          .from('campaign_leads')
+          .insert(leadRow)
+          .select('id')
+          .single());
+      }
 
       // Se a coluna "origem" ainda não existir no banco, o lead não pode se perder:
       // grava sem a origem e segue.
