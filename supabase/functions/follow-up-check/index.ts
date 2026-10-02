@@ -2239,18 +2239,21 @@ const OWNER_ALERT_PHONE = "5515981121710";
 const OWNER_ALERT_COOLDOWN_HOURS = 3;
 const CASTELO_COMPANY_ID = "a0000000-0000-0000-0000-000000000001";
 
+type OwnerAlertKind = "silent" | "disconnected" | "degraded";
+
 async function sendOwnerSilentInstanceAlert(
   supabase: SupabaseAdmin,
   inst: { id: string; unit: string | null; company_id: string },
   instId: string,
   lastWebhookEventAt: string | null,
+  kind: OwnerAlertKind = "silent",
 ): Promise<boolean> {
   try {
     const since = new Date(Date.now() - OWNER_ALERT_COOLDOWN_HOURS * 3600 * 1000).toISOString();
     const { data: recent } = await supabase
       .from("notifications")
       .select("id")
-      .eq("type", "message_stuck")
+      .in("type", ["message_stuck", "instance_disconnected", "instance_degraded"])
       .eq("data->>instance_id", instId)
       .eq("data->>owner_whatsapp_sent", "true")
       .gte("created_at", since)
@@ -2277,11 +2280,13 @@ async function sendOwnerSilentInstanceAlert(
     const sinceLabel = lastWebhookEventAt
       ? new Date(lastWebhookEventAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
       : "algumas horas";
-    const text =
-      `⚠️ *Celebrei — número sem receber mensagens*\n\n` +
-      `${company?.name || "Buffet"} · *${inst.unit || "WhatsApp"}* parou de receber mensagens na plataforma desde ${sinceLabel}.\n\n` +
-      `As mensagens que a plataforma envia saem, mas as dos clientes não aparecem.\n\n` +
-      `👉 Reconecte: no celular do número, WhatsApp → Dispositivos conectados → Desconectar; depois leia o QR Code no Hub.`;
+    const who = `${company?.name || "Buffet"} · *${inst.unit || "WhatsApp"}*`;
+    const reconnect = `👉 Reconecte: no celular do número, WhatsApp → Dispositivos conectados → Desconectar; depois leia o QR Code no Hub.`;
+    const text = kind === "disconnected"
+      ? `🔴 *Celebrei — número desconectado*\n\n${who} está desconectado do WhatsApp. Nada entra nem sai pela plataforma.\n\n${reconnect}`
+      : kind === "degraded"
+        ? `⚠️ *Celebrei — sessão incompleta*\n\n${who} está com a sessão do WhatsApp incompleta: as mensagens podem não ser entregues.\n\n${reconnect}`
+        : `⚠️ *Celebrei — número sem receber mensagens*\n\n${who} parou de receber mensagens na plataforma desde ${sinceLabel}.\n\nAs mensagens que a plataforma envia saem, mas as dos clientes não aparecem.\n\n${reconnect}`;
 
     const sent = await providerSendText(sender, OWNER_ALERT_PHONE, text);
     if (!sent.ok) {
@@ -2314,11 +2319,51 @@ async function sendOwnerSilentInstanceAlert(
         }, { onConflict: "conversation_id,message_id", ignoreDuplicates: true });
       }
     }
-    console.log(`[follow-up-check] 📲 Dono avisado no WhatsApp: ${inst.unit} mudo (via ${sender.unit})`);
+    console.log(`[follow-up-check] 📲 Dono avisado no WhatsApp: ${inst.unit} (${kind}, via ${sender.unit})`);
     return true;
   } catch (e) {
     console.error("[follow-up-check] Erro ao avisar o dono no WhatsApp:", e);
     return false;
+  }
+}
+
+
+// Número desconectado: avisa a equipe da empresa (sininho) e o dono no WhatsApp.
+// No máximo uma vez a cada 6h por número.
+async function notifyInstanceDisconnected(
+  supabase: SupabaseAdmin,
+  inst: { id: string; instance_id: string; unit: string | null; company_id: string },
+): Promise<void> {
+  try {
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+    const { data: recent } = await supabase
+      .from("notifications")
+      .select("id")
+      .eq("type", "instance_disconnected")
+      .eq("data->>instance_id", inst.id)
+      .gte("created_at", sixHoursAgo)
+      .limit(1);
+    if (recent && recent.length > 0) return;
+
+    const unitName = inst.unit || inst.instance_id || "WhatsApp";
+    const ownerWhatsAppSent = await sendOwnerSilentInstanceAlert(supabase, inst, inst.id, null, "disconnected");
+    const { data: companyUsers } = await supabase
+      .from("user_companies")
+      .select("user_id")
+      .eq("company_id", inst.company_id);
+    if (companyUsers && companyUsers.length > 0) {
+      await supabase.from("notifications").insert(companyUsers.map((u: { user_id: string }) => ({
+        user_id: u.user_id,
+        company_id: inst.company_id,
+        type: "instance_disconnected",
+        title: "⚠️ WhatsApp desconectado",
+        message: `WhatsApp da unidade ${unitName} perdeu conexão. Reconecte via QR Code em Configurações.`,
+        data: { instance_id: inst.id, instance_name: unitName, owner_whatsapp_sent: ownerWhatsAppSent },
+      })));
+    }
+    console.log(`[health-check] Disconnect notification sent for ${inst.instance_id} (dono avisado: ${ownerWhatsAppSent})`);
+  } catch (e) {
+    console.error(`[health-check] Erro ao avisar desconexão de ${inst.instance_id}:`, e);
   }
 }
 
@@ -3466,6 +3511,7 @@ async function processInstanceHealthCheck(
 
         if (!recentNotif || recentNotif.length === 0) {
           const unitName = inst.unit || inst.instance_id || "WhatsApp";
+          const ownerWhatsAppSent = await sendOwnerSilentInstanceAlert(supabase, inst, inst.id, null, "degraded");
           const { data: companyUsers } = await supabase
             .from("user_companies")
             .select("user_id")
@@ -3478,7 +3524,7 @@ async function processInstanceHealthCheck(
               type: "instance_degraded",
               title: "⚠️ WhatsApp em modo degradado",
               message: `A instância ${unitName} está funcionando parcialmente. Alguns recursos podem estar limitados.`,
-              data: { instance_id: inst.id, instance_name: unitName },
+              data: { instance_id: inst.id, instance_name: unitName, owner_whatsapp_sent: ownerWhatsAppSent },
             }));
             await supabase.from("notifications").insert(notifications);
             console.log(`[health-check] Degraded notification sent for ${inst.instance_id}`);
@@ -3503,6 +3549,7 @@ async function processInstanceHealthCheck(
           .from("wapi_instances")
           .update({ status: "disconnected" })
           .eq("id", inst.id);
+        await notifyInstanceDisconnected(supabase, inst);
         continue;
       }
 
@@ -3558,36 +3605,7 @@ async function processInstanceHealthCheck(
           })
           .eq("id", inst.id);
 
-        // Send notification only once per disconnect event (check recent 6h)
-        const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
-        const { data: recentDisconnectNotif } = await supabase
-          .from("notifications")
-          .select("id")
-          .eq("company_id", inst.company_id)
-          .eq("type", "instance_disconnected")
-          .gte("created_at", sixHoursAgo)
-          .limit(1);
-
-        if (!recentDisconnectNotif || recentDisconnectNotif.length === 0) {
-          const unitName = inst.unit || inst.instance_id || "WhatsApp";
-          const { data: companyUsers } = await supabase
-            .from("user_companies")
-            .select("user_id")
-            .eq("company_id", inst.company_id);
-
-          if (companyUsers && companyUsers.length > 0) {
-            const notifications = companyUsers.map((u: { user_id: string }) => ({
-              user_id: u.user_id,
-              company_id: inst.company_id,
-              type: "instance_disconnected",
-              title: "⚠️ WhatsApp desconectado",
-              message: `WhatsApp da unidade ${unitName} perdeu conexão. Reconecte via QR Code em Configurações.`,
-              data: { instance_id: inst.id, instance_name: unitName },
-            }));
-            await supabase.from("notifications").insert(notifications);
-            console.log(`[health-check] Disconnect notification sent to ${companyUsers.length} users for ${inst.instance_id}`);
-          }
-        }
+        await notifyInstanceDisconnected(supabase, inst);
       }
       // If already disconnected, just log - don't spam notifications
       else if (inst.status === "disconnected") {
