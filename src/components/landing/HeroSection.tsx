@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { Star, Crown } from "lucide-react";
 import fachada1 from "@/assets/fachada-unidade-2.jpg";
@@ -5,6 +6,8 @@ import mascoteCastelo from "@/assets/mascote-castelo.png";
 
 interface HeroSectionProps {
   onCtaClick: () => void;
+  /** Selo de promoção exibido logo abaixo do título (opcional). */
+  promoBadge?: ReactNode;
 }
 
 const stats = [
@@ -16,7 +19,7 @@ const stats = [
 // Cores festivas do Castelo
 const FESTIVE_COLORS = ["#E91E63", "#FF5722", "#FFC107", "#4CAF50", "#2196F3", "#9C27B0"];
 
-export function HeroSection({ onCtaClick }: HeroSectionProps) {
+export function HeroSection({ onCtaClick, promoBadge }: HeroSectionProps) {
   return (
     <section
       className="relative min-h-[100dvh] flex items-center justify-center overflow-hidden"
@@ -119,6 +122,16 @@ export function HeroSection({ onCtaClick }: HeroSectionProps) {
               vai lembrar pra sempre
             </span>
           </motion.h1>
+
+          {promoBadge && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5, duration: 0.6 }}
+            >
+              {promoBadge}
+            </motion.div>
+          )}
 
           {/* Subtitle */}
           <motion.p

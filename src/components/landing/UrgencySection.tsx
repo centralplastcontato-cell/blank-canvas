@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { CalendarClock, Sparkles } from "lucide-react";
 import { campaignConfig } from "@/config/campaignConfig";
+import { CASTELO_WHATSAPP_PROMO_URL } from "@/lib/childrensMonthPromo";
 
 interface UrgencySectionProps {
   onCtaClick: () => void;
@@ -124,8 +125,16 @@ export function UrgencySection({ onCtaClick }: UrgencySectionProps) {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.98 }}
           >
-            📅 Consultar datas no WhatsApp
+            📅 Consultar datas
           </motion.button>
+          <a
+            href={CASTELO_WHATSAPP_PROMO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 block text-sm text-accent-foreground/75 underline underline-offset-4 hover:text-accent-foreground"
+          >
+            Prefere falar direto no WhatsApp?
+          </a>
         </motion.div>
       </div>
     </section>

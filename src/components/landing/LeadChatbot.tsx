@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Send, Loader2, MessageCircle, MapPin, Smile } from "lucide-react";
 import { campaignConfig } from "@/config/campaignConfig";
 import { originLabel, originWelcomeIntro } from "@/lib/landingOrigin";
+import { captureLandingUtms } from "@/lib/landingUtm";
+import { trackMetaPixelEvent } from "@/lib/metaPixel";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import logoCastelo from "@/assets/logo-castelo.png";
@@ -70,6 +72,8 @@ const DEFAULT_MONTH_OPTIONS = ["Fevereiro", "Março", "Abril", "Maio", "Junho", 
 
 export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLogo, companyWhatsApp, lpBotConfig, unitOptions, interestContext, origem }: LeadChatbotProps) {
   const [messages, setMessages] = useState<Message[]>([]);
+  // UTMs do anúncio: lidas ao abrir a página (a URL pode mudar até o envio do lead)
+  const [initialUtms] = useState(captureLandingUtms);
   const [currentStep, setCurrentStep] = useState(0);
   const [leadData, setLeadData] = useState<LeadData>({});
   const [inputValue, setInputValue] = useState("");
@@ -579,6 +583,8 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
             company_id: effectiveCompanyId,
           };
           if (origem) body.origem = origem;
+          const utms = captureLandingUtms() ?? initialUtms;
+          if (utms) body.utm = utms;
           if (isRedirected) {
             body.status = 'transferido';
             body.observacoes = `Redirecionado para ${lpBotConfig?.guest_limit_redirect_name || 'buffet parceiro'} - acima de ${lpBotConfig?.guest_limit} convidados`;
@@ -591,6 +597,8 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         };
         
         const resolvedUnit = await submitLead(leadData.unit!);
+        // Pixel da Meta: só dispara nas LPs que carregaram o Pixel (hoje, a do Castelo)
+        trackMetaPixelEvent("Lead");
 
         // Send welcome message(s) in background
         const redirectInfo = isRedirected ? {
