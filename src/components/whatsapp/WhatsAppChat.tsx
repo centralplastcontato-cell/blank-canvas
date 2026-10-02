@@ -3,6 +3,7 @@ import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { formatMessageContent } from "@/lib/format-message";
 import { LEAD_STATUS_COLORS, type LeadStatus } from "@/types/crm";
 import { supabase } from "@/integrations/supabase/client";
+import { SilentInstanceBanner } from "@/components/whatsapp/SilentInstanceBanner";
 
 // Helper: retry automático para chamadas à Edge Function wapi-send
 async function invokeWithRetry(
@@ -4651,6 +4652,9 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
           )}
         </div>
       )}
+
+      {/* Número que parou de receber mensagens (alerta do follow-up-check) */}
+      <SilentInstanceBanner />
 
       {/* Disconnected warning - Premium styled */}
       {showDisconnectedBanner && (

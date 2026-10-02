@@ -2088,6 +2088,12 @@ async function processStuckSentMessages({
         ? `O WhatsApp do ${unitLabel} parou de mandar avisos para a plataforma. Mensagens de clientes podem não aparecer aqui e ${countLabel} enviada(s) (${contacts}) seguem sem confirmação. ${webhookReconfigured ? "Já religamos a conexão automaticamente — se em alguns minutos continuar igual, reconecte o número pelo QR Code." : "Reconecte o número pelo QR Code."}`
         : `${countLabel} para ${g.convs.size} contatos (${contacts}) sem confirmação de entrega há mais de ${minutesStuck} min. Pode ser instabilidade na conexão do número — vale conferir e reenviar.`;
 
+      // Número mudo: avisa também o dono da plataforma no WhatsApp (no máximo a cada 3h por número)
+      let ownerWhatsAppSent = false;
+      if (decision.webhookSilent) {
+        ownerWhatsAppSent = await sendOwnerSilentInstanceAlert(supabase, inst, instId, lastWebhookEventAt);
+      }
+
       const targetUserIds = await resolveUnitNotificationTargets(supabase, inst.company_id, inst.unit);
       if (targetUserIds.length > 0) {
         const single = convList.length === 1 ? convList[0] : null;
@@ -2104,6 +2110,8 @@ async function processStuckSentMessages({
             message_count: g.msgIds.length,
             webhook_silent: decision.webhookSilent,
             webhook_reconfigured: webhookReconfigured,
+            last_webhook_event_at: lastWebhookEventAt,
+            owner_whatsapp_sent: ownerWhatsAppSent,
             ...(single ? { conversation_id: single.id, lead_id: single.lead_id, contact_phone: single.contact_phone } : {}),
           },
         }));
@@ -2218,6 +2226,100 @@ async function processUnansweredBotConversations({
   }
 
   return { successCount, errors };
+}
+
+
+// ============= AVISO NO WHATSAPP DO DONO QUANDO UM NÚMERO FICA MUDO =============
+//
+// A notificação no sininho passou horas sem ninguém ver (VENDAS 1, 02/10). Quando
+// um número para de mandar avisos à plataforma, o dono recebe uma mensagem no
+// WhatsApp, enviada por um número Z-API saudável.
+
+const OWNER_ALERT_PHONE = "5515981121710";
+const OWNER_ALERT_COOLDOWN_HOURS = 3;
+const CASTELO_COMPANY_ID = "a0000000-0000-0000-0000-000000000001";
+
+async function sendOwnerSilentInstanceAlert(
+  supabase: SupabaseAdmin,
+  inst: { id: string; unit: string | null; company_id: string },
+  instId: string,
+  lastWebhookEventAt: string | null,
+): Promise<boolean> {
+  try {
+    const since = new Date(Date.now() - OWNER_ALERT_COOLDOWN_HOURS * 3600 * 1000).toISOString();
+    const { data: recent } = await supabase
+      .from("notifications")
+      .select("id")
+      .eq("type", "message_stuck")
+      .eq("data->>instance_id", instId)
+      .eq("data->>owner_whatsapp_sent", "true")
+      .gte("created_at", since)
+      .limit(1);
+    if (recent && recent.length > 0) return false;
+
+    // Remetente: número Z-API conectado (prefere o do Castelo), nunca o próprio número mudo
+    const { data: senders } = await supabase
+      .from("wapi_instances")
+      .select("id, instance_id, instance_token, client_token, provider, company_id, unit")
+      .eq("provider", "zapi")
+      .eq("is_active", true)
+      .eq("status", "connected")
+      .neq("id", instId);
+    const sender = (senders || []).sort((a: any, b: any) =>
+      (a.company_id === CASTELO_COMPANY_ID ? 0 : 1) - (b.company_id === CASTELO_COMPANY_ID ? 0 : 1)
+    )[0] as any;
+    if (!sender) {
+      console.warn("[follow-up-check] Sem número Z-API saudável para avisar o dono no WhatsApp");
+      return false;
+    }
+
+    const { data: company } = await supabase.from("companies").select("name").eq("id", inst.company_id).maybeSingle();
+    const sinceLabel = lastWebhookEventAt
+      ? new Date(lastWebhookEventAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+      : "algumas horas";
+    const text =
+      `⚠️ *Celebrei — número sem receber mensagens*\n\n` +
+      `${company?.name || "Buffet"} · *${inst.unit || "WhatsApp"}* parou de receber mensagens na plataforma desde ${sinceLabel}.\n\n` +
+      `As mensagens que a plataforma envia saem, mas as dos clientes não aparecem.\n\n` +
+      `👉 Reconecte: no celular do número, WhatsApp → Dispositivos conectados → Desconectar; depois leia o QR Code no Hub.`;
+
+    const sent = await providerSendText(sender, OWNER_ALERT_PHONE, text);
+    if (!sent.ok) {
+      console.error("[follow-up-check] Falha ao avisar o dono no WhatsApp:", sent.error);
+      return false;
+    }
+
+    // Grava a mensagem na conversa (se existir) antes do eco do webhook: sem isso
+    // o webhook acha que foi digitada no celular e desliga o robô dessa conversa.
+    if (sent.messageId) {
+      const variants = [OWNER_ALERT_PHONE, OWNER_ALERT_PHONE.slice(0, 4) + OWNER_ALERT_PHONE.slice(5)]
+        .map((p) => `${p}@s.whatsapp.net`);
+      const { data: conv } = await supabase
+        .from("wapi_conversations")
+        .select("id")
+        .eq("instance_id", sender.id)
+        .in("remote_jid", variants)
+        .limit(1);
+      if (conv && conv[0]) {
+        await supabase.from("wapi_messages").upsert({
+          conversation_id: conv[0].id,
+          message_id: sent.messageId,
+          from_me: true,
+          message_type: "text",
+          content: text,
+          status: "sent",
+          timestamp: new Date().toISOString(),
+          company_id: sender.company_id,
+          metadata: { source: "system_alert" },
+        }, { onConflict: "conversation_id,message_id", ignoreDuplicates: true });
+      }
+    }
+    console.log(`[follow-up-check] 📲 Dono avisado no WhatsApp: ${inst.unit} mudo (via ${sender.unit})`);
+    return true;
+  } catch (e) {
+    console.error("[follow-up-check] Erro ao avisar o dono no WhatsApp:", e);
+    return false;
+  }
 }
 
 // ============= STALE REMINDED ALERTS (notify when lead stuck at proximo_passo_reminded for 2h+) =============
