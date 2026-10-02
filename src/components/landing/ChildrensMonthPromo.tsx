@@ -2,8 +2,8 @@ import { motion } from "framer-motion";
 import { CreditCard, PartyPopper, CalendarClock, Check } from "lucide-react";
 import { useCountdown } from "@/lib/childrensMonthPromo";
 
-// Arte da campanha (MC3), otimizada para web
-export const CHILDRENS_MONTH_IMAGE = "/images/promo/mes-das-criancas-mc3.webp";
+// Arte da campanha (realidade virtual), otimizada para web
+export const CHILDRENS_MONTH_IMAGE = "/images/promo/mes-das-criancas-vr.webp";
 
 const PINK = "#E91E63";
 const GOLD = "#FFC107";
