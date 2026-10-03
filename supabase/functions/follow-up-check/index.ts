@@ -2233,7 +2233,7 @@ async function processUnansweredBotConversations({
 //
 // A notificação no sininho passou horas sem ninguém ver (VENDAS 1, 02/10). Quando
 // um número para de mandar avisos à plataforma, o dono recebe uma mensagem no
-// WhatsApp, enviada por um número Z-API saudável.
+// WhatsApp, enviada por outro número do próprio Castelo (nunca de buffet cliente).
 
 const OWNER_ALERT_PHONE = "5515981121710";
 const OWNER_ALERT_COOLDOWN_HOURS = 3;
@@ -2260,19 +2260,20 @@ async function sendOwnerSilentInstanceAlert(
       .limit(1);
     if (recent && recent.length > 0) return false;
 
-    // Remetente: número Z-API conectado (prefere o do Castelo), nunca o próprio número mudo
+    // Remetente: SEMPRE um número do próprio Castelo (nunca de um buffet cliente),
+    // conectado e diferente do número com problema. Z-API primeiro (não tem caído).
     const { data: senders } = await supabase
       .from("wapi_instances")
       .select("id, instance_id, instance_token, client_token, provider, company_id, unit")
-      .eq("provider", "zapi")
+      .eq("company_id", CASTELO_COMPANY_ID)
       .eq("is_active", true)
       .eq("status", "connected")
       .neq("id", instId);
     const sender = (senders || []).sort((a: any, b: any) =>
-      (a.company_id === CASTELO_COMPANY_ID ? 0 : 1) - (b.company_id === CASTELO_COMPANY_ID ? 0 : 1)
+      (a.provider === "zapi" ? 0 : 1) - (b.provider === "zapi" ? 0 : 1)
     )[0] as any;
     if (!sender) {
-      console.warn("[follow-up-check] Sem número Z-API saudável para avisar o dono no WhatsApp");
+      console.warn("[follow-up-check] Nenhum número do Castelo conectado para avisar o dono no WhatsApp");
       return false;
     }
 
