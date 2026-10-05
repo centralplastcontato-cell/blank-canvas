@@ -177,6 +177,24 @@ async function loadSettings(supabase: any, companyId: string): Promise<AiSetting
   return (data as AiSettings) || null;
 }
 
+// Número de teste da IA (Modo de Teste ligado e o telefone bate)
+function isAiTestNumber(settings: AiSettings, phone: string): boolean {
+  if (!settings.test_mode_enabled || !(settings.test_mode_number || '').replace(/\D/g, '')) return false;
+  const testVariants = getPhoneVariantsBR(settings.test_mode_number || '');
+  return getPhoneVariantsBR(phone).some(v => testVariants.includes(v));
+}
+
+// Para o webhook: a mensagem veio do número de teste da IA desta unidade? Ele
+// é o celular do dono testando — não passa pela trava anti-loop (mandar
+// "#reiniciar" ou perguntas repetidas é normal no teste).
+export async function isAiTestPhoneFor(supabase: any, instance: AgentInstance, phone: string): Promise<boolean> {
+  if (!instance.company_id || !instance.unit) return false;
+  const settings = await loadSettings(supabase, instance.company_id);
+  if (!settings?.enabled) return false;
+  if ((settings.unit || '').trim().toLowerCase() !== instance.unit.trim().toLowerCase()) return false;
+  return isAiTestNumber(settings, phone);
+}
+
 const teamHoursOf = (settings: AiSettings): ParsedHours =>
   parseVisitHours((settings.team_hours || '').trim() || settings.visit_hours);
 
@@ -1041,10 +1059,7 @@ export async function maybeHandleWithAiAgent(
     // Modo de Teste da IA: enquanto ligado, ela só conversa com este número.
     // Para qualquer outro, devolve false e a conversa segue com o bot fixo
     // normalmente — nada muda para os clientes de verdade.
-    const aiTestVariants = getPhoneVariantsBR(settings.test_mode_number || '');
-    const incomingVariants = getPhoneVariantsBR(phone);
-    const isAiTestPhone = !!settings.test_mode_enabled && !!(settings.test_mode_number || '').replace(/\D/g, '')
-      && incomingVariants.some(v => aiTestVariants.includes(v));
+    const isAiTestPhone = isAiTestNumber(settings, phone);
     if (settings.test_mode_enabled && !isAiTestPhone) {
       console.log(`[AI Agent] Modo de Teste da IA ligado — ${phone} não é o número de teste, seguindo com o bot fixo`);
       return false;
@@ -1061,15 +1076,22 @@ export async function maybeHandleWithAiAgent(
         ai_materials_sent: {},
         ai_handoff: null,
         ai_auto_materials_at: null,
+        ai_materials_busy_until: null,
         nome: null,
         mes: null,
         convidados: null,
       } as Json;
+      // Limpa também qualquer pausa (trava anti-loop, passagem do bot fixo...):
+      // conversa pausada nem chega na IA.
       await supabase.from('wapi_conversations').update({
         bot_step: AI_STEP,
         bot_enabled: true,
         bot_data: newBotData,
+        bot_paused_until: null,
+        bot_paused_reason: null,
+        bot_paused_at: null,
       }).eq('id', conv.id);
+      console.log(`[AI Agent] #reiniciar no número de teste — conversa ${conv.id} zerada (passagem e pausas limpas)`);
       conv.bot_step = AI_STEP;
       conv.bot_enabled = true;
       conv.bot_data = newBotData;

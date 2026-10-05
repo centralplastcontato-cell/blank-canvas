@@ -32,14 +32,21 @@ export interface OutgoingRow {
   metadata: Record<string, unknown> | null;
 }
 
+// Até esta data as mensagens da IA saíam gravadas como "platform", iguais às
+// da equipe pelo Celebrei — antes dela, "platform" não prova resposta humana.
+export const AI_SOURCE_MARKED_SINCE = "2026-10-05T23:10:00Z";
+
 // Alguém da equipe respondeu depois da passagem? Mensagens do Celebrei
 // (metadata.source "platform") e do celular (sem metadata) contam; follow-up
-// automático e avisos do sistema não.
+// automático, avisos do sistema e a própria IA não.
 export function teamRepliedAfter(rows: OutgoingRow[], sinceIso: string): boolean {
   const since = Date.parse(sinceIso);
+  const markedSince = Date.parse(AI_SOURCE_MARKED_SINCE);
   return rows.some((r) => {
-    if (!r.from_me || Date.parse(r.timestamp) <= since) return false;
+    const at = Date.parse(r.timestamp);
+    if (!r.from_me || at <= since) return false;
     const source = typeof r.metadata?.source === "string" ? r.metadata.source as string : null;
+    if (source === "platform" && at < markedSince) return false; // pode ser a IA antiga
     return !source || !AUTOMATED_SOURCES.has(source);
   });
 }

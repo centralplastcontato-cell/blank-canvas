@@ -1,7 +1,7 @@
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { detectAndPauseBotLoop, isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { normalizeJid, type NormalizedJid } from "../_shared/jid-normalizer.ts";
-import { maybeHandleWithAiAgent } from "./ai-agent.ts";
+import { isAiTestPhoneFor, maybeHandleWithAiAgent } from "./ai-agent.ts";
 import { sendQualificationMaterials as sendQualificationMaterialsShared } from "./qualification-materials.ts";
 import { findLeadByPhone } from "../_shared/lead-phone.ts";
 import { detectWhatsAppReturn } from "../_shared/lead-return.ts";
@@ -6416,8 +6416,12 @@ async function processWebhookEvent(body: JsonRecord) {
           }
 
           // ── BOT LOOP GUARD: detect and silently pause bot↔bot ping-pong ──
-          const loopResult = await detectAndPauseBotLoop(supabase, conv.id, content);
-          const alreadyPaused = loopResult.paused || await isConversationPaused(supabase, conv.id);
+          // O número de teste da IA (celular do dono) não passa pela trava, e o
+          // "#reiniciar" dele sempre chega na IA — que limpa qualquer pausa.
+          const aiTestPhone = await isAiTestPhoneFor(supabase, instance, phone);
+          const loopResult = aiTestPhone ? { paused: false } as Awaited<ReturnType<typeof detectAndPauseBotLoop>> : await detectAndPauseBotLoop(supabase, conv.id, content);
+          const alreadyPaused = loopResult.paused
+            || (!(aiTestPhone && isPilotRestartCommand(content)) && await isConversationPaused(supabase, conv.id));
           if (alreadyPaused) {
             console.warn(`[Bot] ⏸ Conversation ${conv.id} is paused (loop guard) — skipping bot reply`);
             // Notifica admins apenas quando a pausa foi recém-criada (loopResult.paused),
