@@ -3,7 +3,7 @@
 
 // Espera antes de responder: mensagens que chegam nesse intervalo são
 // respondidas juntas, numa resposta só.
-export const AI_DEBOUNCE_MS = 9000;
+export const AI_DEBOUNCE_MS = 10000;
 
 export interface IncomingRow {
   message_id: string | null;
@@ -42,4 +42,23 @@ export function teamRepliedAfter(rows: OutgoingRow[], sinceIso: string): boolean
     const source = typeof r.metadata?.source === "string" ? r.metadata.source as string : null;
     return !source || !AUTOMATED_SOURCES.has(source);
   });
+}
+
+export interface Turn {
+  role: "user" | "assistant";
+  content: string;
+}
+
+// Junta mensagens seguidas do mesmo lado numa só (o cliente costuma mandar
+// várias perguntas picadas) e conta quantas do cliente estão sem resposta.
+export function mergeConsecutiveTurns<T extends Turn>(turns: T[]): { merged: T[]; pendingUserMessages: number } {
+  const merged: T[] = [];
+  for (const t of turns) {
+    const last = merged[merged.length - 1];
+    if (last && last.role === t.role) last.content = `${last.content}\n${t.content}`;
+    else merged.push({ ...t });
+  }
+  let pending = 0;
+  for (let i = turns.length - 1; i >= 0 && turns[i].role === "user"; i--) pending++;
+  return { merged, pendingUserMessages: pending };
 }
