@@ -46,6 +46,9 @@ jobs:
             FILTER_SQL="and event_message like '%${SAFE}%'"
           fi
           SQL="select timestamp, event_message from logs where source_name = 'function_logs' ${FILTER_SQL} order by timestamp asc limit 1000"
+          RAW_SQL=$(jq -r '.sql // ""' .github/function-logs-request.json 2>/dev/null || true)
+          if [ -n "$RAW_SQL" ] && [ -z "${{ github.event.inputs.start }}" ]; then SQL="$RAW_SQL"; fi
+          echo "SQL: $SQL"
           curl -sS -G "https://api.supabase.com/v1/projects/rsezgnkfhodltrsewlhz/analytics/endpoints/logs" \
             -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
             --data-urlencode "sql=${SQL}" \
@@ -56,4 +59,4 @@ jobs:
           if [ "$(jq '(.result // []) | length' logs.json 2>/dev/null)" = "0" ] || ! jq -e . logs.json >/dev/null 2>&1; then
             head -c 3000 logs.json; echo
           fi
-          jq -r '(.result // [])[] | "\(.timestamp) \(.event_message)"' logs.json | head -n 1000
+          jq -c '(.result // [])[]' logs.json | head -n 1000
