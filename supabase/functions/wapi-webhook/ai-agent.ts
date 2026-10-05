@@ -210,9 +210,21 @@ function teamHoursMessage(settings: AiSettings, nowMs = Date.now()): string {
 type MaterialTipo = 'fotos' | 'video' | 'pacotes';
 const MATERIAL_LABEL: Record<MaterialTipo, string> = { fotos: 'fotos do espaço', video: 'vídeo de apresentação', pacotes: 'PDF de pacotes' };
 
+// Material conta como "já enviado" só por 30 dias: lead que volta depois disso
+// recebe o material (atualizado) de novo.
+const MATERIAL_RESEND_DAYS = 30;
+const materialWindowStart = () => new Date(Date.now() - MATERIAL_RESEND_DAYS * 86400000).toISOString();
+const isWithinMaterialWindow = (iso: unknown) =>
+  typeof iso === 'string' && Date.parse(iso) >= Date.now() - MATERIAL_RESEND_DAYS * 86400000;
+
 function sentMaterials(conv: AgentConv): Partial<Record<MaterialTipo, string>> {
   const raw = (conv.bot_data as Json | null)?.ai_materials_sent;
-  return raw && typeof raw === 'object' ? raw as Partial<Record<MaterialTipo, string>> : {};
+  if (!raw || typeof raw !== 'object') return {};
+  const out: Partial<Record<MaterialTipo, string>> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (isWithinMaterialWindow(v)) out[k as MaterialTipo] = v as string;
+  }
+  return out;
 }
 
 const fmtTimeBR = (iso: string) => new Date(iso).toLocaleString('pt-BR', {
@@ -629,8 +641,8 @@ async function loadSalesMaterials(supabase: any, instance: AgentInstance): Promi
   return fallback.data || [];
 }
 
-// Materiais que JÁ estão na conversa (qualquer envio anterior, da IA, do bot
-// fixo ou da equipe), pelo link do arquivo — vale mesmo depois de #reiniciar.
+// Materiais que JÁ estão na conversa nos últimos 30 dias (qualquer envio, da
+// IA, do bot fixo ou da equipe), pelo link do arquivo — vale mesmo depois de #reiniciar.
 async function materialsAlreadyInChat(
   supabase: any,
   conv: AgentConv,
@@ -649,6 +661,7 @@ async function materialsAlreadyInChat(
     .eq('conversation_id', conv.id)
     .eq('from_me', true)
     .in('media_url', Array.from(urlType.keys()))
+    .gte('timestamp', materialWindowStart())
     .limit(50);
   const found: Partial<Record<MaterialTipo, boolean>> = {};
   for (const r of (data || []) as Array<{ media_url: string }>) {
@@ -683,7 +696,7 @@ async function toolEnviarMateriais(
     const inChat = await materialsAlreadyInChat(supabase, conv, materials);
     if (inChat[tipo]) {
       console.log(`[AI Agent] ${tipo} já está na conversa (envio anterior) — não reenviando`);
-      return `JÁ ENVIADO: o ${MATERIAL_LABEL[tipo]} já foi enviado antes nesta conversa. Não reenvie; responda a pergunta do cliente normalmente. Só use reenviar=true se o cliente pedir explicitamente para mandar de novo.`;
+      return `JÁ ENVIADO: o ${MATERIAL_LABEL[tipo]} já foi enviado nesta conversa nos últimos ${MATERIAL_RESEND_DAYS} dias. Não reenvie; responda a pergunta do cliente normalmente. Só use reenviar=true se o cliente pedir explicitamente para mandar de novo.`;
     }
   }
 
@@ -772,7 +785,7 @@ async function toolRegistrarDados(
 
   const missing = [!bd.mes && 'mês da festa', !bd.convidados && 'número de convidados'].filter(Boolean);
   if (missing.length > 0) return `OK: dados salvos. Ainda falta descobrir: ${missing.join(' e ')}.`;
-  if (bd.ai_auto_materials_at) {
+  if (isWithinMaterialWindow(bd.ai_auto_materials_at)) {
     return 'OK: dados salvos. Os materiais automáticos já foram enviados antes nesta conversa — não reenvie.';
   }
 
