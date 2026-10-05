@@ -4,6 +4,8 @@ import { findLeadByPhone } from "../_shared/lead-phone.ts";
 import { fetchLastReturns, leadsWithActionSinceReturn } from "../_shared/lead-return.ts";
 import { decideStuckAlert, formatContactList } from "../_shared/stuck-alert.ts";
 import { decideDegradedAlert } from "../_shared/degraded-alert.ts";
+import { businessMinutesBetween, parseVisitHours } from "../_shared/business-hours.ts";
+import { teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { BOT_STEPS_WAITING_ANSWER, botShouldHaveAnswered, UNANSWERED_MAX_AGE_HOURS, UNANSWERED_MINUTES } from "../_shared/unanswered-bot.ts";
 
 type SupabaseAdmin = any;
@@ -395,6 +397,12 @@ Deno.serve(async (req) => {
     const unansweredResult = await processUnansweredBotConversations({ supabase });
     if (unansweredResult.errors.length > 0) {
       console.error("[follow-up-check] Erros ao verificar clientes sem resposta do robô:", unansweredResult.errors);
+    }
+
+    // IA passou para a equipe e ninguém respondeu em X min de expediente: alerta forte
+    const handoffResult = await processAiHandoffAlerts({ supabase });
+    if (handoffResult.errors.length > 0) {
+      console.error("[follow-up-check] Erros no alerta de passagem da IA:", handoffResult.errors);
     }
 
     // Fetch all bot settings with any follow-up enabled
@@ -2140,6 +2148,191 @@ async function processStuckSentMessages({
 //
 // Regras em _shared/unanswered-bot.ts. Pega qualquer causa: reconexão do número,
 // mensagem que a plataforma não consegue ler ("[Mensagem]"), falha nova.
+
+// ============= ALERTA FORTE: PASSAGEM DA IA SEM RESPOSTA DA EQUIPE =============
+// A IA (beta) marca bot_data.ai_handoff = { at, reason, lead_name, alerted_at }
+// ao passar a conversa. Se ninguém da equipe responder em
+// ai_agent_settings.handoff_alert_minutes (padrão 10) minutos DENTRO do
+// horário de atendimento (team_hours; vazio = horário de visitas), manda um
+// WhatsApp para ai_agent_settings.handoff_alert_phone (a partir de um número
+// da própria empresa) e um novo aviso no sininho. Um alerta por passagem.
+const DEFAULT_HANDOFF_ALERT_MINUTES = 10;
+
+async function processAiHandoffAlerts({
+  supabase,
+}: { supabase: SupabaseAdmin }): Promise<{ sent: number; errors: string[] }> {
+  const errors: string[] = [];
+  let sent = 0;
+  const nowMs = Date.now();
+  const oldest = new Date(nowMs - 3 * 86400000).toISOString();
+
+  const { data: convs, error } = await supabase
+    .from("wapi_conversations")
+    .select("id, instance_id, lead_id, contact_name, contact_phone, remote_jid, bot_data")
+    .eq("bot_step", "human_takeover")
+    .not("bot_data->ai_handoff->>at", "is", null)
+    .is("bot_data->ai_handoff->>alerted_at", null)
+    .gte("last_message_at", oldest)
+    .limit(100);
+  if (error) return { sent, errors: [String(error.message || error)] };
+  if (!convs || convs.length === 0) return { sent, errors };
+
+  const settingsByCompany = new Map<string, any>();
+  for (const conv of convs as any[]) {
+    try {
+      const handoff = conv.bot_data?.ai_handoff || {};
+      const at = String(handoff.at || "");
+      if (!at) continue;
+
+      const { data: inst } = await supabase
+        .from("wapi_instances")
+        .select("id, unit, company_id")
+        .eq("id", conv.instance_id)
+        .maybeSingle();
+      if (!inst) continue;
+      if (!settingsByCompany.has(inst.company_id)) {
+        const { data: st } = await supabase.from("ai_agent_settings").select("*").eq("company_id", inst.company_id).maybeSingle();
+        settingsByCompany.set(inst.company_id, st || null);
+      }
+      const settings = settingsByCompany.get(inst.company_id);
+      if (!settings) continue;
+      const minutes = Number(settings.handoff_alert_minutes) || DEFAULT_HANDOFF_ALERT_MINUTES;
+      const hours = parseVisitHours(String(settings.team_hours || "").trim() || settings.visit_hours);
+
+      const markAlerted = async (value: string) => {
+        const { data: fresh } = await supabase.from("wapi_conversations").select("bot_data").eq("id", conv.id).maybeSingle();
+        const bd = (fresh?.bot_data || {}) as Record<string, any>;
+        if (!bd.ai_handoff || bd.ai_handoff.alerted_at) return false;
+        await supabase.from("wapi_conversations")
+          .update({ bot_data: { ...bd, ai_handoff: { ...bd.ai_handoff, alerted_at: value } } })
+          .eq("id", conv.id);
+        return true;
+      };
+
+      // Equipe respondeu depois da passagem? Encerra sem alerta.
+      const { data: outgoing } = await supabase
+        .from("wapi_messages")
+        .select("from_me, timestamp, metadata")
+        .eq("conversation_id", conv.id)
+        .eq("from_me", true)
+        .gt("timestamp", at)
+        .limit(20);
+      if (teamRepliedAfter((outgoing || []) as any[], at)) {
+        await markAlerted(`respondido`);
+        continue;
+      }
+
+      const waited = businessMinutesBetween(hours, Date.parse(at), nowMs);
+      if (waited < minutes) continue;
+      if (!(await markAlerted(new Date(nowMs).toISOString()))) continue;
+
+      const { data: lastIn } = await supabase
+        .from("wapi_messages")
+        .select("content, message_type")
+        .eq("conversation_id", conv.id)
+        .eq("from_me", false)
+        .order("timestamp", { ascending: false })
+        .limit(1);
+      const lastText = lastIn?.[0]
+        ? (lastIn[0].message_type === "text" ? String(lastIn[0].content || "") : `[${lastIn[0].message_type}]`).slice(0, 160)
+        : "";
+      const clientPhone = String(conv.contact_phone || conv.remote_jid || "").replace(/@.*/, "");
+      const name = handoff.lead_name || conv.contact_name || clientPhone;
+      const unitLabel = inst.unit || "WhatsApp";
+      const atLabel = new Date(at).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
+      const text = `🚨 *Cliente sem resposta — ${unitLabel}*\n\n` +
+        `A IA passou *${name}* (${clientPhone}) para a equipe às ${atLabel} e ninguém respondeu há ${waited} min de expediente.\n` +
+        `Motivo: ${handoff.reason || "—"}` +
+        (lastText ? `\nÚltima mensagem do cliente: "${lastText}"` : "") +
+        `\n\n👉 Responda agora pela Central de Atendimento do Celebrei ou pelo celular do ${unitLabel}.`;
+
+      const alertPhone = String(settings.handoff_alert_phone || "").replace(/\D/g, "");
+      let whatsappSent = false;
+      if (alertPhone.length >= 10) {
+        whatsappSent = await sendHandoffAlertWhatsApp(supabase, inst, alertPhone.startsWith("55") ? alertPhone : `55${alertPhone}`, text);
+      } else {
+        console.warn(`[follow-up-check] Alerta de passagem sem WhatsApp configurado (empresa ${inst.company_id}) — só sininho`);
+      }
+
+      const targetUserIds = await resolveUnitNotificationTargets(supabase, inst.company_id, inst.unit);
+      if (targetUserIds.length > 0) {
+        await supabase.from("notifications").insert(targetUserIds.map((uid: string) => ({
+          user_id: uid,
+          company_id: inst.company_id,
+          type: "lead_needs_human",
+          title: `🚨 Cliente sem resposta há ${waited} min`,
+          message: `${name} (${unitLabel}) foi passado pela IA às ${atLabel} e ninguém respondeu. Responda agora!`,
+          data: { conversation_id: conv.id, lead_id: conv.lead_id || handoff.lead_id || null, contact_phone: clientPhone, unit: inst.unit, reason: "ai_handoff_unanswered", owner_whatsapp_sent: whatsappSent },
+          read: false,
+        })));
+      }
+      console.log(`[follow-up-check] 🚨 Passagem da IA sem resposta: conv ${conv.id} (${unitLabel}, ${waited} min) — WhatsApp: ${whatsappSent}`);
+      sent++;
+    } catch (e) {
+      errors.push(String(e));
+    }
+  }
+  return { sent, errors };
+}
+
+// Remetente do alerta: número da PRÓPRIA empresa, conectado; prefere um
+// diferente do que atende a conversa (para não misturar com o atendimento)
+// e Z-API primeiro. Grava a mensagem antes do eco para o webhook não achar
+// que alguém digitou no celular.
+async function sendHandoffAlertWhatsApp(
+  supabase: SupabaseAdmin,
+  inst: { id: string; company_id: string },
+  phone: string,
+  text: string,
+): Promise<boolean> {
+  try {
+    const { data: candidates } = await supabase
+      .from("wapi_instances")
+      .select("id, instance_id, instance_token, client_token, provider, company_id, unit")
+      .eq("company_id", inst.company_id)
+      .eq("is_active", true)
+      .eq("status", "connected");
+    const sender = ((candidates || []) as any[]).sort((a, b) =>
+      ((a.id === inst.id ? 1 : 0) - (b.id === inst.id ? 1 : 0)) ||
+      ((a.provider === "zapi" ? 0 : 1) - (b.provider === "zapi" ? 0 : 1))
+    )[0];
+    if (!sender) {
+      console.warn(`[follow-up-check] Nenhum número conectado da empresa ${inst.company_id} para mandar o alerta de passagem`);
+      return false;
+    }
+    const res = await providerSendText(sender, phone, text);
+    if (!res.ok) {
+      console.error("[follow-up-check] Falha no alerta de passagem pelo WhatsApp:", res.error);
+      return false;
+    }
+    if (res.messageId) {
+      const variants = [phone, phone.length === 13 ? phone.slice(0, 4) + phone.slice(5) : phone].map((p) => `${p}@s.whatsapp.net`);
+      const { data: c } = await supabase
+        .from("wapi_conversations")
+        .select("id")
+        .eq("instance_id", sender.id)
+        .in("remote_jid", variants)
+        .limit(1);
+      if (c && c[0]) {
+        await supabase.from("wapi_messages").upsert({
+          conversation_id: c[0].id,
+          message_id: res.messageId,
+          from_me: true,
+          message_type: "text",
+          content: text,
+          status: "sent",
+          timestamp: new Date().toISOString(),
+          company_id: sender.company_id,
+          metadata: { source: "system_alert" },
+        }, { onConflict: "conversation_id,message_id", ignoreDuplicates: true });
+      }
+    }
+    return true;
+  } catch (e) {
+    console.error("[follow-up-check] Erro no alerta de passagem:", e);
+    return false;
+  }
+}
 
 async function processUnansweredBotConversations({
   supabase,

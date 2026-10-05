@@ -6690,7 +6690,7 @@ async function processWebhookEvent(body: JsonRecord) {
           try {
             // Configurações do bot deste número (modo de teste vale também para a IA)
             const aiBotSettings = await getBotSettings(supabase, instance.id);
-            const aiHandled = await maybeHandleWithAiAgent(supabase, instance, conv, content, phone, cName as string | null, aiBotSettings);
+            const aiHandled = await maybeHandleWithAiAgent(supabase, instance, conv, content, phone, cName as string | null, aiBotSettings, undefined, msgId ? String(msgId) : null);
             if (aiHandled) {
               fireTrace(supabase, 'bot_dispatch', {
                 tracking_id: rawWebhookEventId,
