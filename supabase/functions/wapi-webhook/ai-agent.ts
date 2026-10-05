@@ -27,6 +27,7 @@ import {
   slotKey,
 } from "../_shared/business-hours.ts";
 import { AI_DEBOUNCE_MS, pickLatestIncoming } from "../_shared/ai-turn.ts";
+import { sendQualificationMaterials } from "./qualification-materials.ts";
 
 type Json = Record<string, unknown>;
 
@@ -380,6 +381,8 @@ REGRAS INEGOCIÁVEIS:
 4. Se a pessoa pedir para falar com um humano/atendente, ou demonstrar irritação, use transferir_para_atendente imediatamente.
 5. Não diga que você é uma IA a menos que perguntem diretamente; se perguntarem, admita com naturalidade.
 
+DADOS DA FESTA: sempre que o cliente informar nome, mês da festa ou número de convidados, chame registrar_dados_festa. Assim que mês e convidados estiverem registrados, o sistema envia sozinho fotos, vídeo e PDF de pacotes — não chame enviar_materiais para eles depois disso; só comente brevemente e convide para a visita.
+
 MATERIAIS (ferramenta enviar_materiais):
 - Cada material vai NO MÁXIMO UMA VEZ por conversa. O PDF de pacotes só quando o cliente perguntar de valores/preços/pacotes — nunca em resposta a outras perguntas.
 - Só reenvie (reenviar=true) se o cliente pedir EXPLICITAMENTE para mandar de novo.
@@ -396,6 +399,18 @@ ${settings.extra_instructions ? `\nINFORMAÇÕES DO BUFFET (use somente isto com
 }
 
 const TOOLS: ToolDef[] = [
+  {
+    name: 'registrar_dados_festa',
+    description: 'Registra no sistema o nome, o mês da festa e o número de convidados assim que o cliente informar (pode chamar com só um deles). Quando mês e convidados estiverem registrados, o sistema envia AUTOMATICAMENTE fotos, vídeo e PDF de pacotes ao cliente.',
+    parameters: {
+      type: 'object',
+      properties: {
+        nome: { type: 'string', description: 'Nome da pessoa' },
+        mes: { type: 'string', description: 'Mês da festa, ex.: Novembro' },
+        convidados: { type: 'string', description: 'Número de convidados, ex.: 80' },
+      },
+    },
+  },
   {
     name: 'agendar_visita',
     description: 'Registra a visita no sistema quando o cliente CONFIRMAR dia e horário. Use somente após confirmação explícita.',
@@ -650,6 +665,91 @@ async function toolEnviarMateriais(
   return 'ERRO: tipo de material desconhecido.';
 }
 
+const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+// "nov" / "novembro" / "11" → "Novembro" (como o bot fixo grava)
+function normalizeMonth(raw: string): string {
+  const t = raw.trim().toLowerCase();
+  const n = parseInt(t, 10);
+  if (!isNaN(n) && n >= 1 && n <= 12 && /^\d{1,2}$/.test(t)) return MONTHS[n - 1].replace(/^./, (c) => c.toUpperCase());
+  const found = MONTHS.find((m) => t.startsWith(m.slice(0, 3)) || t.includes(m));
+  return found ? found.replace(/^./, (c) => c.toUpperCase()) : raw.trim();
+}
+
+// "80" → "80 pessoas" (como o bot fixo grava)
+function normalizeGuests(raw: string): string {
+  const t = raw.trim();
+  return /^\d+$/.test(t) ? `${t} pessoas` : t;
+}
+
+// Registra nome/mês/convidados e, quando tem mês + convidados, envia uma vez
+// só fotos + vídeo + PDF pela MESMA rotina do bot fixo (qualification-materials.ts),
+// respeitando as opções de envio automático do número e pulando o que a IA já mandou.
+async function toolRegistrarDados(
+  supabase: any,
+  instance: AgentInstance,
+  conv: AgentConv,
+  phone: string,
+  contactName: string | null,
+  botSettings: any,
+  args: { nome?: string; mes?: string; convidados?: string },
+): Promise<string> {
+  const patch: Json = {};
+  if (args.nome && String(args.nome).trim()) patch.nome = String(args.nome).trim();
+  if (args.mes && String(args.mes).trim()) patch.mes = normalizeMonth(String(args.mes));
+  if (args.convidados && String(args.convidados).trim()) patch.convidados = normalizeGuests(String(args.convidados));
+  if (Object.keys(patch).length > 0) await mergeBotData(supabase, conv, patch);
+
+  const bd = (conv.bot_data || {}) as Json;
+  const leadId = await ensureLead(supabase, instance, conv, phone, contactName, patch.nome as string | undefined);
+  if (leadId && (patch.mes || patch.convidados)) {
+    const leadPatch: Json = {};
+    if (patch.mes) leadPatch.month = patch.mes;
+    if (patch.convidados) leadPatch.guests = patch.convidados;
+    const { error } = await supabase.from('campaign_leads').update(leadPatch).eq('id', leadId);
+    if (error) console.error('[AI Agent] Erro ao salvar mês/convidados no lead:', error.message);
+  }
+
+  const missing = [!bd.mes && 'mês da festa', !bd.convidados && 'número de convidados'].filter(Boolean);
+  if (missing.length > 0) return `OK: dados salvos. Ainda falta descobrir: ${missing.join(' e ')}.`;
+  if (bd.ai_auto_materials_at) {
+    return 'OK: dados salvos. Os materiais automáticos já foram enviados antes nesta conversa — não reenvie.';
+  }
+
+  // Marca antes de enviar: outra execução concorrente não manda de novo
+  await mergeBotData(supabase, conv, { ai_auto_materials_at: new Date().toISOString() });
+  const already = sentMaterials(conv);
+  const settingsForSend = {
+    ...(botSettings || {}),
+    auto_send_photos: already.fotos ? false : botSettings?.auto_send_photos,
+    auto_send_presentation_video: already.video ? false : botSettings?.auto_send_presentation_video,
+    auto_send_promo_video: already.video ? false : botSettings?.auto_send_promo_video,
+    auto_send_pdf: already.pacotes ? false : botSettings?.auto_send_pdf,
+  };
+  console.log(`[AI Agent] Mês e convidados conhecidos (${bd.mes}, ${bd.convidados}) — enviando materiais automáticos (conv ${conv.id})`);
+  const result = await sendQualificationMaterials(
+    supabase,
+    instance,
+    conv,
+    { nome: String(bd.nome || contactName || ''), mes: String(bd.mes), convidados: String(bd.convidados) },
+    settingsForSend,
+    async (action, payload) => (await sendViaWapiSend(action, instance, conv, payload)) ? 'ok' : null,
+  );
+  if (!result.sentAny) {
+    console.warn(`[AI Agent] Materiais automáticos não enviados (falhas: ${result.failedSteps.join(', ') || 'nenhum material/desligado'})`);
+    return 'OK: dados salvos. Os materiais automáticos não puderam ser enviados agora; siga a conversa e convide para a visita (se o cliente pedir valores, use enviar_materiais).';
+  }
+
+  const nowIso = new Date().toISOString();
+  const sentNow: Partial<Record<MaterialTipo, string>> = { ...already };
+  if (settingsForSend.auto_send_photos !== false && !already.fotos) sentNow.fotos = nowIso;
+  if (settingsForSend.auto_send_presentation_video !== false && !already.video) sentNow.video = nowIso;
+  if (settingsForSend.auto_send_pdf !== false && !already.pacotes) sentNow.pacotes = nowIso;
+  await mergeBotData(supabase, conv, { ai_materials_sent: sentNow });
+  if (sentNow.pacotes && !already.pacotes) await markQuoteSent(supabase, instance, conv, phone, contactName);
+  return 'OK: dados salvos e o sistema JÁ ENVIOU agora, automaticamente, as fotos, o vídeo e o PDF de pacotes. Não reenvie nada: comente brevemente e convide para a visita oferecendo 2 horários concretos.';
+}
+
 // Passagem para a equipe: tira a IA da conversa, registra no histórico do
 // lead com o motivo e avisa a equipe no sininho.
 async function toolTransferir(
@@ -829,6 +929,10 @@ export async function maybeHandleWithAiAgent(
         ai_history_since: new Date().toISOString(),
         ai_materials_sent: {},
         ai_handoff: null,
+        ai_auto_materials_at: null,
+        nome: null,
+        mes: null,
+        convidados: null,
       } as Json;
       await supabase.from('wapi_conversations').update({
         bot_step: AI_STEP,
@@ -1016,7 +1120,9 @@ export async function maybeHandleWithAiAgent(
         for (const call of step.toolCalls) {
           const args = call.args as any;
           let toolResult = 'ERRO: ferramenta desconhecida.';
-          if (call.name === 'agendar_visita') {
+          if (call.name === 'registrar_dados_festa') {
+            toolResult = await toolRegistrarDados(supabase, instance, conv, phone, contactName, botSettings, args);
+          } else if (call.name === 'agendar_visita') {
             toolResult = await toolAgendarVisita(supabase, instance, conv, phone, contactName, settings, args);
           } else if (call.name === 'enviar_materiais') {
             toolResult = await toolEnviarMateriais(supabase, instance, conv, phone, contactName, String(args.tipo || ''), args.reenviar === true);
