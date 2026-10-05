@@ -26,8 +26,8 @@ import {
   type Slot,
   slotKey,
 } from "../_shared/business-hours.ts";
-import { AI_DEBOUNCE_MS, pickLatestIncoming } from "../_shared/ai-turn.ts";
-import { sendQualificationMaterials } from "./qualification-materials.ts";
+import { AI_DEBOUNCE_MS, mergeConsecutiveTurns, pickLatestIncoming, teamRepliedAfter } from "../_shared/ai-turn.ts";
+import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 
 type Json = Record<string, unknown>;
 
@@ -48,6 +48,8 @@ interface AgentConv {
   bot_data: Json | null;
   lead_id: string | null;
   created_at?: string | null;
+  // Marcado quando a IA passou a conversa para a equipe no turno atual
+  __handoffThisTurn?: boolean;
 }
 
 interface AiSettings {
@@ -104,7 +106,11 @@ function getPhoneVariantsBR(phone: string): string[] {
   return Array.from(variants);
 }
 
+// Envia pelo wapi-send e marca a mensagem como da IA (metadata.source =
+// "ai_agent"): é assim que dá para separar resposta da IA de resposta de uma
+// pessoa da equipe depois da passagem.
 async function sendViaWapiSend(
+  supabase: any,
   action: 'send-text' | 'send-image' | 'send-video' | 'send-document',
   instance: AgentInstance,
   conv: AgentConv,
@@ -143,6 +149,14 @@ async function sendViaWapiSend(
     if (parsed?.success === false || parsed?.error) {
       console.error(`[AI Agent] ${action} returned error:`, parsed);
       return false;
+    }
+    const messageId = typeof parsed?.messageId === 'string' ? parsed.messageId : null;
+    if (messageId && supabase) {
+      const { error } = await supabase.from('wapi_messages')
+        .update({ metadata: { source: 'ai_agent' } })
+        .eq('conversation_id', conv.id)
+        .eq('message_id', messageId);
+      if (error) console.error('[AI Agent] Erro ao marcar mensagem da IA:', error.message);
     }
     return true;
   } catch (err) {
@@ -356,6 +370,10 @@ interface PromptContext {
   offers: Slot[];
   sentMaterialsText: string;
   teamHoursText: string;
+  knownDataText: string;
+  isFirstReply: boolean;
+  pendingUserMessages: number;
+  afterHoursHandoff: { reason: string; returns: string } | null;
 }
 
 function buildSystemPrompt(companyName: string, unit: string, settings: AiSettings, today: string, ctx: PromptContext): string {
@@ -368,7 +386,9 @@ SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até A
 
 COMO CONVERSAR:
 - Português brasileiro, tom caloroso e humano, mensagens CURTAS (2 a 4 frases). No máximo 1 emoji por mensagem.
-- Se o cliente mandou várias mensagens seguidas, responda TUDO numa única mensagem.
+- ${ctx.isFirstReply ? 'ESTA É A SUA PRIMEIRA RESPOSTA: apresente-se (diga seu nome, se ele estiver nas informações do buffet, e que é do ' + companyName + ') e, se ainda não souber o nome do cliente, já pergunte o nome dele NESTA mensagem, junto com a resposta ao que ele perguntou.' : 'Se ainda não souber o nome do cliente, não interrompa a conversa para pedir — aproveite um momento natural.'}
+- Dados do cliente já registrados: ${ctx.knownDataText}. Não pergunte de novo o que já sabe.
+- ${ctx.pendingUserMessages > 1 ? `O cliente mandou ${ctx.pendingUserMessages} mensagens seguidas desde a sua última resposta: responda a TODAS as perguntas delas numa única mensagem, sem ignorar nenhuma.` : 'Se o cliente mandar várias perguntas, responda todas numa única mensagem.'}
 - Uma pergunta por vez. Nunca envie listas de opções numeradas — converse como gente.
 - Descubra naturalmente: nome da pessoa, mês/data desejada da festa e número de convidados, se ainda não souber.
 - Quebre objeções com empatia ("vou pensar" → ofereça a visita sem compromisso; "tá caro" → valorize o que está incluso e chame para conhecer o espaço).
@@ -395,6 +415,7 @@ AGENDAMENTO DE VISITAS:
 - Quando a pessoa confirmar dia e horário, use agendar_visita. Depois confirme por mensagem o dia/horário e diga que a equipe confirma a visita.
 
 PASSAGEM PARA A EQUIPE: ao usar transferir_para_atendente, avise o cliente que um atendente vai continuar e informe o horário de atendimento da equipe: ${ctx.teamHoursText}
+${ctx.afterHoursHandoff ? `\nATENÇÃO — ESTA CONVERSA JÁ FOI PASSADA PARA A EQUIPE (motivo: ${ctx.afterHoursHandoff.reason || 'não informado'}). A equipe está fora do horário agora e volta ${ctx.afterHoursHandoff.returns}. Enquanto isso, continue tirando dúvidas informativas com base nas informações do buffet (estrutura, o que tem, como funciona, materiais, horários de visita). Para o assunto que motivou a passagem e para negociação/fechamento, diga com gentileza que a equipe continua ${ctx.afterHoursHandoff.returns}. NÃO chame transferir_para_atendente de novo.` : ''}
 ${settings.extra_instructions ? `\nINFORMAÇÕES DO BUFFET (use somente isto como fonte):\n${settings.extra_instructions}` : ''}`;
 }
 
@@ -591,6 +612,52 @@ async function markQuoteSent(
   console.log(`[AI Agent] Lead ${leadId} → Orçamento enviado (PDF de pacotes enviado pela IA)`);
 }
 
+async function loadSalesMaterials(supabase: any, instance: AgentInstance): Promise<any[]> {
+  const { data } = await supabase
+    .from('sales_materials')
+    .select('*')
+    .eq('unit', instance.unit)
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
+  if (data && data.length > 0) return data;
+  const fallback = await supabase
+    .from('sales_materials')
+    .select('*')
+    .eq('company_id', instance.company_id)
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
+  return fallback.data || [];
+}
+
+// Materiais que JÁ estão na conversa (qualquer envio anterior, da IA, do bot
+// fixo ou da equipe), pelo link do arquivo — vale mesmo depois de #reiniciar.
+async function materialsAlreadyInChat(
+  supabase: any,
+  conv: AgentConv,
+  materials: any[],
+): Promise<Partial<Record<MaterialTipo, boolean>>> {
+  const urlType = new Map<string, MaterialTipo>();
+  for (const m of materials) {
+    if (m.type === 'photo_collection' && Array.isArray(m.photo_urls) && m.photo_urls[0]) urlType.set(m.photo_urls[0], 'fotos');
+    if (m.type === 'video' && m.file_url) urlType.set(m.file_url, 'video');
+    if (m.type === 'pdf_package' && m.file_url) urlType.set(m.file_url, 'pacotes');
+  }
+  if (urlType.size === 0) return {};
+  const { data } = await supabase
+    .from('wapi_messages')
+    .select('media_url')
+    .eq('conversation_id', conv.id)
+    .eq('from_me', true)
+    .in('media_url', Array.from(urlType.keys()))
+    .limit(50);
+  const found: Partial<Record<MaterialTipo, boolean>> = {};
+  for (const r of (data || []) as Array<{ media_url: string }>) {
+    const t = urlType.get(r.media_url);
+    if (t) found[t] = true;
+  }
+  return found;
+}
+
 async function toolEnviarMateriais(
   supabase: any,
   instance: AgentInstance,
@@ -608,24 +675,16 @@ async function toolEnviarMateriais(
       return `JÁ ENVIADO: o ${MATERIAL_LABEL[tipo]} já foi enviado nesta conversa (${fmtTimeBR(sentAt)}). Não reenvie; responda a pergunta do cliente normalmente. Só use reenviar=true se o cliente pedir explicitamente para mandar de novo.`;
     }
   }
-  const unit = instance.unit;
-  let { data: materials } = await supabase
-    .from('sales_materials')
-    .select('*')
-    .eq('unit', unit)
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true });
-  if (!materials || materials.length === 0) {
-    const fallback = await supabase
-      .from('sales_materials')
-      .select('*')
-      .eq('company_id', instance.company_id)
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true });
-    materials = fallback.data;
-  }
-  if (!materials || materials.length === 0) {
+  const materials = await loadSalesMaterials(supabase, instance);
+  if (materials.length === 0) {
     return 'ERRO: nenhum material cadastrado. Diga que a equipe vai enviar os materiais em seguida.';
+  }
+  if (!reenviar && (tipo === 'fotos' || tipo === 'video' || tipo === 'pacotes')) {
+    const inChat = await materialsAlreadyInChat(supabase, conv, materials);
+    if (inChat[tipo]) {
+      console.log(`[AI Agent] ${tipo} já está na conversa (envio anterior) — não reenviando`);
+      return `JÁ ENVIADO: o ${MATERIAL_LABEL[tipo]} já foi enviado antes nesta conversa. Não reenvie; responda a pergunta do cliente normalmente. Só use reenviar=true se o cliente pedir explicitamente para mandar de novo.`;
+    }
   }
 
   if (tipo === 'fotos') {
@@ -633,7 +692,7 @@ async function toolEnviarMateriais(
     const photos: string[] = collection?.photo_urls || [];
     if (photos.length === 0) return 'ERRO: sem fotos cadastradas.';
     for (let i = 0; i < Math.min(photos.length, 6); i++) {
-      await sendViaWapiSend('send-image', instance, conv, { mediaUrl: photos[i], caption: '' });
+      await sendViaWapiSend(supabase, 'send-image', instance, conv, { mediaUrl: photos[i], caption: '' });
       await new Promise((resolve) => setTimeout(resolve, 800));
     }
     await mergeBotData(supabase, conv, { ai_materials_sent: { ...sentMaterials(conv), fotos: new Date().toISOString() } });
@@ -643,7 +702,7 @@ async function toolEnviarMateriais(
   if (tipo === 'video') {
     const video = (materials as any[]).find((m) => m.type === 'video');
     if (!video?.file_url) return 'ERRO: sem vídeo cadastrado.';
-    const ok = await sendViaWapiSend('send-video', instance, conv, { mediaUrl: video.file_url, caption: '' });
+    const ok = await sendViaWapiSend(supabase, 'send-video', instance, conv, { mediaUrl: video.file_url, caption: '' });
     if (!ok) return 'ERRO: falha ao enviar o vídeo.';
     await mergeBotData(supabase, conv, { ai_materials_sent: { ...sentMaterials(conv), video: new Date().toISOString() } });
     return 'OK: vídeo enviado.';
@@ -652,7 +711,7 @@ async function toolEnviarMateriais(
   if (tipo === 'pacotes') {
     const pdf = (materials as any[]).find((m) => m.type === 'pdf_package');
     if (!pdf?.file_url) return 'ERRO: sem PDF de pacotes cadastrado.';
-    const ok = await sendViaWapiSend('send-document', instance, conv, {
+    const ok = await sendViaWapiSend(supabase, 'send-document', instance, conv, {
       mediaUrl: pdf.file_url,
       fileName: pdf.name ? `${pdf.name}.pdf` : 'Pacotes.pdf',
     });
@@ -695,7 +754,8 @@ async function toolRegistrarDados(
   args: { nome?: string; mes?: string; convidados?: string },
 ): Promise<string> {
   const patch: Json = {};
-  if (args.nome && String(args.nome).trim()) patch.nome = String(args.nome).trim();
+  const nome = String(args.nome || '').trim();
+  if (nome && firstNameOrEmpty(nome)) patch.nome = nome;
   if (args.mes && String(args.mes).trim()) patch.mes = normalizeMonth(String(args.mes));
   if (args.convidados && String(args.convidados).trim()) patch.convidados = normalizeGuests(String(args.convidados));
   if (Object.keys(patch).length > 0) await mergeBotData(supabase, conv, patch);
@@ -716,9 +776,19 @@ async function toolRegistrarDados(
     return 'OK: dados salvos. Os materiais automáticos já foram enviados antes nesta conversa — não reenvie.';
   }
 
-  // Marca antes de enviar: outra execução concorrente não manda de novo
-  await mergeBotData(supabase, conv, { ai_auto_materials_at: new Date().toISOString() });
-  const already = sentMaterials(conv);
+  // Marca antes de enviar: outra execução concorrente não manda de novo, e as
+  // respostas a mensagens que chegarem durante o envio esperam ele terminar
+  await mergeBotData(supabase, conv, {
+    ai_auto_materials_at: new Date().toISOString(),
+    ai_materials_busy_until: new Date(Date.now() + 4 * 60000).toISOString(),
+  });
+  const inChat = await materialsAlreadyInChat(supabase, conv, await loadSalesMaterials(supabase, instance));
+  const flags = sentMaterials(conv);
+  const already: Partial<Record<MaterialTipo, string | boolean>> = {
+    fotos: flags.fotos || inChat.fotos,
+    video: flags.video || inChat.video,
+    pacotes: flags.pacotes || inChat.pacotes,
+  };
   const settingsForSend = {
     ...(botSettings || {}),
     auto_send_photos: already.fotos ? false : botSettings?.auto_send_photos,
@@ -731,23 +801,29 @@ async function toolRegistrarDados(
     supabase,
     instance,
     conv,
-    { nome: String(bd.nome || contactName || ''), mes: String(bd.mes), convidados: String(bd.convidados) },
+    { nome: String(bd.nome || ''), mes: String(bd.mes), convidados: String(bd.convidados) },
     settingsForSend,
-    async (action, payload) => (await sendViaWapiSend(action, instance, conv, payload)) ? 'ok' : null,
-  );
+    async (action, payload) => (await sendViaWapiSend(supabase, action, instance, conv, payload)) ? 'ok' : null,
+  ).finally(() => mergeBotData(supabase, conv, { ai_materials_busy_until: null }));
   if (!result.sentAny) {
     console.warn(`[AI Agent] Materiais automáticos não enviados (falhas: ${result.failedSteps.join(', ') || 'nenhum material/desligado'})`);
     return 'OK: dados salvos. Os materiais automáticos não puderam ser enviados agora; siga a conversa e convide para a visita (se o cliente pedir valores, use enviar_materiais).';
   }
 
   const nowIso = new Date().toISOString();
-  const sentNow: Partial<Record<MaterialTipo, string>> = { ...already };
+  const sentNow: Partial<Record<MaterialTipo, string>> = { ...flags };
   if (settingsForSend.auto_send_photos !== false && !already.fotos) sentNow.fotos = nowIso;
   if (settingsForSend.auto_send_presentation_video !== false && !already.video) sentNow.video = nowIso;
   if (settingsForSend.auto_send_pdf !== false && !already.pacotes) sentNow.pacotes = nowIso;
   await mergeBotData(supabase, conv, { ai_materials_sent: sentNow });
   if (sentNow.pacotes && !already.pacotes) await markQuoteSent(supabase, instance, conv, phone, contactName);
-  return 'OK: dados salvos e o sistema JÁ ENVIOU agora, automaticamente, as fotos, o vídeo e o PDF de pacotes. Não reenvie nada: comente brevemente e convide para a visita oferecendo 2 horários concretos.';
+  const askedGuests = parseInt(String(bd.convidados).replace(/\D/g, ''), 10);
+  const minNote = result.pdfGuestCount && askedGuests && askedGuests < result.pdfGuestCount
+    ? ` Atenção: o cliente falou em ${askedGuests} convidados, mas o menor pacote é para ${result.pdfGuestCount} pessoas — explique isso com naturalidade (sem falar valores) e que a equipe vê os detalhes.`
+    : '';
+  const skipped = (['fotos', 'video', 'pacotes'] as MaterialTipo[]).filter((k) => already[k]).map((k) => MATERIAL_LABEL[k]);
+  const skippedNote = skipped.length > 0 ? ` (${skipped.join(', ')} já tinha(m) sido enviado(s) antes e não foi reenviado.)` : '';
+  return `OK: dados salvos e o sistema JÁ ENVIOU agora, automaticamente, os materiais.${skippedNote} Não reenvie nada: comente brevemente e convide para a visita oferecendo 2 horários concretos.${minNote}`;
 }
 
 // Passagem para a equipe: tira a IA da conversa, registra no histórico do
@@ -762,6 +838,12 @@ async function toolTransferir(
   motivo: string,
 ): Promise<string> {
   const reason = (motivo || '').trim() || 'sem motivo informado';
+  // Já passada para a equipe (IA atendendo fora do horário): não repete aviso
+  if (conv.bot_step === 'human_takeover' && (conv.bot_data as Json | null)?.ai_handoff) {
+    const hoursText = settings ? ` ${teamHoursMessage(settings)}` : '';
+    return `JÁ TRANSFERIDA: a conversa já está com a equipe.${hoursText} Diga isso ao cliente e continue ajudando com dúvidas informativas.`;
+  }
+  conv.__handoffThisTurn = true;
   await supabase.from('wapi_conversations').update({
     bot_enabled: false,
     bot_step: 'human_takeover',
@@ -806,8 +888,44 @@ async function toolTransferir(
 // que só respostas da equipe DEPOIS dela contem.
 async function touchHandoffMark(supabase: any, conv: AgentConv): Promise<void> {
   const handoff = (conv.bot_data as Json | null)?.ai_handoff as Json | undefined;
-  if (!handoff || conv.bot_step !== 'human_takeover') return;
+  if (!handoff || conv.bot_step !== 'human_takeover' || !conv.__handoffThisTurn) return;
   await mergeBotData(supabase, conv, { ai_handoff: { ...handoff, at: new Date().toISOString() } });
+}
+
+// Alguém da equipe escreveu na conversa depois da passagem? (mensagens da IA,
+// follow-up e avisos do sistema não contam)
+async function teamRepliedSince(supabase: any, convId: string, sinceIso: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('wapi_messages')
+    .select('from_me, timestamp, metadata')
+    .eq('conversation_id', convId)
+    .eq('from_me', true)
+    .gt('timestamp', sinceIso)
+    .limit(30);
+  return teamRepliedAfter((data || []) as Array<{ from_me: boolean; timestamp: string; metadata: Record<string, unknown> | null }>, sinceIso);
+}
+
+async function latestIncomingId(supabase: any, convId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('wapi_messages')
+    .select('message_id, timestamp')
+    .eq('conversation_id', convId)
+    .eq('from_me', false)
+    .order('timestamp', { ascending: false })
+    .limit(5);
+  return pickLatestIncoming((data || []) as Array<{ message_id: string | null; timestamp: string }>);
+}
+
+// Fotos/vídeo/PDF automáticos sendo enviados: espera terminar antes de
+// responder, para a resposta não cair no meio dos materiais.
+async function waitMaterialsIdle(supabase: any, convId: string, maxMs = 120000): Promise<void> {
+  const started = Date.now();
+  while (Date.now() - started < maxMs) {
+    const { data } = await supabase.from('wapi_conversations').select('bot_data').eq('id', convId).maybeSingle();
+    const busyUntil = (data?.bot_data as Json | null)?.ai_materials_busy_until;
+    if (typeof busyUntil !== 'string' || Date.parse(busyUntil) <= Date.now()) return;
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+  }
 }
 
 const TEST_RESTART_COMMAND = '#reiniciar';
@@ -943,14 +1061,24 @@ export async function maybeHandleWithAiAgent(
       conv.bot_enabled = true;
       conv.bot_data = newBotData;
       const model = (settings.test_model || settings.model || DEFAULT_AI_MODEL);
-      await sendViaWapiSend('send-text', instance, conv, { message: `🧪 Conversa reiniciada. Modelo em teste: ${model}. Pode mandar a primeira mensagem como se fosse um cliente.` });
+      await sendViaWapiSend(supabase, 'send-text', instance, conv, { message: `🧪 Conversa reiniciada. Modelo em teste: ${model}. Pode mandar a primeira mensagem como se fosse um cliente.` });
       return true;
     }
 
-    // Equipe assumiu (botão Inativo, mensagem humana ou transferência): IA fica fora
+    // Equipe assumiu (botão Inativo, mensagem humana ou transferência): IA fica
+    // fora — exceto quando foi a IA que passou, a equipe está fora do horário e
+    // ninguém da equipe escreveu ainda: aí ela segue tirando dúvidas.
+    let afterHoursHandoff: Json | null = null;
     if (conv.bot_step === 'human_takeover') {
-      console.log(`[AI Agent] Conversa ${conv.id} em human_takeover — pulando`);
-      return false;
+      const handoff = (conv.bot_data as Json | null)?.ai_handoff as Json | undefined;
+      const handoffAt = typeof handoff?.at === 'string' ? handoff.at : null;
+      if (handoffAt && !isOpenAt(teamHoursOf(settings), Date.now()) && !(await teamRepliedSince(supabase, conv.id, handoffAt))) {
+        afterHoursHandoff = handoff as Json;
+        console.log(`[AI Agent] Conversa ${conv.id} já passada para a equipe, fora do horário e sem resposta humana — IA segue tirando dúvidas`);
+      } else {
+        console.log(`[AI Agent] Conversa ${conv.id} em human_takeover — pulando`);
+        return false;
+      }
     }
     if (conv.bot_step === AI_STEP && conv.bot_enabled === false) {
       console.log(`[AI Agent] Conversa ${conv.id} estava com a IA mas foi desligada (bot_enabled=false) — pulando`);
@@ -959,7 +1087,7 @@ export async function maybeHandleWithAiAgent(
 
     // O número de teste é sempre atendido pela IA (a conversa dele costuma
     // ser antiga, de antes da ativação, e cairia na regra de "só leads novos").
-    if (!isAiTestPhone && !(await isEligible(supabase, settings, conv, phone, instance.company_id))) {
+    if (!afterHoursHandoff && !isAiTestPhone && !(await isEligible(supabase, settings, conv, phone, instance.company_id))) {
       console.log(`[AI Agent] Conversa ${conv.id} não elegível (ver motivo acima) — seguindo com o bot fixo`);
       return false;
     }
@@ -976,8 +1104,8 @@ export async function maybeHandleWithAiAgent(
       return false;
     }
 
-    // Adota a conversa
-    if (conv.bot_step !== AI_STEP || conv.bot_enabled !== true) {
+    // Adota a conversa (depois de uma passagem fora do horário, continua com a equipe)
+    if (!afterHoursHandoff && (conv.bot_step !== AI_STEP || conv.bot_enabled !== true)) {
       await supabase.from('wapi_conversations').update({ bot_step: AI_STEP, bot_enabled: true }).eq('id', conv.id);
       conv.bot_step = AI_STEP;
       conv.bot_enabled = true;
@@ -997,14 +1125,8 @@ export async function maybeHandleWithAiAgent(
     const myMessageId = media?.messageId || incomingMessageId || null;
     if (myMessageId) {
       await new Promise((resolve) => setTimeout(resolve, AI_DEBOUNCE_MS));
-      const { data: recentIncoming } = await supabase
-        .from('wapi_messages')
-        .select('message_id, timestamp')
-        .eq('conversation_id', conv.id)
-        .eq('from_me', false)
-        .order('timestamp', { ascending: false })
-        .limit(5);
-      const latest = pickLatestIncoming((recentIncoming || []) as Array<{ message_id: string | null; timestamp: string }>);
+      await waitMaterialsIdle(supabase, conv.id);
+      const latest = await latestIncomingId(supabase, conv.id);
       if (latest && latest !== myMessageId) {
         console.log(`[AI Agent] Mensagem ${myMessageId} não é a última do cliente (última: ${latest}) — a última responde por todas`);
         return true;
@@ -1021,7 +1143,10 @@ export async function maybeHandleWithAiAgent(
         conv.bot_data = freshConv.bot_data;
         conv.lead_id = freshConv.lead_id ?? conv.lead_id;
       }
-      if (conv.bot_step !== AI_STEP || conv.bot_enabled === false) {
+      const stillMine = afterHoursHandoff
+        ? conv.bot_step === 'human_takeover' && !(await teamRepliedSince(supabase, conv.id, String(afterHoursHandoff.at)))
+        : conv.bot_step === AI_STEP && conv.bot_enabled !== false;
+      if (!stillMine) {
         console.log(`[AI Agent] Conversa ${conv.id} mudou durante a espera (step ${conv.bot_step}) — não responde`);
         return true;
       }
@@ -1052,6 +1177,8 @@ export async function maybeHandleWithAiAgent(
     if (chatMessages.length === 0 || chatMessages[chatMessages.length - 1].role !== 'user') {
       chatMessages.push({ role: 'user', content: media ? mediaHistoryText(media.type, content, null) : content });
     }
+    const isFirstReply = !chatMessages.some((m) => m.role === 'assistant' && !m.content.startsWith('🧪'));
+    const { merged: mergedHistory, pendingUserMessages } = mergeConsecutiveTurns(chatMessages);
 
     let companyName = instance.unit || '';
     const { data: companyRow } = await supabase.from('companies').select('name').eq('id', instance.company_id).maybeSingle();
@@ -1065,16 +1192,28 @@ export async function maybeHandleWithAiAgent(
     const available = listAvailableSlots(parseVisitHours(settings.visit_hours), nowMs, booked, { days: 14, minLeadMinutes: 120, max: 60 });
     const sent = sentMaterials(conv);
     const sentList = (Object.keys(sent) as MaterialTipo[]).map((k) => `${MATERIAL_LABEL[k]} (${fmtTimeBR(sent[k] as string)})`);
+    const bd = (conv.bot_data || {}) as Json;
+    const known = [
+      firstNameOrEmpty(bd.nome as string) ? `nome ${bd.nome}` : null,
+      bd.mes ? `mês ${bd.mes}` : null,
+      bd.convidados ? `${bd.convidados}` : null,
+    ].filter(Boolean) as string[];
     const systemPrompt = buildSystemPrompt(companyName, instance.unit, settings, today, {
       offers: pickTwoOffers(available),
       sentMaterialsText: sentList.length > 0 ? sentList.join(', ') : 'nenhum',
       teamHoursText: teamHoursMessage(settings, nowMs),
+      knownDataText: known.length > 0 ? known.join(', ') : 'nada ainda',
+      isFirstReply,
+      pendingUserMessages,
+      afterHoursHandoff: afterHoursHandoff
+        ? { reason: String(afterHoursHandoff.reason || ''), returns: nextOpeningText(teamHoursOf(settings), nowMs) }
+        : null,
     });
 
     const session = createLlmSession({
       model,
       system: systemPrompt,
-      history: chatMessages,
+      history: mergedHistory,
       tools: TOOLS,
       openaiKey,
       anthropicKey,
@@ -1143,11 +1282,21 @@ export async function maybeHandleWithAiAgent(
       }
       // Passou para a equipe neste turno e a resposta não citou horário: completa
       let finalText = step.text;
-      if (conv.bot_step === 'human_takeover' && !/\d{1,2}(:\d{2}|h)/.test(finalText)) {
+      if (conv.__handoffThisTurn && !/\d{1,2}(:\d{2}|h)/.test(finalText)) {
         finalText = `${finalText}\n\n${teamHoursMessage(settings)}`;
       }
+      // Chegou mensagem nova do cliente enquanto esta resposta era montada (ex.:
+      // durante o envio dos materiais): descarta esta e deixa a execução da
+      // mensagem mais nova responder tudo de uma vez.
+      if (myMessageId && !conv.__handoffThisTurn) {
+        const latestNow = await latestIncomingId(supabase, conv.id);
+        if (latestNow && latestNow !== myMessageId) {
+          console.log(`[AI Agent] Mensagem nova (${latestNow}) chegou durante a resposta — a mais nova responde por todas`);
+          return true;
+        }
+      }
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      const delivered = await sendViaWapiSend('send-text', instance, conv, { message: finalText });
+      const delivered = await sendViaWapiSend(supabase, 'send-text', instance, conv, { message: finalText });
       if (!delivered) {
         console.error(`[AI Agent] Resposta da IA não foi entregue ao WhatsApp (conv ${conv.id})`);
         await handOffOnFailure(supabase, instance, conv, phone, contactName, settings, 'a resposta da IA não saiu no WhatsApp — responda o cliente');
@@ -1191,7 +1340,7 @@ async function handOffOnFailure(
       await toolTransferir(supabase, instance, conv, phone, contactName, settings, reason);
     }
     const hours = settings ? ` ${teamHoursMessage(settings)}` : '';
-    await sendViaWapiSend('send-text', instance, conv, {
+    await sendViaWapiSend(supabase, 'send-text', instance, conv, {
       message: `Vou pedir para alguém da nossa equipe continuar com você por aqui, tá? 😊${hours}`,
     });
     await touchHandoffMark(supabase, conv);

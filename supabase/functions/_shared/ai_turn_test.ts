@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { pickLatestIncoming, teamRepliedAfter } from "./ai-turn.ts";
+import { mergeConsecutiveTurns, pickLatestIncoming, teamRepliedAfter } from "./ai-turn.ts";
 
 Deno.test("pickLatestIncoming: a última mensagem do cliente responde por todas", () => {
   assertEquals(pickLatestIncoming([
@@ -27,4 +27,26 @@ Deno.test("teamRepliedAfter: só resposta de gente da equipe conta", () => {
   ], since), false);
   assertEquals(teamRepliedAfter([{ from_me: true, timestamp: "2026-10-05T22:03:00Z", metadata: { source: "platform" } }], since), true);
   assertEquals(teamRepliedAfter([{ from_me: true, timestamp: "2026-10-05T22:03:00Z", metadata: null }], since), true); // pelo celular
+});
+
+Deno.test("mergeConsecutiveTurns: perguntas picadas viram um turno só, contando as pendentes", () => {
+  assertEquals(mergeConsecutiveTurns([
+    { role: "assistant", content: "Oi! Qual seu nome?" },
+    { role: "user", content: "Victor" },
+    { role: "assistant", content: "Prazer, Victor!" },
+    { role: "user", content: "vocês fazem festa à noite?" },
+    { role: "user", content: "tem estacionamento?" },
+  ]), {
+    merged: [
+      { role: "assistant", content: "Oi! Qual seu nome?" },
+      { role: "user", content: "Victor" },
+      { role: "assistant", content: "Prazer, Victor!" },
+      { role: "user", content: "vocês fazem festa à noite?\ntem estacionamento?" },
+    ],
+    pendingUserMessages: 2,
+  });
+});
+
+Deno.test("teamRepliedAfter: mensagem da IA (ai_agent) não conta como equipe", () => {
+  assertEquals(teamRepliedAfter([{ from_me: true, timestamp: "2026-10-05T22:03:00Z", metadata: { source: "ai_agent" } }], "2026-10-05T22:00:00Z"), false);
 });

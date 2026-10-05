@@ -16,6 +16,33 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Palavras que não são nome de verdade (a IA às vezes registra "cliente")
+const NOT_A_NAME = new Set(['cliente', 'você', 'voce', 'senhor', 'senhora', 'sr', 'sra', 'amigo', 'amiga', 'mãe', 'mae', 'pai', 'contato', 'lead', 'usuario', 'usuário']);
+
+export function firstNameOrEmpty(raw: string | null | undefined): string {
+  const first = String(raw || '').trim().split(/\s+/)[0] || '';
+  if (!first || /\d/.test(first) || NOT_A_NAME.has(first.toLowerCase())) return '';
+  return first.charAt(0).toUpperCase() + first.slice(1);
+}
+
+// Preenche o texto de apresentação do PDF. Sem nome real, tira o "Oi {nome}!"
+// em vez de escrever "Oi você!" / "Oi cliente!".
+export function fillPdfIntro(template: string, vars: { nome: string; convidados: string; empresa: string }): string {
+  let text = template;
+  if (!vars.nome) {
+    text = text
+      .replace(/(^|[\s📋✨🎉💜]*)(Oi|Olá|Ola)\s*,?\s*\{nome\}\s*[!,.]?\s*/i, '$1')
+      .replace(/,?\s*\{nome\}/gi, '');
+  }
+  return text
+    .replace(/\{nome\}/gi, vars.nome)
+    .replace(/\{convidados\}/gi, vars.convidados)
+    .replace(/\{unidade\}/gi, vars.empresa)
+    .replace(/\{empresa\}/gi, vars.empresa)
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 export async function sendQualificationMaterials(
   supabase: SupabaseClient,
   instance: { id: string; instance_id: string; instance_token: string; unit: string | null; company_id: string },
@@ -32,9 +59,10 @@ export async function sendQualificationMaterials(
     message_delay_seconds?: number;
   } | null,
   send: MaterialSender,
-): Promise<{ sentAny: boolean; failedSteps: string[] }> {
+): Promise<{ sentAny: boolean; failedSteps: string[]; pdfGuestCount?: number | null }> {
   const failedSteps: string[] = [];
   let sentAny = false;
+  let pdfGuestCount: number | null = null;
 
   try {
     if (settings?.auto_send_materials === false) {
@@ -234,12 +262,15 @@ export async function sendQualificationMaterials(
         const firstPdf = pdfsToSend[0];
         console.log(`[Bot Materials] Sending ${pdfsToSend.length} PDF(s): ${firstPdf.name}`);
 
-        const firstName = (botData.nome || '').split(' ')[0] || 'você';
-        const pdfIntroText = pdfIntro
-          .replace(/\{nome\}/gi, firstName)
-          .replace(/\{convidados\}/gi, guestsStr)
-          .replace(/\{unidade\}/gi, companyName)
-          .replace(/\{empresa\}/gi, companyName);
+        // Pacote de uma faixa específica (ex.: pediu 30, o menor é de 50):
+        // o texto fala da quantidade do pacote enviado, não da pedida.
+        pdfGuestCount = typeof firstPdf.guest_count === 'number' ? firstPdf.guest_count : null;
+        const guestsText = pdfGuestCount && pdfGuestCount !== guestCount ? `${pdfGuestCount} pessoas` : guestsStr;
+        const pdfIntroText = fillPdfIntro(pdfIntro, {
+          nome: firstNameOrEmpty(botData.nome),
+          convidados: guestsText,
+          empresa: companyName,
+        });
 
         await sendText(pdfIntroText, 'pdf_intro');
         await delay(messageDelay / 4);
@@ -272,11 +303,11 @@ export async function sendQualificationMaterials(
     }
 
     console.log(`[Bot Materials] Auto-send complete for ${phone}. Failures: ${failedSteps.join(', ') || 'none'}`);
-    return { sentAny, failedSteps };
+    return { sentAny, failedSteps, pdfGuestCount };
   } catch (err) {
     console.error('[Bot Materials] Fatal error during auto-send:', err);
     failedSteps.push('fatal_materials_error');
-    return { sentAny, failedSteps };
+    return { sentAny, failedSteps, pdfGuestCount };
   }
 }
 
