@@ -52,4 +52,8 @@ jobs:
             --data-urlencode "iso_timestamp_start=${IN_START}" \
             --data-urlencode "iso_timestamp_end=${IN_END}" \
             -o logs.json
-          jq -r 'if .error then "ERRO: \(.error|tostring)" else (.result // [])[] | "\((.timestamp/1000000)|floor|todate) \(.event_message)" end' logs.json | head -n 1000
+          echo "Intervalo: ${IN_START} → ${IN_END} | filtro: '${IN_FILTER}' | resposta: $(wc -c < logs.json) bytes, $(jq '(.result // []) | length' logs.json 2>/dev/null) linhas"
+          if [ "$(jq '(.result // []) | length' logs.json 2>/dev/null)" = "0" ] || ! jq -e . logs.json >/dev/null 2>&1; then
+            head -c 3000 logs.json; echo
+          fi
+          jq -r '(.result // [])[] | "\((.timestamp/1000000)|floor|todate) \(.event_message)"' logs.json | head -n 1000
