@@ -316,6 +316,10 @@ Deno.serve(async (req) => {
         guests: guests || null,
         campaign_name: campaign_name || null,
       };
+      // Lead que já existia e voltou por um anúncio: grava as UTMs se ele ainda não
+      // tinha nenhuma (a origem do primeiro anúncio nunca é sobrescrita).
+      const existingHasUtm = !!(existingLead.utm_source || existingLead.utm_campaign || existingLead.utm_content);
+      if (utm && !existingHasUtm) Object.assign(newData, utm);
 
       // Leads que voltaram antes desta mudança só têm o retorno no histórico
       const { count: pastReturns } = await supabase
