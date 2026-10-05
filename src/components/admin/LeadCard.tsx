@@ -39,6 +39,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { LeadOriginBadge } from "./LeadOriginBadge";
+import { LeadUtmBadge } from "./LeadUtm";
 import { LeadReturnBadge } from "./LeadReturnBadge";
 import { maskPhone } from "@/lib/mask-utils";
 
@@ -107,6 +108,7 @@ export function LeadCard({
             <div className="flex items-center gap-2">
               <h3 className="font-semibold text-foreground truncate">{lead.name}</h3>
               <LeadOriginBadge origem={lead.origem} />
+              <LeadUtmBadge lead={lead} />
               <LeadReturnBadge
                 returnCount={lead.return_count}
                 lastReturnAt={lead.last_return_at}

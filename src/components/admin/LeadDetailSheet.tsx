@@ -44,6 +44,7 @@ import { toast } from "@/hooks/use-toast";
 import { maskPhone } from "@/lib/mask-utils";
 import { LeadVisitHistory } from "./LeadVisitHistory";
 import { LeadDuplicateHubBanner } from "./LeadDuplicateHubBanner";
+import { LeadUtmDetail } from "./LeadUtm";
 import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
@@ -423,6 +424,8 @@ export function LeadDetailSheet({
               </Badge>
             </div>
           </div>
+
+          <LeadUtmDetail lead={lead} />
 
           <Separator />
 
