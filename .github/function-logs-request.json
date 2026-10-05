@@ -1,1 +1,1 @@
-{ "start": "2026-10-05T21:49:40Z", "end": "2026-10-05T21:52:00Z", "sql": "select * from logs where source_name = 'function_logs' limit 3" }
+{ "start": "2026-10-05T21:49:40.000Z", "end": "2026-10-05T21:52:00.000Z", "sql": "select timestamp, event_message from logs limit 3" }
