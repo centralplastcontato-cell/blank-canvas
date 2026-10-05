@@ -46,7 +46,7 @@ jobs:
             FILTER_SQL="where event_message like '%${SAFE}%'"
           fi
           SQL="select timestamp, event_message from function_logs ${FILTER_SQL} order by timestamp asc limit 1000"
-          curl -sS -G "https://api.supabase.com/v1/projects/rsezgnkfhodltrsewlhz/analytics/endpoints/logs.all" \
+          curl -sS -G "https://api.supabase.com/v1/projects/rsezgnkfhodltrsewlhz/analytics/endpoints/logs" \
             -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
             --data-urlencode "sql=${SQL}" \
             --data-urlencode "iso_timestamp_start=${IN_START}" \
