@@ -3,6 +3,7 @@ import {
   estimateChatCostUsd,
   estimateTranscriptionCostUsd,
   isOpenAiReasoningModel,
+  openAiReasoningEffortWithTools,
   normalizeAnthropicUsage,
   normalizeOpenAiUsage,
   providerForModel,
@@ -19,6 +20,13 @@ Deno.test("providerForModel: Claude vai para Anthropic, o resto para OpenAI", ()
 Deno.test("isOpenAiReasoningModel: só a família GPT-5 / o-series", () => {
   assertEquals(isOpenAiReasoningModel("gpt-5.4-mini"), true);
   assertEquals(isOpenAiReasoningModel("gpt-4o-mini"), false);
+});
+
+Deno.test("openAiReasoningEffortWithTools: GPT-5.x usa 'none' (a OpenAI recusa ferramentas com raciocínio)", () => {
+  assertEquals(openAiReasoningEffortWithTools("gpt-5.4-mini"), "none");
+  assertEquals(openAiReasoningEffortWithTools("gpt-5.4"), "none");
+  assertEquals(openAiReasoningEffortWithTools("gpt-5-mini"), "minimal");
+  assertEquals(openAiReasoningEffortWithTools("gpt-4o-mini"), null);
 });
 
 Deno.test("normalizeOpenAiUsage: separa os tokens que vieram do cache", () => {

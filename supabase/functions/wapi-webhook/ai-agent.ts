@@ -189,16 +189,25 @@ async function notifyTeam(
 ): Promise<void> {
   try {
     const unitLower = (instance.unit || '').toLowerCase().trim().replace(/\s+/g, '-');
+    let ids: string[] = [];
     const { data, error } = await supabase.rpc('get_company_notification_targets', {
       p_company_id: instance.company_id,
       p_unit_permission: `leads.unit.${unitLower}`,
     });
-    if (error) {
-      console.error('[AI Agent] Erro ao buscar quem avisar:', error.message);
+    if (error) console.error('[AI Agent] Erro ao buscar quem avisar:', error.message);
+    else ids = ((data || []) as Array<{ user_id: string }>).map((r) => r.user_id);
+    if (ids.length === 0) {
+      // Ninguém com permissão específica: avisa todos da empresa (nunca em silêncio)
+      const { data: companyUsers } = await supabase
+        .from('user_companies')
+        .select('user_id')
+        .eq('company_id', instance.company_id);
+      ids = ((companyUsers || []) as Array<{ user_id: string }>).map((u) => u.user_id);
+    }
+    if (ids.length === 0) {
+      console.error(`[AI Agent] Nenhum usuário para avisar na empresa ${instance.company_id}`);
       return;
     }
-    const ids = ((data || []) as Array<{ user_id: string }>).map((r) => r.user_id);
-    if (ids.length === 0) return;
     const { error: insErr } = await supabase.from('notifications').insert(ids.map((uid) => ({
       user_id: uid,
       company_id: instance.company_id,
@@ -209,6 +218,7 @@ async function notifyTeam(
       read: false,
     })));
     if (insErr) console.error('[AI Agent] Erro ao criar aviso:', insErr.message);
+    else console.log(`[AI Agent] Aviso no sininho criado para ${ids.length} usuário(s)`);
   } catch (err) {
     console.error('[AI Agent] Erro ao avisar a equipe:', err);
   }
@@ -799,9 +809,10 @@ export async function maybeHandleWithAiAgent(
         // Provedor fora do ar / erro: não deixa o cliente sem resposta —
         // passa para a equipe (sem mandar nada ao cliente)
         console.error(`[AI Agent] Erro do provedor (${model}):`, llmErr);
-        await toolTransferir(supabase, instance, conv, phone, contactName, 'falha técnica da IA — responda o cliente');
+        await handOffOnFailure(supabase, instance, conv, phone, contactName, `falha técnica da IA (${model}) — responda o cliente`);
         return true;
       }
+      console.log(`[AI Agent] Rodada ${round + 1} (${step.servedModel}): ${step.toolCalls.length} ferramenta(s), texto ${step.text.length} caracteres, tokens in=${step.usage.inputTokens + step.usage.cachedInputTokens} out=${step.usage.outputTokens}`);
 
       await logUsage(supabase, {
         companyId: instance.company_id,
@@ -838,18 +849,49 @@ export async function maybeHandleWithAiAgent(
         continue; // nova rodada para a IA redigir a resposta final
       }
 
-      if (step.text) {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        await sendViaWapiSend('send-text', instance, conv, { message: step.text });
+      if (!step.text) {
+        // Nada para mandar: nunca deixa o cliente no vácuo
+        console.error(`[AI Agent] ${model} não devolveu texto nem ferramenta (conv ${conv.id})`);
+        await handOffOnFailure(supabase, instance, conv, phone, contactName, 'a IA não conseguiu gerar resposta — responda o cliente');
+        return true;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const sent = await sendViaWapiSend('send-text', instance, conv, { message: step.text });
+      if (!sent) {
+        console.error(`[AI Agent] Resposta da IA não foi entregue ao WhatsApp (conv ${conv.id})`);
+        await handOffOnFailure(supabase, instance, conv, phone, contactName, 'a resposta da IA não saiu no WhatsApp — responda o cliente');
       }
       return true;
     }
 
     console.warn('[AI Agent] Max tool rounds reached without final reply');
+    await handOffOnFailure(supabase, instance, conv, phone, contactName, 'a IA se enrolou e não terminou a resposta — responda o cliente');
     return true;
   } catch (err) {
     console.error('[AI Agent] Unexpected error:', err);
-    // Em erro inesperado, não deixa o bot fixo atropelar uma conversa que a IA já vinha tocando
-    return conv.bot_step === AI_STEP;
+    // Conversa já era da IA: passa para a equipe em vez de ficar em silêncio
+    // (e não deixa o bot fixo atropelar no meio). Antes de adotar, segue o bot fixo.
+    if (conv.bot_step === AI_STEP) {
+      await handOffOnFailure(supabase, instance, conv, phone, contactName, 'erro inesperado na IA — responda o cliente');
+      return true;
+    }
+    return false;
+  }
+}
+
+// Qualquer falha da IA numa conversa que é dela vira passagem para a equipe
+// (histórico + sininho). Nunca lança: é o último recurso.
+async function handOffOnFailure(
+  supabase: any,
+  instance: AgentInstance,
+  conv: AgentConv,
+  phone: string,
+  contactName: string | null,
+  reason: string,
+): Promise<void> {
+  try {
+    await toolTransferir(supabase, instance, conv, phone, contactName, reason);
+  } catch (err) {
+    console.error('[AI Agent] Falha até ao passar para a equipe:', err);
   }
 }

@@ -1,0 +1,1 @@
+{ "start": "2026-10-05T21:48:00.000Z", "end": "2026-10-05T21:54:00.000Z", "sql": "select timestamp, event_message from logs where event_message like '%AI Agent%' or event_message like '%981121710%' or event_message like '%1581121710%' or event_message like '%[Bot]%' or event_message like '%rror%' order by timestamp asc limit 400" }

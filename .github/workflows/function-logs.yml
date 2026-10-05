@@ -1,0 +1,62 @@
+name: Ler logs das funções
+
+# Lê os logs das edge functions do Supabase (Management API) num intervalo,
+# filtrando por um texto — para investigar o que aconteceu com uma mensagem.
+# Usa o mesmo segredo SUPABASE_ACCESS_TOKEN do deploy. Os logs ficam só no
+# resultado desta execução (visível para quem tem acesso ao repositório).
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "Início (UTC, ex.: 2026-10-05T21:45:00Z)"
+        required: true
+      end:
+        description: "Fim (UTC, ex.: 2026-10-05T21:55:00Z)"
+        required: true
+      filter:
+        description: "Texto que a linha precisa conter (vazio = tudo)"
+        required: false
+        default: ""
+  push:
+    branches: ["claude/**"]
+    paths: [".github/function-logs-request.json"]
+
+jobs:
+  logs:
+    name: Ler logs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Buscar logs
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          IN_START: ${{ github.event.inputs.start }}
+          IN_END: ${{ github.event.inputs.end }}
+          IN_FILTER: ${{ github.event.inputs.filter }}
+        run: |
+          if [ -z "$IN_START" ] && [ -f .github/function-logs-request.json ]; then
+            IN_START=$(jq -r .start .github/function-logs-request.json)
+            IN_END=$(jq -r .end .github/function-logs-request.json)
+            IN_FILTER=$(jq -r '.filter // ""' .github/function-logs-request.json)
+          fi
+          FILTER_SQL=""
+          if [ -n "$IN_FILTER" ]; then
+            SAFE=$(printf '%s' "$IN_FILTER" | sed "s/'/''/g")
+            FILTER_SQL="and event_message like '%${SAFE}%'"
+          fi
+          SQL="select timestamp, event_message from logs where source_name = 'function_logs' ${FILTER_SQL} order by timestamp asc limit 1000"
+          RAW_SQL=$(jq -r '.sql // ""' .github/function-logs-request.json 2>/dev/null || true)
+          if [ -n "$RAW_SQL" ] && [ -z "${{ github.event.inputs.start }}" ]; then SQL="$RAW_SQL"; fi
+          echo "SQL: $SQL"
+          curl -sS -G "https://api.supabase.com/v1/projects/rsezgnkfhodltrsewlhz/analytics/endpoints/logs" \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            --data-urlencode "sql=${SQL}" \
+            --data-urlencode "iso_timestamp_start=${IN_START}" \
+            --data-urlencode "iso_timestamp_end=${IN_END}" \
+            -o logs.json
+          echo "Intervalo: ${IN_START} → ${IN_END} | filtro: '${IN_FILTER}' | resposta: $(wc -c < logs.json) bytes, $(jq '(.result // []) | length' logs.json 2>/dev/null) linhas"
+          if [ "$(jq '(.result // []) | length' logs.json 2>/dev/null)" = "0" ] || ! jq -e . logs.json >/dev/null 2>&1; then
+            head -c 3000 logs.json; echo
+          fi
+          jq -c '(.result // [])[]' logs.json | head -n 1000

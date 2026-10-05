@@ -9,6 +9,7 @@ import Anthropic from "npm:@anthropic-ai/sdk@0.131.0";
 import {
   type AiUsageTokens,
   isOpenAiReasoningModel,
+  openAiReasoningEffortWithTools,
   normalizeAnthropicUsage,
   normalizeOpenAiUsage,
   providerForModel,
@@ -81,8 +82,9 @@ class OpenAiSession implements LlmSession {
     };
     if (isOpenAiReasoningModel(model)) {
       // Família GPT-5: sem temperature; o limite inclui o "raciocínio" interno
-      body.max_completion_tokens = 3000;
-      body.reasoning_effort = "low";
+      body.max_completion_tokens = 1500;
+      // Com as ferramentas da IA, o chat/completions só aceita raciocínio desligado
+      body.reasoning_effort = openAiReasoningEffortWithTools(model);
     } else {
       body.temperature = 0.6;
       body.max_tokens = 400;
