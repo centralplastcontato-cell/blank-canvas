@@ -43,8 +43,9 @@ const TRANSCRIBE_AUDIO_PER_M = 3;
 const TRANSCRIBE_TEXT_OUT_PER_M = 5;
 const TRANSCRIBE_PER_MINUTE = 0.003;
 
-// Cotação usada só para mostrar o valor em reais na tela (aproximado).
-export const USD_TO_BRL = 5.4;
+// Cotação usada só para mostrar o valor em reais na tela (aproximado;
+// dólar comercial em out/2026 ≈ R$ 5,00).
+export const USD_TO_BRL = 5.0;
 
 export function getAiModel(id: string | null | undefined): AiModelInfo | null {
   if (!id) return null;
