@@ -25,7 +25,7 @@ Deno.test("teamRepliedAfter: só resposta de gente da equipe conta", () => {
     { from_me: false, timestamp: "2026-10-05T22:01:00Z", metadata: null }, // cliente
     { from_me: true, timestamp: "2026-10-05T22:02:00Z", metadata: { source: "auto_reminder" } }, // follow-up
   ], since), false);
-  assertEquals(teamRepliedAfter([{ from_me: true, timestamp: "2026-10-05T22:03:00Z", metadata: { source: "platform" } }], since), true);
+  assertEquals(teamRepliedAfter([{ from_me: true, timestamp: "2026-10-05T23:30:00Z", metadata: { source: "platform" } }], since), true);
   assertEquals(teamRepliedAfter([{ from_me: true, timestamp: "2026-10-05T22:03:00Z", metadata: null }], since), true); // pelo celular
 });
 
@@ -45,6 +45,16 @@ Deno.test("mergeConsecutiveTurns: perguntas picadas viram um turno só, contando
     ],
     pendingUserMessages: 2,
   });
+});
+
+Deno.test("teamRepliedAfter: 'platform' de antes da marcação da IA não conta; celular conta", () => {
+  const since = "2026-10-05T22:56:24Z"; // passagem às 19:56
+  // resposta da IA antiga, gravada como se fosse do Celebrei
+  assertEquals(teamRepliedAfter([{ from_me: true, timestamp: "2026-10-05T22:56:30Z", metadata: { source: "platform", provider: "zapi" } }], since), false);
+  // depois da atualização, "platform" é gente da equipe
+  assertEquals(teamRepliedAfter([{ from_me: true, timestamp: "2026-10-05T23:30:00Z", metadata: { source: "platform" } }], since), true);
+  // pelo celular (sem metadata) sempre foi gente
+  assertEquals(teamRepliedAfter([{ from_me: true, timestamp: "2026-10-05T22:58:00Z", metadata: null }], since), true);
 });
 
 Deno.test("teamRepliedAfter: mensagem da IA (ai_agent) não conta como equipe", () => {
