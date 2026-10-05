@@ -8,6 +8,9 @@
 
 // deno-lint-ignore-file no-explicit-any
 import { findLeadByPhone } from "../_shared/lead-phone.ts";
+import { DEFAULT_AI_MODEL, estimateChatCostUsd, providerForModel } from "../_shared/ai-models.ts";
+import { type ChatTurn, createLlmSession, type LlmStep, type ToolDef } from "./ai-llm.ts";
+import { describeImage, fetchMediaBytes, mediaHistoryText, transcribeAudio } from "./ai-media.ts";
 
 type Json = Record<string, unknown>;
 
@@ -27,7 +30,7 @@ interface AgentConv {
   bot_step: string | null;
   bot_data: Json | null;
   lead_id: string | null;
-  created_at?: string;
+  created_at?: string | null;
 }
 
 interface AiSettings {
@@ -42,6 +45,16 @@ interface AiSettings {
   // sem desligar o bot fixo para os clientes de verdade.
   test_mode_enabled: boolean;
   test_mode_number: string | null;
+  // Modelo só para o número de teste (vazio = o mesmo dos clientes). Deixa
+  // comparar um modelo novo sem trocar o que os clientes estão usando.
+  test_model?: string | null;
+}
+
+// Áudio ou foto que o cliente acabou de mandar (a mensagem já está salva)
+export interface AgentMedia {
+  type: 'audio' | 'image';
+  messageId: string;
+  url: Promise<string | null>;
 }
 
 const AI_STEP = 'ai_agent';
@@ -117,13 +130,88 @@ async function sendViaWapiSend(
   }
 }
 
+const SETTINGS_COLUMNS = 'enabled, unit, activated_at, extra_instructions, visit_hours, model, test_mode_enabled, test_mode_number';
+
 async function loadSettings(supabase: any, companyId: string): Promise<AiSettings | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('ai_agent_settings')
-    .select('enabled, unit, activated_at, extra_instructions, visit_hours, model, test_mode_enabled, test_mode_number')
+    .select(`${SETTINGS_COLUMNS}, test_model`)
     .eq('company_id', companyId)
     .maybeSingle();
-  return (data as AiSettings) || null;
+  if (!error) return (data as AiSettings) || null;
+  // Coluna test_model ainda não criada (migration pendente): segue sem ela
+  const fallback = await supabase
+    .from('ai_agent_settings')
+    .select(SETTINGS_COLUMNS)
+    .eq('company_id', companyId)
+    .maybeSingle();
+  return (fallback.data as AiSettings) || null;
+}
+
+interface UsageLog {
+  companyId: string;
+  conversationId: string;
+  leadId: string | null;
+  model: string;
+  kind: 'chat' | 'transcription' | 'vision';
+  inputTokens: number;
+  cachedInputTokens: number;
+  cacheWriteTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  isTest: boolean;
+}
+
+// Uma linha por chamada paga (resposta, transcrição ou foto). Falha ao gravar
+// o consumo nunca atrapalha a conversa.
+async function logUsage(supabase: any, u: UsageLog): Promise<void> {
+  const { error } = await supabase.from('ai_agent_usage').insert({
+    company_id: u.companyId,
+    conversation_id: u.conversationId,
+    lead_id: u.leadId,
+    provider: providerForModel(u.model),
+    model: u.model,
+    kind: u.kind,
+    input_tokens: u.inputTokens,
+    cached_input_tokens: u.cachedInputTokens,
+    cache_write_tokens: u.cacheWriteTokens,
+    output_tokens: u.outputTokens,
+    cost_usd: u.costUsd,
+    is_test: u.isTest,
+  });
+  if (error) console.error('[AI Agent] Erro ao gravar consumo:', error.message);
+}
+
+async function notifyTeam(
+  supabase: any,
+  instance: AgentInstance,
+  payload: { title: string; message: string; data: Json },
+): Promise<void> {
+  try {
+    const unitLower = (instance.unit || '').toLowerCase().trim().replace(/\s+/g, '-');
+    const { data, error } = await supabase.rpc('get_company_notification_targets', {
+      p_company_id: instance.company_id,
+      p_unit_permission: `leads.unit.${unitLower}`,
+    });
+    if (error) {
+      console.error('[AI Agent] Erro ao buscar quem avisar:', error.message);
+      return;
+    }
+    const ids = ((data || []) as Array<{ user_id: string }>).map((r) => r.user_id);
+    if (ids.length === 0) return;
+    const { error: insErr } = await supabase.from('notifications').insert(ids.map((uid) => ({
+      user_id: uid,
+      company_id: instance.company_id,
+      type: 'lead_needs_human',
+      title: payload.title,
+      message: payload.message,
+      data: payload.data,
+      read: false,
+    })));
+    if (insErr) console.error('[AI Agent] Erro ao criar aviso:', insErr.message);
+  } catch (err) {
+    console.error('[AI Agent] Erro ao avisar a equipe:', err);
+  }
 }
 
 // Decide (uma única vez por conversa) se a IA pode assumir. O resultado fica
@@ -200,6 +288,7 @@ COMO CONVERSAR:
 - Uma pergunta por vez. Nunca envie listas de opções numeradas — converse como gente.
 - Descubra naturalmente: nome da pessoa, mês/data desejada da festa e número de convidados, se ainda não souber.
 - Quebre objeções com empatia ("vou pensar" → ofereça a visita sem compromisso; "tá caro" → valorize o que está incluso e chame para conhecer o espaço).
+- Áudios do cliente chegam para você já transcritos e fotos chegam descritas: responda ao conteúdo normalmente, sem comentar que foi transcrito. Se aparecer que um áudio ou uma foto não pôde ser ouvido/visto, peça com gentileza para a pessoa escrever.
 
 REGRAS INEGOCIÁVEIS:
 1. NUNCA digite preços, valores ou descontos na conversa — nem estimativas — e nunca negocie condições. Se perguntarem valores, envie o PDF de pacotes (ferramenta enviar_materiais, tipo "pacotes" — os valores estão nele) e diga que a equipe cuida de condições e fechamento; aproveite para puxar o agendamento da visita.
@@ -217,49 +306,40 @@ MATERIAIS: você pode enviar fotos do espaço, vídeo de apresentação e o PDF 
 ${settings.extra_instructions ? `\nINFORMAÇÕES DO BUFFET (use somente isto como fonte):\n${settings.extra_instructions}` : ''}`;
 }
 
-const TOOLS = [
+const TOOLS: ToolDef[] = [
   {
-    type: 'function',
-    function: {
-      name: 'agendar_visita',
-      description: 'Registra a visita no sistema quando o cliente CONFIRMAR dia e horário. Use somente após confirmação explícita.',
-      parameters: {
-        type: 'object',
-        properties: {
-          data: { type: 'string', description: 'Data da visita no formato YYYY-MM-DD' },
-          horario: { type: 'string', description: 'Horário no formato HH:MM (ex: 10:00, 15:30)' },
-          nome_cliente: { type: 'string', description: 'Nome da pessoa, se ela informou' },
-        },
-        required: ['data', 'horario'],
+    name: 'agendar_visita',
+    description: 'Registra a visita no sistema quando o cliente CONFIRMAR dia e horário. Use somente após confirmação explícita.',
+    parameters: {
+      type: 'object',
+      properties: {
+        data: { type: 'string', description: 'Data da visita no formato YYYY-MM-DD' },
+        horario: { type: 'string', description: 'Horário no formato HH:MM (ex: 10:00, 15:30)' },
+        nome_cliente: { type: 'string', description: 'Nome da pessoa, se ela informou' },
       },
+      required: ['data', 'horario'],
     },
   },
   {
-    type: 'function',
-    function: {
-      name: 'enviar_materiais',
-      description: 'Envia materiais do buffet para o cliente: fotos do espaço, vídeo de apresentação ou PDF de pacotes.',
-      parameters: {
-        type: 'object',
-        properties: {
-          tipo: { type: 'string', enum: ['fotos', 'video', 'pacotes'], description: 'Qual material enviar' },
-        },
-        required: ['tipo'],
+    name: 'enviar_materiais',
+    description: 'Envia materiais do buffet para o cliente: fotos do espaço, vídeo de apresentação ou PDF de pacotes.',
+    parameters: {
+      type: 'object',
+      properties: {
+        tipo: { type: 'string', enum: ['fotos', 'video', 'pacotes'], description: 'Qual material enviar' },
       },
+      required: ['tipo'],
     },
   },
   {
-    type: 'function',
-    function: {
-      name: 'transferir_para_atendente',
-      description: 'Transfere a conversa para a equipe humana. Use quando o cliente pedir, quando você não souber responder, ou em situações delicadas.',
-      parameters: {
-        type: 'object',
-        properties: {
-          motivo: { type: 'string', description: 'Motivo curto da transferência' },
-        },
-        required: ['motivo'],
+    name: 'transferir_para_atendente',
+    description: 'Transfere a conversa para a equipe humana. Use quando o cliente pedir, quando você não souber responder, ou em situações delicadas.',
+    parameters: {
+      type: 'object',
+      properties: {
+        motivo: { type: 'string', description: 'Motivo curto da transferência, para a equipe saber o que aconteceu' },
       },
+      required: ['motivo'],
     },
   },
 ];
@@ -355,10 +435,47 @@ async function toolAgendarVisita(
   return `OK: visita registrada para ${dataVisita.split('-').reverse().join('/')} às ${horario}. Confirme para o cliente.`;
 }
 
+// PDF de pacotes enviado = orçamento enviado: o lead passa para "Orçamento
+// enviado" e entra nos follow-ups automáticos do número (os mesmos do bot fixo).
+// Só sai de "Novo" — não mexe em lead com visita marcada ou já trabalhado.
+async function markQuoteSent(
+  supabase: any,
+  instance: AgentInstance,
+  conv: AgentConv,
+  phone: string,
+  contactName: string | null,
+): Promise<void> {
+  const leadId = await ensureLead(supabase, instance, conv, phone, contactName);
+  if (!leadId) return;
+  const { data: updated, error } = await supabase
+    .from('campaign_leads')
+    .update({ status: 'orcamento_enviado' })
+    .eq('id', leadId)
+    .eq('status', 'novo')
+    .select('id');
+  if (error) {
+    console.error('[AI Agent] Erro ao marcar orçamento enviado:', error.message);
+    return;
+  }
+  if (!updated || updated.length === 0) return;
+  await supabase.from('lead_history').insert({
+    lead_id: leadId,
+    company_id: instance.company_id,
+    user_id: null,
+    user_name: 'IA (beta)',
+    action: 'Alteração de status',
+    old_value: 'novo',
+    new_value: 'orcamento_enviado',
+  }).then(({ error: hErr }: { error: unknown }) => { if (hErr) console.error('[AI Agent] lead_history error:', hErr); });
+  console.log(`[AI Agent] Lead ${leadId} → Orçamento enviado (PDF de pacotes enviado pela IA)`);
+}
+
 async function toolEnviarMateriais(
   supabase: any,
   instance: AgentInstance,
   conv: AgentConv,
+  phone: string,
+  contactName: string | null,
   tipo: string,
 ): Promise<string> {
   const unit = instance.unit;
@@ -406,18 +523,25 @@ async function toolEnviarMateriais(
       mediaUrl: pdf.file_url,
       fileName: pdf.name ? `${pdf.name}.pdf` : 'Pacotes.pdf',
     });
-    return ok ? 'OK: PDF de pacotes enviado (os valores estao no PDF).' : 'ERRO: falha ao enviar o PDF.';
+    if (!ok) return 'ERRO: falha ao enviar o PDF.';
+    await markQuoteSent(supabase, instance, conv, phone, contactName);
+    return 'OK: PDF de pacotes enviado (os valores estao no PDF).';
   }
 
   return 'ERRO: tipo de material desconhecido.';
 }
 
+// Passagem para a equipe: tira a IA da conversa, registra no histórico do
+// lead com o motivo e avisa a equipe no sininho.
 async function toolTransferir(
   supabase: any,
   instance: AgentInstance,
   conv: AgentConv,
+  phone: string,
+  contactName: string | null,
   motivo: string,
 ): Promise<string> {
+  const reason = (motivo || '').trim() || 'sem motivo informado';
   await supabase.from('wapi_conversations').update({
     bot_enabled: false,
     bot_step: 'human_takeover',
@@ -425,8 +549,84 @@ async function toolTransferir(
   }).eq('id', conv.id);
   conv.bot_enabled = false;
   conv.bot_step = 'human_takeover';
-  console.log(`[AI Agent] Transferred conv ${conv.id} to human. Motivo: ${motivo}`);
+  console.log(`[AI Agent] Transferred conv ${conv.id} to human. Motivo: ${reason}`);
+
+  const leadId = await ensureLead(supabase, instance, conv, phone, contactName).catch(() => null);
+  let leadName = contactName || phone;
+  if (leadId) {
+    const { data: lead } = await supabase.from('campaign_leads').select('name').eq('id', leadId).maybeSingle();
+    if (lead?.name) leadName = lead.name as string;
+    await supabase.from('lead_history').insert({
+      lead_id: leadId,
+      company_id: instance.company_id,
+      user_id: null,
+      user_name: 'IA (beta)',
+      action: 'Transferido para a equipe',
+      new_value: `Motivo: ${reason}`,
+    }).then(({ error: hErr }: { error: unknown }) => { if (hErr) console.error('[AI Agent] lead_history error:', hErr); });
+  }
+
+  await notifyTeam(supabase, instance, {
+    title: '🤝 IA passou a conversa para a equipe',
+    message: `${leadName} (${instance.unit || 'WhatsApp'}) — motivo: ${reason}. Assuma o atendimento.`,
+    data: { conversation_id: conv.id, lead_id: leadId, contact_phone: phone, unit: instance.unit, reason: 'ai_handoff', motivo: reason },
+  });
   return 'OK: conversa transferida para a equipe. Avise o cliente que um atendente vai continuar em breve.';
+}
+
+const TEST_RESTART_COMMAND = '#reiniciar';
+
+// Transcreve o áudio / descreve a foto que acabou de chegar e guarda o texto
+// na própria mensagem, para a IA e para as próximas respostas.
+async function processIncomingMedia(
+  supabase: any,
+  instance: AgentInstance,
+  conv: AgentConv,
+  media: AgentMedia,
+  openaiKey: string | null,
+  isTest: boolean,
+): Promise<void> {
+  if (!openaiKey) {
+    console.error('[AI Agent] OPENAI_API_KEY ausente — não dá para ouvir áudio / ver foto');
+    return;
+  }
+  const url = await media.url.catch(() => null);
+  if (!url) {
+    console.warn(`[AI Agent] ${media.type} sem link para baixar (msg ${media.messageId})`);
+    return;
+  }
+  const file = await fetchMediaBytes(url);
+  if (!file) return;
+  const result = media.type === 'audio'
+    ? await transcribeAudio(openaiKey, file.bytes, file.mime)
+    : await describeImage(openaiKey, file.bytes, file.mime);
+  if (!result) return;
+  console.log(`[AI Agent] ${media.type === 'audio' ? 'Áudio transcrito' : 'Foto descrita'} (conv ${conv.id}): "${result.text.slice(0, 80)}"`);
+
+  const { data: row } = await supabase
+    .from('wapi_messages')
+    .select('id, metadata')
+    .eq('conversation_id', conv.id)
+    .eq('message_id', media.messageId)
+    .maybeSingle();
+  if (row?.id) {
+    await supabase.from('wapi_messages').update({
+      metadata: { ...((row.metadata as Json) || {}), ai_media_text: result.text, ai_media_model: result.model },
+    }).eq('id', row.id);
+  }
+  await logUsage(supabase, {
+    companyId: instance.company_id,
+    conversationId: conv.id,
+    leadId: conv.lead_id,
+    model: result.model,
+    kind: media.type === 'audio' ? 'transcription' : 'vision',
+    inputTokens: result.inputTokens,
+    cachedInputTokens: 0,
+    cacheWriteTokens: 0,
+    outputTokens: result.outputTokens,
+    costUsd: result.costUsd,
+    isTest,
+  });
 }
 
 // Ponto de entrada. Retorna true quando a IA cuidou da mensagem (o bot fixo não roda).
@@ -438,6 +638,7 @@ export async function maybeHandleWithAiAgent(
   phone: string,
   contactName: string | null,
   botSettings?: any, // Bot settings para test mode check
+  media?: AgentMedia,
 ): Promise<boolean> {
   try {
     if (!instance.unit || !instance.company_id) {
@@ -469,14 +670,31 @@ export async function maybeHandleWithAiAgent(
     // Modo de Teste da IA: enquanto ligado, ela só conversa com este número.
     // Para qualquer outro, devolve false e a conversa segue com o bot fixo
     // normalmente — nada muda para os clientes de verdade.
-    if (settings.test_mode_enabled) {
-      const aiTestVariants = getPhoneVariantsBR(settings.test_mode_number || '');
-      const incomingVariants = getPhoneVariantsBR(phone);
-      const isAiTestPhone = aiTestVariants.length > 0 && incomingVariants.some(v => aiTestVariants.includes(v));
-      if (!isAiTestPhone) {
-        console.log(`[AI Agent] Modo de Teste da IA ligado — ${phone} não é o número de teste, seguindo com o bot fixo`);
-        return false;
-      }
+    const aiTestVariants = getPhoneVariantsBR(settings.test_mode_number || '');
+    const incomingVariants = getPhoneVariantsBR(phone);
+    const isAiTestPhone = !!settings.test_mode_enabled && !!(settings.test_mode_number || '').replace(/\D/g, '')
+      && incomingVariants.some(v => aiTestVariants.includes(v));
+    if (settings.test_mode_enabled && !isAiTestPhone) {
+      console.log(`[AI Agent] Modo de Teste da IA ligado — ${phone} não é o número de teste, seguindo com o bot fixo`);
+      return false;
+    }
+
+    // Número de teste manda "#reiniciar": a IA começa uma conversa nova do
+    // zero (esquece o histórico anterior e volta a atender mesmo depois de
+    // ter passado para a equipe). Só vale para o número de teste.
+    if (isAiTestPhone && !media && content.trim().toLowerCase() === TEST_RESTART_COMMAND) {
+      const newBotData = { ...(conv.bot_data || {}), ai_agent: 'on', ai_history_since: new Date().toISOString() } as Json;
+      await supabase.from('wapi_conversations').update({
+        bot_step: AI_STEP,
+        bot_enabled: true,
+        bot_data: newBotData,
+      }).eq('id', conv.id);
+      conv.bot_step = AI_STEP;
+      conv.bot_enabled = true;
+      conv.bot_data = newBotData;
+      const model = (settings.test_model || settings.model || DEFAULT_AI_MODEL);
+      await sendViaWapiSend('send-text', instance, conv, { message: `🧪 Conversa reiniciada. Modelo em teste: ${model}. Pode mandar a primeira mensagem como se fosse um cliente.` });
+      return true;
     }
 
     // Equipe assumiu (botão Inativo, mensagem humana ou transferência): IA fica fora
@@ -489,44 +707,65 @@ export async function maybeHandleWithAiAgent(
       return false;
     }
 
-    if (!(await isEligible(supabase, settings, conv, phone, instance.company_id))) {
+    // O número de teste é sempre atendido pela IA (a conversa dele costuma
+    // ser antiga, de antes da ativação, e cairia na regra de "só leads novos").
+    if (!isAiTestPhone && !(await isEligible(supabase, settings, conv, phone, instance.company_id))) {
       console.log(`[AI Agent] Conversa ${conv.id} não elegível (ver motivo acima) — seguindo com o bot fixo`);
       return false;
     }
 
-    const openaiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openaiKey) {
+    const openaiKey = Deno.env.get('OPENAI_API_KEY') || null;
+    const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY') || null;
+    let model = (isAiTestPhone && settings.test_model) ? settings.test_model : (settings.model || DEFAULT_AI_MODEL);
+    if (providerForModel(model) === 'anthropic' && !anthropicKey) {
+      console.error(`[AI Agent] Modelo ${model} escolhido, mas ANTHROPIC_API_KEY não está configurada — usando ${DEFAULT_AI_MODEL}`);
+      model = DEFAULT_AI_MODEL;
+    }
+    if (providerForModel(model) === 'openai' && !openaiKey) {
       console.error('[AI Agent] OPENAI_API_KEY not configured — falling back to fixed bot');
       return false;
     }
 
     // Adota a conversa
-    if (conv.bot_step !== AI_STEP) {
+    if (conv.bot_step !== AI_STEP || conv.bot_enabled !== true) {
       await supabase.from('wapi_conversations').update({ bot_step: AI_STEP, bot_enabled: true }).eq('id', conv.id);
       conv.bot_step = AI_STEP;
       conv.bot_enabled = true;
+      if (isAiTestPhone) {
+        const newBotData = { ...(conv.bot_data || {}), ai_agent: 'on' } as Json;
+        await supabase.from('wapi_conversations').update({ bot_data: newBotData }).eq('id', conv.id);
+        conv.bot_data = newBotData;
+      }
     }
 
-    // Histórico da conversa
-    const { data: history } = await supabase
+    if (media) {
+      await processIncomingMedia(supabase, instance, conv, media, openaiKey, isAiTestPhone);
+    }
+
+    // Histórico da conversa (no número de teste, só depois do último #reiniciar)
+    let historyQuery = supabase
       .from('wapi_messages')
-      .select('from_me, content, message_type, timestamp')
-      .eq('conversation_id', conv.id)
+      .select('from_me, content, message_type, timestamp, metadata')
+      .eq('conversation_id', conv.id);
+    const historySince = isAiTestPhone ? (conv.bot_data as Json | null)?.ai_history_since : null;
+    if (typeof historySince === 'string') historyQuery = historyQuery.gt('timestamp', historySince);
+    const { data: history } = await historyQuery
       .order('timestamp', { ascending: false })
       .limit(MAX_HISTORY_MESSAGES);
 
-    const ordered = ((history || []) as Array<{ from_me: boolean; content: string | null; message_type: string }>).reverse();
-    const chatMessages: Json[] = ordered
+    const ordered = ((history || []) as Array<{ from_me: boolean; content: string | null; message_type: string; metadata: Json | null }>).reverse();
+    const chatMessages: ChatTurn[] = ordered
       .filter((m) => (m.content || '').trim().length > 0 || m.message_type !== 'text')
-      .map((m) => ({
-        role: m.from_me ? 'assistant' : 'user',
-        content: m.message_type === 'text'
-          ? (m.content || '')
-          : `[${m.message_type}] ${m.content || ''}`.trim(),
-      }));
+      .map((m) => {
+        if (m.message_type === 'text') return { role: m.from_me ? 'assistant' : 'user', content: m.content || '' } as ChatTurn;
+        if (!m.from_me && (m.message_type === 'audio' || m.message_type === 'image')) {
+          return { role: 'user', content: mediaHistoryText(m.message_type, m.content || '', m.metadata?.ai_media_text as string | undefined) } as ChatTurn;
+        }
+        return { role: m.from_me ? 'assistant' : 'user', content: `[${m.message_type}] ${m.content || ''}`.trim() } as ChatTurn;
+      });
     // Garante que a última mensagem do cliente está presente
     if (chatMessages.length === 0 || chatMessages[chatMessages.length - 1].role !== 'user') {
-      chatMessages.push({ role: 'user', content });
+      chatMessages.push({ role: 'user', content: media ? mediaHistoryText(media.type, content, null) : content });
     }
 
     let companyName = instance.unit || '';
@@ -538,54 +777,70 @@ export async function maybeHandleWithAiAgent(
     });
     const systemPrompt = buildSystemPrompt(companyName, instance.unit, settings, today);
 
-    const conversation: Json[] = [{ role: 'system', content: systemPrompt }, ...chatMessages];
+    const session = createLlmSession({
+      model,
+      system: systemPrompt,
+      history: chatMessages,
+      tools: TOOLS,
+      openaiKey,
+      anthropicKey,
+    });
+    if (!session) {
+      console.error(`[AI Agent] Sem chave para o modelo ${model} — seguindo com o bot fixo`);
+      return false;
+    }
+    console.log(`[AI Agent] Respondendo conv ${conv.id} com ${model}${isAiTestPhone ? ' (número de teste)' : ''}`);
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: settings.model || 'gpt-4o-mini',
-          messages: conversation,
-          tools: TOOLS,
-          temperature: 0.6,
-          max_tokens: 400,
-        }),
-      });
-
-      if (!response.ok) {
-        console.error(`[AI Agent] OpenAI error ${response.status}: ${await response.text()}`);
-        return true; // conversa é da IA; não deixa o bot fixo mandar menu no meio
+      let step: LlmStep;
+      try {
+        step = await session.step();
+      } catch (llmErr) {
+        // Provedor fora do ar / erro: não deixa o cliente sem resposta —
+        // passa para a equipe (sem mandar nada ao cliente)
+        console.error(`[AI Agent] Erro do provedor (${model}):`, llmErr);
+        await toolTransferir(supabase, instance, conv, phone, contactName, 'falha técnica da IA — responda o cliente');
+        return true;
       }
 
-      const result = await response.json() as any;
-      const choice = result?.choices?.[0]?.message;
-      if (!choice) return true;
+      await logUsage(supabase, {
+        companyId: instance.company_id,
+        conversationId: conv.id,
+        leadId: conv.lead_id,
+        model: step.servedModel || model,
+        kind: 'chat',
+        ...step.usage,
+        costUsd: estimateChatCostUsd(step.servedModel || model, step.usage),
+        isTest: isAiTestPhone,
+      });
 
-      const toolCalls = choice.tool_calls as Array<{ id: string; function: { name: string; arguments: string } }> | undefined;
+      if (step.refused) {
+        console.warn(`[AI Agent] Modelo recusou responder (conv ${conv.id}) — passando para a equipe`);
+        await toolTransferir(supabase, instance, conv, phone, contactName, 'a IA não soube responder esta mensagem');
+        return true;
+      }
 
-      if (toolCalls && toolCalls.length > 0) {
-        conversation.push(choice as Json);
-        for (const call of toolCalls) {
-          let args: any = {};
-          try { args = JSON.parse(call.function.arguments || '{}'); } catch { /* args vazios */ }
+      if (step.toolCalls.length > 0) {
+        const results: Array<{ id: string; content: string }> = [];
+        for (const call of step.toolCalls) {
+          const args = call.args as any;
           let toolResult = 'ERRO: ferramenta desconhecida.';
-          if (call.function.name === 'agendar_visita') {
+          if (call.name === 'agendar_visita') {
             toolResult = await toolAgendarVisita(supabase, instance, conv, phone, contactName, args);
-          } else if (call.function.name === 'enviar_materiais') {
-            toolResult = await toolEnviarMateriais(supabase, instance, conv, String(args.tipo || ''));
-          } else if (call.function.name === 'transferir_para_atendente') {
-            toolResult = await toolTransferir(supabase, instance, conv, String(args.motivo || ''));
+          } else if (call.name === 'enviar_materiais') {
+            toolResult = await toolEnviarMateriais(supabase, instance, conv, phone, contactName, String(args.tipo || ''));
+          } else if (call.name === 'transferir_para_atendente') {
+            toolResult = await toolTransferir(supabase, instance, conv, phone, contactName, String(args.motivo || ''));
           }
-          conversation.push({ role: 'tool', tool_call_id: call.id, content: toolResult });
+          results.push({ id: call.id, content: toolResult });
         }
+        session.addToolResults(results);
         continue; // nova rodada para a IA redigir a resposta final
       }
 
-      const reply = (choice.content || '').trim();
-      if (reply) {
+      if (step.text) {
         await new Promise((resolve) => setTimeout(resolve, 2000));
-        await sendViaWapiSend('send-text', instance, conv, { message: reply });
+        await sendViaWapiSend('send-text', instance, conv, { message: step.text });
       }
       return true;
     }

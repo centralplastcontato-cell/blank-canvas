@@ -6543,6 +6543,34 @@ async function processWebhookEvent(body: JsonRecord) {
         }
       }
 
+      // 🎧 Áudio / foto do cliente: só a IA (beta) sabe lidar — ela transcreve o
+      // áudio e descreve a foto antes de responder. O bot fixo continua
+      // ignorando mídia, como sempre (a IA devolve false quando não é dela).
+      if (!fromMe && !isGrp && (type === 'audio' || type === 'image') && msgId) {
+        try {
+          const { data: freshConv } = await supabase.from('wapi_conversations')
+            .select('id, remote_jid, bot_enabled, bot_step, bot_data, lead_id, updated_at, created_at')
+            .eq('id', conv.id)
+            .single();
+          if (freshConv) conv = freshConv;
+          const campaignPending = !!(conv.bot_data as JsonRecord | null)?.campaign_pending_reply;
+          if (!campaignPending && !(await isConversationPaused(supabase, conv.id))) {
+            const aiBotSettings = await getBotSettings(supabase, instance.id);
+            const mediaUrl = mediaPromise
+              ? mediaPromise.then((r) => r?.url || url || null).catch(() => url || null)
+              : Promise.resolve(url || null);
+            const aiHandled = await maybeHandleWithAiAgent(supabase, instance, conv, content || '', phone, cName as string | null, aiBotSettings, {
+              type,
+              messageId: String(msgId),
+              url: mediaUrl,
+            });
+            if (aiHandled) console.log(`[AI Agent] ${type} do cliente respondido pela IA (conv ${conv.id})`);
+          }
+        } catch (aiErr) {
+          console.error('[AI Agent] erro ao tratar mídia:', aiErr);
+        }
+      }
+
       // Process bot qualification - MUST await to ensure bot messages are saved before function terminates
       if (!fromMe && !isGrp && type === 'text' && content) {
         try {

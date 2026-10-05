@@ -19,10 +19,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sparkles, Loader2, Save, Pencil, Check, FlaskConical } from "lucide-react";
+import { Sparkles, Loader2, Save, Pencil, Check, FlaskConical, Cpu, Wallet } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import {
+  AI_MODELS,
+  DEFAULT_AI_MODEL,
+  estimateTypicalConversationUsd,
+  formatBrlFromUsd,
+  getAiModel,
+  summarizeAiUsage,
+  type AiUsageRow,
+} from "@/lib/aiModels";
 
 interface AiAgentSettings {
   id?: string;
@@ -36,6 +45,24 @@ interface AiAgentSettings {
   // a conversa segue com o bot fixo normalmente.
   test_mode_enabled: boolean;
   test_mode_number: string | null;
+  // Modelo de IA dos clientes e, opcionalmente, um outro só para o número de
+  // teste — para comparar modelos sem mexer no atendimento de verdade.
+  model: string;
+  test_model: string | null;
+}
+
+const BASE_COLUMNS = "id, enabled, unit, activated_at, extra_instructions, visit_hours, test_mode_enabled, test_mode_number, model";
+// Valor do Select para "mesmo modelo dos clientes" (o Select não aceita "")
+const SAME_MODEL = "__same__";
+const USAGE_WINDOW_DAYS = 30;
+
+function modelLabel(id: string): string {
+  return getAiModel(id)?.label || id;
+}
+
+// Banco ainda sem a coluna test_model (migration não rodada)
+function isMissingTestModelColumn(error: { message?: string } | null): boolean {
+  return !!error?.message && error.message.includes("test_model");
 }
 
 const DEFAULT_VISIT_HOURS = "Segunda a sexta, das 10:00 às 17:00, de meia em meia hora";
@@ -231,6 +258,50 @@ export function parseBuffetInfo(text: string | null): Record<string, string> {
   return values;
 }
 
+function ModelOption({ id }: { id: string }) {
+  const m = getAiModel(id);
+  if (!m) return <span>{id}</span>;
+  return (
+    <span className="flex flex-col items-start">
+      <span className="font-semibold">{m.label}</span>
+      <span className="text-[11px] opacity-70">
+        {m.hint} · ≈ {formatBrlFromUsd(estimateTypicalConversationUsd(m.id))}/conversa
+      </span>
+    </span>
+  );
+}
+
+function UsageTable({ title, rows }: { title: string; rows: ReturnType<typeof summarizeAiUsage> }) {
+  if (rows.length === 0) return null;
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">{title}</p>
+      <div className="rounded-lg border border-border overflow-hidden">
+        <table className="w-full text-xs">
+          <thead className="bg-muted/60 text-muted-foreground">
+            <tr>
+              <th className="text-left font-semibold px-2.5 py-1.5">Modelo</th>
+              <th className="text-right font-semibold px-2.5 py-1.5">Conversas</th>
+              <th className="text-right font-semibold px-2.5 py-1.5">Total</th>
+              <th className="text-right font-semibold px-2.5 py-1.5">Média</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((u) => (
+              <tr key={u.model} className="border-t border-border/60">
+                <td className="px-2.5 py-1.5">{getAiModel(u.model)?.label.replace(/ \((OpenAI|Anthropic)\)$/, "") || u.model}</td>
+                <td className="px-2.5 py-1.5 text-right tabular-nums">{u.conversations}</td>
+                <td className="px-2.5 py-1.5 text-right tabular-nums">{formatBrlFromUsd(u.totalUsd)}</td>
+                <td className="px-2.5 py-1.5 text-right tabular-nums font-semibold">{formatBrlFromUsd(u.avgPerConversationUsd)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export function AiAgentSection() {
   const { currentCompany } = useCompany();
   const [settings, setSettings] = useState<AiAgentSettings | null>(null);
@@ -250,15 +321,19 @@ export function AiAgentSection() {
   const [infoValues, setInfoValues] = useState<Record<string, string>>({});
   const [testModeEnabled, setTestModeEnabled] = useState(false);
   const [testModeNumber, setTestModeNumber] = useState("");
+  const [editModel, setEditModel] = useState(DEFAULT_AI_MODEL);
+  const [editTestModel, setEditTestModel] = useState(SAME_MODEL);
+  const [usageRows, setUsageRows] = useState<AiUsageRow[]>([]);
 
   useEffect(() => {
     if (!currentCompany?.id) return;
     (async () => {
       setLoading(true);
-      const [{ data: row }, { data: instances }] = await Promise.all([
+      const since = new Date(Date.now() - USAGE_WINDOW_DAYS * 24 * 3600 * 1000).toISOString();
+      const [settingsRes, { data: instances }, usageRes] = await Promise.all([
         (supabase as any)
           .from("ai_agent_settings")
-          .select("id, enabled, unit, activated_at, extra_instructions, visit_hours, test_mode_enabled, test_mode_number")
+          .select(`${BASE_COLUMNS}, test_model`)
           .eq("company_id", currentCompany.id)
           .maybeSingle(),
         supabase
@@ -266,7 +341,24 @@ export function AiAgentSection() {
           .select("unit")
           .eq("company_id", currentCompany.id)
           .eq("is_active", true),
+        (supabase as any)
+          .from("ai_agent_usage")
+          .select("conversation_id, model, kind, cost_usd, is_test")
+          .eq("company_id", currentCompany.id)
+          .gte("created_at", since)
+          .limit(10000),
       ]);
+      let row = settingsRes.data;
+      if (settingsRes.error && isMissingTestModelColumn(settingsRes.error)) {
+        const retry = await (supabase as any)
+          .from("ai_agent_settings")
+          .select(BASE_COLUMNS)
+          .eq("company_id", currentCompany.id)
+          .maybeSingle();
+        row = retry.data ? { ...retry.data, test_model: null } : null;
+      }
+      // Tabela de consumo ainda não criada: painel fica vazio, sem erro
+      setUsageRows((usageRes?.data || []) as AiUsageRow[]);
       const loaded: AiAgentSettings = row || {
         enabled: false,
         unit: null,
@@ -275,6 +367,8 @@ export function AiAgentSection() {
         visit_hours: DEFAULT_VISIT_HOURS,
         test_mode_enabled: false,
         test_mode_number: null,
+        model: DEFAULT_AI_MODEL,
+        test_model: null,
       };
       setSettings(loaded);
       const unitList = Array.from(
@@ -289,24 +383,36 @@ export function AiAgentSection() {
     if (!currentCompany?.id || !settings) return;
     setSaving(true);
     const next = { ...settings, ...patch };
-    const { data, error } = await (supabase as any)
+    const payload: Record<string, unknown> = {
+      company_id: currentCompany.id,
+      enabled: next.enabled,
+      unit: next.unit,
+      activated_at: next.activated_at,
+      extra_instructions: next.extra_instructions,
+      visit_hours: next.visit_hours,
+      test_mode_enabled: next.test_mode_enabled,
+      test_mode_number: next.test_mode_number,
+      model: next.model || DEFAULT_AI_MODEL,
+      test_model: next.test_model,
+      updated_at: new Date().toISOString(),
+    };
+    const save = (body: Record<string, unknown>, columns: string) => (supabase as any)
       .from("ai_agent_settings")
-      .upsert(
-        {
-          company_id: currentCompany.id,
-          enabled: next.enabled,
-          unit: next.unit,
-          activated_at: next.activated_at,
-          extra_instructions: next.extra_instructions,
-          visit_hours: next.visit_hours,
-          test_mode_enabled: next.test_mode_enabled,
-          test_mode_number: next.test_mode_number,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "company_id" }
-      )
-      .select("id, enabled, unit, activated_at, extra_instructions, visit_hours, test_mode_enabled, test_mode_number")
+      .upsert(body, { onConflict: "company_id" })
+      .select(columns)
       .single();
+    let { data, error } = await save(payload, `${BASE_COLUMNS}, test_model`);
+    if (error && isMissingTestModelColumn(error)) {
+      // Banco sem a coluna nova: salva o resto e avisa que falta a atualização
+      const { test_model: _skip, ...withoutTestModel } = payload;
+      ({ data, error } = await save(withoutTestModel, BASE_COLUMNS));
+      if (!error) {
+        data = { ...data, test_model: null };
+        if (next.test_model) {
+          toast({ title: "Modelo de teste não salvo", description: "Falta rodar a atualização do banco (SQL) da IA. O resto foi salvo." });
+        }
+      }
+    }
     setSaving(false);
     if (error) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
@@ -363,6 +469,8 @@ export function AiAgentSection() {
     setInfoValues(parseBuffetInfo(settings.extra_instructions));
     setTestModeEnabled(settings.test_mode_enabled || false);
     setTestModeNumber(settings.test_mode_number || "");
+    setEditModel(settings.model || DEFAULT_AI_MODEL);
+    setEditTestModel(settings.test_model || SAME_MODEL);
     setConfigTab("basico");
     setConfigOpen(true);
   };
@@ -396,12 +504,19 @@ export function AiAgentSection() {
       extra_instructions: serializeBuffetInfo(infoValues),
       test_mode_enabled: testModeEnabled,
       test_mode_number: testModeEnabled ? testModeNumber.trim() : null,
+      model: editModel,
+      test_model: testModeEnabled && editTestModel !== SAME_MODEL && editTestModel !== editModel ? editTestModel : null,
     });
     if (saved) {
       setConfigOpen(false);
       toast({ title: "Configurações salvas", description: "A IA passa a usar essas informações imediatamente." });
     }
   };
+
+  const clientUsage = summarizeAiUsage(usageRows.filter((r) => !r.is_test));
+  const testUsage = summarizeAiUsage(usageRows.filter((r) => r.is_test));
+  const clientTotalUsd = clientUsage.reduce((sum, u) => sum + u.totalUsd, 0);
+  const clientConversations = clientUsage.reduce((sum, u) => sum + u.conversations, 0);
 
   if (loading || !settings) {
     return (
@@ -428,6 +543,12 @@ export function AiAgentSection() {
           </h4>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
             Conversa natural, tira dúvidas, envia materiais e agenda visitas — só leads novos
+          </p>
+          <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1">
+            <Cpu className="w-3 h-3" /> {modelLabel(settings.model || DEFAULT_AI_MODEL)}
+            {clientConversations > 0 && (
+              <span> · {formatBrlFromUsd(clientTotalUsd)} em {USAGE_WINDOW_DAYS} dias ({clientConversations} conversa{clientConversations === 1 ? "" : "s"})</span>
+            )}
           </p>
         </div>
         <div className="mt-auto pt-1 flex items-center justify-between gap-2">
@@ -587,6 +708,41 @@ export function AiAgentSection() {
                   )}
                 </div>
 
+                {/* Modelo de IA: OpenAI ou Anthropic, trocado aqui sem mexer em código */}
+                <div className="rounded-xl border border-border bg-card p-3.5 space-y-2.5">
+                  <Label className="text-xs font-bold flex items-center gap-1.5">
+                    <Cpu className="w-3.5 h-3.5 text-violet-600" />
+                    Modelo de IA (clientes)
+                  </Label>
+                  <Select value={editModel} onValueChange={setEditModel}>
+                    <SelectTrigger className="h-auto min-h-10 py-1.5 bg-card border-border shadow-sm text-left">
+                      <SelectValue>{modelLabel(editModel)}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AI_MODELS.map((m) => (
+                        <SelectItem key={m.id} value={m.id} className="py-2"><ModelOption id={m.id} /></SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground">
+                    Custo por conversa é estimativa; o valor real aparece abaixo conforme a IA atende. Modelos Claude precisam da chave da Anthropic cadastrada no Supabase — sem ela, a IA usa o GPT-4o mini.
+                  </p>
+                  {(clientUsage.length > 0 || testUsage.length > 0) ? (
+                    <div className="space-y-3 pt-1">
+                      <p className="text-xs font-bold flex items-center gap-1.5">
+                        <Wallet className="w-3.5 h-3.5 text-green-600" /> Consumo real — últimos {USAGE_WINDOW_DAYS} dias
+                      </p>
+                      <UsageTable title="Clientes" rows={clientUsage} />
+                      <UsageTable title="Número de teste" rows={testUsage} />
+                      <p className="text-[10px] text-muted-foreground">Inclui áudios transcritos e fotos. Valores em reais aproximados (cotação fixa).</p>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                      <Wallet className="w-3.5 h-3.5" /> O consumo real aparece aqui depois das primeiras conversas.
+                    </p>
+                  )}
+                </div>
+
                 {/* Modo de Teste da IA: diferente do Modo de Teste do bot fixo (que
                     pausa TODO o número). Aqui só a IA fica restrita a um telefone —
                     o resto dos clientes continua sendo atendido normalmente. */}
@@ -602,12 +758,31 @@ export function AiAgentSection() {
                     Enquanto ligado, só esse WhatsApp conversa com a IA. Os outros clientes continuam com o bot de sempre, sem nenhuma mudança.
                   </p>
                   {testModeEnabled && (
-                    <Input
-                      value={testModeNumber}
-                      onChange={(e) => setTestModeNumber(e.target.value)}
-                      className="h-10 text-base sm:text-sm bg-card border-border shadow-sm"
-                      placeholder="Ex.: 15 98112-1710"
-                    />
+                    <>
+                      <Input
+                        value={testModeNumber}
+                        onChange={(e) => setTestModeNumber(e.target.value)}
+                        className="h-10 text-base sm:text-sm bg-card border-border shadow-sm"
+                        placeholder="Ex.: 15 98112-1710"
+                      />
+                      <div className="space-y-1.5 pt-1">
+                        <Label className="text-xs font-bold">Modelo no número de teste</Label>
+                        <Select value={editTestModel} onValueChange={setEditTestModel}>
+                          <SelectTrigger className="h-auto min-h-10 py-1.5 bg-card border-border shadow-sm text-left">
+                            <SelectValue>{editTestModel === SAME_MODEL ? "O mesmo dos clientes" : modelLabel(editTestModel)}</SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={SAME_MODEL} className="py-2">O mesmo dos clientes</SelectItem>
+                            {AI_MODELS.map((m) => (
+                              <SelectItem key={m.id} value={m.id} className="py-2"><ModelOption id={m.id} /></SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-[11px] text-muted-foreground">
+                          Para comparar: escolha um modelo, converse; troque e converse de novo. Mande <span className="font-bold">#reiniciar</span> do número de teste para a IA começar uma conversa do zero.
+                        </p>
+                      </div>
+                    </>
                   )}
                 </div>
 
