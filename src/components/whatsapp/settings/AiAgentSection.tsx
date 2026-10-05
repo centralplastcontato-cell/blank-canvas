@@ -19,10 +19,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sparkles, Loader2, Save, Pencil, Check, FlaskConical, Cpu, Wallet } from "lucide-react";
+import { Sparkles, Loader2, Save, Pencil, Check, FlaskConical, Cpu, Wallet, BellRing } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { parseVisitHours, serializeTeamHours, serializeVisitHours } from "@/lib/businessHours";
 import {
   AI_MODELS,
   DEFAULT_AI_MODEL,
@@ -49,9 +50,15 @@ interface AiAgentSettings {
   // teste — para comparar modelos sem mexer no atendimento de verdade.
   model: string;
   test_model: string | null;
+  // Passagem para a equipe: horário de atendimento e alerta forte
+  team_hours?: string | null;
+  handoff_alert_minutes?: number | null;
+  handoff_alert_phone?: string | null;
 }
 
 const BASE_COLUMNS = "id, enabled, unit, activated_at, extra_instructions, visit_hours, test_mode_enabled, test_mode_number, model";
+const HANDOFF_COLUMNS = "team_hours, handoff_alert_minutes, handoff_alert_phone";
+const ALERT_MINUTE_OPTIONS = [5, 10, 15, 20, 30];
 // Valor do Select para "mesmo modelo dos clientes" (o Select não aceita "")
 const SAME_MODEL = "__same__";
 const USAGE_WINDOW_DAYS = 30;
@@ -60,14 +67,13 @@ function modelLabel(id: string): string {
   return getAiModel(id)?.label || id;
 }
 
-// Banco ainda sem a coluna test_model (migration não rodada)
-function isMissingTestModelColumn(error: { message?: string } | null): boolean {
-  return !!error?.message && error.message.includes("test_model");
+// Banco ainda sem as colunas novas (migration não rodada)
+function isMissingNewColumn(error: { message?: string } | null): boolean {
+  return !!error?.message && /test_model|team_hours|handoff_alert/.test(error.message);
 }
 
 const DEFAULT_VISIT_HOURS = "Segunda a sexta, das 10:00 às 17:00, de meia em meia hora";
 
-const DAY_NAMES = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 const DAY_SHORT = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 const TIME_OPTIONS = Array.from({ length: 25 }, (_, i) => {
   const h = String(Math.floor(i / 2) + 8).padStart(2, "0");
@@ -77,110 +83,8 @@ const TIME_OPTIONS = Array.from({ length: 25 }, (_, i) => {
 // Os horários são editados de forma estruturada (dias + das/até + intervalo,
 // com um horário à parte para o sábado quando ele é diferente do resto da
 // semana) e serializados na frase que a IA lê; a frase salva é desmontada ao
-// reabrir. As duas partes (dias de semana; sábado) ficam separadas por ";".
-function daysToText(sortedDays: number[]): string {
-  const key = sortedDays.join(",");
-  if (key === "0,1,2,3,4") return "Segunda a sexta";
-  if (key === "0,1,2,3,4,5") return "Segunda a sábado";
-  if (key === "0,1,2,3,4,5,6") return "Todos os dias";
-  if (sortedDays.length === 1) return DAY_NAMES[sortedDays[0]];
-  return sortedDays.map((d) => DAY_NAMES[d]).join(", ").replace(/, ([^,]*)$/, " e $1");
-}
-
-export function serializeVisitHours(
-  days: number[],
-  start: string,
-  end: string,
-  halfHour: boolean,
-  satDifferent = false,
-  satStart = "",
-  satEnd = "",
-): string {
-  const sorted = [...days].sort((a, b) => a - b);
-  const useSatSplit = satDifferent && sorted.includes(5);
-  const mainDays = useSatSplit ? sorted.filter((d) => d !== 5) : sorted;
-  const intervalText = (h: boolean) => (h ? "de meia em meia hora" : "de hora em hora");
-  const parts: string[] = [];
-  if (mainDays.length > 0) parts.push(`${daysToText(mainDays)}, das ${start} às ${end}, ${intervalText(halfHour)}`);
-  if (useSatSplit) parts.push(`sábado, das ${satStart} às ${satEnd}, ${intervalText(halfHour)}`);
-  return parts.join("; ");
-}
-
-// Lê um trecho ("Segunda a sexta, das 10:00 às 17:00, de meia em meia hora")
-// e devolve os dias/horário que ele descreve, ou dias=[] se não reconhecer nada.
-function parseVisitHoursSegment(text: string): { days: number[]; start: string | null; end: string | null; halfHour: boolean } {
-  const t = text.toLowerCase();
-  let days: number[] = [];
-  if (t.includes("todos os dias")) days = [0, 1, 2, 3, 4, 5, 6];
-  else if (t.includes("segunda a sábado") || t.includes("segunda a sabado")) days = [0, 1, 2, 3, 4, 5];
-  else if (t.includes("segunda a sexta")) days = [0, 1, 2, 3, 4];
-  else {
-    const tokens: [string, number][] = [["segunda", 0], ["terça", 1], ["terca", 1], ["quarta", 2], ["quinta", 3], ["sexta", 4], ["sábado", 5], ["sabado", 5], ["domingo", 6]];
-    tokens.forEach(([tok, idx]) => { if (t.includes(tok) && !days.includes(idx)) days.push(idx); });
-  }
-  const norm = (s: string) => {
-    const mm = s.replace("h", ":").match(/(\d{1,2}):?(\d{2})?/);
-    return mm ? `${mm[1].padStart(2, "0")}:${mm[2] || "00"}` : null;
-  };
-  const m = t.match(/das\s+(\d{1,2}[:h]?\d{0,2})\s+às?\s+(\d{1,2}[:h]?\d{0,2})/);
-  return {
-    days,
-    start: m && norm(m[1]),
-    end: m && norm(m[2]),
-    halfHour: !t.includes("hora em hora"),
-  };
-}
-
-interface ParsedVisitHours {
-  days: number[];
-  start: string;
-  end: string;
-  halfHour: boolean;
-  satDifferent: boolean;
-  satStart: string;
-  satEnd: string;
-}
-
-export function parseVisitHours(text: string | null): ParsedVisitHours {
-  const fallback: ParsedVisitHours = {
-    days: [0, 1, 2, 3, 4],
-    start: "10:00",
-    end: "17:00",
-    halfHour: true,
-    satDifferent: false,
-    satStart: "09:00",
-    satEnd: "13:00",
-  };
-  if (!text || !text.trim()) return fallback;
-  const segments = text.split(/;\s*/).map(parseVisitHoursSegment).filter((s) => s.days.length > 0);
-  if (segments.length === 0) return fallback;
-
-  // Um trecho isolado só de sábado, junto com outro dos demais dias: horário diferente.
-  const satSeg = segments.find((s) => s.days.length === 1 && s.days[0] === 5);
-  const mainSeg = segments.find((s) => s !== satSeg);
-  if (satSeg && mainSeg) {
-    return {
-      days: Array.from(new Set([...mainSeg.days, 5])),
-      start: mainSeg.start || fallback.start,
-      end: mainSeg.end || fallback.end,
-      halfHour: mainSeg.halfHour,
-      satDifferent: true,
-      satStart: satSeg.start || fallback.satStart,
-      satEnd: satSeg.end || fallback.satEnd,
-    };
-  }
-
-  const s = segments[0];
-  return {
-    days: s.days,
-    start: s.start || fallback.start,
-    end: s.end || fallback.end,
-    halfHour: s.halfHour,
-    satDifferent: false,
-    satStart: fallback.satStart,
-    satEnd: fallback.satEnd,
-  };
-}
+// reabrir. As regras ficam em _shared/business-hours.ts (as mesmas da IA).
+export { parseVisitHours, serializeVisitHours };
 
 // Campos estruturados do modal. São serializados em texto rotulado dentro de
 // extra_instructions ("Endereço: ...\nDuração da festa: ...") — o mesmo texto
@@ -324,6 +228,14 @@ export function AiAgentSection() {
   const [editModel, setEditModel] = useState(DEFAULT_AI_MODEL);
   const [editTestModel, setEditTestModel] = useState(SAME_MODEL);
   const [usageRows, setUsageRows] = useState<AiUsageRow[]>([]);
+  const [teamDays, setTeamDays] = useState<number[]>([0, 1, 2, 3, 4, 5]);
+  const [teamStart, setTeamStart] = useState("09:00");
+  const [teamEnd, setTeamEnd] = useState("18:00");
+  const [teamSatDifferent, setTeamSatDifferent] = useState(true);
+  const [teamSatStart, setTeamSatStart] = useState("09:00");
+  const [teamSatEnd, setTeamSatEnd] = useState("13:00");
+  const [alertMinutes, setAlertMinutes] = useState(10);
+  const [alertPhone, setAlertPhone] = useState("");
 
   useEffect(() => {
     if (!currentCompany?.id) return;
@@ -333,7 +245,7 @@ export function AiAgentSection() {
       const [settingsRes, { data: instances }, usageRes] = await Promise.all([
         (supabase as any)
           .from("ai_agent_settings")
-          .select(`${BASE_COLUMNS}, test_model`)
+          .select("*")
           .eq("company_id", currentCompany.id)
           .maybeSingle(),
         supabase
@@ -349,7 +261,7 @@ export function AiAgentSection() {
           .limit(10000),
       ]);
       let row = settingsRes.data;
-      if (settingsRes.error && isMissingTestModelColumn(settingsRes.error)) {
+      if (settingsRes.error && isMissingNewColumn(settingsRes.error)) {
         const retry = await (supabase as any)
           .from("ai_agent_settings")
           .select(BASE_COLUMNS)
@@ -394,6 +306,9 @@ export function AiAgentSection() {
       test_mode_number: next.test_mode_number,
       model: next.model || DEFAULT_AI_MODEL,
       test_model: next.test_model,
+      team_hours: next.team_hours ?? null,
+      handoff_alert_minutes: next.handoff_alert_minutes ?? 10,
+      handoff_alert_phone: next.handoff_alert_phone ?? null,
       updated_at: new Date().toISOString(),
     };
     const save = (body: Record<string, unknown>, columns: string) => (supabase as any)
@@ -401,16 +316,14 @@ export function AiAgentSection() {
       .upsert(body, { onConflict: "company_id" })
       .select(columns)
       .single();
-    let { data, error } = await save(payload, `${BASE_COLUMNS}, test_model`);
-    if (error && isMissingTestModelColumn(error)) {
-      // Banco sem a coluna nova: salva o resto e avisa que falta a atualização
-      const { test_model: _skip, ...withoutTestModel } = payload;
-      ({ data, error } = await save(withoutTestModel, BASE_COLUMNS));
+    let { data, error } = await save(payload, "*");
+    if (error && isMissingNewColumn(error)) {
+      // Banco sem as colunas novas: salva o resto e avisa que falta a atualização
+      const { test_model: _t, team_hours: _h, handoff_alert_minutes: _m, handoff_alert_phone: _p, ...withoutNew } = payload;
+      ({ data, error } = await save(withoutNew, BASE_COLUMNS));
       if (!error) {
         data = { ...data, test_model: null };
-        if (next.test_model) {
-          toast({ title: "Modelo de teste não salvo", description: "Falta rodar a atualização do banco (SQL) da IA. O resto foi salvo." });
-        }
+        toast({ title: "Parte das configurações não foi salva", description: "Falta rodar a atualização do banco (SQL) da IA. O resto foi salvo." });
       }
     }
     setSaving(false);
@@ -471,6 +384,15 @@ export function AiAgentSection() {
     setTestModeNumber(settings.test_mode_number || "");
     setEditModel(settings.model || DEFAULT_AI_MODEL);
     setEditTestModel(settings.test_model || SAME_MODEL);
+    const team = parseVisitHours(settings.team_hours || "Segunda a sexta, das 09:00 às 18:00; sábado, das 09:00 às 13:00");
+    setTeamDays(team.days);
+    setTeamStart(team.start);
+    setTeamEnd(team.end);
+    setTeamSatDifferent(team.satDifferent);
+    setTeamSatStart(team.satStart);
+    setTeamSatEnd(team.satEnd);
+    setAlertMinutes(settings.handoff_alert_minutes || 10);
+    setAlertPhone(settings.handoff_alert_phone || "");
     setConfigTab("basico");
     setConfigOpen(true);
   };
@@ -494,6 +416,14 @@ export function AiAgentSection() {
       toast({ title: "Horário de sábado inválido", description: "O horário final precisa ser depois do inicial.", variant: "destructive" });
       return;
     }
+    if (teamDays.length === 0 || teamEnd <= teamStart) {
+      toast({ title: "Horário da equipe inválido", description: "Marque os dias e um horário final depois do inicial.", variant: "destructive" });
+      return;
+    }
+    if (alertPhone.trim() && alertPhone.replace(/\D/g, "").length < 10) {
+      toast({ title: "WhatsApp do alerta inválido", description: "Informe com DDD, ex.: 15 98112-1710.", variant: "destructive" });
+      return;
+    }
     if (testModeEnabled && !testModeNumber.trim()) {
       toast({ title: "Informe o número de teste", description: "Preencha o WhatsApp que vai testar a IA sozinho.", variant: "destructive" });
       return;
@@ -506,6 +436,9 @@ export function AiAgentSection() {
       test_mode_number: testModeEnabled ? testModeNumber.trim() : null,
       model: editModel,
       test_model: testModeEnabled && editTestModel !== SAME_MODEL && editTestModel !== editModel ? editTestModel : null,
+      team_hours: serializeTeamHours(teamDays, teamStart, teamEnd, teamSatDifferent, teamSatStart, teamSatEnd),
+      handoff_alert_minutes: alertMinutes,
+      handoff_alert_phone: alertPhone.trim() || null,
     });
     if (saved) {
       setConfigOpen(false);
@@ -741,6 +674,94 @@ export function AiAgentSection() {
                       <Wallet className="w-3.5 h-3.5" /> O consumo real aparece aqui depois das primeiras conversas.
                     </p>
                   )}
+                </div>
+
+                {/* Passagem para a equipe: a IA informa este horário ao cliente e,
+                    se ninguém responder em X minutos de expediente, dispara o
+                    alerta forte no WhatsApp abaixo (além do sininho). */}
+                <div className="rounded-xl border border-border bg-card p-3.5 space-y-2.5">
+                  <Label className="text-xs font-bold flex items-center gap-1.5">
+                    <BellRing className="w-3.5 h-3.5 text-red-600" />
+                    Passagem para a equipe
+                  </Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Horário de atendimento da equipe — a IA informa ao cliente quando passa a conversa.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {DAY_SHORT.map((d, idx) => {
+                      const on = teamDays.includes(idx);
+                      return (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => {
+                            if (idx === 5 && on) setTeamSatDifferent(false);
+                            setTeamDays((prev) => (prev.includes(idx) ? prev.filter((x) => x !== idx) : [...prev, idx]));
+                          }}
+                          className={`min-w-[44px] h-9 px-2 rounded-lg text-xs font-bold transition-all border ${on ? "bg-violet-600 text-white border-violet-600 shadow-sm" : "bg-card text-muted-foreground border-border"}`}
+                        >
+                          {d}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold">Das</Label>
+                      <Select value={teamStart} onValueChange={setTeamStart}>
+                        <SelectTrigger className="h-10 bg-card border-border shadow-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>{TIME_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold">Até</Label>
+                      <Select value={teamEnd} onValueChange={setTeamEnd}>
+                        <SelectTrigger className="h-10 bg-card border-border shadow-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>{TIME_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  {teamDays.includes(5) && (
+                    <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-xs font-bold">Sábado tem horário diferente</Label>
+                        <Switch checked={teamSatDifferent} onCheckedChange={setTeamSatDifferent} />
+                      </div>
+                      {teamSatDifferent && (
+                        <div className="grid grid-cols-2 gap-3 pt-1">
+                          <Select value={teamSatStart} onValueChange={setTeamSatStart}>
+                            <SelectTrigger className="h-10 bg-card border-border shadow-sm"><SelectValue /></SelectTrigger>
+                            <SelectContent>{TIME_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                          </Select>
+                          <Select value={teamSatEnd} onValueChange={setTeamSatEnd}>
+                            <SelectTrigger className="h-10 bg-card border-border shadow-sm"><SelectValue /></SelectTrigger>
+                            <SelectContent>{TIME_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-[1fr_1.4fr] gap-3 pt-1">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold">Alerta forte após</Label>
+                      <Select value={String(alertMinutes)} onValueChange={(v) => setAlertMinutes(Number(v))}>
+                        <SelectTrigger className="h-10 bg-card border-border shadow-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>{ALERT_MINUTE_OPTIONS.map((m) => <SelectItem key={m} value={String(m)}>{m} min</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold">WhatsApp do alerta</Label>
+                      <Input
+                        value={alertPhone}
+                        onChange={(e) => setAlertPhone(e.target.value)}
+                        className="h-10 text-base sm:text-sm bg-card border-border shadow-sm"
+                        placeholder="Ex.: 15 98112-1710"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Se ninguém da equipe responder o cliente nesse tempo (contando só o horário de atendimento), esse WhatsApp recebe um alerta 🚨, além do sininho.
+                  </p>
                 </div>
 
                 {/* Modo de Teste da IA: diferente do Modo de Teste do bot fixo (que
