@@ -3,6 +3,7 @@ import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { findLeadByPhone } from "../_shared/lead-phone.ts";
 import { fetchLastReturns, leadsWithActionSinceReturn } from "../_shared/lead-return.ts";
 import { decideStuckAlert, formatContactList } from "../_shared/stuck-alert.ts";
+import { decideDegradedAlert } from "../_shared/degraded-alert.ts";
 import { BOT_STEPS_WAITING_ANSWER, botShouldHaveAnswered, UNANSWERED_MAX_AGE_HOURS, UNANSWERED_MINUTES } from "../_shared/unanswered-bot.ts";
 
 type SupabaseAdmin = any;
@@ -3495,9 +3496,28 @@ async function processInstanceHealthCheck(
           continue;
         }
 
-        console.log(`[health-check] Instance ${inst.instance_id} is degraded — keeping status, no restart`);
+        console.log(`[health-check] Instance ${inst.instance_id} is degraded${detectedErrorType ? ` (${detectedErrorType})` : ""} — keeping status, no restart`);
         if (inst.status !== "degraded") {
           await supabase.from("wapi_instances").update({ status: "degraded" }).eq("id", inst.id);
+        }
+
+        // Só avisa quando se confirma: degraded de novo na checagem seguinte
+        // e sem nenhum aviso do WhatsApp nos últimos 30 min (evita alarme falso
+        // de uma resposta estranha/lenta da W-API com o número funcionando).
+        const { data: lastEvent } = await supabase
+          .from("wapi_webhook_raw_events")
+          .select("received_at")
+          .eq("instance_id", inst.instance_id)
+          .order("received_at", { ascending: false })
+          .limit(1);
+        const degradedDecision = decideDegradedAlert({
+          previousStatus: inst.status,
+          lastWebhookEventAt: lastEvent?.[0]?.received_at ?? null,
+          now: Date.now(),
+        });
+        if (!degradedDecision.alert) {
+          console.log(`[health-check] ${inst.unit || inst.instance_id} degraded sem aviso ainda (${degradedDecision.reason})`);
+          continue;
         }
 
         // Send notification only once (check if there's a recent one in the last 6 hours)
