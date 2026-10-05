@@ -27,8 +27,8 @@ export const DEFAULT_AI_MODEL = "gpt-4o-mini";
 
 export const AI_MODELS: AiModelInfo[] = [
   { id: "gpt-4o-mini", provider: "openai", label: "GPT-4o mini (OpenAI)", hint: "O atual — o mais barato, o mais simples", inputPerM: 0.15, cachedInputPerM: 0.075, cacheWritePerM: 0, outputPerM: 0.6, thinks: false },
-  { id: "gpt-5.4-mini", provider: "openai", label: "GPT-5.4 mini (OpenAI)", hint: "Bem melhor que o 4o mini, ainda barato", inputPerM: 0.75, cachedInputPerM: 0.075, cacheWritePerM: 0, outputPerM: 4.5, thinks: true },
-  { id: "gpt-5.4", provider: "openai", label: "GPT-5.4 (OpenAI)", hint: "O forte da OpenAI para produção", inputPerM: 2.5, cachedInputPerM: 0.25, cacheWritePerM: 0, outputPerM: 15, thinks: true },
+  { id: "gpt-5.4-mini", provider: "openai", label: "GPT-5.4 mini (OpenAI)", hint: "Bem melhor que o 4o mini, ainda barato", inputPerM: 0.75, cachedInputPerM: 0.075, cacheWritePerM: 0, outputPerM: 4.5, thinks: false },
+  { id: "gpt-5.4", provider: "openai", label: "GPT-5.4 (OpenAI)", hint: "O forte da OpenAI para produção", inputPerM: 2.5, cachedInputPerM: 0.25, cacheWritePerM: 0, outputPerM: 15, thinks: false },
   { id: "claude-haiku-4-5", provider: "anthropic", label: "Claude Haiku 4.5 (Anthropic)", hint: "Rápido e barato", inputPerM: 1, cachedInputPerM: 0.1, cacheWritePerM: 1.25, outputPerM: 5, thinks: false },
   { id: "claude-sonnet-5-5", provider: "anthropic", label: "Claude Sonnet 5.5 (Anthropic)", hint: "Conversa mais natural, ótimo custo-benefício", inputPerM: 2, cachedInputPerM: 0.2, cacheWritePerM: 2.5, outputPerM: 10, thinks: true },
   { id: "claude-opus-5-5", provider: "anthropic", label: "Claude Opus 5.5 (Anthropic)", hint: "O mais inteligente — o mais caro", inputPerM: 4, cachedInputPerM: 0.2, cacheWritePerM: 5, outputPerM: 20, thinks: true },
@@ -62,6 +62,16 @@ export function providerForModel(id: string | null | undefined): AiProvider {
 // max_completion_tokens + reasoning_effort no lugar de max_tokens.
 export function isOpenAiReasoningModel(id: string): boolean {
   return /^(gpt-5|o\d)/.test(id);
+}
+
+// Nível de raciocínio que dá para usar JUNTO com as ferramentas da IA no
+// /v1/chat/completions. A OpenAI recusa ferramentas com raciocínio ligado nos
+// GPT-5.x ("Function tools with reasoning_effort are not supported ... set
+// reasoning_effort to 'none'"); o GPT-5 original não tem "none", usa "minimal".
+export function openAiReasoningEffortWithTools(id: string): "none" | "minimal" | null {
+  if (!isOpenAiReasoningModel(id)) return null;
+  if (/^gpt-5\.\d/.test(id)) return "none";
+  return "minimal";
 }
 
 export interface AiUsageTokens {
