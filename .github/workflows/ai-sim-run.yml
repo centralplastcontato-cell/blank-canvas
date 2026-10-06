@@ -21,11 +21,14 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           COMPANY=$(jq -r .company_id .github/ai-sim-request.json)
-          KEY=$(curl -sS "https://api.supabase.com/v1/projects/rsezgnkfhodltrsewlhz/api-keys?reveal=true" \
-            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" | jq -r '[.[] | select(.name=="service_role")][0].api_key')
-          [ -n "$KEY" ] && [ "$KEY" != "null" ] || { echo "sem chave de serviço"; exit 1; }
-          echo "::add-mask::$KEY"
-          curl -sS -X POST "https://rsezgnkfhodltrsewlhz.supabase.co/functions/v1/ai-simulator" \
-            -H "Authorization: Bearer ${KEY}" -H "Content-Type: application/json" \
-            -d "$(jq -c '{action:"start"} + .' .github/ai-sim-request.json)"
-          echo
+          KEYS=$(curl -sS "https://api.supabase.com/v1/projects/rsezgnkfhodltrsewlhz/api-keys?reveal=true" \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" | jq -r '.[] | select(.name=="service_role" or .type=="secret") | .api_key')
+          BODY=$(jq -c '{action:"start"} + .' .github/ai-sim-request.json)
+          # O projeto pode ter a chave antiga (service_role) e a nova (secret): vale a que a função usa
+          for KEY in $KEYS; do
+            echo "::add-mask::$KEY"
+            OUT=$(curl -sS -X POST "https://rsezgnkfhodltrsewlhz.supabase.co/functions/v1/ai-simulator" \
+              -H "Authorization: Bearer ${KEY}" -H "apikey: ${KEY}" -H "Content-Type: application/json" -d "$BODY")
+            echo "$OUT"
+            echo "$OUT" | grep -q "Sessão inválida" || break
+          done

@@ -41,10 +41,10 @@ export interface ScenarioState {
 // Regras que o avaliador confere em toda conversa (id → título no relatório)
 export const RULES: Array<{ id: string; label: string; how: string }> = [
   { id: "preco_grade", label: "Preço bate com a grade", how: "Todo valor (R$) que a IA disse aparece nos resultados de consultar_valor_pacote (a grade de preços). Se ela não citou preço, null — a não ser que o cliente tenha dado quantidade e data e pedido o valor e ela não passou (aí false)." },
-  { id: "data_agenda", label: "Data livre bate com a agenda", how: "Toda data/horário que a IA disse estar disponível aparece livre nos resultados de consultar_datas_livres ou consultar_valor_pacote; data ocupada nunca é oferecida como livre. Sem datas na conversa: null." },
-  { id: "nao_inventou", label: "Não inventou informação", how: "A IA não afirmou fatos sobre o buffet (itens do pacote, regras, serviços, endereço, preços, brindes) que não estejam nos resultados das ferramentas ou que contradigam o que é dito como regra. Na dúvida ela deve dizer que confirma com a equipe." },
+  { id: "data_agenda", label: "Data livre bate com a agenda", how: "Só datas de FESTA: toda data/horário de festa que a IA disse estar disponível aparece livre nos resultados de consultar_datas_livres ou consultar_valor_pacote; data ocupada nunca é oferecida como livre. Horários de VISITA ao espaço vêm da agenda de visitas (já conhecida pela IA) e NÃO entram nesta regra. Sem datas de festa na conversa: null." },
+  { id: "nao_inventou", label: "Não inventou informação", how: "A IA não afirmou fatos sobre o buffet (itens do pacote, regras, serviços, endereço, preços, brindes) que não estejam nas INFORMAÇÕES DO BUFFET abaixo nem nos resultados das ferramentas, nem contradisse essas informações. Na dúvida ela deve dizer que confirma com a equipe." },
   { id: "sem_desconto", label: "Não deu desconto", how: "A IA não ofereceu nem aceitou desconto, preço à vista diferente, brinde, entrada diferente ou condição especial. Pode dizer que a equipe fala sobre formas de pagamento. Se ninguém falou disso: null." },
-  { id: "uma_resposta_por_vez", label: "Uma resposta por vez", how: "Em cada vez da IA há uma única mensagem de texto de resposta (as legendas antes de fotos/vídeo/PDF não contam). Ela responde todas as perguntas do cliente juntas, sem mandar duas mensagens seguidas de conversa." },
+  { id: "uma_resposta_por_vez", label: "Uma resposta por vez", how: "Em cada vez da IA há uma única mensagem de texto de conversa. NÃO contam: as mensagens marcadas como [legenda do material], as fotos, o vídeo e o PDF (o envio dos materiais é uma sequência automática, permitida). Ela responde todas as perguntas do cliente juntas, sem mandar duas mensagens de conversa seguidas." },
   { id: "tom_animado", label: "Tom animado com emojis", how: "Tom simpático e animado, com emojis na maioria das mensagens (2 ou 3 por mensagem, sem exagero); frases curtas de WhatsApp." },
   { id: "usou_nomes", label: "Usou o nome do cliente e do aniversariante", how: "Depois que o cliente disse o próprio nome e/ou o do aniversariante, a IA passou a usá-los de vez em quando. Se o cliente nunca disse nomes: null." },
   { id: "visita_sem_exagero", label: "Ofereceu visita sem exagerar", how: "A IA convidou para visitar o espaço em algum momento oportuno, mas não em toda mensagem (no máximo a cada 3–4 respostas). Se o cliente já agendou, não insiste. Em evento que vai para a equipe (formatura, empresa) ou conversa muito curta: null." },
@@ -111,7 +111,7 @@ async function openAiJson(apiKey: string, system: string, user: string, effort: 
   return { json, costUsd };
 }
 
-const MEDIA_LABEL: Record<string, string> = { image: "[foto]", video: "[vídeo]", document: "[PDF]" };
+const MEDIA_LABEL: Record<string, string> = { image: "[foto]", video: "[vídeo]", document: "[PDF]", legenda: "" };
 
 /** Conversa do ponto de vista do cliente (sem as ferramentas) */
 export function transcriptForClient(t: TranscriptEntry[]): string {
@@ -119,7 +119,7 @@ export function transcriptForClient(t: TranscriptEntry[]): string {
     .filter((e) => e.who !== "ferramenta")
     .map((e) => {
       if (e.who === "cliente") return `Você: ${e.text}`;
-      const media = e.kind && e.kind !== "text" ? `${MEDIA_LABEL[e.kind] || "[arquivo]"} ` : "";
+      const media = e.kind && e.kind !== "text" && e.kind !== "legenda" ? `${MEDIA_LABEL[e.kind] || "[arquivo]"} ` : "";
       return `Buffet: ${media}${e.text}`.trim();
     });
   return lines.length > 0 ? lines.join("\n") : "(a conversa ainda não começou — mande a primeira mensagem)";
@@ -214,10 +214,14 @@ export async function runScenarioSlice(opts: {
     for (const call of state.sandbox.tools.slice(toolsBefore)) {
       state.transcript.push({ who: "ferramenta", text: `${call.name}(${JSON.stringify(call.args)})\n→ ${call.result}`, turn: state.turn });
     }
-    for (const out of state.sandbox.outbox.slice(outBefore)) {
-      const kind = out.action === "send-text" ? "text" : out.action.replace("send-", "");
+    const outs = state.sandbox.outbox.slice(outBefore);
+    outs.forEach((out, i) => {
+      let kind = out.action === "send-text" ? "text" : out.action.replace("send-", "");
+      // Texto logo antes de foto/vídeo/PDF é a legenda do material, não uma resposta
+      const next = outs[i + 1];
+      if (kind === "text" && next && next.action !== "send-text") kind = "legenda";
       state.transcript.push({ who: "ia", text: out.message || out.caption || out.fileName || "", kind, turn: state.turn });
-    }
+    });
 
     const after = state.sandbox.memory.wapi_conversations.find((c) => c.id === state.convId)!;
     if (!handled && state.sandbox.outbox.length === outBefore) {
@@ -244,12 +248,13 @@ export function transcriptForJudge(t: TranscriptEntry[]): string {
   return t.map((e) => {
     if (e.who === "cliente") return `[vez ${e.turn}] CLIENTE: ${e.text}`;
     if (e.who === "ferramenta") return `[vez ${e.turn}] (ferramenta consultada pela IA, o cliente não vê) ${e.text}`;
+    if (e.kind === "legenda") return `[vez ${e.turn}] IA [legenda do material]: ${e.text}`;
     const media = e.kind && e.kind !== "text" ? `${MEDIA_LABEL[e.kind] || "[arquivo]"} ` : "";
     return `[vez ${e.turn}] IA: ${media}${e.text}`;
   }).join("\n");
 }
 
-export async function judgeScenario(apiKey: string, companyName: string, scenario: Scenario, state: ScenarioState): Promise<{ checks: RuleCheck[]; summary: string; costUsd: number }> {
+export async function judgeScenario(apiKey: string, companyName: string, scenario: Scenario, state: ScenarioState, knowledge = ""): Promise<{ checks: RuleCheck[]; summary: string; costUsd: number }> {
   const system = `Você avalia conversas de WhatsApp entre um cliente e a atendente virtual (IA) de um buffet infantil (${companyName}). Hoje é ${todayText()}.
 
 Regras do negócio que a IA deve seguir:
@@ -263,6 +268,9 @@ Regras do negócio que a IA deve seguir:
 - Convida para visita sem exagero (no máximo a cada 3–4 respostas); se o cliente já tem visita marcada, só confirma — "ok/obrigado" depois de agendar não é novo pedido e nunca pode haver duas visitas.
 - Não usa a palavra "sistema" com o cliente.
 - Passa para a equipe quando o cliente pede atendente, quer negociar ou quando não sabe responder.
+
+INFORMAÇÕES DO BUFFET que a IA conhece e pode afirmar (fonte da verdade, junto com os resultados das ferramentas):
+${knowledge || "(não informadas)"}
 
 Cenário testado: ${scenario.title}
 Perfil do cliente: ${scenario.persona}
