@@ -149,3 +149,11 @@ Deno.test("clientAsksVisit / clientDeclined", () => {
   assertEquals(clientDeclined("Nesse caso não vai dar pra fechar então"), true);
   assertEquals(clientDeclined("vou pensar"), false);
 });
+
+Deno.test("repliesSinceVisitInvite: convite sem a palavra 'visita' também conta", () => {
+  assertEquals(repliesSinceVisitInvite([
+    { role: "assistant", content: "Se você quiser conhecer o espaço de pertinho, tenho quarta às 10h 🏰" },
+    { role: "user", content: "obrigada" },
+  ]), 0);
+  assertEquals(clientAsksVisit("qual o horário da festa?"), false);
+});
