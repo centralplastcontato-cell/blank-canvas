@@ -29,3 +29,18 @@ Deno.test("formatDayHeader / formatSlotRange: lista de datas da IA", () => {
   assertEquals(formatSlotRange("13:00", "17:00"), "☀️ Almoço (13h às 17h)");
   assertEquals(formatSlotRange("19:00", "23:00"), "🌙 Noite (19h às 23h)");
 });
+
+import { fixWeekdays } from "./whatsapp-format.ts";
+
+Deno.test("fixWeekdays: corrige o dia da semana errado e mantém o certo", () => {
+  const today = "2026-10-06";
+  assertEquals(fixWeekdays("Tenho a sexta-feira, 17 de outubro, disponível", today), "Tenho o sábado, 17 de outubro, disponível");
+  assertEquals(fixWeekdays("📅 Sábado, 17 de outubro", today), "📅 Sábado, 17 de outubro");
+  assertEquals(fixWeekdays("📅 Domingo, 5 de dezembro", today), "📅 Sábado, 5 de dezembro");
+  assertEquals(fixWeekdays("quarta-feira, 8 de outubro às 11h", today), "quinta-feira, 8 de outubro às 11h");
+  // data que já passou neste ano vale para o ano que vem (5/1/2027 é terça)
+  assertEquals(fixWeekdays("segunda, 5 de janeiro", today), "terça, 5 de janeiro");
+  assertEquals(fixWeekdays("sábado, 15 de agosto de 2027", today), "domingo, 15 de agosto de 2027");
+  assertEquals(fixWeekdays("sem data nenhuma aqui", today), "sem data nenhuma aqui");
+  assertEquals(fixWeekdays("Tenho o domingo, 8 de outubro às 11h", today), "Tenho a quinta, 8 de outubro às 11h");
+});

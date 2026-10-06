@@ -56,3 +56,38 @@ export function formatSlotRange(start: string, end: string): string {
   const night = Number(start.split(":")[0]) >= 16;
   return `${night ? "🌙 Noite" : "☀️ Almoço"} (${hourText(start)} às ${hourText(end)})`;
 }
+
+const WEEKDAY_RE = "(domingo|segunda|terça|terca|quarta|quinta|sexta|sábado|sabado)(-feira)?";
+const MONTH_INDEX: Record<string, number> = Object.fromEntries(MONTHS.map((m, i) => [m, i]));
+
+/**
+ * Corrige o dia da semana escrito junto de uma data ("sexta-feira, 17 de
+ * outubro" → "sábado, 17 de outubro"). A data vale para o ano de hoje ou, se já
+ * passou, o próximo. O simulador pegou a IA errando o dia da semana.
+ */
+export function fixWeekdays(text: string, todayYmd: string): string {
+  const [ty, tm, td] = todayYmd.split("-").map(Number);
+  const re = new RegExp(`(\\b[aoAO]\\s+)?\\b${WEEKDAY_RE}(,?\\s+(?:dia\\s+)?)(\\d{1,2})\\s+de\\s+(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)(\\s+de\\s+(\\d{4}))?`, "gi");
+  return text.replace(re, (whole, article: string | undefined, wd: string, feira: string | undefined, sep: string, dayStr: string, monthStr: string, yearPart: string | undefined, yearStr: string | undefined) => {
+    const month = MONTH_INDEX[monthStr.toLowerCase().replace("marco", "março")];
+    const day = Number(dayStr);
+    if (month === undefined || day < 1 || day > 31) return whole;
+    let year = yearStr ? Number(yearStr) : ty;
+    if (!yearStr && (month + 1 < tm || (month + 1 === tm && day < td))) year += 1;
+    const date = new Date(Date.UTC(year, month, day, 12));
+    if (date.getUTCMonth() !== month) return whole; // 31 de novembro etc.
+    const right = WEEKDAYS[date.getUTCDay()];
+    const norm = (s: string) => s.toLowerCase().replace("terca", "terça").replace("sabado", "sábado");
+    if (norm(wd) === right) return whole;
+    const withFeira = feira && date.getUTCDay() >= 1 && date.getUTCDay() <= 5 ? `${right}-feira` : right;
+    const cased = wd[0] === wd[0].toUpperCase() ? withFeira.charAt(0).toUpperCase() + withFeira.slice(1) : withFeira;
+    // "a sexta" → "o sábado" (sábado e domingo são masculinos)
+    let art = article || "";
+    if (art) {
+      const masc = date.getUTCDay() === 0 || date.getUTCDay() === 6;
+      const letter = masc ? "o" : "a";
+      art = art.replace(/^[aoAO]/, (c) => (c === c.toUpperCase() ? letter.toUpperCase() : letter));
+    }
+    return `${art}${cased}${sep}${dayStr} de ${monthStr}${yearPart || ""}`;
+  });
+}
