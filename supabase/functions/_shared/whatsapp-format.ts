@@ -91,3 +91,18 @@ export function fixWeekdays(text: string, todayYmd: string): string {
     return `${art}${cased}${sep}${dayStr} de ${monthStr}${yearPart || ""}`;
   });
 }
+
+/**
+ * Dias da semana que não batem com a data no texto do cliente ("sexta dia 12
+ * de dezembro" quando 12/12 é sábado). Serve para a IA perguntar qual ele quer
+ * em vez de repetir o erro (achado do simulador).
+ */
+export function weekdayMismatches(text: string, todayYmd: string): Array<{ said: string; right: string }> {
+  const out: Array<{ said: string; right: string }> = [];
+  const re = new RegExp(`\\b${WEEKDAY_RE}(,?\\s+(?:dia\\s+)?)(\\d{1,2})\\s+de\\s+(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)(\\s+de\\s+(\\d{4}))?`, "gi");
+  for (const m of text.matchAll(re)) {
+    const fixed = fixWeekdays(m[0], todayYmd);
+    if (fixed !== m[0]) out.push({ said: m[0], right: fixed });
+  }
+  return out;
+}
