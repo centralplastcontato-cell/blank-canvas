@@ -52,16 +52,19 @@ export function listedPartyDates(text: string): string[] {
     if (!line.includes("📅")) return;
     const block: string[] = [];
     for (let j = i + 1; j < lines.length && !lines[j].includes("📅") && lines[j].trim(); j++) block.push(lines[j]);
-    if (!block.some((l) => /☀️|🌙|\balmo[çc]o\b|\bnoite\b/i.test(l))) return;
+    // Só o formato da agenda ("☀️ Almoço (13h às 17h)"); horário de visita ("🌙 noite (19h)") não entra
+    if (!block.some((l) => /(☀️|🌙)\s*(almo[çc]o|noite)\s*\(\d{1,2}h(\d{2})?\s+[àa]s\s+\d{1,2}h/i.test(l))) return;
     const m = line.match(new RegExp(`(\\d{1,2})\\s+de\\s+(${MONTHS})`, "i"));
     if (m) out.push(`${Number(m[1])} de ${normMonth(m[2])}`);
   });
   return out;
 }
 
+const MONTH_LIST = MONTHS.split("|").filter((m) => m !== "marco");
 const mentionsDate = (text: string, date: string) => {
   const [d, , m] = date.split(" ");
-  return new RegExp(`(?<!\\d)0?${d}\\s+de\\s+(${m}|${m.replace("ç", "c")})`, "i").test(text);
+  const num = MONTH_LIST.indexOf(m) + 1;
+  return new RegExp(`(?<!\\d)0?${d}\\s+de\\s+(${m}|${m.replace("ç", "c")})|(?<!\\d)0?${d}/0?${num}(?!\\d)`, "i").test(text);
 };
 
 export interface CheckOptions {
@@ -118,7 +121,8 @@ export function deterministicChecks(state: { transcript: TranscriptEntry[] }, op
     const dates = listedPartyDates(e.text);
     if (dates.length === 0) continue;
     listedAny = true;
-    const toolText = state.transcript.filter((x) => x.who === "ferramenta" && x.turn <= e.turn).map((x) => x.text).join("\n");
+    // Fonte: o que a agenda devolveu ou a data que o próprio cliente deu
+    const toolText = state.transcript.filter((x) => (x.who === "ferramenta" || x.who === "cliente") && x.turn <= e.turn).map((x) => x.text).join("\n");
     const missing = dates.find((d) => !mentionsDate(toolText, d));
     if (missing && !inventedDate) inventedDate = `Listou ${missing} sem a agenda ter mostrado essa data (vez ${e.turn})`;
   }

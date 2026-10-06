@@ -35,6 +35,19 @@ Deno.test("datas_da_agenda: data listada tem de vir da agenda", () => {
   assertEquals(byId(deterministicChecks({ transcript: t(`${tool}\n📅 Domingo, 6 de dezembro\n🌙 Noite`) })).datas_da_agenda, true);
 });
 
+Deno.test("datas_da_agenda: visita e data dada pelo cliente não reprovam", () => {
+  const visita: TranscriptEntry[] = [
+    { who: "cliente", text: "quero visitar", turn: 1 },
+    { who: "ia", text: "Oba! Tenho estes horários de visita:\n📅 Quinta, 8 de outubro\n🌙 noite (19h)\nPode ser? 😊", kind: "text", turn: 1 },
+  ];
+  assertEquals(byId(deterministicChecks({ transcript: visita })).datas_da_agenda, null);
+  const cliente: TranscriptEntry[] = [
+    { who: "cliente", text: "quero dia 05/12 a noite", turn: 1 },
+    { who: "ia", text: "Anotei 🎉\n📅 Sábado, 5 de dezembro\n🌙 Noite (19h às 23h)\nQuantos convidados?", kind: "text", turn: 1 },
+  ];
+  assertEquals(byId(deterministicChecks({ transcript: cliente })).datas_da_agenda, true);
+});
+
 Deno.test("regra_do_buffet: segue o cadastro de comida de fora", () => {
   const t = (reply: string): TranscriptEntry[] => [
     { who: "cliente", text: "quero contratar um carrinho de sorvete de fora, pode?", turn: 1 },
@@ -42,6 +55,7 @@ Deno.test("regra_do_buffet: segue o cadastro de comida de fora", () => {
   ];
   assertEquals(byId(deterministicChecks({ transcript: t("Pode sim contratar o carrinho de sorvete de fora! 🍦") }, { knowledge: KNOWLEDGE })).regra_do_buffet, false);
   assertEquals(byId(deterministicChecks({ transcript: t("Aqui não pode, é tudo do buffet 😊") }, { knowledge: KNOWLEDGE })).regra_do_buffet, true);
+  assertEquals(byId(deterministicChecks({ transcript: t("Infelizmente não, aqui é tudo do buffet 😊 Qualquer dúvida, fique à vontade!") }, { knowledge: KNOWLEDGE })).regra_do_buffet, true);
   // Sem cadastro: não se aplica
   assertEquals(byId(deterministicChecks({ transcript: t("Pode sim! 🍦") })).regra_do_buffet, null);
 });

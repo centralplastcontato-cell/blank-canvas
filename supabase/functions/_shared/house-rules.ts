@@ -3,6 +3,11 @@
 // o carrinho de sorvete de fora" com o cadastro dizendo "Não, é tudo do
 // buffet". Aqui ficam: ler a resposta do cadastro, saber se o cliente
 // perguntou disso e conferir se a resposta da IA contradiz o cadastro.
+//
+// Precisão antes de tudo: só confere quando o CLIENTE perguntou do assunto
+// nesta mensagem, e só conta frase que libera o assunto ("pode sim trazer o
+// bolo", "Pode sim!") — "pode levar até 80 convidados", "pode sim visitar no
+// sábado" e "o bolo já está incluso" não contam.
 
 import { sentenceParts } from "./material-claims.ts";
 
@@ -50,18 +55,20 @@ const FOOD = words(
     "brigadeiros?|beijinhos?|cupcakes?|bem[- ]casados?|food[- ]?trucks?|confeit\\p{L}*|bolei\\p{L}*|docei\\p{L}*|" +
     "petiscos?|pizzas?|mesa de doces|guloseimas?|carrinho de \\p{L}+",
 );
+// Origem de fora. Só "levar" não basta ("quantos convidados posso levar", "levar o bolo pra casa")
 const FOOD_OUTSIDE = words(
-  "de fora|levar|levo|levamos|trazer|trago|traga|trazemos|contratar|contrato|contratamos|fornecedor\\p{L}*|" +
-    "terceiriz\\p{L}*|por (minha|nossa) conta|encomend\\p{L}*|confeit\\p{L}*|bolei\\p{L}*|docei\\p{L}*|outro buffet|outra empresa",
+  "de fora|trazer|trago|traga|trazemos|contratar|contrato|contratamos|fornecedor\\p{L}*|terceiriz\\p{L}*|" +
+    "por (minha|nossa) conta|encomend\\p{L}*|confeit\\p{L}*|bolei\\p{L}*|docei\\p{L}*|outro buffet|outra empresa|" +
+    "de casa|feit[oa]s? em casa|caseir[oa]s?|(minha|meu) (m[ãa]e|tia|tio|av[óoô]|sogra|irm[ãa]|amig[oa]|prim[oa])",
 );
+const LEVAR = words("levar|levo|levamos|leva");
+const TAKE_HOME = words("(pra|para) casa|embora|sobr(a|ar|ou|ando|aram)|convidad\\p{L}*|pessoas|crian[çc]as|adultos");
 const ANIMAL = words(
   "cachorr(o|a|os|as|inho|inha|inhos|inhas)|c[ãa]es|c[ãa]o|cadel\\p{L}*|gat(o|a|os|as|inho|inha|inhos|inhas)|" +
-    "pets?|animal|animais|bichinhos?|bicho de estima[çc][ãa]o",
+    "pets?|animal|animais|bichinhos?|bicho de estima[çc][ãa]o|dog",
 );
-const ANIMAL_ASK = words(
-  "levar|levo|trazer|trago|ir|vir|entrar|entra|junto|acompanh\\p{L}*|pode|posso|podemos|permit\\p{L}*|aceit\\p{L}*|liberad\\p{L}*",
-);
-const THEME = words("tema|tem[áa]tic\\p{L}*|decora[çc][ãa]o");
+const ANIMAL_ASK = words("levar|levo|trazer|trago|entrar|entra|junto|acompanh\\p{L}*|pode|posso|podemos|permit\\p{L}*|aceit\\p{L}*|liberad\\p{L}*");
+const THEME = words("tema|tem[áa]tic\\p{L}*|decora[çc][ãa]o|festa (e|é|vai ser|ser[áa]) d[eao]|personage\\p{L}*|patrulha");
 
 const mentionsTopic = (sentence: string, topic: HouseTopic): boolean =>
   topic === "comida" ? FOOD.test(sentence) : ANIMAL.test(sentence.replace(HOT_DOG, " "));
@@ -72,7 +79,7 @@ const splitSentences = (text: string): string[] => text.split("\n").flatMap((lin
 export function topicsAsked(clientText: string): HouseTopic[] {
   const out: HouseTopic[] = [];
   const sentences = splitSentences(clientText);
-  if (sentences.some((s) => FOOD.test(s) && FOOD_OUTSIDE.test(s))) out.push("comida");
+  if (sentences.some((s) => FOOD.test(s) && (FOOD_OUTSIDE.test(s) || (LEVAR.test(s) && !TAKE_HOME.test(s))))) out.push("comida");
   if (sentences.some((s) => mentionsTopic(s, "animal") && ANIMAL_ASK.test(s) && !THEME.test(s))) out.push("animal");
   return out;
 }
@@ -89,44 +96,64 @@ export function houseRuleNote(rules: HouseRule[], asked: HouseTopic[]): string |
   ).join(" ");
 }
 
-// Frase que libera: "pode sim", "pode levar/trazer/contratar", "é permitido",
-// "sem problema", "fique à vontade", "pets são bem-vindos"
+// Frase que libera o assunto: "pode sim", "pode trazer", "é permitido", "sem problema", "pets são bem-vindos"
 const PERMITS = words(
-  "pode(m)? sim|claro que pode|pode(m)?(\\s+\\S+){0,2}\\s+(levar|trazer|contratar|chamar|incluir|entrar|vir|ir)|" +
-    "(é|est[áa]|fica|s[ãa]o|est[ãa]o)\\s+(permitid|liberad)\\p{L}*|permitimos|aceitamos|sem problemas?|" +
-    "(n[ãa]o tem|n[ãa]o h[áa]) problemas?|fi(que|ca) [àa] vontade|bem[- ]vind[oa]s?|pet[- ]friendly",
+  "pode(m)? sim|sim,? pode(m)?|claro que pode(m)?|pode(m)?(\\s+\\S+){0,2}\\s+(levar|trazer|contratar|chamar|incluir|entrar|vir)|" +
+    "(é|est[áa]|fica|s[ãa]o|est[ãa]o)\\s+(permitid|liberad)\\p{L}*|permitimos|aceitamos|liberad[oa]s?|sem problemas?|" +
+    "(n[ãa]o tem|n[ãa]o h[áa]) problemas?|bem[- ]vind[oa]s?|pet[- ]friendly",
 );
-// "Não tem problema" / "não se preocupe" liberam, apesar do "não"
-const PERMISSIVE_NEGATION = /(?<![\p{L}\p{N}])n[ãa]o (tem|h[áa]|vejo) problemas?|n[ãa]o (se )?preocupe|n[ãa]o precisa se preocupar/giu;
-// Frase que restringe: "não", "infelizmente", "proibido", "é tudo do buffet"
-const RESTRICTS_RE = words(
-  "n[ãa]o|nunca|infelizmente|proibid\\p{L}*|vedad\\p{L}*|exclusiv\\p{L}*|s[óo] (do|o|pelo) buffet|" +
-    "tudo (do|pelo|é do) buffet|somente (do|o|pelo) buffet",
+// Frase que diz que não pode (a negação tem de ser sobre poder: "não tem taxa", "não esqueça" não contam)
+const NEGATES = words(
+  "n[ãa]o (pode(m)?|[ée] permitid\\p{L}*|permitimos|aceitamos|trabalhamos|d[áa]|rola|[ée] poss[íi]vel|tem como|conseguimos|liberamos|fazemos|[ée] liberad\\p{L}*)|" +
+    "infelizmente|proibid\\p{L}*|vedad\\p{L}*|exclusiv\\p{L}*|(s[óo]|somente|apenas) (do|o|pelo|com o|nosso) buffet|" +
+    "tudo (do|pelo|[ée] do|feito pelo) buffet|(feit[oa]s?|fornecid[oa]s?|servid[oa]s?|preparad[oa]s?) (pelo buffet|aqui|por n[óo]s|pela nossa equipe|pela equipe)|" +
+    "por nossa conta",
 );
-const restricts = (s: string) => RESTRICTS_RE.test(s.replace(PERMISSIVE_NEGATION, " "));
+const NO_ANSWER = /^[^\p{L}]*n[ãa]o\s*[,!.…]/iu; // "Não, ..." / "Não!"
+// "Pode sim, só não pode salgado": a exceção não desfaz a liberação
+const ONLY_NOT = /(?<![\p{L}])(s[óo]|mas) n[ãa]o\s.*$/iu;
+const negates = (s: string) => {
+  const core = s.replace(ONLY_NOT, " ");
+  return NEGATES.test(core) || NO_ANSWER.test(core);
+};
 
-function sentenceViolates(s: string, r: HouseRule, asked: HouseTopic[], statesRestriction: boolean): boolean {
-  return PERMITS.test(s) && !restricts(s) && (mentionsTopic(s, r.topic) || (asked.includes(r.topic) && !statesRestriction));
+// "Pode sim!", "Sim, pode!", "Claro!", "Pode levar ele sim" — liberação sem outro assunto na frase
+const BARE_WORDS = new Set([
+  "pode", "podem", "sim", "claro", "que", "com", "certeza", "liberado", "liberada", "tranquilo", "tranquila", "opa", "oba",
+  "levar", "trazer", "contratar", "ele", "ela", "eles", "elas", "lo", "la", "los", "las", "o", "a", "os", "as", "ser", "também", "tambem",
+]);
+const BARE_CORE = new Set(["pode", "podem", "sim", "claro", "certeza", "liberado", "liberada"]);
+function isBarePermit(sentence: string): boolean {
+  const firstClause = sentence.split(/[,;:]/)[0];
+  const tokens = firstClause.split(/[^\p{L}-]+/u).filter(Boolean);
+  // Nome próprio no meio ("Pode sim, Mariana") não conta
+  const plain = tokens.filter((t, i) => i === 0 || !/^\p{Lu}/u.test(t)).map((t) => t.toLowerCase().replace(/-(lo|la|los|las)$/, ""));
+  return plain.length > 0 && plain.every((t) => BARE_WORDS.has(t)) && plain.some((t) => BARE_CORE.has(t));
 }
 
-const statesRestriction = (sentences: string[], r: HouseRule) => sentences.some((s) => mentionsTopic(s, r.topic) && restricts(s));
+function sentenceViolates(s: string, r: HouseRule, restrictionStated: boolean): boolean {
+  if (negates(s)) return false;
+  if (mentionsTopic(s, r.topic) && PERMITS.test(s) && !(r.topic === "comida" && TAKE_HOME.test(s))) return true;
+  return isBarePermit(s) && !restrictionStated;
+}
+
+const checked = (rules: HouseRule[], asked: HouseTopic[]) => rules.filter((r) => r.forbidden && asked.includes(r.topic));
 
 /**
- * Regras proibidas que a resposta contradiz. Frase que libera e fala do
- * assunto conta sempre; "pode sim" solto conta quando o cliente perguntou do
- * assunto e a resposta não disse a restrição em lugar nenhum.
+ * Regras proibidas (que o cliente perguntou nesta mensagem) que a resposta contradiz.
  */
 export function houseRuleViolations(reply: string, rules: HouseRule[], asked: HouseTopic[]): HouseRule[] {
   const sentences = splitSentences(reply);
-  return rules.filter((r) => r.forbidden && sentences.some((s) => sentenceViolates(s, r, asked, statesRestriction(sentences, r))));
+  const stated = sentences.some(negates);
+  return checked(rules, asked).filter((r) => sentences.some((s) => sentenceViolates(s, r, stated)));
 }
 
-/** Frases da resposta que contradizem o cadastro (para o relatório do simulador) */
+/** Frases da resposta que contradizem o cadastro */
 export function houseRuleViolatingSentences(reply: string, rules: HouseRule[], asked: HouseTopic[]): string[] {
   const sentences = splitSentences(reply);
-  return sentences
-    .filter((s) => rules.some((r) => r.forbidden && sentenceViolates(s, r, asked, statesRestriction(sentences, r))))
-    .map((s) => s.trim());
+  const stated = sentences.some(negates);
+  const active = checked(rules, asked);
+  return sentences.filter((s) => active.some((r) => sentenceViolates(s, r, stated))).map((s) => s.trim());
 }
 
 const answerSentence = (r: HouseRule) =>
@@ -134,36 +161,22 @@ const answerSentence = (r: HouseRule) =>
 
 /**
  * Reserva quando a IA insiste: tira as frases que liberam o assunto e põe a
- * resposta do cadastro no lugar da primeira.
+ * resposta do cadastro no começo.
  */
-export function enforceHouseRules(reply: string, violated: HouseRule[], asked: HouseTopic[]): { text: string; removed: string[] } {
+export function enforceHouseRules(reply: string, violated: HouseRule[]): { text: string; removed: string[] } {
   if (violated.length === 0) return { text: reply, removed: [] };
-  const all = splitSentences(reply);
-  const restricted = new Map(violated.map((r) => [r.topic, statesRestriction(all, r)]));
+  const stated = splitSentences(reply).some(negates);
   const removed: string[] = [];
-  const inserted = new Set<HouseTopic>();
   const lines = reply.split("\n").map((line) => {
     const sentences = sentenceParts(line);
-    let changed = false;
-    const out: string[] = [];
-    for (const s of sentences) {
-      const rule = violated.find((r) => sentenceViolates(s, r, asked, restricted.get(r.topic) || false));
-      if (!rule) {
-        out.push(s);
-        continue;
-      }
-      changed = true;
-      removed.push(s.trim());
-      if (!inserted.has(rule.topic)) {
-        inserted.add(rule.topic);
-        out.push(`${answerSentence(rule)} `);
-      }
-    }
-    return changed ? out.join("").trim() : line;
+    const kept = sentences.filter((s) => {
+      const bad = violated.some((r) => sentenceViolates(s, r, stated));
+      if (bad) removed.push(s.trim());
+      return !bad;
+    });
+    return kept.length === sentences.length ? line : kept.join("").trim();
   });
-  let text = lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
-  for (const r of violated) {
-    if (!inserted.has(r.topic)) text = `${answerSentence(r)}\n\n${text}`;
-  }
-  return { text, removed };
+  const rest = lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  const head = violated.map(answerSentence).join(" ");
+  return { text: rest ? `${head}\n\n${rest}` : head, removed };
 }

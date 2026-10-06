@@ -37,8 +37,8 @@ import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
 import { clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
-import { falseMaterialClaims, hasMaterialClaim, hasSubstance, stripFalseMaterialClaims } from "../_shared/material-claims.ts";
-import { enforceHouseRules, houseRuleNote, houseRuleViolations, parseHouseRules, topicsAsked, TOPIC_ASK } from "../_shared/house-rules.ts";
+import { falseMaterialClaims, hasMaterialClaim, hasSubstance, refersToMaterial, stripFalseMaterialClaims } from "../_shared/material-claims.ts";
+import { enforceHouseRules, houseRuleNote, houseRuleViolatingSentences, houseRuleViolations, parseHouseRules, topicsAsked, TOPIC_ASK } from "../_shared/house-rules.ts";
 
 type Json = Record<string, unknown>;
 
@@ -1839,12 +1839,15 @@ export async function maybeHandleWithAiAgent(
     const tPrepared = Date.now();
     let modelMs = 0;
     let toolMs = 0;
-    // Materiais com envio registrado nesta conversa (pela IA, pelo bot fixo ou pela equipe)
+    // Materiais com envio registrado nesta conversa (pela IA, pelo bot fixo ou
+    // pela equipe — inclusive foto/vídeo/PDF que a equipe mandou pelo celular)
+    const MEDIA_TIPO: Record<string, MaterialTipo> = { image: 'fotos', video: 'video', document: 'pacotes' };
     const registeredMaterials = async (): Promise<Set<MaterialTipo>> => {
       const inChat = await materialsAlreadyInChat(supabase, conv, await loadSalesMaterials(supabase, instance));
       return new Set([
         ...(Object.keys(sentMaterials(conv)) as MaterialTipo[]),
         ...(Object.keys(inChat) as MaterialTipo[]).filter((k) => inChat[k]),
+        ...ordered.filter((m) => m.from_me && MEDIA_TIPO[m.message_type]).map((m) => MEDIA_TIPO[m.message_type]),
       ]);
     };
     let maxRounds = MAX_TOOL_ROUNDS;
@@ -1935,10 +1938,11 @@ export async function maybeHandleWithAiAgent(
         maxRounds = Math.max(maxRounds, round + 3);
         const problems: string[] = [];
         if (falseClaims.length > 0) {
-          problems.push(`ela diz que você mandou material que NÃO foi enviado nesta conversa ("${falseClaims[0].slice(0, 160)}"). Não diga que mandou: se o cliente quer ver, use enviar_materiais (o sistema envia e confirma); se não dá para enviar agora, diga que vai enviar.`);
+          problems.push(`ela diz que você mandou material que NÃO foi enviado nesta conversa ("${falseClaims[0].slice(0, 160)}"). Não diga que mandou; se o cliente pediu para ver, use enviar_materiais.`);
         }
-        for (const r of brokenRules) {
-          problems.push(`ela contradiz o cadastro do buffet sobre ${TOPIC_ASK[r.topic]}: a resposta do cadastro é "${r.answer}". Diga com gentileza que não pode, sem abrir exceção.`);
+        if (brokenRules.length > 0) {
+          const said = houseRuleViolatingSentences(finalText, houseRules, askedTopics)[0] || '';
+          problems.push(`${said ? `a frase "${said.slice(0, 160)}" ` : 'ela '}contradiz o cadastro do buffet sobre ${brokenRules.map((r) => `${TOPIC_ASK[r.topic]} (resposta do cadastro: "${r.answer}")`).join(' e ')}. Diga com gentileza que isso não pode, sem abrir exceção, e mantenha o resto da resposta.`);
         }
         console.warn(`[AI Agent] Resposta refeita (conv ${conv.id}): ${falseClaims.length > 0 ? `disse que mandou material sem envio registrado (${falseClaims[0].slice(0, 80)})` : ''}${brokenRules.length > 0 ? ` contradisse o cadastro (${brokenRules.map((r) => r.topic).join(', ')})` : ''}`);
         session.addUserNote(`Sua resposta anterior NÃO foi enviada ao cliente porque ${problems.join(' Além disso, ')} Escreva de novo a resposta completa para o cliente, já corrigida, sem mencionar este aviso e sem pedir desculpas.`);
@@ -1946,7 +1950,8 @@ export async function maybeHandleWithAiAgent(
       }
       if (falseClaims.length > 0) {
         const stripped = stripFalseMaterialClaims(finalText, await registeredMaterials());
-        if (!hasSubstance(stripped.text)) {
+        // Sem texto ou o resto ainda fala do material ("o que achou delas?"): a equipe confere e manda
+        if (!hasSubstance(stripped.text) || refersToMaterial(stripped.text)) {
           console.error(`[AI Agent] IA insistiu em dizer que mandou material sem envio registrado — passando para a equipe (conv ${conv.id})`);
           await handOffOnFailure(supabase, instance, conv, phone, contactName, settings, 'a IA ia dizer que mandou fotos/vídeo/PDF que não saíram — confira e mande os materiais ao cliente');
           return true;
@@ -1955,7 +1960,7 @@ export async function maybeHandleWithAiAgent(
         finalText = stripped.text;
       }
       if (brokenRules.length > 0) {
-        const enforced = enforceHouseRules(finalText, brokenRules, askedTopics);
+        const enforced = enforceHouseRules(finalText, brokenRules);
         console.warn(`[AI Agent] Resposta corrigida pelo cadastro (conv ${conv.id}): ${enforced.removed.join(' | ').slice(0, 200)}`);
         finalText = enforced.text;
       }
@@ -1984,6 +1989,8 @@ export async function maybeHandleWithAiAgent(
       // turno ou já dito antes na conversa). Valor inventado não sai.
       const allowedValues = allowedMoneyValues([
         ...(conv.__quotedValues || []),
+        // Valor que está na resposta do cadastro (ex.: "só o bolo, com taxa de R$ 150")
+        ...houseRules.flatMap((r) => moneyValuesIn(r.answer)),
         ...chatMessages.filter((m) => m.role === 'assistant').flatMap((m) => moneyValuesIn(m.content)),
       ]);
       const unknownValues = moneyValuesIn(finalText).filter((v) => !allowedValues.some((a) => Math.abs(a - v) < 0.01));
