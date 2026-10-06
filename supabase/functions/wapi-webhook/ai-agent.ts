@@ -1073,7 +1073,8 @@ async function loadPackagesText(supabase: any, instance: AgentInstance): Promise
   const summary = ((data || []) as Array<{ name: string; includes?: string | null }>)
     .map((p) => `${p.name} (${String(p.includes || '').split('\n').filter((l) => l.trim()).length} itens)`).join(', ');
   console.log(`[AI Agent] Pacotes lidos para a IA: ${summary || 'nenhum ativo'}${/R\$/.test(text) ? ' — atenção: "O que inclui" tem valores em R$ (a IA não pode citar)' : ''}`);
-  return text ? text.slice(0, 3000) : null;
+  // Os três pacotes do Castelo juntos passam de 3.300 caracteres: limite folgado
+  return text ? text.slice(0, 12000) : null;
 }
 
 // Datas e horários livres na agenda (festas + pré-reservas). SÓ LEITURA.
