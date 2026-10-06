@@ -513,6 +513,8 @@ MATERIAIS (ferramenta enviar_materiais):
 - Só reenvie (reenviar=true) se o cliente pedir EXPLICITAMENTE para mandar de novo.
 - Já enviados nesta conversa: ${ctx.sentMaterialsText}.
 
+OUTROS TIPOS DE EVENTO: você atende festas de aniversário. Se o cliente quiser formatura, festa escolar, confraternização, evento corporativo ou outro evento que não seja aniversário, NÃO passe valor nem compare pacotes: pergunte (o que ainda não souber) o tipo de evento, a data e a quantidade de pessoas, e então use transferir_para_atendente com o motivo no formato "Evento: … | Data: … | Pessoas: …".
+
 DATAS DA FESTA (agenda):
 - Quando o cliente perguntar por data livre, ou disser o mês/data da festa, use consultar_datas_livres (de preferência com o dia da semana que ele quer).
 - Ofereça no máximo 2 ou 3 opções por vez. Diga sempre "disponível neste momento" e que a data só fica garantida com contrato e sinal com a equipe.
@@ -1062,7 +1064,8 @@ async function loadPackagesText(supabase: any, instance: AgentInstance): Promise
   const { data } = await supabase.from('company_packages').select('*')
     .eq('company_id', instance.company_id).eq('is_active', true).order('sort_order', { ascending: true });
   const lines: string[] = [];
-  for (const p of (data || []) as Array<{ name: string; description?: string | null; includes?: string | null }>) {
+  for (const p of (data || []) as Array<{ name: string; description?: string | null; includes?: string | null; ai_quote?: boolean | null }>) {
+    if (p.ai_quote === false) continue; // formatura, escolar etc. ficam com a equipe
     const items = String(p.includes || '').split('\n').map((l) => l.replace(/^[-•*\s]+/, '').trim()).filter(Boolean);
     const desc = String(p.description || '').trim();
     if (items.length === 0 && !desc) continue;
@@ -1070,8 +1073,8 @@ async function loadPackagesText(supabase: any, instance: AgentInstance): Promise
   }
   const text = lines.join('\n');
   // Conferência: quais pacotes a IA recebeu e com quantos itens
-  const summary = ((data || []) as Array<{ name: string; includes?: string | null }>)
-    .map((p) => `${p.name} (${String(p.includes || '').split('\n').filter((l) => l.trim()).length} itens)`).join(', ');
+  const summary = ((data || []) as Array<{ name: string; includes?: string | null; ai_quote?: boolean | null }>)
+    .map((p) => p.ai_quote === false ? `${p.name} (fora da IA)` : `${p.name} (${String(p.includes || '').split('\n').filter((l) => l.trim()).length} itens)`).join(', ');
   console.log(`[AI Agent] Pacotes lidos para a IA: ${summary || 'nenhum ativo'}${/R\$/.test(text) ? ' — atenção: "O que inclui" tem valores em R$ (a IA não pode citar)' : ''}`);
   // Os três pacotes do Castelo juntos passam de 3.300 caracteres: limite folgado
   return text ? text.slice(0, 12000) : null;
@@ -1129,6 +1132,8 @@ async function toolConsultarDatas(
   return `AGENDA (só consulta, nada foi reservado):\n${blocks.join('\n\n')}\n${rules}`;
 }
 
+const OTHER_EVENT_INSTRUCTION = 'OUTRO TIPO DE EVENTO (não é aniversário): NÃO passe valor nem fale de pacotes. Pergunte o que faltar entre tipo de evento, data e quantidade de pessoas e então use transferir_para_atendente com o motivo no formato "Evento: … | Data: … | Pessoas: …".';
+
 // Valor do pacote pela "Grade de preços por faixa" (Operações → Pacotes)
 async function toolConsultarValor(
   supabase: any,
@@ -1185,13 +1190,18 @@ async function toolConsultarValor(
   }
 
   const [{ data: packages }, { data: tiers }] = await Promise.all([
-    supabase.from('company_packages')
-      .select('id, name, valor_pessoa_adicional, preco_separado, valor_pessoa_adicional_adulto, valor_pessoa_adicional_crianca')
+    // select('*'): ai_quote pode ainda não existir (migration não rodada)
+    supabase.from('company_packages').select('*')
       .eq('company_id', instance.company_id).eq('is_active', true).order('sort_order', { ascending: true }),
     supabase.from('package_price_tiers').select('package_id, guest_count, day_type, price').eq('company_id', instance.company_id),
   ]);
-  let pkgs = (packages || []) as any[];
+  const allPkgs = (packages || []) as any[];
+  // Só os pacotes que a IA pode cotar (ai_quote). Os outros (formatura, escolar...) são com a equipe.
+  let pkgs = allPkgs.filter((p) => p.ai_quote !== false);
   const wanted = String(args.pacote || '').trim().toLowerCase();
+  if (wanted && allPkgs.some((p) => p.ai_quote === false && String(p.name).toLowerCase().includes(wanted))) {
+    return OTHER_EVENT_INSTRUCTION;
+  }
   if (wanted) {
     const exact = pkgs.filter((p) => String(p.name).toLowerCase() === wanted);
     const partial = pkgs.filter((p) => String(p.name).toLowerCase().includes(wanted));
