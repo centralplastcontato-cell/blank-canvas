@@ -134,9 +134,9 @@ export function CompanyModulesDialog({ open, onOpenChange, company, onSuccess }:
               {group.keys.map((key) => (
                 <div
                   key={key}
-                  className="flex items-center justify-between p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors mb-1.5"
+                  className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors mb-1.5"
                 >
-                  <div className="space-y-0.5">
+                  <div className="space-y-0.5 min-w-0">
                     <Label htmlFor={`module-${key}`} className="text-sm font-medium cursor-pointer">
                       {MODULE_LABELS[key].label}
                     </Label>
@@ -144,6 +144,7 @@ export function CompanyModulesDialog({ open, onOpenChange, company, onSuccess }:
                   </div>
                   <Switch
                     id={`module-${key}`}
+                    className="shrink-0"
                     checked={modules[key]}
                     onCheckedChange={() => handleToggle(key)}
                   />
@@ -154,13 +155,13 @@ export function CompanyModulesDialog({ open, onOpenChange, company, onSuccess }:
 
           <Separator className="my-2" />
 
-          {/* AI toggle */}
-          <div className="flex items-center gap-2 px-1">
+          {/* Inteligência Artificial */}
+          <div className="flex items-center gap-2 px-1 mb-2">
             <Brain className="h-3.5 w-3.5 text-primary" />
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Inteligência Artificial</p>
           </div>
-          <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors">
-            <div className="space-y-0.5">
+          <div className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors mb-1.5">
+            <div className="space-y-0.5 min-w-0">
               <Label htmlFor="module-ai" className="text-sm font-medium cursor-pointer">
                 IA Ativa
               </Label>
@@ -168,8 +169,23 @@ export function CompanyModulesDialog({ open, onOpenChange, company, onSuccess }:
             </div>
             <Switch
               id="module-ai"
+              className="shrink-0"
               checked={aiEnabled}
               onCheckedChange={setAiEnabled}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors mb-1.5">
+            <div className="space-y-0.5 min-w-0">
+              <Label htmlFor="module-ia_conversacional" className="text-sm font-medium cursor-pointer">
+                {MODULE_LABELS.ia_conversacional.label}
+              </Label>
+              <p className="text-xs text-muted-foreground">{MODULE_LABELS.ia_conversacional.description}</p>
+            </div>
+            <Switch
+              id="module-ia_conversacional"
+              className="shrink-0"
+              checked={modules.ia_conversacional}
+              onCheckedChange={() => handleToggle('ia_conversacional')}
             />
           </div>
 
@@ -183,9 +199,9 @@ export function CompanyModulesDialog({ open, onOpenChange, company, onSuccess }:
           {partyModuleKeys.map((key) => (
             <div
               key={key}
-              className="flex items-center justify-between p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors mb-1.5"
+              className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors mb-1.5"
             >
-              <div className="space-y-0.5">
+              <div className="space-y-0.5 min-w-0">
                 <Label htmlFor={`party-module-${key}`} className="text-sm font-medium cursor-pointer">
                   {PARTY_CONTROL_MODULE_LABELS[key].label}
                 </Label>
@@ -193,6 +209,7 @@ export function CompanyModulesDialog({ open, onOpenChange, company, onSuccess }:
               </div>
               <Switch
                 id={`party-module-${key}`}
+                className="shrink-0"
                 checked={partyModules[key]}
                 onCheckedChange={() => handlePartyToggle(key)}
               />

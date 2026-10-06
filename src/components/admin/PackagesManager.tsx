@@ -12,6 +12,7 @@ import { Plus, Trash2, Pencil, Package, Loader2, Settings2 } from "lucide-react"
 import { toast } from "@/hooks/use-toast";
 import { PackagePriceGrid, type PackagePriceGridHandle } from "./PackagePriceGrid";
 import { PriceGridConfigDialog } from "./PriceGridConfigDialog";
+import { useCompanyModules } from "@/hooks/useCompanyModules";
 
 interface CompanyPackage {
   id: string;
@@ -64,6 +65,8 @@ function CurrencyInput({ value, onChange, placeholder }: { value: string; onChan
 
 export function PackagesManager() {
   const { currentCompany } = useCompany();
+  // Textos e opções da IA Conversacional só aparecem com o módulo ligado no Hub
+  const { ia_conversacional: aiModule } = useCompanyModules();
   const [packages, setPackages] = useState<CompanyPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -345,10 +348,13 @@ export function PackagesManager() {
                   placeholder={"Ex.:\nCardápio: salgados, mini lanches e bolo\nBebidas: refrigerante e suco à vontade\nBrinquedos: cama elástica, piscina de bolinhas\nDecoração da mesa do bolo\nEquipe: monitores e garçons"}
                   rows={6}
                 />
-                <p className="text-[11px] text-muted-foreground">
-                  A IA usa esta lista para explicar o que cada pacote tem e a diferença entre eles. Não coloque valores aqui — os preços vêm só da grade.
-                </p>
+                {aiModule && (
+                  <p className="text-[11px] text-muted-foreground">
+                    A IA usa esta lista para explicar o que cada pacote tem e a diferença entre eles. Não coloque valores aqui — os preços vêm só da grade.
+                  </p>
+                )}
               </div>
+              {aiModule && (
               <div className="flex items-start justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 p-3">
                 <div>
                   <Label className="text-xs font-semibold">IA pode passar valor e comparar este pacote</Label>
@@ -358,6 +364,7 @@ export function PackagesManager() {
                 </div>
                 <Switch checked={aiQuote} onCheckedChange={setAiQuote} />
               </div>
+              )}
             </div>
 
             {/* Seção: Valores */}
