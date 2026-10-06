@@ -27,6 +27,7 @@ jobs:
           COMPANY=$(jq -r .company_id "$REQ")
           TARGET_MB=$(jq -r '.target_mb // 4.2' "$REQ")
           SS=$(jq -r '.start_seconds // 0' "$REQ")
+          THUMBS=$(jq -r '(.thumb_times // [0, 0.5, 2]) | map(tostring) | join(" ")' "$REQ")
           case "$COMPANY" in *[!0-9a-f-]*|"") echo "company_id inválido"; exit 1;; esac
           SQL="select name, file_url from sales_materials where company_id = '${COMPANY}' and type = 'video' and is_active order by created_at"
           curl -sS -X POST "https://api.supabase.com/v1/projects/rsezgnkfhodltrsewlhz/database/query" \
@@ -53,12 +54,14 @@ jobs:
             ffmpeg -y -v error "${COMMON[@]}" -pass 2 -passlogfile "p$i" -c:a aac -b:a 96k -ac 2 -movflags +faststart "out/apresentacao_$i.mp4"
             echo "--- saída: $(wc -c < "out/apresentacao_$i.mp4") bytes"
             ffprobe -v error -show_entries format=duration,bit_rate:stream=codec_name,profile,pix_fmt,width,height,r_frame_rate -of default=nw=1 "out/apresentacao_$i.mp4"
-            ffmpeg -y -v error -ss 1 -i "out/apresentacao_$i.mp4" -frames:v 1 -q:v 2 "out/capa_$i.jpg"
+            ffmpeg -y -v error -i "out/apresentacao_$i.mp4" -frames:v 1 -q:v 2 "out/capa_$i.jpg"
             # Miniaturas pequenas no log para conferir o primeiro quadro (antes/depois)
-            for T in 0 0.5 2; do
+            # Tempos do original; a saída começa em SS, então o mesmo quadro fica em T-SS
+            for T in $THUMBS; do
               for SRC in in out; do
-                F="in_$i"; [ "$SRC" = out ] && F="out/apresentacao_$i.mp4"
-                ffmpeg -y -v error -ss "$T" -i "$F" -frames:v 1 -vf "scale=240:-2" -q:v 6 "thumb.jpg" || continue
+                F="in_$i"; TT="$T"
+                if [ "$SRC" = out ]; then F="out/apresentacao_$i.mp4"; TT=$(awk -v t="$T" -v s="$SS" 'BEGIN{d=t-s; if (d<0) exit 1; print d}') || continue; fi
+                ffmpeg -y -v error -ss "$TT" -i "$F" -frames:v 1 -vf "scale=240:-2" -q:v 6 "thumb.jpg" || continue
                 echo "THUMB ${SRC} ${i} t=${T} BEGIN"; base64 -w0 thumb.jpg; echo; echo "THUMB END"
               done
             done
