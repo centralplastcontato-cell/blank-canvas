@@ -30,6 +30,7 @@ interface SimCheck {
   label: string;
   ok: boolean | null;
   note: string;
+  advisory?: boolean; // comentário do avaliador (IA): não reprova
 }
 
 interface SimEntry {
@@ -110,7 +111,11 @@ function Transcript({ entries }: { entries: SimEntry[] }) {
 
 function ResultRow({ r }: { r: SimResult }) {
   const [open, setOpen] = useState(false);
-  const failedChecks = (r.checks || []).filter((c) => c.ok === false);
+  // Reprova só o que o código confere; o avaliador (IA) só comenta
+  const failedChecks = (r.checks || []).filter((c) => c.ok === false && !c.advisory);
+  const codeChecks = (r.checks || []).filter((c) => !c.advisory);
+  const judgeNotes = (r.checks || []).filter((c) => c.advisory);
+  const judgeFlags = judgeNotes.filter((c) => c.ok === false);
   return (
     <div className="rounded-xl border border-border bg-card">
       <button type="button" className="w-full flex items-center gap-2 p-3 text-left" onClick={() => setOpen((v) => !v)}>
@@ -120,6 +125,9 @@ function ResultRow({ r }: { r: SimResult }) {
           {failedChecks.length > 0 && (
             <p className="text-[11px] text-red-700 truncate">Falhou em: {failedChecks.map((c) => c.label).join(" · ")}</p>
           )}
+          {failedChecks.length === 0 && judgeFlags.length > 0 && (
+            <p className="text-[11px] text-amber-700 truncate">Avaliador comentou: {judgeFlags.map((c) => c.label).join(" · ")}</p>
+          )}
           {r.status === "error" && r.error && <p className="text-[11px] text-amber-700 truncate">{r.error}</p>}
         </div>
         <StatusBadge status={r.status} />
@@ -127,13 +135,28 @@ function ResultRow({ r }: { r: SimResult }) {
       {open && (
         <div className="px-3 pb-3 space-y-3 border-t border-border/50 pt-3">
           {r.summary && <p className="text-xs text-muted-foreground">{r.summary}</p>}
-          {(r.checks || []).length > 0 && (
+          {codeChecks.length > 0 && (
             <div className="space-y-1">
-              {r.checks.map((c) => (
+              {judgeNotes.length > 0 && <p className="text-[11px] font-semibold text-muted-foreground">Conferido pelo sistema (reprova)</p>}
+              {codeChecks.map((c) => (
                 <div key={c.id} className="flex items-start gap-2 text-xs">
                   <span className="shrink-0 mt-0.5">{c.ok === true ? "✅" : c.ok === false ? "❌" : "➖"}</span>
                   <div className="min-w-0">
                     <span className={c.ok === false ? "font-semibold text-red-700" : "font-medium"}>{c.label}</span>
+                    {c.note && <span className="text-muted-foreground"> — {c.note}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {judgeNotes.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-[11px] font-semibold text-muted-foreground">Observações do avaliador (IA — não reprovam)</p>
+              {judgeNotes.map((c) => (
+                <div key={c.id} className="flex items-start gap-2 text-xs">
+                  <span className="shrink-0 mt-0.5">{c.ok === true ? "✅" : c.ok === false ? "⚠️" : "➖"}</span>
+                  <div className="min-w-0">
+                    <span className={c.ok === false ? "font-semibold text-amber-700" : "font-medium"}>{c.label}</span>
                     {c.note && <span className="text-muted-foreground"> — {c.note}</span>}
                   </div>
                 </div>

@@ -61,7 +61,16 @@ Deno.test("simulador: conferências automáticas (palavra sistema e valores fora
     { who: "ia", text: "Vou ver no sistema", turn: 2 },
   ];
   const checks = Object.fromEntries(deterministicChecks(st).map((c) => [c.id, c.ok]));
-  assertEquals(checks, { uma_resposta_por_vez: true, convite_na_hora: true, sem_palavra_sistema: false, valores_conferidos: false });
+  assertEquals(checks, {
+    uma_resposta_por_vez: true,
+    convite_na_hora: true,
+    sem_palavra_sistema: false,
+    valores_conferidos: false,
+    te_mandei: null,
+    datas_da_agenda: null,
+    regra_do_buffet: null,
+    dia_da_semana: null,
+  });
 });
 
 Deno.test("simulador: conferência automática do convite para visita", () => {

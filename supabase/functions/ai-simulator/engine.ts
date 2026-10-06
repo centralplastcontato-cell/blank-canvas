@@ -8,7 +8,7 @@
 import { maybeHandleWithAiAgent } from "../wapi-webhook/ai-agent.ts";
 import { aiSandbox, createSandboxDb, type Row, SandboxContext, type SandboxState } from "../wapi-webhook/ai-sandbox.ts";
 import { estimateChatCostUsd, normalizeOpenAiUsage } from "../_shared/ai-models.ts";
-export { deterministicChecks } from "./checks.ts";
+export { deterministicChecks, passed } from "./checks.ts";
 import type { RuleCheck, TranscriptEntry } from "./checks.ts";
 export type { RuleCheck, TranscriptEntry };
 
@@ -287,9 +287,7 @@ Responda só com JSON: {"regras": [{"id": "preco_grade", "ok": true, "nota": "..
   const checks: RuleCheck[] = RULES.map((r) => {
     const got = byId.get(r.id);
     const ok = got?.ok === true ? true : got?.ok === false ? false : null;
-    return { id: r.id, label: r.label, ok, note: String(got?.nota || "").slice(0, 400) };
+    return { id: r.id, label: r.label, ok, note: String(got?.nota || "").slice(0, 400), advisory: true };
   });
   return { checks, summary: String(json.resumo || "").slice(0, 600), costUsd };
 }
-
-export const passed = (checks: RuleCheck[]) => checks.every((c) => c.ok !== false);

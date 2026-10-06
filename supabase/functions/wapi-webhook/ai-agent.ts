@@ -37,6 +37,8 @@ import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
 import { clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
+import { falseMaterialClaims, hasMaterialClaim, hasSubstance, stripFalseMaterialClaims } from "../_shared/material-claims.ts";
+import { enforceHouseRules, houseRuleNote, houseRuleViolations, parseHouseRules, topicsAsked, TOPIC_ASK } from "../_shared/house-rules.ts";
 
 type Json = Record<string, unknown>;
 
@@ -502,6 +504,7 @@ interface PromptContext {
   visitText: string | null; // visita já marcada deste cliente
   visitSlotsText: string; // horários de visita livres dos próximos dias
   weekdayNote: string | null; // cliente escreveu dia da semana que não bate com a data
+  houseNote: string | null; // cliente perguntou de regra do cadastro (comida de fora, animal)
 }
 
 // Convidar para a visita no máximo a cada 3–4 respostas, ou quando fizer sentido
@@ -519,7 +522,7 @@ function buildSystemPrompt(companyName: string, unit: string, settings: AiSettin
     : 'nenhum horário livre nos próximos dias — nesse caso transfira para a equipe';
   return `Você é a assistente virtual de vendas do ${companyName} (buffet infantil), atendendo pelo WhatsApp da unidade ${unit}. Hoje é ${today}.
 
-${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até AGENDAR UMA VISITA ao buffet. A visita é o passo que mais fecha festas.
+${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}${ctx.houseNote ? `ATENÇÃO — REGRA DO BUFFET: ${ctx.houseNote}\n\n` : ''}SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até AGENDAR UMA VISITA ao buffet. A visita é o passo que mais fecha festas.
 
 COMO CONVERSAR:
 - Português brasileiro, tom caloroso, animado e humano, mensagens CURTAS (2 a 4 frases; a de valores pode ter uma linha por pacote).
@@ -1790,6 +1793,10 @@ export async function maybeHandleWithAiAgent(
       typeof bd.data_festa === 'string' ? `data da festa ${formatDateLong(bd.data_festa)} (${bd.data_festa}) — use esta data em consultar_valor_pacote enquanto o cliente não mudar` : null,
     ].filter(Boolean) as string[];
     const leadVisit = await loadLeadVisit(supabase, conv.lead_id);
+    const lastUserText = [...mergedHistory].reverse().find((m) => m.role === 'user')?.content || '';
+    // Regras do cadastro (comida de fora, animal): a IA recebe a resposta exata quando o cliente pergunta
+    const houseRules = parseHouseRules(settings.extra_instructions);
+    const askedTopics = topicsAsked(lastUserText);
     const systemPrompt = buildSystemPrompt(companyName, instance.unit, settings, today, {
       offers: pickTwoOffers(available),
       sentMaterialsText: sentList.length > 0 ? sentList.join(', ') : 'nenhum',
@@ -1806,10 +1813,10 @@ export async function maybeHandleWithAiAgent(
       pricePending: priceRequestPending(chatMessages),
       crossedMessage: crossedWithLastReply(((history || []) as Array<{ from_me: boolean; timestamp: string }>)),
       weekdayNote: (() => {
-        const lastUser = [...mergedHistory].reverse().find((m) => m.role === 'user')?.content || '';
-        const wrong = weekdayMismatches(lastUser, new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10));
+        const wrong = weekdayMismatches(lastUserText, new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10));
         return wrong.length > 0 ? wrong.map((w) => `o cliente escreveu "${w.said}", mas no calendário é "${w.right}".`).join(' ') : null;
       })(),
+      houseNote: houseRuleNote(houseRules, askedTopics),
       visitSlotsText: visitSlotsByDay(available)
         .map((d) => `${formatDateLong(d.date)}: ${d.times.map((t) => (t.endsWith(':00') ? `${Number(t.slice(0, 2))}h` : t.replace(':', 'h'))).join(', ')}`)
         .join('; ') || 'nenhum',
@@ -1832,8 +1839,18 @@ export async function maybeHandleWithAiAgent(
     const tPrepared = Date.now();
     let modelMs = 0;
     let toolMs = 0;
+    // Materiais com envio registrado nesta conversa (pela IA, pelo bot fixo ou pela equipe)
+    const registeredMaterials = async (): Promise<Set<MaterialTipo>> => {
+      const inChat = await materialsAlreadyInChat(supabase, conv, await loadSalesMaterials(supabase, instance));
+      return new Set([
+        ...(Object.keys(sentMaterials(conv)) as MaterialTipo[]),
+        ...(Object.keys(inChat) as MaterialTipo[]).filter((k) => inChat[k]),
+      ]);
+    };
+    let maxRounds = MAX_TOOL_ROUNDS;
+    let redoAsked = false;
 
-    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    for (let round = 0; round < maxRounds; round++) {
       let step: LlmStep;
       try {
         const tModel = Date.now();
@@ -1906,9 +1923,44 @@ export async function maybeHandleWithAiAgent(
         await handOffOnFailure(supabase, instance, conv, phone, contactName, settings, 'a IA não conseguiu gerar resposta — responda o cliente');
         return true;
       }
+      let finalText = step.text;
+      // Travas que fazem a IA refazer a resposta (uma vez): dizer que mandou
+      // fotos/vídeo/PDF sem o envio registrado e contradizer o cadastro
+      // (comida de fora, animal). Se insistir, o sistema corrige a frase.
+      const falseClaims = hasMaterialClaim(finalText) ? falseMaterialClaims(finalText, await registeredMaterials()) : [];
+      const brokenRules = houseRuleViolations(finalText, houseRules, askedTopics);
+      if ((falseClaims.length > 0 || brokenRules.length > 0) && !redoAsked) {
+        redoAsked = true;
+        // Uma rodada para refazer e outra se ela precisar de ferramenta (ex.: enviar_materiais)
+        maxRounds = Math.max(maxRounds, round + 3);
+        const problems: string[] = [];
+        if (falseClaims.length > 0) {
+          problems.push(`ela diz que você mandou material que NÃO foi enviado nesta conversa ("${falseClaims[0].slice(0, 160)}"). Não diga que mandou: se o cliente quer ver, use enviar_materiais (o sistema envia e confirma); se não dá para enviar agora, diga que vai enviar.`);
+        }
+        for (const r of brokenRules) {
+          problems.push(`ela contradiz o cadastro do buffet sobre ${TOPIC_ASK[r.topic]}: a resposta do cadastro é "${r.answer}". Diga com gentileza que não pode, sem abrir exceção.`);
+        }
+        console.warn(`[AI Agent] Resposta refeita (conv ${conv.id}): ${falseClaims.length > 0 ? `disse que mandou material sem envio registrado (${falseClaims[0].slice(0, 80)})` : ''}${brokenRules.length > 0 ? ` contradisse o cadastro (${brokenRules.map((r) => r.topic).join(', ')})` : ''}`);
+        session.addUserNote(`Sua resposta anterior NÃO foi enviada ao cliente porque ${problems.join(' Além disso, ')} Escreva de novo a resposta completa para o cliente, já corrigida, sem mencionar este aviso e sem pedir desculpas.`);
+        continue;
+      }
+      if (falseClaims.length > 0) {
+        const stripped = stripFalseMaterialClaims(finalText, await registeredMaterials());
+        if (!hasSubstance(stripped.text)) {
+          console.error(`[AI Agent] IA insistiu em dizer que mandou material sem envio registrado — passando para a equipe (conv ${conv.id})`);
+          await handOffOnFailure(supabase, instance, conv, phone, contactName, settings, 'a IA ia dizer que mandou fotos/vídeo/PDF que não saíram — confira e mande os materiais ao cliente');
+          return true;
+        }
+        console.warn(`[AI Agent] Frase de material não enviado tirada da resposta (conv ${conv.id}): ${stripped.removed.join(' | ').slice(0, 200)}`);
+        finalText = stripped.text;
+      }
+      if (brokenRules.length > 0) {
+        const enforced = enforceHouseRules(finalText, brokenRules, askedTopics);
+        console.warn(`[AI Agent] Resposta corrigida pelo cadastro (conv ${conv.id}): ${enforced.removed.join(' | ').slice(0, 200)}`);
+        finalText = enforced.text;
+      }
       // Passou para a equipe neste turno: o horário da EQUIPE vai sempre por
       // conta do sistema (a IA confundia com as janelas de visita)
-      let finalText = step.text;
       if (conv.__handoffThisTurn && !finalText.includes(describeTeamHours(teamHoursOf(settings)))) {
         finalText = `${finalText}\n\n${teamHoursMessage(settings)}`;
       }
@@ -1920,7 +1972,6 @@ export async function maybeHandleWithAiAgent(
       }
       // Convite para visita fora de hora (convidou há menos de 3 respostas, o
       // cliente desistiu ou já tem visita marcada) e o cliente não pediu: sai da mensagem
-      const lastUserText = [...mergedHistory].reverse().find((m) => m.role === 'user')?.content || '';
       const visitAgo = repliesSinceVisitInvite(chatMessages);
       if (!clientAsksVisit(lastUserText) && ((visitAgo !== null && visitAgo < 3) || clientDeclined(lastUserText) || leadVisit)) {
         const stripped = stripVisitInvite(finalText);
