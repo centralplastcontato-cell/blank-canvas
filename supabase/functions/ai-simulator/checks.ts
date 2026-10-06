@@ -2,7 +2,20 @@
 // poderem ser testadas sem carregar a IA inteira).
 
 import { moneyValuesIn } from "../_shared/package-pricing.ts";
-import type { RuleCheck, ScenarioState } from "./engine.ts";
+
+export interface TranscriptEntry {
+  who: "cliente" | "ia" | "ferramenta";
+  text: string;
+  kind?: string; // text | image | video | document (mensagens da IA)
+  turn: number;
+}
+
+export interface RuleCheck {
+  id: string;
+  label: string;
+  ok: boolean | null; // null = não se aplica
+  note: string;
+}
 
 const DETERMINISTIC: Record<string, string> = {
   sem_palavra_sistema: 'Não falou "sistema" com o cliente',
@@ -10,7 +23,7 @@ const DETERMINISTIC: Record<string, string> = {
 };
 
 /** Conferências que não dependem de IA */
-export function deterministicChecks(state: ScenarioState): RuleCheck[] {
+export function deterministicChecks(state: { transcript: TranscriptEntry[] }): RuleCheck[] {
   const aiTexts = state.transcript.filter((e) => e.who === "ia").map((e) => e.text);
   const sistema = aiTexts.find((t) => /\bsistema\b/i.test(t));
   const toolValues = state.transcript.filter((e) => e.who === "ferramenta").flatMap((e) => moneyValuesIn(e.text));

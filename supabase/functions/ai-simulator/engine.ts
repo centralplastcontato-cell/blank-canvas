@@ -9,6 +9,8 @@ import { maybeHandleWithAiAgent } from "../wapi-webhook/ai-agent.ts";
 import { aiSandbox, createSandboxDb, type Row, SandboxContext, type SandboxState } from "../wapi-webhook/ai-sandbox.ts";
 import { estimateChatCostUsd, normalizeOpenAiUsage } from "../_shared/ai-models.ts";
 export { deterministicChecks } from "./checks.ts";
+import type { RuleCheck, TranscriptEntry } from "./checks.ts";
+export type { RuleCheck, TranscriptEntry };
 
 /** Modelo do cliente simulado e do avaliador (barato e bom de seguir instrução) */
 export const SIM_HELPER_MODEL = "gpt-5.4-mini";
@@ -24,19 +26,7 @@ export interface Scenario {
   company_id: string | null;
 }
 
-export interface TranscriptEntry {
-  who: "cliente" | "ia" | "ferramenta";
-  text: string;
-  kind?: string; // text | image | video | document (mensagens da IA)
-  turn: number;
-}
 
-export interface RuleCheck {
-  id: string;
-  label: string;
-  ok: boolean | null; // null = não se aplica
-  note: string;
-}
 
 export interface ScenarioState {
   sandbox: SandboxState;
