@@ -6,6 +6,7 @@ import { decideStuckAlert, formatContactList } from "../_shared/stuck-alert.ts";
 import { decideDegradedAlert } from "../_shared/degraded-alert.ts";
 import { businessMinutesBetween, parseVisitHours, teamHoursText } from "../_shared/business-hours.ts";
 import { teamRepliedAfter } from "../_shared/ai-turn.ts";
+import { decideUnconfirmedMedia, MEDIA_ACK_TIMEOUT_MS, type MediaAckMeta } from "../_shared/media-ack.ts";
 import { BOT_STEPS_WAITING_ANSWER, botShouldHaveAnswered, UNANSWERED_MAX_AGE_HOURS, UNANSWERED_MINUTES } from "../_shared/unanswered-bot.ts";
 
 type SupabaseAdmin = any;
@@ -391,6 +392,13 @@ Deno.serve(async (req) => {
     const stuckResult = await processStuckSentMessages({ supabase });
     if (stuckResult.errors.length > 0) {
       console.error("[follow-up-check] Erros ao verificar mensagens travadas:", stuckResult.errors);
+    }
+
+    // Foto/vídeo/PDF que o WhatsApp nunca confirmou: reenvia uma vez e, se
+    // continuar sem confirmar, marca erro no Celebrei e avisa a equipe
+    const mediaResult = await processUnconfirmedMedia({ supabase });
+    if (mediaResult.errors.length > 0) {
+      console.error("[follow-up-check] Erros ao conferir mídias sem confirmação:", mediaResult.errors);
     }
 
     // Cliente respondeu e o robô não continuou: pausa e avisa a equipe
@@ -1940,6 +1948,135 @@ async function resolveUnitNotificationTargets(
   (perms || []).forEach((p: any) => ids.add(p.user_id));
   (adminRoles || []).forEach((r: any) => ids.add(r.user_id));
   return Array.from(ids);
+}
+
+const MEDIA_LABEL: Record<string, string> = { video: "vídeo", image: "foto", document: "PDF/arquivo", audio: "áudio" };
+
+async function processUnconfirmedMedia({
+  supabase,
+}: { supabase: SupabaseAdmin }): Promise<{ successCount: number; errors: string[] }> {
+  const errors: string[] = [];
+  let successCount = 0;
+  const nowMs = Date.now();
+  const { data: rows, error } = await supabase
+    .from("wapi_messages")
+    .select("id, conversation_id, message_id, message_type, content, media_url, timestamp, metadata, company_id")
+    .eq("from_me", true)
+    .eq("status", "pending")
+    .eq("metadata->>ack", "awaiting")
+    .lte("timestamp", new Date(nowMs - MEDIA_ACK_TIMEOUT_MS).toISOString())
+    .gte("timestamp", new Date(nowMs - 24 * 3600 * 1000).toISOString())
+    .order("timestamp", { ascending: true })
+    .limit(50);
+  if (error) return { successCount: 0, errors: [String(error.message || error)] };
+  if (!rows || rows.length === 0) return { successCount: 0, errors: [] };
+
+  const convIds = Array.from(new Set(rows.map((r: any) => r.conversation_id)));
+  const { data: convs } = await supabase
+    .from("wapi_conversations")
+    .select("id, remote_jid, contact_name, contact_phone, instance_id, lead_id")
+    .in("id", convIds);
+  const convById = new Map((convs || []).map((c: any) => [c.id, c]));
+  const instIds = Array.from(new Set((convs || []).map((c: any) => c.instance_id).filter(Boolean)));
+  const { data: insts } = instIds.length
+    ? await supabase.from("wapi_instances").select("id, instance_id, instance_token, unit, company_id").in("id", instIds)
+    : { data: [] as any[] };
+  const instById = new Map((insts || []).map((i: any) => [i.id, i]));
+  const merge = (meta: MediaAckMeta | null, patch: Record<string, unknown>) => ({ ...(meta || {}), ...patch });
+
+  for (const row of rows as any[]) {
+    try {
+      const meta = (row.metadata || {}) as MediaAckMeta & Record<string, unknown>;
+      // O aviso do WhatsApp pode ter chegado antes de a mensagem ser gravada
+      const { data: ackEvent } = await supabase
+        .from("wapi_webhook_raw_events")
+        .select("id")
+        .eq("message_id", row.message_id)
+        .eq("event_type", "MessageStatusCallback")
+        .limit(1);
+      if (ackEvent && ackEvent.length > 0) {
+        await supabase.from("wapi_messages").update({ status: "sent", metadata: merge(meta, { ack: "confirmed" }) }).eq("id", row.id).eq("status", "pending");
+        continue;
+      }
+
+      const conv = convById.get(row.conversation_id) as any;
+      const inst = conv ? instById.get(conv.instance_id) as any : null;
+      // A instância anda mandando avisos de status? Sem isso não dá para saber se saiu.
+      const { data: anyAck } = inst
+        ? await supabase
+          .from("wapi_webhook_raw_events")
+          .select("id")
+          .eq("instance_id", inst.instance_id)
+          .eq("event_type", "MessageStatusCallback")
+          .gte("received_at", row.timestamp)
+          .limit(1)
+        : { data: [] as any[] };
+      const decision = decideUnconfirmedMedia(row, nowMs, !!inst && !!anyAck && anyAck.length > 0);
+      const label = MEDIA_LABEL[row.message_type] || "mídia";
+
+      if (decision === "wait") continue;
+      if (decision === "skip") {
+        // Sem avisos de status na instância: volta ao comportamento antigo (um tique)
+        await supabase.from("wapi_messages").update({ status: "sent", metadata: merge(meta, { ack: "unverified" }) }).eq("id", row.id).eq("status", "pending");
+        continue;
+      }
+
+      if (decision === "retry" && conv && inst && meta.resend) {
+        const phone = String(conv.remote_jid || "").replace("@s.whatsapp.net", "").replace("@c.us", "").replace(/\D/g, "");
+        const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/wapi-send`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: meta.resend.action,
+            phone,
+            instanceId: inst.instance_id,
+            instanceToken: inst.instance_token,
+            conversationId: conv.id,
+            companyId: inst.company_id,
+            mediaUrl: meta.resend.mediaUrl,
+            caption: meta.resend.caption || "",
+            fileName: meta.resend.fileName,
+            source: "bot",
+            automation: true,
+            retryOf: row.id,
+            messageSource: meta.source === "ai_agent" ? "ai_agent" : undefined,
+          }),
+        });
+        const resBody = await res.json().catch(() => null);
+        const ok = res.ok && resBody?.success !== false && !resBody?.error;
+        await supabase.from("wapi_messages").update({
+          status: "error",
+          metadata: merge(meta, { ack: "failed", retried_by: ok ? (resBody?.messageId ?? null) : null }),
+        }).eq("id", row.id);
+        console.warn(`[follow-up-check] 🔁 ${label} sem confirmação do WhatsApp (conv ${conv.id}, msg ${row.message_id}) — reenvio: ${ok ? `OK (${resBody?.messageId})` : `falhou (${res.status} ${JSON.stringify(resBody)?.slice(0, 200)})`}`);
+        if (ok) { successCount++; continue; }
+      } else {
+        await supabase.from("wapi_messages").update({ status: "error", metadata: merge(meta, { ack: "failed" }) }).eq("id", row.id);
+        console.warn(`[follow-up-check] ❌ ${label} não chegou ao WhatsApp (conv ${row.conversation_id}, msg ${row.message_id}${meta.retry_of ? ", já era o reenvio" : ""})`);
+      }
+
+      // Não saiu nem no reenvio: avisa a equipe no sininho
+      if (conv && inst) {
+        const name = conv.contact_name || conv.contact_phone || "Cliente";
+        const targets = await resolveUnitNotificationTargets(supabase, inst.company_id, inst.unit);
+        if (targets.length > 0) {
+          await supabase.from("notifications").insert(targets.map((uid: string) => ({
+            user_id: uid,
+            company_id: inst.company_id,
+            type: "media_not_delivered",
+            title: `📵 ${label.charAt(0).toUpperCase()}${label.slice(1)} não chegou ao cliente`,
+            message: `O ${label} enviado para ${name} (${inst.unit || "WhatsApp"}) não chegou no WhatsApp${meta.retry_of || decision === "retry" ? ", nem na nova tentativa" : ""}. Reenvie pela conversa ou mande por outro meio.`,
+            data: { conversation_id: conv.id, lead_id: conv.lead_id, contact_phone: conv.contact_phone, unit: inst.unit, reason: "media_not_delivered", message_id: row.message_id, media_url: row.media_url },
+            read: false,
+          })));
+        }
+      }
+      successCount++;
+    } catch (e) {
+      errors.push(String(e));
+    }
+  }
+  return { successCount, errors };
 }
 
 async function processStuckSentMessages({

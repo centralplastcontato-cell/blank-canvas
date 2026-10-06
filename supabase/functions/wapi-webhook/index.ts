@@ -6650,6 +6650,13 @@ async function processWebhookEvent(body: JsonRecord) {
         await supabase.from('wapi_messages').update({ status: ns })
           .in('message_id', statusMsgIds)
           .or(statusUpdateFilter(ns));
+      } else if (statusMsgIds.length > 0 && ns !== 'unknown' && !(fm && mcd)) {
+        // Aviso chegou antes de o wapi-send gravar a mensagem (mídia pela Z-API
+        // fica "pending" esperando justamente este aviso): tenta de novo logo depois.
+        await new Promise((resolve) => setTimeout(resolve, 4000));
+        await supabase.from('wapi_messages').update({ status: ns })
+          .in('message_id', statusMsgIds)
+          .or(statusUpdateFilter(ns));
       }
       break;
     }

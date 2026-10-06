@@ -112,7 +112,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { 
-  Send, Search, MessageSquare, Check, CheckCheck, Clock, WifiOff, RefreshCw, 
+  Send, Search, MessageSquare, Check, CheckCheck, Clock, WifiOff, RefreshCw, AlertCircle, 
   ArrowLeft, Building2, Star, StarOff, Link2, FileText, Smile,
   Image as ImageIcon, Mic, Paperclip, Loader2, X,
   Users, ArrowRightLeft, Trash2, Eraser,
@@ -3393,8 +3393,17 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         return <CheckCheck className={cn("w-7 h-7", readColor)} />;
       case "error":
       case "failed":
-        return <Check className="w-7 h-7 text-destructive" />;
+        return (
+          <span title="Não chegou no WhatsApp" className="inline-flex items-center gap-0.5 text-destructive">
+            <AlertCircle className="w-5 h-5" />
+            <span className="text-[10px] font-medium">não enviada</span>
+          </span>
+        );
       default: {
+        // Mídia esperando o WhatsApp confirmar (ela pode falhar depois de aceita):
+        // relógio até confirmar — o follow-up-check reenvia ou marca erro.
+        const awaitingAck = message?.metadata && (message.metadata as Record<string, unknown>).ack === "awaiting";
+        if (awaitingAck) return <Clock className={cn("w-6 h-6", baseColor)} />;
         // Fallback: se a mensagem não tem rastreio de ACK (Z-API sem messageId),
         // ou se já passou de 30s sem status, mostra ✓ simples para evitar relógio eterno.
         const noTracking = message?.metadata && (message.metadata as Record<string, unknown>).no_ack_tracking === true;
