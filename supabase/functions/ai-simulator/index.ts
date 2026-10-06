@@ -3,6 +3,8 @@
 // POST { action: "start", company_id, scenario_ids?, rerun_failed_of? }  (usuário logado)
 //   cria a rodada, uma linha por cenário, e dispara 3 "trabalhadores".
 // POST { action: "resume", run_id }  (usuário logado) — destrava rodada parada.
+// POST { action: "audit", company_id, days? } (usuário logado) — confere as
+//   conversas REAIS da IA nos últimos dias (sem IA, custo zero).
 // POST { action: "work", run_id }    (só o próprio servidor) — pega o próximo
 //   cenário, conversa até ~1 min, guarda o estado e chama o próximo trabalhador.
 //
@@ -16,6 +18,7 @@ import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { DEFAULT_AI_MODEL } from "../_shared/ai-models.ts";
 import { listAvailableSlots, normalizeTime, parseVisitHours, slotKey, teamHoursText, visitSlotsByDay } from "../_shared/business-hours.ts";
 import { GENERAL_SCENARIOS } from "./scenarios.ts";
+import { auditConversation, type RealMessage, realTranscript } from "./audit.ts";
 import { AI_ACTOR, AI_ACTOR_HEADER } from "../wapi-webhook/ai-db-guard.ts";
 import {
   agentCostUsd,
@@ -333,6 +336,60 @@ async function work(runId: string): Promise<void> {
   await triggerWorker(runId);
 }
 
+const chunks = <T>(list: T[], size: number): T[][] =>
+  Array.from({ length: Math.ceil(list.length / size) }, (_, i) => list.slice(i * size, i * size + size));
+
+// Conversas reais da IA no período, com o que as conferências do código acharam
+async function audit(req: Request, body: any): Promise<Response> {
+  const companyId = String(body.company_id || "");
+  if (!companyId) return json({ error: "company_id obrigatório" }, 400);
+  const auth = await authorize(req, companyId);
+  if (auth instanceof Response) return auth;
+  const days = Math.min(Math.max(Number(body.days) || 1, 1), 14);
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+
+  const { data: aiRows, error } = await admin.from("wapi_messages").select("conversation_id")
+    .eq("company_id", companyId).eq("from_me", true).eq("metadata->>source", "ai_agent")
+    .gte("timestamp", since).limit(5000);
+  if (error) throw new Error(error.message);
+  const convIds = Array.from(new Set(((aiRows || []) as any[]).map((r) => r.conversation_id as string))).slice(0, 200);
+  if (convIds.length === 0) return json({ days, checked: 0, conversations: [] });
+
+  const [{ data: settings }, convs, msgs] = await Promise.all([
+    admin.from("ai_agent_settings").select("extra_instructions").eq("company_id", companyId).maybeSingle(),
+    Promise.all(chunks(convIds, 50).map((ids) =>
+      admin.from("wapi_conversations").select("id, contact_name, remote_jid, bot_step, lead_id").in("id", ids).then((r) => (r.data || []) as any[])
+    )).then((l) => l.flat()),
+    // Até 1000 linhas por consulta: 10 conversas por vez
+    Promise.all(chunks(convIds, 10).map((ids) =>
+      admin.from("wapi_messages").select("conversation_id, from_me, content, message_type, timestamp, metadata")
+        .in("conversation_id", ids).gte("timestamp", since).order("timestamp").limit(1000)
+        .then((r) => (r.data || []) as any[])
+    )).then((l) => l.flat()),
+  ]);
+  const byConv = new Map<string, RealMessage[]>();
+  for (const m of msgs) {
+    if (!byConv.has(m.conversation_id)) byConv.set(m.conversation_id, []);
+    byConv.get(m.conversation_id)!.push(m as RealMessage);
+  }
+  const knowledge = settings?.extra_instructions || "";
+  const conversations = convs.map((c) => {
+    const transcript = realTranscript(byConv.get(c.id) || [], c.bot_step === "human_takeover");
+    const problems = auditConversation(transcript, { knowledge });
+    const lastAt = (byConv.get(c.id) || []).reduce((max, m) => (m.timestamp > max ? m.timestamp : max), "");
+    return {
+      id: c.id,
+      name: c.contact_name || null,
+      phone: String(c.remote_jid || "").replace(/@.*/, ""),
+      lead_id: c.lead_id || null,
+      last_at: lastAt,
+      problems: problems.map((p) => ({ id: p.id, label: p.label, note: p.note })),
+      transcript: problems.length > 0 ? transcript.filter((e) => e.who !== "ferramenta") : [],
+    };
+  }).filter((c) => c.problems.length > 0).sort((a, b) => b.last_at.localeCompare(a.last_at));
+  return json({ days, checked: convIds.length, conversations });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
@@ -344,6 +401,7 @@ Deno.serve(async (req) => {
     }
     if (body.action === "start") return await start(req, body);
     if (body.action === "resume") return await resume(req, body);
+    if (body.action === "audit") return await audit(req, body);
     return json({ error: "ação desconhecida" }, 400);
   } catch (err) {
     console.error("[Simulador] Erro:", err);
