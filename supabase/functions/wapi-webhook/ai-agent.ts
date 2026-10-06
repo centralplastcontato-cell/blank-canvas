@@ -25,8 +25,9 @@ import {
   pickTwoOffers,
   type Slot,
   slotKey,
+  teamHoursText,
 } from "../_shared/business-hours.ts";
-import { AI_DEBOUNCE_MS, mergeConsecutiveTurns, pickLatestIncoming, teamRepliedAfter } from "../_shared/ai-turn.ts";
+import { AI_DEBOUNCE_MS, mergeConsecutiveTurns, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 
 type Json = Record<string, unknown>;
@@ -196,7 +197,7 @@ export async function isAiTestPhoneFor(supabase: any, instance: AgentInstance, p
 }
 
 const teamHoursOf = (settings: AiSettings): ParsedHours =>
-  parseVisitHours((settings.team_hours || '').trim() || settings.visit_hours);
+  parseVisitHours(teamHoursText(settings.team_hours));
 
 // Visitas já marcadas na unidade (um horário = uma visita)
 async function loadBookedSlots(supabase: any, instance: AgentInstance): Promise<Set<string>> {
@@ -404,6 +405,18 @@ interface PromptContext {
   isFirstReply: boolean;
   pendingUserMessages: number;
   afterHoursHandoff: { reason: string; returns: string } | null;
+  // Respostas da IA desde o último convite para visita (null = ainda não convidou)
+  visitRepliesAgo: number | null;
+  minPackageGuests: number | null;
+}
+
+// Convidar para a visita no máximo a cada 3–4 respostas, ou quando fizer sentido
+function visitInviteRule(repliesAgo: number | null): string {
+  if (repliesAgo !== null && repliesAgo < 3) {
+    const when = repliesAgo === 0 ? 'na sua última resposta' : `há ${repliesAgo} resposta(s)`;
+    return `Você já convidou para a visita ${when}. NESTA resposta NÃO convide de novo e não termine com "posso agendar uma visita" — só responda o que o cliente perguntou. Exceção: o cliente falou de visita, de fechar, de valores ou disse que vai pensar.`;
+  }
+  return 'Pode convidar para a visita nesta resposta SE fizer sentido (o cliente mostrou interesse, perguntou de valores/fechamento, acabou de receber os materiais ou disse que vai pensar). Não termine toda mensagem com convite.';
 }
 
 function buildSystemPrompt(companyName: string, unit: string, settings: AiSettings, today: string, ctx: PromptContext): string {
@@ -425,7 +438,7 @@ COMO CONVERSAR:
 - Áudios do cliente chegam para você já transcritos e fotos chegam descritas: responda ao conteúdo normalmente, sem comentar que foi transcrito. Se aparecer que um áudio ou uma foto não pôde ser ouvido/visto, peça com gentileza para a pessoa escrever.
 
 REGRAS INEGOCIÁVEIS:
-1. NUNCA digite preços, valores ou descontos na conversa — nem estimativas — e nunca negocie condições. Se perguntarem valores, envie o PDF de pacotes (ferramenta enviar_materiais, tipo "pacotes" — os valores estão nele) e diga que a equipe cuida de condições e fechamento; aproveite para puxar o agendamento da visita.
+1. NUNCA digite preços, valores ou descontos na conversa — nem estimativas — e nunca negocie condições. Se perguntarem valores, envie o PDF de pacotes (ferramenta enviar_materiais, tipo "pacotes" — os valores estão nele) e diga que a equipe cuida de condições e fechamento.
 2. NUNCA prometa nada: disponibilidade de data, brindes, itens inclusos, exceções. Quem confirma detalhes é a equipe.
 3. NUNCA invente informações. Se não souber responder, use a ferramenta transferir_para_atendente.
 4. Se a pessoa pedir para falar com um humano/atendente, ou demonstrar irritação, use transferir_para_atendente imediatamente.
@@ -438,13 +451,16 @@ MATERIAIS (ferramenta enviar_materiais):
 - Só reenvie (reenviar=true) se o cliente pedir EXPLICITAMENTE para mandar de novo.
 - Já enviados nesta conversa: ${ctx.sentMaterialsText}.
 
+${ctx.minPackageGuests ? `PACOTES: o menor pacote é para ${ctx.minPackageGuests} convidados. Se o cliente falar em menos de ${ctx.minPackageGuests} convidados ou pedir orçamento para menos, explique JÁ NA MESMA RESPOSTA (não espere ele perguntar), com naturalidade e sem falar valores, que o menor pacote é para ${ctx.minPackageGuests} pessoas e que a equipe explica como fica para um grupo menor.\n\n` : ''}CONVITE PARA VISITA (não seja repetitiva):
+- ${visitInviteRule(ctx.visitRepliesAgo)}
+
 AGENDAMENTO DE VISITAS:
 - Janelas de visita: ${settings.visit_hours}.
 - Ao oferecer visita, ofereça JÁ NA MESMA MENSAGEM 2 horários concretos, por exemplo: ${offersText}. Nunca diga que vai passar horários sem passá-los.
 - Se o cliente pedir um dia/horário fora das janelas ou já ocupado, NÃO transfira: diga com gentileza que nesse horário não dá e ofereça os horários livres mais próximos (a ferramenta agendar_visita devolve quais são).
 - Quando a pessoa confirmar dia e horário, use agendar_visita. Depois confirme por mensagem o dia/horário e diga que a equipe confirma a visita.
 
-PASSAGEM PARA A EQUIPE: ao usar transferir_para_atendente, avise o cliente que um atendente vai continuar e informe o horário de atendimento da equipe: ${ctx.teamHoursText}
+PASSAGEM PARA A EQUIPE: ao usar transferir_para_atendente, avise o cliente que um atendente vai continuar por aqui, sem escrever horários — o sistema acrescenta o horário de atendimento da equipe (${ctx.teamHoursText}). As janelas de visita NÃO são o horário de atendimento da equipe: nunca use uma no lugar da outra.
 ${ctx.afterHoursHandoff ? `\nATENÇÃO — ESTA CONVERSA JÁ FOI PASSADA PARA A EQUIPE (motivo: ${ctx.afterHoursHandoff.reason || 'não informado'}). A equipe está fora do horário agora e volta ${ctx.afterHoursHandoff.returns}. Enquanto isso, continue tirando dúvidas informativas com base nas informações do buffet (estrutura, o que tem, como funciona, materiais, horários de visita). Para o assunto que motivou a passagem e para negociação/fechamento, diga com gentileza que a equipe continua ${ctx.afterHoursHandoff.returns}. NÃO chame transferir_para_atendente de novo.` : ''}
 ${settings.extra_instructions ? `\nINFORMAÇÕES DO BUFFET (use somente isto como fonte):\n${settings.extra_instructions}` : ''}`;
 }
@@ -801,10 +817,18 @@ async function toolRegistrarDados(
     if (error) console.error('[AI Agent] Erro ao salvar mês/convidados no lead:', error.message);
   }
 
+  // Pediu para menos convidados que o menor pacote: a IA explica já nesta resposta
+  const materials = await loadSalesMaterials(supabase, instance);
+  const minGuests = smallestPackageGuests(materials);
+  const askedGuests = parseInt(String(bd.convidados || '').replace(/\D/g, ''), 10);
+  const minNote = patch.convidados && minGuests && askedGuests && askedGuests < minGuests
+    ? ` IMPORTANTE — explique JÁ NESTA resposta, com naturalidade e sem falar valores: o cliente falou em ${askedGuests} convidados, mas o menor pacote é para ${minGuests} pessoas; a equipe explica como fica para um grupo menor.`
+    : '';
+
   const missing = [!bd.mes && 'mês da festa', !bd.convidados && 'número de convidados'].filter(Boolean);
-  if (missing.length > 0) return `OK: dados salvos. Ainda falta descobrir: ${missing.join(' e ')}.`;
+  if (missing.length > 0) return `OK: dados salvos. Ainda falta descobrir: ${missing.join(' e ')}.${minNote}`;
   if (isWithinMaterialWindow(bd.ai_auto_materials_at)) {
-    return 'OK: dados salvos. Os materiais automáticos já foram enviados antes nesta conversa — não reenvie.';
+    return `OK: dados salvos. Os materiais automáticos já foram enviados antes nesta conversa — não reenvie.${minNote}`;
   }
 
   // Marca antes de enviar: outra execução concorrente não manda de novo, e as
@@ -813,7 +837,7 @@ async function toolRegistrarDados(
     ai_auto_materials_at: new Date().toISOString(),
     ai_materials_busy_until: new Date(Date.now() + 4 * 60000).toISOString(),
   });
-  const inChat = await materialsAlreadyInChat(supabase, conv, await loadSalesMaterials(supabase, instance));
+  const inChat = await materialsAlreadyInChat(supabase, conv, materials);
   const flags = sentMaterials(conv);
   const already: Partial<Record<MaterialTipo, string | boolean>> = {
     fotos: flags.fotos || inChat.fotos,
@@ -838,7 +862,7 @@ async function toolRegistrarDados(
   ).finally(() => mergeBotData(supabase, conv, { ai_materials_busy_until: null }));
   if (!result.sentAny) {
     console.warn(`[AI Agent] Materiais automáticos não enviados (falhas: ${result.failedSteps.join(', ') || 'nenhum material/desligado'})`);
-    return 'OK: dados salvos. Os materiais automáticos não puderam ser enviados agora; siga a conversa e convide para a visita (se o cliente pedir valores, use enviar_materiais).';
+    return `OK: dados salvos. Os materiais automáticos não puderam ser enviados agora; siga a conversa (se o cliente pedir valores, use enviar_materiais).${minNote}`;
   }
 
   const nowIso = new Date().toISOString();
@@ -848,13 +872,12 @@ async function toolRegistrarDados(
   if (settingsForSend.auto_send_pdf !== false && !already.pacotes) sentNow.pacotes = nowIso;
   await mergeBotData(supabase, conv, { ai_materials_sent: sentNow });
   if (sentNow.pacotes && !already.pacotes) await markQuoteSent(supabase, instance, conv, phone, contactName);
-  const askedGuests = parseInt(String(bd.convidados).replace(/\D/g, ''), 10);
-  const minNote = result.pdfGuestCount && askedGuests && askedGuests < result.pdfGuestCount
-    ? ` Atenção: o cliente falou em ${askedGuests} convidados, mas o menor pacote é para ${result.pdfGuestCount} pessoas — explique isso com naturalidade (sem falar valores) e que a equipe vê os detalhes.`
+  const pdfNote = !minNote && result.pdfGuestCount && askedGuests && askedGuests < result.pdfGuestCount
+    ? ` IMPORTANTE — explique JÁ NESTA resposta, sem falar valores: o cliente falou em ${askedGuests} convidados e o PDF enviado é o pacote de ${result.pdfGuestCount} pessoas (o menor).`
     : '';
   const skipped = (['fotos', 'video', 'pacotes'] as MaterialTipo[]).filter((k) => already[k]).map((k) => MATERIAL_LABEL[k]);
   const skippedNote = skipped.length > 0 ? ` (${skipped.join(', ')} já tinha(m) sido enviado(s) antes e não foi reenviado.)` : '';
-  return `OK: dados salvos e o sistema JÁ ENVIOU agora, automaticamente, os materiais.${skippedNote} Não reenvie nada: comente brevemente e convide para a visita oferecendo 2 horários concretos.${minNote}`;
+  return `OK: dados salvos e o sistema JÁ ENVIOU agora, automaticamente, os materiais.${skippedNote} Não reenvie nada: comente brevemente e convide para a visita oferecendo 2 horários concretos.${minNote}${pdfNote}`;
 }
 
 // Passagem para a equipe: tira a IA da conversa, registra no histórico do
@@ -911,8 +934,7 @@ async function toolTransferir(
     message: `${leadName} (${instance.unit || 'WhatsApp'}) — motivo: ${reason}. Assuma o atendimento.`,
     data: { conversation_id: conv.id, lead_id: leadId, contact_phone: phone, unit: instance.unit, reason: 'ai_handoff', motivo: reason },
   });
-  const hoursText = settings ? ` ${teamHoursMessage(settings)}` : '';
-  return `OK: conversa transferida para a equipe. Avise o cliente que um atendente vai continuar por aqui e informe o horário de atendimento:${hoursText}`;
+  return 'OK: conversa transferida para a equipe. Avise o cliente que um atendente vai continuar por aqui. NÃO escreva horário nenhum: o sistema acrescenta sozinho, no fim da sua mensagem, o horário de atendimento da equipe.';
 }
 
 // Depois da última mensagem da IA num turno com passagem: renova a marca para
@@ -1243,6 +1265,8 @@ export async function maybeHandleWithAiAgent(
       afterHoursHandoff: afterHoursHandoff
         ? { reason: String(afterHoursHandoff.reason || ''), returns: nextOpeningText(teamHoursOf(settings), nowMs) }
         : null,
+      visitRepliesAgo: repliesSinceVisitInvite(chatMessages),
+      minPackageGuests: smallestPackageGuests(await loadSalesMaterials(supabase, instance)),
     });
 
     const session = createLlmSession({
@@ -1315,14 +1339,17 @@ export async function maybeHandleWithAiAgent(
         await handOffOnFailure(supabase, instance, conv, phone, contactName, settings, 'a IA não conseguiu gerar resposta — responda o cliente');
         return true;
       }
-      // Passou para a equipe neste turno e a resposta não citou horário: completa
+      // Passou para a equipe neste turno: o horário da EQUIPE vai sempre por
+      // conta do sistema (a IA confundia com as janelas de visita)
       let finalText = step.text;
-      if (conv.__handoffThisTurn && !/\d{1,2}(:\d{2}|h)/.test(finalText)) {
+      if (conv.__handoffThisTurn && !finalText.includes(describeTeamHours(teamHoursOf(settings)))) {
         finalText = `${finalText}\n\n${teamHoursMessage(settings)}`;
       }
       // Chegou mensagem nova do cliente enquanto esta resposta era montada (ex.:
       // durante o envio dos materiais): descarta esta e deixa a execução da
-      // mensagem mais nova responder tudo de uma vez.
+      // mensagem mais nova responder tudo de uma vez. Confere no último
+      // instante, logo antes de enviar.
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       if (myMessageId && !conv.__handoffThisTurn) {
         const latestNow = await latestIncomingId(supabase, conv.id);
         if (latestNow && latestNow !== myMessageId) {
@@ -1330,7 +1357,6 @@ export async function maybeHandleWithAiAgent(
           return true;
         }
       }
-      await new Promise((resolve) => setTimeout(resolve, 1000));
       const delivered = await sendViaWapiSend(supabase, 'send-text', instance, conv, { message: finalText });
       if (!delivered) {
         console.error(`[AI Agent] Resposta da IA não foi entregue ao WhatsApp (conv ${conv.id})`);

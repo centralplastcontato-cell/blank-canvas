@@ -2,8 +2,9 @@
 // resposta só e saber se a equipe já respondeu depois da passagem.
 
 // Espera antes de responder: mensagens que chegam nesse intervalo são
-// respondidas juntas, numa resposta só.
-export const AI_DEBOUNCE_MS = 10000;
+// respondidas juntas, numa resposta só. 10 s não bastava: no teste de 05/10
+// a segunda pergunta chegou 14 s depois da primeira.
+export const AI_DEBOUNCE_MS = 16000;
 
 export interface IncomingRow {
   message_id: string | null;
@@ -68,4 +69,27 @@ export function mergeConsecutiveTurns<T extends Turn>(turns: T[]): { merged: T[]
   let pending = 0;
   for (let i = turns.length - 1; i >= 0 && turns[i].role === "user"; i--) pending++;
   return { merged, pendingUserMessages: pending };
+}
+
+// Quantas respostas da IA desde o último convite para visita (0 = a última
+// resposta convidou; null = ainda não convidou). Serve para não terminar toda
+// mensagem com "posso agendar uma visita".
+const VISIT_INVITE = /\bvisita/i;
+export function repliesSinceVisitInvite(turns: Turn[]): number | null {
+  let count = 0;
+  for (let i = turns.length - 1; i >= 0; i--) {
+    const t = turns[i];
+    if (t.role !== "assistant" || t.content.startsWith("🧪")) continue;
+    if (VISIT_INVITE.test(t.content)) return count;
+    count++;
+  }
+  return null;
+}
+
+// Menor pacote (convidados) entre os PDFs de pacotes com quantidade definida
+export function smallestPackageGuests(materials: Array<{ type?: string; guest_count?: number | null }>): number | null {
+  const counts = materials
+    .filter((m) => m.type === "pdf_package" && typeof m.guest_count === "number" && m.guest_count > 0)
+    .map((m) => m.guest_count as number);
+  return counts.length > 0 ? Math.min(...counts) : null;
 }

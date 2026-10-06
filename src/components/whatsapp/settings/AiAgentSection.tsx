@@ -23,7 +23,7 @@ import { Sparkles, Loader2, Save, Pencil, Check, FlaskConical, Cpu, Wallet, Bell
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { parseVisitHours, serializeTeamHours, serializeVisitHours } from "@/lib/businessHours";
+import { DEFAULT_TEAM_HOURS, parseVisitHours, serializeTeamHours, serializeVisitHours } from "@/lib/businessHours";
 import {
   AI_MODELS,
   DEFAULT_AI_MODEL,
@@ -384,7 +384,7 @@ export function AiAgentSection() {
     setTestModeNumber(settings.test_mode_number || "");
     setEditModel(settings.model || DEFAULT_AI_MODEL);
     setEditTestModel(settings.test_model || SAME_MODEL);
-    const team = parseVisitHours(settings.team_hours || "Segunda a sexta, das 09:00 às 18:00; sábado, das 09:00 às 13:00");
+    const team = parseVisitHours(settings.team_hours || DEFAULT_TEAM_HOURS);
     setTeamDays(team.days);
     setTeamStart(team.start);
     setTeamEnd(team.end);
