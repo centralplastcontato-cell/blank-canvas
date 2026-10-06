@@ -2,7 +2,7 @@
 // poderem ser testadas sem carregar a IA inteira).
 
 import { allowedMoneyValues, moneyValuesIn } from "../_shared/package-pricing.ts";
-import { clientAsksVisit, clientDeclined, hasVisitInvite } from "../_shared/ai-turn.ts";
+import { asksPartnership, clientAsksVisit, clientDeclined, hasVisitInvite } from "../_shared/ai-turn.ts";
 import { falseMaterialClaims, hasMaterialClaim, type MaterialKind } from "../_shared/material-claims.ts";
 import { houseRuleViolatingSentences, parseHouseRules, topicsAsked } from "../_shared/house-rules.ts";
 import { weekdayMismatches } from "../_shared/whatsapp-format.ts";
@@ -35,6 +35,7 @@ const DETERMINISTIC: Record<string, string> = {
   datas_da_agenda: "Datas de festa vindas da agenda",
   regra_do_buffet: "Seguiu as regras do cadastro (comida de fora, animal)",
   dia_da_semana: "Dia da semana certo nas datas",
+  permuta_equipe: "Permuta/parceria passada para a equipe",
 };
 
 const MEDIA_KIND: Record<string, MaterialKind> = { image: "fotos", video: "video", document: "pacotes" };
@@ -145,6 +146,11 @@ export function deterministicChecks(state: { transcript: TranscriptEntry[] }, op
   const datedTexts = state.transcript.filter((e) => isText(e) && new RegExp(`\\d{1,2}\\s+de\\s+(${MONTHS})`, "i").test(e.text));
   const wrongDay = datedTexts.flatMap((e) => weekdayMismatches(e.text, today).map((w) => `"${w.said}" (é ${w.right}) na vez ${e.turn}`))[0] || "";
 
+  // Proposta de permuta/parceria: tem de ter passado para a equipe na mesma vez ou depois
+  const partnershipTurn = state.transcript.find((e) => e.who === "cliente" && asksPartnership(e.text))?.turn;
+  const transferred = partnershipTurn !== undefined &&
+    state.transcript.some((e) => e.who === "ferramenta" && e.turn >= partnershipTurn && e.text.startsWith("transferir_para_atendente("));
+
   return [
     { id: "uma_resposta_por_vez", label: DETERMINISTIC.uma_resposta_por_vez, ok: doubleTurn === undefined, note: doubleTurn !== undefined ? `Mais de uma mensagem de conversa na vez ${doubleTurn}` : "" },
     { id: "convite_na_hora", label: DETERMINISTIC.convite_na_hora, ok: !inviteProblem, note: inviteProblem },
@@ -159,6 +165,12 @@ export function deterministicChecks(state: { transcript: TranscriptEntry[] }, op
     { id: "datas_da_agenda", label: DETERMINISTIC.datas_da_agenda, ok: listedAny ? !inventedDate : null, note: inventedDate },
     { id: "regra_do_buffet", label: DETERMINISTIC.regra_do_buffet, ok: ruleBroken ? false : ruleAsked ? true : null, note: ruleBroken },
     { id: "dia_da_semana", label: DETERMINISTIC.dia_da_semana, ok: datedTexts.length > 0 ? !wrongDay : null, note: wrongDay },
+    {
+      id: "permuta_equipe",
+      label: DETERMINISTIC.permuta_equipe,
+      ok: partnershipTurn === undefined ? null : transferred,
+      note: partnershipTurn !== undefined && !transferred ? `Cliente propôs permuta/parceria (vez ${partnershipTurn}) e a conversa não foi passada para a equipe` : "",
+    },
   ];
 }
 

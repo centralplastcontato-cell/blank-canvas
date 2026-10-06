@@ -75,3 +75,14 @@ Deno.test("passed: avaliador só comenta, não reprova", () => {
   assertEquals(passed([{ ...code, ok: false }, judge]), false);
   assertEquals(passed([{ ...judge, advisory: undefined }]), false);
 });
+
+Deno.test("permuta_equipe: proposta de permuta tem de ir para a equipe", () => {
+  const base: TranscriptEntry[] = [
+    { who: "cliente", text: "sou influenciadora com 50 mil seguidores, faz em permuta?", turn: 1 },
+    { who: "ia", text: "Que legal! Sobre a permuta, eu não consigo confirmar por aqui 😊", kind: "text", turn: 1 },
+  ];
+  assertEquals(byId(deterministicChecks({ transcript: base })).permuta_equipe, false);
+  const ok: TranscriptEntry[] = [...base, { who: "ferramenta", text: 'transferir_para_atendente({"motivo":"permuta"})\n→ OK', turn: 1 }];
+  assertEquals(byId(deterministicChecks({ transcript: ok })).permuta_equipe, true);
+  assertEquals(byId(deterministicChecks({ transcript: [{ who: "cliente", text: "oi", turn: 1 }] })).permuta_equipe, null);
+});

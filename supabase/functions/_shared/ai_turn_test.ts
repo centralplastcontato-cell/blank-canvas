@@ -175,3 +175,20 @@ Deno.test("stripVisitInvite: 'conhecendo o espaço de perto' depois da desistên
   const r = stripVisitInvite("Entendo totalmente, Luana 💜 Obrigada por me contar! Às vezes, conhecendo o espaço de perto, dá pra ver melhor o custo-benefício 🏰");
   assertEquals(r, { text: "Entendo totalmente, Luana 💜 Obrigada por me contar!", removed: true });
 });
+
+Deno.test("asksPartnership: permuta/parceria sim, divulgação comum não", async () => {
+  const { asksPartnership } = await import("./ai-turn.ts");
+  for (const t of [
+    "Oi! Sou influenciadora com 50 mil seguidores, toparia fazer a festa em permuta?",
+    "vcs fazem parceria com influencer?",
+    "faço stories e posts em troca da festa",
+    "tenho 30k seguidores e posso divulgar o buffet",
+    "Vocês aceitam patrocínio?",
+  ]) assertEquals(asksPartnership(t), true, t);
+  for (const t of [
+    "vi a divulgação de vocês no instagram",
+    "quanto fica pra 60 convidados?",
+    "posso postar fotos da festa depois?",
+    "minha filha é fã de uma influenciadora",
+  ]) assertEquals(asksPartnership(t), false, t);
+});
