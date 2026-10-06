@@ -31,7 +31,7 @@ import {
 import { allowedMoneyValues, formatBRL, holidayName, isHolidayEveYmd, isHolidayYmd, localHolidaysFrom, moneyValuesIn, type PackageQuote, type PartyDay, quotePackages, weekdayYmd } from "../_shared/package-pricing.ts";
 import { addDaysYmd, type FreeDay, type FreeSlot, freePartySlots, monthFromText, monthRange, parsePartySlots, pickPartyDates, weekdayOf } from "../_shared/party-availability.ts";
 import { waitForMediaAck } from "../_shared/media-ack.ts";
-import { fixWeekdays, formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
+import { fixWeekdays, weekdayMismatches, formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
 import { guardAiDb } from "./ai-db-guard.ts";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
@@ -501,6 +501,7 @@ interface PromptContext {
   crossedMessage: boolean; // a mensagem do cliente cruzou com a última resposta da IA
   visitText: string | null; // visita já marcada deste cliente
   visitSlotsText: string; // horários de visita livres dos próximos dias
+  weekdayNote: string | null; // cliente escreveu dia da semana que não bate com a data
 }
 
 // Convidar para a visita no máximo a cada 3–4 respostas, ou quando fizer sentido
@@ -518,7 +519,7 @@ function buildSystemPrompt(companyName: string, unit: string, settings: AiSettin
     : 'nenhum horário livre nos próximos dias — nesse caso transfira para a equipe';
   return `Você é a assistente virtual de vendas do ${companyName} (buffet infantil), atendendo pelo WhatsApp da unidade ${unit}. Hoje é ${today}.
 
-SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até AGENDAR UMA VISITA ao buffet. A visita é o passo que mais fecha festas.
+${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até AGENDAR UMA VISITA ao buffet. A visita é o passo que mais fecha festas.
 
 COMO CONVERSAR:
 - Português brasileiro, tom caloroso, animado e humano, mensagens CURTAS (2 a 4 frases; a de valores pode ter uma linha por pacote).
@@ -587,7 +588,7 @@ ${ctx.packagesText
 AGENDAMENTO DE VISITAS:
 - Janelas de visita: ${settings.visit_hours}.
 - Ao oferecer visita, ofereça JÁ NA MESMA MENSAGEM 2 horários concretos, por exemplo: ${offersText}. Nunca diga que vai passar horários sem passá-los.
-- Horários de visita livres nos próximos dias: ${ctx.visitSlotsText}. Se o cliente pedir outro dia ou horário de visita, ofereça desta lista — NUNCA passe para a equipe por causa de horário de visita.
+- Horários de visita livres nos próximos dias: ${ctx.visitSlotsText}. Se o cliente pedir outro dia ou horário de visita, ou quiser TROCAR a visita que já marcou, ofereça desta lista e use agendar_visita (remarcar=true se ele já tem visita) — NUNCA passe para a equipe por causa de visita.
 - Se o cliente pedir um dia/horário fora das janelas ou já ocupado, NÃO transfira: diga com gentileza que nesse horário não dá e ofereça os horários livres mais próximos (a ferramenta agendar_visita devolve quais são).
 - Quando a pessoa confirmar dia e horário, use agendar_visita. Depois confirme por mensagem o dia/horário e diga que a equipe confirma a visita.
 
@@ -1802,6 +1803,11 @@ export async function maybeHandleWithAiAgent(
       packagesText: await loadPackagesText(supabase, instance),
       pricePending: priceRequestPending(chatMessages),
       crossedMessage: crossedWithLastReply(((history || []) as Array<{ from_me: boolean; timestamp: string }>)),
+      weekdayNote: (() => {
+        const lastUser = [...mergedHistory].reverse().find((m) => m.role === 'user')?.content || '';
+        const wrong = weekdayMismatches(lastUser, new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10));
+        return wrong.length > 0 ? wrong.map((w) => `o cliente escreveu "${w.said}", mas no calendário é "${w.right}".`).join(' ') : null;
+      })(),
       visitSlotsText: visitSlotsByDay(available)
         .map((d) => `${formatDateLong(d.date)}: ${d.times.map((t) => (t.endsWith(':00') ? `${Number(t.slice(0, 2))}h` : t.replace(':', 'h'))).join(', ')}`)
         .join('; ') || 'nenhum',
@@ -1874,7 +1880,15 @@ export async function maybeHandleWithAiAgent(
           } else if (call.name === 'consultar_valor_pacote') {
             toolResult = await toolConsultarValor(supabase, instance, settings, conv, phone, contactName, args);
           } else if (call.name === 'transferir_para_atendente') {
-            toolResult = await toolTransferir(supabase, instance, conv, phone, contactName, settings, String(args.motivo || ''));
+            const motivo = String(args.motivo || '');
+            // Visita (marcar, trocar, outro horário) a IA resolve sozinha — o
+            // simulador pegou ela passando "troca de visita" para a equipe
+            if (/visita|remarc/i.test(motivo) && !/atendente|pessoa|humano|reclama/i.test(motivo)) {
+              toolResult = 'NÃO TRANSFIRA por causa de visita: você mesma resolve. Ofereça horários livres da lista de visitas do sistema (2 opções no dia/turno que o cliente pediu) e, quando ele escolher, use agendar_visita — com remarcar=true se ele já tem visita marcada.';
+              console.log(`[AI Agent] Passagem por visita recusada (conv ${conv.id}): ${motivo.slice(0, 80)}`);
+            } else {
+              toolResult = await toolTransferir(supabase, instance, conv, phone, contactName, settings, motivo);
+            }
           }
           results.push({ id: call.id, content: toolResult });
           sandbox?.state.tools.push({ name: call.name, args: (call.args || {}) as Record<string, unknown>, result: toolResult });

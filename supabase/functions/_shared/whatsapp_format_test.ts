@@ -44,3 +44,10 @@ Deno.test("fixWeekdays: corrige o dia da semana errado e mantém o certo", () =>
   assertEquals(fixWeekdays("sem data nenhuma aqui", today), "sem data nenhuma aqui");
   assertEquals(fixWeekdays("Tenho o domingo, 8 de outubro às 11h", today), "Tenho a quinta, 8 de outubro às 11h");
 });
+
+import { weekdayMismatches } from "./whatsapp-format.ts";
+
+Deno.test("weekdayMismatches: aponta dia da semana errado no texto do cliente", () => {
+  assertEquals(weekdayMismatches("Pode ser a sexta dia 12 de dezembro ou dia 19", "2026-10-06"), [{ said: "sexta dia 12 de dezembro", right: "sábado dia 12 de dezembro" }]);
+  assertEquals(weekdayMismatches("sábado, 12 de dezembro", "2026-10-06"), []);
+});
