@@ -471,10 +471,12 @@ async function zapiReinforceNotifySentByMe(instanceId: string, token: string, cl
 }
 
 // Z-API send text. When messageId is present, Z-API sends a native WhatsApp reply/quote.
-async function zapiSendText(instanceId: string, token: string, clientToken: string | null, rawPhone: string, message: string, quotedProviderMessageId?: string | null): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+async function zapiSendText(instanceId: string, token: string, clientToken: string | null, rawPhone: string, message: string, quotedProviderMessageId?: string | null, delayTyping?: number): Promise<{ ok: boolean; data?: unknown; error?: string }> {
   const phone = rawPhone.endsWith('@g.us') ? rawPhone : String(rawPhone || '').replace(/\D/g, '');
   const payload: Record<string, unknown> = { phone, message };
   if (quotedProviderMessageId) payload.messageId = quotedProviderMessageId;
+  // "digitando..." no WhatsApp do cliente por N segundos antes da mensagem (Z-API: 1 a 15)
+  if (delayTyping && delayTyping >= 1) payload.delayTyping = Math.min(15, Math.round(delayTyping));
   const res = await zapiRequest(instanceId, token, clientToken, 'send-text', 'POST', payload);
   if (res.ok) {
     console.log(`[Z-API] send-text success to ${phone}${quotedProviderMessageId ? ` replyingTo=${quotedProviderMessageId}` : ''}`);
@@ -1572,7 +1574,7 @@ Deno.serve(async (req) => {
         });
 
         let sendResult = isZapi
-          ? await zapiSendText(instance_id, instance_token, client_token, phone, message, quotedProviderMessageId)
+          ? await zapiSendText(instance_id, instance_token, client_token, phone, message, quotedProviderMessageId, Number(body.delayTyping) || undefined)
           : await sendTextWithFallback(instance_id, instance_token, phone, message, quotedProviderMessageId);
 
         console.log('send-text response:', JSON.stringify(sendResult));
@@ -1600,7 +1602,7 @@ Deno.serve(async (req) => {
               for (const alt of (altInstances || [])) {
                 const altIsZapi = (alt.provider || 'wapi') === 'zapi';
                 const altResult = altIsZapi
-                  ? await zapiSendText(alt.instance_id, alt.instance_token, alt.client_token, phone, message, quotedProviderMessageId)
+                  ? await zapiSendText(alt.instance_id, alt.instance_token, alt.client_token, phone, message, quotedProviderMessageId, Number(body.delayTyping) || undefined)
                   : await sendTextWithFallback(alt.instance_id, alt.instance_token, phone, message, quotedProviderMessageId);
 
                 if (!altResult.ok) {

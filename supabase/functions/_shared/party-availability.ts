@@ -45,8 +45,19 @@ const toMin = (t: string) => {
   return h * 60 + (m || 0);
 };
 
-const sameUnit = (a: string | null, unit: string | null) =>
-  !unit || !a || a.trim().toLowerCase() === unit.trim().toLowerCase();
+const norm = (s: string) => s.trim().toLowerCase();
+
+/**
+ * A festa/pré-reserva ocupa o espaço `unit`? Só fica de fora quando está
+ * cadastrada em OUTRA unidade física da empresa. Unidade vazia, de venda
+ * ("Vendas 2"), de WhatsApp ou digitada errado ocupa — é o mesmo espaço.
+ */
+export function occupiesUnit(itemUnit: string | null, unit: string | null, physicalUnits: string[] = []): boolean {
+  if (!unit || !itemUnit) return true;
+  const phys = physicalUnits.map(norm);
+  if (!phys.includes(norm(itemUnit))) return true;
+  return norm(itemUnit) === norm(unit);
+}
 
 const DAY_MS = 86400000;
 export function addDaysYmd(ymd: string, days: number): string {
@@ -57,7 +68,7 @@ export const weekdayOf = (ymd: string) => new Date(`${ymd}T12:00:00Z`).getUTCDay
 /**
  * Horários livres entre duas datas (inclusive). Festa cancelada não ocupa;
  * festa sem horário e pré-reserva ativa (não tem horário) ocupam o dia todo.
- * Festa/pré-reserva sem unidade ocupa todas as unidades.
+ * Festa/pré-reserva só deixa de ocupar quando é de OUTRA unidade física.
  */
 export function freePartySlots(opts: {
   from: string;
@@ -66,8 +77,11 @@ export function freePartySlots(opts: {
   events: AgendaEvent[];
   preReservations: AgendaPreReservation[];
   unit?: string | null;
+  physicalUnits?: string[];
 }): FreeSlot[] {
   const unit = opts.unit ?? null;
+  const phys = opts.physicalUnits || [];
+  const sameUnit = (a: string | null, u: string | null) => occupiesUnit(a, u, phys);
   const out: FreeSlot[] = [];
   for (let d = opts.from; d <= opts.to; d = addDaysYmd(d, 1)) {
     const dayEvents = opts.events.filter((e) => e.event_date === d && (e.status || "") !== "cancelado" && sameUnit(e.unit, unit));

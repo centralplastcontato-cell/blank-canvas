@@ -5,6 +5,31 @@
 // respondidas juntas, numa resposta só. 10 s não bastava: no teste de 05/10
 // a segunda pergunta chegou 14 s depois da primeira.
 export const AI_DEBOUNCE_MS = 16000;
+// Mensagem que parece completa (pergunta, frase longa, áudio): espera curta
+export const AI_DEBOUNCE_COMPLETE_MS = 5000;
+// Meio-termo (frase curta sem "?")
+export const AI_DEBOUNCE_MEDIUM_MS = 9000;
+
+const OPENERS = /^(oi+|ol[aá]|opa|e a[ií]|bom dia|boa tarde|boa noite|ent[aã]o|e|mas|tipo|assim|s[oó]|ok|okay|hum+|hm+|blz|beleza|certo|sim|n[aã]o|t[aá]|tudo bem|td bem)[\s!.,…]*$/i;
+
+/**
+ * Quanto esperar antes de responder, pela cara da última mensagem:
+ * - completa (tem "?", frase longa ou áudio/foto): 5 s;
+ * - incompleta ("Olá", "Então", uma palavra, termina em vírgula/reticências): 16 s;
+ * - o resto: 9 s.
+ * Se a IA acabou de fazer uma pergunta, resposta curta conta como completa.
+ */
+export function debounceMsFor(text: string, isMedia = false, answeringQuestion = false): number {
+  if (isMedia) return AI_DEBOUNCE_COMPLETE_MS;
+  const t = (text || "").trim();
+  const words = t.split(/\s+/).filter(Boolean).length;
+  const trailing = /(,|\.\.\.|…|\s(e|mas|que|pra|para|de))$/i.test(t);
+  // Resposta curta a uma pergunta da IA ("Victor", "dezembro", "60") já é completa
+  if (answeringQuestion && t && !trailing && !/^(oi+|ol[aá]|opa|ent[aã]o|e|mas|tipo|assim|hum+|hm+)[\s!.,…]*$/i.test(t)) return AI_DEBOUNCE_COMPLETE_MS;
+  if (!t || OPENERS.test(t) || words <= 1 || trailing) return AI_DEBOUNCE_MS;
+  if (t.includes("?") || t.length >= 40 || words >= 7) return AI_DEBOUNCE_COMPLETE_MS;
+  return AI_DEBOUNCE_MEDIUM_MS;
+}
 
 export interface IncomingRow {
   message_id: string | null;

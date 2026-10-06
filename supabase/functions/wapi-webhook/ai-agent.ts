@@ -31,7 +31,7 @@ import { formatBRL, holidayName, isHolidayEveYmd, isHolidayYmd, localHolidaysFro
 import { addDaysYmd, type FreeSlot, freePartySlots, monthFromText, monthRange, parsePartySlots, pickPartyOptions, weekdayOf } from "../_shared/party-availability.ts";
 import { waitForMediaAck } from "../_shared/media-ack.ts";
 import { guardAiDb } from "./ai-db-guard.ts";
-import { AI_DEBOUNCE_MS, mergeConsecutiveTurns, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, teamRepliedAfter } from "../_shared/ai-turn.ts";
+import { debounceMsFor, mergeConsecutiveTurns, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 
 type Json = Record<string, unknown>;
@@ -122,7 +122,7 @@ async function sendViaWapiSend(
   action: 'send-text' | 'send-image' | 'send-video' | 'send-document',
   instance: AgentInstance,
   conv: AgentConv,
-  payload: { message?: string; mediaUrl?: string; caption?: string; fileName?: string },
+  payload: { message?: string; mediaUrl?: string; caption?: string; fileName?: string; delayTyping?: number },
 ): Promise<boolean> {
   return (await sendViaWapiSendId(supabase, action, instance, conv, payload)) !== null;
 }
@@ -134,7 +134,7 @@ async function sendViaWapiSendId(
   action: 'send-text' | 'send-image' | 'send-video' | 'send-document',
   instance: AgentInstance,
   conv: AgentConv,
-  payload: { message?: string; mediaUrl?: string; caption?: string; fileName?: string },
+  payload: { message?: string; mediaUrl?: string; caption?: string; fileName?: string; delayTyping?: number },
 ): Promise<string | null> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -287,6 +287,12 @@ function unconfirmedNote(unconfirmed: MaterialTipo[], confirmed: MaterialTipo[])
 // recebe o material (atualizado) de novo.
 const MATERIAL_RESEND_DAYS = 30;
 const materialWindowStart = () => new Date(Date.now() - MATERIAL_RESEND_DAYS * 86400000).toISOString();
+// Depois de #reiniciar (número de teste) só conta o que foi enviado desde então
+const materialSince = (conv: AgentConv) => {
+  const since = (conv.bot_data as Json | null)?.ai_history_since;
+  const windowStart = materialWindowStart();
+  return typeof since === 'string' && since > windowStart ? since : windowStart;
+};
 const isWithinMaterialWindow = (iso: unknown) =>
   typeof iso === 'string' && Date.parse(iso) >= Date.now() - MATERIAL_RESEND_DAYS * 86400000;
 
@@ -462,6 +468,7 @@ interface PromptContext {
   // Respostas da IA desde o último convite para visita (null = ainda não convidou)
   visitRepliesAgo: number | null;
   minPackageGuests: number | null;
+  packagesText: string | null; // o que cada pacote inclui (Operações → Pacotes)
 }
 
 // Convidar para a visita no máximo a cada 3–4 respostas, ou quando fizer sentido
@@ -493,6 +500,7 @@ COMO CONVERSAR:
 
 REGRAS INEGOCIÁVEIS:
 1. VALORES: informe somente os valores da tabela oficial, obtidos com a ferramenta consultar_valor_pacote — nunca de cabeça, nunca estimativa, nunca arredondado, nunca somando outros itens. Para consultar você precisa da quantidade de convidados E do dia da festa (a data ou, pelo menos, o dia da semana): se faltar algum, pergunte ANTES de falar qualquer valor. Desconto, condição à vista, parcelamento, brinde, entrada diferente ou qualquer negociação: NUNCA ofereça nem prometa — diga que as condições de pagamento e o fechamento são com a equipe. Se a ferramenta não trouxer valor, envie o PDF de pacotes (enviar_materiais, tipo "pacotes").
+   Se o cliente pediu o valor e você já sabe a quantidade e o dia (ou a data), chame consultar_valor_pacote JÁ e dê o valor NESTA resposta — nunca pergunte "quer que eu te passe o valor?". Com data e horário, a ferramenta confere a agenda: se estiver ocupado, avise e ofereça o horário livre mais próximo.
 2. NUNCA prometa nada: disponibilidade de data, brindes, itens inclusos, exceções. Quem confirma detalhes é a equipe.
 3. NUNCA invente informações. Se não souber responder, use a ferramenta transferir_para_atendente.
 4. Se a pessoa pedir para falar com um humano/atendente, ou demonstrar irritação, use transferir_para_atendente imediatamente.
@@ -511,7 +519,9 @@ DATAS DA FESTA (agenda):
 - Você NÃO reserva, NÃO segura e NÃO bloqueia datas — nunca diga que fez isso. Se o cliente quiser garantir a data, ofereça passar para a equipe fechar.
 - Quando o cliente escolher uma data, use essa data (e o horário) em consultar_valor_pacote para dar o valor certo (dia da semana, véspera ou feriado).
 
-${ctx.minPackageGuests ? `PACOTES: o menor pacote é para ${ctx.minPackageGuests} convidados. Se o cliente falar em menos de ${ctx.minPackageGuests} convidados ou pedir orçamento para menos, explique JÁ NA MESMA RESPOSTA (não espere ele perguntar), com naturalidade, que o menor pacote é para ${ctx.minPackageGuests} pessoas e que a equipe explica como fica para um grupo menor.\n\n` : ''}CONVITE PARA VISITA (não seja repetitiva):
+${ctx.packagesText
+    ? `O QUE CADA PACOTE INCLUI (cadastro do buffet — use para explicar e comparar os pacotes; só cite o que está aqui; valores NUNCA daqui, só de consultar_valor_pacote):\n${ctx.packagesText}\n\n`
+    : 'O QUE CADA PACOTE INCLUI: não cadastrado — se perguntarem a diferença entre os pacotes, envie o PDF de pacotes (enviar_materiais, tipo "pacotes") em vez de transferir.\n\n'}${ctx.minPackageGuests ? `PACOTES: o menor pacote é para ${ctx.minPackageGuests} convidados. Se o cliente falar em menos de ${ctx.minPackageGuests} convidados ou pedir orçamento para menos, explique JÁ NA MESMA RESPOSTA (não espere ele perguntar), com naturalidade, que o menor pacote é para ${ctx.minPackageGuests} pessoas e que a equipe explica como fica para um grupo menor.\n\n` : ''}CONVITE PARA VISITA (não seja repetitiva):
 - ${visitInviteRule(ctx.visitRepliesAgo)}
 
 AGENDAMENTO DE VISITAS:
@@ -782,7 +792,7 @@ async function materialsAlreadyInChat(
     .eq('conversation_id', conv.id)
     .eq('from_me', true)
     .in('media_url', Array.from(urlType.keys()))
-    .gte('timestamp', materialWindowStart())
+    .gte('timestamp', materialSince(conv))
     .or('status.is.null,status.neq.error') // o que não chegou no WhatsApp não conta
     .limit(50);
   const found: Partial<Record<MaterialTipo, boolean>> = {};
@@ -1016,6 +1026,52 @@ function slotLine(f: FreeSlot): string {
   return `- ${WEEKDAYS[f.dow]}, ${fmtDateBR(f.date)} (${f.date}), das ${fmtHour(f.slot.start)} às ${fmtHour(f.slot.end)}`;
 }
 
+// Agenda da empresa entre duas datas: horários livres por unidade física.
+// SÓ LEITURA (festas e pré-reservas).
+async function loadFreeSlots(
+  supabase: any,
+  instance: AgentInstance,
+  settings: AiSettings,
+  from: string,
+  to: string,
+): Promise<{ perUnit: Array<{ unit: string | null; free: FreeSlot[] }>; events: number; pre: number }> {
+  const [{ data: units }, { data: events }, { data: pre }] = await Promise.all([
+    supabase.from('company_units').select('name').eq('company_id', instance.company_id).eq('is_active', true).eq('is_physical', true),
+    supabase.from('company_events').select('event_date, start_time, end_time, status, unit')
+      .eq('company_id', instance.company_id).gte('event_date', from).lte('event_date', to),
+    supabase.from('pre_reservations').select('event_date, unit')
+      .eq('company_id', instance.company_id).eq('status', 'ativa')
+      .gt('reservation_expires_at', new Date().toISOString())
+      .gte('event_date', from).lte('event_date', to),
+  ]);
+  const slots = parsePartySlots(settings.party_slots);
+  const unitNames = ((units || []) as Array<{ name: string }>).map((u) => u.name).filter(Boolean);
+  const units_ = unitNames.length > 1 ? unitNames : [unitNames[0] || null];
+  return {
+    perUnit: units_.map((unit) => ({
+      unit,
+      free: freePartySlots({ from, to, slots, events: (events || []) as any[], preReservations: (pre || []) as any[], unit, physicalUnits: unitNames }),
+    })),
+    events: (events || []).length,
+    pre: (pre || []).length,
+  };
+}
+
+// "O que inclui" de cada pacote ativo, para o prompt (Operações → Pacotes)
+async function loadPackagesText(supabase: any, instance: AgentInstance): Promise<string | null> {
+  const { data } = await supabase.from('company_packages').select('*')
+    .eq('company_id', instance.company_id).eq('is_active', true).order('sort_order', { ascending: true });
+  const lines: string[] = [];
+  for (const p of (data || []) as Array<{ name: string; description?: string | null; includes?: string | null }>) {
+    const items = String(p.includes || '').split('\n').map((l) => l.replace(/^[-•*\s]+/, '').trim()).filter(Boolean);
+    const desc = String(p.description || '').trim();
+    if (items.length === 0 && !desc) continue;
+    lines.push(`- ${p.name}${desc ? `: ${desc}` : ''}${items.length > 0 ? `\n  Inclui: ${items.join('; ')}` : ''}`);
+  }
+  const text = lines.join('\n');
+  return text ? text.slice(0, 3000) : null;
+}
+
 // Datas e horários livres na agenda (festas + pré-reservas). SÓ LEITURA.
 async function toolConsultarDatas(
   supabase: any,
@@ -1044,23 +1100,12 @@ async function toolConsultarDatas(
   }
 
   // Unidade física da festa: com mais de uma, a agenda é olhada por unidade
-  const [{ data: units }, { data: events }, { data: pre }] = await Promise.all([
-    supabase.from('company_units').select('name').eq('company_id', instance.company_id).eq('is_active', true).eq('is_physical', true),
-    supabase.from('company_events').select('event_date, start_time, end_time, status, unit')
-      .eq('company_id', instance.company_id).gte('event_date', from).lte('event_date', to),
-    supabase.from('pre_reservations').select('event_date, unit')
-      .eq('company_id', instance.company_id).eq('status', 'ativa')
-      .gt('reservation_expires_at', new Date().toISOString())
-      .gte('event_date', from).lte('event_date', to),
-  ]);
-  const slots = parsePartySlots(settings.party_slots);
-  const unitNames = ((units || []) as Array<{ name: string }>).map((u) => u.name).filter(Boolean);
-  const perUnit = unitNames.length > 1 ? unitNames : [unitNames[0] || null];
+  const agenda = await loadFreeSlots(supabase, instance, settings, from, to);
+  const perUnit = agenda.perUnit;
   const rules = 'Diga que está DISPONÍVEL NESTE MOMENTO e que a data só fica garantida com contrato e sinal com a equipe. NUNCA diga que reservou, segurou ou bloqueou a data. Quando o cliente escolher uma data, use consultar_valor_pacote com essa data (AAAA-MM-DD) e o horário.';
 
   const blocks: string[] = [];
-  for (const unit of perUnit) {
-    const free = freePartySlots({ from, to, slots, events: (events || []) as any[], preReservations: (pre || []) as any[], unit });
+  for (const { unit, free } of perUnit) {
     const label = perUnit.length > 1 ? `Unidade ${unit}: ` : '';
     if (askedDate) {
       const onDay = free.filter((f) => f.date === askedDate);
@@ -1075,7 +1120,7 @@ async function toolConsultarDatas(
         : `${label}Nenhum horário livre nesse período — ofereça outro mês ou passe para a equipe.`);
     }
   }
-  console.log(`[AI Agent] Consulta de agenda (${askedDate || `${from}..${to}`}): ${(events || []).length} festa(s), ${(pre || []).length} pré-reserva(s)`);
+  console.log(`[AI Agent] Consulta de agenda (${askedDate || `${from}..${to}`}): ${agenda.events} festa(s), ${agenda.pre} pré-reserva(s)`);
   return `AGENDA (só consulta, nada foi reservado):\n${blocks.join('\n\n')}\n${rules}`;
 }
 
@@ -1083,6 +1128,7 @@ async function toolConsultarDatas(
 async function toolConsultarValor(
   supabase: any,
   instance: AgentInstance,
+  settings: AiSettings,
   conv: AgentConv,
   phone: string,
   contactName: string | null,
@@ -1112,6 +1158,27 @@ async function toolConsultarValor(
   }
   if (!day) return 'FALTA O DIA: pergunte o dia da semana (ou a data) da festa antes de informar qualquer valor.';
 
+  // Data específica: confere a agenda ANTES de dar o valor (horário ocupado não tem preço)
+  let freeHours: string[] | null = null;
+  if (dateMatch) {
+    const date = String(args.data);
+    const agenda = await loadFreeSlots(supabase, instance, settings, addDaysYmd(date, -14), addDaysYmd(date, 28));
+    const free = agenda.perUnit.flatMap((u) => u.free);
+    const onDay = free.filter((f) => f.date === date);
+    const wantHour = parseInt(String(args.horario || '').replace(/\D.*$/, ''), 10);
+    const wanted = isNaN(wantHour) ? onDay : onDay.filter((f) => Number(f.slot.start.slice(0, 2)) === wantHour);
+    if (wanted.length === 0) {
+      const today = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+      const nearest = onDay.length > 0
+        ? onDay
+        : pickPartyOptions(free.filter((f) => f.date > today), [weekdayOf(date)], 3);
+      const what = isNaN(wantHour) ? `${fmtDateBR(date)} está OCUPADA` : `${fmtDateBR(date)} às ${wantHour}h está OCUPADO`;
+      console.log(`[AI Agent] Valor pedido para horário ocupado (${date} ${args.horario || 'dia todo'}) — oferecendo alternativas`);
+      return `${what} na agenda: NÃO informe valor para esse horário. Avise o cliente e ofereça o(s) horário(s) livre(s) mais próximo(s) (disponível neste momento):\n${nearest.length > 0 ? nearest.map(slotLine).join('\n') : '(nenhum nas semanas próximas — passe para a equipe)'}\nSe ele escolher um deles, consulte o valor de novo com a nova data/horário.`;
+    }
+    freeHours = wanted.map((f) => f.slot.start);
+  }
+
   const [{ data: packages }, { data: tiers }] = await Promise.all([
     supabase.from('company_packages')
       .select('id, name, valor_pessoa_adicional, preco_separado, valor_pessoa_adicional_adulto, valor_pessoa_adicional_crianca')
@@ -1127,8 +1194,8 @@ async function toolConsultarValor(
     else if (partial.length > 0) pkgs = partial;
   }
   let quotes = quotePackages(pkgs, (tiers || []) as any[], (company?.settings || null) as any, guests, day);
-  // Horário escolhido: a grade pode separar almoço (antes das 16h) e jantar
-  const hour = parseInt(String(args.horario || '').replace(/\D.*$/, ''), 10);
+  // Horário escolhido (ou o único livre no dia): a grade pode separar almoço (antes das 16h) e jantar
+  const hour = parseInt(String(args.horario || (freeHours?.length === 1 ? freeHours[0] : '')).replace(/\D.*$/, ''), 10);
   if (!isNaN(hour) && quotes.some((q) => q.shift)) {
     const shift = hour < 16 ? 'almoco' : 'jantar';
     const byShift = quotes.filter((q) => q.shift === shift);
@@ -1145,7 +1212,10 @@ async function toolConsultarValor(
   const minTier = Math.min(...quotes.map((q) => q.tier));
   const minNote = guests < minTier ? ` O cliente falou em ${guests} convidados, mas a menor faixa da tabela é de ${minTier}: explique que o valor é o do pacote de ${minTier} pessoas.` : '';
   const betweenNote = quotes.some((q) => q.tier > guests && guests >= minTier) ? ` Para ${guests} convidados vale a faixa de ${quotes[0].tier} (a tabela é por faixa).` : '';
-  return `VALORES DA TABELA para ${guests} convidados, ${dayText} — informe exatamente estes valores, sem arredondar e sem somar outros itens:\n${quotes.map(quoteLine).join('\n')}\n${minNote}${betweenNote}${holidayNote} PROIBIDO oferecer ou prometer desconto, condição à vista, parcelamento, brinde ou entrada diferente: se o cliente pedir, diga que as condições de pagamento e o fechamento são com a equipe.`.trim();
+  const freeNote = freeHours && !args.horario
+    ? ` Nesse dia, disponível neste momento só: ${freeHours.map((h) => `${Number(h.slice(0, 2))}h`).join(' e ')} — diga isso junto com o valor.`
+    : '';
+  return `VALORES DA TABELA para ${guests} convidados, ${dayText}${args.horario ? ` às ${args.horario}` : ''} — informe exatamente estes valores, sem arredondar e sem somar outros itens:\n${quotes.map(quoteLine).join('\n')}\n${minNote}${betweenNote}${holidayNote}${freeNote} PROIBIDO oferecer ou prometer desconto, condição à vista, parcelamento, brinde ou entrada diferente: se o cliente pedir, diga que as condições de pagamento e o fechamento são com a equipe.`.trim();
 }
 
 // Passagem para a equipe: tira a IA da conversa, registra no histórico do
@@ -1450,8 +1520,14 @@ export async function maybeHandleWithAiAgent(
     // Junta mensagens seguidas: espera alguns segundos e só responde se esta
     // ainda for a última mensagem do cliente — a última responde por todas.
     const myMessageId = media?.messageId || incomingMessageId || null;
+    const tStart = Date.now();
+    // A IA acabou de perguntar algo? Então resposta curta já é completa.
+    const { data: lastOut } = await supabase.from('wapi_messages').select('content')
+      .eq('conversation_id', conv.id).eq('from_me', true).order('timestamp', { ascending: false }).limit(1);
+    const aiAsked = /\?\s*\S{0,3}\s*$/.test(String((lastOut as Array<{ content: string | null }> | null)?.[0]?.content || ''));
+    const waitMs = debounceMsFor(content, !!media, aiAsked);
     if (myMessageId) {
-      await new Promise((resolve) => setTimeout(resolve, AI_DEBOUNCE_MS));
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
       await waitMaterialsIdle(supabase, conv.id);
       const latest = await latestIncomingId(supabase, conv.id);
       if (latest && latest !== myMessageId) {
@@ -1479,6 +1555,7 @@ export async function maybeHandleWithAiAgent(
       }
     }
 
+    const tAfterWait = Date.now();
     // Histórico da conversa (no número de teste, só depois do último #reiniciar)
     let historyQuery = supabase
       .from('wapi_messages')
@@ -1537,6 +1614,7 @@ export async function maybeHandleWithAiAgent(
         : null,
       visitRepliesAgo: repliesSinceVisitInvite(chatMessages),
       minPackageGuests: smallestPackageGuests(await loadSalesMaterials(supabase, instance)),
+      packagesText: await loadPackagesText(supabase, instance),
     });
 
     const session = createLlmSession({
@@ -1552,11 +1630,16 @@ export async function maybeHandleWithAiAgent(
       return false;
     }
     console.log(`[AI Agent] Respondendo conv ${conv.id} com ${model}${isAiTestPhone ? ' (número de teste)' : ''}`);
+    const tPrepared = Date.now();
+    let modelMs = 0;
+    let toolMs = 0;
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       let step: LlmStep;
       try {
+        const tModel = Date.now();
         step = await session.step();
+        modelMs += Date.now() - tModel;
       } catch (llmErr) {
         // Provedor fora do ar / erro: não deixa o cliente sem resposta —
         // passa para a equipe (sem mandar nada ao cliente)
@@ -1584,6 +1667,7 @@ export async function maybeHandleWithAiAgent(
       }
 
       if (step.toolCalls.length > 0) {
+        const tTools = Date.now();
         const results: Array<{ id: string; content: string }> = [];
         for (const call of step.toolCalls) {
           const args = call.args as any;
@@ -1597,13 +1681,14 @@ export async function maybeHandleWithAiAgent(
           } else if (call.name === 'consultar_datas_livres') {
             toolResult = await toolConsultarDatas(supabase, instance, settings, args);
           } else if (call.name === 'consultar_valor_pacote') {
-            toolResult = await toolConsultarValor(supabase, instance, conv, phone, contactName, args);
+            toolResult = await toolConsultarValor(supabase, instance, settings, conv, phone, contactName, args);
           } else if (call.name === 'transferir_para_atendente') {
             toolResult = await toolTransferir(supabase, instance, conv, phone, contactName, settings, String(args.motivo || ''));
           }
           results.push({ id: call.id, content: toolResult });
         }
         session.addToolResults(results);
+        toolMs += Date.now() - tTools;
         continue; // nova rodada para a IA redigir a resposta final
       }
 
@@ -1635,7 +1720,6 @@ export async function maybeHandleWithAiAgent(
       // durante o envio dos materiais): descarta esta e deixa a execução da
       // mensagem mais nova responder tudo de uma vez. Confere no último
       // instante, logo antes de enviar.
-      await new Promise((resolve) => setTimeout(resolve, 1000));
       if (myMessageId && !conv.__handoffThisTurn) {
         const latestNow = await latestIncomingId(supabase, conv.id);
         if (latestNow && latestNow !== myMessageId) {
@@ -1643,7 +1727,10 @@ export async function maybeHandleWithAiAgent(
           return true;
         }
       }
-      const delivered = await sendViaWapiSend(supabase, 'send-text', instance, conv, { message: finalText });
+      // "digitando..." por 2 s no WhatsApp do cliente antes da resposta (Z-API)
+      const tSend = Date.now();
+      const delivered = await sendViaWapiSend(supabase, 'send-text', instance, conv, { message: finalText, delayTyping: 2 });
+      console.log(`[AI Agent] Tempos (conv ${conv.id}): espera ${((tAfterWait - tStart) / 1000).toFixed(1)}s (alvo ${waitMs / 1000}s), preparo ${((tPrepared - tAfterWait) / 1000).toFixed(1)}s, modelo ${(modelMs / 1000).toFixed(1)}s, ferramentas ${(toolMs / 1000).toFixed(1)}s, envio ${((Date.now() - tSend) / 1000).toFixed(1)}s, total ${((Date.now() - tStart) / 1000).toFixed(1)}s`);
       if (!delivered) {
         console.error(`[AI Agent] Resposta da IA não foi entregue ao WhatsApp (conv ${conv.id})`);
         await handOffOnFailure(supabase, instance, conv, phone, contactName, settings, 'a resposta da IA não saiu no WhatsApp — responda o cliente');
