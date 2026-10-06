@@ -33,6 +33,7 @@ import { waitForMediaAck } from "../_shared/media-ack.ts";
 import { formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
 import { guardAiDb } from "./ai-db-guard.ts";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
+import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
 import { crossedWithLastReply, debounceMsFor, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 
@@ -138,6 +139,9 @@ async function sendViaWapiSendId(
   conv: AgentConv,
   payload: { message?: string; mediaUrl?: string; caption?: string; fileName?: string; delayTyping?: number },
 ): Promise<string | null> {
+  // Simulador: nada sai pelo WhatsApp
+  const sandbox = inSandbox();
+  if (sandbox) return sandbox.send(action, conv.id, payload);
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!supabaseUrl || !serviceRoleKey) return null;
@@ -928,7 +932,7 @@ async function toolEnviarMateriais(
     for (let i = 0; i < Math.min(photos.length, 6); i++) {
       const id = await sendViaWapiSendId(supabase, 'send-image', instance, conv, { mediaUrl: photos[i], caption: '' });
       if (id !== null) sent.push({ tipo: 'fotos', id });
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      await sandboxSleep(800);
     }
     if (sent.length === 0) return 'ERRO: falha ao enviar as fotos. Não diga que mandou; diga que a equipe envia em seguida.';
     const ack = await confirmMaterials(supabase, sent);
@@ -1457,7 +1461,7 @@ async function waitMaterialsIdle(supabase: any, convId: string, maxMs = 120000):
     const { data } = await supabase.from('wapi_conversations').select('bot_data').eq('id', convId).maybeSingle();
     const busyUntil = (data?.bot_data as Json | null)?.ai_materials_busy_until;
     if (typeof busyUntil !== 'string' || Date.parse(busyUntil) <= Date.now()) return;
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await sandboxSleep(3000);
   }
 }
 
@@ -1551,7 +1555,8 @@ export async function maybeHandleWithAiAgent(
     }
 
     settings = await loadSettings(supabase, instance.company_id);
-    if (!settings || !settings.enabled || !settings.unit) {
+    // O simulador testa mesmo com a IA ainda desligada para os clientes
+    if (!settings || (!settings.enabled && !inSandbox()) || !settings.unit) {
       console.log(`[AI Agent] IA desligada ou sem unidade configurada para a empresa ${instance.company_id} — pulando`);
       return false;
     }
@@ -1568,7 +1573,10 @@ export async function maybeHandleWithAiAgent(
     // Modo de Teste da IA: enquanto ligado, ela só conversa com este número.
     // Para qualquer outro, devolve false e a conversa segue com o bot fixo
     // normalmente — nada muda para os clientes de verdade.
-    const isAiTestPhone = isAiTestNumber(settings, phone);
+    // No simulador a conversa conta como a do número de teste (mesmo modelo
+    // e sem a regra de "só leads novos")
+    const sandbox = inSandbox();
+    const isAiTestPhone = sandbox ? true : isAiTestNumber(settings, phone);
     if (settings.test_mode_enabled && !isAiTestPhone) {
       console.log(`[AI Agent] Modo de Teste da IA ligado — ${phone} não é o número de teste, seguindo com o bot fixo`);
       return false;
@@ -1577,7 +1585,7 @@ export async function maybeHandleWithAiAgent(
     // Número de teste manda "#reiniciar": a IA começa uma conversa nova do
     // zero (esquece o histórico anterior e volta a atender mesmo depois de
     // ter passado para a equipe). Só vale para o número de teste.
-    if (isAiTestPhone && !media && content.trim().toLowerCase() === TEST_RESTART_COMMAND) {
+    if (isAiTestPhone && !sandbox && !media && content.trim().toLowerCase() === TEST_RESTART_COMMAND) {
       const newBotData = {
         ...(conv.bot_data || {}),
         ai_agent: 'on',
@@ -1638,7 +1646,7 @@ export async function maybeHandleWithAiAgent(
 
     const openaiKey = Deno.env.get('OPENAI_API_KEY') || null;
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY') || null;
-    let model = (isAiTestPhone && settings.test_model) ? settings.test_model : (settings.model || DEFAULT_AI_MODEL);
+    let model = sandbox?.model || ((isAiTestPhone && settings.test_model) ? settings.test_model : (settings.model || DEFAULT_AI_MODEL));
     if (providerForModel(model) === 'anthropic' && !anthropicKey) {
       console.error(`[AI Agent] Modelo ${model} escolhido, mas ANTHROPIC_API_KEY não está configurada — usando ${DEFAULT_AI_MODEL}`);
       model = DEFAULT_AI_MODEL;
@@ -1674,7 +1682,7 @@ export async function maybeHandleWithAiAgent(
     const aiAsked = /\?\s*\S{0,3}\s*$/.test(String((lastOut as Array<{ content: string | null }> | null)?.[0]?.content || ''));
     const waitMs = debounceMsFor(content, !!media, aiAsked);
     if (myMessageId) {
-      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      await sandboxSleep(waitMs);
       await waitMaterialsIdle(supabase, conv.id);
       const latest = await latestIncomingId(supabase, conv.id);
       if (latest && latest !== myMessageId) {
@@ -1839,6 +1847,7 @@ export async function maybeHandleWithAiAgent(
             toolResult = await toolTransferir(supabase, instance, conv, phone, contactName, settings, String(args.motivo || ''));
           }
           results.push({ id: call.id, content: toolResult });
+          sandbox?.state.tools.push({ name: call.name, args: (call.args || {}) as Record<string, unknown>, result: toolResult });
         }
         session.addToolResults(results);
         toolMs += Date.now() - tTools;
