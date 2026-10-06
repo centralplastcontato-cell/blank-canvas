@@ -1,1 +1,1 @@
-{"sql": "select status, passed, failed, errors, cost_usd, finished_at from public.ai_sim_runs where id = '96fab944-5fb0-4095-9c26-def7d77d64a2'"}
+{"sql": "select id, created_by is not null as pela_tela, created_at, status, total, model from public.ai_sim_runs order by created_at desc limit 3"}
