@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { debounceMsFor, mergeConsecutiveTurns, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, teamRepliedAfter } from "./ai-turn.ts";
+import { debounceMsFor, mergeConsecutiveTurns, priceRequestPending, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, teamRepliedAfter } from "./ai-turn.ts";
 
 Deno.test("pickLatestIncoming: a última mensagem do cliente responde por todas", () => {
   assertEquals(pickLatestIncoming([
@@ -98,4 +98,18 @@ Deno.test("debounceMsFor: pergunta/frase longa espera pouco; 'Olá'/'Então' esp
   assertEquals(debounceMsFor("dezembro", false, true), 5000);
   assertEquals(debounceMsFor("60", false, true), 5000);
   assertEquals(debounceMsFor("Então", false, true), 16000);
+});
+
+Deno.test("priceRequestPending: pediu valor no começo e ainda não recebeu", () => {
+  assertEquals(priceRequestPending([
+    { role: "user", content: "oi, quanto custa uma festa?" },
+    { role: "assistant", content: "Oi! Para quantos convidados?" },
+    { role: "user", content: "60, dia 26 de dezembro" },
+  ]), true);
+  assertEquals(priceRequestPending([
+    { role: "user", content: "qual o valor?" },
+    { role: "assistant", content: "🏰 *Castelo* — R$ 6.890" },
+    { role: "user", content: "legal" },
+  ]), false);
+  assertEquals(priceRequestPending([{ role: "user", content: "tem estacionamento?" }]), false);
 });

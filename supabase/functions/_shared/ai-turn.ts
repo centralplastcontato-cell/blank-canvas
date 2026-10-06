@@ -118,3 +118,14 @@ export function smallestPackageGuests(materials: Array<{ type?: string; guest_co
     .map((m) => m.guest_count as number);
   return counts.length > 0 ? Math.min(...counts) : null;
 }
+
+// O cliente pediu o valor e ainda não recebeu nenhum "R$" depois disso?
+const PRICE_ASK = /(pre[cç]o|valor|quanto (fica|custa|sai|é|e)|or[cç]amento|investimento)/i;
+export function priceRequestPending(turns: Turn[]): boolean {
+  let asked = false;
+  for (const t of turns) {
+    if (t.role === "user" && PRICE_ASK.test(t.content)) asked = true;
+    else if (t.role === "assistant" && /R\$\s*\d/.test(t.content)) asked = false;
+  }
+  return asked;
+}

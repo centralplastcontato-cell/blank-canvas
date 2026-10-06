@@ -30,8 +30,9 @@ import {
 import { formatBRL, holidayName, isHolidayEveYmd, isHolidayYmd, localHolidaysFrom, moneyValuesIn, type PackageQuote, type PartyDay, quotePackages, weekdayYmd } from "../_shared/package-pricing.ts";
 import { addDaysYmd, type FreeSlot, freePartySlots, monthFromText, monthRange, parsePartySlots, pickPartyOptions, weekdayOf } from "../_shared/party-availability.ts";
 import { waitForMediaAck } from "../_shared/media-ack.ts";
+import { formatBRLShort, formatDateLong, formatSlotLabel, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
 import { guardAiDb } from "./ai-db-guard.ts";
-import { debounceMsFor, mergeConsecutiveTurns, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, teamRepliedAfter } from "../_shared/ai-turn.ts";
+import { debounceMsFor, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 
 type Json = Record<string, unknown>;
@@ -469,6 +470,7 @@ interface PromptContext {
   visitRepliesAgo: number | null;
   minPackageGuests: number | null;
   packagesText: string | null; // o que cada pacote inclui (Operações → Pacotes)
+  pricePending: boolean; // cliente pediu o valor e ainda não recebeu
 }
 
 // Convidar para a visita no máximo a cada 3–4 respostas, ou quando fizer sentido
@@ -489,14 +491,26 @@ function buildSystemPrompt(companyName: string, unit: string, settings: AiSettin
 SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até AGENDAR UMA VISITA ao buffet. A visita é o passo que mais fecha festas.
 
 COMO CONVERSAR:
-- Português brasileiro, tom caloroso e humano, mensagens CURTAS (2 a 4 frases). No máximo 1 emoji por mensagem.
+- Português brasileiro, tom caloroso, animado e humano, mensagens CURTAS (2 a 4 frases; a de valores pode ter uma linha por pacote).
+- Use 2 a 3 emojis por mensagem, variados e combinando com o assunto (🎉 🥳 🎈 🏰 😍 ✨ 🎂 💜…), sem repetir sempre os mesmos. Se as informações do buffet trouxerem instruções de estilo/personalidade, elas valem mais do que esta.
 - ${ctx.isFirstReply ? 'ESTA É A SUA PRIMEIRA RESPOSTA: apresente-se (diga seu nome, se ele estiver nas informações do buffet, e que é do ' + companyName + ') e, se ainda não souber o nome do cliente, já pergunte o nome dele NESTA mensagem, junto com a resposta ao que ele perguntou.' : 'Se ainda não souber o nome do cliente, não interrompa a conversa para pedir — aproveite um momento natural.'}
-- Dados do cliente já registrados: ${ctx.knownDataText}. Não pergunte de novo o que já sabe.
+- Dados do cliente já registrados: ${ctx.knownDataText}. Não pergunte de novo o que já sabe.${ctx.pricePending ? '\n- O CLIENTE JÁ PEDIU O VALOR e ainda não recebeu: assim que você souber a quantidade de convidados e o dia/data (já registrados ou nesta mensagem), chame consultar_valor_pacote e passe o valor NESTA resposta, sem esperar ele pedir de novo. Se ainda faltar um dos dois, pergunte só o que falta.' : ''}
 - ${ctx.pendingUserMessages > 1 ? `O cliente mandou ${ctx.pendingUserMessages} mensagens seguidas desde a sua última resposta: responda a TODAS as perguntas delas numa única mensagem, sem ignorar nenhuma.` : 'Se o cliente mandar várias perguntas, responda todas numa única mensagem.'}
 - Uma pergunta por vez. Nunca envie listas de opções numeradas — converse como gente.
 - Descubra naturalmente: nome da pessoa, mês/data desejada da festa e número de convidados, se ainda não souber.
 - Quebre objeções com empatia ("vou pensar" → ofereça a visita sem compromisso; "tá caro" → valorize o que está incluso e chame para conhecer o espaço).
 - Áudios do cliente chegam para você já transcritos e fotos chegam descritas: responda ao conteúdo normalmente, sem comentar que foi transcrito. Se aparecer que um áudio ou uma foto não pôde ser ouvido/visto, peça com gentileza para a pessoa escrever.
+
+FORMATAÇÃO NO WHATSAPP:
+- Negrito do WhatsApp com asterisco simples (*assim*) para nomes de pacotes e informações-chave (valor, data, horário). Nada de **duplo**, # ou listas com hífen.
+- Datas sempre por extenso ("sábado, 26 de dezembro"), nunca "26/12". Horários como "almoço (13h)" ou "noite (19h)", nunca "13:00" (o WhatsApp sublinha como link). O que vier entre [colchetes] nas ferramentas é só para você — não copie.
+- Mensagem de valores: comece com entusiasmo, use as linhas prontas da ferramenta (um pacote por linha, com o emoji: 🏰 Castelo, ⭐ Super Castelo, 👑 Castelo Premium) e termine com uma pergunta que puxe o próximo passo. Exemplo:
+  "Aaah, que demais, Victor! 🥳 Olha os valores para 60 convidados no *sábado, 26 de dezembro*:
+  🏰 *Castelo* — R$ 6.890
+  ⭐ *Super Castelo* — R$ 8.530
+  👑 *Castelo Premium* — R$ 9.670
+  E o melhor: esse dia ainda tem os dois horários livres, *almoço (13h)* ou *noite (19h)* 🎉
+  Quer que eu te conte o que cada pacote tem? 😍"
 
 REGRAS INEGOCIÁVEIS:
 1. VALORES: informe somente os valores da tabela oficial, obtidos com a ferramenta consultar_valor_pacote — nunca de cabeça, nunca estimativa, nunca arredondado, nunca somando outros itens. Para consultar você precisa da quantidade de convidados E do dia da festa (a data ou, pelo menos, o dia da semana): se faltar algum, pergunte ANTES de falar qualquer valor. Desconto, condição à vista, parcelamento, brinde, entrada diferente ou qualquer negociação: NUNCA ofereça nem prometa — diga que as condições de pagamento e o fechamento são com a equipe. Se a ferramenta não trouxer valor, envie o PDF de pacotes (enviar_materiais, tipo "pacotes").
@@ -534,7 +548,7 @@ AGENDAMENTO DE VISITAS:
 
 PASSAGEM PARA A EQUIPE: ao usar transferir_para_atendente, avise o cliente que um atendente vai continuar por aqui, sem escrever horários — o sistema acrescenta o horário de atendimento da equipe (${ctx.teamHoursText}). As janelas de visita NÃO são o horário de atendimento da equipe: nunca use uma no lugar da outra.
 ${ctx.afterHoursHandoff ? `\nATENÇÃO — ESTA CONVERSA JÁ FOI PASSADA PARA A EQUIPE (motivo: ${ctx.afterHoursHandoff.reason || 'não informado'}). A equipe está fora do horário agora e volta ${ctx.afterHoursHandoff.returns}. Enquanto isso, continue tirando dúvidas informativas com base nas informações do buffet (estrutura, o que tem, como funciona, materiais, horários de visita). Para o assunto que motivou a passagem e para negociação/fechamento, diga com gentileza que a equipe continua ${ctx.afterHoursHandoff.returns}. NÃO chame transferir_para_atendente de novo.` : ''}
-${settings.extra_instructions ? `\nINFORMAÇÕES DO BUFFET (use somente isto como fonte):\n${settings.extra_instructions}` : ''}`;
+${settings.extra_instructions ? `\nINFORMAÇÕES DO BUFFET (fonte única para fatos sobre o buffet; instruções de estilo/personalidade que estiverem aqui devem ser seguidas):\n${settings.extra_instructions}` : ''}`;
 }
 
 const TOOLS: ToolDef[] = [
@@ -1010,22 +1024,24 @@ function weekdayFromText(text: string): number | null {
   return i >= 0 ? i : null;
 }
 
+// Linha pronta para o cliente: "🏰 *Castelo* — R$ 6.890"
 function quoteLine(q: PackageQuote): string {
-  const turno = q.shift === 'almoco' ? ' (almoço)' : q.shift === 'jantar' ? ' (jantar)' : '';
-  const base = `${q.packageName}${turno}: ${formatBRL(q.tierPrice)} (faixa de ${q.tier} convidados, coluna "${q.dayTypeLabel}")`;
-  if (q.extraGuests === 0) return `- ${base}`;
+  const turno = q.shift === 'almoco' ? ' (almoço)' : q.shift === 'jantar' ? ' (noite)' : '';
+  const name = `${packageEmoji(q.packageName)} *${prettyPackageName(q.packageName)}*${turno}`;
+  if (q.extraGuests === 0) return `${name} — ${formatBRLShort(q.tierPrice)}`;
   if (q.total != null && q.extraUnit != null) {
-    return `- ${base} + ${q.extraGuests} pessoa(s) adicional(is) × ${formatBRL(q.extraUnit)} = ${formatBRL(q.total)} no total`;
+    return `${name} — ${formatBRLShort(q.total)} (${formatBRLShort(q.tierPrice)} do pacote de ${q.tier} + ${q.extraGuests} pessoa(s) adicional(is) × ${formatBRLShort(q.extraUnit)})`;
   }
-  const sep = [q.adultExtra != null ? `adulto adicional ${formatBRL(q.adultExtra)}` : null, q.childExtra != null ? `criança adicional ${formatBRL(q.childExtra)}` : null].filter(Boolean).join(', ');
-  return `- ${base} + ${q.extraGuests} pessoa(s) acima da maior faixa${sep ? ` (${sep})` : ' — o valor dos adicionais a equipe confirma'}`;
+  const sep = [q.adultExtra != null ? `adulto adicional ${formatBRLShort(q.adultExtra)}` : null, q.childExtra != null ? `criança adicional ${formatBRLShort(q.childExtra)}` : null].filter(Boolean).join(', ');
+  return `${name} — ${formatBRLShort(q.tierPrice)} até ${q.tier} convidados${sep ? ` + adicionais (${sep})` : ' + adicionais (a equipe confirma o valor)'}`;
 }
 
-const fmtDateBR = (ymd: string) => `${ymd.slice(8, 10)}/${ymd.slice(5, 7)}`;
+const fmtDateBR = (ymd: string) => formatDateLong(ymd);
 const fmtHour = (t: string) => (t.endsWith(':00') ? `${Number(t.slice(0, 2))}h` : t.replace(':', 'h'));
 
+// "sábado, 26 de dezembro — noite (19h)" + [data/horário só para a próxima ferramenta]
 function slotLine(f: FreeSlot): string {
-  return `- ${WEEKDAYS[f.dow]}, ${fmtDateBR(f.date)} (${f.date}), das ${fmtHour(f.slot.start)} às ${fmtHour(f.slot.end)}`;
+  return `- ${formatDateLong(f.date)} — ${formatSlotLabel(f.slot.start)}   [para ferramentas: data=${f.date} horario=${f.slot.start}; das ${fmtHour(f.slot.start)} às ${fmtHour(f.slot.end)}]`;
 }
 
 // Agenda da empresa entre duas datas: horários livres por unidade física.
@@ -1119,7 +1135,7 @@ async function toolConsultarDatas(
       const onDay = free.filter((f) => f.date === askedDate);
       const others = pickPartyOptions(free.filter((f) => f.date !== askedDate), [weekdayOf(askedDate)], 3);
       blocks.push(onDay.length > 0
-        ? `${label}${fmtDateBR(askedDate)} (${WEEKDAYS[weekdayOf(askedDate)]}) — horário(s) disponível(is) neste momento:\n${onDay.map(slotLine).join('\n')}`
+        ? `${label}${fmtDateBR(askedDate)} — horário(s) disponível(is) neste momento:\n${onDay.map(slotLine).join('\n')}`
         : `${label}${fmtDateBR(askedDate)} está OCUPADA. Datas próximas disponíveis neste momento:\n${others.length > 0 ? others.map(slotLine).join('\n') : '(nenhuma nas semanas próximas — passe para a equipe)'}`);
     } else {
       const opts = pickPartyOptions(free, preferredDow !== null ? [preferredDow] : [], 3);
@@ -1160,7 +1176,7 @@ async function toolConsultarValor(
     if (String(args.data) < today) return `DATA JÁ PASSOU (${args.data}): confirme com o cliente a data/ano da festa antes de informar valor.`;
     day = { dow: weekdayYmd(y, m, d), holiday: isHolidayYmd(y, m, d, localHolidays), holidayEve: isHolidayEveYmd(y, m, d, localHolidays) };
     const hName = day.holiday ? holidayName(y, m, d, localHolidays) : null;
-    dayText = `${WEEKDAYS[day.dow]}, ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}${day.holiday ? ` (feriado${hName ? `: ${hName}` : ''})` : day.holidayEve ? ' (véspera de feriado)' : ''}`;
+    dayText = `${formatDateLong(String(args.data))}${day.holiday ? ` (feriado${hName ? `: ${hName}` : ''})` : day.holidayEve ? ' (véspera de feriado)' : ''}`;
   } else if (args.dia_semana && weekdayFromText(String(args.dia_semana)) !== null) {
     day = { dow: weekdayFromText(String(args.dia_semana)) as number };
     dayText = WEEKDAYS[day.dow];
@@ -1182,7 +1198,7 @@ async function toolConsultarValor(
       const nearest = onDay.length > 0
         ? onDay
         : pickPartyOptions(free.filter((f) => f.date > today), [weekdayOf(date)], 3);
-      const what = isNaN(wantHour) ? `${fmtDateBR(date)} está OCUPADA` : `${fmtDateBR(date)} às ${wantHour}h está OCUPADO`;
+      const what = isNaN(wantHour) ? `${fmtDateBR(date)} está OCUPADO` : `${fmtDateBR(date)}, ${formatSlotLabel(`${String(wantHour).padStart(2, '0')}:00`)}, está OCUPADO`;
       console.log(`[AI Agent] Valor pedido para horário ocupado (${date} ${args.horario || 'dia todo'}) — oferecendo alternativas`);
       return `${what} na agenda: NÃO informe valor para esse horário. Avise o cliente e ofereça o(s) horário(s) livre(s) mais próximo(s) (disponível neste momento):\n${nearest.length > 0 ? nearest.map(slotLine).join('\n') : '(nenhum nas semanas próximas — passe para a equipe)'}\nSe ele escolher um deles, consulte o valor de novo com a nova data/horário.`;
     }
@@ -1228,9 +1244,10 @@ async function toolConsultarValor(
   const minNote = guests < minTier ? ` O cliente falou em ${guests} convidados, mas a menor faixa da tabela é de ${minTier}: explique que o valor é o do pacote de ${minTier} pessoas.` : '';
   const betweenNote = quotes.some((q) => q.tier > guests && guests >= minTier) ? ` Para ${guests} convidados vale a faixa de ${quotes[0].tier} (a tabela é por faixa).` : '';
   const freeNote = freeHours && !args.horario
-    ? ` Nesse dia, disponível neste momento só: ${freeHours.map((h) => `${Number(h.slice(0, 2))}h`).join(' e ')} — diga isso junto com o valor.`
+    ? ` Nesse dia, disponível neste momento: ${freeHours.map((h) => formatSlotLabel(h)).join(' ou ')} — diga isso junto com o valor.`
     : '';
-  return `VALORES DA TABELA para ${guests} convidados, ${dayText}${args.horario ? ` às ${args.horario}` : ''} — informe exatamente estes valores, sem arredondar e sem somar outros itens:\n${quotes.map(quoteLine).join('\n')}\n${minNote}${betweenNote}${holidayNote}${freeNote} PROIBIDO oferecer ou prometer desconto, condição à vista, parcelamento, brinde ou entrada diferente: se o cliente pedir, diga que as condições de pagamento e o fechamento são com a equipe.`.trim();
+  const tierInfo = Array.from(new Set(quotes.map((q) => `${prettyPackageName(q.packageName)}: faixa de ${q.tier} convidados, coluna "${q.dayTypeLabel}"`))).join('; ');
+  return `VALORES DA TABELA para ${guests} convidados, ${dayText}${args.horario ? `, ${formatSlotLabel(String(args.horario))}` : ''}. Linhas prontas para o cliente (copie como estão, um pacote por linha, sem arredondar nem somar nada):\n${quotes.map(quoteLine).join('\n')}\n(Só para você: ${tierInfo}.)${minNote}${betweenNote}${holidayNote}${freeNote} PROIBIDO oferecer ou prometer desconto, condição à vista, parcelamento, brinde ou entrada diferente: se o cliente pedir, diga que as condições de pagamento e o fechamento são com a equipe.`.trim();
 }
 
 // Passagem para a equipe: tira a IA da conversa, registra no histórico do
@@ -1630,6 +1647,7 @@ export async function maybeHandleWithAiAgent(
       visitRepliesAgo: repliesSinceVisitInvite(chatMessages),
       minPackageGuests: smallestPackageGuests(await loadSalesMaterials(supabase, instance)),
       packagesText: await loadPackagesText(supabase, instance),
+      pricePending: priceRequestPending(chatMessages),
     });
 
     const session = createLlmSession({
