@@ -164,7 +164,7 @@ export function crossedWithLastReply(rows: Array<{ from_me: boolean; timestamp: 
 // de a cliente dizer "não vai dar pra fechar". A instrução não bastou: o
 // convite é tirado da resposta quando não é a hora.
 
-const VISIT_INVITE_SENTENCE = /(posso (te |lhe )?(receber|agendar|marcar|deixar|reservar|separar)|quer (agendar|marcar|conhecer|vir)|vir conhecer|conhecer (o |nosso |de perto o )?(espa[cç]o|castelo|buffet)|conhecer pessoalmente|ver (tudo |isso |o espa[cç]o )?de pert|te receber|visit(a|inha)s?\b.*sem compromisso|(agendar|marcar|deixar) (uma |a |sua )?visit|sem compromisso|hor[aá]rios? de visita|que tal (uma |vir )|vale (muito |super |a pena |muito a pena )?(conhecer|vir)|te (passar|oferecer) (dois|2) hor[aá]rios)/i;
+const VISIT_INVITE_SENTENCE = /(posso (te |lhe )?(receber|agendar|marcar|deixar|reservar|separar)|quer (agendar|marcar|conhecer|vir)|vir conhecer|conhec(er|endo|e) (o |nosso |de perto o )?(espa[cç]o|castelo|buffet)|conhecer pessoalmente|ver (tudo |isso |o espa[cç]o )?de pert|te receber|visit(a|inha)s?\b.*sem compromisso|(agendar|marcar|deixar) (uma |a |sua )?visit|sem compromisso|hor[aá]rios? de visita|que tal (uma |vir )|vale (muito |super |a pena |muito a pena )?(conhecer|vir)|valeria (muito )?a pena|te (passar|oferecer) (dois|2) hor[aá]rios)/i;
 
 /** A mensagem convida para visita? */
 export function hasVisitInvite(text: string): boolean {
