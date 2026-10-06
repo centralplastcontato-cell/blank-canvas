@@ -35,7 +35,7 @@ import { fixWeekdays, formatBRLShort, formatDateLong, formatDayHeader, formatSlo
 import { guardAiDb } from "./ai-db-guard.ts";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
-import { crossedWithLastReply, debounceMsFor, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, teamRepliedAfter } from "../_shared/ai-turn.ts";
+import { clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 
 type Json = Record<string, unknown>;
@@ -507,7 +507,7 @@ interface PromptContext {
 function visitInviteRule(repliesAgo: number | null): string {
   if (repliesAgo !== null && repliesAgo < 3) {
     const when = repliesAgo === 0 ? 'na sua última resposta' : `há ${repliesAgo} resposta(s)`;
-    return `Você já convidou para a visita ${when}. NESTA resposta NÃO convide de novo e não termine com "posso agendar uma visita" — só responda o que o cliente perguntou. Exceção: o cliente falou de visita, de fechar, de valores ou disse que vai pensar.`;
+    return `Você já convidou para a visita ${when}. NESTA resposta NÃO convide de novo e não termine com "posso agendar uma visita" — só responda o que o cliente perguntou. Exceção: só se o próprio cliente falar de visita ou pedir para conhecer o espaço. (Se você convidar fora de hora, o convite é cortado da mensagem.)`;
   }
   return 'Pode convidar para a visita nesta resposta SE fizer sentido (o cliente mostrou interesse, perguntou de valores/fechamento, acabou de receber os materiais ou disse que vai pensar). Não termine toda mensagem com convite.';
 }
@@ -529,7 +529,10 @@ COMO CONVERSAR:
 - Uma pergunta por vez, e UMA mensagem por vez: depois de perguntar, espere a resposta antes de perguntar outra coisa. Nunca envie listas de opções numeradas — converse como gente.
 - Nunca use a palavra "sistema" com o cliente (nada de "o sistema já te envia"): fale em primeira pessoa ("já te mando as fotos").${ctx.crossedMessage ? '\n- ATENÇÃO: a mensagem do cliente chegou junto com a sua última resposta, então ele ainda não viu a sua pergunta. NÃO faça uma pergunta nova: responda só o que ele disse agora (se precisar) e deixe a sua pergunta anterior em aberto. Se não houver nada a responder, mande só uma frase curta.' : ''}${ctx.visitText ? `\n- Este cliente JÁ TEM VISITA MARCADA: ${ctx.visitText}. "Ok", "beleza", "obrigado" depois disso são só confirmação — responda com carinho, sem agendar de novo.` : ''}
 - Descubra naturalmente: nome da pessoa, mês/data desejada da festa e número de convidados, se ainda não souber.
-- Quebre objeções com empatia ("vou pensar" → ofereça a visita sem compromisso; "tá caro" → valorize o que está incluso e chame para conhecer o espaço).
+- Quebre objeções com empatia ("vou pensar" → ofereça a visita sem compromisso; "tá caro" → valorize o que está incluso).
+- Se o cliente disser que não vai fechar / desistiu / não dá agora: aceite com gentileza, agradeça e deixe a porta aberta ("se mudar de ideia, é só me chamar") — NÃO insista, NÃO ofereça visita nem horários.
+- Desconto, à vista, parcelamento, entrada ou forma de pagamento: na primeira vez diga que as condições de pagamento e o fechamento são com a equipe. Se o cliente perguntar DE NOVO sobre isso, não repita a mesma resposta: use transferir_para_atendente (motivo: condições de pagamento).
+- Nunca repita a mesma resposta duas vezes seguidas: se o cliente repetir a pergunta, responda de outro jeito ou passe para a equipe.
 - Áudios do cliente chegam para você já transcritos e fotos chegam descritas: responda ao conteúdo normalmente, sem comentar que foi transcrito. Se aparecer que um áudio ou uma foto não pôde ser ouvido/visto, peça com gentileza para a pessoa escrever.
 
 FORMATAÇÃO NO WHATSAPP:
@@ -1095,7 +1098,7 @@ async function toolRegistrarDados(
   const skipped = (['fotos', 'video', 'pacotes'] as MaterialTipo[]).filter((k) => already[k]).map((k) => MATERIAL_LABEL[k]);
   const skippedNote = skipped.length > 0 ? ` (${skipped.join(', ')} já tinha(m) sido enviado(s) antes e não foi reenviado.)` : '';
   const confirmedText = ack.confirmed.length > 0 ? ack.confirmed.map((t) => MATERIAL_LABEL[t]).join(', ') : 'nenhum ainda';
-  return `OK: dados salvos e os materiais foram enviados agora, automaticamente, com as legendas (confirmados pelo WhatsApp: ${confirmedText}).${skippedNote} Não reenvie nada: comente brevemente e convide para a visita oferecendo 2 horários concretos.${unconfirmedNote(ack.unconfirmed, ack.confirmed)}${minNote}${pdfNote}`;
+  return `OK: dados salvos e os materiais foram enviados agora, automaticamente, com as legendas (confirmados pelo WhatsApp: ${confirmedText}).${skippedNote} Não reenvie nada: comente brevemente e, se você não convidou para visita nas últimas 3 respostas, convide oferecendo 2 horários concretos.${unconfirmedNote(ack.unconfirmed, ack.confirmed)}${minNote}${pdfNote}`;
 }
 
 const WEEKDAYS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
@@ -1292,9 +1295,15 @@ async function toolConsultarValor(
     const wanted = isNaN(wantHour) ? onDay : onDay.filter((f) => Number(f.slot.start.slice(0, 2)) === wantHour);
     if (wanted.length === 0) {
       const today = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
-      const nearest = onDay.length > 0
-        ? pickPartyDates(onDay, [], 1)
-        : pickPartyDates(free.filter((f) => f.date > today), [weekdayOf(date)], 3);
+      // 2–3 opções: outro horário no mesmo dia + o mesmo dia da semana nas
+      // próximas semanas (de preferência no horário pedido). Antes vinha só o
+      // outro horário do mesmo dia (achado do simulador).
+      const sameDow = free.filter((f) => f.date > today && f.date !== date && weekdayOf(f.date) === weekdayOf(date));
+      const sameHour = isNaN(wantHour) ? sameDow : sameDow.filter((f) => Number(f.slot.start.slice(0, 2)) === wantHour);
+      const others = pickPartyDates(sameHour.length > 0 ? sameHour : sameDow, [], 3);
+      const nearest = [...(onDay.length > 0 ? pickPartyDates(onDay, [], 1) : []), ...others]
+        .slice(0, 3)
+        .sort((x, y) => x.date.localeCompare(y.date));
       const what = isNaN(wantHour) ? `${fmtDateBR(date)} está OCUPADO` : `${fmtDateBR(date)}, ${formatSlotLabel(`${String(wantHour).padStart(2, '0')}:00`)}, está OCUPADO`;
       console.log(`[AI Agent] Valor pedido para horário ocupado (${date} ${args.horario || 'dia todo'}) — oferecendo alternativas`);
       return `${what} na agenda: NÃO informe valor para esse horário. Avise o cliente e ofereça o(s) horário(s) livre(s) mais próximo(s) (disponível neste momento) — linhas prontas:\n${nearest.length > 0 ? `${daysBlock(nearest)}\n${toolRefsLine(nearest)}` : '(nenhum nas semanas próximas — passe para a equipe)'}\nSe ele escolher um deles, consulte o valor de novo com a nova data/horário.`;
@@ -1772,6 +1781,7 @@ export async function maybeHandleWithAiAgent(
       bd.convidados ? `${bd.convidados}` : null,
       typeof bd.data_festa === 'string' ? `data da festa ${formatDateLong(bd.data_festa)} (${bd.data_festa}) — use esta data em consultar_valor_pacote enquanto o cliente não mudar` : null,
     ].filter(Boolean) as string[];
+    const leadVisit = await loadLeadVisit(supabase, conv.lead_id);
     const systemPrompt = buildSystemPrompt(companyName, instance.unit, settings, today, {
       offers: pickTwoOffers(available),
       sentMaterialsText: sentList.length > 0 ? sentList.join(', ') : 'nenhum',
@@ -1790,10 +1800,7 @@ export async function maybeHandleWithAiAgent(
       visitSlotsText: visitSlotsByDay(available)
         .map((d) => `${formatDateLong(d.date)}: ${d.times.map((t) => (t.endsWith(':00') ? `${Number(t.slice(0, 2))}h` : t.replace(':', 'h'))).join(', ')}`)
         .join('; ') || 'nenhum',
-      visitText: await (async () => {
-        const v = await loadLeadVisit(supabase, conv.lead_id);
-        return v ? visitText(v.data_visita, v.horario_visita) : null;
-      })(),
+      visitText: leadVisit ? visitText(leadVisit.data_visita, leadVisit.horario_visita) : null,
     });
 
     const session = createLlmSession({
@@ -1889,6 +1896,17 @@ export async function maybeHandleWithAiAgent(
       if (fixedText !== finalText) {
         console.warn(`[AI Agent] Dia da semana corrigido na resposta (conv ${conv.id})`);
         finalText = fixedText;
+      }
+      // Convite para visita fora de hora (convidou há menos de 3 respostas, o
+      // cliente desistiu ou já tem visita marcada) e o cliente não pediu: sai da mensagem
+      const lastUserText = [...mergedHistory].reverse().find((m) => m.role === 'user')?.content || '';
+      const visitAgo = repliesSinceVisitInvite(chatMessages);
+      if (!clientAsksVisit(lastUserText) && ((visitAgo !== null && visitAgo < 3) || clientDeclined(lastUserText) || leadVisit)) {
+        const stripped = stripVisitInvite(finalText);
+        if (stripped.removed) {
+          console.warn(`[AI Agent] Convite para visita fora de hora tirado da resposta (conv ${conv.id}, convidou há ${visitAgo ?? '-'} resposta(s))`);
+          finalText = stripped.text;
+        }
       }
       // Trava de valores: todo "R$" da resposta tem de ter vindo da tabela (neste
       // turno ou já dito antes na conversa). Valor inventado não sai.

@@ -61,5 +61,23 @@ Deno.test("simulador: conferências automáticas (palavra sistema e valores fora
     { who: "ia", text: "Vou ver no sistema", turn: 2 },
   ];
   const checks = Object.fromEntries(deterministicChecks(st).map((c) => [c.id, c.ok]));
-  assertEquals(checks, { sem_palavra_sistema: false, valores_conferidos: false });
+  assertEquals(checks, { convite_na_hora: true, sem_palavra_sistema: false, valores_conferidos: false });
+});
+
+Deno.test("simulador: conferência automática do convite para visita", () => {
+  const st: { transcript: TranscriptEntry[] } = { transcript: [
+    { who: "cliente", text: "quanto fica pra 50?", turn: 1 },
+    { who: "ia", text: "Fica R$ 6.400 😊 Posso te receber na quarta às 10h?", kind: "text", turn: 1 },
+    { who: "cliente", text: "e à vista?", turn: 2 },
+    { who: "ia", text: "É com a equipe 💜 Vale muito a pena conhecer o espaço sem compromisso!", kind: "text", turn: 2 },
+  ] };
+  const check = deterministicChecks(st).find((c) => c.id === "convite_na_hora")!;
+  assertEquals(check.ok, false);
+  const ok: { transcript: TranscriptEntry[] } = { transcript: [
+    { who: "cliente", text: "quanto fica pra 50?", turn: 1 },
+    { who: "ia", text: "Fica R$ 6.400 😊 Posso te receber na quarta às 10h?", kind: "text", turn: 1 },
+    { who: "cliente", text: "pode me passar outros horários de visita?", turn: 2 },
+    { who: "ia", text: "Claro! Posso te receber na sexta às 15h 😊", kind: "text", turn: 2 },
+  ] };
+  assertEquals(deterministicChecks(ok).find((c) => c.id === "convite_na_hora")!.ok, true);
 });

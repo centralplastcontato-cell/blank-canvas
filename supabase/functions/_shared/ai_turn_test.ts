@@ -127,3 +127,25 @@ Deno.test("crossedWithLastReply: mensagem do cliente chegou junto com a resposta
     { from_me: false, timestamp: "2026-10-06T15:38:28Z" },
   ]), false);
 });
+
+import { clientAsksVisit, clientDeclined, stripVisitInvite } from "./ai-turn.ts";
+
+Deno.test("stripVisitInvite: tira só o convite (conversas reais do simulador)", () => {
+  const a = stripVisitInvite("Aaah, eu entendo, Renata 😕💜\n\nMesmo assim, se você quiser, vale super conhecer sem compromisso, porque muita família se surpreende 🎉🏰\n\nSe fizer sentido pra você, posso deixar uma visitinha na quarta, 7 de outubro às 10h ou na quinta, 8 de outubro às 11h 😊");
+  assertEquals(a.removed, true);
+  assertEquals(a.text, "Aaah, eu entendo, Renata 😕💜");
+  const b = stripVisitInvite("Simone, as condições de pagamento quem confirma é a equipe no fechamento, tá bem? ✨💜\n\nSe você quiser, vale muito a pena conhecer o espaço primeiro — posso te agendar uma visita sem compromisso na quarta às 10h 🏰😊");
+  assertEquals(b.text, "Simone, as condições de pagamento quem confirma é a equipe no fechamento, tá bem? ✨💜");
+  // sem convite: não mexe
+  const c = stripVisitInvite("Perfeito, Patrícia! 🥳 Sua visita ficou agendada para quinta, 8 de outubro, às 11h.");
+  assertEquals(c, { text: "Perfeito, Patrícia! 🥳 Sua visita ficou agendada para quinta, 8 de outubro, às 11h.", removed: false });
+  // só convite: devolve o original (melhor que mandar vazio)
+  assertEquals(stripVisitInvite("Posso te receber na quarta às 10h?").removed, false);
+});
+
+Deno.test("clientAsksVisit / clientDeclined", () => {
+  assertEquals(clientAsksVisit("pode me passar os horários de visita?"), true);
+  assertEquals(clientAsksVisit("no à vista tem desconto?"), false);
+  assertEquals(clientDeclined("Nesse caso não vai dar pra fechar então"), true);
+  assertEquals(clientDeclined("vou pensar"), false);
+});

@@ -144,3 +144,49 @@ export function crossedWithLastReply(rows: Array<{ from_me: boolean; timestamp: 
   if (!isFinite(lastOut) || !isFinite(lastIn)) return false;
   return lastIn - lastOut < windowMs && lastOut - lastIn < 60000;
 }
+
+// ---------- Convite para visita na hora certa ----------
+// O simulador pegou a IA convidando em 3 respostas seguidas, inclusive depois
+// de a cliente dizer "não vai dar pra fechar". A instrução não bastou: o
+// convite é tirado da resposta quando não é a hora.
+
+const VISIT_INVITE_SENTENCE = /(posso (te |lhe )?(receber|agendar|marcar|deixar|reservar|separar)|quer (agendar|marcar|conhecer|vir)|vir conhecer|conhecer (o |nosso |de perto o )?(espa[cç]o|castelo|buffet)|visit(a|inha)s?\b.*sem compromisso|(agendar|marcar|deixar) (uma |a |sua )?visit|sem compromisso|hor[aá]rios? de visita|que tal (uma |vir )|vale (muito |super |a pena |muito a pena )?(conhecer|vir)|te (passar|oferecer) (dois|2) hor[aá]rios)/i;
+
+/** A mensagem convida para visita? */
+export function hasVisitInvite(text: string): boolean {
+  return VISIT_INVITE_SENTENCE.test(text || "");
+}
+
+/** O cliente falou de visita (quer conhecer, pediu horário...) */
+export function clientAsksVisit(text: string): boolean {
+  return /(visit|conhecer|ir a[ií]|passar a[ií]|hor[aá]rio|agend|marcar)/i.test(text || "");
+}
+
+/** O cliente desistiu / disse que não vai fechar agora */
+export function clientDeclined(text: string): boolean {
+  return /(n[aã]o vai dar|n[aã]o d[aá] pra|n[aã]o vou (fechar|conseguir)|desist|fica pra (pr[oó]xima|outra)|sem interesse|n[aã]o tenho interesse|acho que n[aã]o|vou procurar outro|muito caro pra mim)/i.test(text || "");
+}
+
+/**
+ * Remove da resposta as frases que convidam para visita (o resto fica). Se
+ * sobrar quase nada, devolve a resposta original.
+ */
+export function stripVisitInvite(text: string): { text: string; removed: boolean } {
+  let removed = false;
+  const paragraphs = text.split(/\n/).map((line) => {
+    if (!VISIT_INVITE_SENTENCE.test(line)) return line;
+    // Frases da linha (mantém a pontuação/emojis de cada uma)
+    const sentences = line.match(/[^.!?]+[.!?]+[^\p{L}\p{N}*_(]*|[^.!?]+$/gu) || [line];
+    const kept = sentences.filter((sentence) => {
+      if (VISIT_INVITE_SENTENCE.test(sentence)) {
+        removed = true;
+        return false;
+      }
+      return true;
+    });
+    return kept.join("").trim();
+  });
+  const out = paragraphs.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  if (!removed || out.replace(/\s/g, "").length < 15) return { text, removed: false };
+  return { text: out, removed: true };
+}
