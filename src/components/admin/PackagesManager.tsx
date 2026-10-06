@@ -19,6 +19,8 @@ interface CompanyPackage {
   description: string | null;
   // "O que inclui" — um item por linha; a IA usa para explicar os pacotes
   includes?: string | null;
+  // A IA (beta) pode passar valor e comparar este pacote
+  ai_quote?: boolean | null;
   valor_pessoa_adicional: number | null;
   preco_separado: boolean;
   valor_pessoa_adicional_crianca: number | null;
@@ -69,6 +71,7 @@ export function PackagesManager() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [includes, setIncludes] = useState("");
+  const [aiQuote, setAiQuote] = useState(true);
   const [precoSeparado, setPrecoSeparado] = useState(false);
   const [valorUnico, setValorUnico] = useState("");
   const [valorCrianca, setValorCrianca] = useState("");
@@ -103,6 +106,7 @@ export function PackagesManager() {
     setName("");
     setDescription("");
     setIncludes("");
+    setAiQuote(true);
     setPrecoSeparado(false);
     setValorUnico("");
     setValorCrianca("");
@@ -117,6 +121,7 @@ export function PackagesManager() {
     setName(pkg.name);
     setDescription(pkg.description || "");
     setIncludes(pkg.includes || "");
+    setAiQuote(pkg.ai_quote !== false);
     setPrecoSeparado(pkg.preco_separado);
     setValorUnico(numToDisplay(pkg.valor_pessoa_adicional));
     setValorCrianca(numToDisplay(pkg.valor_pessoa_adicional_crianca));
@@ -134,6 +139,7 @@ export function PackagesManager() {
       name: name.trim(),
       description: description.trim() || null,
       includes: includes.trim() || null,
+      ai_quote: aiQuote,
       preco_separado: precoSeparado,
     };
 
@@ -153,13 +159,13 @@ export function PackagesManager() {
     let targetId = editing?.id;
 
     // Banco ainda sem a coluna "includes" (migration não rodada): salva o resto
-    const missingIncludes = (err: { message?: string } | null) => !!err?.message && /includes/.test(err.message);
+    const missingIncludes = (err: { message?: string } | null) => !!err?.message && /includes|ai_quote/.test(err.message);
     if (editing) {
       let { error } = await supabase.from("company_packages").update(payload as any).eq("id", editing.id);
       if (missingIncludes(error)) {
-        const { includes: _i, ...rest } = payload;
+        const { includes: _i, ai_quote: _q, ...rest } = payload;
         ({ error } = await supabase.from("company_packages").update(rest as any).eq("id", editing.id));
-        toast({ title: "\"O que inclui\" não foi salvo", description: "Falta rodar a atualização do banco (SQL). O resto foi salvo." });
+        toast({ title: "Parte do pacote não foi salva", description: "\"O que inclui\" e a opção da IA precisam da atualização do banco (SQL). O resto foi salvo." });
       }
     } else {
       let { data: created, error } = await supabase
@@ -168,13 +174,13 @@ export function PackagesManager() {
         .select("*")
         .single();
       if (missingIncludes(error)) {
-        const { includes: _i, ...rest } = payload;
+        const { includes: _i, ai_quote: _q, ...rest } = payload;
         ({ data: created } = await supabase
           .from("company_packages")
           .insert({ ...rest, company_id: currentCompany.id } as any)
           .select("*")
           .single());
-        toast({ title: "\"O que inclui\" não foi salvo", description: "Falta rodar a atualização do banco (SQL). O resto foi salvo." });
+        toast({ title: "Parte do pacote não foi salva", description: "\"O que inclui\" e a opção da IA precisam da atualização do banco (SQL). O resto foi salvo." });
       }
       if (created) {
         targetId = (created as any).id;
@@ -342,6 +348,15 @@ export function PackagesManager() {
                 <p className="text-[11px] text-muted-foreground">
                   A IA usa esta lista para explicar o que cada pacote tem e a diferença entre eles. Não coloque valores aqui — os preços vêm só da grade.
                 </p>
+              </div>
+              <div className="flex items-start justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 p-3">
+                <div>
+                  <Label className="text-xs font-semibold">IA pode passar valor e comparar este pacote</Label>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Desligue para pacotes que não são de aniversário (formatura, escolar, confraternização): nesses casos a IA pega tipo de evento, data e quantidade de pessoas e passa para a equipe.
+                  </p>
+                </div>
+                <Switch checked={aiQuote} onCheckedChange={setAiQuote} />
               </div>
             </div>
 
