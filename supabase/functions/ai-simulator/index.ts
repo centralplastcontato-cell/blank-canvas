@@ -297,8 +297,10 @@ async function work(runId: string): Promise<void> {
         cost_usd: Number(partialCost.toFixed(6)),
       }).eq("id", row.id);
     } else {
-      const judged = await judgeScenario(openaiKey, company?.name || "Buffet", scenario, sim, await loadKnowledge(companyId));
-      const checks = [...deterministicChecks(sim), ...judged.checks];
+      const knowledge = await loadKnowledge(companyId);
+      const judged = await judgeScenario(openaiKey, company?.name || "Buffet", scenario, sim, knowledge);
+      // Reprova só o que o código confere; o avaliador (IA) comenta, mas não reprova
+      const checks = [...deterministicChecks(sim, { knowledge }), ...judged.checks];
       const cost = partialCost + judged.costUsd;
       await admin.from("ai_sim_results").update({
         status: passed(checks) ? "passed" : "failed",

@@ -45,6 +45,8 @@ export interface LlmStep {
 export interface LlmSession {
   step(): Promise<LlmStep>;
   addToolResults(results: Array<{ id: string; content: string }>): void;
+  /** Aviso interno do sistema depois de uma resposta (o cliente não vê) para a IA refazer */
+  addUserNote(text: string): void;
 }
 
 export interface LlmSessionInput {
@@ -123,6 +125,10 @@ class OpenAiSession implements LlmSession {
   addToolResults(results: Array<{ id: string; content: string }>) {
     for (const r of results) this.messages.push({ role: "tool", tool_call_id: r.id, content: r.content });
   }
+
+  addUserNote(text: string) {
+    this.messages.push({ role: "system", content: text });
+  }
 }
 
 // Modelos Claude 5.x: pensam por padrão (adaptive) e aceitam "effort" e o
@@ -190,6 +196,10 @@ class AnthropicSession implements LlmSession {
       role: "user",
       content: results.map((r) => ({ type: "tool_result" as const, tool_use_id: r.id, content: r.content })),
     });
+  }
+
+  addUserNote(text: string) {
+    this.messages.push({ role: "user", content: `[Aviso interno do sistema — não é mensagem do cliente] ${text}` });
   }
 }
 
