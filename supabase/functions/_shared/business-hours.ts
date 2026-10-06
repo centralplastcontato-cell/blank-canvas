@@ -257,6 +257,26 @@ export function formatSlot(s: Slot): string {
   return `${DAY_SHORT_LOWER[weekdayOf(s.date)]} ${d}/${mo} às ${s.time}`;
 }
 
+// Horários de visita livres agrupados por dia, para a IA oferecer outro dia
+// quando o cliente pedir (antes ela só tinha 2 horários e passava para a equipe)
+export function visitSlotsByDay(available: Slot[], maxDays = 7, maxPerDay = 8): Array<{ date: string; times: string[] }> {
+  const byDay = new Map<string, string[]>();
+  for (const s of available) {
+    const list = byDay.get(s.date) || [];
+    list.push(s.time);
+    byDay.set(s.date, list);
+  }
+  return Array.from(byDay.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(0, maxDays)
+    .map(([date, times]) => {
+      if (times.length <= maxPerDay) return { date, times };
+      // Espalha pelo dia (manhã e tarde) em vez de pegar só os primeiros
+      const step = (times.length - 1) / (maxPerDay - 1);
+      return { date, times: Array.from({ length: maxPerDay }, (_, i) => times[Math.round(i * step)]) };
+    });
+}
+
 // Dois horários bem distribuídos para a IA oferecer (dias diferentes quando der)
 export function pickTwoOffers(available: Slot[]): Slot[] {
   if (available.length <= 2) return available;
