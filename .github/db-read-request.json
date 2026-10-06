@@ -1,1 +1,1 @@
-{"sql": "select model, test_model, test_mode_enabled, length(extra_instructions) as instr from public.ai_agent_settings where company_id = 'a0000000-0000-0000-0000-000000000001'"}
+{"sql": "select to_regclass('public.ai_sim_scenarios') is not null as simulador_criado, (select count(*) from pg_trigger where tgname = 'require_ai_conversational_module') as modulo_criado"}
