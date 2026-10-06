@@ -298,3 +298,20 @@ export function moneyValuesIn(text: string): number[] {
   }
   return out;
 }
+
+/**
+ * Valores que a IA pode citar: os da tabela e a diferença entre dois deles
+ * ("o Premium sai R$ 1.140 a mais que o Super"). Sem isso a trava de valores
+ * barrava a comparação e passava a conversa para a equipe (achado do simulador).
+ */
+export function allowedMoneyValues(values: number[]): number[] {
+  const base = Array.from(new Set(values.map((v) => Math.round(v * 100) / 100))).slice(0, 40);
+  const out = new Set(base);
+  for (let i = 0; i < base.length; i++) {
+    for (let j = i + 1; j < base.length; j++) {
+      const d = Math.round(Math.abs(base[i] - base[j]) * 100) / 100;
+      if (d > 0) out.add(d);
+    }
+  }
+  return Array.from(out);
+}
