@@ -27,8 +27,10 @@ import {
   slotKey,
   teamHoursText,
 } from "../_shared/business-hours.ts";
-import { formatBRL, isHolidayEveYmd, isHolidayYmd, moneyValuesIn, type PackageQuote, type PartyDay, quotePackages, weekdayYmd } from "../_shared/package-pricing.ts";
+import { formatBRL, holidayName, isHolidayEveYmd, isHolidayYmd, localHolidaysFrom, moneyValuesIn, type PackageQuote, type PartyDay, quotePackages, weekdayYmd } from "../_shared/package-pricing.ts";
+import { addDaysYmd, type FreeSlot, freePartySlots, monthFromText, monthRange, parsePartySlots, pickPartyOptions, weekdayOf } from "../_shared/party-availability.ts";
 import { waitForMediaAck } from "../_shared/media-ack.ts";
+import { guardAiDb } from "./ai-db-guard.ts";
 import { AI_DEBOUNCE_MS, mergeConsecutiveTurns, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 
@@ -75,6 +77,7 @@ interface AiSettings {
   // Horário de atendimento da equipe (mesmo formato de visit_hours, sem o
   // intervalo). Vazio = usa o horário de visitas.
   team_hours?: string | null;
+  party_slots?: string | null;
   // Alerta forte quando a equipe não responde depois da passagem
   handoff_alert_minutes?: number | null;
   handoff_alert_phone?: string | null;
@@ -502,6 +505,12 @@ MATERIAIS (ferramenta enviar_materiais):
 - Só reenvie (reenviar=true) se o cliente pedir EXPLICITAMENTE para mandar de novo.
 - Já enviados nesta conversa: ${ctx.sentMaterialsText}.
 
+DATAS DA FESTA (agenda):
+- Quando o cliente perguntar por data livre, ou disser o mês/data da festa, use consultar_datas_livres (de preferência com o dia da semana que ele quer).
+- Ofereça no máximo 2 ou 3 opções por vez. Diga sempre "disponível neste momento" e que a data só fica garantida com contrato e sinal com a equipe.
+- Você NÃO reserva, NÃO segura e NÃO bloqueia datas — nunca diga que fez isso. Se o cliente quiser garantir a data, ofereça passar para a equipe fechar.
+- Quando o cliente escolher uma data, use essa data (e o horário) em consultar_valor_pacote para dar o valor certo (dia da semana, véspera ou feriado).
+
 ${ctx.minPackageGuests ? `PACOTES: o menor pacote é para ${ctx.minPackageGuests} convidados. Se o cliente falar em menos de ${ctx.minPackageGuests} convidados ou pedir orçamento para menos, explique JÁ NA MESMA RESPOSTA (não espere ele perguntar), com naturalidade, que o menor pacote é para ${ctx.minPackageGuests} pessoas e que a equipe explica como fica para um grupo menor.\n\n` : ''}CONVITE PARA VISITA (não seja repetitiva):
 - ${visitInviteRule(ctx.visitRepliesAgo)}
 
@@ -555,6 +564,18 @@ const TOOLS: ToolDef[] = [
     },
   },
   {
+    name: 'consultar_datas_livres',
+    description: 'Consulta a agenda do buffet (festas fechadas e pré-reservas) e devolve datas e horários de festa livres NESTE MOMENTO. Use quando o cliente perguntar se tem data, quais datas estão livres, ou quando disser o mês/data da festa. Só consulta: não reserva nada.',
+    parameters: {
+      type: 'object',
+      properties: {
+        mes: { type: 'string', description: 'Mês da festa, ex.: Novembro' },
+        data: { type: 'string', description: 'Data específica no formato AAAA-MM-DD, se o cliente falou uma' },
+        dia_semana: { type: 'string', description: 'Dia da semana preferido (ex.: sábado), se o cliente falou' },
+      },
+    },
+  },
+  {
     name: 'consultar_valor_pacote',
     description: 'Consulta na tabela oficial do buffet o valor dos pacotes para a quantidade de convidados e o dia da festa. Use SEMPRE que o cliente perguntar valor/preço/quanto custa — é a única fonte de valores. Precisa da quantidade de convidados e do dia da festa (a data é melhor, porque detecta feriado e véspera; senão, o dia da semana). Se faltar algum dos dois, pergunte ao cliente antes de chamar.',
     parameters: {
@@ -564,6 +585,7 @@ const TOOLS: ToolDef[] = [
         data: { type: 'string', description: 'Data da festa no formato AAAA-MM-DD, se o cliente informou' },
         dia_semana: { type: 'string', description: 'Dia da semana da festa (segunda, terça, quarta, quinta, sexta, sábado ou domingo), se o cliente não deu a data' },
         pacote: { type: 'string', description: 'Nome do pacote, se o cliente perguntou de um específico' },
+        horario: { type: 'string', description: 'Horário de início da festa escolhido (ex.: 13:00 ou 19:00), se já definido' },
       },
     },
   },
@@ -987,6 +1009,76 @@ function quoteLine(q: PackageQuote): string {
   return `- ${base} + ${q.extraGuests} pessoa(s) acima da maior faixa${sep ? ` (${sep})` : ' — o valor dos adicionais a equipe confirma'}`;
 }
 
+const fmtDateBR = (ymd: string) => `${ymd.slice(8, 10)}/${ymd.slice(5, 7)}`;
+const fmtHour = (t: string) => (t.endsWith(':00') ? `${Number(t.slice(0, 2))}h` : t.replace(':', 'h'));
+
+function slotLine(f: FreeSlot): string {
+  return `- ${WEEKDAYS[f.dow]}, ${fmtDateBR(f.date)} (${f.date}), das ${fmtHour(f.slot.start)} às ${fmtHour(f.slot.end)}`;
+}
+
+// Datas e horários livres na agenda (festas + pré-reservas). SÓ LEITURA.
+async function toolConsultarDatas(
+  supabase: any,
+  instance: AgentInstance,
+  settings: AiSettings,
+  args: { mes?: string; data?: string; dia_semana?: string },
+): Promise<string> {
+  const today = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+  const tomorrow = addDaysYmd(today, 1);
+  const preferredDow = args.dia_semana ? weekdayFromText(String(args.dia_semana)) : null;
+  let from: string;
+  let to: string;
+  let askedDate: string | null = null;
+  const dateMatch = String(args.data || '').match(/^\d{4}-\d{2}-\d{2}$/);
+  if (dateMatch) {
+    askedDate = String(args.data);
+    if (askedDate < tomorrow) return `DATA JÁ PASSOU OU É HOJE (${askedDate}): confirme a data com o cliente.`;
+    from = addDaysYmd(askedDate, -14) < tomorrow ? tomorrow : addDaysYmd(askedDate, -14);
+    to = addDaysYmd(askedDate, 28);
+  } else {
+    const month = args.mes ? monthFromText(String(args.mes)) : null;
+    if (!month) return 'FALTA O MÊS: pergunte o mês (ou a data) da festa antes de consultar a agenda.';
+    ({ from, to } = monthRange(month, today));
+    if (from < tomorrow) from = tomorrow;
+    if (from > to) return 'ESSE MÊS JÁ ESTÁ NO FIM: pergunte se a festa é para o mesmo mês do ano que vem ou para outro mês.';
+  }
+
+  // Unidade física da festa: com mais de uma, a agenda é olhada por unidade
+  const [{ data: units }, { data: events }, { data: pre }] = await Promise.all([
+    supabase.from('company_units').select('name').eq('company_id', instance.company_id).eq('is_active', true).eq('is_physical', true),
+    supabase.from('company_events').select('event_date, start_time, end_time, status, unit')
+      .eq('company_id', instance.company_id).gte('event_date', from).lte('event_date', to),
+    supabase.from('pre_reservations').select('event_date, unit')
+      .eq('company_id', instance.company_id).eq('status', 'ativa')
+      .gt('reservation_expires_at', new Date().toISOString())
+      .gte('event_date', from).lte('event_date', to),
+  ]);
+  const slots = parsePartySlots(settings.party_slots);
+  const unitNames = ((units || []) as Array<{ name: string }>).map((u) => u.name).filter(Boolean);
+  const perUnit = unitNames.length > 1 ? unitNames : [unitNames[0] || null];
+  const rules = 'Diga que está DISPONÍVEL NESTE MOMENTO e que a data só fica garantida com contrato e sinal com a equipe. NUNCA diga que reservou, segurou ou bloqueou a data. Quando o cliente escolher uma data, use consultar_valor_pacote com essa data (AAAA-MM-DD) e o horário.';
+
+  const blocks: string[] = [];
+  for (const unit of perUnit) {
+    const free = freePartySlots({ from, to, slots, events: (events || []) as any[], preReservations: (pre || []) as any[], unit });
+    const label = perUnit.length > 1 ? `Unidade ${unit}: ` : '';
+    if (askedDate) {
+      const onDay = free.filter((f) => f.date === askedDate);
+      const others = pickPartyOptions(free.filter((f) => f.date !== askedDate), [weekdayOf(askedDate)], 3);
+      blocks.push(onDay.length > 0
+        ? `${label}${fmtDateBR(askedDate)} (${WEEKDAYS[weekdayOf(askedDate)]}) — horário(s) disponível(is) neste momento:\n${onDay.map(slotLine).join('\n')}`
+        : `${label}${fmtDateBR(askedDate)} está OCUPADA. Datas próximas disponíveis neste momento:\n${others.length > 0 ? others.map(slotLine).join('\n') : '(nenhuma nas semanas próximas — passe para a equipe)'}`);
+    } else {
+      const opts = pickPartyOptions(free, preferredDow !== null ? [preferredDow] : [], 3);
+      blocks.push(opts.length > 0
+        ? `${label}Opções disponíveis neste momento (ofereça no máximo 2 ou 3):\n${opts.map(slotLine).join('\n')}${preferredDow !== null && !opts.some((o) => o.dow === preferredDow) ? `\n(nenhum(a) ${WEEKDAYS[preferredDow]} livre nesse mês)` : ''}`
+        : `${label}Nenhum horário livre nesse período — ofereça outro mês ou passe para a equipe.`);
+    }
+  }
+  console.log(`[AI Agent] Consulta de agenda (${askedDate || `${from}..${to}`}): ${(events || []).length} festa(s), ${(pre || []).length} pré-reserva(s)`);
+  return `AGENDA (só consulta, nada foi reservado):\n${blocks.join('\n\n')}\n${rules}`;
+}
+
 // Valor do pacote pela "Grade de preços por faixa" (Operações → Pacotes)
 async function toolConsultarValor(
   supabase: any,
@@ -994,11 +1086,13 @@ async function toolConsultarValor(
   conv: AgentConv,
   phone: string,
   contactName: string | null,
-  args: { convidados?: string; data?: string; dia_semana?: string; pacote?: string },
+  args: { convidados?: string; data?: string; dia_semana?: string; pacote?: string; horario?: string },
 ): Promise<string> {
   const bd = (conv.bot_data || {}) as Json;
   const guests = parseInt(String(args.convidados || bd.convidados || '').replace(/\D/g, ''), 10);
   if (!guests) return 'FALTA A QUANTIDADE: pergunte quantos convidados o cliente espera antes de informar qualquer valor.';
+  const { data: company } = await supabase.from('companies').select('settings').eq('id', instance.company_id).maybeSingle();
+  const localHolidays = localHolidaysFrom((company?.settings || null) as any);
 
   let day: PartyDay | null = null;
   let dayText = '';
@@ -1008,8 +1102,9 @@ async function toolConsultarValor(
     const [y, m, d] = [Number(dateMatch[1]), Number(dateMatch[2]), Number(dateMatch[3])];
     const today = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
     if (String(args.data) < today) return `DATA JÁ PASSOU (${args.data}): confirme com o cliente a data/ano da festa antes de informar valor.`;
-    day = { dow: weekdayYmd(y, m, d), holiday: isHolidayYmd(y, m, d), holidayEve: isHolidayEveYmd(y, m, d) };
-    dayText = `${WEEKDAYS[day.dow]}, ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}${day.holiday ? ' (feriado)' : day.holidayEve ? ' (véspera de feriado)' : ''}`;
+    day = { dow: weekdayYmd(y, m, d), holiday: isHolidayYmd(y, m, d, localHolidays), holidayEve: isHolidayEveYmd(y, m, d, localHolidays) };
+    const hName = day.holiday ? holidayName(y, m, d, localHolidays) : null;
+    dayText = `${WEEKDAYS[day.dow]}, ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}${day.holiday ? ` (feriado${hName ? `: ${hName}` : ''})` : day.holidayEve ? ' (véspera de feriado)' : ''}`;
   } else if (args.dia_semana && weekdayFromText(String(args.dia_semana)) !== null) {
     day = { dow: weekdayFromText(String(args.dia_semana)) as number };
     dayText = WEEKDAYS[day.dow];
@@ -1017,12 +1112,11 @@ async function toolConsultarValor(
   }
   if (!day) return 'FALTA O DIA: pergunte o dia da semana (ou a data) da festa antes de informar qualquer valor.';
 
-  const [{ data: packages }, { data: tiers }, { data: company }] = await Promise.all([
+  const [{ data: packages }, { data: tiers }] = await Promise.all([
     supabase.from('company_packages')
       .select('id, name, valor_pessoa_adicional, preco_separado, valor_pessoa_adicional_adulto, valor_pessoa_adicional_crianca')
       .eq('company_id', instance.company_id).eq('is_active', true).order('sort_order', { ascending: true }),
     supabase.from('package_price_tiers').select('package_id, guest_count, day_type, price').eq('company_id', instance.company_id),
-    supabase.from('companies').select('settings').eq('id', instance.company_id).maybeSingle(),
   ]);
   let pkgs = (packages || []) as any[];
   const wanted = String(args.pacote || '').trim().toLowerCase();
@@ -1032,7 +1126,14 @@ async function toolConsultarValor(
     if (exact.length > 0) pkgs = exact;
     else if (partial.length > 0) pkgs = partial;
   }
-  const quotes = quotePackages(pkgs, (tiers || []) as any[], (company?.settings || null) as any, guests, day);
+  let quotes = quotePackages(pkgs, (tiers || []) as any[], (company?.settings || null) as any, guests, day);
+  // Horário escolhido: a grade pode separar almoço (antes das 16h) e jantar
+  const hour = parseInt(String(args.horario || '').replace(/\D.*$/, ''), 10);
+  if (!isNaN(hour) && quotes.some((q) => q.shift)) {
+    const shift = hour < 16 ? 'almoco' : 'jantar';
+    const byShift = quotes.filter((q) => q.shift === shift);
+    if (byShift.length > 0) quotes = byShift;
+  }
   console.log(`[AI Agent] Consulta de valor (${guests} convidados, ${dayText}): ${quotes.length} valor(es) na tabela`);
   if (quotes.length === 0) {
     return 'SEM VALOR NA TABELA para essa quantidade/dia: não informe valor. Envie o PDF de pacotes (enviar_materiais, tipo "pacotes") ou diga que a equipe passa o valor.';
@@ -1217,6 +1318,8 @@ export async function maybeHandleWithAiAgent(
   // para juntar mensagens seguidas numa resposta só
   incomingMessageId?: string | null,
 ): Promise<boolean> {
+  // Só leitura fora das tabelas liberadas (ver ai-db-guard.ts)
+  supabase = guardAiDb(supabase);
   let settings: AiSettings | null = null;
   try {
     if (!instance.unit || !instance.company_id) {
@@ -1491,6 +1594,8 @@ export async function maybeHandleWithAiAgent(
             toolResult = await toolAgendarVisita(supabase, instance, conv, phone, contactName, settings, args);
           } else if (call.name === 'enviar_materiais') {
             toolResult = await toolEnviarMateriais(supabase, instance, conv, phone, contactName, String(args.tipo || ''), args.reenviar === true);
+          } else if (call.name === 'consultar_datas_livres') {
+            toolResult = await toolConsultarDatas(supabase, instance, settings, args);
           } else if (call.name === 'consultar_valor_pacote') {
             toolResult = await toolConsultarValor(supabase, instance, conv, phone, contactName, args);
           } else if (call.name === 'transferir_para_atendente') {

@@ -14,6 +14,7 @@ const FIXED_HOLIDAYS: [number, number][] = [
   [10, 12], // Nossa Senhora Aparecida
   [11, 2],  // Finados
   [11, 15], // Proclamação da República
+  [11, 20], // Consciência Negra (nacional desde 2024, Lei 14.759/2023)
   [12, 25], // Natal
 ];
 
@@ -39,19 +40,47 @@ function easterUtc(year: number): number {
   return utc(year, month, day);
 }
 
-/** Feriado nacional? (mês 1–12) */
-export function isHolidayYmd(year: number, month: number, day: number): boolean {
+/**
+ * Feriados estaduais/municipais da empresa, em "MM-DD" (companies.settings.
+ * local_holidays — ex.: SP 9/7 → "07-09"; Sorocaba 15/8 → "08-15").
+ */
+export function localHolidaysFrom(settings: { local_holidays?: unknown } | null | undefined): string[] {
+  const list = settings?.local_holidays;
+  return Array.isArray(list) ? list.filter((v): v is string => typeof v === "string" && /^\d{2}-\d{2}$/.test(v)) : [];
+}
+
+/** Feriado? (nacional, ou local da empresa quando informado; mês 1–12) */
+export function isHolidayYmd(year: number, month: number, day: number, localHolidays: string[] = []): boolean {
   if (FIXED_HOLIDAYS.some(([m, d]) => m === month && d === day)) return true;
+  const mmdd = `${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  if (localHolidays.includes(mmdd)) return true;
   const easter = easterUtc(year);
   const target = utc(year, month, day);
   // Carnaval (segunda e terça), Sexta-feira Santa, Corpus Christi
   return [-48, -47, -2, 60].some((offset) => easter + offset * DAY_MS === target);
 }
 
-/** Véspera de feriado nacional? (mês 1–12) */
-export function isHolidayEveYmd(year: number, month: number, day: number): boolean {
+/** Véspera de feriado? (mês 1–12) */
+export function isHolidayEveYmd(year: number, month: number, day: number, localHolidays: string[] = []): boolean {
   const next = new Date(utc(year, month, day) + DAY_MS);
-  return isHolidayYmd(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate());
+  return isHolidayYmd(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate(), localHolidays);
+}
+
+/** Nome do feriado (para listas e conferência) */
+export function holidayName(year: number, month: number, day: number, localHolidays: string[] = []): string | null {
+  const names: Record<string, string> = {
+    "01-01": "Ano Novo", "04-21": "Tiradentes", "05-01": "Dia do Trabalho", "09-07": "Independência",
+    "10-12": "Nossa Senhora Aparecida", "11-02": "Finados", "11-15": "Proclamação da República",
+    "11-20": "Consciência Negra", "12-25": "Natal",
+  };
+  const mmdd = `${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  if (names[mmdd]) return names[mmdd];
+  const easter = easterUtc(year);
+  const target = utc(year, month, day);
+  const mobile: Record<number, string> = { [-48]: "Carnaval (segunda)", [-47]: "Carnaval (terça)", [-2]: "Sexta-feira Santa", [60]: "Corpus Christi" };
+  for (const [offset, name] of Object.entries(mobile)) if (easter + Number(offset) * DAY_MS === target) return name;
+  if (localHolidays.includes(mmdd)) return "Feriado local";
+  return null;
 }
 
 /** Dia da semana (0 = domingo … 6 = sábado) */

@@ -11,23 +11,24 @@ import {
   getDayTypeLabel,
   isHolidayEveYmd,
   isHolidayYmd,
+  localHolidaysFrom,
   resolveDayType,
   type DayMappingToken,
   type DayTypeConfig,
   type ShiftToken,
 } from "../../supabase/functions/_shared/package-pricing.ts";
 
-export { DEFAULT_DAY_TYPES, DEFAULT_GUEST_TIERS, findMatchingTier, getDayTypeLabel };
+export { DEFAULT_DAY_TYPES, DEFAULT_GUEST_TIERS, findMatchingTier, getDayTypeLabel, localHolidaysFrom };
 export type { DayMappingToken, DayTypeConfig, ShiftToken };
 
-/** Check if a date is a national holiday */
-export function isHoliday(date: Date): boolean {
-  return isHolidayYmd(date.getFullYear(), date.getMonth() + 1, date.getDate());
+/** Check if a date is a holiday (national, or one of the company's local "MM-DD" holidays) */
+export function isHoliday(date: Date, localHolidays: string[] = []): boolean {
+  return isHolidayYmd(date.getFullYear(), date.getMonth() + 1, date.getDate(), localHolidays);
 }
 
 /** Check if a date is the eve of a holiday */
-export function isHolidayEve(date: Date): boolean {
-  return isHolidayEveYmd(date.getFullYear(), date.getMonth() + 1, date.getDate());
+export function isHolidayEve(date: Date, localHolidays: string[] = []): boolean {
+  return isHolidayEveYmd(date.getFullYear(), date.getMonth() + 1, date.getDate(), localHolidays);
 }
 
 /** Detect shift from a HH:MM time string given a cutoff hour (default 16h) */
@@ -42,6 +43,6 @@ export function getShiftFromTime(time: string | null | undefined, cutoffHour = 1
  * Detect the day type key for a given date, using the company's day type config.
  * Priority: feriado > véspera > day-of-week mapping
  */
-export function getDayType(date: Date, dayTypes?: DayTypeConfig[], shift?: ShiftToken | null): string {
-  return resolveDayType({ dow: date.getDay(), holiday: isHoliday(date), holidayEve: isHolidayEve(date) }, dayTypes, shift);
+export function getDayType(date: Date, dayTypes?: DayTypeConfig[], shift?: ShiftToken | null, localHolidays: string[] = []): string {
+  return resolveDayType({ dow: date.getDay(), holiday: isHoliday(date, localHolidays), holidayEve: isHolidayEve(date, localHolidays) }, dayTypes, shift);
 }
