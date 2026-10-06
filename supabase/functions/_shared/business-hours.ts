@@ -11,6 +11,14 @@
 
 export const SAO_PAULO_OFFSET_MS = -3 * 60 * 60 * 1000;
 
+// Horário da equipe quando ainda não foi salvo em "Passagem para a equipe" —
+// o mesmo que a tela mostra preenchido. (Antes caía no horário de VISITAS.)
+export const DEFAULT_TEAM_HOURS = "Segunda a sexta, das 09:00 às 18:00; sábado, das 09:00 às 13:00";
+
+export function teamHoursText(teamHours: string | null | undefined): string {
+  return (teamHours || "").trim() || DEFAULT_TEAM_HOURS;
+}
+
 const DAY_NAMES = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 const DAY_SHORT_LOWER = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];
 const SATURDAY = 5;

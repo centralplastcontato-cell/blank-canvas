@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { mergeConsecutiveTurns, pickLatestIncoming, teamRepliedAfter } from "./ai-turn.ts";
+import { mergeConsecutiveTurns, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, teamRepliedAfter } from "./ai-turn.ts";
 
 Deno.test("pickLatestIncoming: a última mensagem do cliente responde por todas", () => {
   assertEquals(pickLatestIncoming([
@@ -59,4 +59,28 @@ Deno.test("teamRepliedAfter: 'platform' de antes da marcação da IA não conta;
 
 Deno.test("teamRepliedAfter: mensagem da IA (ai_agent) não conta como equipe", () => {
   assertEquals(teamRepliedAfter([{ from_me: true, timestamp: "2026-10-05T22:03:00Z", metadata: { source: "ai_agent" } }], "2026-10-05T22:00:00Z"), false);
+});
+
+Deno.test("repliesSinceVisitInvite: conta respostas desde o último convite", () => {
+  const base = [
+    { role: "user" as const, content: "oi" },
+    { role: "assistant" as const, content: "Oi! Quer agendar uma visita sem compromisso?" },
+    { role: "user" as const, content: "tem estacionamento?" },
+    { role: "assistant" as const, content: "Tem sim!" },
+    { role: "user" as const, content: "e cama elástica?" },
+    { role: "assistant" as const, content: "Temos também." },
+  ];
+  assertEquals(repliesSinceVisitInvite(base), 2);
+  assertEquals(repliesSinceVisitInvite(base.slice(0, 2)), 0);
+  assertEquals(repliesSinceVisitInvite([{ role: "assistant", content: "🧪 Conversa reiniciada" }, { role: "user", content: "oi" }]), null);
+});
+
+Deno.test("smallestPackageGuests: menor pacote com quantidade", () => {
+  assertEquals(smallestPackageGuests([
+    { type: "pdf_package", guest_count: 80 },
+    { type: "pdf_package", guest_count: 50 },
+    { type: "pdf_package", guest_count: null },
+    { type: "video", guest_count: 10 },
+  ]), 50);
+  assertEquals(smallestPackageGuests([{ type: "pdf_package", guest_count: null }]), null);
 });

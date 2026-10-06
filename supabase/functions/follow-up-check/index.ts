@@ -4,7 +4,7 @@ import { findLeadByPhone } from "../_shared/lead-phone.ts";
 import { fetchLastReturns, leadsWithActionSinceReturn } from "../_shared/lead-return.ts";
 import { decideStuckAlert, formatContactList } from "../_shared/stuck-alert.ts";
 import { decideDegradedAlert } from "../_shared/degraded-alert.ts";
-import { businessMinutesBetween, parseVisitHours } from "../_shared/business-hours.ts";
+import { businessMinutesBetween, parseVisitHours, teamHoursText } from "../_shared/business-hours.ts";
 import { teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { BOT_STEPS_WAITING_ANSWER, botShouldHaveAnswered, UNANSWERED_MAX_AGE_HOURS, UNANSWERED_MINUTES } from "../_shared/unanswered-bot.ts";
 
@@ -2153,7 +2153,7 @@ async function processStuckSentMessages({
 // A IA (beta) marca bot_data.ai_handoff = { at, reason, lead_name, alerted_at }
 // ao passar a conversa. Se ninguém da equipe responder em
 // ai_agent_settings.handoff_alert_minutes (padrão 10) minutos DENTRO do
-// horário de atendimento (team_hours; vazio = horário de visitas), manda um
+// horário de atendimento (team_hours; vazio = padrão 9h–18h, sáb 9h–13h), manda um
 // WhatsApp para ai_agent_settings.handoff_alert_phone (a partir de um número
 // da própria empresa) e um novo aviso no sininho. Um alerta por passagem.
 const DEFAULT_HANDOFF_ALERT_MINUTES = 10;
@@ -2197,7 +2197,7 @@ async function processAiHandoffAlerts({
       const settings = settingsByCompany.get(inst.company_id);
       if (!settings) continue;
       const minutes = Number(settings.handoff_alert_minutes) || DEFAULT_HANDOFF_ALERT_MINUTES;
-      const hours = parseVisitHours(String(settings.team_hours || "").trim() || settings.visit_hours);
+      const hours = parseVisitHours(teamHoursText(settings.team_hours));
 
       const markAlerted = async (value: string) => {
         const { data: fresh } = await supabase.from("wapi_conversations").select("bot_data").eq("id", conv.id).maybeSingle();
