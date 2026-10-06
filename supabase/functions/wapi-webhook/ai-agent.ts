@@ -27,6 +27,7 @@ import {
   slotKey,
   teamHoursText,
 } from "../_shared/business-hours.ts";
+import { formatBRL, isHolidayEveYmd, isHolidayYmd, moneyValuesIn, type PackageQuote, type PartyDay, quotePackages, weekdayYmd } from "../_shared/package-pricing.ts";
 import { AI_DEBOUNCE_MS, mergeConsecutiveTurns, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 
@@ -51,6 +52,8 @@ interface AgentConv {
   created_at?: string | null;
   // Marcado quando a IA passou a conversa para a equipe no turno atual
   __handoffThisTurn?: boolean;
+  // Valores (R$) que a consulta da tabela devolveu neste turno — a IA só pode citar estes
+  __quotedValues?: number[];
 }
 
 interface AiSettings {
@@ -438,7 +441,7 @@ COMO CONVERSAR:
 - Áudios do cliente chegam para você já transcritos e fotos chegam descritas: responda ao conteúdo normalmente, sem comentar que foi transcrito. Se aparecer que um áudio ou uma foto não pôde ser ouvido/visto, peça com gentileza para a pessoa escrever.
 
 REGRAS INEGOCIÁVEIS:
-1. NUNCA digite preços, valores ou descontos na conversa — nem estimativas — e nunca negocie condições. Se perguntarem valores, envie o PDF de pacotes (ferramenta enviar_materiais, tipo "pacotes" — os valores estão nele) e diga que a equipe cuida de condições e fechamento.
+1. VALORES: informe somente os valores da tabela oficial, obtidos com a ferramenta consultar_valor_pacote — nunca de cabeça, nunca estimativa, nunca arredondado, nunca somando outros itens. Para consultar você precisa da quantidade de convidados E do dia da festa (a data ou, pelo menos, o dia da semana): se faltar algum, pergunte ANTES de falar qualquer valor. Desconto, condição à vista, parcelamento, brinde, entrada diferente ou qualquer negociação: NUNCA ofereça nem prometa — diga que as condições de pagamento e o fechamento são com a equipe. Se a ferramenta não trouxer valor, envie o PDF de pacotes (enviar_materiais, tipo "pacotes").
 2. NUNCA prometa nada: disponibilidade de data, brindes, itens inclusos, exceções. Quem confirma detalhes é a equipe.
 3. NUNCA invente informações. Se não souber responder, use a ferramenta transferir_para_atendente.
 4. Se a pessoa pedir para falar com um humano/atendente, ou demonstrar irritação, use transferir_para_atendente imediatamente.
@@ -447,11 +450,11 @@ REGRAS INEGOCIÁVEIS:
 DADOS DA FESTA: sempre que o cliente informar nome, mês da festa ou número de convidados, chame registrar_dados_festa. Assim que mês e convidados estiverem registrados, o sistema envia sozinho fotos, vídeo e PDF de pacotes — não chame enviar_materiais para eles depois disso; só comente brevemente e convide para a visita.
 
 MATERIAIS (ferramenta enviar_materiais):
-- Cada material vai NO MÁXIMO UMA VEZ por conversa. O PDF de pacotes só quando o cliente perguntar de valores/preços/pacotes — nunca em resposta a outras perguntas.
+- Cada material vai NO MÁXIMO UMA VEZ por conversa. O PDF de pacotes só quando o cliente pedir o PDF/os pacotes ou quando consultar_valor_pacote não trouxer valor — nunca em resposta a outras perguntas.
 - Só reenvie (reenviar=true) se o cliente pedir EXPLICITAMENTE para mandar de novo.
 - Já enviados nesta conversa: ${ctx.sentMaterialsText}.
 
-${ctx.minPackageGuests ? `PACOTES: o menor pacote é para ${ctx.minPackageGuests} convidados. Se o cliente falar em menos de ${ctx.minPackageGuests} convidados ou pedir orçamento para menos, explique JÁ NA MESMA RESPOSTA (não espere ele perguntar), com naturalidade e sem falar valores, que o menor pacote é para ${ctx.minPackageGuests} pessoas e que a equipe explica como fica para um grupo menor.\n\n` : ''}CONVITE PARA VISITA (não seja repetitiva):
+${ctx.minPackageGuests ? `PACOTES: o menor pacote é para ${ctx.minPackageGuests} convidados. Se o cliente falar em menos de ${ctx.minPackageGuests} convidados ou pedir orçamento para menos, explique JÁ NA MESMA RESPOSTA (não espere ele perguntar), com naturalidade, que o menor pacote é para ${ctx.minPackageGuests} pessoas e que a equipe explica como fica para um grupo menor.\n\n` : ''}CONVITE PARA VISITA (não seja repetitiva):
 - ${visitInviteRule(ctx.visitRepliesAgo)}
 
 AGENDAMENTO DE VISITAS:
@@ -501,6 +504,19 @@ const TOOLS: ToolDef[] = [
         reenviar: { type: 'boolean', description: 'true SOMENTE se o cliente pediu explicitamente para mandar de novo um material já enviado' },
       },
       required: ['tipo'],
+    },
+  },
+  {
+    name: 'consultar_valor_pacote',
+    description: 'Consulta na tabela oficial do buffet o valor dos pacotes para a quantidade de convidados e o dia da festa. Use SEMPRE que o cliente perguntar valor/preço/quanto custa — é a única fonte de valores. Precisa da quantidade de convidados e do dia da festa (a data é melhor, porque detecta feriado e véspera; senão, o dia da semana). Se faltar algum dos dois, pergunte ao cliente antes de chamar.',
+    parameters: {
+      type: 'object',
+      properties: {
+        convidados: { type: 'string', description: 'Número de convidados, ex.: 70' },
+        data: { type: 'string', description: 'Data da festa no formato AAAA-MM-DD, se o cliente informou' },
+        dia_semana: { type: 'string', description: 'Dia da semana da festa (segunda, terça, quarta, quinta, sexta, sábado ou domingo), se o cliente não deu a data' },
+        pacote: { type: 'string', description: 'Nome do pacote, se o cliente perguntou de um específico' },
+      },
     },
   },
   {
@@ -632,6 +648,7 @@ async function markQuoteSent(
   conv: AgentConv,
   phone: string,
   contactName: string | null,
+  via = 'PDF de pacotes enviado pela IA',
 ): Promise<void> {
   const leadId = await ensureLead(supabase, instance, conv, phone, contactName);
   if (!leadId) return;
@@ -655,7 +672,7 @@ async function markQuoteSent(
     old_value: 'novo',
     new_value: 'orcamento_enviado',
   }).then(({ error: hErr }: { error: unknown }) => { if (hErr) console.error('[AI Agent] lead_history error:', hErr); });
-  console.log(`[AI Agent] Lead ${leadId} → Orçamento enviado (PDF de pacotes enviado pela IA)`);
+  console.log(`[AI Agent] Lead ${leadId} → Orçamento enviado (${via})`);
 }
 
 async function loadSalesMaterials(supabase: any, instance: AgentInstance): Promise<any[]> {
@@ -822,7 +839,7 @@ async function toolRegistrarDados(
   const minGuests = smallestPackageGuests(materials);
   const askedGuests = parseInt(String(bd.convidados || '').replace(/\D/g, ''), 10);
   const minNote = patch.convidados && minGuests && askedGuests && askedGuests < minGuests
-    ? ` IMPORTANTE — explique JÁ NESTA resposta, com naturalidade e sem falar valores: o cliente falou em ${askedGuests} convidados, mas o menor pacote é para ${minGuests} pessoas; a equipe explica como fica para um grupo menor.`
+    ? ` IMPORTANTE — explique JÁ NESTA resposta, com naturalidade: o cliente falou em ${askedGuests} convidados, mas o menor pacote é para ${minGuests} pessoas; a equipe explica como fica para um grupo menor.`
     : '';
 
   const missing = [!bd.mes && 'mês da festa', !bd.convidados && 'número de convidados'].filter(Boolean);
@@ -873,11 +890,91 @@ async function toolRegistrarDados(
   await mergeBotData(supabase, conv, { ai_materials_sent: sentNow });
   if (sentNow.pacotes && !already.pacotes) await markQuoteSent(supabase, instance, conv, phone, contactName);
   const pdfNote = !minNote && result.pdfGuestCount && askedGuests && askedGuests < result.pdfGuestCount
-    ? ` IMPORTANTE — explique JÁ NESTA resposta, sem falar valores: o cliente falou em ${askedGuests} convidados e o PDF enviado é o pacote de ${result.pdfGuestCount} pessoas (o menor).`
+    ? ` IMPORTANTE — explique JÁ NESTA resposta: o cliente falou em ${askedGuests} convidados e o PDF enviado é o pacote de ${result.pdfGuestCount} pessoas (o menor).`
     : '';
   const skipped = (['fotos', 'video', 'pacotes'] as MaterialTipo[]).filter((k) => already[k]).map((k) => MATERIAL_LABEL[k]);
   const skippedNote = skipped.length > 0 ? ` (${skipped.join(', ')} já tinha(m) sido enviado(s) antes e não foi reenviado.)` : '';
   return `OK: dados salvos e o sistema JÁ ENVIOU agora, automaticamente, os materiais.${skippedNote} Não reenvie nada: comente brevemente e convide para a visita oferecendo 2 horários concretos.${minNote}${pdfNote}`;
+}
+
+const WEEKDAYS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+
+function weekdayFromText(text: string): number | null {
+  const t = text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const keys = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+  const i = keys.findIndex((k) => t.includes(k));
+  return i >= 0 ? i : null;
+}
+
+function quoteLine(q: PackageQuote): string {
+  const turno = q.shift === 'almoco' ? ' (almoço)' : q.shift === 'jantar' ? ' (jantar)' : '';
+  const base = `${q.packageName}${turno}: ${formatBRL(q.tierPrice)} (faixa de ${q.tier} convidados, coluna "${q.dayTypeLabel}")`;
+  if (q.extraGuests === 0) return `- ${base}`;
+  if (q.total != null && q.extraUnit != null) {
+    return `- ${base} + ${q.extraGuests} pessoa(s) adicional(is) × ${formatBRL(q.extraUnit)} = ${formatBRL(q.total)} no total`;
+  }
+  const sep = [q.adultExtra != null ? `adulto adicional ${formatBRL(q.adultExtra)}` : null, q.childExtra != null ? `criança adicional ${formatBRL(q.childExtra)}` : null].filter(Boolean).join(', ');
+  return `- ${base} + ${q.extraGuests} pessoa(s) acima da maior faixa${sep ? ` (${sep})` : ' — o valor dos adicionais a equipe confirma'}`;
+}
+
+// Valor do pacote pela "Grade de preços por faixa" (Operações → Pacotes)
+async function toolConsultarValor(
+  supabase: any,
+  instance: AgentInstance,
+  conv: AgentConv,
+  phone: string,
+  contactName: string | null,
+  args: { convidados?: string; data?: string; dia_semana?: string; pacote?: string },
+): Promise<string> {
+  const bd = (conv.bot_data || {}) as Json;
+  const guests = parseInt(String(args.convidados || bd.convidados || '').replace(/\D/g, ''), 10);
+  if (!guests) return 'FALTA A QUANTIDADE: pergunte quantos convidados o cliente espera antes de informar qualquer valor.';
+
+  let day: PartyDay | null = null;
+  let dayText = '';
+  let holidayNote = '';
+  const dateMatch = String(args.data || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateMatch) {
+    const [y, m, d] = [Number(dateMatch[1]), Number(dateMatch[2]), Number(dateMatch[3])];
+    const today = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+    if (String(args.data) < today) return `DATA JÁ PASSOU (${args.data}): confirme com o cliente a data/ano da festa antes de informar valor.`;
+    day = { dow: weekdayYmd(y, m, d), holiday: isHolidayYmd(y, m, d), holidayEve: isHolidayEveYmd(y, m, d) };
+    dayText = `${WEEKDAYS[day.dow]}, ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}${day.holiday ? ' (feriado)' : day.holidayEve ? ' (véspera de feriado)' : ''}`;
+  } else if (args.dia_semana && weekdayFromText(String(args.dia_semana)) !== null) {
+    day = { dow: weekdayFromText(String(args.dia_semana)) as number };
+    dayText = WEEKDAYS[day.dow];
+    holidayNote = ` É o valor de ${dayText} normal: se a data cair em feriado ou véspera de feriado, o valor pode ser outro — diga isso ao cliente.`;
+  }
+  if (!day) return 'FALTA O DIA: pergunte o dia da semana (ou a data) da festa antes de informar qualquer valor.';
+
+  const [{ data: packages }, { data: tiers }, { data: company }] = await Promise.all([
+    supabase.from('company_packages')
+      .select('id, name, valor_pessoa_adicional, preco_separado, valor_pessoa_adicional_adulto, valor_pessoa_adicional_crianca')
+      .eq('company_id', instance.company_id).eq('is_active', true).order('sort_order', { ascending: true }),
+    supabase.from('package_price_tiers').select('package_id, guest_count, day_type, price').eq('company_id', instance.company_id),
+    supabase.from('companies').select('settings').eq('id', instance.company_id).maybeSingle(),
+  ]);
+  let pkgs = (packages || []) as any[];
+  const wanted = String(args.pacote || '').trim().toLowerCase();
+  if (wanted) {
+    const exact = pkgs.filter((p) => String(p.name).toLowerCase() === wanted);
+    const partial = pkgs.filter((p) => String(p.name).toLowerCase().includes(wanted));
+    if (exact.length > 0) pkgs = exact;
+    else if (partial.length > 0) pkgs = partial;
+  }
+  const quotes = quotePackages(pkgs, (tiers || []) as any[], (company?.settings || null) as any, guests, day);
+  console.log(`[AI Agent] Consulta de valor (${guests} convidados, ${dayText}): ${quotes.length} valor(es) na tabela`);
+  if (quotes.length === 0) {
+    return 'SEM VALOR NA TABELA para essa quantidade/dia: não informe valor. Envie o PDF de pacotes (enviar_materiais, tipo "pacotes") ou diga que a equipe passa o valor.';
+  }
+
+  conv.__quotedValues = [...(conv.__quotedValues || []), ...quotes.flatMap((q) => [q.tierPrice, q.total, q.extraUnit, q.adultExtra, q.childExtra].filter((v): v is number => typeof v === 'number'))];
+  await markQuoteSent(supabase, instance, conv, phone, contactName, 'valor da tabela informado pela IA');
+
+  const minTier = Math.min(...quotes.map((q) => q.tier));
+  const minNote = guests < minTier ? ` O cliente falou em ${guests} convidados, mas a menor faixa da tabela é de ${minTier}: explique que o valor é o do pacote de ${minTier} pessoas.` : '';
+  const betweenNote = quotes.some((q) => q.tier > guests && guests >= minTier) ? ` Para ${guests} convidados vale a faixa de ${quotes[0].tier} (a tabela é por faixa).` : '';
+  return `VALORES DA TABELA para ${guests} convidados, ${dayText} — informe exatamente estes valores, sem arredondar e sem somar outros itens:\n${quotes.map(quoteLine).join('\n')}\n${minNote}${betweenNote}${holidayNote} PROIBIDO oferecer ou prometer desconto, condição à vista, parcelamento, brinde ou entrada diferente: se o cliente pedir, diga que as condições de pagamento e o fechamento são com a equipe.`.trim();
 }
 
 // Passagem para a equipe: tira a IA da conversa, registra no histórico do
@@ -1324,6 +1421,8 @@ export async function maybeHandleWithAiAgent(
             toolResult = await toolAgendarVisita(supabase, instance, conv, phone, contactName, settings, args);
           } else if (call.name === 'enviar_materiais') {
             toolResult = await toolEnviarMateriais(supabase, instance, conv, phone, contactName, String(args.tipo || ''), args.reenviar === true);
+          } else if (call.name === 'consultar_valor_pacote') {
+            toolResult = await toolConsultarValor(supabase, instance, conv, phone, contactName, args);
           } else if (call.name === 'transferir_para_atendente') {
             toolResult = await toolTransferir(supabase, instance, conv, phone, contactName, settings, String(args.motivo || ''));
           }
@@ -1344,6 +1443,18 @@ export async function maybeHandleWithAiAgent(
       let finalText = step.text;
       if (conv.__handoffThisTurn && !finalText.includes(describeTeamHours(teamHoursOf(settings)))) {
         finalText = `${finalText}\n\n${teamHoursMessage(settings)}`;
+      }
+      // Trava de valores: todo "R$" da resposta tem de ter vindo da tabela (neste
+      // turno ou já dito antes na conversa). Valor inventado não sai.
+      const allowedValues = [
+        ...(conv.__quotedValues || []),
+        ...chatMessages.filter((m) => m.role === 'assistant').flatMap((m) => moneyValuesIn(m.content)),
+      ];
+      const unknownValues = moneyValuesIn(finalText).filter((v) => !allowedValues.some((a) => Math.abs(a - v) < 0.01));
+      if (unknownValues.length > 0) {
+        console.error(`[AI Agent] Resposta citou valor fora da tabela (${unknownValues.map(formatBRL).join(', ')}) — não enviada (conv ${conv.id})`);
+        await handOffOnFailure(supabase, instance, conv, phone, contactName, settings, `a IA ia citar valor fora da tabela (${unknownValues.map(formatBRL).join(', ')}) — passe o valor ao cliente`);
+        return true;
       }
       // Chegou mensagem nova do cliente enquanto esta resposta era montada (ex.:
       // durante o envio dos materiais): descarta esta e deixa a execução da
