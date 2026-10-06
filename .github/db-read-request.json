@@ -1,0 +1,1 @@
+{"sql": "select c.id, c.name, s.enabled, s.unit, s.activated_at, s.test_mode_enabled, s.updated_at, c.settings->'enabled_modules'->'ia_conversacional' as modulo from public.ai_agent_settings s join public.companies c on c.id = s.company_id order by c.name"}
