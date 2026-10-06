@@ -28,17 +28,27 @@ jobs:
           TARGET_MB=$(jq -r '.target_mb // 4.2' "$REQ")
           SS=$(jq -r '.start_seconds // 0' "$REQ")
           THUMBS=$(jq -r '(.thumb_times // [0, 0.5, 2]) | map(tostring) | join(" ")' "$REQ")
-          case "$COMPANY" in *[!0-9a-f-]*|"") echo "company_id inválido"; exit 1;; esac
-          SQL="select name, file_url from sales_materials where company_id = '${COMPANY}' and type = 'video' and is_active order by created_at"
-          curl -sS -X POST "https://api.supabase.com/v1/projects/rsezgnkfhodltrsewlhz/database/query" \
-            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" -H "Content-Type: application/json" \
-            -d "$(jq -n --arg q "$SQL" '{query:$q}')" -o rows.json
+          SOURCE_URL=$(jq -r '.source_url // ""' "$REQ")
+          if [ -n "$SOURCE_URL" ]; then
+            # Vídeo novo, grande demais para subir no Celebrei (link do Google Drive ou outro)
+            jq -n --arg u "$SOURCE_URL" '[{name: "VÍDEO NOVO", file_url: $u}]' > rows.json
+          else
+            case "$COMPANY" in *[!0-9a-f-]*|"") echo "company_id inválido"; exit 1;; esac
+            SQL="select name, file_url from sales_materials where company_id = '${COMPANY}' and type = 'video' and is_active order by created_at"
+            curl -sS -X POST "https://api.supabase.com/v1/projects/rsezgnkfhodltrsewlhz/database/query" \
+              -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" -H "Content-Type: application/json" \
+              -d "$(jq -n --arg q "$SQL" '{query:$q}')" -o rows.json
+          fi
           jq -r '.[] | "VÍDEO: \(.name) | \(.file_url)"' rows.json || { cat rows.json; exit 1; }
           mkdir -p out
           i=0
           jq -r '.[].file_url' rows.json | while read -r URL; do
             i=$((i+1))
-            curl -sSL "$URL" -o "in_$i"
+            if printf '%s' "$URL" | grep -q 'drive.google.com'; then
+              pipx run gdown --fuzzy "$URL" -O "in_$i"
+            else
+              curl -sSL "$URL" -o "in_$i"
+            fi
             echo "=== Vídeo $i: $(wc -c < "in_$i") bytes"
             ffprobe -v error -show_entries format=format_name,duration,bit_rate:stream=index,codec_type,codec_name,profile,pix_fmt,width,height,r_frame_rate,color_space,color_transfer,color_primaries,bit_rate,sample_rate,channels:stream_side_data=rotation -of default=nw=1 "in_$i"
             echo "--- primeiros quadros (tipo/chave):"
@@ -46,9 +56,13 @@ jobs:
             DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "in_$i")
             DUR=$(awk -v d="$DUR" -v s="$SS" 'BEGIN{printf "%.2f", d - s}')
             VBR=$(awk -v d="$DUR" -v t="$TARGET_MB" 'BEGIN{v=int(t*8192/d - 96); if (v>2500) v=2500; print v}')
-            LONG=1280; if [ "$VBR" -lt 700 ]; then LONG=854; fi
-            echo "duração ${DUR}s → vídeo ${VBR} kbps, lado maior ${LONG}px"
-            VF="scale='if(gt(iw,ih),min(${LONG},iw),-2)':'if(gt(iw,ih),-2,min(${LONG},ih))',format=yuv420p"
+            LONG=1280; if [ "$VBR" -lt 700 ]; then LONG=854; fi; if [ "$VBR" -lt 350 ]; then LONG=640; fi
+            # iPhone grava em HDR (HLG/PQ): sem converter, as cores ficam lavadas no WhatsApp
+            TRC=$(ffprobe -v error -select_streams v:0 -show_entries stream=color_transfer -of csv=p=0 "in_$i")
+            TONE=""
+            case "$TRC" in arib-std-b67|smpte2084) TONE="zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,";; esac
+            echo "duração ${DUR}s → vídeo ${VBR} kbps, lado maior ${LONG}px, cor ${TRC:-?}${TONE:+ (HDR → SDR)}"
+            VF="${TONE}scale='if(gt(iw,ih),min(${LONG},iw),-2)':'if(gt(iw,ih),-2,min(${LONG},ih))',format=yuv420p"
             COMMON=(-ss "$SS" -i "in_$i" -map 0:v:0 -map 0:a:0? -vf "$VF" -fpsmax 30 -c:v libx264 -preset slow -profile:v main -level:v 4.0 -b:v "${VBR}k" -maxrate "$((VBR*2))k" -bufsize "$((VBR*2))k" -g 60 -map_metadata -1 -metadata:s:v rotate=0)
             ffmpeg -y -v error "${COMMON[@]}" -pass 1 -passlogfile "p$i" -an -f mp4 /dev/null
             ffmpeg -y -v error "${COMMON[@]}" -pass 2 -passlogfile "p$i" -c:a aac -b:a 96k -ac 2 -movflags +faststart "out/apresentacao_$i.mp4"
