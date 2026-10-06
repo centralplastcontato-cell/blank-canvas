@@ -39,6 +39,17 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { normalizeImageOrientation } from "@/lib/image-orientation";
 
+// Pasta do Storage a partir do nome da unidade: o Storage recusa espaço e
+// acento ("Invalid key: castelo da diversão/..."), então vira "castelo-da-diversao".
+function unitFolder(unit: string): string {
+  return unit
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "") || "geral";
+}
+
 interface SalesMaterial {
   id: string;
   unit: string;
@@ -277,8 +288,8 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
         throw new Error("Não consegui ler o arquivo (chegou vazio). Salve o vídeo na Fototeca — em Arquivos: abrir o vídeo → Compartilhar → Salvar Vídeo — e escolha de lá.");
       }
 
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${selectedUnit.toLowerCase()}/${formData.type}/${Date.now()}.${fileExt}`;
+      const fileExt = (file.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
+      const fileName = `${unitFolder(selectedUnit)}/${formData.type}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from("sales-materials")
@@ -355,8 +366,8 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
         // Normaliza orientação EXIF (evita fotos de lado no WhatsApp)
         file = await normalizeImageOrientation(file);
 
-        const fileExt = file.name.split(".").pop();
-        const fileName = `${selectedUnit.toLowerCase()}/collections/${Date.now()}_${i}.${fileExt}`;
+        const fileExt = (file.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
+        const fileName = `${unitFolder(selectedUnit)}/collections/${Date.now()}_${i}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
           .from("sales-materials")
@@ -426,7 +437,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
     }
     const normalized = await normalizeImageOrientation(file);
     const ext = (normalized.name.split(".").pop() || "jpg").toLowerCase();
-    const fileName = `${selectedUnit.toLowerCase()}/collections/${Date.now()}_edit.${ext}`;
+    const fileName = `${unitFolder(selectedUnit)}/collections/${Date.now()}_edit.${ext}`;
     const { error } = await supabase.storage
       .from("sales-materials")
       .upload(fileName, normalized, { cacheControl: "3600", upsert: false });
