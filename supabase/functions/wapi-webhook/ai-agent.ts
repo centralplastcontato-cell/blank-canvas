@@ -1199,6 +1199,11 @@ async function toolConsultarDatas(
   const preferredDows = preferredDow !== null ? [preferredDow]
     : /fim/.test(pref) ? [6, 0] // fim de semana: sábado e domingo (o simulador pegou sexta oferecida como fim de semana)
     : /semana|util|útil/.test(pref) ? [1, 2, 3, 4, 5] : [];
+  // Lista de datas do mês sem saber a preferência: pergunta antes (o simulador
+  // pegou a IA listando direto). Data específica não precisa.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(args.data || '')) && preferredDows.length === 0) {
+    return 'ANTES DE LISTAR DATAS: pergunte ao cliente se ele prefere fim de semana ou dia de semana (ou um dia específico). Não liste datas nesta resposta; depois consulte de novo com preferencia ou dia_semana.';
+  }
   let from: string;
   let to: string;
   let askedDate: string | null = null;

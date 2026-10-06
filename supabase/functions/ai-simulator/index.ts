@@ -14,7 +14,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { DEFAULT_AI_MODEL } from "../_shared/ai-models.ts";
-import { teamHoursText } from "../_shared/business-hours.ts";
+import { listAvailableSlots, normalizeTime, parseVisitHours, slotKey, teamHoursText, visitSlotsByDay } from "../_shared/business-hours.ts";
 import { GENERAL_SCENARIOS } from "./scenarios.ts";
 import { AI_ACTOR, AI_ACTOR_HEADER } from "../wapi-webhook/ai-db-guard.ts";
 import {
@@ -224,8 +224,22 @@ async function loadKnowledge(companyId: string): Promise<string> {
     .filter((p) => p.ai_quote !== false)
     .map((p) => `Pacote ${p.name}:\n${p.includes || p.description || "(sem lista)"}`)
     .join("\n\n");
+  // Horários de visita livres (a mesma conta que a IA recebe), para o avaliador
+  // não achar que ela inventou os horários que ofereceu
+  const today = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+  const { data: visits } = await admin.from("lead_visits").select("data_visita, horario_visita, unit, status_visita")
+    .eq("company_id", companyId).gte("data_visita", today).in("status_visita", ["agendada", "confirmada", "remarcada"]).limit(1000);
+  const booked = new Set<string>();
+  for (const v of (visits || []) as any[]) {
+    if (v.unit && settings?.unit && String(v.unit).trim().toLowerCase() !== String(settings.unit).trim().toLowerCase()) continue;
+    const t = normalizeTime(v.horario_visita || "");
+    if (t) booked.add(slotKey({ date: String(v.data_visita).slice(0, 10), time: t }));
+  }
+  const freeVisits = visitSlotsByDay(listAvailableSlots(parseVisitHours(settings?.visit_hours || null), Date.now(), booked, { days: 14, minLeadMinutes: 120, max: 60 }), 7, 12)
+    .map((d) => `${d.date}: ${d.times.join(", ")}`).join("; ");
   return [
     settings?.extra_instructions || "",
+    freeVisits ? `Horários de VISITA livres agora (a IA recebe esta lista e pode oferecê-los): ${freeVisits}` : "",
     settings?.visit_hours ? `Horários de VISITA ao espaço: ${settings.visit_hours}` : "",
     `Horário de atendimento da EQUIPE (a IA informa ao passar a conversa): ${teamHoursText(settings?.team_hours)}`,
     "A IA recebe a lista de horários de VISITA livres dos próximos dias (da agenda de visitas) e pode oferecê-los sem consultar ferramenta.",

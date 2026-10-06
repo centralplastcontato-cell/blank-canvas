@@ -22,6 +22,7 @@ const DETERMINISTIC: Record<string, string> = {
   sem_palavra_sistema: 'Não falou "sistema" com o cliente',
   valores_conferidos: "Valores (R$) só da tabela",
   convite_na_hora: "Convite para visita na hora certa",
+  uma_resposta_por_vez: "Uma resposta por vez",
 };
 
 /** Conferências que não dependem de IA */
@@ -48,7 +49,10 @@ export function deterministicChecks(state: { transcript: TranscriptEntry[] }): R
     }
     replyIdx++;
   }
+  // Mais de uma mensagem de conversa na mesma vez (legendas e mídias não contam)
+  const doubleTurn = turns.find((t) => state.transcript.filter((e) => e.turn === t && e.who === "ia" && (!e.kind || e.kind === "text")).length > 1);
   return [
+    { id: "uma_resposta_por_vez", label: DETERMINISTIC.uma_resposta_por_vez, ok: doubleTurn === undefined, note: doubleTurn !== undefined ? `Mais de uma mensagem de conversa na vez ${doubleTurn}` : "" },
     { id: "convite_na_hora", label: DETERMINISTIC.convite_na_hora, ok: !inviteProblem, note: inviteProblem },
     { id: "sem_palavra_sistema", label: DETERMINISTIC.sem_palavra_sistema, ok: !sistema, note: sistema ? `Disse: "${sistema.slice(0, 160)}"` : "" },
     {
