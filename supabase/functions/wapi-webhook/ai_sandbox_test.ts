@@ -1,6 +1,7 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
 import { aiSandbox, createSandboxDb, inSandbox, SandboxContext, type SandboxState, sandboxSleep } from "./ai-sandbox.ts";
-import { deterministicChecks, initialState } from "../ai-simulator/engine.ts";
+import { deterministicChecks } from "../ai-simulator/checks.ts";
+import type { ScenarioState } from "../ai-simulator/engine.ts";
 
 const emptyState = (): SandboxState => ({ memory: { wapi_messages: [] }, clockMs: Date.now(), seq: 0, outbox: [], tools: [] });
 
@@ -53,7 +54,7 @@ Deno.test("sandbox: envio vai para a caixa de saída e esperas são puladas só 
 });
 
 Deno.test("simulador: conferências automáticas (palavra sistema e valores fora da consulta)", () => {
-  const st = initialState("c1", "Ana", []);
+  const st = { transcript: [] } as unknown as ScenarioState;
   st.transcript = [
     { who: "cliente", text: "quanto fica?", turn: 1 },
     { who: "ferramenta", text: "consultar_valor_pacote({})\n→ 🏰 *Castelo* — R$ 6.490", turn: 1 },
