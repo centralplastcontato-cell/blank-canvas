@@ -101,14 +101,27 @@ export function mergeConsecutiveTurns<T extends Turn>(turns: T[]): { merged: T[]
 // mensagem com "posso agendar uma visita".
 const VISIT_INVITE = /\bvisita/i;
 export function repliesSinceVisitInvite(turns: Turn[]): number | null {
+  // Conta VEZES da IA (mensagens seguidas dela = uma resposta): o envio das
+  // fotos/vídeo/PDF são várias mensagens e inflavam a conta (achado do simulador)
   let count = 0;
+  let inAssistantBlock = false;
+  let blockHasInvite = false;
   for (let i = turns.length - 1; i >= 0; i--) {
     const t = turns[i];
-    if (t.role !== "assistant" || t.content.startsWith("🧪")) continue;
+    if (t.role !== "assistant" || t.content.startsWith("🧪")) {
+      if (inAssistantBlock) {
+        if (blockHasInvite) return count;
+        count++;
+        inAssistantBlock = false;
+        blockHasInvite = false;
+      }
+      continue;
+    }
+    inAssistantBlock = true;
     // Mesma detecção da trava (a IA convida sem a palavra "visita": "quer conhecer o espaço?")
-    if (VISIT_INVITE.test(t.content) || hasVisitInvite(t.content)) return count;
-    count++;
+    if (VISIT_INVITE.test(t.content) || hasVisitInvite(t.content)) blockHasInvite = true;
   }
+  if (inAssistantBlock && blockHasInvite) return count;
   return null;
 }
 
