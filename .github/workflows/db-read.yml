@@ -1,0 +1,32 @@
+name: Consulta no banco (só leitura)
+
+# Roda UMA consulta SELECT no banco (Management API) para conferir dados sem
+# pedir que alguém cole SQL no editor. Recusa qualquer coisa que não seja um
+# único SELECT/WITH (sem ';').
+
+on:
+  push:
+    branches: ["claude/**"]
+    paths: [".github/db-read-request.json"]
+
+jobs:
+  query:
+    name: Consultar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Consultar
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          SQL=$(jq -r .sql .github/db-read-request.json)
+          TRIMMED=$(printf '%s' "$SQL" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:];]*$//')
+          LOWER=$(printf '%s' "$TRIMMED" | tr 'A-Z' 'a-z')
+          case "$LOWER" in select*|with*) ;; *) echo "Só SELECT/WITH"; exit 1;; esac
+          case "$TRIMMED" in *";"*) echo "Uma consulta só (sem ';')"; exit 1;; esac
+          echo "SQL: $TRIMMED"
+          BODY=$(jq -n --arg q "$TRIMMED" '{query:$q}')
+          curl -sS -X POST "https://api.supabase.com/v1/projects/rsezgnkfhodltrsewlhz/database/query" \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" -H "Content-Type: application/json" \
+            -d "$BODY" -o out.json
+          jq -c 'if type=="array" then .[] else . end' out.json | head -n 500

@@ -904,8 +904,8 @@ export function AutomationsSection() {
                 </div>
               </div>
 
-              {/* IA Conversacional (beta) */}
-              <AiAgentSection />
+              {/* IA Conversacional (beta) — só com o módulo ligado no Hub */}
+              {modules.ia_conversacional && <AiAgentSection />}
 
               {/* Fluxo visual (Flow Builder) */}
               {modules.flow_builder && (

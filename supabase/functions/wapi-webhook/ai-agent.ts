@@ -32,6 +32,7 @@ import { addDaysYmd, type FreeDay, type FreeSlot, freePartySlots, monthFromText,
 import { waitForMediaAck } from "../_shared/media-ack.ts";
 import { formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
 import { guardAiDb } from "./ai-db-guard.ts";
+import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { crossedWithLastReply, debounceMsFor, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 
@@ -219,6 +220,7 @@ export async function isAiTestPhoneFor(supabase: any, instance: AgentInstance, p
   const settings = await loadSettings(supabase, instance.company_id);
   if (!settings?.enabled) return false;
   if ((settings.unit || '').trim().toLowerCase() !== instance.unit.trim().toLowerCase()) return false;
+  if (!(await loadAiConversationalEnabled(supabase, instance.company_id))) return false;
   return isAiTestNumber(settings, phone);
 }
 
@@ -1551,6 +1553,11 @@ export async function maybeHandleWithAiAgent(
     settings = await loadSettings(supabase, instance.company_id);
     if (!settings || !settings.enabled || !settings.unit) {
       console.log(`[AI Agent] IA desligada ou sem unidade configurada para a empresa ${instance.company_id} — pulando`);
+      return false;
+    }
+    // Módulo do Hub: sem ele a IA não responde, mesmo com a configuração ligada
+    if (!(await loadAiConversationalEnabled(supabase, instance.company_id))) {
+      console.log(`[AI Agent] Módulo IA Conversacional desligado no Hub para a empresa ${instance.company_id} — pulando`);
       return false;
     }
     if ((settings.unit || '').trim().toLowerCase() !== (instance.unit || '').trim().toLowerCase()) {

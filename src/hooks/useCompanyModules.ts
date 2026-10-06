@@ -35,6 +35,9 @@ export interface CompanyModules {
   treinamento: boolean;
   onboarding_checklist: boolean;
   empresa_parceira: boolean;
+  // --- Inteligência Artificial ---
+  // IA que atende clientes no WhatsApp (beta): só liga pelo Hub
+  ia_conversacional: boolean;
 }
 
 export interface PartyControlModules {
@@ -130,6 +133,8 @@ const DEFAULT_MODULES: CompanyModules = {
   treinamento: true,
   onboarding_checklist: false,
   empresa_parceira: false,
+  // --- Inteligência Artificial ---
+  ia_conversacional: false,
 };
 
 export function parseModules(settings: Json | null | undefined): CompanyModules {
@@ -176,6 +181,8 @@ export function parseModules(settings: Json | null | undefined): CompanyModules 
     treinamento: modules.treinamento !== false,
     onboarding_checklist: modules.onboarding_checklist === true,
     empresa_parceira: modules.empresa_parceira === true,
+    // --- Inteligência Artificial ---
+    ia_conversacional: modules.ia_conversacional === true,
   };
 }
 
@@ -218,4 +225,6 @@ export const MODULE_LABELS: Record<keyof CompanyModules, { label: string; descri
   treinamento: { label: 'Treinamento', description: 'Videoaulas de treinamento da plataforma' },
   onboarding_checklist: { label: 'Onboarding Guiado', description: 'Checklist interativo de primeiros passos no painel' },
   empresa_parceira: { label: 'Empresa Parceira', description: 'Catálogo de produtos e pedidos de fornecedores parceiros' },
+  // --- Inteligência Artificial ---
+  ia_conversacional: { label: 'IA Conversacional (atendimento no WhatsApp)', description: 'IA que conversa com os clientes no WhatsApp, passa valores, datas e agenda visitas (beta)' },
 };
