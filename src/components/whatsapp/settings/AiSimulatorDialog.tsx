@@ -64,7 +64,7 @@ const POLL_MS = 5000;
 const RESUME_MS = 60000;
 
 const STATUS_ORDER: Record<SimResult["status"], number> = { error: 0, failed: 1, running: 2, pending: 3, passed: 4 };
-const MEDIA_LABEL: Record<string, string> = { image: "📷 Foto", video: "🎬 Vídeo", document: "📄 PDF" };
+const MEDIA_LABEL: Record<string, string> = { image: "📷 Foto", video: "🎬 Vídeo", document: "📄 PDF", legenda: "Legenda do material" };
 
 function fmtDate(iso: string): string {
   return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -231,7 +231,10 @@ export function AiSimulatorDialog({ open, onOpenChange, model }: { open: boolean
   );
   const doneCount = results.filter((r) => ["passed", "failed", "error"].includes(r.status)).length;
   const liveCost = results.reduce((s, r) => s + (Number(r.cost_usd) || 0), 0);
-  const estimate = scenarioCount * (estimateTypicalConversationUsd(model) * 1.5 + HELPER_USD_PER_CONVERSATION);
+  // Custo médio real da última rodada com este modelo; sem histórico, a estimativa da tabela de preços
+  const lastDone = runs.find((r) => r.status === "done" && r.model === model && r.total > 0 && Number(r.cost_usd) > 0);
+  const perConversation = lastDone ? Number(lastDone.cost_usd) / lastDone.total : estimateTypicalConversationUsd(model) * 1.5 + HELPER_USD_PER_CONVERSATION;
+  const estimate = scenarioCount * perConversation;
   const hasFailures = !!selected && selected.status === "done" && selected.failed + selected.errors > 0;
   const running = selected?.status === "running";
 
@@ -254,7 +257,7 @@ export function AiSimulatorDialog({ open, onOpenChange, model }: { open: boolean
           <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-2">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
               <p className="text-xs text-muted-foreground">
-                {scenarioCount} cenários · modelo {getAiModel(model)?.label || model} · custo estimado ≈ {formatBrlFromUsd(estimate)} por rodada
+                {scenarioCount} cenários · modelo {getAiModel(model)?.label || model} · custo {lastDone ? "médio" : "estimado"} ≈ {formatBrlFromUsd(estimate)} por rodada
               </p>
               <div className="flex gap-2 shrink-0">
                 {hasFailures && (

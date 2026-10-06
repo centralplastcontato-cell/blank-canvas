@@ -194,6 +194,21 @@ async function finalizeIfDone(runId: string): Promise<void> {
   console.log(`[Simulador] Rodada ${runId} terminada: ${count("passed")} passaram, ${count("failed")} falharam, ${count("error")} erros, US$ ${cost.toFixed(4)}`);
 }
 
+// O que a IA sabe do buffet (informações da configuração + o que cada pacote
+// inclui) — o avaliador usa para conferir se ela inventou algo
+async function loadKnowledge(companyId: string): Promise<string> {
+  const [{ data: settings }, { data: packages }] = await Promise.all([
+    admin.from("ai_agent_settings").select("extra_instructions, visit_hours").eq("company_id", companyId).maybeSingle(),
+    admin.from("company_packages").select("*").eq("company_id", companyId).eq("is_active", true).order("sort_order"),
+  ]);
+  const pk = ((packages || []) as any[])
+    .filter((p) => p.ai_quote !== false)
+    .map((p) => `Pacote ${p.name}:\n${p.includes || p.description || "(sem lista)"}`)
+    .join("\n\n");
+  return [settings?.extra_instructions || "", settings?.visit_hours ? `Horários de visita: ${settings.visit_hours}` : "", pk]
+    .filter(Boolean).join("\n\n").slice(0, 16000);
+}
+
 async function work(runId: string): Promise<void> {
   const row = await claim(runId);
   if (!row) {
@@ -243,7 +258,7 @@ async function work(runId: string): Promise<void> {
         cost_usd: Number(partialCost.toFixed(6)),
       }).eq("id", row.id);
     } else {
-      const judged = await judgeScenario(openaiKey, company?.name || "Buffet", scenario, sim);
+      const judged = await judgeScenario(openaiKey, company?.name || "Buffet", scenario, sim, await loadKnowledge(companyId));
       const checks = [...deterministicChecks(sim), ...judged.checks];
       const cost = partialCost + judged.costUsd;
       await admin.from("ai_sim_results").update({
