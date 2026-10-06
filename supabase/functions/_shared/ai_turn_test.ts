@@ -170,3 +170,8 @@ Deno.test("repliesSinceVisitInvite: fotos/vídeo/PDF seguidos contam como uma ve
     { role: "user", content: "legal" },
   ]), 1);
 });
+
+Deno.test("stripVisitInvite: 'conhecendo o espaço de perto' depois da desistência", () => {
+  const r = stripVisitInvite("Entendo totalmente, Luana 💜 Obrigada por me contar! Às vezes, conhecendo o espaço de perto, dá pra ver melhor o custo-benefício 🏰");
+  assertEquals(r, { text: "Entendo totalmente, Luana 💜 Obrigada por me contar!", removed: true });
+});
