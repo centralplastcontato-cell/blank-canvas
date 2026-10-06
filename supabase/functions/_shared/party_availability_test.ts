@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { freePartySlots, monthFromText, monthRange, parsePartySlots, pickPartyOptions } from "./party-availability.ts";
+import { freePartySlots, monthFromText, monthRange, parsePartySlots, pickPartyDates, pickPartyOptions } from "./party-availability.ts";
 
 const SLOTS = parsePartySlots(null);
 
@@ -52,4 +52,14 @@ Deno.test("freePartySlots: festa cadastrada em unidade de venda (Vendas 2) ocupa
   const free = freePartySlots({ from: "2026-12-05", to: "2026-12-19", slots: SLOTS, events, preReservations: [], unit: "Castelo da Diversão", physicalUnits: ["Castelo da Diversão"] });
   const sats = free.filter((f) => f.dow === 6).map((f) => `${f.date} ${f.slot.start}`);
   assertEquals(sats, ["2026-12-05 19:00"]);
+});
+
+Deno.test("pickPartyDates: agrupa horários por data e prefere o dia pedido", () => {
+  const free = freePartySlots({
+    from: "2026-12-01", to: "2026-12-06", slots: SLOTS,
+    events: [{ event_date: "2026-12-05", start_time: "13:00", end_time: "17:00", status: "confirmado", unit: null }],
+    preReservations: [],
+  });
+  const days = pickPartyDates(free, [0, 6], 2);
+  assertEquals(days.map((d) => `${d.date}:${d.slots.map((s) => s.start).join("+")}`), ["2026-12-05:19:00", "2026-12-06:13:00+19:00"]);
 });
