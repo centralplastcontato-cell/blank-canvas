@@ -5,10 +5,15 @@ name: Rodar testes da IA (simulador)
 # Conversacional ligado para a empresa. O resultado aparece em Configurar IA →
 # Testes da IA.
 
+# Só manual (Actions → "Rodar testes da IA" → Run workflow): antes disparava
+# sozinho quando o arquivo de pedido entrava no main junto de outro PR.
 on:
-  push:
-    branches: ["claude/**"]
-    paths: [".github/ai-sim-request.json"]
+  workflow_dispatch:
+    inputs:
+      company_id:
+        description: "Empresa (uuid)"
+        required: true
+        default: "a0000000-0000-0000-0000-000000000001"
 
 jobs:
   run:
@@ -19,11 +24,11 @@ jobs:
       - name: Disparar
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          COMPANY: ${{ github.event.inputs.company_id }}
         run: |
-          COMPANY=$(jq -r .company_id .github/ai-sim-request.json)
           KEYS=$(curl -sS "https://api.supabase.com/v1/projects/rsezgnkfhodltrsewlhz/api-keys?reveal=true" \
             -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" | jq -r '.[] | select(.name=="service_role" or .type=="secret") | .api_key')
-          BODY=$(jq -c '{action:"start"} + .' .github/ai-sim-request.json)
+          BODY=$(jq -cn --arg c "$COMPANY" '{action:"start", company_id:$c}')
           # O projeto pode ter a chave antiga (service_role) e a nova (secret): vale a que a função usa
           for KEY in $KEYS; do
             echo "::add-mask::$KEY"

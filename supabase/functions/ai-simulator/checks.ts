@@ -1,7 +1,7 @@
 // Conferências do simulador que não dependem de IA (separadas do motor para
 // poderem ser testadas sem carregar a IA inteira).
 
-import { moneyValuesIn } from "../_shared/package-pricing.ts";
+import { allowedMoneyValues, moneyValuesIn } from "../_shared/package-pricing.ts";
 
 export interface TranscriptEntry {
   who: "cliente" | "ia" | "ferramenta";
@@ -26,7 +26,7 @@ const DETERMINISTIC: Record<string, string> = {
 export function deterministicChecks(state: { transcript: TranscriptEntry[] }): RuleCheck[] {
   const aiTexts = state.transcript.filter((e) => e.who === "ia").map((e) => e.text);
   const sistema = aiTexts.find((t) => /\bsistema\b/i.test(t));
-  const toolValues = state.transcript.filter((e) => e.who === "ferramenta").flatMap((e) => moneyValuesIn(e.text));
+  const toolValues = allowedMoneyValues(state.transcript.filter((e) => e.who === "ferramenta").flatMap((e) => moneyValuesIn(e.text)));
   const cited = aiTexts.flatMap((t) => moneyValuesIn(t));
   const unknown = cited.filter((v) => !toolValues.some((a) => Math.abs(a - v) < 0.01));
   return [

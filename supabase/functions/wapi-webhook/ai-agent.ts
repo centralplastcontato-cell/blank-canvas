@@ -28,7 +28,7 @@ import {
   slotKey,
   teamHoursText,
 } from "../_shared/business-hours.ts";
-import { formatBRL, holidayName, isHolidayEveYmd, isHolidayYmd, localHolidaysFrom, moneyValuesIn, type PackageQuote, type PartyDay, quotePackages, weekdayYmd } from "../_shared/package-pricing.ts";
+import { allowedMoneyValues, formatBRL, holidayName, isHolidayEveYmd, isHolidayYmd, localHolidaysFrom, moneyValuesIn, type PackageQuote, type PartyDay, quotePackages, weekdayYmd } from "../_shared/package-pricing.ts";
 import { addDaysYmd, type FreeDay, type FreeSlot, freePartySlots, monthFromText, monthRange, parsePartySlots, pickPartyDates, weekdayOf } from "../_shared/party-availability.ts";
 import { waitForMediaAck } from "../_shared/media-ack.ts";
 import { fixWeekdays, formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
@@ -1348,7 +1348,7 @@ async function toolConsultarValor(
     ? ` Nesse dia, disponível neste momento: ${freeHours.map((h) => formatSlotLabel(h)).join(' ou ')} — diga isso junto com o valor.`
     : '';
   const tierInfo = Array.from(new Set(quotes.map((q) => `${prettyPackageName(q.packageName)}: faixa de ${q.tier} convidados, coluna "${q.dayTypeLabel}"`))).join('; ');
-  return `VALORES DA TABELA para ${guests} convidados, ${dayText}${args.horario ? `, ${formatSlotLabel(String(args.horario))}` : ''}. Linhas prontas para o cliente (copie como estão, um pacote por linha, sem arredondar nem somar nada):\n${quotes.map(quoteLine).join('\n')}\n(Só para você: ${tierInfo}.)${minNote}${betweenNote}${holidayNote}${freeNote} PROIBIDO oferecer ou prometer desconto, condição à vista, parcelamento, brinde ou entrada diferente: se o cliente pedir, diga que as condições de pagamento e o fechamento são com a equipe.`.trim();
+  return `VALORES DA TABELA para ${guests} convidados, ${dayText}${args.horario ? `, ${formatSlotLabel(String(args.horario))}` : ''}. Linhas prontas para o cliente (copie como estão, um pacote por linha, sem arredondar nem somar nada):\n${quotes.map(quoteLine).join('\n')}\n(Só para você: ${tierInfo}.)${minNote}${betweenNote}${holidayNote}${freeNote} Se o cliente pedir a diferença entre dois pacotes, pode dizer a diferença exata (um valor menos o outro) — não passe para a equipe por isso. PROIBIDO oferecer ou prometer desconto, condição à vista, parcelamento, brinde ou entrada diferente: se o cliente pedir, diga que as condições de pagamento e o fechamento são com a equipe.`.trim();
 }
 
 // Legendas antes de fotos/vídeo/PDF quando a IA envia o material: as que ela
@@ -1892,10 +1892,10 @@ export async function maybeHandleWithAiAgent(
       }
       // Trava de valores: todo "R$" da resposta tem de ter vindo da tabela (neste
       // turno ou já dito antes na conversa). Valor inventado não sai.
-      const allowedValues = [
+      const allowedValues = allowedMoneyValues([
         ...(conv.__quotedValues || []),
         ...chatMessages.filter((m) => m.role === 'assistant').flatMap((m) => moneyValuesIn(m.content)),
-      ];
+      ]);
       const unknownValues = moneyValuesIn(finalText).filter((v) => !allowedValues.some((a) => Math.abs(a - v) < 0.01));
       if (unknownValues.length > 0) {
         console.error(`[AI Agent] Resposta citou valor fora da tabela (${unknownValues.map(formatBRL).join(', ')}) — não enviada (conv ${conv.id})`);

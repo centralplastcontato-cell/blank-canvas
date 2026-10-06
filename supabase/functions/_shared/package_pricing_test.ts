@@ -74,3 +74,11 @@ Deno.test("moneyValuesIn: lê valores em reais do texto", () => {
   assertEquals(moneyValuesIn("Fica R$ 5.600,00, ou R$5600 e R$ 60,5 por pessoa"), [5600, 5600, 60.5]);
   assertEquals(moneyValuesIn("Sem valores aqui, só 60 convidados"), []);
 });
+
+import { allowedMoneyValues } from "./package-pricing.ts";
+
+Deno.test("allowedMoneyValues: valores da tabela e a diferença entre dois deles", () => {
+  const allowed = allowedMoneyValues([6890, 8530, 9670]);
+  for (const v of [6890, 8530, 9670, 1640, 1140, 2780]) assertEquals(allowed.includes(v), true);
+  assertEquals(allowed.includes(1000), false);
+});
