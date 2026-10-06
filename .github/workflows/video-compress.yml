@@ -1,0 +1,71 @@
+name: Comprimir vídeo de apresentação
+
+# Baixa o(s) vídeo(s) ativo(s) de Materiais de venda de uma empresa, mostra o
+# formato (codec, perfil, cor) e gera uma versão comprimida para o WhatsApp:
+# H.264 main, yuv420p, AAC, +faststart, 3–5 MB, com primeiro quadro limpo
+# (é dele que o WhatsApp tira a miniatura). Só lê o banco — o arquivo novo
+# fica nos artefatos desta execução para alguém subir em Materiais de venda.
+
+on:
+  push:
+    branches: ["claude/**"]
+    paths: [".github/video-request.json"]
+
+jobs:
+  video:
+    name: Comprimir vídeo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null && ffmpeg -version | head -1
+      - name: Buscar e comprimir
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          REQ=.github/video-request.json
+          COMPANY=$(jq -r .company_id "$REQ")
+          TARGET_MB=$(jq -r '.target_mb // 4.2' "$REQ")
+          SS=$(jq -r '.start_seconds // 0' "$REQ")
+          case "$COMPANY" in *[!0-9a-f-]*|"") echo "company_id inválido"; exit 1;; esac
+          SQL="select name, file_url from sales_materials where company_id = '${COMPANY}' and type = 'video' and is_active order by created_at"
+          curl -sS -X POST "https://api.supabase.com/v1/projects/rsezgnkfhodltrsewlhz/database/query" \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" -H "Content-Type: application/json" \
+            -d "$(jq -n --arg q "$SQL" '{query:$q}')" -o rows.json
+          jq -r '.[] | "VÍDEO: \(.name) | \(.file_url)"' rows.json || { cat rows.json; exit 1; }
+          mkdir -p out
+          i=0
+          jq -r '.[].file_url' rows.json | while read -r URL; do
+            i=$((i+1))
+            curl -sSL "$URL" -o "in_$i"
+            echo "=== Vídeo $i: $(wc -c < "in_$i") bytes"
+            ffprobe -v error -show_entries format=format_name,duration,bit_rate:stream=index,codec_type,codec_name,profile,pix_fmt,width,height,r_frame_rate,color_space,color_transfer,color_primaries,bit_rate,sample_rate,channels:stream_side_data=rotation -of default=nw=1 "in_$i"
+            echo "--- primeiros quadros (tipo/chave):"
+            ffprobe -v error -select_streams v:0 -read_intervals "%+#5" -show_entries frame=pict_type,key_frame,pts_time -of csv=p=0 "in_$i"
+            DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "in_$i")
+            DUR=$(awk -v d="$DUR" -v s="$SS" 'BEGIN{printf "%.2f", d - s}')
+            VBR=$(awk -v d="$DUR" -v t="$TARGET_MB" 'BEGIN{v=int(t*8192/d - 96); if (v>2500) v=2500; print v}')
+            LONG=1280; if [ "$VBR" -lt 700 ]; then LONG=854; fi
+            echo "duração ${DUR}s → vídeo ${VBR} kbps, lado maior ${LONG}px"
+            VF="scale='if(gt(iw,ih),min(${LONG},iw),-2)':'if(gt(iw,ih),-2,min(${LONG},ih))',format=yuv420p"
+            COMMON=(-ss "$SS" -i "in_$i" -map 0:v:0 -map 0:a:0? -vf "$VF" -fpsmax 30 -c:v libx264 -preset slow -profile:v main -level:v 4.0 -b:v "${VBR}k" -maxrate "$((VBR*2))k" -bufsize "$((VBR*2))k" -g 60 -map_metadata -1 -metadata:s:v rotate=0)
+            ffmpeg -y -v error "${COMMON[@]}" -pass 1 -passlogfile "p$i" -an -f mp4 /dev/null
+            ffmpeg -y -v error "${COMMON[@]}" -pass 2 -passlogfile "p$i" -c:a aac -b:a 96k -ac 2 -movflags +faststart "out/apresentacao_$i.mp4"
+            echo "--- saída: $(wc -c < "out/apresentacao_$i.mp4") bytes"
+            ffprobe -v error -show_entries format=duration,bit_rate:stream=codec_name,profile,pix_fmt,width,height,r_frame_rate -of default=nw=1 "out/apresentacao_$i.mp4"
+            ffmpeg -y -v error -ss 1 -i "out/apresentacao_$i.mp4" -frames:v 1 -q:v 2 "out/capa_$i.jpg"
+            # Miniaturas pequenas no log para conferir o primeiro quadro (antes/depois)
+            for T in 0 0.5 2; do
+              for SRC in in out; do
+                F="in_$i"; [ "$SRC" = out ] && F="out/apresentacao_$i.mp4"
+                ffmpeg -y -v error -ss "$T" -i "$F" -frames:v 1 -vf "scale=240:-2" -q:v 6 "thumb.jpg" || continue
+                echo "THUMB ${SRC} ${i} t=${T} BEGIN"; base64 -w0 thumb.jpg; echo; echo "THUMB END"
+              done
+            done
+          done
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: video-comprimido
+          path: out/
+          retention-days: 30
