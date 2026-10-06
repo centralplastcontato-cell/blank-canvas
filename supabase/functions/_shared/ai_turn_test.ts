@@ -157,3 +157,16 @@ Deno.test("repliesSinceVisitInvite: convite sem a palavra 'visita' também conta
   ]), 0);
   assertEquals(clientAsksVisit("qual o horário da festa?"), false);
 });
+
+Deno.test("repliesSinceVisitInvite: fotos/vídeo/PDF seguidos contam como uma vez só", () => {
+  assertEquals(repliesSinceVisitInvite([
+    { role: "assistant", content: "Posso te receber na quarta às 10h? 😊" },
+    { role: "user", content: "vou ver" },
+    { role: "assistant", content: "Olha só o espaço 😍" },
+    { role: "assistant", content: "[image]" },
+    { role: "assistant", content: "[image]" },
+    { role: "assistant", content: "[video] Conheça o Castelo" },
+    { role: "assistant", content: "Já te mandei tudo 🎉" },
+    { role: "user", content: "legal" },
+  ]), 1);
+});
