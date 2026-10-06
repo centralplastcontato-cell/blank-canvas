@@ -77,3 +77,9 @@ Deno.test("pickPartyDates: com preferência não completa com outros dias (simul
   // sem nenhum dia preferido livre, mostra os primeiros disponíveis em ordem
   assertEquals(pickPartyDates(free.filter((f) => f.dow !== 6), [6], 2).map((d) => d.date), ["2026-11-01", "2026-11-02"]);
 });
+
+Deno.test("monthRange: aceita o ano dito pelo cliente", () => {
+  assertEquals(monthRange(11, "2026-10-06", 2027), { from: "2027-11-01", to: "2027-11-30" });
+  assertEquals(monthRange(4, "2026-10-06"), { from: "2027-04-01", to: "2027-04-30" });
+  assertEquals(monthRange(11, "2026-10-06"), { from: "2026-11-01", to: "2026-11-30" });
+});

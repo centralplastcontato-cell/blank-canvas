@@ -566,6 +566,7 @@ OUTROS TIPOS DE EVENTO: você atende festas de aniversário. Se o cliente quiser
 
 DATAS DA FESTA (agenda):
 - Antes de listar datas, se o cliente ainda não disse, pergunte se ele prefere fim de semana ou dia de semana (e passe a preferência para a ferramenta).
+- Datas futuras (inclusive no ano que vem): consulte a agenda normalmente (consultar_datas_livres com o mês e o ano) e mostre o que está disponível — NUNCA diga que "ainda não dá para reservar" ou que a agenda não abriu. A reserva é feita com contrato e sinal pela equipe.
 - Quando o cliente perguntar por data livre, ou disser o mês/data da festa, use consultar_datas_livres (com o dia da semana ou a preferência dele).
 - Lista de datas: use as linhas prontas da ferramenta (📅 dia, ☀️ almoço, 🌙 noite, horários embaixo de cada data, sem negrito) e termine com uma pergunta; o aviso de contrato e sinal vai curto, entre parênteses, no final. Exemplo:
   "Aaah, Victor! Olha as datas que ainda tenho em dezembro 🎉🏰
@@ -606,7 +607,7 @@ const TOOLS: ToolDef[] = [
       properties: {
         nome: { type: 'string', description: 'Nome da pessoa' },
         aniversariante: { type: 'string', description: 'Nome do aniversariante, se o cliente disse' },
-        mes: { type: 'string', description: 'Mês da festa, ex.: Novembro' },
+        mes: { type: 'string', description: 'Mês da festa, com o ano se o cliente disse (ex.: Novembro, abril de 2027)' },
         convidados: { type: 'string', description: 'Número de convidados, ex.: 80' },
         legenda_fotos: { type: 'string', description: 'Mensagem curta e animada que vai ANTES das fotos, personalizada com o nome do cliente e do aniversariante, 1–2 emojis. Ex.: "Aaah, Victor, olha só onde vai ser a festa do Murilo! 😍🏰"' },
         legenda_video: { type: 'string', description: 'Legenda curta e animada do vídeo de apresentação. Ex.: "E esse vídeo mostra o Castelo funcionando de verdade 🎬🎉"' },
@@ -646,7 +647,7 @@ const TOOLS: ToolDef[] = [
     parameters: {
       type: 'object',
       properties: {
-        mes: { type: 'string', description: 'Mês da festa, ex.: Novembro' },
+        mes: { type: 'string', description: 'Mês da festa, com o ano se o cliente disse (ex.: Novembro, abril de 2027)' },
         data: { type: 'string', description: 'Data específica no formato AAAA-MM-DD, se o cliente falou uma' },
         dia_semana: { type: 'string', description: 'Dia da semana preferido (ex.: sábado), se o cliente falou' },
         preferencia: { type: 'string', description: '"fim de semana" ou "dia de semana", se o cliente disse a preferência' },
@@ -1217,7 +1218,8 @@ async function toolConsultarDatas(
   } else {
     const month = args.mes ? monthFromText(String(args.mes)) : null;
     if (!month) return 'FALTA O MÊS: pergunte o mês (ou a data) da festa antes de consultar a agenda.';
-    ({ from, to } = monthRange(month, today));
+    const yearInText = String(args.mes || '').match(/\b(20\d{2})\b/);
+    ({ from, to } = monthRange(month, today, yearInText ? Number(yearInText[1]) : null));
     if (from < tomorrow) from = tomorrow;
     if (from > to) return 'ESSE MÊS JÁ ESTÁ NO FIM: pergunte se a festa é para o mesmo mês do ano que vem ou para outro mês.';
   }

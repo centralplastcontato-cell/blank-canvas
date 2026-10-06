@@ -108,9 +108,10 @@ export function pickPartyOptions(free: FreeSlot[], preferredDows: number[] = [],
 }
 
 /** Primeiro e último dia do mês pedido, na próxima ocorrência a partir de hoje */
-export function monthRange(month: number, todayYmd: string): { from: string; to: string } {
+export function monthRange(month: number, todayYmd: string, explicitYear?: number | null): { from: string; to: string } {
   const [ty, tm] = todayYmd.split("-").map(Number);
-  const year = month < tm ? ty + 1 : ty;
+  // Ano dito pelo cliente ("novembro de 2027") vale; sem ano, o próximo mês com esse nome
+  const year = explicitYear && explicitYear >= ty ? explicitYear : month < tm ? ty + 1 : ty;
   const from = `${year}-${String(month).padStart(2, "0")}-01`;
   const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
   return { from, to: `${year}-${String(month).padStart(2, "0")}-${String(last).padStart(2, "0")}` };
