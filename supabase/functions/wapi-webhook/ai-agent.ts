@@ -23,6 +23,7 @@ import {
   type ParsedHours,
   parseVisitHours,
   pickTwoOffers,
+  visitSlotsByDay,
   type Slot,
   slotKey,
   teamHoursText,
@@ -499,6 +500,7 @@ interface PromptContext {
   pricePending: boolean; // cliente pediu o valor e ainda não recebeu
   crossedMessage: boolean; // a mensagem do cliente cruzou com a última resposta da IA
   visitText: string | null; // visita já marcada deste cliente
+  visitSlotsText: string; // horários de visita livres dos próximos dias
 }
 
 // Convidar para a visita no máximo a cada 3–4 respostas, ou quando fizer sentido
@@ -576,12 +578,13 @@ DATAS DA FESTA (agenda):
 
 ${ctx.packagesText
     ? `O QUE CADA PACOTE INCLUI (cadastro do buffet — use para explicar e comparar os pacotes; só cite o que está aqui; valores NUNCA daqui, só de consultar_valor_pacote):\n${ctx.packagesText}\n\n`
-    : 'O QUE CADA PACOTE INCLUI: não cadastrado — se perguntarem a diferença entre os pacotes, envie o PDF de pacotes (enviar_materiais, tipo "pacotes") em vez de transferir.\n\n'}${ctx.minPackageGuests ? `PACOTES: o menor pacote é para ${ctx.minPackageGuests} convidados. Se o cliente falar em menos de ${ctx.minPackageGuests} convidados ou pedir orçamento para menos, explique JÁ NA MESMA RESPOSTA (não espere ele perguntar), com naturalidade, que o menor pacote é para ${ctx.minPackageGuests} pessoas e que a equipe explica como fica para um grupo menor.\n\n` : ''}CONVITE PARA VISITA (não seja repetitiva):
+    : 'O QUE CADA PACOTE INCLUI: não cadastrado — se perguntarem a diferença entre os pacotes, envie o PDF de pacotes (enviar_materiais, tipo "pacotes") em vez de transferir.\n\n'}${ctx.minPackageGuests ? `PACOTES: o menor pacote é para ${ctx.minPackageGuests} convidados. Se o cliente falar em menos de ${ctx.minPackageGuests} convidados ou pedir orçamento para menos, explique JÁ NA MESMA RESPOSTA (não espere ele perguntar), com naturalidade, que o menor pacote é para ${ctx.minPackageGuests} pessoas e que a equipe explica como fica para um grupo menor. Se ele pediu o valor e já disse o dia, consulte o valor para ${ctx.minPackageGuests} convidados (consultar_valor_pacote) e passe na mesma resposta, deixando claro que é o valor do pacote mínimo.\n\n` : ''}CONVITE PARA VISITA (não seja repetitiva):
 - ${visitInviteRule(ctx.visitRepliesAgo)}
 
 AGENDAMENTO DE VISITAS:
 - Janelas de visita: ${settings.visit_hours}.
 - Ao oferecer visita, ofereça JÁ NA MESMA MENSAGEM 2 horários concretos, por exemplo: ${offersText}. Nunca diga que vai passar horários sem passá-los.
+- Horários de visita livres nos próximos dias: ${ctx.visitSlotsText}. Se o cliente pedir outro dia ou horário de visita, ofereça desta lista — NUNCA passe para a equipe por causa de horário de visita.
 - Se o cliente pedir um dia/horário fora das janelas ou já ocupado, NÃO transfira: diga com gentileza que nesse horário não dá e ofereça os horários livres mais próximos (a ferramenta agendar_visita devolve quais são).
 - Quando a pessoa confirmar dia e horário, use agendar_visita. Depois confirme por mensagem o dia/horário e diga que a equipe confirma a visita.
 
@@ -1023,7 +1026,7 @@ async function toolRegistrarDados(
   const minGuests = smallestPackageGuests(materials);
   const askedGuests = parseInt(String(bd.convidados || '').replace(/\D/g, ''), 10);
   const minNote = patch.convidados && minGuests && askedGuests && askedGuests < minGuests
-    ? ` IMPORTANTE — explique JÁ NESTA resposta, com naturalidade: o cliente falou em ${askedGuests} convidados, mas o menor pacote é para ${minGuests} pessoas; a equipe explica como fica para um grupo menor.`
+    ? ` IMPORTANTE — explique JÁ NESTA resposta, com naturalidade: o cliente falou em ${askedGuests} convidados, mas o menor pacote é para ${minGuests} pessoas; a equipe explica como fica para um grupo menor. Se ele pediu o valor e já disse o dia, consulte o valor para ${minGuests} convidados e passe nesta mesma resposta (é o valor do pacote mínimo).`
     : '';
 
   const missing = [!bd.mes && 'mês da festa', !bd.convidados && 'número de convidados'].filter(Boolean);
@@ -1191,8 +1194,8 @@ async function toolConsultarDatas(
   const preferredDow = args.dia_semana ? weekdayFromText(String(args.dia_semana)) : null;
   const pref = String(args.preferencia || '').toLowerCase();
   const preferredDows = preferredDow !== null ? [preferredDow]
-    : /fim/.test(pref) ? [5, 6, 0] // fim de semana: sexta, sábado e domingo
-    : /semana|util|útil/.test(pref) ? [1, 2, 3, 4] : [];
+    : /fim/.test(pref) ? [6, 0] // fim de semana: sábado e domingo (o simulador pegou sexta oferecida como fim de semana)
+    : /semana|util|útil/.test(pref) ? [1, 2, 3, 4, 5] : [];
   let from: string;
   let to: string;
   let askedDate: string | null = null;
@@ -1772,6 +1775,9 @@ export async function maybeHandleWithAiAgent(
       packagesText: await loadPackagesText(supabase, instance),
       pricePending: priceRequestPending(chatMessages),
       crossedMessage: crossedWithLastReply(((history || []) as Array<{ from_me: boolean; timestamp: string }>)),
+      visitSlotsText: visitSlotsByDay(available)
+        .map((d) => `${formatDateLong(d.date)}: ${d.times.map((t) => (t.endsWith(':00') ? `${Number(t.slice(0, 2))}h` : t.replace(':', 'h'))).join(', ')}`)
+        .join('; ') || 'nenhum',
       visitText: await (async () => {
         const v = await loadLeadVisit(supabase, conv.lead_id);
         return v ? visitText(v.data_visita, v.horario_visita) : null;

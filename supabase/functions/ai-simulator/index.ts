@@ -14,6 +14,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { DEFAULT_AI_MODEL } from "../_shared/ai-models.ts";
+import { teamHoursText } from "../_shared/business-hours.ts";
 import { AI_ACTOR, AI_ACTOR_HEADER } from "../wapi-webhook/ai-db-guard.ts";
 import {
   agentCostUsd,
@@ -198,14 +199,19 @@ async function finalizeIfDone(runId: string): Promise<void> {
 // inclui) — o avaliador usa para conferir se ela inventou algo
 async function loadKnowledge(companyId: string): Promise<string> {
   const [{ data: settings }, { data: packages }] = await Promise.all([
-    admin.from("ai_agent_settings").select("extra_instructions, visit_hours").eq("company_id", companyId).maybeSingle(),
+    admin.from("ai_agent_settings").select("*").eq("company_id", companyId).maybeSingle(),
     admin.from("company_packages").select("*").eq("company_id", companyId).eq("is_active", true).order("sort_order"),
   ]);
   const pk = ((packages || []) as any[])
     .filter((p) => p.ai_quote !== false)
     .map((p) => `Pacote ${p.name}:\n${p.includes || p.description || "(sem lista)"}`)
     .join("\n\n");
-  return [settings?.extra_instructions || "", settings?.visit_hours ? `Horários de visita: ${settings.visit_hours}` : "", pk]
+  return [
+    settings?.extra_instructions || "",
+    settings?.visit_hours ? `Horários de VISITA ao espaço: ${settings.visit_hours}` : "",
+    `Horário de atendimento da EQUIPE (a IA informa ao passar a conversa): ${teamHoursText(settings?.team_hours)}`,
+    pk,
+  ]
     .filter(Boolean).join("\n\n").slice(0, 16000);
 }
 

@@ -63,3 +63,17 @@ Deno.test("pickPartyDates: agrupa horários por data e prefere o dia pedido", ()
   const days = pickPartyDates(free, [0, 6], 2);
   assertEquals(days.map((d) => `${d.date}:${d.slots.map((s) => s.start).join("+")}`), ["2026-12-05:19:00", "2026-12-06:13:00+19:00"]);
 });
+
+Deno.test("pickPartyDates: com preferência não completa com outros dias (simulador: sábado + domingo + segunda)", () => {
+  const free = freePartySlots({
+    from: "2026-11-01", to: "2026-11-30", slots: SLOTS,
+    events: ["2026-11-07", "2026-11-14", "2026-11-28"].flatMap((d) => [
+      { event_date: d, start_time: "13:00", end_time: "17:00", status: "confirmado", unit: null },
+      { event_date: d, start_time: "19:00", end_time: "23:00", status: "confirmado", unit: null },
+    ]),
+    preReservations: [],
+  });
+  assertEquals(pickPartyDates(free, [6], 3).map((d) => d.date), ["2026-11-21"]);
+  // sem nenhum dia preferido livre, mostra os primeiros disponíveis em ordem
+  assertEquals(pickPartyDates(free.filter((f) => f.dow !== 6), [6], 2).map((d) => d.date), ["2026-11-01", "2026-11-02"]);
+});

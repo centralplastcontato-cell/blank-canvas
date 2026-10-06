@@ -144,7 +144,7 @@ export function pickPartyDates(free: FreeSlot[], preferredDows: number[] = [], m
     byDate.set(f.date, day);
   }
   const days = Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+  // Com preferência, só os dias pedidos (em ordem); outros dias só se não houver nenhum
   const preferred = preferredDows.length > 0 ? days.filter((d) => preferredDows.includes(d.dow)) : [];
-  const rest = days.filter((d) => !preferred.includes(d));
-  return [...preferred, ...rest].slice(0, maxDates);
+  return (preferred.length > 0 ? preferred : days).slice(0, maxDates);
 }
