@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { formatBRLShort, formatDateLong, formatSlotLabel, packageEmoji, prettyPackageName } from "./whatsapp-format.ts";
+import { formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "./whatsapp-format.ts";
 
 Deno.test("formatDateLong: data por extenso", () => {
   assertEquals(formatDateLong("2026-12-26"), "sábado, 26 de dezembro");
@@ -22,4 +22,10 @@ Deno.test("prettyPackageName / packageEmoji", () => {
   assertEquals(prettyPackageName("SUPER CASTELO"), "Super Castelo");
   assertEquals(prettyPackageName("Festa da Alegria"), "Festa da Alegria");
   assertEquals([packageEmoji("CASTELO"), packageEmoji("SUPER CASTELO"), packageEmoji("CASTELO PREMIUM"), packageEmoji("Outro")], ["🏰", "⭐", "👑", "🎉"]);
+});
+
+Deno.test("formatDayHeader / formatSlotRange: lista de datas da IA", () => {
+  assertEquals(formatDayHeader("2026-12-01"), "📅 Terça, 1 de dezembro");
+  assertEquals(formatSlotRange("13:00", "17:00"), "☀️ Almoço (13h às 17h)");
+  assertEquals(formatSlotRange("19:00", "23:00"), "🌙 Noite (19h às 23h)");
 });

@@ -125,3 +125,26 @@ export function monthFromText(text: string): number | null {
   const i = MONTHS.findIndex((m) => t.startsWith(m));
   return i >= 0 ? i + 1 : null;
 }
+
+export interface FreeDay {
+  date: string;
+  dow: number;
+  slots: PartySlot[];
+}
+
+/**
+ * Até `maxDates` datas com seus horários livres (agrupados por data),
+ * primeiro as do(s) dia(s) da semana preferido(s), em ordem de data.
+ */
+export function pickPartyDates(free: FreeSlot[], preferredDows: number[] = [], maxDates = 3): FreeDay[] {
+  const byDate = new Map<string, FreeDay>();
+  for (const f of free) {
+    const day = byDate.get(f.date) || { date: f.date, dow: f.dow, slots: [] };
+    day.slots.push(f.slot);
+    byDate.set(f.date, day);
+  }
+  const days = Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+  const preferred = preferredDows.length > 0 ? days.filter((d) => preferredDows.includes(d.dow)) : [];
+  const rest = days.filter((d) => !preferred.includes(d));
+  return [...preferred, ...rest].slice(0, maxDates);
+}

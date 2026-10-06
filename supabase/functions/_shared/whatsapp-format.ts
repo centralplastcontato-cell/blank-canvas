@@ -39,3 +39,20 @@ export function packageEmoji(name: string): string {
   if (n.includes("castelo")) return "🏰";
   return "🎉";
 }
+
+const hourText = (t: string) => {
+  const [h, min] = t.split(":").map(Number);
+  return min ? `${h}h${String(min).padStart(2, "0")}` : `${h}h`;
+};
+
+/** "📅 Sábado, 5 de dezembro" */
+export function formatDayHeader(ymd: string): string {
+  const long = formatDateLong(ymd);
+  return `📅 ${long.charAt(0).toUpperCase()}${long.slice(1)}`;
+}
+
+/** "☀️ Almoço (13h às 17h)" / "🌙 Noite (19h às 23h)" */
+export function formatSlotRange(start: string, end: string): string {
+  const night = Number(start.split(":")[0]) >= 16;
+  return `${night ? "🌙 Noite" : "☀️ Almoço"} (${hourText(start)} às ${hourText(end)})`;
+}

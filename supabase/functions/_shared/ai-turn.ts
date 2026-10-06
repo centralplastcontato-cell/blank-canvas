@@ -129,3 +129,18 @@ export function priceRequestPending(turns: Turn[]): boolean {
   }
   return asked;
 }
+
+// A última mensagem do cliente cruzou com a última resposta da IA (chegou
+// antes dela ou poucos segundos depois)? Então ele ainda não viu a pergunta.
+export function crossedWithLastReply(rows: Array<{ from_me: boolean; timestamp: string }>, windowMs = 5000): boolean {
+  let lastOut = -Infinity;
+  let lastIn = -Infinity;
+  for (const r of rows) {
+    const t = Date.parse(r.timestamp);
+    if (isNaN(t)) continue;
+    if (r.from_me) lastOut = Math.max(lastOut, t);
+    else lastIn = Math.max(lastIn, t);
+  }
+  if (!isFinite(lastOut) || !isFinite(lastIn)) return false;
+  return lastIn - lastOut < windowMs && lastOut - lastIn < 60000;
+}

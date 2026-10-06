@@ -59,6 +59,8 @@ export async function sendQualificationMaterials(
     message_delay_seconds?: number;
   } | null,
   send: MaterialSender,
+  // Textos próprios (a IA escreve personalizados); sem eles, valem as legendas fixas do bot
+  texts?: { photosIntro?: string | null; videoCaption?: string | null; pdfIntro?: string | null },
 ): Promise<{ sentAny: boolean; failedSteps: string[]; pdfGuestCount?: number | null }> {
   const failedSteps: string[] = [];
   let sentAny = false;
@@ -199,7 +201,7 @@ export async function sendQualificationMaterials(
 
       if (photos.length > 0) {
         console.log(`[Bot Materials] Sending ${photos.length} photos from collection`);
-        const introText = photosIntro.replace(/\{unidade\}/gi, companyName).replace(/\{empresa\}/gi, companyName);
+        const introText = texts?.photosIntro?.trim() || photosIntro.replace(/\{unidade\}/gi, companyName).replace(/\{empresa\}/gi, companyName);
         await sendText(introText, 'photos_intro');
         await delay(messageDelay / 2);
 
@@ -218,7 +220,7 @@ export async function sendQualificationMaterials(
       // Otherwise keep legacy behavior (single video) to avoid changing other clients.
       const videosToSend = chosenMode ? presentationVideos : [presentationVideos[0]];
       const videoCaption = captionMap['video'] || `🎬 Conheça o ${companyName}! ✨`;
-      const caption = videoCaption.replace(/\{unidade\}/gi, companyName).replace(/\{empresa\}/gi, companyName);
+      const caption = texts?.videoCaption?.trim() || videoCaption.replace(/\{unidade\}/gi, companyName).replace(/\{empresa\}/gi, companyName);
 
       for (let i = 0; i < videosToSend.length; i++) {
         const video = videosToSend[i];
@@ -266,7 +268,7 @@ export async function sendQualificationMaterials(
         // o texto fala da quantidade do pacote enviado, não da pedida.
         pdfGuestCount = typeof firstPdf.guest_count === 'number' ? firstPdf.guest_count : null;
         const guestsText = pdfGuestCount && pdfGuestCount !== guestCount ? `${pdfGuestCount} pessoas` : guestsStr;
-        const pdfIntroText = fillPdfIntro(pdfIntro, {
+        const pdfIntroText = texts?.pdfIntro?.trim() || fillPdfIntro(pdfIntro, {
           nome: firstNameOrEmpty(botData.nome),
           convidados: guestsText,
           empresa: companyName,

@@ -28,11 +28,11 @@ import {
   teamHoursText,
 } from "../_shared/business-hours.ts";
 import { formatBRL, holidayName, isHolidayEveYmd, isHolidayYmd, localHolidaysFrom, moneyValuesIn, type PackageQuote, type PartyDay, quotePackages, weekdayYmd } from "../_shared/package-pricing.ts";
-import { addDaysYmd, type FreeSlot, freePartySlots, monthFromText, monthRange, parsePartySlots, pickPartyOptions, weekdayOf } from "../_shared/party-availability.ts";
+import { addDaysYmd, type FreeDay, type FreeSlot, freePartySlots, monthFromText, monthRange, parsePartySlots, pickPartyDates, weekdayOf } from "../_shared/party-availability.ts";
 import { waitForMediaAck } from "../_shared/media-ack.ts";
-import { formatBRLShort, formatDateLong, formatSlotLabel, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
+import { formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
 import { guardAiDb } from "./ai-db-guard.ts";
-import { debounceMsFor, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, teamRepliedAfter } from "../_shared/ai-turn.ts";
+import { crossedWithLastReply, debounceMsFor, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 
 type Json = Record<string, unknown>;
@@ -226,23 +226,43 @@ const teamHoursOf = (settings: AiSettings): ParsedHours =>
   parseVisitHours(teamHoursText(settings.team_hours));
 
 // Visitas já marcadas na unidade (um horário = uma visita)
-async function loadBookedSlots(supabase: any, instance: AgentInstance): Promise<Set<string>> {
+// excludeLeadId: a visita do próprio cliente nunca conta como conflito para ele
+async function loadBookedSlots(supabase: any, instance: AgentInstance, excludeLeadId?: string | null): Promise<Set<string>> {
   const today = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
   const { data } = await supabase
     .from('lead_visits')
-    .select('data_visita, horario_visita, status_visita, unit')
+    .select('data_visita, horario_visita, status_visita, unit, lead_id')
     .eq('company_id', instance.company_id)
     .gte('data_visita', today)
     .in('status_visita', ['agendada', 'confirmada', 'remarcada'])
     .limit(1000);
   const booked = new Set<string>();
-  for (const v of (data || []) as Array<{ data_visita: string; horario_visita: string | null; unit: string | null }>) {
+  for (const v of (data || []) as Array<{ data_visita: string; horario_visita: string | null; unit: string | null; lead_id?: string | null }>) {
+    if (excludeLeadId && v.lead_id === excludeLeadId) continue;
     if (v.unit && instance.unit && v.unit.trim().toLowerCase() !== instance.unit.trim().toLowerCase()) continue;
     const t = normalizeTime(v.horario_visita || '');
     if (t) booked.add(slotKey({ date: String(v.data_visita).slice(0, 10), time: t }));
   }
   return booked;
 }
+
+// Próxima visita ativa deste lead (agendada/confirmada/remarcada, de hoje em diante)
+async function loadLeadVisit(supabase: any, leadId: string | null): Promise<{ id: string; data_visita: string; horario_visita: string } | null> {
+  if (!leadId) return null;
+  const today = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+  const { data } = await supabase
+    .from('lead_visits')
+    .select('id, data_visita, horario_visita')
+    .eq('lead_id', leadId)
+    .gte('data_visita', today)
+    .in('status_visita', ['agendada', 'confirmada', 'remarcada'])
+    .order('data_visita', { ascending: true })
+    .limit(1);
+  const v = (data || [])[0];
+  return v ? { id: v.id, data_visita: String(v.data_visita).slice(0, 10), horario_visita: normalizeTime(v.horario_visita || '') || String(v.horario_visita || '') } : null;
+}
+
+const visitText = (date: string, time: string) => `${formatDateLong(date)}, às ${time.endsWith(':00') ? `${Number(time.slice(0, 2))}h` : time.replace(':', 'h')}`;
 
 // Texto com o horário da equipe para o cliente, dizendo quando volta se estiver fechado
 function teamHoursMessage(settings: AiSettings, nowMs = Date.now()): string {
@@ -471,6 +491,8 @@ interface PromptContext {
   minPackageGuests: number | null;
   packagesText: string | null; // o que cada pacote inclui (Operações → Pacotes)
   pricePending: boolean; // cliente pediu o valor e ainda não recebeu
+  crossedMessage: boolean; // a mensagem do cliente cruzou com a última resposta da IA
+  visitText: string | null; // visita já marcada deste cliente
 }
 
 // Convidar para a visita no máximo a cada 3–4 respostas, ou quando fizer sentido
@@ -496,20 +518,21 @@ COMO CONVERSAR:
 - ${ctx.isFirstReply ? 'ESTA É A SUA PRIMEIRA RESPOSTA: apresente-se (diga seu nome, se ele estiver nas informações do buffet, e que é do ' + companyName + ') e, se ainda não souber o nome do cliente, já pergunte o nome dele NESTA mensagem, junto com a resposta ao que ele perguntou.' : 'Se ainda não souber o nome do cliente, não interrompa a conversa para pedir — aproveite um momento natural.'}
 - Dados do cliente já registrados: ${ctx.knownDataText}. Não pergunte de novo o que já sabe.${ctx.pricePending ? '\n- O CLIENTE JÁ PEDIU O VALOR e ainda não recebeu: assim que você souber a quantidade de convidados e o dia/data (já registrados ou nesta mensagem), chame consultar_valor_pacote e passe o valor NESTA resposta, sem esperar ele pedir de novo. Se ainda faltar um dos dois, pergunte só o que falta.' : ''}
 - ${ctx.pendingUserMessages > 1 ? `O cliente mandou ${ctx.pendingUserMessages} mensagens seguidas desde a sua última resposta: responda a TODAS as perguntas delas numa única mensagem, sem ignorar nenhuma.` : 'Se o cliente mandar várias perguntas, responda todas numa única mensagem.'}
-- Uma pergunta por vez. Nunca envie listas de opções numeradas — converse como gente.
+- Uma pergunta por vez, e UMA mensagem por vez: depois de perguntar, espere a resposta antes de perguntar outra coisa. Nunca envie listas de opções numeradas — converse como gente.
+- Nunca use a palavra "sistema" com o cliente (nada de "o sistema já te envia"): fale em primeira pessoa ("já te mando as fotos").${ctx.crossedMessage ? '\n- ATENÇÃO: a mensagem do cliente chegou junto com a sua última resposta, então ele ainda não viu a sua pergunta. NÃO faça uma pergunta nova: responda só o que ele disse agora (se precisar) e deixe a sua pergunta anterior em aberto. Se não houver nada a responder, mande só uma frase curta.' : ''}${ctx.visitText ? `\n- Este cliente JÁ TEM VISITA MARCADA: ${ctx.visitText}. "Ok", "beleza", "obrigado" depois disso são só confirmação — responda com carinho, sem agendar de novo.` : ''}
 - Descubra naturalmente: nome da pessoa, mês/data desejada da festa e número de convidados, se ainda não souber.
 - Quebre objeções com empatia ("vou pensar" → ofereça a visita sem compromisso; "tá caro" → valorize o que está incluso e chame para conhecer o espaço).
 - Áudios do cliente chegam para você já transcritos e fotos chegam descritas: responda ao conteúdo normalmente, sem comentar que foi transcrito. Se aparecer que um áudio ou uma foto não pôde ser ouvido/visto, peça com gentileza para a pessoa escrever.
 
 FORMATAÇÃO NO WHATSAPP:
-- Negrito do WhatsApp com asterisco simples (*assim*) para nomes de pacotes e informações-chave (valor, data, horário). Nada de **duplo**, # ou listas com hífen.
+- Negrito do WhatsApp com asterisco simples (*assim*) só para nomes de pacotes e valores. Datas e horários SEM negrito (o celular já sublinha e fica pesado). Nada de **duplo**, # ou listas com hífen.
 - Datas sempre por extenso ("sábado, 26 de dezembro"), nunca "26/12". Horários como "almoço (13h)" ou "noite (19h)", nunca "13:00" (o WhatsApp sublinha como link). O que vier entre [colchetes] nas ferramentas é só para você — não copie.
 - Mensagem de valores: comece com entusiasmo, use as linhas prontas da ferramenta (um pacote por linha, com o emoji: 🏰 Castelo, ⭐ Super Castelo, 👑 Castelo Premium) e termine com uma pergunta que puxe o próximo passo. Exemplo:
-  "Aaah, que demais, Victor! 🥳 Olha os valores para 60 convidados no *sábado, 26 de dezembro*:
+  "Aaah, que demais, Victor! 🥳 Olha os valores para 60 convidados no sábado, 26 de dezembro:
   🏰 *Castelo* — R$ 6.890
   ⭐ *Super Castelo* — R$ 8.530
   👑 *Castelo Premium* — R$ 9.670
-  E o melhor: esse dia ainda tem os dois horários livres, *almoço (13h)* ou *noite (19h)* 🎉
+  E o melhor: esse dia ainda tem os dois horários livres, almoço (13h) ou noite (19h) 🎉
   Quer que eu te conte o que cada pacote tem? 😍"
 
 REGRAS INEGOCIÁVEIS:
@@ -520,7 +543,7 @@ REGRAS INEGOCIÁVEIS:
 4. Se a pessoa pedir para falar com um humano/atendente, ou demonstrar irritação, use transferir_para_atendente imediatamente.
 5. Não diga que você é uma IA a menos que perguntem diretamente; se perguntarem, admita com naturalidade.
 
-DADOS DA FESTA: sempre que o cliente informar nome, mês da festa ou número de convidados, chame registrar_dados_festa. Assim que mês e convidados estiverem registrados, o sistema envia sozinho fotos, vídeo e PDF de pacotes — não chame enviar_materiais para eles depois disso; só comente brevemente e convide para a visita.
+DADOS DA FESTA: sempre que o cliente informar nome, mês da festa ou número de convidados, chame registrar_dados_festa. Assim que mês e convidados estiverem registrados, fotos, vídeo e PDF de pacotes saem automaticamente, cada um com a legenda que você escrever (legenda_fotos, legenda_video, legenda_pdf — curtas, animadas, com o nome do cliente e do aniversariante; escreva-as SEMPRE que chamar registrar_dados_festa). Não chame enviar_materiais para eles depois disso; só comente brevemente e convide para a visita. Pergunte o nome do aniversariante de forma natural se ainda não souber.
 
 MATERIAIS (ferramenta enviar_materiais):
 - Cada material vai NO MÁXIMO UMA VEZ por conversa. O PDF de pacotes só quando o cliente pedir o PDF/os pacotes ou quando consultar_valor_pacote não trouxer valor — nunca em resposta a outras perguntas.
@@ -530,7 +553,17 @@ MATERIAIS (ferramenta enviar_materiais):
 OUTROS TIPOS DE EVENTO: você atende festas de aniversário. Se o cliente quiser formatura, festa escolar, confraternização, evento corporativo ou outro evento que não seja aniversário, NÃO passe valor nem compare pacotes: pergunte (o que ainda não souber) o tipo de evento, a data e a quantidade de pessoas, e então use transferir_para_atendente com o motivo no formato "Evento: … | Data: … | Pessoas: …".
 
 DATAS DA FESTA (agenda):
-- Quando o cliente perguntar por data livre, ou disser o mês/data da festa, use consultar_datas_livres (de preferência com o dia da semana que ele quer).
+- Antes de listar datas, se o cliente ainda não disse, pergunte se ele prefere fim de semana ou dia de semana (e passe a preferência para a ferramenta).
+- Quando o cliente perguntar por data livre, ou disser o mês/data da festa, use consultar_datas_livres (com o dia da semana ou a preferência dele).
+- Lista de datas: use as linhas prontas da ferramenta (📅 dia, ☀️ almoço, 🌙 noite, horários embaixo de cada data, sem negrito) e termine com uma pergunta; o aviso de contrato e sinal vai curto, entre parênteses, no final. Exemplo:
+  "Aaah, Victor! Olha as datas que ainda tenho em dezembro 🎉🏰
+  📅 Terça, 1 de dezembro
+  ☀️ Almoço (13h às 17h)
+  🌙 Noite (19h às 23h)
+  📅 Quarta, 2 de dezembro
+  ☀️ Almoço (13h às 17h)
+  Qual delas combina mais com a festa do Murilo? 😍 (A data fica garantida com contrato e sinal ✨)"
+- Fale "tenho o sábado, 5 de dezembro, disponível" — nunca "tem festa sim no sábado" (parece que já tem festa marcada).
 - Ofereça no máximo 2 ou 3 opções por vez. Diga sempre "disponível neste momento" e que a data só fica garantida com contrato e sinal com a equipe.
 - Você NÃO reserva, NÃO segura e NÃO bloqueia datas — nunca diga que fez isso. Se o cliente quiser garantir a data, ofereça passar para a equipe fechar.
 - Quando o cliente escolher uma data, use essa data (e o horário) em consultar_valor_pacote para dar o valor certo (dia da semana, véspera ou feriado).
@@ -554,25 +587,30 @@ ${settings.extra_instructions ? `\nINFORMAÇÕES DO BUFFET (fonte única para fa
 const TOOLS: ToolDef[] = [
   {
     name: 'registrar_dados_festa',
-    description: 'Registra no sistema o nome, o mês da festa e o número de convidados assim que o cliente informar (pode chamar com só um deles). Quando mês e convidados estiverem registrados, o sistema envia AUTOMATICAMENTE fotos, vídeo e PDF de pacotes ao cliente.',
+    description: 'Registra o nome, o aniversariante, o mês da festa e o número de convidados assim que o cliente informar (pode chamar com só um deles). Quando mês e convidados estiverem registrados, fotos, vídeo e PDF de pacotes são enviados AUTOMATICAMENTE ao cliente, cada um precedido pelas suas legendas (escreva-as sempre).',
     parameters: {
       type: 'object',
       properties: {
         nome: { type: 'string', description: 'Nome da pessoa' },
+        aniversariante: { type: 'string', description: 'Nome do aniversariante, se o cliente disse' },
         mes: { type: 'string', description: 'Mês da festa, ex.: Novembro' },
         convidados: { type: 'string', description: 'Número de convidados, ex.: 80' },
+        legenda_fotos: { type: 'string', description: 'Mensagem curta e animada que vai ANTES das fotos, personalizada com o nome do cliente e do aniversariante, 1–2 emojis. Ex.: "Aaah, Victor, olha só onde vai ser a festa do Murilo! 😍🏰"' },
+        legenda_video: { type: 'string', description: 'Legenda curta e animada do vídeo de apresentação. Ex.: "E esse vídeo mostra o Castelo funcionando de verdade 🎬🎉"' },
+        legenda_pdf: { type: 'string', description: 'Mensagem curta que vai ANTES do PDF de pacotes, com a quantidade de convidados. Ex.: "E aqui estão os nossos pacotes pra 80 convidados 📋✨". Sem valores.' },
       },
     },
   },
   {
     name: 'agendar_visita',
-    description: 'Registra a visita no sistema quando o cliente CONFIRMAR dia e horário. Use somente após confirmação explícita.',
+    description: 'Registra a visita quando o cliente CONFIRMAR dia e horário. Use somente após confirmação explícita de um NOVO pedido — "ok", "beleza", "obrigado" depois do agendamento são só confirmação, não chame de novo. Cada cliente tem no máximo uma visita; para mudar a data dela use remarcar=true.',
     parameters: {
       type: 'object',
       properties: {
         data: { type: 'string', description: 'Data da visita no formato YYYY-MM-DD' },
         horario: { type: 'string', description: 'Horário no formato HH:MM (ex: 10:00, 15:30)' },
         nome_cliente: { type: 'string', description: 'Nome da pessoa, se ela informou' },
+        remarcar: { type: 'boolean', description: 'true só se o cliente pediu explicitamente para mudar a visita que já tem' },
       },
       required: ['data', 'horario'],
     },
@@ -598,6 +636,7 @@ const TOOLS: ToolDef[] = [
         mes: { type: 'string', description: 'Mês da festa, ex.: Novembro' },
         data: { type: 'string', description: 'Data específica no formato AAAA-MM-DD, se o cliente falou uma' },
         dia_semana: { type: 'string', description: 'Dia da semana preferido (ex.: sábado), se o cliente falou' },
+        preferencia: { type: 'string', description: '"fim de semana" ou "dia de semana", se o cliente disse a preferência' },
       },
     },
   },
@@ -677,7 +716,7 @@ async function toolAgendarVisita(
   phone: string,
   contactName: string | null,
   settings: AiSettings,
-  args: { data?: string; horario?: string; nome_cliente?: string },
+  args: { data?: string; horario?: string; nome_cliente?: string; remarcar?: boolean },
 ): Promise<string> {
   const dataVisita = (args.data || '').trim();
   const horario = normalizeTime(args.horario || '') || '';
@@ -685,10 +724,20 @@ async function toolAgendarVisita(
     return 'ERRO: data ou horário em formato inválido. Peça a confirmação do dia e horário novamente.';
   }
 
+  // Um lead = no máximo uma visita marcada. Já tem? Só confirma (ou remarca, se pedido).
+  const existing = await loadLeadVisit(supabase, conv.lead_id);
+  if (existing && existing.data_visita === dataVisita && existing.horario_visita === horario) {
+    console.log(`[AI Agent] Visita ${dataVisita} ${horario} já é deste cliente — só confirmando`);
+    return `JÁ AGENDADA: esta visita já está marcada para o cliente (${visitText(existing.data_visita, existing.horario_visita)}). NÃO agende de novo — só confirme com carinho, ex.: "Sua visita está confirmada para ${visitText(existing.data_visita, existing.horario_visita)} 😊".`;
+  }
+  if (existing && !args.remarcar) {
+    return `JÁ TEM VISITA: o cliente já tem visita marcada para ${visitText(existing.data_visita, existing.horario_visita)}. NÃO crie outra. Se ele só confirmou (ok, beleza, obrigado), apenas confirme essa visita. Se ele pediu EXPLICITAMENTE para mudar o dia/horário, chame agendar_visita de novo com remarcar=true.`;
+  }
+
   // Fora das janelas, já passou ou já ocupado: NÃO transfere — devolve os
   // horários livres mais próximos para a IA oferecer.
   const visitHours = parseVisitHours(settings.visit_hours);
-  const booked = await loadBookedSlots(supabase, instance);
+  const booked = await loadBookedSlots(supabase, instance, conv.lead_id);
   const available = listAvailableSlots(visitHours, Date.now(), booked, { days: 21, minLeadMinutes: 60, max: 1000 });
   const requested: Slot = { date: dataVisita, time: horario };
   const isAvailable = available.some((sl) => slotKey(sl) === slotKey(requested));
@@ -705,6 +754,27 @@ async function toolAgendarVisita(
 
   const leadId = await ensureLead(supabase, instance, conv, phone, contactName, args.nome_cliente);
   if (!leadId) return 'ERRO: não foi possível registrar o lead. Use transferir_para_atendente.';
+
+  // Remarcação: muda a visita que já existe (o lead nunca fica com duas)
+  if (existing) {
+    const { error: upErr } = await supabase.from('lead_visits')
+      .update({ data_visita: dataVisita, horario_visita: horario, status_visita: 'remarcada' })
+      .eq('id', existing.id);
+    if (upErr) {
+      console.error('[AI Agent] lead_visits update error:', upErr);
+      return 'ERRO: falha ao remarcar a visita. Use transferir_para_atendente.';
+    }
+    await supabase.from('lead_history').insert({
+      lead_id: leadId,
+      company_id: instance.company_id,
+      user_id: null,
+      user_name: 'IA (beta)',
+      action: 'Visita remarcada',
+      old_value: `${existing.data_visita.split('-').reverse().join('/')} às ${existing.horario_visita}`,
+      new_value: `${dataVisita.split('-').reverse().join('/')} às ${horario}`,
+    }).then(({ error: hErr }: { error: unknown }) => { if (hErr) console.error('[AI Agent] lead_history error:', hErr); });
+    return `OK: visita remarcada para ${visitText(dataVisita, horario)}. Confirme para o cliente.`;
+  }
 
   const { error } = await supabase.from('lead_visits').insert({
     lead_id: leadId,
@@ -732,7 +802,7 @@ async function toolAgendarVisita(
     new_value: `${dataVisita.split('-').reverse().join('/')} às ${horario}`,
   }).then(({ error: hErr }: { error: unknown }) => { if (hErr) console.error('[AI Agent] lead_history error:', hErr); });
 
-  return `OK: visita registrada para ${dataVisita.split('-').reverse().join('/')} às ${horario}. Confirme para o cliente.`;
+  return `OK: visita registrada para ${visitText(dataVisita, horario)}. Confirme para o cliente.`;
 }
 
 // PDF de pacotes enviado = orçamento enviado: o lead passa para "Orçamento
@@ -921,11 +991,13 @@ async function toolRegistrarDados(
   phone: string,
   contactName: string | null,
   botSettings: any,
-  args: { nome?: string; mes?: string; convidados?: string },
+  args: { nome?: string; aniversariante?: string; mes?: string; convidados?: string; legenda_fotos?: string; legenda_video?: string; legenda_pdf?: string },
 ): Promise<string> {
   const patch: Json = {};
   const nome = String(args.nome || '').trim();
   if (nome && firstNameOrEmpty(nome)) patch.nome = nome;
+  const aniversariante = String(args.aniversariante || '').trim();
+  if (aniversariante && firstNameOrEmpty(aniversariante)) patch.aniversariante = aniversariante;
   if (args.mes && String(args.mes).trim()) patch.mes = normalizeMonth(String(args.mes));
   if (args.convidados && String(args.convidados).trim()) patch.convidados = normalizeGuests(String(args.convidados));
   if (Object.keys(patch).length > 0) await mergeBotData(supabase, conv, patch);
@@ -990,6 +1062,8 @@ async function toolRegistrarDados(
         if (id !== null && MATERIAL_OF_ACTION[action]) sentMedia.push({ tipo: MATERIAL_OF_ACTION[action], id });
         return id !== null ? 'ok' : null;
       },
+      // Legendas da IA, no tom dela (as fixas ficam para o bot fixo)
+      await materialTexts(supabase, instance, bd, args),
     );
     // Só conta como enviado o que o WhatsApp confirmou
     if (result.sentAny) ack = await confirmMaterials(supabase, sentMedia);
@@ -1012,7 +1086,7 @@ async function toolRegistrarDados(
   const skipped = (['fotos', 'video', 'pacotes'] as MaterialTipo[]).filter((k) => already[k]).map((k) => MATERIAL_LABEL[k]);
   const skippedNote = skipped.length > 0 ? ` (${skipped.join(', ')} já tinha(m) sido enviado(s) antes e não foi reenviado.)` : '';
   const confirmedText = ack.confirmed.length > 0 ? ack.confirmed.map((t) => MATERIAL_LABEL[t]).join(', ') : 'nenhum ainda';
-  return `OK: dados salvos e o sistema enviou automaticamente os materiais (confirmados pelo WhatsApp: ${confirmedText}).${skippedNote} Não reenvie nada: comente brevemente e convide para a visita oferecendo 2 horários concretos.${unconfirmedNote(ack.unconfirmed, ack.confirmed)}${minNote}${pdfNote}`;
+  return `OK: dados salvos e os materiais foram enviados agora, automaticamente, com as legendas (confirmados pelo WhatsApp: ${confirmedText}).${skippedNote} Não reenvie nada: comente brevemente e convide para a visita oferecendo 2 horários concretos.${unconfirmedNote(ack.unconfirmed, ack.confirmed)}${minNote}${pdfNote}`;
 }
 
 const WEEKDAYS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
@@ -1039,10 +1113,13 @@ function quoteLine(q: PackageQuote): string {
 const fmtDateBR = (ymd: string) => formatDateLong(ymd);
 const fmtHour = (t: string) => (t.endsWith(':00') ? `${Number(t.slice(0, 2))}h` : t.replace(':', 'h'));
 
-// "sábado, 26 de dezembro — noite (19h)" + [data/horário só para a próxima ferramenta]
-function slotLine(f: FreeSlot): string {
-  return `- ${formatDateLong(f.date)} — ${formatSlotLabel(f.slot.start)}   [para ferramentas: data=${f.date} horario=${f.slot.start}; das ${fmtHour(f.slot.start)} às ${fmtHour(f.slot.end)}]`;
+const toolRefsLine = (days: FreeDay[]) => `Para ferramentas (não mostre): ${days.map((d) => `${d.date} → ${d.slots.map((sl) => sl.start).join(', ')}`).join('; ')}`;
+
+// Bloco pronto: "📅 Sábado, 5 de dezembro" + "🌙 Noite (19h às 23h)" por horário
+function daysBlock(days: FreeDay[]): string {
+  return days.map((d) => [formatDayHeader(d.date), ...d.slots.map((sl) => formatSlotRange(sl.start, sl.end))].join('\n')).join('\n');
 }
+
 
 // Agenda da empresa entre duas datas: horários livres por unidade física.
 // SÓ LEITURA (festas e pré-reservas).
@@ -1101,11 +1178,15 @@ async function toolConsultarDatas(
   supabase: any,
   instance: AgentInstance,
   settings: AiSettings,
-  args: { mes?: string; data?: string; dia_semana?: string },
+  args: { mes?: string; data?: string; dia_semana?: string; preferencia?: string },
 ): Promise<string> {
   const today = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
   const tomorrow = addDaysYmd(today, 1);
   const preferredDow = args.dia_semana ? weekdayFromText(String(args.dia_semana)) : null;
+  const pref = String(args.preferencia || '').toLowerCase();
+  const preferredDows = preferredDow !== null ? [preferredDow]
+    : /fim/.test(pref) ? [5, 6, 0] // fim de semana: sexta, sábado e domingo
+    : /semana|util|útil/.test(pref) ? [1, 2, 3, 4] : [];
   let from: string;
   let to: string;
   let askedDate: string | null = null;
@@ -1126,21 +1207,22 @@ async function toolConsultarDatas(
   // Unidade física da festa: com mais de uma, a agenda é olhada por unidade
   const agenda = await loadFreeSlots(supabase, instance, settings, from, to);
   const perUnit = agenda.perUnit;
-  const rules = 'Diga que está DISPONÍVEL NESTE MOMENTO e que a data só fica garantida com contrato e sinal com a equipe. NUNCA diga que reservou, segurou ou bloqueou a data. Quando o cliente escolher uma data, use consultar_valor_pacote com essa data (AAAA-MM-DD) e o horário.';
+  const rules = 'Use as linhas prontas como estão (uma data por bloco, horários embaixo, sem negrito). Fale "tenho o sábado, 5 de dezembro, disponível" — nunca "tem festa" nessa data. No final, curto e entre parênteses: "(A data fica garantida com contrato e sinal ✨)". NUNCA diga que reservou, segurou ou bloqueou a data. Quando o cliente escolher uma data, use consultar_valor_pacote com a data e o horário da linha "Para ferramentas".';
+  const toolRefs = toolRefsLine;
 
   const blocks: string[] = [];
   for (const { unit, free } of perUnit) {
     const label = perUnit.length > 1 ? `Unidade ${unit}: ` : '';
     if (askedDate) {
-      const onDay = free.filter((f) => f.date === askedDate);
-      const others = pickPartyOptions(free.filter((f) => f.date !== askedDate), [weekdayOf(askedDate)], 3);
+      const onDay = pickPartyDates(free.filter((f) => f.date === askedDate), [], 1);
+      const others = pickPartyDates(free.filter((f) => f.date !== askedDate), [weekdayOf(askedDate)], 3);
       blocks.push(onDay.length > 0
-        ? `${label}${fmtDateBR(askedDate)} — horário(s) disponível(is) neste momento:\n${onDay.map(slotLine).join('\n')}`
-        : `${label}${fmtDateBR(askedDate)} está OCUPADA. Datas próximas disponíveis neste momento:\n${others.length > 0 ? others.map(slotLine).join('\n') : '(nenhuma nas semanas próximas — passe para a equipe)'}`);
+        ? `${label}${formatDateLong(askedDate)} — disponível neste momento. Linhas prontas:\n${daysBlock(onDay)}\n${toolRefs(onDay)}`
+        : `${label}${formatDateLong(askedDate)} está OCUPADO. Datas próximas disponíveis neste momento — linhas prontas:\n${others.length > 0 ? `${daysBlock(others)}\n${toolRefs(others)}` : '(nenhuma nas semanas próximas — passe para a equipe)'}`);
     } else {
-      const opts = pickPartyOptions(free, preferredDow !== null ? [preferredDow] : [], 3);
-      blocks.push(opts.length > 0
-        ? `${label}Opções disponíveis neste momento (ofereça no máximo 2 ou 3):\n${opts.map(slotLine).join('\n')}${preferredDow !== null && !opts.some((o) => o.dow === preferredDow) ? `\n(nenhum(a) ${WEEKDAYS[preferredDow]} livre nesse mês)` : ''}`
+      const days = pickPartyDates(free, preferredDows, 3);
+      blocks.push(days.length > 0
+        ? `${label}Datas disponíveis neste momento (no máximo estas) — linhas prontas:\n${daysBlock(days)}\n${toolRefs(days)}${preferredDows.length > 0 && !days.some((d) => preferredDows.includes(d.dow)) ? '\n(nenhuma data no dia preferido nesse mês — diga isso e ofereça estas)' : ''}`
         : `${label}Nenhum horário livre nesse período — ofereça outro mês ou passe para a equipe.`);
     }
   }
@@ -1196,11 +1278,11 @@ async function toolConsultarValor(
     if (wanted.length === 0) {
       const today = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
       const nearest = onDay.length > 0
-        ? onDay
-        : pickPartyOptions(free.filter((f) => f.date > today), [weekdayOf(date)], 3);
+        ? pickPartyDates(onDay, [], 1)
+        : pickPartyDates(free.filter((f) => f.date > today), [weekdayOf(date)], 3);
       const what = isNaN(wantHour) ? `${fmtDateBR(date)} está OCUPADO` : `${fmtDateBR(date)}, ${formatSlotLabel(`${String(wantHour).padStart(2, '0')}:00`)}, está OCUPADO`;
       console.log(`[AI Agent] Valor pedido para horário ocupado (${date} ${args.horario || 'dia todo'}) — oferecendo alternativas`);
-      return `${what} na agenda: NÃO informe valor para esse horário. Avise o cliente e ofereça o(s) horário(s) livre(s) mais próximo(s) (disponível neste momento):\n${nearest.length > 0 ? nearest.map(slotLine).join('\n') : '(nenhum nas semanas próximas — passe para a equipe)'}\nSe ele escolher um deles, consulte o valor de novo com a nova data/horário.`;
+      return `${what} na agenda: NÃO informe valor para esse horário. Avise o cliente e ofereça o(s) horário(s) livre(s) mais próximo(s) (disponível neste momento) — linhas prontas:\n${nearest.length > 0 ? `${daysBlock(nearest)}\n${toolRefsLine(nearest)}` : '(nenhum nas semanas próximas — passe para a equipe)'}\nSe ele escolher um deles, consulte o valor de novo com a nova data/horário.`;
     }
     freeHours = wanted.map((f) => f.slot.start);
   }
@@ -1248,6 +1330,32 @@ async function toolConsultarValor(
     : '';
   const tierInfo = Array.from(new Set(quotes.map((q) => `${prettyPackageName(q.packageName)}: faixa de ${q.tier} convidados, coluna "${q.dayTypeLabel}"`))).join('; ');
   return `VALORES DA TABELA para ${guests} convidados, ${dayText}${args.horario ? `, ${formatSlotLabel(String(args.horario))}` : ''}. Linhas prontas para o cliente (copie como estão, um pacote por linha, sem arredondar nem somar nada):\n${quotes.map(quoteLine).join('\n')}\n(Só para você: ${tierInfo}.)${minNote}${betweenNote}${holidayNote}${freeNote} PROIBIDO oferecer ou prometer desconto, condição à vista, parcelamento, brinde ou entrada diferente: se o cliente pedir, diga que as condições de pagamento e o fechamento são com a equipe.`.trim();
+}
+
+// Legendas antes de fotos/vídeo/PDF quando a IA envia o material: as que ela
+// escreveu (sem valores) ou, se faltar, um modelo animado com o que já se sabe.
+async function materialTexts(
+  supabase: any,
+  instance: AgentInstance,
+  bd: Json,
+  args: { legenda_fotos?: string; legenda_video?: string; legenda_pdf?: string },
+): Promise<{ photosIntro: string; videoCaption: string; pdfIntro: string }> {
+  const clean = (t: unknown) => {
+    const v = String(t || '').trim();
+    return v && v.length <= 300 && moneyValuesIn(v).length === 0 && !/sistema/i.test(v) ? v : '';
+  };
+  let companyName = instance.unit || '';
+  const { data: company } = await supabase.from('companies').select('name').eq('id', instance.company_id).maybeSingle();
+  if (company?.name) companyName = company.name as string;
+  const nome = firstNameOrEmpty(bd.nome as string);
+  const child = firstNameOrEmpty(bd.aniversariante as string);
+  const guests = parseInt(String(bd.convidados || '').replace(/\D/g, ''), 10);
+  return {
+    photosIntro: clean(args.legenda_fotos)
+      || `${nome ? `Aaah, ${nome}, olha` : 'Olha'} só onde vai ser a festa${child ? ` de ${child}` : ''}! 😍🏰`,
+    videoCaption: clean(args.legenda_video) || `E esse vídeo mostra o ${companyName} funcionando de verdade 🎬🎉`,
+    pdfIntro: clean(args.legenda_pdf) || `E aqui estão os nossos pacotes${guests ? ` pra ${guests} convidados` : ''} 📋✨`,
+  };
 }
 
 // Passagem para a equipe: tira a IA da conversa, registra no histórico do
@@ -1648,6 +1756,11 @@ export async function maybeHandleWithAiAgent(
       minPackageGuests: smallestPackageGuests(await loadSalesMaterials(supabase, instance)),
       packagesText: await loadPackagesText(supabase, instance),
       pricePending: priceRequestPending(chatMessages),
+      crossedMessage: crossedWithLastReply(((history || []) as Array<{ from_me: boolean; timestamp: string }>)),
+      visitText: await (async () => {
+        const v = await loadLeadVisit(supabase, conv.lead_id);
+        return v ? visitText(v.data_visita, v.horario_visita) : null;
+      })(),
     });
 
     const session = createLlmSession({

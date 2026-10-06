@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { debounceMsFor, mergeConsecutiveTurns, priceRequestPending, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, teamRepliedAfter } from "./ai-turn.ts";
+import { crossedWithLastReply, debounceMsFor, mergeConsecutiveTurns, priceRequestPending, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, teamRepliedAfter } from "./ai-turn.ts";
 
 Deno.test("pickLatestIncoming: a última mensagem do cliente responde por todas", () => {
   assertEquals(pickLatestIncoming([
@@ -112,4 +112,18 @@ Deno.test("priceRequestPending: pediu valor no começo e ainda não recebeu", ()
     { role: "user", content: "legal" },
   ]), false);
   assertEquals(priceRequestPending([{ role: "user", content: "tem estacionamento?" }]), false);
+});
+
+Deno.test("crossedWithLastReply: mensagem do cliente chegou junto com a resposta", () => {
+  // teste de 06/10 12:38: resposta saiu 15:38:08 e o cliente escreveu no mesmo segundo
+  assertEquals(crossedWithLastReply([
+    { from_me: false, timestamp: "2026-10-06T15:37:54Z" },
+    { from_me: true, timestamp: "2026-10-06T15:38:08Z" },
+    { from_me: false, timestamp: "2026-10-06T15:38:08Z" },
+  ]), true);
+  // cliente respondeu 20 s depois: viu a pergunta
+  assertEquals(crossedWithLastReply([
+    { from_me: true, timestamp: "2026-10-06T15:38:08Z" },
+    { from_me: false, timestamp: "2026-10-06T15:38:28Z" },
+  ]), false);
 });
