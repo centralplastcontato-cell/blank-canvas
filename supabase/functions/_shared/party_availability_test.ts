@@ -17,10 +17,11 @@ Deno.test("freePartySlots: festa ocupa o horário; cancelada não; pré-reserva 
       { event_date: "2026-11-14", start_time: "13:30:00", end_time: "17:30:00", status: "confirmado", unit: "Castelo" }, // sáb tarde
       { event_date: "2026-11-14", start_time: "19:00", end_time: null, status: "cancelado", unit: "Castelo" }, // cancelada
       { event_date: "2026-11-16", start_time: null, end_time: null, status: "pendente", unit: null }, // seg sem horário
-      { event_date: "2026-11-13", start_time: "19:00", end_time: "23:00", status: "confirmado", unit: "Outra" }, // outra unidade
+      { event_date: "2026-11-13", start_time: "19:00", end_time: "23:00", status: "confirmado", unit: "Outra" }, // outra unidade física
     ],
     preReservations: [{ event_date: "2026-11-15", unit: "Castelo" }], // dom
     unit: "Castelo",
+    physicalUnits: ["Castelo", "Outra"],
   });
   assertEquals(free.map((f) => `${f.date} ${f.slot.start}`), ["2026-11-13 13:00", "2026-11-13 19:00", "2026-11-14 19:00"]);
 });
@@ -37,4 +38,18 @@ Deno.test("monthRange / monthFromText: próxima ocorrência do mês", () => {
   assertEquals(monthFromText("Novembro"), 11);
   assertEquals(monthFromText("março"), 3);
   assertEquals(monthFromText("12"), 12);
+});
+
+Deno.test("freePartySlots: festa cadastrada em unidade de venda (Vendas 2) ocupa o espaço", () => {
+  // Teste de 05/10 23:05: Ravi (12/12 19h) e Vinicius (19/12 19h) estavam como "Vendas 2"
+  const events = [
+    { event_date: "2026-12-05", start_time: "13:00", end_time: "17:00", status: "confirmado", unit: "Castelo da Diversão" },
+    { event_date: "2026-12-12", start_time: "13:00", end_time: "17:00", status: "confirmado", unit: "Castelo da Diversão" },
+    { event_date: "2026-12-12", start_time: "19:00", end_time: "23:00", status: "confirmado", unit: "Vendas 2" },
+    { event_date: "2026-12-19", start_time: "13:00", end_time: "17:00", status: "confirmado", unit: "Castelo da Diversão" },
+    { event_date: "2026-12-19", start_time: "19:00", end_time: "23:00", status: "confirmado", unit: "Vendas 2" },
+  ];
+  const free = freePartySlots({ from: "2026-12-05", to: "2026-12-19", slots: SLOTS, events, preReservations: [], unit: "Castelo da Diversão", physicalUnits: ["Castelo da Diversão"] });
+  const sats = free.filter((f) => f.dow === 6).map((f) => `${f.date} ${f.slot.start}`);
+  assertEquals(sats, ["2026-12-05 19:00"]);
 });

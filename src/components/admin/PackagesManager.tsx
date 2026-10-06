@@ -17,6 +17,8 @@ interface CompanyPackage {
   id: string;
   name: string;
   description: string | null;
+  // "O que inclui" — um item por linha; a IA usa para explicar os pacotes
+  includes?: string | null;
   valor_pessoa_adicional: number | null;
   preco_separado: boolean;
   valor_pessoa_adicional_crianca: number | null;
@@ -66,6 +68,7 @@ export function PackagesManager() {
   const [editing, setEditing] = useState<CompanyPackage | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [includes, setIncludes] = useState("");
   const [precoSeparado, setPrecoSeparado] = useState(false);
   const [valorUnico, setValorUnico] = useState("");
   const [valorCrianca, setValorCrianca] = useState("");
@@ -99,6 +102,7 @@ export function PackagesManager() {
     setEditing(null);
     setName("");
     setDescription("");
+    setIncludes("");
     setPrecoSeparado(false);
     setValorUnico("");
     setValorCrianca("");
@@ -112,6 +116,7 @@ export function PackagesManager() {
     setEditing(pkg);
     setName(pkg.name);
     setDescription(pkg.description || "");
+    setIncludes(pkg.includes || "");
     setPrecoSeparado(pkg.preco_separado);
     setValorUnico(numToDisplay(pkg.valor_pessoa_adicional));
     setValorCrianca(numToDisplay(pkg.valor_pessoa_adicional_crianca));
@@ -128,6 +133,7 @@ export function PackagesManager() {
     const payload: Record<string, unknown> = {
       name: name.trim(),
       description: description.trim() || null,
+      includes: includes.trim() || null,
       preco_separado: precoSeparado,
     };
 
@@ -146,14 +152,30 @@ export function PackagesManager() {
 
     let targetId = editing?.id;
 
+    // Banco ainda sem a coluna "includes" (migration não rodada): salva o resto
+    const missingIncludes = (err: { message?: string } | null) => !!err?.message && /includes/.test(err.message);
     if (editing) {
-      await supabase.from("company_packages").update(payload).eq("id", editing.id);
+      let { error } = await supabase.from("company_packages").update(payload as any).eq("id", editing.id);
+      if (missingIncludes(error)) {
+        const { includes: _i, ...rest } = payload;
+        ({ error } = await supabase.from("company_packages").update(rest as any).eq("id", editing.id));
+        toast({ title: "\"O que inclui\" não foi salvo", description: "Falta rodar a atualização do banco (SQL). O resto foi salvo." });
+      }
     } else {
-      const { data: created } = await supabase
+      let { data: created, error } = await supabase
         .from("company_packages")
         .insert({ ...payload, company_id: currentCompany.id } as any)
         .select("*")
         .single();
+      if (missingIncludes(error)) {
+        const { includes: _i, ...rest } = payload;
+        ({ data: created } = await supabase
+          .from("company_packages")
+          .insert({ ...rest, company_id: currentCompany.id } as any)
+          .select("*")
+          .single());
+        toast({ title: "\"O que inclui\" não foi salvo", description: "Falta rodar a atualização do banco (SQL). O resto foi salvo." });
+      }
       if (created) {
         targetId = (created as any).id;
       }
@@ -308,6 +330,18 @@ export function PackagesManager() {
                   placeholder="Descrição do pacote (opcional)"
                   rows={3}
                 />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">O que inclui (um item por linha)</Label>
+                <Textarea
+                  value={includes}
+                  onChange={(e) => setIncludes(e.target.value)}
+                  placeholder={"Ex.:\nCardápio: salgados, mini lanches e bolo\nBebidas: refrigerante e suco à vontade\nBrinquedos: cama elástica, piscina de bolinhas\nDecoração da mesa do bolo\nEquipe: monitores e garçons"}
+                  rows={6}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  A IA usa esta lista para explicar o que cada pacote tem e a diferença entre eles. Não coloque valores aqui — os preços vêm só da grade.
+                </p>
               </div>
             </div>
 

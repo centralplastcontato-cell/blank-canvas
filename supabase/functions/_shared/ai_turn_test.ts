@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { mergeConsecutiveTurns, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, teamRepliedAfter } from "./ai-turn.ts";
+import { debounceMsFor, mergeConsecutiveTurns, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, teamRepliedAfter } from "./ai-turn.ts";
 
 Deno.test("pickLatestIncoming: a última mensagem do cliente responde por todas", () => {
   assertEquals(pickLatestIncoming([
@@ -83,4 +83,19 @@ Deno.test("smallestPackageGuests: menor pacote com quantidade", () => {
     { type: "video", guest_count: 10 },
   ]), 50);
   assertEquals(smallestPackageGuests([{ type: "pdf_package", guest_count: null }]), null);
+});
+
+Deno.test("debounceMsFor: pergunta/frase longa espera pouco; 'Olá'/'Então' espera mais", () => {
+  assertEquals(debounceMsFor("tem estacionamento?"), 5000);
+  assertEquals(debounceMsFor("quero fazer a festa do meu filho em dezembro para umas 60 pessoas"), 5000);
+  assertEquals(debounceMsFor("", true), 5000); // áudio/foto
+  assertEquals(debounceMsFor("Olá"), 16000);
+  assertEquals(debounceMsFor("Então"), 16000);
+  assertEquals(debounceMsFor("dezembro"), 16000); // uma palavra só
+  assertEquals(debounceMsFor("queria saber sobre a festa,"), 16000);
+  assertEquals(debounceMsFor("dia 5 de dezembro"), 9000);
+  // respondendo pergunta da IA
+  assertEquals(debounceMsFor("dezembro", false, true), 5000);
+  assertEquals(debounceMsFor("60", false, true), 5000);
+  assertEquals(debounceMsFor("Então", false, true), 16000);
 });
