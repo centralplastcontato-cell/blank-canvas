@@ -1,1 +1,1 @@
-{"sql": "select to_regclass('public.ai_sim_scenarios') is not null as simulador_criado, (select count(*) from pg_trigger where tgname = 'require_ai_conversational_module') as modulo_criado"}
+{"sql": "select status, count(*) as n, round(sum(cost_usd)::numeric, 4) as custo, max(turns) as max_turns, string_agg(scenario_key || coalesce(':' || left(error, 120), ''), ', ') as cenarios from public.ai_sim_results where run_id = '96fab944-5fb0-4095-9c26-def7d77d64a2' group by status"}
