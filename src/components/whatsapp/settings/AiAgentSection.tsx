@@ -54,6 +54,8 @@ interface AiAgentSettings {
   team_hours?: string | null;
   handoff_alert_minutes?: number | null;
   handoff_alert_phone?: string | null;
+  // Horários de festa para a IA dizer as datas livres da agenda
+  party_slots?: string | null;
 }
 
 const BASE_COLUMNS = "id, enabled, unit, activated_at, extra_instructions, visit_hours, test_mode_enabled, test_mode_number, model";
@@ -69,10 +71,11 @@ function modelLabel(id: string): string {
 
 // Banco ainda sem as colunas novas (migration não rodada)
 function isMissingNewColumn(error: { message?: string } | null): boolean {
-  return !!error?.message && /test_model|team_hours|handoff_alert/.test(error.message);
+  return !!error?.message && /test_model|team_hours|handoff_alert|party_slots/.test(error.message);
 }
 
 const DEFAULT_VISIT_HOURS = "Segunda a sexta, das 10:00 às 17:00, de meia em meia hora";
+const DEFAULT_PARTY_SLOTS = "13:00-17:00, 19:00-23:00";
 
 const DAY_SHORT = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 const TIME_OPTIONS = Array.from({ length: 25 }, (_, i) => {
@@ -236,6 +239,7 @@ export function AiAgentSection() {
   const [teamSatEnd, setTeamSatEnd] = useState("13:00");
   const [alertMinutes, setAlertMinutes] = useState(10);
   const [alertPhone, setAlertPhone] = useState("");
+  const [partySlots, setPartySlots] = useState(DEFAULT_PARTY_SLOTS);
 
   useEffect(() => {
     if (!currentCompany?.id) return;
@@ -309,6 +313,7 @@ export function AiAgentSection() {
       team_hours: next.team_hours ?? null,
       handoff_alert_minutes: next.handoff_alert_minutes ?? 10,
       handoff_alert_phone: next.handoff_alert_phone ?? null,
+      party_slots: next.party_slots ?? null,
       updated_at: new Date().toISOString(),
     };
     const save = (body: Record<string, unknown>, columns: string) => (supabase as any)
@@ -319,7 +324,7 @@ export function AiAgentSection() {
     let { data, error } = await save(payload, "*");
     if (error && isMissingNewColumn(error)) {
       // Banco sem as colunas novas: salva o resto e avisa que falta a atualização
-      const { test_model: _t, team_hours: _h, handoff_alert_minutes: _m, handoff_alert_phone: _p, ...withoutNew } = payload;
+      const { test_model: _t, team_hours: _h, handoff_alert_minutes: _m, handoff_alert_phone: _p, party_slots: _s, ...withoutNew } = payload;
       ({ data, error } = await save(withoutNew, BASE_COLUMNS));
       if (!error) {
         data = { ...data, test_model: null };
@@ -393,6 +398,7 @@ export function AiAgentSection() {
     setTeamSatEnd(team.satEnd);
     setAlertMinutes(settings.handoff_alert_minutes || 10);
     setAlertPhone(settings.handoff_alert_phone || "");
+    setPartySlots(settings.party_slots || DEFAULT_PARTY_SLOTS);
     setConfigTab("basico");
     setConfigOpen(true);
   };
@@ -439,6 +445,7 @@ export function AiAgentSection() {
       team_hours: serializeTeamHours(teamDays, teamStart, teamEnd, teamSatDifferent, teamSatStart, teamSatEnd),
       handoff_alert_minutes: alertMinutes,
       handoff_alert_phone: alertPhone.trim() || null,
+      party_slots: partySlots.trim() && partySlots.trim() !== DEFAULT_PARTY_SLOTS ? partySlots.trim() : null,
     });
     if (saved) {
       setConfigOpen(false);
@@ -761,6 +768,20 @@ export function AiAgentSection() {
                   </div>
                   <p className="text-[11px] text-muted-foreground">
                     Se ninguém da equipe responder o cliente nesse tempo (contando só o horário de atendimento), esse WhatsApp recebe um alerta 🚨, além do sininho.
+                  </p>
+                </div>
+
+                {/* Horários de festa: a IA cruza com a agenda (festas e pré-reservas) */}
+                <div className="rounded-xl border border-border bg-muted/30 p-3.5 space-y-2">
+                  <Label className="text-xs font-bold">Horários de festa (todos os dias)</Label>
+                  <Input
+                    value={partySlots}
+                    onChange={(e) => setPartySlots(e.target.value)}
+                    className="h-10 text-base sm:text-sm bg-card border-border shadow-sm"
+                    placeholder={DEFAULT_PARTY_SLOTS}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    A IA consulta a agenda (festas e pré-reservas) e diz quais desses horários estão livres "neste momento" — ela só lê a agenda, nunca reserva. Pré-reserva ocupa o dia inteiro.
                   </p>
                 </div>
 

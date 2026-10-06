@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
-import { getDayType, getDayTypeLabel, findMatchingTier, getShiftFromTime, DEFAULT_DAY_TYPES, DEFAULT_GUEST_TIERS } from "@/lib/brazilian-holidays";
+import { getDayType, getDayTypeLabel, findMatchingTier, getShiftFromTime, localHolidaysFrom, DEFAULT_DAY_TYPES, DEFAULT_GUEST_TIERS } from "@/lib/brazilian-holidays";
 import { DEFAULT_EVENT_TYPES } from "@/components/admin/EventTypesConfig";
 import { splitNonAntecipadoInstallments } from "@/lib/cardFees";
 import { buildParcelasDetails, type ParcelaDetail } from "@/lib/parcelas";
@@ -1019,7 +1019,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     const [y, mo, da] = form.event_date.split("-").map(Number);
     const eventDate = new Date(y, mo - 1, da);
     const shift = getShiftFromTime(form.start_time);
-    const dayType = getDayType(eventDate, dayTypesConf, shift);
+    const dayType = getDayType(eventDate, dayTypesConf, shift, localHolidaysFrom(s));
     const matchedTier = findMatchingTier(form.guest_count, guestTiersConf);
     if (!matchedTier) { setSuggestedPrice(null); return; }
     const tier = priceTiers.find(t => t.guest_count === matchedTier && t.day_type === dayType);

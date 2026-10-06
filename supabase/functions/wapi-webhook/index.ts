@@ -2,6 +2,19 @@ import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { detectAndPauseBotLoop, isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { normalizeJid, type NormalizedJid } from "../_shared/jid-normalizer.ts";
 import { isAiTestPhoneFor, maybeHandleWithAiAgent } from "./ai-agent.ts";
+import { AI_ACTOR, AI_ACTOR_HEADER } from "./ai-db-guard.ts";
+
+// Cliente próprio da IA: o cabeçalho x-celebrei-actor deixa o banco recusar
+// alterações dela em festas, pré-reservas, contratos e financeiro (gatilho
+// block_ai_agent_writes). No código, ai-agent.ts ainda embrulha com guardAiDb.
+let aiAgentClient: SupabaseClient | null = null;
+function aiAgentDb(): SupabaseClient {
+  aiAgentClient ||= createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
+    global: { headers: { [AI_ACTOR_HEADER]: AI_ACTOR } },
+    auth: { persistSession: false },
+  });
+  return aiAgentClient;
+}
 import { sendQualificationMaterials as sendQualificationMaterialsShared } from "./qualification-materials.ts";
 import { findLeadByPhone } from "../_shared/lead-phone.ts";
 import { detectWhatsAppReturn } from "../_shared/lead-return.ts";
@@ -6308,7 +6321,7 @@ async function processWebhookEvent(body: JsonRecord) {
             const mediaUrl = mediaPromise
               ? mediaPromise.then((r) => r?.url || url || null).catch(() => url || null)
               : Promise.resolve(url || null);
-            const aiHandled = await maybeHandleWithAiAgent(supabase, instance, conv, content || '', phone, cName as string | null, aiBotSettings, {
+            const aiHandled = await maybeHandleWithAiAgent(aiAgentDb(), instance, conv, content || '', phone, cName as string | null, aiBotSettings, {
               type,
               messageId: String(msgId),
               url: mediaUrl,
@@ -6443,7 +6456,7 @@ async function processWebhookEvent(body: JsonRecord) {
           try {
             // Configurações do bot deste número (modo de teste vale também para a IA)
             const aiBotSettings = await getBotSettings(supabase, instance.id);
-            const aiHandled = await maybeHandleWithAiAgent(supabase, instance, conv, content, phone, cName as string | null, aiBotSettings, undefined, msgId ? String(msgId) : null);
+            const aiHandled = await maybeHandleWithAiAgent(aiAgentDb(), instance, conv, content, phone, cName as string | null, aiBotSettings, undefined, msgId ? String(msgId) : null);
             if (aiHandled) {
               fireTrace(supabase, 'bot_dispatch', {
                 tracking_id: rawWebhookEventId,

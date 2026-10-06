@@ -7,7 +7,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Trash2, RotateCcw, Loader2, Settings2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_DAY_TYPES, DEFAULT_GUEST_TIERS, type DayTypeConfig, type DayMappingToken, type ShiftToken } from "@/lib/brazilian-holidays";
+import { DEFAULT_DAY_TYPES, DEFAULT_GUEST_TIERS, localHolidaysFrom, type DayTypeConfig, type DayMappingToken, type ShiftToken } from "@/lib/brazilian-holidays";
+
+// "MM-DD" → "DD/MM" e de volta
+const toDisplay = (mmdd: string) => `${mmdd.slice(3, 5)}/${mmdd.slice(0, 2)}`;
+function parseLocalHoliday(text: string): string | null {
+  const m = text.trim().match(/^(\d{1,2})\/(\d{1,2})$/);
+  if (!m) return null;
+  const day = Number(m[1]);
+  const month = Number(m[2]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return `${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
 
 const DAY_TOKENS: { token: DayMappingToken; short: string; full: string }[] = [
   { token: "1", short: "Seg", full: "Segunda" },
@@ -50,6 +61,8 @@ export function PriceGridConfigDialog({ open, onOpenChange, companyId, currentSe
   const [dayTypes, setDayTypes] = useState<DayTypeConfig[]>(existingDayTypes);
   const [guestTiers, setGuestTiers] = useState<number[]>(existingGuestTiers);
   const [newTier, setNewTier] = useState("");
+  const [localHolidays, setLocalHolidays] = useState<string[]>(localHolidaysFrom(currentSettings));
+  const [newHoliday, setNewHoliday] = useState("");
   const [saving, setSaving] = useState(false);
   const [presetValue, setPresetValue] = useState("");
 
@@ -59,6 +72,8 @@ export function PriceGridConfigDialog({ open, onOpenChange, companyId, currentSe
       setDayTypes((currentSettings?.day_type_config as DayTypeConfig[]) || DEFAULT_DAY_TYPES);
       setGuestTiers((currentSettings?.guest_tiers as number[]) || DEFAULT_GUEST_TIERS);
       setNewTier("");
+      setLocalHolidays(localHolidaysFrom(currentSettings));
+      setNewHoliday("");
       setPresetValue("");
     }
     onOpenChange(v);
@@ -129,6 +144,16 @@ export function PriceGridConfigDialog({ open, onOpenChange, companyId, currentSe
     setGuestTiers(guestTiers.filter((_, i) => i !== idx));
   };
 
+  const addLocalHoliday = () => {
+    const mmdd = parseLocalHoliday(newHoliday);
+    if (!mmdd) {
+      toast({ title: "Use o formato dia/mês", description: "Ex.: 09/07", variant: "destructive" });
+      return;
+    }
+    if (!localHolidays.includes(mmdd)) setLocalHolidays([...localHolidays, mmdd].sort());
+    setNewHoliday("");
+  };
+
   const restoreDefaults = () => {
     setDayTypes([...DEFAULT_DAY_TYPES]);
     setGuestTiers([...DEFAULT_GUEST_TIERS]);
@@ -140,6 +165,7 @@ export function PriceGridConfigDialog({ open, onOpenChange, companyId, currentSe
       ...(currentSettings || {}),
       day_type_config: dayTypes,
       guest_tiers: guestTiers,
+      local_holidays: localHolidays,
     };
 
     const { error } = await supabase
@@ -303,6 +329,41 @@ export function PriceGridConfigDialog({ open, onOpenChange, companyId, currentSe
                 onKeyDown={(e) => e.key === "Enter" && addGuestTier()}
               />
               <Button variant="outline" size="sm" className="h-8 text-xs" onClick={addGuestTier}>
+                <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar
+              </Button>
+            </div>
+          </div>
+
+          {/* Feriados locais */}
+          <div className="rounded-xl border border-border/60 bg-card p-4 space-y-3">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">🎉 Feriados estaduais e municipais</span>
+            <p className="text-[11px] text-muted-foreground">
+              Os nacionais (inclusive Carnaval, Sexta-feira Santa e Corpus Christi) já entram sozinhos. Adicione aqui os da sua cidade e do seu estado — a véspera também passa a valer.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {localHolidays.length === 0 && <span className="text-xs text-muted-foreground">Nenhum feriado local.</span>}
+              {localHolidays.map((h) => (
+                <div key={h} className="flex items-center gap-1 bg-muted/50 rounded-lg px-2.5 py-1.5 border border-border/40">
+                  <span className="text-sm font-medium">{toDisplay(h)}</span>
+                  <button
+                    onClick={() => setLocalHolidays(localHolidays.filter((x) => x !== h))}
+                    className="text-destructive/60 hover:text-destructive ml-0.5"
+                    aria-label={`Remover ${toDisplay(h)}`}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                className="h-8 text-sm w-24"
+                placeholder="dd/mm"
+                value={newHoliday}
+                onChange={(e) => setNewHoliday(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addLocalHoliday()}
+              />
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={addLocalHoliday}>
                 <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar
               </Button>
             </div>
