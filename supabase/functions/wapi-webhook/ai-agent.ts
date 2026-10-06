@@ -28,6 +28,7 @@ import {
   teamHoursText,
 } from "../_shared/business-hours.ts";
 import { formatBRL, isHolidayEveYmd, isHolidayYmd, moneyValuesIn, type PackageQuote, type PartyDay, quotePackages, weekdayYmd } from "../_shared/package-pricing.ts";
+import { waitForMediaAck } from "../_shared/media-ack.ts";
 import { AI_DEBOUNCE_MS, mergeConsecutiveTurns, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 
@@ -120,9 +121,21 @@ async function sendViaWapiSend(
   conv: AgentConv,
   payload: { message?: string; mediaUrl?: string; caption?: string; fileName?: string },
 ): Promise<boolean> {
+  return (await sendViaWapiSendId(supabase, action, instance, conv, payload)) !== null;
+}
+
+// Igual, devolvendo o id da mensagem ('' quando o provedor não devolve id;
+// null = falhou). O id serve para esperar a confirmação do WhatsApp.
+async function sendViaWapiSendId(
+  supabase: any,
+  action: 'send-text' | 'send-image' | 'send-video' | 'send-document',
+  instance: AgentInstance,
+  conv: AgentConv,
+  payload: { message?: string; mediaUrl?: string; caption?: string; fileName?: string },
+): Promise<string | null> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (!supabaseUrl || !serviceRoleKey) return false;
+  if (!supabaseUrl || !serviceRoleKey) return null;
 
   const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
   const controller = new AbortController();
@@ -137,6 +150,7 @@ async function sendViaWapiSend(
       companyId: instance.company_id,
       source: 'bot',
       automation: true,
+      messageSource: 'ai_agent',
       ...payload,
     };
     const response = await fetch(`${supabaseUrl}/functions/v1/wapi-send`, {
@@ -147,25 +161,30 @@ async function sendViaWapiSend(
     });
     if (!response.ok) {
       console.error(`[AI Agent] ${action} failed (${response.status}): ${await response.text()}`);
-      return false;
+      return null;
     }
     const parsed = await response.json().catch(() => null) as Json | null;
     if (parsed?.success === false || parsed?.error) {
       console.error(`[AI Agent] ${action} returned error:`, parsed);
-      return false;
+      return null;
     }
     const messageId = typeof parsed?.messageId === 'string' ? parsed.messageId : null;
     if (messageId && supabase) {
-      const { error } = await supabase.from('wapi_messages')
-        .update({ metadata: { source: 'ai_agent' } })
-        .eq('conversation_id', conv.id)
-        .eq('message_id', messageId);
-      if (error) console.error('[AI Agent] Erro ao marcar mensagem da IA:', error.message);
+      // Junta com a metadata gravada pelo wapi-send (a da mídia guarda o que
+      // é preciso para conferir/reenviar)
+      const { data: row } = await supabase.from('wapi_messages').select('id, metadata')
+        .eq('conversation_id', conv.id).eq('message_id', messageId).maybeSingle();
+      if (row?.id) {
+        const { error } = await supabase.from('wapi_messages')
+          .update({ metadata: { ...((row.metadata as Json) || {}), source: 'ai_agent' } })
+          .eq('id', row.id);
+        if (error) console.error('[AI Agent] Erro ao marcar mensagem da IA:', error.message);
+      }
     }
-    return true;
+    return messageId ?? '';
   } catch (err) {
     console.error(`[AI Agent] ${action} threw:`, err);
-    return false;
+    return null;
   } finally {
     clearTimeout(timeout);
   }
@@ -231,6 +250,35 @@ function teamHoursMessage(settings: AiSettings, nowMs = Date.now()): string {
 
 type MaterialTipo = 'fotos' | 'video' | 'pacotes';
 const MATERIAL_LABEL: Record<MaterialTipo, string> = { fotos: 'fotos do espaço', video: 'vídeo de apresentação', pacotes: 'PDF de pacotes' };
+
+// Quanto a IA espera o WhatsApp confirmar fotos/vídeo/PDF antes de responder
+const AI_MEDIA_ACK_WAIT_MS = 40000;
+const MATERIAL_OF_ACTION: Record<string, MaterialTipo> = { 'send-image': 'fotos', 'send-video': 'video', 'send-document': 'pacotes' };
+
+// Espera a confirmação do WhatsApp; um tipo só conta como enviado se todas as
+// mídias dele confirmaram. Id vazio = provedor sem rastreio (conta como enviado).
+async function confirmMaterials(
+  supabase: any,
+  sent: Array<{ tipo: MaterialTipo; id: string }>,
+): Promise<{ confirmed: MaterialTipo[]; unconfirmed: MaterialTipo[] }> {
+  const tracked = sent.filter((s) => s.id);
+  const ack = tracked.length > 0
+    ? await waitForMediaAck(supabase, tracked.map((s) => s.id), AI_MEDIA_ACK_WAIT_MS)
+    : { confirmed: [] as string[], failed: [] as string[], pending: [] as string[] };
+  const tipos = Array.from(new Set(sent.map((s) => s.tipo)));
+  const unconfirmed = tipos.filter((t) => sent.some((s) => s.tipo === t && s.id && !ack.confirmed.includes(s.id)));
+  if (unconfirmed.length > 0) {
+    console.warn(`[AI Agent] WhatsApp não confirmou em ${AI_MEDIA_ACK_WAIT_MS / 1000}s: ${unconfirmed.join(', ')} (o follow-up-check reenvia/marca erro)`);
+  }
+  return { confirmed: tipos.filter((t) => !unconfirmed.includes(t)), unconfirmed };
+}
+
+function unconfirmedNote(unconfirmed: MaterialTipo[], confirmed: MaterialTipo[]): string {
+  if (unconfirmed.length === 0) return '';
+  const pend = unconfirmed.map((t) => MATERIAL_LABEL[t]).join(', ');
+  const ok = confirmed.map((t) => MATERIAL_LABEL[t]).join(', ');
+  return ` ATENÇÃO: o WhatsApp ainda NÃO confirmou a entrega de: ${pend}. NÃO diga que mandou ${unconfirmed.length > 1 ? 'esses materiais' : 'esse material'}${ok ? ` — fale só do que foi confirmado (${ok})` : ' — não diga que mandou material nenhum'}. Se o cliente perguntar, diga que está enviando e que a equipe confere.`;
+}
 
 // Material conta como "já enviado" só por 30 dias: lead que volta depois disso
 // recebe o material (atualizado) de novo.
@@ -713,6 +761,7 @@ async function materialsAlreadyInChat(
     .eq('from_me', true)
     .in('media_url', Array.from(urlType.keys()))
     .gte('timestamp', materialWindowStart())
+    .or('status.is.null,status.neq.error') // o que não chegou no WhatsApp não conta
     .limit(50);
   const found: Partial<Record<MaterialTipo, boolean>> = {};
   for (const r of (data || []) as Array<{ media_url: string }>) {
@@ -755,34 +804,43 @@ async function toolEnviarMateriais(
     const collection = (materials as any[]).find((m) => m.type === 'photo_collection');
     const photos: string[] = collection?.photo_urls || [];
     if (photos.length === 0) return 'ERRO: sem fotos cadastradas.';
+    const sent: Array<{ tipo: MaterialTipo; id: string }> = [];
     for (let i = 0; i < Math.min(photos.length, 6); i++) {
-      await sendViaWapiSend(supabase, 'send-image', instance, conv, { mediaUrl: photos[i], caption: '' });
+      const id = await sendViaWapiSendId(supabase, 'send-image', instance, conv, { mediaUrl: photos[i], caption: '' });
+      if (id !== null) sent.push({ tipo: 'fotos', id });
       await new Promise((resolve) => setTimeout(resolve, 800));
     }
+    if (sent.length === 0) return 'ERRO: falha ao enviar as fotos. Não diga que mandou; diga que a equipe envia em seguida.';
+    const ack = await confirmMaterials(supabase, sent);
+    if (ack.unconfirmed.length > 0) return `PENDENTE:${unconfirmedNote(ack.unconfirmed, ack.confirmed)}`;
     await mergeBotData(supabase, conv, { ai_materials_sent: { ...sentMaterials(conv), fotos: new Date().toISOString() } });
-    return `OK: ${Math.min(photos.length, 6)} fotos enviadas.`;
+    return `OK: ${sent.length} fotos enviadas e confirmadas pelo WhatsApp.`;
   }
 
   if (tipo === 'video') {
     const video = (materials as any[]).find((m) => m.type === 'video');
     if (!video?.file_url) return 'ERRO: sem vídeo cadastrado.';
-    const ok = await sendViaWapiSend(supabase, 'send-video', instance, conv, { mediaUrl: video.file_url, caption: '' });
-    if (!ok) return 'ERRO: falha ao enviar o vídeo.';
+    const id = await sendViaWapiSendId(supabase, 'send-video', instance, conv, { mediaUrl: video.file_url, caption: '' });
+    if (id === null) return 'ERRO: falha ao enviar o vídeo. Não diga que mandou; diga que a equipe envia em seguida.';
+    const ack = await confirmMaterials(supabase, [{ tipo: 'video', id }]);
+    if (ack.unconfirmed.length > 0) return `PENDENTE:${unconfirmedNote(ack.unconfirmed, ack.confirmed)}`;
     await mergeBotData(supabase, conv, { ai_materials_sent: { ...sentMaterials(conv), video: new Date().toISOString() } });
-    return 'OK: vídeo enviado.';
+    return 'OK: vídeo enviado e confirmado pelo WhatsApp.';
   }
 
   if (tipo === 'pacotes') {
     const pdf = (materials as any[]).find((m) => m.type === 'pdf_package');
     if (!pdf?.file_url) return 'ERRO: sem PDF de pacotes cadastrado.';
-    const ok = await sendViaWapiSend(supabase, 'send-document', instance, conv, {
+    const id = await sendViaWapiSendId(supabase, 'send-document', instance, conv, {
       mediaUrl: pdf.file_url,
       fileName: pdf.name ? `${pdf.name}.pdf` : 'Pacotes.pdf',
     });
-    if (!ok) return 'ERRO: falha ao enviar o PDF.';
+    if (id === null) return 'ERRO: falha ao enviar o PDF. Não diga que mandou; diga que a equipe envia em seguida.';
+    const ack = await confirmMaterials(supabase, [{ tipo: 'pacotes', id }]);
+    if (ack.unconfirmed.length > 0) return `PENDENTE:${unconfirmedNote(ack.unconfirmed, ack.confirmed)}`;
     await mergeBotData(supabase, conv, { ai_materials_sent: { ...sentMaterials(conv), pacotes: new Date().toISOString() } });
     await markQuoteSent(supabase, instance, conv, phone, contactName);
-    return 'OK: PDF de pacotes enviado (os valores estao no PDF).';
+    return 'OK: PDF de pacotes enviado e confirmado pelo WhatsApp (os valores estão no PDF).';
   }
 
   return 'ERRO: tipo de material desconhecido.';
@@ -869,14 +927,27 @@ async function toolRegistrarDados(
     auto_send_pdf: already.pacotes ? false : botSettings?.auto_send_pdf,
   };
   console.log(`[AI Agent] Mês e convidados conhecidos (${bd.mes}, ${bd.convidados}) — enviando materiais automáticos (conv ${conv.id})`);
-  const result = await sendQualificationMaterials(
-    supabase,
-    instance,
-    conv,
-    { nome: String(bd.nome || ''), mes: String(bd.mes), convidados: String(bd.convidados) },
-    settingsForSend,
-    async (action, payload) => (await sendViaWapiSend(supabase, action, instance, conv, payload)) ? 'ok' : null,
-  ).finally(() => mergeBotData(supabase, conv, { ai_materials_busy_until: null }));
+  const sentMedia: Array<{ tipo: MaterialTipo; id: string }> = [];
+  let result: Awaited<ReturnType<typeof sendQualificationMaterials>>;
+  let ack: { confirmed: MaterialTipo[]; unconfirmed: MaterialTipo[] } = { confirmed: [], unconfirmed: [] };
+  try {
+    result = await sendQualificationMaterials(
+      supabase,
+      instance,
+      conv,
+      { nome: String(bd.nome || ''), mes: String(bd.mes), convidados: String(bd.convidados) },
+      settingsForSend,
+      async (action, payload) => {
+        const id = await sendViaWapiSendId(supabase, action, instance, conv, payload);
+        if (id !== null && MATERIAL_OF_ACTION[action]) sentMedia.push({ tipo: MATERIAL_OF_ACTION[action], id });
+        return id !== null ? 'ok' : null;
+      },
+    );
+    // Só conta como enviado o que o WhatsApp confirmou
+    if (result.sentAny) ack = await confirmMaterials(supabase, sentMedia);
+  } finally {
+    await mergeBotData(supabase, conv, { ai_materials_busy_until: null });
+  }
   if (!result.sentAny) {
     console.warn(`[AI Agent] Materiais automáticos não enviados (falhas: ${result.failedSteps.join(', ') || 'nenhum material/desligado'})`);
     return `OK: dados salvos. Os materiais automáticos não puderam ser enviados agora; siga a conversa (se o cliente pedir valores, use enviar_materiais).${minNote}`;
@@ -884,17 +955,16 @@ async function toolRegistrarDados(
 
   const nowIso = new Date().toISOString();
   const sentNow: Partial<Record<MaterialTipo, string>> = { ...flags };
-  if (settingsForSend.auto_send_photos !== false && !already.fotos) sentNow.fotos = nowIso;
-  if (settingsForSend.auto_send_presentation_video !== false && !already.video) sentNow.video = nowIso;
-  if (settingsForSend.auto_send_pdf !== false && !already.pacotes) sentNow.pacotes = nowIso;
+  for (const tipo of ack.confirmed) if (!already[tipo]) sentNow[tipo] = nowIso;
   await mergeBotData(supabase, conv, { ai_materials_sent: sentNow });
-  if (sentNow.pacotes && !already.pacotes) await markQuoteSent(supabase, instance, conv, phone, contactName);
+  if (ack.confirmed.includes('pacotes') && !already.pacotes) await markQuoteSent(supabase, instance, conv, phone, contactName);
   const pdfNote = !minNote && result.pdfGuestCount && askedGuests && askedGuests < result.pdfGuestCount
-    ? ` IMPORTANTE — explique JÁ NESTA resposta: o cliente falou em ${askedGuests} convidados e o PDF enviado é o pacote de ${result.pdfGuestCount} pessoas (o menor).`
+    ? ` IMPORTANTE — explique JÁ NESTA resposta: o cliente falou em ${askedGuests} convidados e o PDF enviado é o do pacote de ${result.pdfGuestCount} pessoas (a faixa logo acima).`
     : '';
   const skipped = (['fotos', 'video', 'pacotes'] as MaterialTipo[]).filter((k) => already[k]).map((k) => MATERIAL_LABEL[k]);
   const skippedNote = skipped.length > 0 ? ` (${skipped.join(', ')} já tinha(m) sido enviado(s) antes e não foi reenviado.)` : '';
-  return `OK: dados salvos e o sistema JÁ ENVIOU agora, automaticamente, os materiais.${skippedNote} Não reenvie nada: comente brevemente e convide para a visita oferecendo 2 horários concretos.${minNote}${pdfNote}`;
+  const confirmedText = ack.confirmed.length > 0 ? ack.confirmed.map((t) => MATERIAL_LABEL[t]).join(', ') : 'nenhum ainda';
+  return `OK: dados salvos e o sistema enviou automaticamente os materiais (confirmados pelo WhatsApp: ${confirmedText}).${skippedNote} Não reenvie nada: comente brevemente e convide para a visita oferecendo 2 horários concretos.${unconfirmedNote(ack.unconfirmed, ack.confirmed)}${minNote}${pdfNote}`;
 }
 
 const WEEKDAYS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];

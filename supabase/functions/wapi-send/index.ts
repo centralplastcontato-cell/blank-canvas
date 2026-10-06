@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
+import { mediaAckMetadata } from "../_shared/media-ack.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -645,6 +646,16 @@ function extractZapiMessageId(payload: unknown): string | null {
   const data = payload as Record<string, unknown> | undefined;
   const id = data?.zapiMessageId || data?.messageId || data?.id;
   return typeof id === 'string' && id.length > 0 ? id : null;
+}
+
+// Mídia pela Z-API: fica "pending" até o WhatsApp confirmar (aviso SENT). Sem
+// message_id não há como acompanhar — fica "sent" como antes.
+function mediaInitialStatus(messageId: string | null): 'pending' | 'sent' {
+  return messageId ? 'pending' : 'sent';
+}
+
+function logZapiMediaResponse(action: string, phone: string, data: unknown): void {
+  console.log(`[Z-API] ${action} aceito para ${String(phone).slice(-4).padStart(8, '*')}: ${JSON.stringify(data).slice(0, 200)}`);
 }
 
 function extractWapiMessageId(payload: unknown): string | null {
@@ -1800,6 +1811,7 @@ Deno.serve(async (req) => {
             });
           }
           const messageId = extractZapiMessageId(zapiRes.data);
+          logZapiMediaResponse('send-image', phone, zapiRes.data);
 
           // Resolve or create conversation for DB tracking (campaigns/outbound)
           let resolvedConvId = conversationId;
@@ -1816,8 +1828,8 @@ Deno.serve(async (req) => {
             await supabase.from('wapi_messages').insert({
               conversation_id: resolvedConvId, message_id: messageId, from_me: true,
               message_type: 'image', content: caption || '[Imagem]', media_url: mediaUrl || null,
-              status: 'sent', timestamp: new Date().toISOString(), company_id: resolvedCompanyId,
-              metadata: { source: 'platform', provider: 'zapi' },
+              status: mediaInitialStatus(messageId), timestamp: new Date().toISOString(), company_id: resolvedCompanyId,
+              metadata: { source: body.messageSource === 'ai_agent' ? 'ai_agent' : 'platform', provider: 'zapi', ...mediaAckMetadata('send-image', { mediaUrl, caption }, { automation: body.automation === true, retryOf: body.retryOf }) },
             });
             await supabase.from('wapi_conversations').update({ 
               last_message_at: new Date().toISOString(),
@@ -1917,12 +1929,13 @@ Deno.serve(async (req) => {
             });
           }
           const messageId = extractZapiMessageId(zapiRes.data);
+          logZapiMediaResponse('send-audio', phone, zapiRes.data);
           if (conversationId) {
             await supabase.from('wapi_messages').insert({
               conversation_id: conversationId, message_id: messageId, from_me: true,
               message_type: 'audio', content: '🎤 Áudio', media_url: audioMediaUrl || null,
-              status: 'sent', timestamp: new Date().toISOString(), company_id: companyId,
-              metadata: { source: 'platform', provider: 'zapi' },
+              status: mediaInitialStatus(messageId), timestamp: new Date().toISOString(), company_id: companyId,
+              metadata: { source: body.messageSource === 'ai_agent' ? 'ai_agent' : 'platform', provider: 'zapi', ...mediaAckMetadata('send-audio', { mediaUrl: audioMediaUrl }, { automation: body.automation === true, retryOf: body.retryOf }) },
             });
             await supabase.from('wapi_conversations').update({ 
               last_message_at: new Date().toISOString(),
@@ -2073,8 +2086,9 @@ Deno.serve(async (req) => {
           const zapiRes = await zapiSendDocument(instance_id, instance_token, client_token, phone, docUrl, fileName || 'document');
           if (!zapiRes.ok) return new Response(JSON.stringify({ error: zapiRes.error }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
           const messageId = extractZapiMessageId(zapiRes.data);
+          logZapiMediaResponse('send-document', phone, zapiRes.data);
           if (conversationId) {
-            await supabase.from('wapi_messages').insert({ conversation_id: conversationId, message_id: messageId, from_me: true, message_type: 'document', content: `📄 ${fileName || 'Documento'}`, media_url: docUrl, status: 'sent', timestamp: new Date().toISOString(), company_id: companyId, metadata: { source: 'platform', provider: 'zapi' } });
+            await supabase.from('wapi_messages').insert({ conversation_id: conversationId, message_id: messageId, from_me: true, message_type: 'document', content: `📄 ${fileName || 'Documento'}`, media_url: docUrl, status: mediaInitialStatus(messageId), timestamp: new Date().toISOString(), company_id: companyId, metadata: { source: body.messageSource === 'ai_agent' ? 'ai_agent' : 'platform', provider: 'zapi', ...mediaAckMetadata('send-document', { mediaUrl: docUrl, fileName }, { automation: body.automation === true, retryOf: body.retryOf }) } });
             await supabase.from('wapi_conversations').update({ last_message_at: new Date().toISOString(), last_message_content: `📄 ${fileName || 'Documento'}`, last_message_from_me: true }).eq('id', conversationId);
           }
           return new Response(JSON.stringify({ success: true, messageId }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -2136,8 +2150,9 @@ Deno.serve(async (req) => {
           const zapiRes = await zapiSendVideo(instance_id, instance_token, client_token, phone, videoUrl, caption);
           if (!zapiRes.ok) return new Response(JSON.stringify({ error: zapiRes.error }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
           const messageId = extractZapiMessageId(zapiRes.data);
+          logZapiMediaResponse('send-video', phone, zapiRes.data);
           if (conversationId) {
-            await supabase.from('wapi_messages').insert({ conversation_id: conversationId, message_id: messageId, from_me: true, message_type: 'video', content: caption || '🎥 Vídeo', media_url: videoUrl, status: 'sent', timestamp: new Date().toISOString(), company_id: companyId, metadata: { source: 'platform', provider: 'zapi' } });
+            await supabase.from('wapi_messages').insert({ conversation_id: conversationId, message_id: messageId, from_me: true, message_type: 'video', content: caption || '🎥 Vídeo', media_url: videoUrl, status: mediaInitialStatus(messageId), timestamp: new Date().toISOString(), company_id: companyId, metadata: { source: body.messageSource === 'ai_agent' ? 'ai_agent' : 'platform', provider: 'zapi', ...mediaAckMetadata('send-video', { mediaUrl: videoUrl, caption }, { automation: body.automation === true, retryOf: body.retryOf }) } });
             await supabase.from('wapi_conversations').update({ last_message_at: new Date().toISOString(), last_message_content: caption ? `🎥 ${caption.substring(0, 90)}` : '🎥 Vídeo', last_message_from_me: true }).eq('id', conversationId);
           }
           return new Response(JSON.stringify({ success: true, messageId }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
