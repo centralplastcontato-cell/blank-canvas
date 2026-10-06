@@ -1257,6 +1257,12 @@ async function toolConsultarValor(
   const { data: company } = await supabase.from('companies').select('settings').eq('id', instance.company_id).maybeSingle();
   const localHolidays = localHolidaysFrom((company?.settings || null) as any);
 
+  // Data da festa já combinada nesta conversa: vale de novo quando a IA pede
+  // outro valor sem dizer o dia (no simulador ela trocou o feriado 12/10 por "domingo")
+  const savedDate = typeof bd.data_festa === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(bd.data_festa) ? bd.data_festa as string : null;
+  const todayYmd = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+  if (!args.data && savedDate && savedDate >= todayYmd && !args.dia_semana) args = { ...args, data: savedDate };
+
   let day: PartyDay | null = null;
   let dayText = '';
   let holidayNote = '';
@@ -1294,6 +1300,10 @@ async function toolConsultarValor(
       return `${what} na agenda: NÃO informe valor para esse horário. Avise o cliente e ofereça o(s) horário(s) livre(s) mais próximo(s) (disponível neste momento) — linhas prontas:\n${nearest.length > 0 ? `${daysBlock(nearest)}\n${toolRefsLine(nearest)}` : '(nenhum nas semanas próximas — passe para a equipe)'}\nSe ele escolher um deles, consulte o valor de novo com a nova data/horário.`;
     }
     freeHours = wanted.map((f) => f.slot.start);
+    if (bd.data_festa !== date) {
+      await mergeBotData(supabase, conv, { data_festa: date });
+      conv.bot_data = { ...(conv.bot_data || {}), data_festa: date } as Json;
+    }
   }
 
   const [{ data: packages }, { data: tiers }] = await Promise.all([
@@ -1600,6 +1610,7 @@ export async function maybeHandleWithAiAgent(
         nome: null,
         mes: null,
         convidados: null,
+        data_festa: null,
       } as Json;
       // Limpa também qualquer pausa (trava anti-loop, passagem do bot fixo...):
       // conversa pausada nem chega na IA.
@@ -1759,6 +1770,7 @@ export async function maybeHandleWithAiAgent(
       firstNameOrEmpty(bd.nome as string) ? `nome ${bd.nome}` : null,
       bd.mes ? `mês ${bd.mes}` : null,
       bd.convidados ? `${bd.convidados}` : null,
+      typeof bd.data_festa === 'string' ? `data da festa ${formatDateLong(bd.data_festa)} (${bd.data_festa}) — use esta data em consultar_valor_pacote enquanto o cliente não mudar` : null,
     ].filter(Boolean) as string[];
     const systemPrompt = buildSystemPrompt(companyName, instance.unit, settings, today, {
       offers: pickTwoOffers(available),

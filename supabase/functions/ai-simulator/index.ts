@@ -15,6 +15,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { DEFAULT_AI_MODEL } from "../_shared/ai-models.ts";
 import { teamHoursText } from "../_shared/business-hours.ts";
+import { GENERAL_SCENARIOS } from "./scenarios.ts";
 import { AI_ACTOR, AI_ACTOR_HEADER } from "../wapi-webhook/ai-db-guard.ts";
 import {
   agentCostUsd,
@@ -90,6 +91,22 @@ async function authorize(req: Request, companyId: string): Promise<{ userId: str
   return { userId: user.id };
 }
 
+// Deixa os cenários gerais do banco iguais aos do código (scenarios.ts)
+async function syncGeneralScenarios(): Promise<void> {
+  const { data: existing } = await admin.from("ai_sim_scenarios").select("id, key, title, persona, expectation, sort_order").is("company_id", null);
+  const byKey = new Map(((existing || []) as any[]).map((r) => [r.key, r]));
+  for (let i = 0; i < GENERAL_SCENARIOS.length; i++) {
+    const s = GENERAL_SCENARIOS[i];
+    const row = byKey.get(s.key);
+    const values = { title: s.title, persona: s.persona, expectation: s.expectation, sort_order: i + 1 };
+    if (!row) {
+      await admin.from("ai_sim_scenarios").insert({ company_id: null, key: s.key, ...values });
+    } else if (row.title !== s.title || row.persona !== s.persona || row.expectation !== s.expectation || row.sort_order !== i + 1) {
+      await admin.from("ai_sim_scenarios").update(values).eq("id", row.id);
+    }
+  }
+}
+
 async function start(req: Request, body: any): Promise<Response> {
   const companyId = String(body.company_id || "");
   if (!companyId) return json({ error: "company_id obrigatório" }, 400);
@@ -104,6 +121,7 @@ async function start(req: Request, body: any): Promise<Response> {
   const { data: running } = await admin.from("ai_sim_runs").select("id").eq("company_id", companyId).eq("status", "running").gte("created_at", since).limit(1);
   if (running && running.length > 0) return json({ run_id: running[0].id, already_running: true });
 
+  await syncGeneralScenarios().catch((e) => console.error("[Simulador] Falha ao sincronizar cenários gerais:", e));
   const { data: allScenarios, error: scErr } = await admin.from("ai_sim_scenarios")
     .select("id, key, title, persona, expectation, company_id")
     .eq("is_active", true)
@@ -210,6 +228,7 @@ async function loadKnowledge(companyId: string): Promise<string> {
     settings?.extra_instructions || "",
     settings?.visit_hours ? `Horários de VISITA ao espaço: ${settings.visit_hours}` : "",
     `Horário de atendimento da EQUIPE (a IA informa ao passar a conversa): ${teamHoursText(settings?.team_hours)}`,
+    "A IA recebe a lista de horários de VISITA livres dos próximos dias (da agenda de visitas) e pode oferecê-los sem consultar ferramenta.",
     pk,
   ]
     .filter(Boolean).join("\n\n").slice(0, 16000);
