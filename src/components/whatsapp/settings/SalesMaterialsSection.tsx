@@ -269,13 +269,22 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
       // Normaliza orientação EXIF (evita fotos de lado no WhatsApp)
       file = await normalizeImageOrientation(file);
 
+      // No iPhone o arquivo escolhido às vezes não pode ser lido (está no
+      // iCloud sem baixar, ou o Safari ainda convertia o vídeo) e o envio
+      // chegava vazio ("No content provided"). Lê tudo antes de enviar.
+      const bytes = await file.arrayBuffer().catch(() => new ArrayBuffer(0));
+      if (bytes.byteLength === 0) {
+        throw new Error("Não consegui ler o arquivo (chegou vazio). Salve o vídeo na Fototeca — em Arquivos: abrir o vídeo → Compartilhar → Salvar Vídeo — e escolha de lá.");
+      }
+
       const fileExt = file.name.split(".").pop();
       const fileName = `${selectedUnit.toLowerCase()}/${formData.type}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from("sales-materials")
-        .upload(fileName, file, {
+        .upload(fileName, new Blob([bytes], { type: file.type }), {
           cacheControl: "3600",
+          contentType: file.type || undefined,
           upsert: false,
         });
 
