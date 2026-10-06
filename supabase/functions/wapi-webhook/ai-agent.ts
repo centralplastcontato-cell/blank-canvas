@@ -31,7 +31,7 @@ import {
 import { formatBRL, holidayName, isHolidayEveYmd, isHolidayYmd, localHolidaysFrom, moneyValuesIn, type PackageQuote, type PartyDay, quotePackages, weekdayYmd } from "../_shared/package-pricing.ts";
 import { addDaysYmd, type FreeDay, type FreeSlot, freePartySlots, monthFromText, monthRange, parsePartySlots, pickPartyDates, weekdayOf } from "../_shared/party-availability.ts";
 import { waitForMediaAck } from "../_shared/media-ack.ts";
-import { formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
+import { fixWeekdays, formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
 import { guardAiDb } from "./ai-db-guard.ts";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
@@ -1883,6 +1883,12 @@ export async function maybeHandleWithAiAgent(
       let finalText = step.text;
       if (conv.__handoffThisTurn && !finalText.includes(describeTeamHours(teamHoursOf(settings)))) {
         finalText = `${finalText}\n\n${teamHoursMessage(settings)}`;
+      }
+      // Dia da semana errado junto de uma data ("sexta-feira, 17 de outubro" quando é sábado): corrige
+      const fixedText = fixWeekdays(finalText, new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10));
+      if (fixedText !== finalText) {
+        console.warn(`[AI Agent] Dia da semana corrigido na resposta (conv ${conv.id})`);
+        finalText = fixedText;
       }
       // Trava de valores: todo "R$" da resposta tem de ter vindo da tabela (neste
       // turno ou já dito antes na conversa). Valor inventado não sai.
