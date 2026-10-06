@@ -1069,6 +1069,10 @@ async function loadPackagesText(supabase: any, instance: AgentInstance): Promise
     lines.push(`- ${p.name}${desc ? `: ${desc}` : ''}${items.length > 0 ? `\n  Inclui: ${items.join('; ')}` : ''}`);
   }
   const text = lines.join('\n');
+  // Conferência: quais pacotes a IA recebeu e com quantos itens
+  const summary = ((data || []) as Array<{ name: string; includes?: string | null }>)
+    .map((p) => `${p.name} (${String(p.includes || '').split('\n').filter((l) => l.trim()).length} itens)`).join(', ');
+  console.log(`[AI Agent] Pacotes lidos para a IA: ${summary || 'nenhum ativo'}${/R\$/.test(text) ? ' — atenção: "O que inclui" tem valores em R$ (a IA não pode citar)' : ''}`);
   return text ? text.slice(0, 3000) : null;
 }
 
