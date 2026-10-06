@@ -23,6 +23,7 @@ import { Sparkles, Loader2, Save, Pencil, Check, FlaskConical, Cpu, Wallet, Bell
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { AiSimulatorDialog } from "./AiSimulatorDialog";
 import { DEFAULT_TEAM_HOURS, parseVisitHours, serializeTeamHours, serializeVisitHours } from "@/lib/businessHours";
 import {
   AI_MODELS,
@@ -231,6 +232,7 @@ export function AiAgentSection() {
   const [editModel, setEditModel] = useState(DEFAULT_AI_MODEL);
   const [editTestModel, setEditTestModel] = useState(SAME_MODEL);
   const [usageRows, setUsageRows] = useState<AiUsageRow[]>([]);
+  const [simOpen, setSimOpen] = useState(false);
   const [teamDays, setTeamDays] = useState<number[]>([0, 1, 2, 3, 4, 5]);
   const [teamStart, setTeamStart] = useState("09:00");
   const [teamEnd, setTeamEnd] = useState("18:00");
@@ -839,6 +841,17 @@ export function AiAgentSection() {
                     />
                   </div>
                 ))}
+
+                {/* Simulador de testes */}
+                <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-3.5 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Label className="text-xs font-bold flex items-center gap-1.5"><FlaskConical className="w-3.5 h-3.5 text-violet-600" /> Testes da IA</Label>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Simula umas 30 conversas de clientes (preço, datas, desconto, visita, formatura…) e mostra o que passou e o que falhou. Não envia nada pelo WhatsApp. Salve antes as mudanças que quiser testar.
+                    </p>
+                  </div>
+                  <Button size="sm" variant="outline" className="shrink-0" onClick={() => setSimOpen(true)}>Rodar testes</Button>
+                </div>
               </div>
             )}
 
@@ -886,6 +899,12 @@ export function AiAgentSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AiSimulatorDialog
+        open={simOpen}
+        onOpenChange={setSimOpen}
+        model={(settings.test_mode_enabled && settings.test_model) || settings.model || DEFAULT_AI_MODEL}
+      />
     </>
   );
 }

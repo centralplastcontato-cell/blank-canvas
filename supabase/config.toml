@@ -102,3 +102,6 @@ verify_jwt = false
 [functions.wapi-queue-processor]
 verify_jwt = false
 
+
+[functions.ai-simulator]
+verify_jwt = false

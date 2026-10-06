@@ -1,0 +1,296 @@
+// Simulador de testes da IA Conversacional (beta).
+//
+// POST { action: "start", company_id, scenario_ids?, rerun_failed_of? }  (usuário logado)
+//   cria a rodada, uma linha por cenário, e dispara 3 "trabalhadores".
+// POST { action: "resume", run_id }  (usuário logado) — destrava rodada parada.
+// POST { action: "work", run_id }    (só o próprio servidor) — pega o próximo
+//   cenário, conversa até ~1 min, guarda o estado e chama o próximo trabalhador.
+//
+// Só funciona com o módulo IA Conversacional ligado no Hub. A IA responde no
+// modo isolado: nada sai pelo WhatsApp e nada é gravado fora destas tabelas.
+
+// deno-lint-ignore-file no-explicit-any
+
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
+import { DEFAULT_AI_MODEL } from "../_shared/ai-models.ts";
+import { AI_ACTOR, AI_ACTOR_HEADER } from "../wapi-webhook/ai-db-guard.ts";
+import {
+  agentCostUsd,
+  deterministicChecks,
+  initialState,
+  judgeScenario,
+  passed,
+  runScenarioSlice,
+  type Scenario,
+  type ScenarioState,
+} from "./engine.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const WORKERS = 3;
+// Tempo de conversa por chamada (o resto fica para o avaliador e para gravar)
+const SLICE_MS = 55_000;
+const LEASE_MS = 150_000;
+
+const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+// O que a IA lê do banco real vai com o cabeçalho da IA: se algo tentasse
+// gravar em festa/financeiro, o gatilho do banco recusaria (2ª trava)
+const aiReadDb = createClient(SUPABASE_URL, SERVICE_KEY, {
+  auth: { persistSession: false },
+  global: { headers: { [AI_ACTOR_HEADER]: AI_ACTOR } },
+});
+
+function background(p: Promise<unknown>) {
+  const runtime = (globalThis as any).EdgeRuntime;
+  if (runtime?.waitUntil) runtime.waitUntil(p);
+  else p.catch((e) => console.error("[Simulador] erro em segundo plano:", e));
+}
+
+async function triggerWorker(runId: string): Promise<void> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/ai-simulator`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "work", run_id: runId }),
+    });
+    await res.text();
+  } catch (e) {
+    console.error("[Simulador] não consegui chamar o próximo trabalhador:", e);
+  }
+}
+
+async function authorize(req: Request, companyId: string): Promise<{ userId: string | null } | Response> {
+  const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  if (!jwt) return json({ error: "Faça login" }, 401);
+  // O próprio servidor (chave de serviço) pode rodar uma bateria — o módulo continua obrigatório
+  if (jwt === SERVICE_KEY) {
+    return (await loadAiConversationalEnabled(admin, companyId))
+      ? { userId: null }
+      : json({ error: "O módulo IA Conversacional não está liberado para esta empresa" }, 403);
+  }
+  const { data: { user }, error } = await admin.auth.getUser(jwt);
+  if (error || !user) return json({ error: "Sessão inválida" }, 401);
+  const { data: membership } = await admin.from("user_companies").select("company_id").eq("user_id", user.id).eq("company_id", companyId).maybeSingle();
+  if (!membership) {
+    const { data: isAdmin } = await admin.rpc("is_admin", { _user_id: user.id });
+    if (isAdmin !== true) return json({ error: "Sem acesso a esta empresa" }, 403);
+  }
+  if (!(await loadAiConversationalEnabled(admin, companyId))) {
+    return json({ error: "O módulo IA Conversacional não está liberado para esta empresa" }, 403);
+  }
+  return { userId: user.id };
+}
+
+async function start(req: Request, body: any): Promise<Response> {
+  const companyId = String(body.company_id || "");
+  if (!companyId) return json({ error: "company_id obrigatório" }, 400);
+  const auth = await authorize(req, companyId);
+  if (auth instanceof Response) return auth;
+
+  const { data: settings } = await admin.from("ai_agent_settings").select("*").eq("company_id", companyId).maybeSingle();
+  if (!settings?.unit) return json({ error: "Configure a IA (unidade) antes de rodar os testes" }, 400);
+
+  // Uma rodada por vez por empresa
+  const since = new Date(Date.now() - 30 * 60000).toISOString();
+  const { data: running } = await admin.from("ai_sim_runs").select("id").eq("company_id", companyId).eq("status", "running").gte("created_at", since).limit(1);
+  if (running && running.length > 0) return json({ run_id: running[0].id, already_running: true });
+
+  const { data: allScenarios, error: scErr } = await admin.from("ai_sim_scenarios")
+    .select("id, key, title, persona, expectation, company_id")
+    .eq("is_active", true)
+    .or(`company_id.is.null,company_id.eq.${companyId}`)
+    .order("sort_order");
+  if (scErr) return json({ error: scErr.message }, 500);
+  let scenarios = (allScenarios || []) as Scenario[];
+  if (Array.isArray(body.scenario_ids) && body.scenario_ids.length > 0) {
+    const ids = new Set(body.scenario_ids.map(String));
+    scenarios = scenarios.filter((s) => ids.has(s.id));
+  } else if (body.rerun_failed_of) {
+    const { data: prev } = await admin.from("ai_sim_results").select("scenario_id, status")
+      .eq("run_id", String(body.rerun_failed_of)).eq("company_id", companyId);
+    const failedIds = new Set((prev || []).filter((r: any) => r.status === "failed" || r.status === "error").map((r: any) => r.scenario_id));
+    scenarios = scenarios.filter((s) => failedIds.has(s.id));
+  }
+  if (scenarios.length === 0) return json({ error: "Nenhum cenário para rodar" }, 400);
+
+  // Mesmo modelo do número de teste (com o Modo de Teste ligado) ou o dos clientes
+  const model = (settings.test_mode_enabled && settings.test_model) || settings.model || DEFAULT_AI_MODEL;
+  const { data: run, error: runErr } = await admin.from("ai_sim_runs")
+    .insert({ company_id: companyId, created_by: auth.userId, model, total: scenarios.length })
+    .select("id").single();
+  if (runErr || !run) return json({ error: runErr?.message || "Erro ao criar a rodada" }, 500);
+
+  const rows = scenarios.map((s) => ({
+    run_id: run.id,
+    company_id: companyId,
+    scenario_id: s.id,
+    scenario_key: s.key,
+    scenario_title: s.title,
+    scope: s.company_id ? "empresa" : "geral",
+    status: "pending",
+    state: { scenario: s },
+  }));
+  const { error: resErr } = await admin.from("ai_sim_results").insert(rows);
+  if (resErr) return json({ error: resErr.message }, 500);
+
+  background(Promise.all(Array.from({ length: Math.min(WORKERS, scenarios.length) }, () => triggerWorker(run.id))));
+  return json({ run_id: run.id, total: scenarios.length, model });
+}
+
+async function resume(req: Request, body: any): Promise<Response> {
+  const runId = String(body.run_id || "");
+  const { data: run } = await admin.from("ai_sim_runs").select("id, company_id, status").eq("id", runId).maybeSingle();
+  if (!run) return json({ error: "Rodada não encontrada" }, 404);
+  const auth = await authorize(req, run.company_id);
+  if (auth instanceof Response) return auth;
+  if (run.status === "running") background(triggerWorker(run.id));
+  return json({ ok: true });
+}
+
+// Tenta pegar um cenário: pendente, ou "rodando" com o prazo vencido (trabalhador que caiu)
+async function claim(runId: string): Promise<any | null> {
+  const now = new Date();
+  const { data: candidates } = await admin.from("ai_sim_results")
+    .select("id, status, lease_until")
+    .eq("run_id", runId)
+    .in("status", ["pending", "running"])
+    .order("created_at")
+    .limit(20);
+  for (const c of candidates || []) {
+    if (c.status === "running" && c.lease_until && Date.parse(c.lease_until) > now.getTime()) continue;
+    let q = admin.from("ai_sim_results")
+      .update({ status: "running", lease_until: new Date(now.getTime() + LEASE_MS).toISOString() })
+      .eq("id", c.id)
+      .eq("status", c.status);
+    if (c.status === "running") q = q.lt("lease_until", now.toISOString());
+    const { data: got } = await q.select("*");
+    if (got && got.length > 0) return got[0];
+  }
+  return null;
+}
+
+async function finalizeIfDone(runId: string): Promise<void> {
+  const { data: results } = await admin.from("ai_sim_results").select("status, cost_usd").eq("run_id", runId);
+  const list = results || [];
+  if (list.some((r: any) => r.status === "pending" || r.status === "running")) return;
+  const count = (s: string) => list.filter((r: any) => r.status === s).length;
+  const cost = list.reduce((s: number, r: any) => s + (Number(r.cost_usd) || 0), 0);
+  await admin.from("ai_sim_runs").update({
+    status: "done",
+    passed: count("passed"),
+    failed: count("failed"),
+    errors: count("error"),
+    cost_usd: Number(cost.toFixed(6)),
+    finished_at: new Date().toISOString(),
+  }).eq("id", runId).eq("status", "running");
+  console.log(`[Simulador] Rodada ${runId} terminada: ${count("passed")} passaram, ${count("failed")} falharam, ${count("error")} erros, US$ ${cost.toFixed(4)}`);
+}
+
+async function work(runId: string): Promise<void> {
+  const row = await claim(runId);
+  if (!row) {
+    await finalizeIfDone(runId);
+    return;
+  }
+  const { data: run } = await admin.from("ai_sim_runs").select("company_id, model").eq("id", runId).single();
+  if (!run) return;
+  const companyId = run.company_id as string;
+  const scenario = row.state?.scenario as Scenario;
+  let sim = row.state?.sim as ScenarioState | undefined;
+  try {
+    const openaiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!openaiKey) throw new Error("OPENAI_API_KEY não configurada (cliente simulado e avaliador usam OpenAI)");
+    const [{ data: company }, { data: settings }] = await Promise.all([
+      admin.from("companies").select("name").eq("id", companyId).single(),
+      admin.from("ai_agent_settings").select("unit").eq("company_id", companyId).single(),
+    ]);
+    if (!sim) {
+      // Visitas reais (cópia): a IA confere conflito de horário sem tocar nelas
+      const today = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+      const { data: visits } = await admin.from("lead_visits")
+        .select("id, lead_id, company_id, unit, data_visita, horario_visita, status_visita")
+        .eq("company_id", companyId).gte("data_visita", today).limit(1000);
+      const contactName = scenario.persona.match(/se chama ([A-ZÀ-Úa-zà-ú]+)/)?.[1] || "Cliente";
+      sim = initialState(`sim-${row.id}`, contactName, visits || []);
+    }
+    sim = await runScenarioSlice({
+      realDb: aiReadDb,
+      companyId,
+      companyName: company?.name || "Buffet",
+      unit: settings?.unit || "",
+      model: run.model || null,
+      scenario,
+      state: sim,
+      openaiKey,
+      budgetMs: SLICE_MS,
+    });
+    const partialCost = agentCostUsd(sim) + sim.helperCostUsd;
+    if (!sim.done) {
+      await admin.from("ai_sim_results").update({
+        status: "pending",
+        lease_until: null,
+        state: { scenario, sim },
+        transcript: sim.transcript,
+        turns: sim.turn,
+        cost_usd: Number(partialCost.toFixed(6)),
+      }).eq("id", row.id);
+    } else {
+      const judged = await judgeScenario(openaiKey, company?.name || "Buffet", scenario, sim);
+      const checks = [...deterministicChecks(sim), ...judged.checks];
+      const cost = partialCost + judged.costUsd;
+      await admin.from("ai_sim_results").update({
+        status: passed(checks) ? "passed" : "failed",
+        lease_until: null,
+        state: null,
+        transcript: sim.transcript,
+        checks,
+        summary: judged.summary,
+        end_reason: sim.endReason,
+        turns: sim.turn,
+        cost_usd: Number(cost.toFixed(6)),
+        finished_at: new Date().toISOString(),
+      }).eq("id", row.id);
+      console.log(`[Simulador] ${scenario.key}: ${passed(checks) ? "passou" : "falhou"} (${sim.turn} vezes, US$ ${cost.toFixed(4)})`);
+    }
+  } catch (err) {
+    console.error(`[Simulador] Erro no cenário ${scenario?.key}:`, err);
+    await admin.from("ai_sim_results").update({
+      status: "error",
+      lease_until: null,
+      state: null,
+      transcript: sim?.transcript || [],
+      error: String((err as Error)?.message || err).slice(0, 1000),
+      turns: sim?.turn || 0,
+      cost_usd: Number(((sim ? agentCostUsd(sim) + sim.helperCostUsd : 0)).toFixed(6)),
+      finished_at: new Date().toISOString(),
+    }).eq("id", row.id);
+  }
+  // Próximo cenário (ou fecha a rodada)
+  await triggerWorker(runId);
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  try {
+    const body = await req.json().catch(() => ({}));
+    if (body.action === "work") {
+      if ((req.headers.get("Authorization") || "") !== `Bearer ${SERVICE_KEY}`) return json({ error: "não autorizado" }, 401);
+      background(work(String(body.run_id || "")));
+      return json({ accepted: true }, 202);
+    }
+    if (body.action === "start") return await start(req, body);
+    if (body.action === "resume") return await resume(req, body);
+    return json({ error: "ação desconhecida" }, 400);
+  } catch (err) {
+    console.error("[Simulador] Erro:", err);
+    return json({ error: String((err as Error)?.message || err) }, 500);
+  }
+});

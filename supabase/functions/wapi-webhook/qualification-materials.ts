@@ -5,6 +5,7 @@
 // Quem chama passa a função de envio (cada lado tem o seu wrapper do wapi-send).
 
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { sandboxSleep } from "./ai-sandbox.ts";
 
 export type MaterialSender = (
   action: 'send-text' | 'send-image' | 'send-video' | 'send-document',
@@ -13,7 +14,7 @@ export type MaterialSender = (
 ) => Promise<string | null>;
 
 function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return sandboxSleep(ms);
 }
 
 // Palavras que não são nome de verdade (a IA às vezes registra "cliente")
