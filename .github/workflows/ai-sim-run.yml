@@ -1,0 +1,31 @@
+name: Rodar testes da IA (simulador)
+
+# Dispara uma bateria do simulador de testes da IA para uma empresa, como se
+# alguém tivesse tocado em "Rodar testes". Só funciona com o módulo IA
+# Conversacional ligado para a empresa. O resultado aparece em Configurar IA →
+# Testes da IA.
+
+on:
+  push:
+    branches: ["claude/**"]
+    paths: [".github/ai-sim-request.json"]
+
+jobs:
+  run:
+    name: Rodar testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Disparar
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          COMPANY=$(jq -r .company_id .github/ai-sim-request.json)
+          KEY=$(curl -sS "https://api.supabase.com/v1/projects/rsezgnkfhodltrsewlhz/api-keys?reveal=true" \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" | jq -r '[.[] | select(.name=="service_role")][0].api_key')
+          [ -n "$KEY" ] && [ "$KEY" != "null" ] || { echo "sem chave de serviço"; exit 1; }
+          echo "::add-mask::$KEY"
+          curl -sS -X POST "https://rsezgnkfhodltrsewlhz.supabase.co/functions/v1/ai-simulator" \
+            -H "Authorization: Bearer ${KEY}" -H "Content-Type: application/json" \
+            -d "$(jq -c '{action:"start"} + .' .github/ai-sim-request.json)"
+          echo

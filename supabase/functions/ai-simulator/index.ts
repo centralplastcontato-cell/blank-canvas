@@ -67,9 +67,15 @@ async function triggerWorker(runId: string): Promise<void> {
   }
 }
 
-async function authorize(req: Request, companyId: string): Promise<{ userId: string } | Response> {
+async function authorize(req: Request, companyId: string): Promise<{ userId: string | null } | Response> {
   const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
   if (!jwt) return json({ error: "Faça login" }, 401);
+  // O próprio servidor (chave de serviço) pode rodar uma bateria — o módulo continua obrigatório
+  if (jwt === SERVICE_KEY) {
+    return (await loadAiConversationalEnabled(admin, companyId))
+      ? { userId: null }
+      : json({ error: "O módulo IA Conversacional não está liberado para esta empresa" }, 403);
+  }
   const { data: { user }, error } = await admin.auth.getUser(jwt);
   if (error || !user) return json({ error: "Sessão inválida" }, 401);
   const { data: membership } = await admin.from("user_companies").select("company_id").eq("user_id", user.id).eq("company_id", companyId).maybeSingle();
