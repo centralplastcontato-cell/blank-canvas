@@ -35,7 +35,7 @@ import { fixWeekdays, weekdayMismatches, formatBRLShort, formatDateLong, formatD
 import { guardAiDb } from "./ai-db-guard.ts";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
-import { clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
+import { asksPartnership, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 import { falseMaterialClaims, hasMaterialClaim, hasSubstance, refersToMaterial, stripFalseMaterialClaims } from "../_shared/material-claims.ts";
 import { enforceHouseRules, houseRuleNote, houseRuleViolatingSentences, houseRuleViolations, parseHouseRules, topicsAsked, TOPIC_ASK } from "../_shared/house-rules.ts";
@@ -535,6 +535,7 @@ COMO CONVERSAR:
 - Descubra naturalmente: nome da pessoa, mês/data desejada da festa e número de convidados, se ainda não souber.
 - Quebre objeções com empatia ("vou pensar" → ofereça a visita sem compromisso; "tá caro" → valorize o que está incluso).
 - Se o cliente disser que não vai fechar / desistiu / não dá agora: aceite com gentileza, agradeça e deixe a porta aberta ("se mudar de ideia, é só me chamar") — NÃO insista, NÃO ofereça visita nem horários.
+- Permuta, parceria, patrocínio ou divulgação em troca da festa (influenciador): NÃO aceite, NÃO recuse e NÃO fale em desconto — diga com simpatia que vai passar a proposta para a equipe avaliar e use transferir_para_atendente (motivo: proposta de permuta/parceria).
 - Desconto, à vista, parcelamento, entrada ou forma de pagamento: na primeira vez diga que as condições de pagamento e o fechamento são com a equipe. Se o cliente perguntar DE NOVO sobre isso, não repita a mesma resposta: use transferir_para_atendente (motivo: condições de pagamento).
 - Nunca repita a mesma resposta duas vezes seguidas: se o cliente repetir a pergunta, responda de outro jeito (mais curto, ou pergunte o que exatamente ele quer saber). Só passe para a equipe se for sobre condições de pagamento ou se ele pedir um atendente.
 - Áudios do cliente chegam para você já transcritos e fotos chegam descritas: responda ao conteúdo normalmente, sem comentar que foi transcrito. Se aparecer que um áudio ou uma foto não pôde ser ouvido/visto, peça com gentileza para a pessoa escrever.
@@ -1932,7 +1933,10 @@ export async function maybeHandleWithAiAgent(
       // (comida de fora, animal). Se insistir, o sistema corrige a frase.
       const falseClaims = hasMaterialClaim(finalText) ? falseMaterialClaims(finalText, await registeredMaterials()) : [];
       const brokenRules = houseRuleViolations(finalText, houseRules, askedTopics);
-      if ((falseClaims.length > 0 || brokenRules.length > 0) && !redoAsked) {
+      // Proposta de permuta/parceria tem de ir para a equipe (o simulador pegou
+      // a IA dizendo "não consigo confirmar por aqui" sem passar)
+      const partnershipPending = asksPartnership(lastUserText) && !conv.__handoffThisTurn && conv.bot_step !== 'human_takeover';
+      if ((falseClaims.length > 0 || brokenRules.length > 0 || partnershipPending) && !redoAsked) {
         redoAsked = true;
         // Uma rodada para refazer e outra se ela precisar de ferramenta (ex.: enviar_materiais)
         maxRounds = Math.max(maxRounds, round + 3);
@@ -1944,7 +1948,10 @@ export async function maybeHandleWithAiAgent(
           const said = houseRuleViolatingSentences(finalText, houseRules, askedTopics)[0] || '';
           problems.push(`${said ? `a frase "${said.slice(0, 160)}" ` : 'ela '}contradiz o cadastro do buffet sobre ${brokenRules.map((r) => `${TOPIC_ASK[r.topic]} (resposta do cadastro: "${r.answer}")`).join(' e ')}. Diga com gentileza que isso não pode, sem abrir exceção, e mantenha o resto da resposta.`);
         }
-        console.warn(`[AI Agent] Resposta refeita (conv ${conv.id}): ${falseClaims.length > 0 ? `disse que mandou material sem envio registrado (${falseClaims[0].slice(0, 80)})` : ''}${brokenRules.length > 0 ? ` contradisse o cadastro (${brokenRules.map((r) => r.topic).join(', ')})` : ''}`);
+        if (partnershipPending) {
+          problems.push('o cliente propôs permuta/parceria/divulgação e você não passou para a equipe. Use transferir_para_atendente (motivo: proposta de permuta/parceria) e diga com simpatia que a equipe vai avaliar a proposta, sem aceitar, recusar ou falar em desconto.');
+        }
+        console.warn(`[AI Agent] Resposta refeita (conv ${conv.id}):${partnershipPending ? ' permuta sem passar para a equipe;' : ''} ${falseClaims.length > 0 ? `disse que mandou material sem envio registrado (${falseClaims[0].slice(0, 80)})` : ''}${brokenRules.length > 0 ? ` contradisse o cadastro (${brokenRules.map((r) => r.topic).join(', ')})` : ''}`);
         session.addUserNote(`Sua resposta anterior NÃO foi enviada ao cliente porque ${problems.join(' Além disso, ')} Escreva de novo a resposta completa para o cliente, já corrigida, sem mencionar este aviso e sem pedir desculpas.`);
         continue;
       }
@@ -1958,6 +1965,13 @@ export async function maybeHandleWithAiAgent(
         }
         console.warn(`[AI Agent] Frase de material não enviado tirada da resposta (conv ${conv.id}): ${stripped.removed.join(' | ').slice(0, 200)}`);
         finalText = stripped.text;
+      }
+      if (partnershipPending) {
+        // Insistiu em não passar: o sistema passa (o horário da equipe vai junto, logo abaixo)
+        console.warn(`[AI Agent] Permuta/parceria passada para a equipe pelo sistema (conv ${conv.id})`);
+        const motivo = 'proposta de permuta/parceria (a IA não passou sozinha)';
+        const result = await toolTransferir(supabase, instance, conv, phone, contactName, settings, motivo);
+        sandbox?.state.tools.push({ name: 'transferir_para_atendente', args: { motivo }, result });
       }
       if (brokenRules.length > 0) {
         const enforced = enforceHouseRules(finalText, brokenRules);

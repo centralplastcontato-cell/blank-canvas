@@ -70,6 +70,7 @@ Deno.test("simulador: conferências automáticas (palavra sistema e valores fora
     datas_da_agenda: null,
     regra_do_buffet: null,
     dia_da_semana: null,
+    permuta_equipe: null,
   });
 });
 

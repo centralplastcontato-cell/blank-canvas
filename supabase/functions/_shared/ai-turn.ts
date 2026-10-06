@@ -176,6 +176,20 @@ export function clientAsksVisit(text: string): boolean {
   return /(visit|conhecer|ir a[ií]|passar a[ií]|ver (o espa[cç]o|pessoalmente)|agendar|hor[aá]rios? (de|pra|para) (visita|conhecer|ir))/i.test(text || "");
 }
 
+/**
+ * Proposta de permuta, parceria ou patrocínio (influenciadora oferecendo
+ * divulgação em troca da festa): a IA não aceita nem recusa — passa para a equipe.
+ * "Vi a divulgação de vocês" não conta.
+ */
+export function asksPartnership(text: string): boolean {
+  const t = text || "";
+  return /(?<![\p{L}])(permuta|parceri\p{L}*|patroc[ií]n\p{L}*|collab|publipost|publi paga)(?![\p{L}])/iu.test(t) ||
+    /(?<![\p{L}])em troca d[aeo]s? (divulga|post|stories|story|publi|v[ií]deo|reels|marca[çc])/iu.test(t) ||
+    /(?<![\p{L}])(divulg|post|stories|story|reels|publi)\p{L}*.{0,40}em troca(?![\p{L}])/iu.test(t) ||
+    (/(?<![\p{L}])(sou influenc\p{L}*|influenciador\p{L}*|\d+\s*(mil|k)\s*seguidores)(?![\p{L}])/iu.test(t) &&
+      /(?<![\p{L}])(divulg\p{L}*|post\p{L}*|stories|story|reels|publi\p{L}*|troca|marcar|mostrar)(?![\p{L}])/iu.test(t));
+}
+
 /** O cliente desistiu / disse que não vai fechar agora */
 export function clientDeclined(text: string): boolean {
   return /(n[aã]o vai dar|n[aã]o d[aá] pra|n[aã]o vou (fechar|conseguir)|desist|fica pra (pr[oó]xima|outra)|sem interesse|n[aã]o tenho interesse|acho que n[aã]o|vou procurar outro|muito caro pra mim)/i.test(text || "");

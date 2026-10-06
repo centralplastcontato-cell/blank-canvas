@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CheckCircle2, ChevronDown, ChevronRight, FlaskConical, Loader2, Play, RotateCcw, XCircle, AlertTriangle, Wrench } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronRight, ExternalLink, FlaskConical, Loader2, Play, RotateCcw, Search, XCircle, AlertTriangle, Wrench } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -173,6 +173,99 @@ function ResultRow({ r }: { r: SimResult }) {
   );
 }
 
+interface RealAuditConversation {
+  id: string;
+  name: string | null;
+  phone: string;
+  last_at: string;
+  problems: Array<{ id: string; label: string; note: string }>;
+  transcript: SimEntry[];
+}
+
+function RealAuditRow({ c }: { c: RealAuditConversation }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-xl border border-border bg-card">
+      <button type="button" className="w-full flex items-center gap-2 p-3 text-left" onClick={() => setOpen((v) => !v)}>
+        {open ? <ChevronDown className="w-4 h-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground" />}
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium truncate">{c.name || c.phone}</p>
+          <p className="text-[11px] text-red-700 truncate">{c.problems.map((p) => p.label).join(" · ")}</p>
+        </div>
+        <span className="text-[11px] text-muted-foreground shrink-0">{c.last_at ? fmtDate(c.last_at) : ""}</span>
+      </button>
+      {open && (
+        <div className="px-3 pb-3 space-y-3 border-t border-border/50 pt-3">
+          <div className="space-y-1">
+            {c.problems.map((p) => (
+              <div key={p.id} className="flex items-start gap-2 text-xs">
+                <span className="shrink-0 mt-0.5">❌</span>
+                <div className="min-w-0"><span className="font-semibold text-red-700">{p.label}</span>{p.note && <span className="text-muted-foreground"> — {p.note}</span>}</div>
+              </div>
+            ))}
+          </div>
+          <a href={`/atendimento?conversation=${c.id}`} className="inline-flex items-center gap-1 text-xs text-primary font-medium">
+            <ExternalLink className="w-3.5 h-3.5" /> Abrir a conversa
+          </a>
+          <Transcript entries={c.transcript} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Conversas de verdade: as mesmas conferências do simulador aplicadas ao que a
+// IA mandou no WhatsApp (sem IA, sem custo)
+function RealAuditPanel({ companyId }: { companyId: string }) {
+  const [days, setDays] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ checked: number; conversations: RealAuditConversation[] } | null>(null);
+
+  const run = useCallback(async (d: number) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-simulator", { body: { action: "audit", company_id: companyId, days: d } });
+      if (error || data?.error) throw new Error(data?.error || error?.message);
+      setResult({ checked: data.checked || 0, conversations: data.conversations || [] });
+    } catch (err) {
+      toast({ title: "Não deu para conferir as conversas", description: err instanceof Error ? err.message : String(err), variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }, [companyId]);
+
+  useEffect(() => { run(days); }, [run, days]);
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">
+        Confere as conversas que a IA atendeu de verdade: material que ela disse ter mandado, regras do cadastro, dia da semana nas datas, convite para visita, permuta e a palavra "sistema". Sem custo.
+      </p>
+      <div className="grid grid-cols-3 gap-1.5 bg-muted rounded-xl p-1">
+        {([[1, "Últimas 24 h"], [3, "3 dias"], [7, "7 dias"]] as const).map(([d, label]) => (
+          <button key={d} type="button" onClick={() => setDays(d)} className={`rounded-lg py-1.5 text-xs font-medium ${days === d ? "bg-card shadow-sm" : "text-muted-foreground"}`}>{label}</button>
+        ))}
+      </div>
+      {loading ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Conferindo…</div>
+      ) : result && (
+        <>
+          <div className="rounded-xl border border-border p-3 grid grid-cols-2 gap-2 text-center">
+            <div><p className="text-lg font-bold">{result.checked}</p><p className="text-[11px] text-muted-foreground">conversas da IA</p></div>
+            <div><p className={`text-lg font-bold ${result.conversations.length > 0 ? "text-red-700" : "text-green-700"}`}>{result.conversations.length}</p><p className="text-[11px] text-muted-foreground">com algum problema</p></div>
+          </div>
+          <div className="space-y-2">
+            {result.conversations.map((c) => <RealAuditRow key={c.id} c={c} />)}
+            {result.conversations.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-4">{result.checked > 0 ? "Nenhum problema encontrado nesse período 🎉" : "A IA não atendeu ninguém nesse período."}</p>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function AiSimulatorDialog({ open, onOpenChange, model }: { open: boolean; onOpenChange: (v: boolean) => void; model: string }) {
   const { currentCompany } = useCompany();
   const companyId = currentCompany?.id;
@@ -184,6 +277,7 @@ export function AiSimulatorDialog({ open, onOpenChange, model }: { open: boolean
   const [loading, setLoading] = useState(false);
   const [scenarioCount, setScenarioCount] = useState(0);
   const lastResume = useRef(0);
+  const [tab, setTab] = useState<"simulador" | "reais">("simulador");
 
   const selected = runs.find((r) => r.id === selectedId) || null;
 
@@ -277,6 +371,15 @@ export function AiSimulatorDialog({ open, onOpenChange, model }: { open: boolean
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-4 space-y-4">
+          <div className="grid grid-cols-2 gap-1.5 bg-muted rounded-xl p-1">
+            <button type="button" onClick={() => setTab("simulador")} className={`rounded-lg py-1.5 text-xs font-medium flex items-center justify-center gap-1 ${tab === "simulador" ? "bg-card shadow-sm" : "text-muted-foreground"}`}>
+              <FlaskConical className="w-3.5 h-3.5" /> Simulador
+            </button>
+            <button type="button" onClick={() => setTab("reais")} className={`rounded-lg py-1.5 text-xs font-medium flex items-center justify-center gap-1 ${tab === "reais" ? "bg-card shadow-sm" : "text-muted-foreground"}`}>
+              <Search className="w-3.5 h-3.5" /> Conversas reais
+            </button>
+          </div>
+          {tab === "reais" && companyId ? <RealAuditPanel companyId={companyId} /> : (<>
           <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-2">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
               <p className="text-xs text-muted-foreground">
@@ -337,6 +440,7 @@ export function AiSimulatorDialog({ open, onOpenChange, model }: { open: boolean
               </div>
             </>
           )}
+          </>)}
         </div>
       </DialogContent>
     </Dialog>
