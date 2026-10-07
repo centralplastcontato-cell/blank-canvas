@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { formatBRLShort, hoursForWhatsApp, moneyWithCents, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "./whatsapp-format.ts";
+import { airyParagraphs, formatBRLShort, hoursForWhatsApp, moneyWithCents, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "./whatsapp-format.ts";
 
 Deno.test("formatDateLong: data por extenso", () => {
   assertEquals(formatDateLong("2026-12-26"), "sábado, 26 de dezembro");
@@ -73,4 +73,22 @@ Deno.test("markTodayTomorrow: hoje e amanhã junto da data", async () => {
   assertEquals(markTodayTomorrow("Amanhã, quarta, 7 de outubro, às 11h", today), "Amanhã, quarta, 7 de outubro, às 11h");
   assertEquals(markTodayTomorrow("Sábado, 10 de outubro", today), "Sábado, 10 de outubro");
   assertEquals(markTodayTomorrow("quarta, 7 de outubro às 11h ou quarta, 7 de outubro às 14h", today), "amanhã (quarta, 7 de outubro) às 11h ou quarta, 7 de outubro às 14h");
+});
+
+Deno.test("airyParagraphs: parágrafo corrido vira blocos curtos", () => {
+  const raw = "Claro! 😊 A massa show é uma estação de massa preparada e servida durante a festa, como um momento especial do cardápio 🍝🎉\n\nComo os detalhes de montagem e serviço desse item podem variar, prefiro não te passar nada errado por aqui ✨ Se você quiser, posso seguir de duas formas: te passo os valores dos pacotes para sexta, 11 de dezembro, ou já deixo uma visita agendada pra você conhecer tudo de perto 😍";
+  const out = airyParagraphs(raw);
+  const paragraphs = out.split("\n\n");
+  assertEquals(paragraphs.length, 3);
+  assertEquals(paragraphs[1], "Como os detalhes de montagem e serviço desse item podem variar, prefiro não te passar nada errado por aqui ✨");
+  assertEquals(paragraphs[2].startsWith("Se você quiser"), true);
+  // Curto, lista e valores ficam iguais
+  const list = "Aqui você vai encontrar 🥳\n🏆 9 anos de tradição\n⭐ Nota 4,7 no Google";
+  assertEquals(airyParagraphs(list), list);
+  const price = "🏰 *Castelo* — R$ 7.400,00 (R$ 6.890,00 do pacote de 100 + 5 pessoa(s) adicional(is) × R$ 102,00) para sábado, 26 de dezembro, no almoço (13h) 🎉";
+  assertEquals(airyParagraphs(price), price);
+  // Abreviação de endereço não quebra
+  const addr = "Estamos na Av. General Osório, 1442, no Trujillo, em Sorocaba 📍 Tem estacionamento próprio e gratuito para os convidados, bem na frente do salão 🚗 Quer vir conhecer pessoalmente? 😍";
+  assertEquals(airyParagraphs(addr).includes("Av.\n"), false);
+  assertEquals(airyParagraphs(addr).includes("Av. General Osório"), true);
 });

@@ -4,7 +4,7 @@
 
 import { allowedMoneyValues, moneyValuesIn } from "./package-pricing.ts";
 import { falseMaterialClaims, hasMaterialClaim, type MaterialKind } from "./material-claims.ts";
-import { fixWeekdays, formatDateLong, markTodayTomorrow, moneyWithCents } from "./whatsapp-format.ts";
+import { airyParagraphs, fixWeekdays, formatDateLong, markTodayTomorrow, moneyWithCents } from "./whatsapp-format.ts";
 
 export interface FollowUpContext {
   kind: "inactivity" | "step" | "reactivation";
@@ -113,6 +113,6 @@ export function checkFollowUpText(
   const unsent = (Object.keys(MATERIAL_MENTION) as MaterialKind[]).filter((k) => !opts.sentMaterials.has(k) && MATERIAL_MENTION[k].test(text));
   if (unsent.length > 0) return { ok: false, text, problem: `falou de ${unsent.map((k) => MATERIAL_NAME[k]).join(" e ")}, que não foi enviado` };
   if (SCARCITY.test(text)) return { ok: false, text, problem: "escassez inventada (vagas/datas acabando)" };
-  text = moneyWithCents(markTodayTomorrow(fixWeekdays(text, opts.todayYmd), opts.todayYmd));
+  text = airyParagraphs(moneyWithCents(markTodayTomorrow(fixWeekdays(text, opts.todayYmd), opts.todayYmd)));
   return { ok: true, text };
 }

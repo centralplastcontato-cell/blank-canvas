@@ -148,3 +148,35 @@ export function weekdayMismatches(text: string, todayYmd: string): Array<{ said:
   }
   return out;
 }
+
+// Fim de frase: pontuação (com emojis depois, se houver) ou um emoji solto,
+// seguido de espaço e de uma frase nova (maiúscula, negrito ou aspas)
+const SENTENCE_END = /(?<=[.!?…](?:\s*\p{Extended_Pictographic}[️‍\p{Extended_Pictographic}]*)*|\p{Extended_Pictographic}️?)\s+(?=[\p{Lu}*"“¿¡])/gu;
+const ABBREVIATION_END = /(?:^|\s)(?:Av|Sr|Sra|Dr|Dra|Prof|Jd|R|Ex|ex)\.$/;
+const PARAGRAPH_MAX = 170;
+const BLOCK_MAX = 150;
+
+/**
+ * Parágrafo corrido vira blocos curtos (até ~2 frases, linha em branco entre
+ * eles) — no WhatsApp um bloco de texto grande fica pesado. Linhas curtas,
+ * listas e valores ficam como estão.
+ */
+export function airyParagraphs(text: string): string {
+  return (text || "").split("\n").map((line) => {
+    if (line.length <= PARAGRAPH_MAX) return line;
+    const pieces: string[] = [];
+    for (const part of line.split(SENTENCE_END)) {
+      // "Av. General Osório": abreviação não fecha frase
+      if (pieces.length > 0 && ABBREVIATION_END.test(pieces[pieces.length - 1])) pieces[pieces.length - 1] += ` ${part}`;
+      else pieces.push(part);
+    }
+    if (pieces.length < 2) return line;
+    const blocks: string[] = [];
+    for (const sentence of pieces) {
+      const last = blocks[blocks.length - 1];
+      if (last !== undefined && last.length + 1 + sentence.length <= BLOCK_MAX) blocks[blocks.length - 1] = `${last} ${sentence}`;
+      else blocks.push(sentence);
+    }
+    return blocks.join("\n\n");
+  }).join("\n");
+}
