@@ -25,6 +25,11 @@ export function formatBRLShort(value: number): string {
   return `R$\u00a0${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+/** "das 09:00 às 18:00" → "das 9h às 18h" (o WhatsApp sublinha "09:00" como link) */
+export function hoursForWhatsApp(text: string): string {
+  return text.replace(/\b(\d{1,2}):(\d{2})\b/g, (_m, h: string, mm: string) => `${Number(h)}h${mm === "00" ? "" : mm}`);
+}
+
 /**
  * Valores da resposta sempre com centavos ("R$ 7.400" → "R$ 7.400,00") e com
  * espaço que não quebra depois do "R$" (no celular o "R$" não fica sozinho no fim da linha)

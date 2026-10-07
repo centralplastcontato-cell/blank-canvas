@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { formatBRLShort, moneyWithCents, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "./whatsapp-format.ts";
+import { formatBRLShort, hoursForWhatsApp, moneyWithCents, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "./whatsapp-format.ts";
 
 Deno.test("formatDateLong: data por extenso", () => {
   assertEquals(formatDateLong("2026-12-26"), "sábado, 26 de dezembro");
@@ -58,4 +58,8 @@ Deno.test("moneyWithCents: põe ,00 e cola o R$ no número", () => {
   assertEquals(moneyWithCents("R$ 7.400,00 e R$ 150,5 e R$150"), `R$${N}7.400,00 e R$${N}150,5 e R$${N}150,00`);
   assertEquals(moneyWithCents(`R$${N}10.200,00`), `R$${N}10.200,00`);
   assertEquals(moneyWithCents("sem valor"), "sem valor");
+});
+
+Deno.test("hoursForWhatsApp: 09:00 vira 9h", () => {
+  assertEquals(hoursForWhatsApp("segunda a sexta, das 09:00 às 18:00; sábado, das 09:00 às 12:30 — volta amanhã às 09:00."), "segunda a sexta, das 9h às 18h; sábado, das 9h às 12h30 — volta amanhã às 9h.");
 });
