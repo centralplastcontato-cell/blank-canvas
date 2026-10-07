@@ -31,7 +31,7 @@ import {
 import { allowedMoneyValues, formatBRL, holidayName, isHolidayEveYmd, isHolidayYmd, localHolidaysFrom, moneyValuesIn, type PackageQuote, type PartyDay, quotePackages, weekdayYmd } from "../_shared/package-pricing.ts";
 import { addDaysYmd, type FreeDay, type FreeSlot, freePartySlots, monthFromText, monthRange, parsePartySlots, pickPartyDates, weekdayOf } from "../_shared/party-availability.ts";
 import { waitForMediaAck } from "../_shared/media-ack.ts";
-import { fixWeekdays, hoursForWhatsApp, markTodayTomorrow, moneyWithCents, weekdayMismatches, formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
+import { airyParagraphs, fixWeekdays, hoursForWhatsApp, markTodayTomorrow, moneyWithCents, weekdayMismatches, formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
 import { guardAiDb } from "./ai-db-guard.ts";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
@@ -565,7 +565,15 @@ SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até A
 
 COMO CONVERSAR:
 - Português brasileiro, tom caloroso, animado e humano, mensagens CURTAS (2 a 4 frases; a de valores pode ter um bloco curto por pacote).
-- Use 2 a 3 emojis por mensagem, variados e combinando com o assunto (🎉 🥳 🎈 🏰 😍 ✨ 🎂 💜…), sem repetir sempre os mesmos. Se as informações do buffet trouxerem instruções de estilo/personalidade, elas valem mais do que esta.
+- Use 3 a 4 emojis por mensagem, variados e combinando com o assunto (🎉 🥳 🎈 🏰 😍 ✨ 🎂 💜…), de preferência no fim das frases, sem repetir sempre os mesmos. Se as informações do buffet trouxerem instruções de estilo/personalidade, elas valem mais do que esta.
+- FORMATO LEVE NO WHATSAPP: nunca um bloco de texto corrido. No máximo 2 frases curtas por parágrafo, com uma linha em branco entre os parágrafos, e a pergunta final sozinha no último parágrafo. Formato:
+  "Claro! 😊 [resposta direta, numa frase] 🍝
+
+  [um detalhe ou benefício, numa frase] ✨
+
+  [uma pergunta simples para seguir] 😍"
+- Termine com UMA pergunta direta. Nada de "posso seguir de duas formas" nem de oferecer opções em sequência.
+- Se o cliente perguntar um detalhe que não está nas informações do buffet: responda o que você sabe e diga com leveza que a equipe explica certinho (ou que ele vê de perto na visita). Não se justifique ("prefiro não te passar nada errado", "os detalhes podem variar") — soa robótico.
 - ${ctx.isFirstReply ? 'ESTA É A SUA PRIMEIRA RESPOSTA: apresente-se (diga seu nome' + (assistantName ? ' — ' + assistantName : ', se ele estiver nas informações do buffet,') + ' e que é do ' + companyName + ') e, se ainda não souber o nome do cliente, já pergunte o nome dele NESTA mensagem, junto com a resposta ao que ele perguntou.' : 'Se ainda não souber o nome do cliente, não interrompa a conversa para pedir — aproveite um momento natural.'}
 - Dados do cliente já registrados: ${ctx.knownDataText}. Não pergunte de novo o que já sabe.${ctx.pricePending ? '\n- O CLIENTE JÁ PEDIU O VALOR e ainda não recebeu: assim que você souber a quantidade de convidados e o dia/data (já registrados ou nesta mensagem), chame consultar_valor_pacote e passe o valor NESTA resposta, sem esperar ele pedir de novo. Se ainda faltar um dos dois, pergunte só o que falta.' : ''}
 - ${ctx.pendingUserMessages > 1 ? `O cliente mandou ${ctx.pendingUserMessages} mensagens seguidas desde a sua última resposta: responda a TODAS as perguntas delas numa única mensagem, sem ignorar nenhuma.` : 'Se o cliente mandar várias perguntas, responda todas numa única mensagem.'}
@@ -2292,8 +2300,8 @@ export async function maybeHandleWithAiAgent(
           return true;
         }
       }
-      // Valores sempre com centavos ("R$ 7.400,00")
-      finalText = moneyWithCents(finalText);
+      // Valores sempre com centavos ("R$ 7.400,00") e parágrafo corrido em blocos curtos
+      finalText = airyParagraphs(moneyWithCents(finalText));
       // Resposta que vai com fotos, vídeo e PDF: a 1ª parte sai antes e a
       // pergunta ("o que achou?") depois do PDF, para a Bia não ficar quieta
       const withMaterials = Boolean(conv.__deferMaterials && !conv.__handoffThisTurn && conv.bot_step !== 'human_takeover');
