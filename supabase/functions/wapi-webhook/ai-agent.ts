@@ -527,6 +527,7 @@ interface PromptContext {
   weekdayNote: string | null; // cliente escreveu dia da semana que não bate com a data
   houseNote: string | null; // cliente perguntou de regra do cadastro (comida de fora, animal)
   recessNote: string | null; // recesso / dias fechados (Configurar IA)
+  materialsNote: string | null; // fotos/vídeo/PDF acabaram de sair no começo deste turno
 }
 
 // Convidar para a visita no máximo a cada 3–4 respostas, ou quando fizer sentido
@@ -544,7 +545,7 @@ function buildSystemPrompt(companyName: string, unit: string, settings: AiSettin
     : 'nenhum horário livre nos próximos dias — nesse caso transfira para a equipe';
   return `Você é a assistente virtual de vendas do ${companyName} (buffet infantil), atendendo pelo WhatsApp da unidade ${unit}. Hoje é ${today}.
 
-${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}${ctx.houseNote ? `ATENÇÃO — REGRA DO BUFFET: ${ctx.houseNote}\n\n` : ''}${ctx.recessNote ? `ATENÇÃO — ${ctx.recessNote}\n\n` : ''}SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até AGENDAR UMA VISITA ao buffet. A visita é o passo que mais fecha festas.
+${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}${ctx.houseNote ? `ATENÇÃO — REGRA DO BUFFET: ${ctx.houseNote}\n\n` : ''}${ctx.recessNote ? `ATENÇÃO — ${ctx.recessNote}\n\n` : ''}${ctx.materialsNote ? `ATENÇÃO — MATERIAIS NESTE TURNO: ${ctx.materialsNote} Responda o que o cliente disse e termine perguntando o que ele achou do espaço.\n\n` : ''}SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até AGENDAR UMA VISITA ao buffet. A visita é o passo que mais fecha festas.
 
 COMO CONVERSAR:
 - Português brasileiro, tom caloroso, animado e humano, mensagens CURTAS (2 a 4 frases; a de valores pode ter uma linha por pacote).
@@ -1078,6 +1079,28 @@ async function toolRegistrarDados(
 
   const missing = [!bd.mes && 'mês da festa', !bd.convidados && 'número de convidados'].filter(Boolean);
   if (missing.length > 0) return `OK: dados salvos. Ainda falta descobrir: ${missing.join(' e ')}.${minNote}`;
+  return await autoSendMaterials(supabase, instance, conv, phone, contactName, botSettings, args, minNote, askedGuests);
+}
+
+const AI_MATERIAL_PACING = { startMs: 2000, photoGapMs: 2000, afterPhotosMs: 4000, afterVideoMs: 5000, typingSeconds: 3 };
+
+// Fotos, vídeo e PDF automáticos (uma vez por conversa), assim que mês e
+// convidados são conhecidos — pelo registrar_dados_festa ou já no começo do
+// turno (lead do site, que chega com os dados do formulário). Devolve o texto
+// para a IA (resultado da ferramenta / aviso no prompt).
+async function autoSendMaterials(
+  supabase: any,
+  instance: AgentInstance,
+  conv: AgentConv,
+  phone: string,
+  contactName: string | null,
+  botSettings: any,
+  args: { legenda_fotos?: string; legenda_video?: string; legenda_pdf?: string },
+  minNote = '',
+  askedGuests = NaN,
+): Promise<string> {
+  const bd = (conv.bot_data || {}) as Json;
+  const materials = await loadSalesMaterials(supabase, instance);
   if (isWithinMaterialWindow(bd.ai_auto_materials_at)) {
     return `OK: dados salvos. Os materiais automáticos já foram enviados antes nesta conversa — não reenvie.${minNote}`;
   }
@@ -1120,6 +1143,8 @@ async function toolRegistrarDados(
       },
       // Legendas da IA, no tom dela (as fixas ficam para o bot fixo)
       await materialTexts(supabase, instance, bd, args),
+      // Com calma: "digitando..." antes de cada texto e um respiro entre as fotos
+      AI_MATERIAL_PACING,
     );
     // Só conta como enviado o que o WhatsApp confirmou
     if (result.sentAny) ack = await confirmMaterials(supabase, sentMedia);
@@ -1846,6 +1871,16 @@ export async function maybeHandleWithAiAgent(
     const available = listAvailableSlots(parseVisitHours(settings.visit_hours), nowMs, booked, { days: 28, minLeadMinutes: 120, max: 120 })
       .filter((sl) => !isClosedDay(sl.date, closedPeriods))
       .slice(0, 60);
+    // Mês e convidados já conhecidos sem os materiais terem saído (lead do
+    // site chega com os dados do formulário e a IA não precisa registrar):
+    // fotos, vídeo e PDF saem já no começo, antes da resposta dela
+    let materialsNote: string | null = null;
+    const bdNow = (conv.bot_data || {}) as Json;
+    if (bdNow.mes && bdNow.convidados && !isWithinMaterialWindow(bdNow.ai_auto_materials_at) && !afterHoursHandoff) {
+      console.log(`[AI Agent] Mês e convidados já conhecidos e materiais ainda não enviados — enviando no começo do turno (conv ${conv.id})`);
+      const result = await autoSendMaterials(supabase, instance, conv, phone, contactName, botSettings, {});
+      materialsNote = result.replace(/^OK: dados salvos\.\s*/, '');
+    }
     const sent = sentMaterials(conv);
     const sentList = (Object.keys(sent) as MaterialTipo[]).map((k) => `${MATERIAL_LABEL[k]} (${fmtTimeBR(sent[k] as string)})`);
     const bd = (conv.bot_data || {}) as Json;
@@ -1881,6 +1916,7 @@ export async function maybeHandleWithAiAgent(
       })(),
       houseNote: houseRuleNote(houseRules, askedTopics),
       recessNote: closedPeriodsNote(closedPeriods, ymdBR(nowMs)),
+      materialsNote,
       visitSlotsText: visitSlotsByDay(available)
         .map((d) => `${formatDateLong(d.date)}: ${d.times.map((t) => (t.endsWith(':00') ? `${Number(t.slice(0, 2))}h` : t.replace(':', 'h'))).join(', ')}`)
         .join('; ') || 'nenhum',

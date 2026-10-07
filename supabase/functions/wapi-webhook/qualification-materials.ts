@@ -9,9 +9,20 @@ import { sandboxSleep } from "./ai-sandbox.ts";
 
 export type MaterialSender = (
   action: 'send-text' | 'send-image' | 'send-video' | 'send-document',
-  payload: { message?: string; mediaUrl?: string; caption?: string; fileName?: string },
+  payload: { message?: string; mediaUrl?: string; caption?: string; fileName?: string; delayTyping?: number },
   options?: { timeoutMs?: number; logLabel?: string },
 ) => Promise<string | null>;
+
+// Ritmo do envio. O bot fixo usa o intervalo do número (message_delay_seconds);
+// a IA manda com calma, "digitando..." antes de cada texto, para não parecer
+// uma rajada de arquivos.
+export interface MaterialPacing {
+  startMs: number; // antes do primeiro envio
+  photoGapMs: number; // entre uma foto e outra
+  afterPhotosMs: number; // depois das fotos, antes do vídeo
+  afterVideoMs: number; // depois do vídeo, antes do PDF
+  typingSeconds: number; // "digitando..." antes de cada texto
+}
 
 function delay(ms: number): Promise<void> {
   return sandboxSleep(ms);
@@ -62,6 +73,7 @@ export async function sendQualificationMaterials(
   send: MaterialSender,
   // Textos próprios (a IA escreve personalizados); sem eles, valem as legendas fixas do bot
   texts?: { photosIntro?: string | null; videoCaption?: string | null; pdfIntro?: string | null },
+  pacing?: MaterialPacing,
 ): Promise<{ sentAny: boolean; failedSteps: string[]; pdfGuestCount?: number | null }> {
   const failedSteps: string[] = [];
   let sentAny = false;
@@ -101,7 +113,7 @@ export async function sendQualificationMaterials(
     const photosIntro = settings?.auto_send_photos_intro || '✨ Conheça nosso espaço incrível! 🏰🎉';
     const pdfIntro = settings?.auto_send_pdf_intro || '📋 Oi {nome}! Segue o pacote completo para {convidados} no {empresa}. Qualquer dúvida é só chamar! 💜';
 
-    await delay(messageDelay);
+    await delay(pacing ? pacing.startMs : messageDelay);
 
     const { data: captions } = await supabase
       .from('sales_material_captions')
@@ -169,7 +181,7 @@ export async function sendQualificationMaterials(
     const guestCount = guestMatch ? parseInt(guestMatch[1], 10) : null;
 
     const sendText = async (message: string, logLabel: string) => {
-      const msgId = await send('send-text', { message }, { timeoutMs: 30000, logLabel });
+      const msgId = await send('send-text', pacing?.typingSeconds ? { message, delayTyping: pacing.typingSeconds } : { message }, { timeoutMs: 30000, logLabel });
       if (!msgId) failedSteps.push(logLabel);
       if (msgId) sentAny = true;
       return msgId;
@@ -204,15 +216,15 @@ export async function sendQualificationMaterials(
         console.log(`[Bot Materials] Sending ${photos.length} photos from collection`);
         const introText = texts?.photosIntro?.trim() || photosIntro.replace(/\{unidade\}/gi, companyName).replace(/\{empresa\}/gi, companyName);
         await sendText(introText, 'photos_intro');
-        await delay(messageDelay / 2);
+        await delay(pacing ? pacing.photoGapMs : messageDelay / 2);
 
         for (let i = 0; i < photos.length; i++) {
           await sendImage(photos[i], '', `photo_${i + 1}`);
-          if (i < photos.length - 1) await delay(800);
+          if (i < photos.length - 1) await delay(pacing ? pacing.photoGapMs : 800);
         }
 
         console.log('[Bot Materials] Photos step complete');
-        await delay(messageDelay);
+        await delay(pacing ? pacing.afterPhotosMs : messageDelay);
       }
     }
 
@@ -230,7 +242,7 @@ export async function sendQualificationMaterials(
         await sendVideo(video.file_url, i === 0 ? caption : '', `presentation_video_${i + 1}`);
         if (i < videosToSend.length - 1) await delay(messageDelay / 2);
       }
-      await delay(messageDelay);
+      await delay(pacing ? pacing.afterVideoMs : messageDelay);
     }
 
     if (sendPromoVideo && promoVideos.length > 0) {
@@ -276,7 +288,7 @@ export async function sendQualificationMaterials(
         });
 
         await sendText(pdfIntroText, 'pdf_intro');
-        await delay(messageDelay / 4);
+        await delay(pacing ? 1500 : messageDelay / 4);
 
         for (let i = 0; i < pdfsToSend.length; i++) {
           const pdf = pdfsToSend[i];
@@ -293,7 +305,7 @@ export async function sendQualificationMaterials(
           if (i < pdfsToSend.length - 1) await delay(2000);
         }
 
-        await delay(messageDelay);
+        await delay(pacing ? 2000 : messageDelay);
       }
     }
 
