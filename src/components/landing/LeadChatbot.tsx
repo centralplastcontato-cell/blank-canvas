@@ -885,17 +885,29 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && handleInputSubmit()}
-                  placeholder={inputType === "name" ? "Seu nome completo" : inputType === "whatsapp" ? "(11) 99999-9999" : "Ex: Vila Mariana, São Paulo"}
-                  className="flex-1 bg-muted border border-border rounded-full px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  enterKeyHint={castelo ? "send" : undefined}
+                  placeholder={inputType === "name" ? (castelo ? "Seu nome" : "Seu nome completo") : inputType === "whatsapp" ? "(11) 99999-9999" : "Ex: Vila Mariana, São Paulo"}
+                  className={`flex-1 ${castelo ? "min-w-0 " : ""}bg-muted border border-border rounded-full px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary`}
                 />
-                <button
-                  onClick={handleInputSubmit}
-                  disabled={isSaving}
-                  className={castelo ? "text-white p-3 rounded-full shadow-md hover:scale-105 transition-transform disabled:opacity-50" : "bg-primary text-primary-foreground p-3 rounded-full hover:bg-primary/90 transition-colors disabled:opacity-50"}
-                  style={castelo ? { background: "linear-gradient(110deg, #E91E63, #F57C00)" } : undefined}
-                >
-                  {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                </button>
+                {castelo ? (
+                  // Botão com a palavra "Enviar": só o aviãozinho confundia (parecia o botão flutuante)
+                  <button
+                    onClick={handleInputSubmit}
+                    disabled={isSaving}
+                    className="shrink-0 text-white font-bold text-sm pl-4 pr-3.5 py-3 rounded-full shadow-md hover:scale-105 transition-transform disabled:opacity-50 flex items-center gap-1.5"
+                    style={{ background: "linear-gradient(110deg, #E91E63, #F57C00)" }}
+                  >
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Enviar<Send className="w-4 h-4" /></>}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleInputSubmit}
+                    disabled={isSaving}
+                    className="bg-primary text-primary-foreground p-3 rounded-full hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                  </button>
+                )}
               </div>
             </motion.div>
           )}
