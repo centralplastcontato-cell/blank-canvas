@@ -47,7 +47,7 @@ Deno.test("buildAiSiteWelcome: sem menu, com data por extenso e pergunta", () =>
 
 Deno.test("buildAiSiteWelcome: com o nome da assistente, ela se apresenta", () => {
   const msg = buildAiSiteWelcome({ name: "Victor", month: "Dezembro/26", day: 18, guests: "70 pessoas", intro: "Recebemos seu pedido pelo site do *Castelo da Diversão*! ✨" }, "Castelo da Diversão", today, "Bia");
-  assertEquals(msg.startsWith("Olá, *Victor*! 👋 Eu sou a *Bia*, do *Castelo da Diversão* 🏰 Recebi seu pedido pelo site! ✨\n\nAnotei por aqui:"), true);
+  assertEquals(msg.startsWith("Olá, *Victor*! 👋 Eu sou a *Bia*, do *Castelo da Diversão* 🏰 Recebi seu pedido de orçamento pelo site! ✨\n\nAnotei por aqui:"), true);
   // Frase própria da origem (QR Code da mesa) continua
   assertEquals(buildAiSiteWelcome({ name: "Ana", intro: "Que bom te ver na festa! 🎉" }, "Castelo", today, "Bia").startsWith("Olá, *Ana*! 👋 Eu sou a *Bia*, do *Castelo* 🏰 Que bom te ver na festa! 🎉"), true);
   assertEquals(cleanIntroImage("https://x.supabase.co/a.png"), "https://x.supabase.co/a.png");
