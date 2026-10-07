@@ -24,7 +24,7 @@ export interface AiFollowUpConfig {
 }
 
 export const MAX_FOLLOWUP_STEPS = 6;
-export const INACTIVITY_MINUTE_OPTIONS = [15, 30, 45, 60, 90, 120, 180, 240];
+export const INACTIVITY_MINUTE_OPTIONS = [5, 10, 15, 30, 45, 60, 90, 120, 180, 240]; // 5 e 10: para testes rápidos
 
 export const DEFAULT_STEP_GOALS = [
   "Convidar para conhecer o espaço, oferecendo 2 horários de visita, de forma leve.",
