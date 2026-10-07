@@ -3466,6 +3466,42 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     });
   };
 
+  // Conversa da Bia (IA): a equipe assume (Bia para de responder e de mandar
+  // follow-ups) ou devolve para a Bia, que responde a próxima mensagem do
+  // cliente já sabendo o que a equipe conversou — sem mandar nada sozinha.
+  const takeOverFromBia = async (conv: Conversation) => {
+    if (!canToggleBot) {
+      toast({ title: "Sem permissão", description: "Você não tem permissão para ativar/desativar o bot.", variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase.from('wapi_conversations').update({ bot_enabled: false, bot_step: 'human_takeover' }).eq('id', conv.id);
+    if (error) {
+      toast({ title: "Erro ao assumir a conversa", description: error.message, variant: "destructive" });
+      return;
+    }
+    setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, bot_enabled: false, bot_step: 'human_takeover' } : c));
+    setSelectedConversation(prev => prev && prev.id === conv.id ? { ...prev, bot_enabled: false, bot_step: 'human_takeover' } : prev);
+    toast({ title: "Você assumiu a conversa", description: "A Bia parou de responder e de mandar follow-ups para este cliente." });
+  };
+
+  const returnToBia = async (conv: Conversation) => {
+    if (!canToggleBot) {
+      toast({ title: "Sem permissão", description: "Você não tem permissão para ativar/desativar o bot.", variant: "destructive" });
+      return;
+    }
+    const botData: Record<string, unknown> = { ...(conv.bot_data || {}), ai_agent: 'on', ai_returned_at: new Date().toISOString() };
+    delete botData.ai_handoff; // a passagem anterior está resolvida: sem alerta de "cliente sem resposta"
+    const patch = { bot_enabled: true, bot_step: 'ai_agent', bot_data: botData, bot_paused_until: null, bot_paused_reason: null };
+    const { error } = await supabase.from('wapi_conversations').update(patch as never).eq('id', conv.id);
+    if (error) {
+      toast({ title: "Erro ao devolver para a Bia", description: error.message, variant: "destructive" });
+      return;
+    }
+    setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, ...patch } : c));
+    setSelectedConversation(prev => prev && prev.id === conv.id ? { ...prev, ...patch } : prev);
+    toast({ title: "Conversa devolvida para a Bia", description: "Ela responde a próxima mensagem do cliente, já sabendo o que a equipe conversou." });
+  };
+
   const reactivateBot = async (conv: Conversation) => {
     if (!canToggleBot) {
       toast({ title: "Sem permissão", description: "Você não tem permissão para reativar o bot.", variant: "destructive" });
@@ -5256,6 +5292,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         onCreateAndClassifyLead={(status) => createAndClassifyLead(status, true)}
                         onToggleConversationBot={toggleConversationBot}
                         onReactivateBot={reactivateBot}
+                        onTakeOverFromBia={takeOverFromBia}
+                        onReturnToBia={returnToBia}
                         onToggleFavorite={toggleFavorite}
                         onLeadNameChange={(newName) => {
                           setLinkedLead(prev => prev ? { ...prev, name: newName } : null);
@@ -6467,6 +6505,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         onCreateAndClassifyLead={(status) => createAndClassifyLead(status, true)}
                         onToggleConversationBot={toggleConversationBot}
                         onReactivateBot={reactivateBot}
+                        onTakeOverFromBia={takeOverFromBia}
+                        onReturnToBia={returnToBia}
                         onToggleFavorite={toggleFavorite}
                         onLeadNameChange={(newName) => {
                           setLinkedLead(prev => prev ? { ...prev, name: newName } : null);

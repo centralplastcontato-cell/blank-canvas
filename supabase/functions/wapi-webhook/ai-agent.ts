@@ -545,7 +545,9 @@ function buildSystemPrompt(companyName: string, unit: string, settings: AiSettin
     : 'nenhum horário livre nos próximos dias — nesse caso transfira para a equipe';
   return `Você é a assistente virtual de vendas do ${companyName} (buffet infantil), atendendo pelo WhatsApp da unidade ${unit}. Hoje é ${today}.
 
-${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}${ctx.houseNote ? `ATENÇÃO — REGRA DO BUFFET: ${ctx.houseNote}\n\n` : ''}${ctx.recessNote ? `ATENÇÃO — ${ctx.recessNote}\n\n` : ''}${ctx.intentNote ? `ATENÇÃO — QUEM É O CONTATO: ${ctx.intentNote}\n\n` : ''}${ctx.promoNote ? `${ctx.promoNote}\n\n` : ''}${ctx.materialsNote ? `ATENÇÃO — MATERIAIS NESTE TURNO: ${ctx.materialsNote}\n\n` : ''}SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até AGENDAR UMA VISITA ao buffet. A visita é o passo que mais fecha festas.
+${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}${ctx.houseNote ? `ATENÇÃO — REGRA DO BUFFET: ${ctx.houseNote}\n\n` : ''}${ctx.recessNote ? `ATENÇÃO — ${ctx.recessNote}\n\n` : ''}${ctx.intentNote ? `ATENÇÃO — QUEM É O CONTATO: ${ctx.intentNote}\n\n` : ''}${ctx.promoNote ? `${ctx.promoNote}\n\n` : ''}${ctx.materialsNote ? `ATENÇÃO — MATERIAIS NESTE TURNO: ${ctx.materialsNote}\n\n` : ''}MENSAGENS DA EQUIPE: no histórico, o que começa com "[Equipe]" foi escrito por uma pessoa da equipe, não por você. Respeite o que ela combinou (valores, condições, horários, visitas): não contradiga nem repita; se o cliente pedir algo além do que ela combinou, passe para a equipe. Nunca escreva "[Equipe]" nas suas respostas.
+
+SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até AGENDAR UMA VISITA ao buffet. A visita é o passo que mais fecha festas.
 
 COMO CONVERSAR:
 - Português brasileiro, tom caloroso, animado e humano, mensagens CURTAS (2 a 4 frases; a de valores pode ter um bloco curto por pacote).
@@ -1948,11 +1950,16 @@ export async function maybeHandleWithAiAgent(
       .order('timestamp', { ascending: false })
       .limit(MAX_HISTORY_MESSAGES);
 
-    const ordered = ((history || []) as Array<{ from_me: boolean; content: string | null; message_type: string; metadata: Json | null }>).reverse();
+    const ordered = ((history || []) as Array<{ from_me: boolean; content: string | null; message_type: string; timestamp: string; metadata: Json | null }>).reverse();
+    // Mensagem nossa escrita por uma pessoa da equipe (Celebrei ou celular), não pela Bia
+    const byTeam = (m: { from_me: boolean; timestamp: string; metadata: Json | null }) =>
+      m.from_me && teamRepliedAfter([m as { from_me: boolean; timestamp: string; metadata: Record<string, unknown> | null }], '1970-01-01T00:00:00Z');
     const chatMessages: ChatTurn[] = ordered
       .filter((m) => (m.content || '').trim().length > 0 || m.message_type !== 'text')
       .map((m) => {
-        if (m.message_type === 'text') return { role: m.from_me ? 'assistant' : 'user', content: m.content || '' } as ChatTurn;
+        if (m.message_type === 'text') {
+          return { role: m.from_me ? 'assistant' : 'user', content: `${byTeam(m) ? '[Equipe] ' : ''}${m.content || ''}` } as ChatTurn;
+        }
         if (!m.from_me && (m.message_type === 'audio' || m.message_type === 'image')) {
           return { role: 'user', content: mediaHistoryText(m.message_type, m.content || '', m.metadata?.ai_media_text as string | undefined) } as ChatTurn;
         }
@@ -2206,6 +2213,8 @@ export async function maybeHandleWithAiAgent(
       }
       // Dia da semana errado junto de uma data ("sexta-feira, 17 de outubro" quando é sábado): corrige
       // + "amanhã (quarta, 7 de outubro)" quando a data é hoje ou amanhã
+      // Marcador interno do histórico nunca vai ao cliente
+      finalText = finalText.replace(/^\s*\[Equipe\]\s*/i, '');
       // Destaque do pacote que a IA esqueceu de preencher não vai ao cliente
       finalText = finalText.replace(/\s*[—–-]\s*\{destaques\}/g, '').replace(/\{destaques\}/g, '');
       const fixedText = markTodayTomorrow(fixWeekdays(finalText, ymdBR(Date.now())), ymdBR(Date.now()));

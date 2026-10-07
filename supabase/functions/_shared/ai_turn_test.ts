@@ -27,6 +27,9 @@ Deno.test("teamRepliedAfter: só resposta de gente da equipe conta", () => {
   ], since), false);
   assertEquals(teamRepliedAfter([{ from_me: true, timestamp: "2026-10-05T23:30:00Z", metadata: { source: "platform" } }], since), true);
   assertEquals(teamRepliedAfter([{ from_me: true, timestamp: "2026-10-05T22:03:00Z", metadata: null }], since), true); // pelo celular
+  // Reativação e confirmação de visita são automáticas, não são a equipe
+  assertEquals(teamRepliedAfter([{ from_me: true, timestamp: "2026-10-05T23:30:00Z", metadata: { source: "reactivation_engine" } }], since), false);
+  assertEquals(teamRepliedAfter([{ from_me: true, timestamp: "2026-10-05T23:30:00Z", metadata: { source: "visit_confirmation" } }], since), false);
 });
 
 Deno.test("mergeConsecutiveTurns: perguntas picadas viram um turno só, contando as pendentes", () => {
