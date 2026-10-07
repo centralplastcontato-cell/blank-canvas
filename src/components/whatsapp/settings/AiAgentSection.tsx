@@ -289,6 +289,9 @@ export function AiAgentSection() {
   const [fuReactImage, setFuReactImage] = useState<string | null>(null);
   const [introName, setIntroName] = useState("");
   const [introImage, setIntroImage] = useState<string | null>(null);
+  // Imagens subindo agora: o "Salvar tudo" espera (senão o link da imagem se perde)
+  const [uploadsBusy, setUploadsBusy] = useState(0);
+  const trackUpload = (busy: boolean) => setUploadsBusy((n) => Math.max(0, n + (busy ? 1 : -1)));
 
   useEffect(() => {
     if (!currentCompany?.id) return;
@@ -675,6 +678,7 @@ export function AiAgentSection() {
                     />
                   </div>
                   <FollowUpImageUploader
+                    onUploadingChange={trackUpload}
                     value={introImage}
                     onChange={setIntroImage}
                     companyId={currentCompany?.id}
@@ -1151,6 +1155,7 @@ export function AiAgentSection() {
                         placeholder="O que a Bia deve fazer nesta mensagem (ex.: convidar para conhecer o espaço)"
                       />
                       <FollowUpImageUploader
+                        onUploadingChange={trackUpload}
                         value={st.image_url}
                         onChange={(url) => setFuSteps((list) => list.map((x, i) => (i === idx ? { ...x, image_url: url } : x)))}
                         companyId={currentCompany?.id}
@@ -1245,6 +1250,7 @@ export function AiAgentSection() {
                   )}
                   {fuReactOn && (
                     <FollowUpImageUploader
+                      onUploadingChange={trackUpload}
                       value={fuReactImage}
                       onChange={setFuReactImage}
                       companyId={currentCompany?.id}
@@ -1326,9 +1332,9 @@ export function AiAgentSection() {
 
           <DialogFooter className="px-5 sm:px-6 py-3.5 border-t border-border/40 flex-col-reverse sm:flex-row gap-2">
             <Button variant="ghost" onClick={() => setConfigOpen(false)} disabled={saving} className="w-full sm:w-auto">Cancelar</Button>
-            <Button onClick={saveConfig} disabled={saving} className="w-full sm:w-auto">
-              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-              Salvar tudo
+            <Button onClick={saveConfig} disabled={saving || uploadsBusy > 0} className="w-full sm:w-auto">
+              {saving || uploadsBusy > 0 ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              {uploadsBusy > 0 ? "Enviando imagem…" : "Salvar tudo"}
             </Button>
           </DialogFooter>
         </DialogContent>

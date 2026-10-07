@@ -17,6 +17,8 @@ interface FollowUpImageUploaderProps {
   fileTag?: string;
   successText?: string;
   helpText?: string;
+  // Avisa quem usa enquanto a imagem sobe (ex.: travar o "Salvar" até terminar)
+  onUploadingChange?: (uploading: boolean) => void;
 }
 
 export function FollowUpImageUploader({
@@ -28,6 +30,7 @@ export function FollowUpImageUploader({
   fileTag,
   successText,
   helpText,
+  onUploadingChange,
 }: FollowUpImageUploaderProps) {
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -48,6 +51,7 @@ export function FollowUpImageUploader({
     }
 
     setUploading(true);
+    onUploadingChange?.(true);
     try {
       const normalized = await normalizeImageOrientation(file);
       const body = await fileForUpload(normalized);
@@ -65,6 +69,7 @@ export function FollowUpImageUploader({
       toast({ title: "Erro no upload", description: err.message || String(err), variant: "destructive" });
     } finally {
       setUploading(false);
+      onUploadingChange?.(false);
       if (inputRef.current) inputRef.current.value = "";
     }
   };
