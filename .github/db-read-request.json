@@ -1,1 +1,1 @@
-{"sql": "select s.company_id, s.closed_periods, public.public_closed_periods(s.company_id) as publico from public.ai_agent_settings s where s.company_id = 'a0000000-0000-0000-0000-000000000001'"}
+{"sql": "select line from public.ai_agent_settings s, regexp_split_to_table(s.extra_instructions, E'\\n') as line where s.company_id = 'a0000000-0000-0000-0000-000000000001' and (line ilike '%decora%' or line ilike '%outras informa%' or line ilike '%infesta%' or line ilike '%regras%')"}
