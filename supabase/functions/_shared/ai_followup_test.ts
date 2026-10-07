@@ -39,7 +39,7 @@ Deno.test("normalizeFollowUpConfig: vazio usa o padrão; limites e ordem", () =>
     steps: [{ delay_hours: 300, goal: "b" }, { delay_hours: 24, goal: "" }],
     auto_lost: { enabled: false, hours: 99999 },
   });
-  assertEquals(c.inactivity, { enabled: false, minutes: 5 });
+  assertEquals(c.inactivity, { enabled: false, minutes: 5, second_minutes: null });
   assertEquals(c.steps.map((s) => s.delay_hours), [24, 300]);
   assertEquals(c.steps[0].goal.length > 10, true); // objetivo vazio vira o padrão
   assertEquals(c.auto_lost, { enabled: false, hours: 2160 });
@@ -87,7 +87,8 @@ Deno.test("nextJourneyAction: sem etapas, perdido conta da última resposta", ()
 });
 
 Deno.test("followupLabel e inSendWindowBR", () => {
-  assertEquals(followupLabel({ kind: "inactivity" }), "inatividade");
+  assertEquals(followupLabel({ kind: "inactivity", nth: 1 }), "inatividade");
+  assertEquals(followupLabel({ kind: "inactivity", nth: 2 }), "inatividade_2");
   assertEquals(followupLabel({ kind: "step", index: 1 }), "etapa_2");
   assertEquals(followupLabel({ kind: "lost" }), null);
   assertEquals(inSendWindowBR(Date.UTC(2026, 9, 7, 13)), true); // 10h
@@ -241,4 +242,28 @@ Deno.test("arte opcional nas etapas e nos lembretes antes da festa", () => {
   assertEquals(c.reactivation.image_url, url);
   assertEquals(cleanImageUrl("http://inseguro.com/a.jpg"), null);
   assertEquals(cleanImageUrl(null), null);
+});
+
+Deno.test("2º lembrete de inatividade: depois do 1º, uma vez só, e só se ligado", () => {
+  const two = normalizeFollowUpConfig({ ...cfg, inactivity: { enabled: true, minutes: 20, second_minutes: 180 } });
+  const nth = (msgs: JourneyMessage[], now: number) => {
+    const a = nextJourneyAction(two, msgs, now).action;
+    return a && a.kind === "inactivity" ? a.nth : a ? a.kind : null;
+  };
+  assertEquals(nth(base, T0 + 21 * 60000), 1);
+  const afterFirst: JourneyMessage[] = [...base, { atMs: T0 + 21 * 60000, fromMe: true, byAi: true, text: "E aí? 😊", followup: "inatividade" }];
+  // Conta a partir do 1º: 2h depois ainda não, 3h depois sim
+  assertEquals(nth(afterFirst, T0 + 21 * 60000 + 2 * H), null);
+  assertEquals(nth(afterFirst, T0 + 21 * 60000 + 3 * H), 2);
+  const afterSecond: JourneyMessage[] = [...afterFirst, { atMs: T0 + 3.5 * H, fromMe: true, byAi: true, text: "Fico por aqui 💜", followup: "inatividade_2" }];
+  assertEquals(nth(afterSecond, T0 + 6 * H), null);
+  // Cliente respondeu: tudo recomeça (na próxima pausa, 1º e 2º de novo)
+  const replied: JourneyMessage[] = [...afterSecond, { atMs: T0 + 7 * H, fromMe: false }, { atMs: T0 + 7 * H + 60000, fromMe: true, byAi: true, text: "Qual dia você prefere? 😊" }];
+  assertEquals(nth(replied, T0 + 7 * H + 22 * 60000), 1);
+  // Desligado (configuração antiga, sem o campo): só o 1º
+  const old = normalizeFollowUpConfig({ ...cfg, inactivity: { enabled: true, minutes: 20 } });
+  assertEquals(old.inactivity.second_minutes, null);
+  assertEquals(nextJourneyAction(old, afterFirst, T0 + 21 * 60000 + 3 * H).action, null);
+  // Passou das 12h de silêncio: já é assunto do follow-up
+  assertEquals(nth(afterFirst, T0 + 13 * H), null);
 });

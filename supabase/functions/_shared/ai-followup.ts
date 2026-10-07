@@ -19,7 +19,8 @@ export function cleanImageUrl(v: unknown): string | null {
 export interface AiFollowUpConfig {
   enabled: boolean; // chave geral: desligada = conversas da Bia seguem os follow-ups fixos do número
   since: string | null; // ISO — quando foi ligada: conversas paradas antes disso ficam de fora
-  inactivity: { enabled: boolean; minutes: number };
+  // 1º lembrete: X min sem resposta; 2º (opcional): Y min depois do 1º, se ele ainda não respondeu
+  inactivity: { enabled: boolean; minutes: number; second_minutes: number | null };
   steps: FollowUpStep[];
   auto_lost: { enabled: boolean; hours: number }; // horas depois da última mensagem automática
   // Festa a mais de X meses (ou cliente que disse "vou pensar / só ano que vem"):
@@ -51,7 +52,7 @@ const REMINDER_BUFFER_MS = 10 * DAY_MS;
 export const DEFAULT_AI_FOLLOWUP: AiFollowUpConfig = {
   enabled: false,
   since: null,
-  inactivity: { enabled: true, minutes: 60 },
+  inactivity: { enabled: true, minutes: 30, second_minutes: 180 },
   steps: [
     { delay_hours: 24, goal: DEFAULT_STEP_GOALS[0], image_url: null },
     { delay_hours: 96, goal: DEFAULT_STEP_GOALS[1], image_url: null },
@@ -72,9 +73,12 @@ const num = (v: unknown, def: number, min: number, max: number): number => {
 export function normalizeFollowUpConfig(raw: unknown): AiFollowUpConfig {
   if (!raw || typeof raw !== "object") return structuredClone(DEFAULT_AI_FOLLOWUP);
   const r = raw as Record<string, any>;
+  // 2º lembrete: configuração antiga (sem o campo) fica sem ele
+  const rawSecond = r.inactivity ? r.inactivity.second_minutes : DEFAULT_AI_FOLLOWUP.inactivity.second_minutes;
   const inactivity = {
     enabled: r.inactivity ? r.inactivity.enabled === true : DEFAULT_AI_FOLLOWUP.inactivity.enabled,
     minutes: num(r.inactivity?.minutes, DEFAULT_AI_FOLLOWUP.inactivity.minutes, 5, 720),
+    second_minutes: rawSecond === null || rawSecond === undefined || rawSecond === "" ? null : num(rawSecond, 180, 10, 600),
   };
   const rawSteps = Array.isArray(r.steps) ? r.steps : DEFAULT_AI_FOLLOWUP.steps;
   const steps = rawSteps
@@ -111,7 +115,7 @@ export interface JourneyMessage {
 }
 
 export type JourneyAction =
-  | { kind: "inactivity" }
+  | { kind: "inactivity"; nth: 1 | 2 }
   | { kind: "step"; index: number }
   | { kind: "reactivation"; daysBefore: number }
   | { kind: "lost" };
@@ -224,6 +228,8 @@ export function nextJourneyAction(cfg: AiFollowUpConfig, messages: JourneyMessag
   if (anchorMs < Date.parse(cfg.since)) return { action: null, anchorMs, why: "parada antes de ligar o acompanhamento" };
   const after = msgs.slice(anchorIdx + 1).filter((m) => m.fromMe && m.followup);
   const inactivitySent = after.some((m) => m.followup === "inatividade");
+  const firstReminder = after.find((m) => m.followup === "inatividade");
+  const secondReminderSent = after.some((m) => m.followup === "inatividade_2");
   const stepMsgs = after.filter((m) => stepIndexOf(m.followup) !== null);
   const stepsSent = stepMsgs.reduce((n, m) => Math.max(n, (stepIndexOf(m.followup) as number) + 1), 0);
   const lastAutoMs = after.length > 0 ? after[after.length - 1].atMs : null;
@@ -265,7 +271,16 @@ export function nextJourneyAction(cfg: AiFollowUpConfig, messages: JourneyMessag
       silence >= cfg.inactivity.minutes * 60000 &&
       silence < Math.min(INACTIVITY_MAX_SILENCE_MS, firstStepMs)
     ) {
-      return { ...base, action: { kind: "inactivity" }, why: `inatividade (${cfg.inactivity.minutes} min sem resposta)` };
+      return { ...base, action: { kind: "inactivity", nth: 1 }, why: `inatividade (${cfg.inactivity.minutes} min sem resposta)` };
+    }
+    // 2º lembrete: X min depois do 1º, se o cliente ainda não respondeu (mesma janela "quente")
+    const second = cfg.inactivity.second_minutes;
+    if (
+      cfg.inactivity.enabled && second && firstReminder && !secondReminderSent && stepsSent === 0 && waiting &&
+      nowMs - firstReminder.atMs >= second * 60000 &&
+      silence < Math.min(INACTIVITY_MAX_SILENCE_MS, firstStepMs)
+    ) {
+      return { ...base, action: { kind: "inactivity", nth: 2 }, why: `2º lembrete de inatividade (${second} min depois do 1º)` };
     }
     return { ...base, action: null, why: "nada devido ainda" };
   }
@@ -298,7 +313,7 @@ export function nextJourneyAction(cfg: AiFollowUpConfig, messages: JourneyMessag
 
 /** Rótulo gravado na mensagem automática (metadata.ai_followup) */
 export function followupLabel(action: JourneyAction): string | null {
-  if (action.kind === "inactivity") return "inatividade";
+  if (action.kind === "inactivity") return action.nth === 2 ? "inatividade_2" : "inatividade";
   if (action.kind === "step") return `etapa_${action.index + 1}`;
   if (action.kind === "reactivation") return `reativacao_${action.daysBefore}`;
   return null;
