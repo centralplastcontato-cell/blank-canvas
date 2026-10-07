@@ -559,6 +559,7 @@ COMO CONVERSAR:
 
 FORMATAÇÃO NO WHATSAPP:
 - Negrito do WhatsApp com asterisco simples (*assim*) só para nomes de pacotes e valores. Datas e horários SEM negrito (o celular já sublinha e fica pesado). Nada de **duplo**, # ou listas com hífen.
+- Horário de início: os horários de festa são os da agenda (ex.: almoço 13h, noite 19h). Se o cliente pedir outro horário de início (ex.: 20h), NÃO diga que não dá: apresente o horário padrão com entusiasmo e incentive-o; se ele insistir, use transferir_para_atendente para a equipe confirmar.
 - Valores sempre com centavos: "R$ 7.400,00" (nunca "R$ 7.400" nem "7,4 mil").
 - Datas sempre por extenso ("sábado, 26 de dezembro"), nunca "26/12". Horários como "almoço (13h)" ou "noite (19h)", nunca "13:00" (o WhatsApp sublinha como link). O que vier entre [colchetes] nas ferramentas é só para você — não copie.
 - Mensagem de valores: comece com entusiasmo, use as linhas prontas da ferramenta (um pacote por linha, com o emoji: 🏰 Castelo, ⭐ Super Castelo, 👑 Castelo Premium) e termine com uma pergunta que puxe o próximo passo. Exemplo:
@@ -1323,6 +1324,19 @@ async function toolConsultarValor(
   }
   if (!day) return 'FALTA O DIA: pergunte o dia da semana (ou a data) da festa antes de informar qualquer valor.';
 
+  // Horário de início fora do padrão (ex.: 20h com a noite das 19h às 23h):
+  // vale o horário da agenda que contém essa hora; a IA incentiva o padrão e,
+  // se o cliente insistir, a equipe confirma (às vezes fazem, mas não divulgam)
+  let customStartNote = '';
+  const askedHour = parseInt(String(args.horario || '').replace(/\D.*$/, ''), 10);
+  const partySlots = parsePartySlots(settings.party_slots);
+  if (!isNaN(askedHour) && partySlots.length > 0 && !partySlots.some((sl) => Number(sl.start.slice(0, 2)) === askedHour)) {
+    const within = partySlots.find((sl) => askedHour >= Number(sl.start.slice(0, 2)) && askedHour < Number(sl.end.slice(0, 2) || 24));
+    const standard = within ? formatSlotRange(within.start, within.end) : partySlots.map((sl) => formatSlotRange(sl.start, sl.end)).join(' ou ');
+    customStartNote = ` HORÁRIO DE INÍCIO DIFERENTE: o cliente pediu para começar às ${askedHour}h. Nosso horário de festa é ${standard}: NÃO diga que não dá — apresente esse horário com entusiasmo e incentive-o. Se o cliente insistir em começar às ${askedHour}h, use transferir_para_atendente (motivo: "pediu início às ${askedHour}h") para a equipe confirmar.`;
+    args = { ...args, horario: within ? within.start : undefined };
+  }
+
   // Data específica: confere a agenda ANTES de dar o valor (horário ocupado não tem preço)
   let freeHours: string[] | null = null;
   if (dateMatch) {
@@ -1399,7 +1413,7 @@ async function toolConsultarValor(
     ? ` Nesse dia, disponível neste momento: ${freeHours.map((h) => formatSlotLabel(h)).join(' ou ')} — diga isso junto com o valor.`
     : '';
   const tierInfo = Array.from(new Set(quotes.map((q) => `${prettyPackageName(q.packageName)}: faixa de ${q.tier} convidados, coluna "${q.dayTypeLabel}"`))).join('; ');
-  return `VALORES DA TABELA para ${guests} convidados, ${dayText}${args.horario ? `, ${formatSlotLabel(String(args.horario))}` : ''}. Linhas prontas para o cliente (copie como estão, um pacote por linha, sem arredondar nem somar nada):\n${quotes.map(quoteLine).join('\n')}\n(Só para você: ${tierInfo}.)${minNote}${betweenNote}${holidayNote}${freeNote} Se o cliente pedir a diferença entre dois pacotes, pode dizer a diferença exata (um valor menos o outro) — não passe para a equipe por isso. PROIBIDO oferecer ou prometer desconto, condição à vista, parcelamento, brinde ou entrada diferente: se o cliente pedir, diga que as condições de pagamento e o fechamento são com a equipe.`.trim();
+  return `VALORES DA TABELA para ${guests} convidados, ${dayText}${args.horario ? `, ${formatSlotLabel(String(args.horario))}` : ''}. Linhas prontas para o cliente (copie como estão, um pacote por linha, sem arredondar nem somar nada):\n${quotes.map(quoteLine).join('\n')}\n(Só para você: ${tierInfo}.)${minNote}${betweenNote}${holidayNote}${freeNote}${customStartNote} Se o cliente pedir a diferença entre dois pacotes, pode dizer a diferença exata (um valor menos o outro) — não passe para a equipe por isso. PROIBIDO oferecer ou prometer desconto, condição à vista, parcelamento, brinde ou entrada diferente: se o cliente pedir, diga que as condições de pagamento e o fechamento são com a equipe.`.trim();
 }
 
 // Legendas antes de fotos/vídeo/PDF quando a IA envia o material: as que ela
