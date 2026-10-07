@@ -9,7 +9,7 @@ import { isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
 import { teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { decideUnconfirmedMedia, MEDIA_ACK_TIMEOUT_MS, type MediaAckMeta } from "../_shared/media-ack.ts";
 import { BOT_STEPS_WAITING_ANSWER, botShouldHaveAnswered, UNANSWERED_MAX_AGE_HOURS, UNANSWERED_MINUTES } from "../_shared/unanswered-bot.ts";
-import { type AiTarget, journeyCovers, type JourneyScope, journeyScopes, loadAiJourneyTargets, runAiJourney } from "./ai-journey.ts";
+import { type AiTarget, journeyOwnsConversation, type JourneyScope, journeyScopes, loadAiJourneyTargets, runAiJourney } from "./ai-journey.ts";
 
 type SupabaseAdmin = any;
 
@@ -931,7 +931,7 @@ async function processFollowUp({
       (chunk) =>
         supabase
           .from("wapi_conversations")
-          .select("lead_id, remote_jid")
+          .select("id, lead_id, remote_jid, bot_enabled, bot_data")
           .in("lead_id", chunk)
           .eq("instance_id", settings.instance_id)
           .eq("bot_step", "ai_agent")
@@ -943,11 +943,16 @@ async function processFollowUp({
       console.error(`[follow-up-check] Erro ao separar conversas da Bia — follow-up #${followUpNumber} adiado:`, aiConvError);
       return { successCount: 0, errors: [String(aiConvError)] };
     }
-    const aiLeads = new Set(
-      ((aiConvs || []) as Array<{ lead_id: string; remote_jid: string }>)
-        .filter((c) => journeyCovers(aiScope, c.remote_jid))
-        .map((c) => c.lead_id),
-    );
+    // Só sai do fixo a conversa que a jornada vai mesmo atender
+    const aiLeads = new Set<string>();
+    try {
+      for (const c of (aiConvs || []) as Array<Record<string, any>>) {
+        if (await journeyOwnsConversation(supabase, aiScope, c)) aiLeads.add(c.lead_id);
+      }
+    } catch (err) {
+      console.error(`[follow-up-check] Erro ao separar conversas da Bia — follow-up #${followUpNumber} adiado:`, err);
+      return { successCount: 0, errors: [String(err)] };
+    }
     if (aiLeads.size > 0) {
       leadsNeedingFollowUp = leadsNeedingFollowUp.filter((id) => !aiLeads.has(id));
       console.log(`[follow-up-check] ${aiLeads.size} lead(s) da Bia ficam com a jornada da Bia (follow-up #${followUpNumber} fixo pulado)`);

@@ -493,7 +493,8 @@ export function AiAgentSection() {
       steps: rawSteps,
       auto_lost: { enabled: fuLostOn, hours: fuLostHours },
     });
-    const fuProblem = followUpConfigProblem({ ...followUp, steps: rawSteps, auto_lost: { enabled: fuLostOn, hours: Number(fuLostHours) } });
+    // Desligado: rascunho incompleto das etapas não impede salvar o resto
+    const fuProblem = fuEnabled ? followUpConfigProblem({ ...followUp, steps: rawSteps, auto_lost: { enabled: fuLostOn, hours: Number(fuLostHours) } }) : null;
     if (fuProblem) {
       setConfigTab("followup");
       toast({ title: "Confira o follow-up", description: fuProblem, variant: "destructive" });

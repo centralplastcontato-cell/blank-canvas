@@ -72,7 +72,7 @@ const MATERIAL_MENTION: Record<MaterialKind, RegExp> = {
   pacotes: /(?<![\p{L}])pdf(?![\p{L}])/iu,
 };
 // Escassez que a Bia não tem como saber (o prazo da promoção e a agenda real vêm no aviso)
-const SCARCITY = /[úu]ltimas?\s+(?:vagas?|datas?|unidades)|esgot|quase\s+(?:lotad|cheia|sem\s+data)|poucas\s+(?:vagas|datas)|restam\s+(?:poucas|s[óo])|corr(?:e|a)\s+(?:que|antes)|muita\s+procura/iu;
+const SCARCITY = /[úu]ltimas?\s+(?:vagas?|datas?|unidades)|esgot|quase\s+(?:lotad|cheia|sem\s+data)|poucas\s+(?:vagas|datas)|restam\s+poucas|corr(?:e|a)\s+(?:que|antes)|muita\s+procura/iu;
 
 export interface FollowUpCheck {
   ok: boolean;

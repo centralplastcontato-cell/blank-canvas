@@ -102,6 +102,18 @@ const stepIndexOf = (f: string | null | undefined): number | null => {
  * (as mensagens automáticas da jornada não reiniciam a contagem); quando o
  * cliente responde, a jornada recomeça do zero.
  */
+/**
+ * A jornada da Bia é dona desta conversa? (acompanhamento ligado, a última
+ * resposta da Bia é de depois de ligar e ninguém da equipe falou depois do
+ * cliente). Só assim os follow-ups fixos do número pulam a conversa — senão
+ * ela continua recebendo os fixos, como antes.
+ */
+export function journeyOwns(cfg: AiFollowUpConfig, messages: JourneyMessage[]): boolean {
+  const plan = nextJourneyAction(cfg, messages, Number.MAX_SAFE_INTEGER);
+  return plan.anchorMs !== null && !OUTSIDE_REASONS.has(plan.why);
+}
+const OUTSIDE_REASONS = new Set(["acompanhamento desligado", "parada antes de ligar o acompanhamento"]);
+
 export function nextJourneyAction(cfg: AiFollowUpConfig, messages: JourneyMessage[], nowMs: number): JourneyPlan {
   const msgs = [...messages].sort((a, b) => a.atMs - b.atMs);
   if (msgs.length === 0) return { action: null, anchorMs: null, why: "sem mensagens" };

@@ -1,6 +1,7 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
 import {
   DEFAULT_AI_FOLLOWUP,
+  journeyOwns,
   followupLabel,
   inSendWindowBR,
   type JourneyMessage,
@@ -109,4 +110,17 @@ Deno.test("nextJourneyAction: desligado, antes de ligar, equipe e mensagem de en
     { atMs: T0 + 60000, fromMe: true, byAi: true, isMedia: true },
   ];
   assertEquals(kind(materials, T0 + 2 * H), "inactivity");
+});
+
+Deno.test("journeyOwns: só conversas que a jornada pode atender saem dos follow-ups fixos", () => {
+  assertEquals(journeyOwns(cfg, base), true);
+  // Desligado, parada antes de ligar, equipe respondeu, cliente falou por último: continuam nos fixos
+  assertEquals(journeyOwns(normalizeFollowUpConfig(null), base), false);
+  assertEquals(journeyOwns(normalizeFollowUpConfig({ ...cfg, since: new Date(T0 + H).toISOString() }), base), false);
+  assertEquals(journeyOwns(cfg, [...base, { atMs: T0 + 60000, fromMe: true, byAi: false }]), false);
+  assertEquals(journeyOwns(cfg, [...base, { atMs: T0 + 60000, fromMe: false }]), false);
+  // Jornada já concluída (perdido desligado) continua sendo dela: nada de fixo por cima
+  const done = normalizeFollowUpConfig({ ...cfg, auto_lost: { enabled: false, hours: 48 } });
+  const all = [...base, { atMs: T0 + 72 * H, fromMe: true, followup: "etapa_1" }, { atMs: T0 + 288 * H, fromMe: true, followup: "etapa_2" }];
+  assertEquals(journeyOwns(done, all), true);
 });

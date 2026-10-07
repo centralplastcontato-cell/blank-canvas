@@ -8,7 +8,7 @@
 import { isAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { DEFAULT_AI_MODEL, estimateChatCostUsd, providerForModel } from "../_shared/ai-models.ts";
 import { type ChatTurn, createLlmSession } from "../wapi-webhook/ai-llm.ts";
-import { followupLabel, inSendWindowBR, type JourneyMessage, nextJourneyAction, normalizeFollowUpConfig } from "../_shared/ai-followup.ts";
+import { type AiFollowUpConfig, followupLabel, inSendWindowBR, type JourneyMessage, journeyOwns, nextJourneyAction, normalizeFollowUpConfig } from "../_shared/ai-followup.ts";
 import { checkFollowUpText, followUpInstruction } from "../_shared/ai-followup-text.ts";
 import type { MaterialKind } from "../_shared/material-claims.ts";
 import { phoneVariantsBR } from "../_shared/ai-site-lead.ts";
@@ -63,6 +63,7 @@ export async function loadAiJourneyTargets(supabase: Db): Promise<AiTarget[]> {
 }
 
 export interface JourneyScope {
+  cfg: AiFollowUpConfig;
   testVariants: string[] | null; // Modo de Teste da IA: só o número de teste
 }
 
@@ -74,8 +75,10 @@ export interface JourneyScope {
 export function journeyScopes(targets: AiTarget[]): Map<string, JourneyScope> {
   const out = new Map<string, JourneyScope>();
   for (const t of targets) {
-    if (!normalizeFollowUpConfig(t.settings.followup_config).enabled) continue;
+    const cfg = normalizeFollowUpConfig(t.settings.followup_config);
+    if (!cfg.enabled) continue;
     out.set(String(t.instance.id), {
+      cfg,
       testVariants: t.settings.test_mode_enabled ? phoneVariantsBR(String(t.settings.test_mode_number || "")) : null,
     });
   }
@@ -88,6 +91,45 @@ export function journeyCovers(scope: JourneyScope | undefined, remoteJid: string
   if (!scope.testVariants) return true;
   const phone = String(remoteJid || "").replace(/@.*/, "");
   return phoneVariantsBR(phone).some((v) => scope.testVariants!.includes(v));
+}
+
+/** Mensagens da conversa para a jornada (sem o aviso do #reiniciar e sem o follow-up fixo antigo) */
+async function loadJourneyMessages(supabase: Db, conv: Json): Promise<{ history: Json[]; msgs: JourneyMessage[]; historySince: string | null }> {
+  const bd = (conv.bot_data || {}) as Json;
+  // Depois de #reiniciar (número de teste) só vale a conversa nova
+  const historySince = typeof bd.ai_history_since === "string" ? bd.ai_history_since : null;
+  let q = supabase.from("wapi_messages")
+    .select("from_me, content, message_type, timestamp, metadata")
+    .eq("conversation_id", conv.id);
+  if (historySince) q = q.gte("timestamp", historySince);
+  const { data: rows, error } = await q.order("timestamp", { ascending: false }).limit(40);
+  if (error) throw new Error(`mensagens da conversa ${conv.id}: ${error.message}`);
+  const history = ((rows || []) as Json[]).reverse().filter((m) => {
+    const content = String(m.content || "");
+    if (content.startsWith("🧪")) return false; // aviso do modo de teste
+    if (!m.from_me && content.trim().toLowerCase() === "#reiniciar") return false;
+    return (m.metadata as Json | null)?.source !== "auto_reminder"; // follow-up fixo: nem âncora nem bloqueio
+  });
+  const msgs: JourneyMessage[] = history.map((m) => ({
+    atMs: Date.parse(m.timestamp),
+    fromMe: m.from_me === true,
+    byAi: m.from_me === true ? (m.metadata as Json | null)?.source === "ai_agent" : undefined,
+    isMedia: !!m.message_type && m.message_type !== "text",
+    text: String(m.content || ""),
+    followup: (m.metadata as Json | null)?.ai_followup || null,
+  }));
+  return { history, msgs, historySince };
+}
+
+/**
+ * Para os follow-ups fixos: a jornada é dona desta conversa? Só então o fixo
+ * pula. Robô desligado na conversa, equipe respondendo ou conversa parada
+ * antes de ligar o acompanhamento continuam nos fixos, como antes.
+ */
+export async function journeyOwnsConversation(supabase: Db, scope: JourneyScope, conv: Json): Promise<boolean> {
+  if (conv.bot_enabled !== true || !journeyCovers(scope, conv.remote_jid)) return false;
+  const { msgs } = await loadJourneyMessages(supabase, conv);
+  return journeyOwns(scope.cfg, msgs);
 }
 
 async function partyDateFreeSlots(supabase: Db, settings: Json, companyId: string, ymd: string): Promise<string[]> {
@@ -245,7 +287,9 @@ export async function runAiJourney(
   for (const { settings, instance, companyName } of targets) {
     const cfg = normalizeFollowUpConfig(settings.followup_config);
     if (!cfg.enabled) continue;
-    const scope: JourneyScope = { testVariants: settings.test_mode_enabled ? phoneVariantsBR(String(settings.test_mode_number || "")) : null };
+    const scope: JourneyScope = { cfg, testVariants: settings.test_mode_enabled ? phoneVariantsBR(String(settings.test_mode_number || "")) : null };
+    // Só conversas com atividade depois de ligar o acompanhamento (as anteriores nunca entram)
+    const sinceMs = Math.max(Date.parse(cfg.since as string), Date.now() - MAX_AGE_DAYS * 86400000);
     const { data: convs, error } = await supabase.from("wapi_conversations")
       .select("id, remote_jid, lead_id, bot_data, bot_step, contact_name, last_message_at")
       .eq("instance_id", instance.id)
@@ -254,8 +298,8 @@ export async function runAiJourney(
       .eq("bot_data->>ai_agent", "on")
       .eq("last_message_from_me", true)
       .not("remote_jid", "like", "%@g.us%")
-      .gte("last_message_at", new Date(Date.now() - MAX_AGE_DAYS * 86400000).toISOString())
-      .order("last_message_at", { ascending: true })
+      .gte("last_message_at", new Date(sinceMs).toISOString())
+      .order("last_message_at", { ascending: false })
       .limit(300);
     if (error) {
       errors.push(`conversas da IA (${instance.unit}): ${error.message}`);
@@ -273,27 +317,7 @@ export async function runAiJourney(
         // Materiais saindo agora: espera terminar
         if (bd.ai_materials_busy_until && Date.parse(bd.ai_materials_busy_until) > nowMs) continue;
 
-        // Depois de #reiniciar (número de teste) só vale a conversa nova
-        const historySince = typeof bd.ai_history_since === "string" ? bd.ai_history_since : null;
-        let q = supabase.from("wapi_messages")
-          .select("from_me, content, message_type, timestamp, metadata")
-          .eq("conversation_id", conv.id);
-        if (historySince) q = q.gte("timestamp", historySince);
-        const { data: rows } = await q.order("timestamp", { ascending: false }).limit(40);
-        const history = ((rows || []) as Json[]).reverse().filter((m) => {
-          const content = String(m.content || "");
-          if (content.startsWith("🧪")) return false; // aviso do modo de teste
-          if (!m.from_me && content.trim().toLowerCase() === "#reiniciar") return false;
-          return (m.metadata as Json | null)?.source !== "auto_reminder"; // follow-up fixo antigo: nem âncora nem bloqueio
-        });
-        const msgs: JourneyMessage[] = history.map((m) => ({
-          atMs: Date.parse(m.timestamp),
-          fromMe: m.from_me === true,
-          byAi: m.from_me === true ? (m.metadata as Json | null)?.source === "ai_agent" : undefined,
-          isMedia: !!m.message_type && m.message_type !== "text",
-          text: String(m.content || ""),
-          followup: (m.metadata as Json | null)?.ai_followup || null,
-        }));
+        const { history, msgs, historySince } = await loadJourneyMessages(supabase, conv);
         const plan = nextJourneyAction(cfg, msgs, nowMs);
         if (!plan.action) continue;
         if (plan.action.kind !== "lost" && !inSendWindowBR(nowMs)) continue;
@@ -388,16 +412,16 @@ export async function runAiJourney(
           continue;
         }
 
+        if (sent > 0) await sleep(8000 + Math.floor(Math.random() * 7000)); // ritmo entre envios, como os follow-ups fixos
+
         // Último instante: o cliente (ou a equipe) falou enquanto a mensagem era escrita? Não manda.
         const { data: fresh } = await supabase.from("wapi_conversations")
-          .select("last_message_at, last_message_from_me, bot_step, bot_enabled").eq("id", conv.id).maybeSingle();
+          .select("last_message_at, last_message_from_me, bot_step, bot_enabled, bot_data").eq("id", conv.id).maybeSingle();
         if (!fresh || fresh.last_message_from_me !== true || fresh.bot_step !== "ai_agent" || fresh.bot_enabled !== true ||
-          fresh.last_message_at !== conv.last_message_at) {
+          (fresh.bot_data as Json | null)?.ai_agent !== "on" || fresh.last_message_at !== conv.last_message_at) {
           console.log(`[ai-journey] Conversa ${conv.id} mudou enquanto a mensagem era escrita — não enviada`);
           continue;
         }
-
-        if (sent > 0) await sleep(8000 + Math.floor(Math.random() * 7000)); // ritmo entre envios, como os follow-ups fixos
         const label = followupLabel(plan.action) as string;
         const sinceIso = new Date().toISOString();
         const messageId = await sendText(instance, conv, check.text);
