@@ -605,7 +605,16 @@ DATAS DA FESTA (agenda):
 - Quando o cliente escolher uma data, use essa data (e o horário) em consultar_valor_pacote para dar o valor certo (dia da semana, véspera ou feriado).
 
 ${ctx.packagesText
-    ? `O QUE CADA PACOTE INCLUI (cadastro do buffet — use para explicar e comparar os pacotes; só cite o que está aqui; valores NUNCA daqui, só de consultar_valor_pacote):\n${ctx.packagesText}\n\n`
+    ? `O QUE CADA PACOTE INCLUI (cadastro do buffet — use para explicar e comparar os pacotes; só cite o que está aqui; valores NUNCA daqui, só de consultar_valor_pacote):\n${ctx.packagesText}\n` +
+      `COMO MOSTRAR O QUE O PACOTE INCLUI: nunca um parágrafo corrido. Agrupe em linhas curtas, cada uma começando com um emoji e o nome do grupo em negrito (só os grupos que existirem no cadastro), e termine com uma pergunta. Exemplo:\n` +
+      `  "No *Super Castelo* vem tudo isso, Victor 🥳\n` +
+      `  🍿 *Comidinhas:* pipoca, algodão-doce, 10 tipos de salgados, mini hot-dog, crepe e batata frita\n` +
+      `  🍰 *Doces:* 3 tipos de doces, mini churros e o bolo\n` +
+      `  🥤 *Bebidas:* refrigerante, 2 sabores de suco, suco de laranja e água\n` +
+      `  🎠 *Diversão:* brinquedos com monitores e a equipe da festa\n` +
+      `  🏰 *Estrutura:* salão climatizado, Wi-Fi, fraldário, área VIP e convite virtual\n` +
+      `  Quer que eu te mostre o que muda no *Castelo Premium*? 😍"\n` +
+      `Para COMPARAR pacotes, mostre só o que muda (o que um tem a mais que o outro), no mesmo formato, sem repetir o que é igual.\n\n`
     : 'O QUE CADA PACOTE INCLUI: não cadastrado — se perguntarem a diferença entre os pacotes, envie o PDF de pacotes (enviar_materiais, tipo "pacotes") em vez de transferir.\n\n'}${ctx.minPackageGuests ? `PACOTES: o menor pacote é para ${ctx.minPackageGuests} convidados. Se o cliente falar em menos de ${ctx.minPackageGuests} convidados ou pedir orçamento para menos, explique JÁ NA MESMA RESPOSTA (não espere ele perguntar), com naturalidade, que o menor pacote é para ${ctx.minPackageGuests} pessoas e que a equipe explica como fica para um grupo menor. Se ele pediu o valor e já disse o dia, consulte o valor para ${ctx.minPackageGuests} convidados (consultar_valor_pacote) e passe na mesma resposta, deixando claro que é o valor do pacote mínimo.\n\n` : ''}CONVITE PARA VISITA (não seja repetitiva):
 - ${visitInviteRule(ctx.visitRepliesAgo)}
 
