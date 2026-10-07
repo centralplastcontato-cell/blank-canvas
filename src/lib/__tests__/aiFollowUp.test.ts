@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_AI_FOLLOWUP, delayLabel, followUpConfigProblem, joinDelay, normalizeFollowUpConfig, splitDelay } from "../aiFollowUp";
+import { cleanImageUrl, DEFAULT_AI_FOLLOWUP, delayLabel, followUpConfigProblem, joinDelay, normalizeFollowUpConfig, splitDelay } from "../aiFollowUp";
 
 describe("aiFollowUp", () => {
   it("vazio usa o padrão; limites e ordem", () => {
@@ -35,7 +35,7 @@ describe("aiFollowUp", () => {
 
   it("festa distante e lembretes antes da festa", () => {
     expect(normalizeFollowUpConfig(null).far_months).toBe(3);
-    expect(normalizeFollowUpConfig(null).reactivation).toEqual({ enabled: true, days_before: [60, 30] });
+    expect(normalizeFollowUpConfig(null).reactivation).toEqual({ enabled: true, days_before: [60, 30], image_url: null });
     expect(normalizeFollowUpConfig({ far_months: 40, reactivation: { enabled: false, days_before: [30, 90, 30] } })).toMatchObject({
       far_months: 12,
       reactivation: { enabled: false, days_before: [90, 30] },
@@ -43,6 +43,14 @@ describe("aiFollowUp", () => {
     expect(followUpConfigProblem({ ...DEFAULT_AI_FOLLOWUP, reactivation: { enabled: true, days_before: [0] } })).toMatch(/1 a 180/);
     expect(followUpConfigProblem({ ...DEFAULT_AI_FOLLOWUP, far_months: 0 })).toMatch(/1 e 12/);
     expect(followUpConfigProblem({ ...DEFAULT_AI_FOLLOWUP, reactivation: { enabled: true, days_before: [30, 30] } })).toMatch(/mesmo número/);
+  });
+
+  it("arte opcional nas etapas e nos lembretes", () => {
+    const url = "https://x.supabase.co/storage/v1/object/public/sales-materials/c/followups/bia_etapa1_1.jpg";
+    const c = normalizeFollowUpConfig({ steps: [{ delay_hours: 24, goal: "a", image_url: url }], reactivation: { enabled: true, days_before: [30], image_url: "nada" } });
+    expect(c.steps[0].image_url).toBe(url);
+    expect(c.reactivation.image_url).toBeNull();
+    expect(cleanImageUrl("http://x.com/a.jpg")).toBeNull();
   });
 
   it("chave geral só vale com a data de ativação", () => {

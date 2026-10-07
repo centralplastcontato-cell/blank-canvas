@@ -7,6 +7,13 @@
 export interface FollowUpStep {
   delay_hours: number; // horas de silêncio do cliente desde a última resposta da Bia
   goal: string; // o que a Bia deve fazer nessa mensagem
+  image_url?: string | null; // arte opcional: a mensagem da Bia vai como legenda
+}
+
+/** Só endereço https (arte enviada pela tela); qualquer outra coisa vira "sem imagem" */
+export function cleanImageUrl(v: unknown): string | null {
+  const s = typeof v === "string" ? v.trim() : "";
+  return /^https:\/\/\S+$/.test(s) && s.length <= 1000 ? s : null;
 }
 
 export interface AiFollowUpConfig {
@@ -19,7 +26,7 @@ export interface AiFollowUpConfig {
   // só a 1ª etapa e espera os lembretes antes da festa
   far_months: number;
   // Lembretes antes da festa (a Bia escreve com a agenda real): dias antes da data
-  reactivation: { enabled: boolean; days_before: number[] };
+  reactivation: { enabled: boolean; days_before: number[]; image_url?: string | null };
 }
 
 export const MAX_FOLLOWUP_STEPS = 6;
@@ -46,13 +53,13 @@ export const DEFAULT_AI_FOLLOWUP: AiFollowUpConfig = {
   since: null,
   inactivity: { enabled: true, minutes: 60 },
   steps: [
-    { delay_hours: 24, goal: DEFAULT_STEP_GOALS[0] },
-    { delay_hours: 96, goal: DEFAULT_STEP_GOALS[1] },
-    { delay_hours: 240, goal: DEFAULT_STEP_GOALS[2] },
+    { delay_hours: 24, goal: DEFAULT_STEP_GOALS[0], image_url: null },
+    { delay_hours: 96, goal: DEFAULT_STEP_GOALS[1], image_url: null },
+    { delay_hours: 240, goal: DEFAULT_STEP_GOALS[2], image_url: null },
   ],
   auto_lost: { enabled: true, hours: 48 },
   far_months: 3,
-  reactivation: { enabled: true, days_before: [60, 30] },
+  reactivation: { enabled: true, days_before: [60, 30], image_url: null },
 };
 
 const num = (v: unknown, def: number, min: number, max: number): number => {
@@ -75,6 +82,7 @@ export function normalizeFollowUpConfig(raw: unknown): AiFollowUpConfig {
     .map((s: any, i: number) => ({
       delay_hours: num(s?.delay_hours, DEFAULT_AI_FOLLOWUP.steps[Math.min(i, DEFAULT_AI_FOLLOWUP.steps.length - 1)].delay_hours, 1, 2160),
       goal: String(s?.goal || "").trim().slice(0, 600) || DEFAULT_STEP_GOALS[Math.min(i, DEFAULT_STEP_GOALS.length - 1)],
+      image_url: cleanImageUrl(s?.image_url),
     }))
     .sort((a: FollowUpStep, b: FollowUpStep) => a.delay_hours - b.delay_hours);
   const auto_lost = {
@@ -87,6 +95,7 @@ export function normalizeFollowUpConfig(raw: unknown): AiFollowUpConfig {
   const reactivation = {
     enabled: r.reactivation ? r.reactivation.enabled === true : DEFAULT_AI_FOLLOWUP.reactivation.enabled,
     days_before: [...new Set((rawDays as unknown[]).map((d) => num(d, 30, 1, 180)))].sort((a, b) => b - a).slice(0, MAX_REACTIVATIONS),
+    image_url: cleanImageUrl(r.reactivation?.image_url),
   };
   return { enabled: r.enabled === true && since !== null, since, inactivity, steps, auto_lost, far_months, reactivation };
 }

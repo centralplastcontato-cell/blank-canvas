@@ -147,7 +147,17 @@ async function alternativeDates(supabase: Db, settings: Json, companyId: string,
   return dates.map((d) => [formatDayHeader(d), ...(byDate.get(d) || []).map((f) => formatSlotRange(f.slot.start, f.slot.end))].join("\n")).join("\n");
 }
 
-async function sendText(instance: Json, conv: Json, message: string): Promise<string | null> {
+/** Mensagem da jornada: com arte (a mensagem vai como legenda) ou só texto; arte que falha vira texto */
+async function sendJourneyMessage(instance: Json, conv: Json, message: string, imageUrl: string | null): Promise<string | null> {
+  if (imageUrl) {
+    const id = await sendText(instance, conv, message, imageUrl);
+    if (id !== null) return id;
+    console.warn(`[ai-journey] Arte não saiu (conv ${conv.id}) — enviando só o texto`);
+  }
+  return await sendText(instance, conv, message);
+}
+
+async function sendText(instance: Json, conv: Json, message: string, imageUrl: string | null = null): Promise<string | null> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!supabaseUrl || !serviceRoleKey) return null;
@@ -159,7 +169,7 @@ async function sendText(instance: Json, conv: Json, message: string): Promise<st
       method: "POST",
       headers: { Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        action: "send-text",
+        action: imageUrl ? "send-image" : "send-text",
         phone,
         instanceId: instance.instance_id,
         instanceToken: instance.instance_token,
@@ -168,8 +178,7 @@ async function sendText(instance: Json, conv: Json, message: string): Promise<st
         source: "bot",
         automation: true,
         messageSource: "ai_agent",
-        message,
-        delayTyping: 2,
+        ...(imageUrl ? { mediaUrl: imageUrl, caption: message } : { message, delayTyping: 2 }),
       }),
       signal: controller.signal,
     });
@@ -380,6 +389,12 @@ export async function runAiJourney(
               Date.parse(v) >= nowMs - MATERIAL_WINDOW_MS && (!historySince || v >= historySince))
             .map(([k]) => k as MaterialKind),
         );
+        // Arte da etapa / dos lembretes antes da festa (opcional): a mensagem vai como legenda
+        const imageUrl = plan.action.kind === "step"
+          ? cfg.steps[plan.action.index]?.image_url || null
+          : plan.action.kind === "reactivation"
+          ? cfg.reactivation.image_url || null
+          : null;
         const partyYmd = typeof bd.data_festa === "string" && bd.data_festa >= todayYmd ? bd.data_festa : null;
         const promo = findPromotion(settings.extra_instructions, todayYmd);
         const dateFree = partyYmd ? await partyDateFreeSlots(supabase, settings, instance.company_id, partyYmd) : null;
@@ -408,6 +423,7 @@ export async function runAiJourney(
             : null,
           valuesAlreadyGiven: previousAssistant.some((t) => /R\$/.test(t)),
           materialsSent: [...sentMaterials],
+          withImage: !!imageUrl,
         });
         const system = `Você é a assistente virtual do ${companyName} no WhatsApp, escrevendo uma mensagem de acompanhamento para um cliente que parou de responder. Português do Brasil, tom caloroso e natural, mensagens curtas como no WhatsApp, 1 a 3 emojis. Hoje é ${formatDateLong(todayYmd)} (${todayYmd}). Datas sempre por extenso ("sábado, 26 de dezembro").${settings.extra_instructions ? `\n\nINFORMAÇÕES DO BUFFET (fonte única de fatos; siga o jeito/personalidade descrito aqui):\n${settings.extra_instructions}` : ""}`;
         const session = createLlmSession({ model, system, history: mergeConsecutiveTurns(turns).merged, tools: [], openaiKey, anthropicKey });
@@ -457,7 +473,7 @@ export async function runAiJourney(
         }
         const label = followupLabel(plan.action) as string;
         const sinceIso = new Date().toISOString();
-        const messageId = await sendText(instance, conv, check.text);
+        const messageId = await sendJourneyMessage(instance, conv, check.text, imageUrl);
         if (messageId === null) {
           errors.push(`conv ${conv.id}: envio falhou`);
           continue;
