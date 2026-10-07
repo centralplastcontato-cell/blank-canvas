@@ -63,3 +63,14 @@ Deno.test("moneyWithCents: põe ,00 e cola o R$ no número", () => {
 Deno.test("hoursForWhatsApp: 09:00 vira 9h", () => {
   assertEquals(hoursForWhatsApp("segunda a sexta, das 09:00 às 18:00; sábado, das 09:00 às 12:30 — volta amanhã às 09:00."), "segunda a sexta, das 9h às 18h; sábado, das 9h às 12h30 — volta amanhã às 9h.");
 });
+
+Deno.test("markTodayTomorrow: hoje e amanhã junto da data", async () => {
+  const { markTodayTomorrow } = await import("./whatsapp-format.ts");
+  const today = "2026-10-06";
+  assertEquals(markTodayTomorrow("Sua visita ficou marcada para quarta, 7 de outubro, às 11h 🏰", today), "Sua visita ficou marcada para amanhã (quarta, 7 de outubro), às 11h 🏰");
+  assertEquals(markTodayTomorrow("Te espero na quarta, 7 de outubro, às 11h.", today), "Te espero amanhã (quarta, 7 de outubro), às 11h.");
+  assertEquals(markTodayTomorrow("Tenho a terça, 6 de outubro, às 16h", today), "Tenho hoje (terça, 6 de outubro), às 16h");
+  assertEquals(markTodayTomorrow("Amanhã, quarta, 7 de outubro, às 11h", today), "Amanhã, quarta, 7 de outubro, às 11h");
+  assertEquals(markTodayTomorrow("Sábado, 10 de outubro", today), "Sábado, 10 de outubro");
+  assertEquals(markTodayTomorrow("quarta, 7 de outubro às 11h ou quarta, 7 de outubro às 14h", today), "amanhã (quarta, 7 de outubro) às 11h ou quarta, 7 de outubro às 14h");
+});

@@ -107,6 +107,34 @@ export function fixWeekdays(text: string, todayYmd: string): string {
 }
 
 /**
+ * Data de hoje ou de amanhã ganha a palavra: "marcada para quarta, 7 de
+ * outubro, às 11h" → "marcada para amanhã (quarta, 7 de outubro), às 11h".
+ * Só a primeira vez que cada data aparece, e só se o texto já não disser
+ * "hoje"/"amanhã" logo antes.
+ */
+export function markTodayTomorrow(text: string, todayYmd: string): string {
+  const [ty, tm, td] = todayYmd.split("-").map(Number);
+  const tomorrow = new Date(Date.UTC(ty, tm - 1, td + 1, 12)).toISOString().slice(0, 10);
+  const re = new RegExp(`(\\b(?:n?[aoAO])\\s+)?\\b${WEEKDAY_RE}(,?\\s+(?:dia\\s+)?)(\\d{1,2})\\s+de\\s+(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)`, "gi");
+  const done = new Set<string>();
+  return text.replace(re, (whole: string, _article: string | undefined, wd: string, feira: string | undefined, sep: string, dayStr: string, monthStr: string, offset: number) => {
+    const month = MONTH_INDEX[monthStr.toLowerCase().replace("marco", "março")];
+    const day = Number(dayStr);
+    if (month === undefined) return whole;
+    let year = ty;
+    if (month + 1 < tm || (month + 1 === tm && day < td)) year += 1;
+    const ymd = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const word = ymd === todayYmd ? "hoje" : ymd === tomorrow ? "amanhã" : null;
+    if (!word || done.has(ymd)) return whole;
+    if (/(?<![\p{L}])(hoje|amanh[ãa])(?![\p{L}])[^.!?\n]{0,12}$/iu.test(text.slice(Math.max(0, offset - 20), offset))) return whole;
+    done.add(ymd);
+    const capital = wd[0] === wd[0].toUpperCase();
+    const label = `${capital ? word.charAt(0).toUpperCase() + word.slice(1) : word}`;
+    return `${label} (${wd.toLowerCase()}${feira || ""}${sep.replace(/\s+$/, " ")}${dayStr} de ${monthStr})`;
+  });
+}
+
+/**
  * Dias da semana que não batem com a data no texto do cliente ("sexta dia 12
  * de dezembro" quando 12/12 é sábado). Serve para a IA perguntar qual ele quer
  * em vez de repetir o erro (achado do simulador).

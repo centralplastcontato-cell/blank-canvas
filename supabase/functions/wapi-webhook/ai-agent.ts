@@ -31,7 +31,7 @@ import {
 import { allowedMoneyValues, formatBRL, holidayName, isHolidayEveYmd, isHolidayYmd, localHolidaysFrom, moneyValuesIn, type PackageQuote, type PartyDay, quotePackages, weekdayYmd } from "../_shared/package-pricing.ts";
 import { addDaysYmd, type FreeDay, type FreeSlot, freePartySlots, monthFromText, monthRange, parsePartySlots, pickPartyDates, weekdayOf } from "../_shared/party-availability.ts";
 import { waitForMediaAck } from "../_shared/media-ack.ts";
-import { fixWeekdays, hoursForWhatsApp, moneyWithCents, weekdayMismatches, formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
+import { fixWeekdays, hoursForWhatsApp, markTodayTomorrow, moneyWithCents, weekdayMismatches, formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
 import { guardAiDb } from "./ai-db-guard.ts";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
@@ -567,7 +567,7 @@ FORMATAÇÃO NO WHATSAPP:
 - Negrito do WhatsApp com asterisco simples (*assim*) só para nomes de pacotes e valores. Datas e horários SEM negrito (o celular já sublinha e fica pesado). Nada de **duplo**, # ou listas com hífen.
 - Horário de início: os horários de festa são os da agenda (ex.: almoço 13h, noite 19h). Se o cliente pedir outro horário de início (ex.: 20h), NÃO diga que não dá: apresente o horário padrão com entusiasmo e incentive-o; se ele insistir, use transferir_para_atendente para a equipe confirmar.
 - Valores sempre com centavos: "R$ 7.400,00" (nunca "R$ 7.400" nem "7,4 mil").
-- Datas sempre por extenso ("sábado, 26 de dezembro"), nunca "26/12". Horários como "almoço (13h)" ou "noite (19h)", nunca "13:00" (o WhatsApp sublinha como link). O que vier entre [colchetes] nas ferramentas é só para você — não copie.
+- Datas sempre por extenso ("sábado, 26 de dezembro"), nunca "26/12". Se a data for hoje ou amanhã, diga isso: "amanhã (quarta, 7 de outubro), às 11h". Horários como "almoço (13h)" ou "noite (19h)", nunca "13:00" (o WhatsApp sublinha como link). O que vier entre [colchetes] nas ferramentas é só para você — não copie.
 - Mensagem de valores: comece com entusiasmo, use as linhas prontas da ferramenta (um pacote por linha, com o emoji: 🏰 Castelo, ⭐ Super Castelo, 👑 Castelo Premium) e termine com uma pergunta que puxe o próximo passo. Exemplo:
   "Aaah, que demais, Victor! 🥳 Olha os valores para 60 convidados no sábado, 26 de dezembro:
   🏰 *Castelo* — R$ 6.890,00
@@ -2083,9 +2083,10 @@ export async function maybeHandleWithAiAgent(
         finalText = `${finalText}\n\n${teamHoursMessage(settings)}`;
       }
       // Dia da semana errado junto de uma data ("sexta-feira, 17 de outubro" quando é sábado): corrige
-      const fixedText = fixWeekdays(finalText, new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10));
+      // + "amanhã (quarta, 7 de outubro)" quando a data é hoje ou amanhã
+      const fixedText = markTodayTomorrow(fixWeekdays(finalText, ymdBR(Date.now())), ymdBR(Date.now()));
       if (fixedText !== finalText) {
-        console.warn(`[AI Agent] Dia da semana corrigido na resposta (conv ${conv.id})`);
+        console.warn(`[AI Agent] Data ajustada na resposta (dia da semana ou hoje/amanhã) (conv ${conv.id})`);
         finalText = fixedText;
       }
       // Convite para visita fora de hora (convidou há menos de 3 respostas, o
