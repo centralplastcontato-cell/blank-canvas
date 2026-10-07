@@ -614,7 +614,7 @@ export function AiAgentSection() {
 
           {/* Abinhas de navegação */}
           <div className="px-5 sm:px-6 pt-3 pb-1">
-            <div className="grid grid-cols-6 sm:grid-cols-5 gap-1.5 bg-muted rounded-xl p-1">
+            <div className="grid grid-cols-6 sm:flex gap-1.5 bg-muted rounded-xl p-1">
               {FIELD_GROUPS.map((g, gi) => {
                 const groupFields = BUFFET_FIELDS.filter((f) => f.group === g.id);
                 const filled = groupFields.filter((f) => (infoValues[f.key] || "").trim()).length;
@@ -624,12 +624,17 @@ export function AiAgentSection() {
                     key={g.id}
                     type="button"
                     onClick={() => setConfigTab(g.id)}
-                    className={`${gi < 3 ? "col-span-2" : "col-span-3"} sm:col-span-1 flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-bold whitespace-nowrap transition-all ${active ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"}`}
+                    className={`${gi < 3 ? "col-span-2" : "col-span-3"} sm:flex-auto flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-bold whitespace-nowrap transition-all ${active ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"}`}
                   >
                     {g.label}
                     {groupFields.length > 0 && (
                       <span className={`text-[10px] font-extrabold rounded-full px-1.5 py-0.5 ${filled === groupFields.length ? "bg-green-500/15 text-green-700" : "bg-border/70 text-muted-foreground"}`}>
                         {filled === groupFields.length ? <Check className="w-3 h-3" /> : `${filled}/${groupFields.length}`}
+                      </span>
+                    )}
+                    {g.id === "followup" && (
+                      <span className={`text-[10px] font-extrabold rounded-full px-1.5 py-0.5 ${fuEnabled ? "bg-green-500/15 text-green-700" : "bg-border/70 text-muted-foreground"}`}>
+                        {fuEnabled ? "Ligado" : "Desligado"}
                       </span>
                     )}
                   </button>
