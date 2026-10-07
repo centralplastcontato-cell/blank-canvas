@@ -593,8 +593,8 @@ export function AiAgentSection() {
 
           {/* Abinhas de navegação */}
           <div className="px-5 sm:px-6 pt-3 pb-1">
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 bg-muted rounded-xl p-1">
-              {FIELD_GROUPS.map((g) => {
+            <div className="grid grid-cols-6 sm:grid-cols-5 gap-1.5 bg-muted rounded-xl p-1">
+              {FIELD_GROUPS.map((g, gi) => {
                 const groupFields = BUFFET_FIELDS.filter((f) => f.group === g.id);
                 const filled = groupFields.filter((f) => (infoValues[f.key] || "").trim()).length;
                 const active = configTab === g.id;
@@ -603,7 +603,7 @@ export function AiAgentSection() {
                     key={g.id}
                     type="button"
                     onClick={() => setConfigTab(g.id)}
-                    className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-bold transition-all ${active ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"}`}
+                    className={`${gi < 3 ? "col-span-2" : "col-span-3"} sm:col-span-1 flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-bold whitespace-nowrap transition-all ${active ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"}`}
                   >
                     {g.label}
                     {groupFields.length > 0 && (
@@ -822,16 +822,16 @@ export function AiAgentSection() {
                       )}
                     </div>
                   )}
-                  <div className="grid grid-cols-[1fr_1.4fr] gap-3 pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.4fr] gap-3 pt-1">
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-bold">Alerta forte após</Label>
+                      <Label className="text-xs font-bold">Alerta se a equipe não responder em</Label>
                       <Select value={String(alertMinutes)} onValueChange={(v) => setAlertMinutes(Number(v))}>
                         <SelectTrigger className="h-10 bg-card border-border shadow-sm"><SelectValue /></SelectTrigger>
                         <SelectContent>{ALERT_MINUTE_OPTIONS.map((m) => <SelectItem key={m} value={String(m)}>{m} min</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-bold">WhatsApp do alerta</Label>
+                      <Label className="text-xs font-bold">WhatsApp que recebe o alerta</Label>
                       <Input
                         value={alertPhone}
                         onChange={(e) => setAlertPhone(e.target.value)}
@@ -841,7 +841,7 @@ export function AiAgentSection() {
                     </div>
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    Se ninguém da equipe responder o cliente nesse tempo (contando só o horário de atendimento), esse WhatsApp recebe um alerta 🚨, além do sininho.
+                    Quando a Bia passa uma conversa para a equipe e ninguém responde o cliente nesse tempo (contando só o horário de atendimento), esse WhatsApp recebe um alerta 🚨 com o nome do cliente e o motivo, além do sininho. Sem número, fica só o sininho.
                   </p>
                 </div>
 
@@ -856,36 +856,41 @@ export function AiAgentSection() {
                     Sem festas, visitas e atendimento da equipe. A IA continua respondendo, não oferece esses dias e avisa quando a equipe volta. No site, esses dias ficam bloqueados.
                   </p>
                   {closedPeriods.map((p, idx) => (
-                    <div key={idx} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
-                      <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Primeiro dia</Label>
-                        <Input
-                          type="date"
-                          value={p.start}
-                          onChange={(e) => setClosedPeriods((list) => list.map((x, i) => (i === idx ? { ...x, start: e.target.value } : x)))}
-                          className="h-10 text-base sm:text-sm bg-card border-border shadow-sm"
-                        />
+                    <div key={idx} className="rounded-lg border border-border/70 bg-muted/30 p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold">Período {idx + 1}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground"
+                          aria-label="Remover período"
+                          onClick={() => setClosedPeriods((list) => list.filter((_, i) => i !== idx))}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Último dia</Label>
-                        <Input
-                          type="date"
-                          value={p.end}
-                          min={p.start || undefined}
-                          onChange={(e) => setClosedPeriods((list) => list.map((x, i) => (i === idx ? { ...x, end: e.target.value } : x)))}
-                          className="h-10 text-base sm:text-sm bg-card border-border shadow-sm"
-                        />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="space-y-1 min-w-0">
+                          <Label className="text-[11px] text-muted-foreground">Primeiro dia</Label>
+                          <Input
+                            type="date"
+                            value={p.start}
+                            onChange={(e) => setClosedPeriods((list) => list.map((x, i) => (i === idx ? { ...x, start: e.target.value } : x)))}
+                            className="h-10 w-full min-w-0 appearance-none text-base sm:text-sm bg-card border-border shadow-sm"
+                          />
+                        </div>
+                        <div className="space-y-1 min-w-0">
+                          <Label className="text-[11px] text-muted-foreground">Último dia</Label>
+                          <Input
+                            type="date"
+                            value={p.end}
+                            min={p.start || undefined}
+                            onChange={(e) => setClosedPeriods((list) => list.map((x, i) => (i === idx ? { ...x, end: e.target.value } : x)))}
+                            className="h-10 w-full min-w-0 appearance-none text-base sm:text-sm bg-card border-border shadow-sm"
+                          />
+                        </div>
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-10 w-10 text-muted-foreground"
-                        aria-label="Remover período"
-                        onClick={() => setClosedPeriods((list) => list.filter((_, i) => i !== idx))}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
                     </div>
                   ))}
                   <Button
