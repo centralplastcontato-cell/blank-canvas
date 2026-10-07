@@ -8,6 +8,8 @@ import { businessMinutesBetween, parseVisitHours, teamHoursText } from "../_shar
 import { teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { decideUnconfirmedMedia, MEDIA_ACK_TIMEOUT_MS, type MediaAckMeta } from "../_shared/media-ack.ts";
 import { BOT_STEPS_WAITING_ANSWER, botShouldHaveAnswered, UNANSWERED_MAX_AGE_HOURS, UNANSWERED_MINUTES } from "../_shared/unanswered-bot.ts";
+import { resolveUnitNotificationTargets } from "../_shared/notification-targets.ts";
+import { isAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { type AiTarget, journeyOwnsConversation, type JourneyScope, journeyScopes, loadAiJourneyTargets, runAiJourney } from "./ai-journey.ts";
 
 type SupabaseAdmin = any;
@@ -1543,10 +1545,24 @@ async function processAutoLost({
   // Pre-fetch company_id for this instance (used in history + notifications)
   const { data: instanceData } = await supabase
     .from("wapi_instances")
-    .select("company_id")
+    .select("company_id, unit")
     .eq("id", settings.instance_id)
     .single();
   const instanceCompanyId = instanceData?.company_id || null;
+
+  // Lead sem responsável: o aviso vai para a equipe do número — só em empresa
+  // com a IA (Castelo); nas outras, como sempre, só o responsável é avisado
+  let unitTargets: string[] | null = null;
+  const fallbackTargets = async (): Promise<string[]> => {
+    if (unitTargets) return unitTargets;
+    unitTargets = [];
+    if (!instanceCompanyId) return unitTargets;
+    const { data: company } = await supabase.from("companies").select("settings").eq("id", instanceCompanyId).maybeSingle();
+    if (isAiConversationalEnabled(company?.settings)) {
+      unitTargets = await resolveUnitNotificationTargets(supabase, instanceCompanyId, instanceData?.unit || null);
+    }
+    return unitTargets;
+  };
 
   for (const lead of leadsToMark) {
     try {
@@ -1585,16 +1601,20 @@ async function processAutoLost({
         new_value: "perdido",
       });
 
-      // Send notification to responsavel if exists
-      if (lead.responsavel_id && instanceCompanyId) {
-          await supabase.from("notifications").insert({
-            user_id: lead.responsavel_id,
+      // Aviso: o responsável pelo lead (ou, sem responsável, a equipe do número — só com a IA)
+      if (instanceCompanyId) {
+        const recipients = lead.responsavel_id ? [lead.responsavel_id] : await fallbackTargets();
+        if (recipients.length > 0) {
+          const { error: notifError } = await supabase.from("notifications").insert(recipients.map((uid: string) => ({
+            user_id: uid,
             company_id: instanceCompanyId,
             type: "lead_lost",
             title: "Lead movido para Perdido",
             message: `O lead ${lead.name} foi movido automaticamente para Perdido após não responder ao ${lastFollowUpLabel}.`,
-            metadata: { lead_id: lead.id, lead_name: lead.name },
-          });
+            data: { lead_id: lead.id, lead_name: lead.name },
+          })));
+          if (notifError) console.error(`[follow-up-check] Erro ao avisar sobre o perdido (lead ${lead.id}):`, notifError.message);
+        }
       }
 
       console.log(`[follow-up-check] ✅ Lead ${lead.name} (${lead.id}) marked as perdido (auto-lost)`);
@@ -1991,37 +2011,6 @@ const STUCK_MESSAGE_MINUTES = 15; // tempo sem confirmação para considerar "tr
 const STUCK_MESSAGE_MAX_AGE_HOURS = 6; // não alerta de casos muito antigos (já esfriaram)
 const STUCK_INSTANCE_ALERT_COOLDOWN_MINUTES = 60; // no máximo um alerta por número por hora
 
-async function resolveUnitNotificationTargets(
-  supabase: SupabaseAdmin,
-  companyId: string,
-  unit: string | null,
-): Promise<string[]> {
-  const { data: companyUsers } = await supabase
-    .from("user_companies")
-    .select("user_id")
-    .eq("company_id", companyId);
-  const companyUserIds = (companyUsers || []).map((u: any) => u.user_id);
-  if (companyUserIds.length === 0) return [];
-
-  const unitLower = (unit || "all").toLowerCase();
-  const unitPermission = `leads.unit.${unitLower}`;
-  const { data: perms } = await supabase
-    .from("user_permissions")
-    .select("user_id")
-    .or(`permission.eq.leads.unit.all,permission.eq.${unitPermission}`)
-    .eq("granted", true)
-    .in("user_id", companyUserIds);
-  const { data: adminRoles } = await supabase
-    .from("user_roles")
-    .select("user_id")
-    .eq("role", "admin")
-    .in("user_id", companyUserIds);
-
-  const ids = new Set<string>();
-  (perms || []).forEach((p: any) => ids.add(p.user_id));
-  (adminRoles || []).forEach((r: any) => ids.add(r.user_id));
-  return Array.from(ids);
-}
 
 const MEDIA_LABEL: Record<string, string> = { video: "vídeo", image: "foto", document: "PDF/arquivo", audio: "áudio" };
 
