@@ -37,7 +37,7 @@ import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
 import { findPromotion, promoMentions, promoNote } from "../_shared/promo.ts";
 import { closedPeriodAt, closedPeriodsNote, formatClosedPeriod, isClosedDay, parseClosedPeriods, reopenText } from "../_shared/closed-periods.ts";
-import { asksPartnership, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
+import { asksPartnership, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 import { falseMaterialClaims, hasMaterialClaim, hasSubstance, refersToMaterial, stripFalseMaterialClaims } from "../_shared/material-claims.ts";
 import { enforceHouseRules, houseRuleNote, houseRuleViolatingSentences, houseRuleViolations, parseHouseRules, topicsAsked, TOPIC_ASK } from "../_shared/house-rules.ts";
@@ -530,6 +530,7 @@ interface PromptContext {
   recessNote: string | null; // recesso / dias fechados (Configurar IA)
   materialsNote: string | null; // fotos/vídeo/PDF acabaram de sair no começo deste turno
   promoNote: string | null; // promoção vigente do cadastro: quando e como oferecer
+  intentNote: string | null; // contato que talvez não queira orçamento (trabalho, fornecedor, cliente com festa)
 }
 
 // Convidar para a visita no máximo a cada 3–4 respostas, ou quando fizer sentido
@@ -547,7 +548,7 @@ function buildSystemPrompt(companyName: string, unit: string, settings: AiSettin
     : 'nenhum horário livre nos próximos dias — nesse caso transfira para a equipe';
   return `Você é a assistente virtual de vendas do ${companyName} (buffet infantil), atendendo pelo WhatsApp da unidade ${unit}. Hoje é ${today}.
 
-${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}${ctx.houseNote ? `ATENÇÃO — REGRA DO BUFFET: ${ctx.houseNote}\n\n` : ''}${ctx.recessNote ? `ATENÇÃO — ${ctx.recessNote}\n\n` : ''}${ctx.promoNote ? `${ctx.promoNote}\n\n` : ''}${ctx.materialsNote ? `ATENÇÃO — MATERIAIS NESTE TURNO: ${ctx.materialsNote} Responda o que o cliente disse e termine perguntando o que ele achou do espaço.\n\n` : ''}SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até AGENDAR UMA VISITA ao buffet. A visita é o passo que mais fecha festas.
+${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}${ctx.houseNote ? `ATENÇÃO — REGRA DO BUFFET: ${ctx.houseNote}\n\n` : ''}${ctx.recessNote ? `ATENÇÃO — ${ctx.recessNote}\n\n` : ''}${ctx.intentNote ? `ATENÇÃO — QUEM É O CONTATO: ${ctx.intentNote}\n\n` : ''}${ctx.promoNote ? `${ctx.promoNote}\n\n` : ''}${ctx.materialsNote ? `ATENÇÃO — MATERIAIS NESTE TURNO: ${ctx.materialsNote} Responda o que o cliente disse e termine perguntando o que ele achou do espaço.\n\n` : ''}SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até AGENDAR UMA VISITA ao buffet. A visita é o passo que mais fecha festas.
 
 COMO CONVERSAR:
 - Português brasileiro, tom caloroso, animado e humano, mensagens CURTAS (2 a 4 frases; a de valores pode ter uma linha por pacote).
@@ -557,7 +558,14 @@ COMO CONVERSAR:
 - ${ctx.pendingUserMessages > 1 ? `O cliente mandou ${ctx.pendingUserMessages} mensagens seguidas desde a sua última resposta: responda a TODAS as perguntas delas numa única mensagem, sem ignorar nenhuma.` : 'Se o cliente mandar várias perguntas, responda todas numa única mensagem.'}
 - Uma pergunta por vez, e UMA mensagem por vez: depois de perguntar, espere a resposta antes de perguntar outra coisa. Nunca envie listas de opções numeradas — converse como gente.
 - Nunca use a palavra "sistema" com o cliente (nada de "o sistema já te envia"): fale em primeira pessoa ("já te mando as fotos").${ctx.crossedMessage ? '\n- ATENÇÃO: a mensagem do cliente chegou junto com a sua última resposta, então ele ainda não viu a sua pergunta. NÃO faça uma pergunta nova: responda só o que ele disse agora (se precisar) e deixe a sua pergunta anterior em aberto. Se não houver nada a responder, mande só uma frase curta.' : ''}${ctx.visitText ? `\n- Este cliente JÁ TEM VISITA MARCADA: ${ctx.visitText}. "Ok", "beleza", "obrigado" depois disso são só confirmação — responda com carinho, sem agendar de novo.` : ''}
-- Descubra naturalmente: nome da pessoa, mês/data desejada da festa e número de convidados, se ainda não souber.
+- Descubra naturalmente: nome da pessoa, mês/data desejada da festa e número de convidados, se ainda não souber — mas só depois de saber que a pessoa quer orçamento (veja QUEM É O CONTATO).
+
+QUEM É O CONTATO (nem todo mundo quer orçamento):
+- Se não estiver claro o que a pessoa quer, pergunte com gentileza qual é a dúvida — e, se ela disser que "tem uma festa", se a festa já está marcada com a gente ou se ela está procurando orçamento — ANTES de falar de pacotes, mês ou convidados.
+- Já tem festa marcada/contrato com a gente: NÃO trate como orçamento (nada de pacotes, valores, promoção ou visita). Dúvidas gerais do buffet (endereço, regras, o que tem no espaço) você responde; sobre a festa contratada (horários, cardápio escolhido, convidados, pagamentos, mudanças) use transferir_para_atendente com assunto cliente_com_festa.
+- Quer trabalhar / enviar currículo: use transferir_para_atendente com assunto trabalhar.
+- Fornecedor, quer vender algo ou oferecer um serviço (fora permuta/parceria de divulgação, que tem regra própria): use transferir_para_atendente com assunto fornecedor.
+- Quer orçamento de festa: siga normalmente.
 - Quebre objeções com empatia ("vou pensar" → ofereça a visita sem compromisso; "tá caro" → valorize o que está incluso).
 - Se o cliente disser que não vai fechar / desistiu / não dá agora: aceite com gentileza, agradeça e deixe a porta aberta ("se mudar de ideia, é só me chamar") — NÃO insista, NÃO ofereça visita nem horários.
 - Permuta, parceria, patrocínio ou divulgação em troca da festa (influenciador): NÃO aceite, NÃO recuse e NÃO fale em desconto — diga com simpatia que vai passar a proposta para a equipe avaliar e use transferir_para_atendente (motivo: proposta de permuta/parceria).
@@ -715,6 +723,11 @@ const TOOLS: ToolDef[] = [
       type: 'object',
       properties: {
         motivo: { type: 'string', description: 'Motivo curto da transferência, para a equipe saber o que aconteceu' },
+        assunto: {
+          type: 'string',
+          enum: ['orcamento', 'cliente_com_festa', 'trabalhar', 'fornecedor', 'outro'],
+          description: 'Quem é o contato: orcamento (quer fazer festa), cliente_com_festa (já tem festa marcada/contrato), trabalhar (quer emprego/enviar currículo), fornecedor (quer vender algo ou oferecer serviço), outro',
+        },
       },
       required: ['motivo'],
     },
@@ -1493,6 +1506,7 @@ async function toolTransferir(
   contactName: string | null,
   settings: AiSettings | null,
   motivo: string,
+  assunto = '',
 ): Promise<string> {
   const reason = (motivo || '').trim() || 'sem motivo informado';
   // Já passada para a equipe (IA atendendo fora do horário): não repete aviso
@@ -1510,7 +1524,14 @@ async function toolTransferir(
   conv.bot_step = 'human_takeover';
   console.log(`[AI Agent] Transferred conv ${conv.id} to human. Motivo: ${reason}`);
 
-  const leadId = await ensureLead(supabase, instance, conv, phone, contactName).catch(() => null);
+  // Quem não quer orçamento não vira lead de venda: quem quer trabalhar vai
+  // para "Trabalhe Conosco", quem já tem festa vira "cliente retorno" (igual
+  // ao bot fixo) e fornecedor não entra no funil
+  const leadId = assunto === 'fornecedor'
+    ? null
+    : (assunto === 'trabalhar' || assunto === 'cliente_com_festa')
+    ? await ensureSpecialLead(supabase, instance, conv, phone, contactName, assunto).catch(() => null)
+    : await ensureLead(supabase, instance, conv, phone, contactName).catch(() => null);
   let leadName = contactName || phone;
   if (leadId) {
     const { data: lead } = await supabase.from('campaign_leads').select('name').eq('id', leadId).maybeSingle();
@@ -1528,16 +1549,63 @@ async function toolTransferir(
   // Marca da passagem: o follow-up-check usa para disparar o alerta forte se
   // ninguém da equipe responder em X minutos dentro do horário de atendimento.
   // "at" é renovado depois da última mensagem da IA neste turno.
+  // Currículo e fornecedor não são urgentes: sem alerta forte no WhatsApp do dono
+  const urgent = assunto !== 'trabalhar' && assunto !== 'fornecedor';
   await mergeBotData(supabase, conv, {
-    ai_handoff: { at: new Date().toISOString(), reason, lead_name: leadName, lead_id: leadId, alerted_at: null },
+    ai_handoff: { at: new Date().toISOString(), reason, lead_name: leadName, lead_id: leadId, alerted_at: urgent ? null : 'nao_urgente', assunto: assunto || null },
   });
 
   await notifyTeam(supabase, instance, {
-    title: '🤝 IA passou a conversa para a equipe',
+    title: assunto === 'trabalhar' ? '👷 Interesse em trabalhar na empresa'
+      : assunto === 'fornecedor' ? '📦 Fornecedor / proposta comercial'
+      : assunto === 'cliente_com_festa' ? '🎉 Cliente com festa marcada precisa da equipe'
+      : '🤝 IA passou a conversa para a equipe',
     message: `${leadName} (${instance.unit || 'WhatsApp'}) — motivo: ${reason}. Assuma o atendimento.`,
     data: { conversation_id: conv.id, lead_id: leadId, contact_phone: phone, unit: instance.unit, reason: 'ai_handoff', motivo: reason },
   });
-  return 'OK: conversa transferida para a equipe. Avise o cliente que um atendente vai continuar por aqui. NÃO escreva horário nenhum: o sistema acrescenta sozinho, no fim da sua mensagem, o horário de atendimento da equipe.';
+  const noHours = 'NÃO escreva horário nenhum: o sistema acrescenta sozinho, no fim da sua mensagem, o horário de atendimento da equipe.';
+  if (assunto === 'trabalhar') return `OK: passado para a equipe (RH). Agradeça o interesse com simpatia e peça para a pessoa enviar o currículo aqui mesmo nesta conversa — a equipe analisa. NÃO fale de pacotes, valores nem visita. ${noHours}`;
+  if (assunto === 'fornecedor') return `OK: passado para a equipe responsável. Agradeça com simpatia e diga que a equipe vai avaliar e retorna se tiver interesse. NÃO fale de pacotes, valores nem visita. ${noHours}`;
+  if (assunto === 'cliente_com_festa') return `OK: passado para a equipe que cuida das festas. Diga com carinho que um atendente vai continuar por aqui para ajudar com a festa dele. NÃO fale de pacotes, valores, promoção nem visita. ${noHours}`;
+  return `OK: conversa transferida para a equipe. Avise o cliente que um atendente vai continuar por aqui. ${noHours}`;
+}
+
+// Lead de quem não quer orçamento (mesmo formato do bot fixo): reaproveita o
+// lead que já existe com esse telefone; senão cria em "Trabalhe Conosco" ou
+// como "cliente retorno"
+async function ensureSpecialLead(
+  supabase: any,
+  instance: AgentInstance,
+  conv: AgentConv,
+  phone: string,
+  contactName: string | null,
+  assunto: 'trabalhar' | 'cliente_com_festa',
+): Promise<string | null> {
+  if (conv.lead_id) return conv.lead_id;
+  const clean = phone.replace(/\D/g, '');
+  const existing = await findLeadByPhone<{ id: string }>(supabase, instance.company_id, clean, 'id');
+  if (existing) {
+    await supabase.from('wapi_conversations').update({ lead_id: existing.id }).eq('id', conv.id);
+    conv.lead_id = existing.id;
+    return existing.id;
+  }
+  const work = assunto === 'trabalhar';
+  const botName = (conv.bot_data as Json | null)?.nome as string | undefined;
+  const { data: newLead } = await supabase.from('campaign_leads').insert({
+    name: (botName && firstNameOrEmpty(botName)) ? botName : (contactName || clean),
+    whatsapp: clean.startsWith('55') ? clean : `55${clean}`,
+    unit: work ? 'Trabalhe Conosco' : instance.unit,
+    campaign_id: work ? 'ai-agent-rh' : 'ai-agent-cliente',
+    campaign_name: work ? 'WhatsApp (IA) - RH' : 'WhatsApp (IA) - Cliente',
+    status: work ? 'trabalhe_conosco' : 'cliente_retorno',
+    company_id: instance.company_id,
+    ...(work ? {} : { observacoes: 'Cliente com festa marcada - falou com a IA pelo WhatsApp' }),
+  }).select('id').single();
+  if (newLead?.id) {
+    await supabase.from('wapi_conversations').update({ lead_id: newLead.id }).eq('id', conv.id);
+    conv.lead_id = newLead.id as string;
+  }
+  return conv.lead_id || null;
 }
 
 // Depois da última mensagem da IA num turno com passagem: renova a marca para
@@ -1919,6 +1987,14 @@ export async function maybeHandleWithAiAgent(
       houseNote: houseRuleNote(houseRules, askedTopics),
       recessNote: closedPeriodsNote(closedPeriods, ymdBR(nowMs)),
       materialsNote,
+      intentNote: (() => {
+        const intent = contactIntent(lastUserText);
+        if (intent === 'trabalhar') return 'a pessoa parece querer trabalhar no buffet (vaga/currículo). Não fale de festa: use transferir_para_atendente com assunto trabalhar.';
+        if (intent === 'fornecedor') return 'a pessoa parece ser fornecedor ou querer vender algo. Não fale de festa: use transferir_para_atendente com assunto fornecedor.';
+        if (intent === 'cliente_com_festa') return 'a pessoa parece já ter festa marcada com a gente. Não trate como orçamento: entenda a dúvida; se for sobre a festa contratada, use transferir_para_atendente com assunto cliente_com_festa.';
+        if (intent === 'duvida_festa') return 'a pessoa disse que tem uma festa e quer tirar uma dúvida. Pergunte qual é a dúvida e se a festa já está marcada com a gente, antes de falar de orçamento, mês ou convidados.';
+        return null;
+      })(),
       promoNote: (() => {
         // Promoção do cadastro ainda no prazo: oferecer depois dos valores, lembrar no máximo 1 vez
         const promo = findPromotion(settings.extra_instructions, ymdBR(nowMs));
@@ -2016,7 +2092,7 @@ export async function maybeHandleWithAiAgent(
               toolResult = 'NÃO TRANSFIRA por causa de visita: você mesma resolve. Ofereça horários livres da lista de visitas do sistema (2 opções no dia/turno que o cliente pediu) e, quando ele escolher, use agendar_visita — com remarcar=true se ele já tem visita marcada.';
               console.log(`[AI Agent] Passagem por visita recusada (conv ${conv.id}): ${motivo.slice(0, 80)}`);
             } else {
-              toolResult = await toolTransferir(supabase, instance, conv, phone, contactName, settings, motivo);
+              toolResult = await toolTransferir(supabase, instance, conv, phone, contactName, settings, motivo, String(args.assunto || ''));
             }
           }
           results.push({ id: call.id, content: toolResult });

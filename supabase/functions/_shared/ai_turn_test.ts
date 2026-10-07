@@ -192,3 +192,15 @@ Deno.test("asksPartnership: permuta/parceria sim, divulgação comum não", asyn
     "minha filha é fã de uma influenciadora",
   ]) assertEquals(asksPartnership(t), false, t);
 });
+
+Deno.test("contactIntent: quem não quer orçamento", async () => {
+  const { contactIntent } = await import("./ai-turn.ts");
+  assertEquals(contactIntent("Oi, vocês estão contratando? Queria trabalhar aí"), "trabalhar");
+  assertEquals(contactIntent("Boa tarde, gostaria de deixar meu currículo"), "trabalhar");
+  assertEquals(contactIntent("Sou representante de uma marca de doces e gostaria de apresentar nossos produtos"), "fornecedor");
+  assertEquals(contactIntent("Já fechei a festa com vocês dia 14, queria saber o horário de chegada"), "cliente_com_festa");
+  assertEquals(contactIntent("Tenho uma festa marcada aí em novembro"), "cliente_com_festa");
+  assertEquals(contactIntent("Tenho uma festa no mês que vem e quero tirar uma dúvida"), "duvida_festa");
+  assertEquals(contactIntent("Quanto fica uma festa pra 60 pessoas?"), null);
+  assertEquals(contactIntent("Os monitores trabalham até que horas?"), null);
+});
