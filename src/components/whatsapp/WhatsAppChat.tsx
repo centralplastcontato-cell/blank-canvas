@@ -7199,7 +7199,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                               </>
                             ) : null}
                             {msg.message_type !== 'text' && msg.message_type !== 'contact' && msg.content && msg.content !== '[Imagem]' && msg.content !== '[Áudio]' && (
-                              <p className={cn("whitespace-pre-wrap break-words [overflow-wrap:anywhere] mt-1", (msg.message_type === 'image' || msg.message_type === 'video') && "px-2")}>{formatMessageContent(msg.content)}</p>
+                              // Foto/vídeo ficam sem o balão colorido: a legenda vai num cartão claro (igual ao computador)
+                              <p className={cn("whitespace-pre-wrap break-words [overflow-wrap:anywhere] mt-1", (msg.message_type === 'image' || msg.message_type === 'video') && "px-3 py-2 rounded-b-2xl bg-card text-foreground border border-t-0 border-border/50")}>{formatMessageContent(msg.content)}</p>
                             )}
                             <div className={cn(
                               "flex items-center gap-1 mt-1",
@@ -7211,7 +7212,9 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                               )}
                               <span className={cn(
                                 "text-[10px]",
-                                msg.from_me ? "text-primary-foreground/70" : "text-muted-foreground"
+                                (msg.message_type === 'image' || msg.message_type === 'video')
+                                  ? "text-muted-foreground"
+                                  : (msg.from_me ? "text-primary-foreground/70" : "text-muted-foreground")
                               )}>
                                 {formatMessageTime(msg.timestamp)}
                               </span>
