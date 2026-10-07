@@ -1,1 +1,1 @@
-{"sql": "select line from public.ai_agent_settings s, regexp_split_to_table(s.extra_instructions, E'\\n') as line where s.company_id = 'a0000000-0000-0000-0000-000000000001' and (line ilike '%promo%' or line ilike '%crianças%' or line ilike '%até 17%' or line ilike '%17/10%')"}
+{"sql": "select m.conversation_id, m.from_me, m.message_type, left(m.content, 400) as content, m.timestamp, m.metadata->>'source' as src from public.wapi_messages m where m.timestamp > now() - interval '4 hours' order by m.timestamp desc limit 40"}
