@@ -35,6 +35,7 @@ import { fixWeekdays, hoursForWhatsApp, markTodayTomorrow, moneyWithCents, weekd
 import { guardAiDb } from "./ai-db-guard.ts";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
+import { findPromotion, promoMentions, promoNote } from "../_shared/promo.ts";
 import { closedPeriodAt, closedPeriodsNote, formatClosedPeriod, isClosedDay, parseClosedPeriods, reopenText } from "../_shared/closed-periods.ts";
 import { asksPartnership, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
@@ -528,6 +529,7 @@ interface PromptContext {
   houseNote: string | null; // cliente perguntou de regra do cadastro (comida de fora, animal)
   recessNote: string | null; // recesso / dias fechados (Configurar IA)
   materialsNote: string | null; // fotos/vídeo/PDF acabaram de sair no começo deste turno
+  promoNote: string | null; // promoção vigente do cadastro: quando e como oferecer
 }
 
 // Convidar para a visita no máximo a cada 3–4 respostas, ou quando fizer sentido
@@ -545,7 +547,7 @@ function buildSystemPrompt(companyName: string, unit: string, settings: AiSettin
     : 'nenhum horário livre nos próximos dias — nesse caso transfira para a equipe';
   return `Você é a assistente virtual de vendas do ${companyName} (buffet infantil), atendendo pelo WhatsApp da unidade ${unit}. Hoje é ${today}.
 
-${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}${ctx.houseNote ? `ATENÇÃO — REGRA DO BUFFET: ${ctx.houseNote}\n\n` : ''}${ctx.recessNote ? `ATENÇÃO — ${ctx.recessNote}\n\n` : ''}${ctx.materialsNote ? `ATENÇÃO — MATERIAIS NESTE TURNO: ${ctx.materialsNote} Responda o que o cliente disse e termine perguntando o que ele achou do espaço.\n\n` : ''}SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até AGENDAR UMA VISITA ao buffet. A visita é o passo que mais fecha festas.
+${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}${ctx.houseNote ? `ATENÇÃO — REGRA DO BUFFET: ${ctx.houseNote}\n\n` : ''}${ctx.recessNote ? `ATENÇÃO — ${ctx.recessNote}\n\n` : ''}${ctx.promoNote ? `${ctx.promoNote}\n\n` : ''}${ctx.materialsNote ? `ATENÇÃO — MATERIAIS NESTE TURNO: ${ctx.materialsNote} Responda o que o cliente disse e termine perguntando o que ele achou do espaço.\n\n` : ''}SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até AGENDAR UMA VISITA ao buffet. A visita é o passo que mais fecha festas.
 
 COMO CONVERSAR:
 - Português brasileiro, tom caloroso, animado e humano, mensagens CURTAS (2 a 4 frases; a de valores pode ter uma linha por pacote).
@@ -1917,6 +1919,11 @@ export async function maybeHandleWithAiAgent(
       houseNote: houseRuleNote(houseRules, askedTopics),
       recessNote: closedPeriodsNote(closedPeriods, ymdBR(nowMs)),
       materialsNote,
+      promoNote: (() => {
+        // Promoção do cadastro ainda no prazo: oferecer depois dos valores, lembrar no máximo 1 vez
+        const promo = findPromotion(settings.extra_instructions, ymdBR(nowMs));
+        return promo ? promoNote(promo, promoMentions(chatMessages.filter((m) => m.role === 'assistant').map((m) => m.content), promo)) : null;
+      })(),
       visitSlotsText: visitSlotsByDay(available)
         .map((d) => `${formatDateLong(d.date)}: ${d.times.map((t) => (t.endsWith(':00') ? `${Number(t.slice(0, 2))}h` : t.replace(':', 'h'))).join(', ')}`)
         .join('; ') || 'nenhum',
