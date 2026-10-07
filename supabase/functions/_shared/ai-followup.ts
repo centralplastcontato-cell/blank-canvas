@@ -14,7 +14,12 @@ export interface AiFollowUpConfig {
   since: string | null; // ISO — quando foi ligada: conversas paradas antes disso ficam de fora
   inactivity: { enabled: boolean; minutes: number };
   steps: FollowUpStep[];
-  auto_lost: { enabled: boolean; hours: number }; // horas depois da última etapa
+  auto_lost: { enabled: boolean; hours: number }; // horas depois da última mensagem automática
+  // Festa a mais de X meses (ou cliente que disse "vou pensar / só ano que vem"):
+  // só a 1ª etapa e espera os lembretes antes da festa
+  far_months: number;
+  // Lembretes antes da festa (a Bia escreve com a agenda real): dias antes da data
+  reactivation: { enabled: boolean; days_before: number[] };
 }
 
 export const MAX_FOLLOWUP_STEPS = 6;
@@ -25,19 +30,29 @@ export const INACTIVITY_MAX_SILENCE_MS = 12 * 3600000;
 export const MIN_GAP_BETWEEN_FOLLOWUPS_MS = 12 * 3600000;
 
 export const DEFAULT_STEP_GOALS = [
-  "Retomar o contato com leveza: perguntar se conseguiu ver as fotos, o vídeo e os pacotes, lembrar da data que ele pediu (se ainda estiver disponível) e convidar para conhecer o espaço.",
-  "Última mensagem, gentil e sem pressão: dizer que o contato fica em aberto, lembrar da data dele (só se ainda estiver disponível) e que é só responder aqui quando quiser.",
+  "Convidar para conhecer o espaço, oferecendo 2 horários de visita, de forma leve.",
+  "Lembrar da data dele (se ainda estiver disponível) e da promoção, se houver, com o prazo real. Perguntar se ficou alguma dúvida.",
+  "Despedida gentil e sem pressão: o contato fica em aberto e é só responder aqui quando quiser.",
 ];
+export const MAX_REACTIVATIONS = 3;
+const DAY_MS = 86400000;
+// Lembrete antes da festa que passou do dia (sistema fora do ar) por mais que isso não sai mais
+const REACTIVATION_STALE_MS = 7 * DAY_MS;
+// Lembrete antes da festa só com essa folga depois da última etapa (nada de mensagens coladas)
+const REMINDER_BUFFER_MS = 10 * DAY_MS;
 
 export const DEFAULT_AI_FOLLOWUP: AiFollowUpConfig = {
   enabled: false,
   since: null,
   inactivity: { enabled: true, minutes: 60 },
   steps: [
-    { delay_hours: 72, goal: DEFAULT_STEP_GOALS[0] },
-    { delay_hours: 288, goal: DEFAULT_STEP_GOALS[1] },
+    { delay_hours: 24, goal: DEFAULT_STEP_GOALS[0] },
+    { delay_hours: 96, goal: DEFAULT_STEP_GOALS[1] },
+    { delay_hours: 240, goal: DEFAULT_STEP_GOALS[2] },
   ],
   auto_lost: { enabled: true, hours: 48 },
+  far_months: 3,
+  reactivation: { enabled: true, days_before: [60, 30] },
 };
 
 const num = (v: unknown, def: number, min: number, max: number): number => {
@@ -58,7 +73,7 @@ export function normalizeFollowUpConfig(raw: unknown): AiFollowUpConfig {
   const steps = rawSteps
     .slice(0, MAX_FOLLOWUP_STEPS)
     .map((s: any, i: number) => ({
-      delay_hours: num(s?.delay_hours, DEFAULT_AI_FOLLOWUP.steps[Math.min(i, 1)].delay_hours, 1, 2160),
+      delay_hours: num(s?.delay_hours, DEFAULT_AI_FOLLOWUP.steps[Math.min(i, DEFAULT_AI_FOLLOWUP.steps.length - 1)].delay_hours, 1, 2160),
       goal: String(s?.goal || "").trim().slice(0, 600) || DEFAULT_STEP_GOALS[Math.min(i, DEFAULT_STEP_GOALS.length - 1)],
     }))
     .sort((a: FollowUpStep, b: FollowUpStep) => a.delay_hours - b.delay_hours);
@@ -67,7 +82,13 @@ export function normalizeFollowUpConfig(raw: unknown): AiFollowUpConfig {
     hours: num(r.auto_lost?.hours, DEFAULT_AI_FOLLOWUP.auto_lost.hours, 1, 2160),
   };
   const since = typeof r.since === "string" && !Number.isNaN(Date.parse(r.since)) ? r.since : null;
-  return { enabled: r.enabled === true && since !== null, since, inactivity, steps, auto_lost };
+  const far_months = num(r.far_months, DEFAULT_AI_FOLLOWUP.far_months, 1, 12);
+  const rawDays = Array.isArray(r.reactivation?.days_before) ? r.reactivation.days_before : DEFAULT_AI_FOLLOWUP.reactivation.days_before;
+  const reactivation = {
+    enabled: r.reactivation ? r.reactivation.enabled === true : DEFAULT_AI_FOLLOWUP.reactivation.enabled,
+    days_before: [...new Set((rawDays as unknown[]).map((d) => num(d, 30, 1, 180)))].sort((a, b) => b - a).slice(0, MAX_REACTIVATIONS),
+  };
+  return { enabled: r.enabled === true && since !== null, since, inactivity, steps, auto_lost, far_months, reactivation };
 }
 
 /** Mensagem da conversa, só com o que a jornada precisa */
@@ -83,18 +104,77 @@ export interface JourneyMessage {
 export type JourneyAction =
   | { kind: "inactivity" }
   | { kind: "step"; index: number }
+  | { kind: "reactivation"; daysBefore: number }
   | { kind: "lost" };
+
+/** O que a jornada sabe da festa (para festa distante e lembretes antes da data) */
+export interface JourneyContext {
+  dataFesta: unknown; // bot_data.data_festa (AAAA-MM-DD)
+  mes: unknown; // bot_data.mes ("Março")
+  clientTexts: string[]; // últimas mensagens do cliente (até a parada)
+}
 
 export interface JourneyPlan {
   action: JourneyAction | null;
   anchorMs: number | null; // última resposta de verdade da Bia (o silêncio conta daqui)
   why: string;
+  party?: { ymd: string; exact: boolean } | null; // data da festa usada (exata ou aproximada pelo mês)
+  nextDueMs?: number | null; // próximo lembrete antes da festa agendado (para achar a conversa depois)
 }
 
 const stepIndexOf = (f: string | null | undefined): number | null => {
   const m = String(f || "").match(/^etapa_(\d+)$/);
   return m ? Number(m[1]) - 1 : null;
 };
+const reactivationDaysOf = (f: string | null | undefined): number | null => {
+  const m = String(f || "").match(/^reativacao_(\d+)$/);
+  return m ? Number(m[1]) : null;
+};
+// Meio-dia de Brasília do dia da festa
+const partyMs = (ymd: string) => Date.parse(`${ymd}T12:00:00-03:00`);
+
+const MONTHS_PT = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
+/**
+ * Data da festa para a jornada: a exata (bot_data.data_festa) ou, só com o
+ * mês, o dia 15 da próxima vez que esse mês chega A PARTIR DE `refYmd` (o dia
+ * em que a conversa parou — não "hoje", para não pular de ano depois). Ano
+ * dito pelo cliente ("2027", "ano que vem") vale mais.
+ */
+export function partyReference(dataFesta: unknown, mes: unknown, refYmd: string, yearHint: number | null = null): { ymd: string; exact: boolean } | null {
+  if (typeof dataFesta === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dataFesta)) return { ymd: dataFesta, exact: true };
+  const t = String(mes || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (!t) return null;
+  const idx = MONTHS_PT.findIndex((m) => t.startsWith(m.normalize("NFD").replace(/[\u0300-\u036f]/g, "").slice(0, 3)));
+  if (idx < 0) return null;
+  const [ry, rm] = refYmd.split("-").map(Number);
+  const yearInText = t.match(/(20\d{2})|\/(\d{2})\b/);
+  const natural = idx + 1 >= rm ? ry : ry + 1;
+  const mm = String(idx + 1).padStart(2, "0");
+  let year = yearInText ? Number(yearInText[1] || `20${yearInText[2]}`) : natural;
+  // Ano dito pelo cliente vale, desde que não jogue a festa para antes de quando a conversa parou
+  if (!yearInText && yearHint && `${yearHint}-${mm}-15` >= refYmd) year = yearHint;
+  return { ymd: `${year}-${mm}-15`, exact: false };
+}
+
+/** Ano que o cliente falou: "em 2027" ou "ano que vem" (relativo a refYmd) */
+export function yearHintFrom(clientTexts: string[], refYmd: string): number | null {
+  const ry = Number(refYmd.slice(0, 4));
+  for (const t of [...clientTexts].reverse()) {
+    const y = t.match(/\b(20\d{2})\b/);
+    if (y && Number(y[1]) >= ry && Number(y[1]) <= ry + 2) return Number(y[1]);
+    if (/ano que vem|pr[óo]ximo ano/i.test(t)) return ry + 1;
+  }
+  return null;
+}
+
+// "vou pensar", "é só ano que vem", "mais pra frente", "vou ver com meu marido"...
+const POSTPONE = /vou pensar|pensar (?:com calma|melhor|direitinho)|mais (?:pra|para) frente|(?:festa|anivers[áa]rio)[^.?!]{0,30}(?:ano que vem|pr[óo]ximo ano)|(?:s[óo]|somente|apenas) (?:no |pro |para o )?(?:ano que vem|pr[óo]ximo ano)|ainda (?:t[áa]|est[áa]|[ée]) (?:muito )?cedo/i;
+
+/** O cliente sinalizou que não vai decidir agora? (últimas mensagens dele) */
+export function clientPostponed(clientTexts: string[]): boolean {
+  return clientTexts.some((t) => POSTPONE.test(t));
+}
 
 /**
  * O que está devido agora numa conversa da Bia em que o cliente parou de
@@ -114,7 +194,7 @@ export function journeyOwns(cfg: AiFollowUpConfig, messages: JourneyMessage[]): 
 }
 const OUTSIDE_REASONS = new Set(["acompanhamento desligado", "parada antes de ligar o acompanhamento"]);
 
-export function nextJourneyAction(cfg: AiFollowUpConfig, messages: JourneyMessage[], nowMs: number): JourneyPlan {
+export function nextJourneyAction(cfg: AiFollowUpConfig, messages: JourneyMessage[], nowMs: number, ctx?: JourneyContext): JourneyPlan {
   const msgs = [...messages].sort((a, b) => a.atMs - b.atMs);
   if (msgs.length === 0) return { action: null, anchorMs: null, why: "sem mensagens" };
   if (!msgs[msgs.length - 1].fromMe) return { action: null, anchorMs: null, why: "cliente falou por último" };
@@ -139,14 +219,34 @@ export function nextJourneyAction(cfg: AiFollowUpConfig, messages: JourneyMessag
   const stepsSent = stepMsgs.reduce((n, m) => Math.max(n, (stepIndexOf(m.followup) as number) + 1), 0);
   const lastAutoMs = after.length > 0 ? after[after.length - 1].atMs : null;
   const silence = nowMs - anchorMs;
+  const gapOk = lastAutoMs === null || nowMs - lastAutoMs >= MIN_GAP_BETWEEN_FOLLOWUPS_MS;
 
-  if (stepsSent < cfg.steps.length) {
-    const step = cfg.steps[stepsSent];
-    const gapOk = lastAutoMs === null || nowMs - lastAutoMs >= MIN_GAP_BETWEEN_FOLLOWUPS_MS;
+  // Data da festa, medida a partir do dia em que a conversa parou
+  const anchorYmd = new Date(anchorMs - 3 * 3600000).toISOString().slice(0, 10);
+  const clientTexts = ctx?.clientTexts || [];
+  const partyRef = ctx ? partyReference(ctx.dataFesta, ctx.mes, anchorYmd, yearHintFrom(clientTexts, anchorYmd)) : null;
+  const party = partyRef ? partyMs(partyRef.ymd) : null;
+  const base = { anchorMs, party: partyRef };
+  // (Data que já passou: as etapas seguem normais, sem lembrete antes da festa,
+  // e o perdido automático vem depois da última etapa, como sem data.)
+  // Lembretes antes da festa que ainda cabem (depois das etapas, com folga)
+  const reminderPoints = cfg.reactivation.enabled && party !== null
+    ? cfg.reactivation.days_before.map((d) => ({ d, at: party - d * DAY_MS })).sort((a, b) => a.at - b.at)
+    : [];
+  // Festa distante (medida quando a conversa parou) ou cliente que vai decidir
+  // depois: só a 1ª etapa — mas só quando há lembrete antes da festa marcado
+  // para depois; sem lembrete, segue todas as etapas
+  const distant = clientPostponed(clientTexts) || (party !== null && party - anchorMs > cfg.far_months * 30 * DAY_MS);
+  const firstStepEnd = stepMsgs.length > 0 ? stepMsgs[0].atMs : Math.max(nowMs, anchorMs + (cfg.steps[0]?.delay_hours || 0) * 3600000);
+  const reminderAhead = reminderPoints.some((p) => p.at > firstStepEnd + REMINDER_BUFFER_MS);
+  const steps = distant && reminderAhead ? cfg.steps.slice(0, 1) : cfg.steps;
+
+  if (stepsSent < steps.length) {
+    const step = steps[stepsSent];
     if (silence >= step.delay_hours * 3600000 && gapOk) {
-      return { action: { kind: "step", index: stepsSent }, anchorMs, why: `etapa ${stepsSent + 1} (${step.delay_hours}h sem resposta)` };
+      return { ...base, action: { kind: "step", index: stepsSent }, why: `etapa ${stepsSent + 1} (${step.delay_hours}h sem resposta)` };
     }
-    const firstStepMs = cfg.steps[0] ? cfg.steps[0].delay_hours * 3600000 : Infinity;
+    const firstStepMs = steps[0] ? steps[0].delay_hours * 3600000 : Infinity;
     // Lembrete só quando a Bia ficou esperando o cliente: depois dos materiais
     // ou de uma pergunta (não depois de "qualquer coisa estou aqui 😊")
     const aiTexts = msgs.slice(lastInbound + 1, anchorIdx + 1).filter((m) => m.fromMe && !m.followup && !m.isMedia);
@@ -156,25 +256,42 @@ export function nextJourneyAction(cfg: AiFollowUpConfig, messages: JourneyMessag
       silence >= cfg.inactivity.minutes * 60000 &&
       silence < Math.min(INACTIVITY_MAX_SILENCE_MS, firstStepMs)
     ) {
-      return { action: { kind: "inactivity" }, anchorMs, why: `inatividade (${cfg.inactivity.minutes} min sem resposta)` };
+      return { ...base, action: { kind: "inactivity" }, why: `inatividade (${cfg.inactivity.minutes} min sem resposta)` };
     }
-    return { action: null, anchorMs, why: "nada devido ainda" };
+    return { ...base, action: null, why: "nada devido ainda" };
   }
 
-  // Todas as etapas enviadas (ou nenhuma configurada): perdido automático
-  if (cfg.auto_lost.enabled) {
-    const since = cfg.steps.length > 0 ? (stepMsgs.length > 0 ? stepMsgs[stepMsgs.length - 1].atMs : anchorMs) : anchorMs;
-    if (nowMs - since >= cfg.auto_lost.hours * 3600000) {
-      return { action: { kind: "lost" }, anchorMs, why: `perdido (${cfg.auto_lost.hours}h depois da última etapa)` };
+  // Etapas concluídas: lembretes antes da festa (60 e 30 dias antes, por exemplo)
+  if (reminderPoints.length > 0) {
+    const sentDays = new Set(after.map((m) => reactivationDaysOf(m.followup)).filter((d): d is number => d !== null));
+    const stepsEndMs = stepMsgs.length > 0 ? stepMsgs[stepMsgs.length - 1].atMs : anchorMs;
+    for (const p of reminderPoints) {
+      if (sentDays.has(p.d)) continue;
+      // Colado demais na última etapa (ex.: logo depois da despedida): pula
+      if (p.at <= stepsEndMs + REMINDER_BUFFER_MS) continue;
+      if (nowMs < p.at) return { ...base, action: null, why: `aguardando o lembrete de ${p.d} dias antes da festa`, nextDueMs: p.at };
+      if (nowMs - p.at > REACTIVATION_STALE_MS) continue; // passou do dia há muito tempo
+      if (!gapOk) return { ...base, action: null, why: "intervalo mínimo entre mensagens", nextDueMs: p.at };
+      return { ...base, action: { kind: "reactivation", daysBefore: p.d }, why: `lembrete ${p.d} dias antes da festa`, nextDueMs: p.at };
     }
   }
-  return { action: null, anchorMs, why: "jornada concluída" };
+
+  // Nada mais a mandar: perdido automático depois da última mensagem automática
+  if (cfg.auto_lost.enabled) {
+    const autoMsgs = after.filter((m) => stepIndexOf(m.followup) !== null || reactivationDaysOf(m.followup) !== null);
+    const since = autoMsgs.length > 0 ? autoMsgs[autoMsgs.length - 1].atMs : anchorMs;
+    if (nowMs - since >= cfg.auto_lost.hours * 3600000) {
+      return { ...base, action: { kind: "lost" }, why: `perdido (${cfg.auto_lost.hours}h depois da última mensagem)` };
+    }
+  }
+  return { ...base, action: null, why: "jornada concluída" };
 }
 
 /** Rótulo gravado na mensagem automática (metadata.ai_followup) */
 export function followupLabel(action: JourneyAction): string | null {
   if (action.kind === "inactivity") return "inatividade";
   if (action.kind === "step") return `etapa_${action.index + 1}`;
+  if (action.kind === "reactivation") return `reativacao_${action.daysBefore}`;
   return null;
 }
 

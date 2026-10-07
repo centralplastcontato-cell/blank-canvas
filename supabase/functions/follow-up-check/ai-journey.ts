@@ -5,18 +5,19 @@
 // outras conversas (bot fixo, outros números, outros buffets) seguem os
 // follow-ups de sempre, sem mudança.
 
-import { isAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { DEFAULT_AI_MODEL, estimateChatCostUsd, providerForModel } from "../_shared/ai-models.ts";
 import { type ChatTurn, createLlmSession } from "../wapi-webhook/ai-llm.ts";
-import { type AiFollowUpConfig, followupLabel, inSendWindowBR, type JourneyMessage, journeyOwns, nextJourneyAction, normalizeFollowUpConfig } from "../_shared/ai-followup.ts";
+import { followupLabel, inSendWindowBR, type JourneyContext, type JourneyMessage, journeyOwns, nextJourneyAction, normalizeFollowUpConfig } from "../_shared/ai-followup.ts";
 import { checkFollowUpText, followUpInstruction } from "../_shared/ai-followup-text.ts";
 import type { MaterialKind } from "../_shared/material-claims.ts";
 import { phoneVariantsBR } from "../_shared/ai-site-lead.ts";
 import { findPromotion, promoCountdown } from "../_shared/promo.ts";
-import { formatDateLong, formatSlotLabel } from "../_shared/whatsapp-format.ts";
-import { freePartySlots, parsePartySlots } from "../_shared/party-availability.ts";
+import { formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange } from "../_shared/whatsapp-format.ts";
+import { addDaysYmd, type FreeSlot, freePartySlots, parsePartySlots, weekdayOf } from "../_shared/party-availability.ts";
 import { isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
 import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
+import { type AiTarget, journeyCovers, type JourneyScope } from "../_shared/ai-journey-scope.ts";
+export { type AiTarget, journeyCovers, type JourneyScope, journeyScopes, loadAiJourneyTargets } from "../_shared/ai-journey-scope.ts";
 import { mergeConsecutiveTurns } from "../_shared/ai-turn.ts";
 
 // deno-lint-ignore no-explicit-any
@@ -37,62 +38,6 @@ const MEDIA_KIND: Record<string, MaterialKind> = { image: "fotos", video: "video
 const MEDIA_TEXT: Record<string, string> = { image: "[foto do espaço enviada]", video: "[vídeo enviado]", document: "[PDF de pacotes enviado]", audio: "[áudio]" };
 
 const ymdBR = (ms: number) => new Date(ms - 3 * 3600000).toISOString().slice(0, 10);
-const norm = (s: string | null | undefined) => String(s || "").trim().toLowerCase();
-
-export interface AiTarget {
-  settings: Json;
-  instance: Json;
-  companyName: string;
-}
-
-/** Instâncias (números) em que a Bia atende: empresa com o módulo ligado e IA ativa naquele número */
-export async function loadAiJourneyTargets(supabase: Db): Promise<AiTarget[]> {
-  const { data: allSettings } = await supabase.from("ai_agent_settings").select("*").eq("enabled", true);
-  const out: AiTarget[] = [];
-  for (const s of (allSettings || []) as Json[]) {
-    if (!s.unit) continue;
-    const { data: company } = await supabase.from("companies").select("name, settings").eq("id", s.company_id).maybeSingle();
-    if (!isAiConversationalEnabled(company?.settings)) continue;
-    const { data: instances } = await supabase.from("wapi_instances")
-      .select("id, instance_id, instance_token, company_id, unit, provider, client_token")
-      .eq("company_id", s.company_id);
-    for (const inst of (instances || []) as Json[]) {
-      if (norm(inst.unit) === norm(s.unit)) out.push({ settings: s, instance: inst, companyName: String(company?.name || "buffet") });
-    }
-  }
-  return out;
-}
-
-export interface JourneyScope {
-  cfg: AiFollowUpConfig;
-  testVariants: string[] | null; // Modo de Teste da IA: só o número de teste
-}
-
-/**
- * Números em que a jornada da Bia está LIGADA (Configurar IA → Follow-up).
- * Só nesses números, e só nas conversas que a jornada cobre, os follow-ups
- * fixos pulam a conversa. Desligada = tudo como antes.
- */
-export function journeyScopes(targets: AiTarget[]): Map<string, JourneyScope> {
-  const out = new Map<string, JourneyScope>();
-  for (const t of targets) {
-    const cfg = normalizeFollowUpConfig(t.settings.followup_config);
-    if (!cfg.enabled) continue;
-    out.set(String(t.instance.id), {
-      cfg,
-      testVariants: t.settings.test_mode_enabled ? phoneVariantsBR(String(t.settings.test_mode_number || "")) : null,
-    });
-  }
-  return out;
-}
-
-/** A jornada cobre esta conversa (pelo telefone)? */
-export function journeyCovers(scope: JourneyScope | undefined, remoteJid: string): boolean {
-  if (!scope) return false;
-  if (!scope.testVariants) return true;
-  const phone = String(remoteJid || "").replace(/@.*/, "");
-  return phoneVariantsBR(phone).some((v) => scope.testVariants!.includes(v));
-}
 
 /** Mensagens da conversa para a jornada (sem o aviso do #reiniciar e sem o follow-up fixo antigo) */
 async function loadJourneyMessages(supabase: Db, conv: Json): Promise<{ history: Json[]; msgs: JourneyMessage[]; historySince: string | null }> {
@@ -134,24 +79,71 @@ export async function journeyOwnsConversation(supabase: Db, scope: JourneyScope,
   return journeyOwns(scope.cfg, msgs);
 }
 
-async function partyDateFreeSlots(supabase: Db, settings: Json, companyId: string, ymd: string): Promise<string[]> {
+/** Horários livres na agenda (festas + pré-reservas, sem o recesso) entre duas datas. Só leitura. */
+async function freeSlotsBetween(supabase: Db, settings: Json, companyId: string, from: string, to: string): Promise<FreeSlot[]> {
   const [{ data: units }, { data: events }, { data: pre }] = await Promise.all([
     supabase.from("company_units").select("name").eq("company_id", companyId).eq("is_active", true).eq("is_physical", true),
-    supabase.from("company_events").select("event_date, start_time, end_time, status, unit").eq("company_id", companyId).eq("event_date", ymd),
+    supabase.from("company_events").select("event_date, start_time, end_time, status, unit").eq("company_id", companyId).gte("event_date", from).lte("event_date", to),
     supabase.from("pre_reservations").select("event_date, unit").eq("company_id", companyId).eq("status", "ativa")
-      .gt("reservation_expires_at", new Date().toISOString()).eq("event_date", ymd),
+      .gt("reservation_expires_at", new Date().toISOString()).gte("event_date", from).lte("event_date", to),
   ]);
-  if (isClosedDay(ymd, parseClosedPeriods(settings.closed_periods))) return [];
+  const closed = parseClosedPeriods(settings.closed_periods);
   const slots = parsePartySlots(settings.party_slots);
   const unitNames = ((units || []) as Array<{ name: string }>).map((u) => u.name).filter(Boolean);
   const units_ = unitNames.length > 1 ? unitNames : [unitNames[0] || null];
-  const free = new Set<string>();
+  const seen = new Set<string>();
+  const out: FreeSlot[] = [];
   for (const unit of units_) {
-    for (const f of freePartySlots({ from: ymd, to: ymd, slots, events: (events || []) as any[], preReservations: (pre || []) as any[], unit, physicalUnits: unitNames })) {
-      free.add(f.slot.start);
+    for (const f of freePartySlots({ from, to, slots, events: (events || []) as any[], preReservations: (pre || []) as any[], unit, physicalUnits: unitNames })) {
+      const key = `${f.date} ${f.slot.start}`;
+      if (seen.has(key) || isClosedDay(f.date, closed)) continue;
+      seen.add(key);
+      out.push(f);
     }
   }
-  return [...free].sort().map(formatSlotLabel);
+  return out.sort((a, b) => (a.date + a.slot.start).localeCompare(b.date + b.slot.start));
+}
+
+async function partyDateFreeSlots(supabase: Db, settings: Json, companyId: string, ymd: string): Promise<string[]> {
+  return (await freeSlotsBetween(supabase, settings, companyId, ymd, ymd)).map((f) => formatSlotLabel(f.slot.start));
+}
+
+/**
+ * Até 3 datas livres para oferecer no lembrete antes da festa, em linhas
+ * prontas. Data ocupada: as mais perto dela (mesmo dia da semana primeiro).
+ * Só o mês: datas do mês, fim de semana primeiro.
+ */
+async function alternativeDates(supabase: Db, settings: Json, companyId: string, ref: { ymd: string; exact: boolean }, todayYmd: string): Promise<string | null> {
+  const tomorrow = addDaysYmd(todayYmd, 1);
+  let from: string;
+  let to: string;
+  if (ref.exact) {
+    from = addDaysYmd(ref.ymd, -10);
+    to = addDaysYmd(ref.ymd, 10);
+  } else {
+    from = `${ref.ymd.slice(0, 7)}-01`;
+    const [y, m] = ref.ymd.split("-").map(Number);
+    to = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+  }
+  if (from < tomorrow) from = tomorrow;
+  if (to < from) return null;
+  const free = (await freeSlotsBetween(supabase, settings, companyId, from, to)).filter((f) => f.date !== ref.ymd || !ref.exact);
+  const byDate = new Map<string, FreeSlot[]>();
+  for (const f of free) byDate.set(f.date, [...(byDate.get(f.date) || []), f]);
+  const dist = (d: string) => Math.abs(Date.parse(`${d}T12:00:00Z`) - Date.parse(`${ref.ymd}T12:00:00Z`));
+  const refDow = weekdayOf(ref.ymd);
+  const dates = [...byDate.keys()].sort((a, b) => {
+    if (ref.exact) {
+      const sa = weekdayOf(a) === refDow ? 0 : 1;
+      const sb = weekdayOf(b) === refDow ? 0 : 1;
+      return sa - sb || dist(a) - dist(b);
+    }
+    const wa = [0, 6].includes(weekdayOf(a)) ? 0 : 1;
+    const wb = [0, 6].includes(weekdayOf(b)) ? 0 : 1;
+    return wa - wb || a.localeCompare(b);
+  }).slice(0, 3).sort();
+  if (dates.length === 0) return null;
+  return dates.map((d) => [formatDayHeader(d), ...(byDate.get(d) || []).map((f) => formatSlotRange(f.slot.start, f.slot.end))].join("\n")).join("\n");
 }
 
 async function sendText(instance: Json, conv: Json, message: string): Promise<string | null> {
@@ -214,6 +206,12 @@ async function tagFollowUp(supabase: Db, convId: string, messageId: string, text
   const { error } = await supabase.from("wapi_messages")
     .update({ metadata: { ...((row.metadata as Json) || {}), source: "ai_agent", ai_followup: label } }).eq("id", row.id);
   return !error;
+}
+
+/** Grava/limpa o vencimento do próximo lembrete antes da festa (coluna própria) */
+async function setJourneyNext(supabase: Db, convId: string, nextIso: string | null): Promise<void> {
+  const { error } = await supabase.from("wapi_conversations").update({ ai_journey_next_at: nextIso }).eq("id", convId);
+  if (error) console.error(`[ai-journey] Erro ao gravar o próximo lembrete (conv ${convId}): ${error.message}`);
 }
 
 /** Pega a conversa para esta rodada (atômico); false = outra execução está nela ou ela está bloqueada */
@@ -292,26 +290,35 @@ export async function runAiJourney(
     const scope: JourneyScope = { cfg, testVariants: settings.test_mode_enabled ? phoneVariantsBR(String(settings.test_mode_number || "")) : null };
     // Só conversas com atividade depois de ligar o acompanhamento (as anteriores nunca entram)
     const sinceMs = Math.max(Date.parse(cfg.since as string), Date.now() - MAX_AGE_DAYS * 86400000);
-    const { data: convs, error } = await supabase.from("wapi_conversations")
-      .select("id, remote_jid, lead_id, bot_data, bot_step, contact_name, last_message_at")
+    const baseQuery = () => supabase.from("wapi_conversations")
+      .select("id, remote_jid, lead_id, bot_data, bot_step, contact_name, last_message_at, ai_journey_next_at")
       .eq("instance_id", instance.id)
       .eq("bot_step", "ai_agent")
       .eq("bot_enabled", true)
       .eq("bot_data->>ai_agent", "on")
       .eq("last_message_from_me", true)
       .not("remote_jid", "like", "%@g.us%")
-      .gte("last_message_at", new Date(sinceMs).toISOString())
-      .order("last_message_at", { ascending: false })
-      .limit(300);
-    if (error) {
-      errors.push(`conversas da IA (${instance.unit}): ${error.message}`);
+      .gte("last_message_at", cfg.since as string);
+    // Conversas recentes + as paradas há mais tempo com lembrete antes da festa vencendo
+    const [recent, parked] = await Promise.all([
+      baseQuery().gte("last_message_at", new Date(sinceMs).toISOString()).order("last_message_at", { ascending: false }).limit(300),
+      baseQuery().lte("ai_journey_next_at", new Date(Date.now() + 3600000).toISOString()).order("ai_journey_next_at", { ascending: true }).limit(100),
+    ]);
+    if (recent.error || parked.error) {
+      errors.push(`conversas da IA (${instance.unit}): ${(recent.error || parked.error).message}`);
       continue;
     }
+    const seenConv = new Set<string>();
+    const convs = [...(parked.data || []), ...(recent.data || [])].filter((c: Json) => !seenConv.has(c.id) && !!seenConv.add(c.id));
 
     for (const conv of (convs || []) as Json[]) {
       if (sent >= MAX_SENDS_PER_RUN || Date.now() - startedMs > budgetMs) break;
       try {
-        if (!journeyCovers(scope, conv.remote_jid) || !conv.lead_id) continue;
+        if (!journeyCovers(scope, conv.remote_jid) || !conv.lead_id) {
+          // Fora da jornada (ex.: modo de teste): marcador velho não fica entupindo a busca
+          if (conv.ai_journey_next_at) await setJourneyNext(supabase, conv.id, null);
+          continue;
+        }
         const isTest = !!scope.testVariants;
         const nowMs = Date.now();
         const todayYmd = ymdBR(nowMs);
@@ -320,8 +327,20 @@ export async function runAiJourney(
         if (bd.ai_materials_busy_until && Date.parse(bd.ai_materials_busy_until) > nowMs) continue;
 
         const { history, msgs, historySince } = await loadJourneyMessages(supabase, conv);
-        const plan = nextJourneyAction(cfg, msgs, nowMs);
-        if (!plan.action) continue;
+        // Data da festa (exata ou pelo mês) e se o cliente disse que vai decidir depois
+        const clientTexts = history.filter((m) => !m.from_me && m.message_type === "text").slice(-3).map((m) => String(m.content || ""));
+        const ctx: JourneyContext = { dataFesta: bd.data_festa, mes: bd.mes, clientTexts };
+        const plan = nextJourneyAction(cfg, msgs, nowMs, ctx);
+        const party = plan.party || null;
+        // Guarda quando vence o próximo lembrete antes da festa: a conversa parada
+        // há meses volta a ser encontrada nesse dia (e a reativação fixa sabe que
+        // é da Bia). Com algo a mandar agora, o marcador só muda depois do envio.
+        const nextIso = plan.nextDueMs ? new Date(plan.nextDueMs).toISOString() : null;
+        const currentNext = conv.ai_journey_next_at ? new Date(conv.ai_journey_next_at).toISOString() : null;
+        if (!plan.action) {
+          if (currentNext !== nextIso) await setJourneyNext(supabase, conv.id, nextIso);
+          continue;
+        }
         if (plan.action.kind !== "lost" && !inSendWindowBR(nowMs)) continue;
 
         // Só leads ainda em negociação
@@ -336,6 +355,7 @@ export async function runAiJourney(
 
         if (plan.action.kind === "lost") {
           await markLost(supabase, lead, conv, instance.company_id, `${plan.why} sem resposta do cliente`);
+          if (conv.ai_journey_next_at) await setJourneyNext(supabase, conv.id, null);
           lost++;
           continue;
         }
@@ -359,9 +379,17 @@ export async function runAiJourney(
         );
         const partyYmd = typeof bd.data_festa === "string" && bd.data_festa >= todayYmd ? bd.data_festa : null;
         const promo = findPromotion(settings.extra_instructions, todayYmd);
+        const dateFree = partyYmd ? await partyDateFreeSlots(supabase, settings, instance.company_id, partyYmd) : null;
+        // Lembrete antes da festa: datas alternativas reais (data ocupada ou só o mês)
+        const alternatives = plan.action.kind === "reactivation" && party && (!party.exact || (dateFree !== null && dateFree.length === 0))
+          ? await alternativeDates(supabase, settings, instance.company_id, party, todayYmd)
+          : null;
         const instruction = followUpInstruction({
           kind: plan.action.kind,
           stepNumber: plan.action.kind === "step" ? plan.action.index + 1 : undefined,
+          daysBefore: plan.action.kind === "reactivation" ? plan.action.daysBefore : undefined,
+          partyExact: party?.exact,
+          alternatives,
           stepsTotal: cfg.steps.length,
           goal: plan.action.kind === "step" ? cfg.steps[plan.action.index].goal : undefined,
           silenceMs: nowMs - (plan.anchorMs as number),
@@ -371,7 +399,7 @@ export async function runAiJourney(
           partyYmd,
           partyMonth: bd.mes || null,
           guests: bd.convidados || null,
-          partyDateFree: partyYmd ? await partyDateFreeSlots(supabase, settings, instance.company_id, partyYmd) : null,
+          partyDateFree: dateFree,
           promoLine: promo
             ? `PROMOÇÃO EM VIGOR (pode citar uma vez, se combinar com o objetivo): ${promo.title} — vai até ${formatDateLong(promo.endYmd)} (${promoCountdown(promo)}); regras nas informações do buffet.${promo.partyYear ? ` Só para festas em ${promo.partyYear}.` : ""}`
             : null,
@@ -432,6 +460,8 @@ export async function runAiJourney(
           continue;
         }
         sent++;
+        // Enviado: a conversa volta a ser recente; a próxima rodada recalcula o próximo lembrete
+        if (conv.ai_journey_next_at) await setJourneyNext(supabase, conv.id, null);
         if (!(await tagFollowUp(supabase, conv.id, messageId, check.text, sinceIso, label))) {
           // Sem a marca, a próxima rodada não saberia que esta saiu: bloqueia a conversa
           console.error(`[ai-journey] Mensagem enviada mas não marcada como ${label} (conv ${conv.id}) — jornada pausada 7 dias nesta conversa`);
@@ -442,7 +472,11 @@ export async function runAiJourney(
           company_id: instance.company_id,
           user_id: null,
           user_name: "Bia (IA)",
-          action: label === "inatividade" ? "Lembrete da Bia (cliente parou de responder)" : `Follow-up da Bia #${label.replace("etapa_", "")}`,
+          action: label === "inatividade"
+            ? "Lembrete da Bia (cliente parou de responder)"
+            : label.startsWith("reativacao_")
+            ? `Lembrete da Bia antes da festa (${label.replace("reativacao_", "")} dias)`
+            : `Follow-up da Bia #${label.replace("etapa_", "")}`,
           new_value: check.text.slice(0, 500),
         });
         console.log(`[ai-journey] ${plan.why} — enviado (conv ${conv.id}, ${instance.unit})`);

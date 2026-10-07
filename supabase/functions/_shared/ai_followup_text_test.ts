@@ -16,6 +16,7 @@ Deno.test("checkFollowUpText: valores só os já passados, sem menu, sem 'te man
   assertEquals(checkFollowUpText("Corre que são as últimas vagas de dezembro!", opts).ok, false);
   assertEquals(checkFollowUpText("As datas estão quase esgotando 😱", opts).ok, false);
   assertEquals(checkFollowUpText("Dezembro tem muita procura, viu?", opts).ok, false);
+  assertEquals(checkFollowUpText("As datas de março estão saindo rápido!", opts).ok, false);
   assertEquals(checkFollowUpText("Ficou alguma dúvida sobre a festa? Posso te ajudar com a data 😊", opts).ok, true);
   // Aspas em volta saem; dia da semana errado é corrigido (18/12/2026 é sexta)
   assertEquals(checkFollowUpText("\"E aí, ainda pensando em sábado, 18 de dezembro?\"", opts).text, "E aí, ainda pensando em sexta, 18 de dezembro?");
@@ -35,4 +36,18 @@ Deno.test("followUpInstruction: objetivo, agenda real e valores", () => {
   assertEquals(inactive.includes("há 60 minutos"), true);
   assertEquals(inactive.includes("Nenhum material"), true);
   assertEquals(followUpInstruction({ ...base, materialsSent: ["fotos", "pacotes"] }).includes("as fotos do espaço, o PDF dos pacotes"), true);
+});
+
+Deno.test("followUpInstruction: lembrete antes da festa com data livre, ocupada ou só o mês", () => {
+  const base = { kind: "reactivation" as const, daysBefore: 60, silenceMs: 90 * 86400000, todayYmd: "2027-01-12", valuesAlreadyGiven: false, materialsSent: [] as Array<"fotos" | "video" | "pacotes"> };
+  const alt = "🗓️ Sábado, 6 de março\n🌙 Noite (19h às 23h)";
+  const free = followUpInstruction({ ...base, partyYmd: "2027-03-13", partyExact: true, partyDateFree: ["almoço (13h)"] });
+  assertEquals(free.includes("faltam cerca de 60 dias"), true);
+  assertEquals(free.includes("ainda está disponível neste momento"), true);
+  const taken = followUpInstruction({ ...base, partyYmd: "2027-03-13", partyExact: true, partyDateFree: [], alternatives: alt });
+  assertEquals(taken.includes("NÃO está mais disponível (foi reservada)"), true);
+  assertEquals(taken.includes(alt), true);
+  const month = followUpInstruction({ ...base, partyYmd: "2027-03-15", partyExact: false, partyMonth: "Março", partyDateFree: null, alternatives: alt });
+  assertEquals(month.includes("falou só do mês"), true);
+  assertEquals(month.includes(alt), true);
 });

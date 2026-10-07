@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
+import { biaReminderConversationIds } from "../_shared/ai-journey-scope.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -207,6 +208,19 @@ Deno.serve(async (req) => {
         const filteredLeads = leads.filter(l => !excludeStatuses.includes(l.status));
         const leadIds = filteredLeads.map(l => l.id);
 
+        // Conversas acompanhadas pela Bia (Configurar IA → Follow-up): o lembrete
+        // antes da festa é ela que escreve, com a agenda real — aqui pula a
+        // conversa. Empresa sem a Bia: conjunto vazio, nada muda.
+        let biaConvs = new Set<string>();
+        try {
+          biaConvs = await biaReminderConversationIds(supabase, settings.company_id, leadIds);
+        } catch (err) {
+          // Sem saber quais são da Bia, não manda a reativação fixa desta empresa nesta rodada
+          errors.push(`bia conversas: ${String(err)}`);
+          continue;
+        }
+        if (biaConvs.size > 0) console.log(`[reactivation-engine] ${biaConvs.size} conversa(s) com a Bia — lembrete antes da festa fica com ela`);
+
         // Batch fetch: existing history
         const { data: existingHistory } = await supabase
           .from("lead_reactivation_history")
@@ -364,6 +378,14 @@ Deno.serve(async (req) => {
               if (!conv) {
                 await supabase.from("lead_reactivation_history")
                   .delete().eq("lead_id", lead.id).eq("reactivation_stage", stage.stage).eq("status", "pending");
+                continue;
+              }
+
+              // Conversa acompanhada pela Bia: o lembrete é dela
+              if (biaConvs.has(conv.id)) {
+                await supabase.from("lead_reactivation_history")
+                  .delete().eq("lead_id", lead.id).eq("reactivation_stage", stage.stage).eq("status", "pending");
+                totalSkipped++;
                 continue;
               }
 
