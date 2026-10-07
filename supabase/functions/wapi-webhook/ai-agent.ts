@@ -553,7 +553,7 @@ function buildSystemPrompt(companyName: string, unit: string, settings: AiSettin
 ${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}${ctx.houseNote ? `ATENÇÃO — REGRA DO BUFFET: ${ctx.houseNote}\n\n` : ''}${ctx.recessNote ? `ATENÇÃO — ${ctx.recessNote}\n\n` : ''}${ctx.intentNote ? `ATENÇÃO — QUEM É O CONTATO: ${ctx.intentNote}\n\n` : ''}${ctx.promoNote ? `${ctx.promoNote}\n\n` : ''}${ctx.materialsNote ? `ATENÇÃO — MATERIAIS NESTE TURNO: ${ctx.materialsNote}\n\n` : ''}SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até AGENDAR UMA VISITA ao buffet. A visita é o passo que mais fecha festas.
 
 COMO CONVERSAR:
-- Português brasileiro, tom caloroso, animado e humano, mensagens CURTAS (2 a 4 frases; a de valores pode ter uma linha por pacote).
+- Português brasileiro, tom caloroso, animado e humano, mensagens CURTAS (2 a 4 frases; a de valores pode ter um bloco curto por pacote).
 - Use 2 a 3 emojis por mensagem, variados e combinando com o assunto (🎉 🥳 🎈 🏰 😍 ✨ 🎂 💜…), sem repetir sempre os mesmos. Se as informações do buffet trouxerem instruções de estilo/personalidade, elas valem mais do que esta.
 - ${ctx.isFirstReply ? 'ESTA É A SUA PRIMEIRA RESPOSTA: apresente-se (diga seu nome, se ele estiver nas informações do buffet, e que é do ' + companyName + ') e, se ainda não souber o nome do cliente, já pergunte o nome dele NESTA mensagem, junto com a resposta ao que ele perguntou.' : 'Se ainda não souber o nome do cliente, não interrompa a conversa para pedir — aproveite um momento natural.'}
 - Dados do cliente já registrados: ${ctx.knownDataText}. Não pergunte de novo o que já sabe.${ctx.pricePending ? '\n- O CLIENTE JÁ PEDIU O VALOR e ainda não recebeu: assim que você souber a quantidade de convidados e o dia/data (já registrados ou nesta mensagem), chame consultar_valor_pacote e passe o valor NESTA resposta, sem esperar ele pedir de novo. Se ainda faltar um dos dois, pergunte só o que falta.' : ''}
@@ -580,14 +580,24 @@ FORMATAÇÃO NO WHATSAPP:
 - Horário de início: os horários de festa são os da agenda (ex.: almoço 13h, noite 19h). Se o cliente pedir outro horário de início (ex.: 20h), NÃO diga que não dá: apresente o horário padrão com entusiasmo e incentive-o; se ele insistir, use transferir_para_atendente para a equipe confirmar.
 - Valores sempre com centavos: "R$ 7.400,00" (nunca "R$ 7.400" nem "7,4 mil").
 - Datas sempre por extenso ("sábado, 26 de dezembro"), nunca "26/12". Se a data for hoje ou amanhã, diga isso: "amanhã (quarta, 7 de outubro), às 11h". Horários como "almoço (13h)" ou "noite (19h)", nunca "13:00" (o WhatsApp sublinha como link). O que vier entre [colchetes] nas ferramentas é só para você — não copie.
-- Mensagem de valores: comece com entusiasmo, use as linhas prontas da ferramenta (um pacote por linha, com o emoji: 🏰 Castelo, ⭐ Super Castelo, 👑 Castelo Premium) e termine com uma pergunta que puxe o próximo passo. Exemplo:
+${ctx.packagesText
+    ? `- Mensagem de valores: comece com entusiasmo e mostre o VALOR ANTES DO PREÇO — o que o pacote entrega e, embaixo, o preço (siga o "COMO PASSAR" da ferramenta consultar_valor_pacote). Termine com o próximo passo (garantir a data ou visita — respeitando a regra do CONVITE PARA VISITA), sem perguntar se ele quer saber o que muda entre os pacotes. Formato:
+  "Aaah, que demais, Victor! 🥳 Para 60 convidados no sábado, 26 de dezembro, todos os pacotes têm [o que é comum a todos, do cadastro] ✨
+  🏰 *[Pacote 1]* — [4 ou 5 itens principais]
+  👉 R$ [valor da ferramenta]
+  ⭐ *[Pacote 2]* — tudo do [Pacote 1] + [o que ele tem a mais]
+  👉 R$ [valor da ferramenta]
+  E o melhor: esse dia ainda tem os dois horários livres, almoço (13h) ou noite (19h) 🎉
+  Quer vir conhecer o espaço ou prefere já ver a melhor data? 😍"
+`
+    : `- Mensagem de valores: comece com entusiasmo, use as linhas prontas da ferramenta (um pacote por linha, com o emoji: 🏰 Castelo, ⭐ Super Castelo, 👑 Castelo Premium) e termine com uma pergunta que puxe o próximo passo. Exemplo:
   "Aaah, que demais, Victor! 🥳 Olha os valores para 60 convidados no sábado, 26 de dezembro:
   🏰 *Castelo* — R$ 6.890,00
   ⭐ *Super Castelo* — R$ 8.530,00
   👑 *Castelo Premium* — R$ 9.670,00
   E o melhor: esse dia ainda tem os dois horários livres, almoço (13h) ou noite (19h) 🎉
   Quer que eu te conte o que cada pacote tem? 😍"
-
+`}
 REGRAS INEGOCIÁVEIS:
 1. VALORES: informe somente os valores da tabela oficial, obtidos com a ferramenta consultar_valor_pacote — nunca de cabeça, nunca estimativa, nunca arredondado, nunca somando outros itens. Para consultar você precisa da quantidade de convidados E do dia da festa (a data ou, pelo menos, o dia da semana): se faltar algum, pergunte ANTES de falar qualquer valor. Desconto, condição à vista, parcelamento, brinde, entrada diferente ou qualquer negociação: NUNCA ofereça nem prometa — diga que as condições de pagamento e o fechamento são com a equipe. Se a ferramenta não trouxer valor, envie o PDF de pacotes (enviar_materiais, tipo "pacotes").
    Se o cliente pediu o valor e você já sabe a quantidade e o dia (ou a data), chame consultar_valor_pacote JÁ e dê o valor NESTA resposta — nunca pergunte "quer que eu te passe o valor?". Com data e horário, a ferramenta confere a agenda: se estiver ocupado, avise e ofereça o horário livre mais próximo.
@@ -1204,16 +1214,31 @@ function weekdayFromText(text: string): number | null {
   return i >= 0 ? i : null;
 }
 
-// Linha pronta para o cliente: "🏰 *Castelo* — R$ 6.890,00"
-function quoteLine(q: PackageQuote): string {
+// "🏰 *Castelo* (almoço)"
+function quoteName(q: PackageQuote): string {
   const turno = q.shift === 'almoco' ? ' (almoço)' : q.shift === 'jantar' ? ' (noite)' : '';
-  const name = `${packageEmoji(q.packageName)} *${prettyPackageName(q.packageName)}*${turno}`;
-  if (q.extraGuests === 0) return `${name} — ${formatBRLShort(q.tierPrice)}`;
+  return `${packageEmoji(q.packageName)} *${prettyPackageName(q.packageName)}*${turno}`;
+}
+
+// "R$ 6.890,00" (com a conta dos adicionais quando passa da faixa)
+function quotePrice(q: PackageQuote): string {
+  if (q.extraGuests === 0) return formatBRLShort(q.tierPrice);
   if (q.total != null && q.extraUnit != null) {
-    return `${name} — ${formatBRLShort(q.total)} (${formatBRLShort(q.tierPrice)} do pacote de ${q.tier} + ${q.extraGuests} pessoa(s) adicional(is) × ${formatBRLShort(q.extraUnit)})`;
+    return `${formatBRLShort(q.total)} (${formatBRLShort(q.tierPrice)} do pacote de ${q.tier} + ${q.extraGuests} pessoa(s) adicional(is) × ${formatBRLShort(q.extraUnit)})`;
   }
   const sep = [q.adultExtra != null ? `adulto adicional ${formatBRLShort(q.adultExtra)}` : null, q.childExtra != null ? `criança adicional ${formatBRLShort(q.childExtra)}` : null].filter(Boolean).join(', ');
-  return `${name} — ${formatBRLShort(q.tierPrice)} até ${q.tier} convidados${sep ? ` + adicionais (${sep})` : ' + adicionais (a equipe confirma o valor)'}`;
+  return `${formatBRLShort(q.tierPrice)} até ${q.tier} convidados${sep ? ` + adicionais (${sep})` : ' + adicionais (a equipe confirma o valor)'}`;
+}
+
+// Linha pronta para o cliente: "🏰 *Castelo* — R$ 6.890,00"
+function quoteLine(q: PackageQuote): string {
+  return `${quoteName(q)} — ${quotePrice(q)}`;
+}
+
+// Bloco com o valor antes do preço: "🏰 *Castelo* — {destaques}" + "👉 R$ 6.890,00"
+const HIGHLIGHTS = '{destaques}';
+function quoteBlock(q: PackageQuote): string {
+  return `${quoteName(q)} — ${HIGHLIGHTS}\n👉 ${quotePrice(q)}`;
 }
 
 const fmtDateBR = (ymd: string) => formatDateLong(ymd);
@@ -1477,7 +1502,13 @@ async function toolConsultarValor(
     ? ` Nesse dia, disponível neste momento: ${freeHours.map((h) => formatSlotLabel(h)).join(' ou ')} — diga isso junto com o valor.`
     : '';
   const tierInfo = Array.from(new Set(quotes.map((q) => `${prettyPackageName(q.packageName)}: faixa de ${q.tier} convidados, coluna "${q.dayTypeLabel}"`))).join('; ');
-  return `VALORES DA TABELA para ${guests} convidados, ${dayText}${args.horario ? `, ${formatSlotLabel(String(args.horario))}` : ''}. Linhas prontas para o cliente (copie como estão, um pacote por linha, sem arredondar nem somar nada):\n${quotes.map(quoteLine).join('\n')}\n(Só para você: ${tierInfo}.)${minNote}${betweenNote}${holidayNote}${freeNote}${customStartNote} Se o cliente pedir a diferença entre dois pacotes, pode dizer a diferença exata (um valor menos o outro) — não passe para a equipe por isso. PROIBIDO oferecer ou prometer desconto, condição à vista, parcelamento, brinde ou entrada diferente: se o cliente pedir, diga que as condições de pagamento e o fechamento são com a equipe.`.trim();
+  // Com o "o que inclui" cadastrado, o preço vem depois do que o pacote
+  // entrega (gera valor antes do número)
+  const header = `VALORES DA TABELA para ${guests} convidados, ${dayText}${args.horario ? `, ${formatSlotLabel(String(args.horario))}` : ''}.`;
+  const lines = (await loadPackagesText(supabase, instance))
+    ? `${header} COMO PASSAR (valor antes do preço): comece com 1 frase curta com o que TODOS os pacotes têm em comum (do cadastro O QUE CADA PACOTE INCLUI). Depois copie os blocos abaixo, com uma linha em branco entre eles, trocando ${HIGHLIGHTS} pelos destaques do cadastro: no primeiro pacote, os 4 ou 5 itens principais; nos seguintes, "tudo do [pacote anterior] + " e só o que ele tem a mais (até 5 itens). A linha do 👉 com o preço fica exatamente como está (sem arredondar nem somar nada). Só cite o que está no cadastro. Depois dos blocos, siga com a data/horário e o próximo passo (data, visita) — não pergunte se ele quer saber o que muda entre os pacotes, isso já foi mostrado.\n${quotes.map(quoteBlock).join('\n\n')}`
+    : `${header} Linhas prontas para o cliente (copie como estão, um pacote por linha, sem arredondar nem somar nada):\n${quotes.map(quoteLine).join('\n')}`;
+  return `${lines}\n(Só para você: ${tierInfo}.)${minNote}${betweenNote}${holidayNote}${freeNote}${customStartNote} Se o cliente pedir a diferença entre dois pacotes, pode dizer a diferença exata (um valor menos o outro) — não passe para a equipe por isso. PROIBIDO oferecer ou prometer desconto, condição à vista, parcelamento, brinde ou entrada diferente: se o cliente pedir, diga que as condições de pagamento e o fechamento são com a equipe.`.trim();
 }
 
 // Legendas antes de fotos/vídeo/PDF quando a IA envia o material: as que ela
@@ -2178,6 +2209,8 @@ export async function maybeHandleWithAiAgent(
       }
       // Dia da semana errado junto de uma data ("sexta-feira, 17 de outubro" quando é sábado): corrige
       // + "amanhã (quarta, 7 de outubro)" quando a data é hoje ou amanhã
+      // Destaque do pacote que a IA esqueceu de preencher não vai ao cliente
+      finalText = finalText.replace(/\s*[—–-]\s*\{destaques\}/g, '').replace(/\{destaques\}/g, '');
       const fixedText = markTodayTomorrow(fixWeekdays(finalText, ymdBR(Date.now())), ymdBR(Date.now()));
       if (fixedText !== finalText) {
         console.warn(`[AI Agent] Data ajustada na resposta (dia da semana ou hoje/amanhã) (conv ${conv.id})`);
