@@ -20,13 +20,17 @@ export function formatSlotLabel(start: string): string {
 
 /** 6890 → "R$ 6.890"; 6890.5 → "R$ 6.890,50" */
 export function formatBRLShort(value: number): string {
-  // Sempre com centavos ("R$ 7.400,00") — pedido do buffet
-  return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // Sempre com centavos ("R$ 7.400,00") — pedido do buffet. Espaço que não
+  // quebra entre "R$" e o número: no celular o valor desce inteiro de linha
+  return `R$\u00a0${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-/** Valor sem centavos na resposta ("R$ 7.400", "R$ 1.820") vira "R$ 7.400,00" */
+/**
+ * Valores da resposta sempre com centavos ("R$ 7.400" → "R$ 7.400,00") e com
+ * espaço que não quebra depois do "R$" (no celular o "R$" não fica sozinho no fim da linha)
+ */
 export function moneyWithCents(text: string): string {
-  return text.replace(/R\$\s*(\d{1,3}(?:\.\d{3})+|\d+)(?![\d]|[,.]\d)/g, "R$ $1,00");
+  return text.replace(/R\$\s*(\d{1,3}(?:\.\d{3})+|\d+)(,\d{1,2})?(?![\d]|\.\d)/g, (_m, n: string, c?: string) => `R$\u00a0${n}${c ?? ",00"}`);
 }
 
 const LOWER_WORDS = new Set(["de", "da", "do", "das", "dos", "e"]);
