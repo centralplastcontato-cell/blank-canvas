@@ -10,6 +10,8 @@ export interface FollowUpStep {
 }
 
 export interface AiFollowUpConfig {
+  enabled: boolean; // chave geral: desligada = conversas da Bia seguem os follow-ups fixos do número
+  since: string | null; // ISO — quando foi ligada: conversas paradas antes disso ficam de fora
   inactivity: { enabled: boolean; minutes: number };
   steps: FollowUpStep[];
   auto_lost: { enabled: boolean; hours: number }; // horas depois da última etapa
@@ -28,6 +30,8 @@ export const DEFAULT_STEP_GOALS = [
 ];
 
 export const DEFAULT_AI_FOLLOWUP: AiFollowUpConfig = {
+  enabled: false,
+  since: null,
   inactivity: { enabled: true, minutes: 60 },
   steps: [
     { delay_hours: 72, goal: DEFAULT_STEP_GOALS[0] },
@@ -62,13 +66,17 @@ export function normalizeFollowUpConfig(raw: unknown): AiFollowUpConfig {
     enabled: r.auto_lost ? r.auto_lost.enabled === true : DEFAULT_AI_FOLLOWUP.auto_lost.enabled,
     hours: num(r.auto_lost?.hours, DEFAULT_AI_FOLLOWUP.auto_lost.hours, 1, 2160),
   };
-  return { inactivity, steps, auto_lost };
+  const since = typeof r.since === "string" && !Number.isNaN(Date.parse(r.since)) ? r.since : null;
+  return { enabled: r.enabled === true && since !== null, since, inactivity, steps, auto_lost };
 }
 
 /** Mensagem da conversa, só com o que a jornada precisa */
 export interface JourneyMessage {
   atMs: number;
   fromMe: boolean;
+  byAi?: boolean; // enviada pela Bia (metadata.source "ai_agent"); nossa sem isso = equipe
+  isMedia?: boolean; // foto/vídeo/PDF
+  text?: string;
   followup?: string | null; // "inatividade" | "etapa_1" | "etapa_2" ... (mensagens automáticas da jornada)
 }
 
@@ -104,8 +112,15 @@ export function nextJourneyAction(cfg: AiFollowUpConfig, messages: JourneyMessag
   for (let i = msgs.length - 1; i > lastInbound; i--) {
     if (msgs[i].fromMe && !msgs[i].followup) { anchorIdx = i; break; }
   }
+  // Alguém da equipe escreveu depois do cliente: a conversa é dela agora
+  if (msgs.slice(lastInbound + 1).some((m) => m.fromMe && m.byAi === false)) {
+    return { action: null, anchorMs: null, why: "equipe respondeu" };
+  }
   if (anchorIdx < 0) return { action: null, anchorMs: null, why: "sem resposta da Bia depois do cliente" };
   const anchorMs = msgs[anchorIdx].atMs;
+  if (!cfg.enabled || !cfg.since) return { action: null, anchorMs, why: "acompanhamento desligado" };
+  // Conversa parada antes de ligar o acompanhamento: fica de fora (sem disparo em massa)
+  if (anchorMs < Date.parse(cfg.since)) return { action: null, anchorMs, why: "parada antes de ligar o acompanhamento" };
   const after = msgs.slice(anchorIdx + 1).filter((m) => m.fromMe && m.followup);
   const inactivitySent = after.some((m) => m.followup === "inatividade");
   const stepMsgs = after.filter((m) => stepIndexOf(m.followup) !== null);
@@ -120,8 +135,12 @@ export function nextJourneyAction(cfg: AiFollowUpConfig, messages: JourneyMessag
       return { action: { kind: "step", index: stepsSent }, anchorMs, why: `etapa ${stepsSent + 1} (${step.delay_hours}h sem resposta)` };
     }
     const firstStepMs = cfg.steps[0] ? cfg.steps[0].delay_hours * 3600000 : Infinity;
+    // Lembrete só quando a Bia ficou esperando o cliente: depois dos materiais
+    // ou de uma pergunta (não depois de "qualquer coisa estou aqui 😊")
+    const aiTexts = msgs.slice(lastInbound + 1, anchorIdx + 1).filter((m) => m.fromMe && !m.followup && !m.isMedia);
+    const waiting = msgs[anchorIdx].isMedia === true || /\?/.test(aiTexts[aiTexts.length - 1]?.text || "");
     if (
-      cfg.inactivity.enabled && !inactivitySent && stepsSent === 0 &&
+      cfg.inactivity.enabled && !inactivitySent && stepsSent === 0 && waiting &&
       silence >= cfg.inactivity.minutes * 60000 &&
       silence < Math.min(INACTIVITY_MAX_SILENCE_MS, firstStepMs)
     ) {

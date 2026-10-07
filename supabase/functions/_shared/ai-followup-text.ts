@@ -21,7 +21,10 @@ export interface FollowUpContext {
   partyDateFree?: string[] | null; // horários livres na data pedida ("almoço (13h)"); [] = ocupada; null = não conferido
   promoLine?: string | null;
   valuesAlreadyGiven: boolean;
+  materialsSent: MaterialKind[]; // confirmados pelo WhatsApp nesta conversa
 }
+
+const MATERIAL_NAME: Record<MaterialKind, string> = { fotos: "as fotos do espaço", video: "o vídeo", pacotes: "o PDF dos pacotes" };
 
 const silenceText = (ms: number): string => {
   const min = Math.round(ms / 60000);
@@ -52,6 +55,9 @@ export function followUpInstruction(c: FollowUpContext): string {
     who ? `Dados do cliente: ${who}.` : "",
     agenda,
     c.promoLine ? ` ${c.promoLine}` : "",
+    c.materialsSent.length > 0
+      ? ` Materiais já enviados nesta conversa: ${c.materialsSent.map((k) => MATERIAL_NAME[k]).join(", ")}. Não cite os que não estão nesta lista.`
+      : " Nenhum material (fotos, vídeo, PDF) foi enviado nesta conversa: não pergunte se ele viu nem diga que mandou.",
     ` Regras: não se apresente de novo; não diga que é mensagem automática; não use menu de opções numeradas; não pressione; não invente escassez (nada de "últimas vagas" ou "datas esgotando" — só o que estiver escrito acima); não reserve nem prometa nada; não diga que mandou fotos, vídeo ou PDF se isso não aparece na conversa.`,
     c.valuesAlreadyGiven
       ? " Valores: só se precisar, e só os mesmos que você já passou nesta conversa."
@@ -59,6 +65,14 @@ export function followUpInstruction(c: FollowUpContext): string {
     " Responda só com o texto da mensagem para o cliente.",
   ].join("");
 }
+
+const MATERIAL_MENTION: Record<MaterialKind, RegExp> = {
+  fotos: /(?<![\p{L}])fot(?:o|os|inho|inhos)(?![\p{L}])/iu,
+  video: /(?<![\p{L}])v[ií]deos?(?![\p{L}])/iu,
+  pacotes: /(?<![\p{L}])pdf(?![\p{L}])/iu,
+};
+// Escassez que a Bia não tem como saber (o prazo da promoção e a agenda real vêm no aviso)
+const SCARCITY = /[úu]ltimas?\s+(?:vagas?|datas?|unidades)|esgot|quase\s+(?:lotad|cheia|sem\s+data)|poucas\s+(?:vagas|datas)|restam\s+(?:poucas|s[óo])|corr(?:e|a)\s+(?:que|antes)|muita\s+procura/iu;
 
 export interface FollowUpCheck {
   ok: boolean;
@@ -80,6 +94,10 @@ export function checkFollowUpText(
   if (hasMaterialClaim(text) && falseMaterialClaims(text, opts.sentMaterials).length > 0) {
     return { ok: false, text, problem: "disse que mandou material que não saiu" };
   }
+  // "Conseguiu ver as fotos?" sem as fotos terem saído
+  const unsent = (Object.keys(MATERIAL_MENTION) as MaterialKind[]).filter((k) => !opts.sentMaterials.has(k) && MATERIAL_MENTION[k].test(text));
+  if (unsent.length > 0) return { ok: false, text, problem: `falou de ${unsent.map((k) => MATERIAL_NAME[k]).join(" e ")}, que não foi enviado` };
+  if (SCARCITY.test(text)) return { ok: false, text, problem: "escassez inventada (vagas/datas acabando)" };
   text = moneyWithCents(markTodayTomorrow(fixWeekdays(text, opts.todayYmd), opts.todayYmd));
   return { ok: true, text };
 }

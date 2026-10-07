@@ -271,6 +271,7 @@ export function AiAgentSection() {
   const [alertPhone, setAlertPhone] = useState("");
   const [partySlots, setPartySlots] = useState(DEFAULT_PARTY_SLOTS);
   const [closedPeriods, setClosedPeriods] = useState<ClosedPeriod[]>([]);
+  const [fuEnabled, setFuEnabled] = useState(false);
   const [fuInactivityOn, setFuInactivityOn] = useState(true);
   const [fuInactivityMinutes, setFuInactivityMinutes] = useState(60);
   const [fuSteps, setFuSteps] = useState<FollowUpStepDraft[]>([]);
@@ -439,6 +440,7 @@ export function AiAgentSection() {
     setPartySlots(settings.party_slots || DEFAULT_PARTY_SLOTS);
     setClosedPeriods(Array.isArray(settings.closed_periods) ? settings.closed_periods : []);
     const fu = normalizeFollowUpConfig(settings.followup_config);
+    setFuEnabled(fu.enabled);
     setFuInactivityOn(fu.inactivity.enabled);
     setFuInactivityMinutes(fu.inactivity.minutes);
     setFuSteps(fu.steps.map((st) => ({ ...splitDelay(st.delay_hours), goal: st.goal })));
@@ -480,12 +482,18 @@ export function AiAgentSection() {
       toast({ title: "Confira o recesso", description: "Preencha o primeiro e o último dia de cada período (o último não pode ser antes do primeiro).", variant: "destructive" });
       return;
     }
+    // Ligou agora: só conversas paradas a partir deste momento entram (sem disparo em massa)
+    const prevFu = normalizeFollowUpConfig(settings.followup_config);
+    const fuSince = fuEnabled ? (prevFu.enabled && prevFu.since ? prevFu.since : new Date().toISOString()) : null;
+    const rawSteps = fuSteps.map((st) => ({ delay_hours: joinDelay(st.value, st.unit), goal: st.goal }));
     const followUp = normalizeFollowUpConfig({
+      enabled: fuEnabled,
+      since: fuSince,
       inactivity: { enabled: fuInactivityOn, minutes: fuInactivityMinutes },
-      steps: fuSteps.map((st) => ({ delay_hours: joinDelay(st.value, st.unit), goal: st.goal })),
+      steps: rawSteps,
       auto_lost: { enabled: fuLostOn, hours: fuLostHours },
     });
-    const fuProblem = followUpConfigProblem({ ...followUp, steps: fuSteps.map((st) => ({ delay_hours: joinDelay(st.value, st.unit), goal: st.goal })) });
+    const fuProblem = followUpConfigProblem({ ...followUp, steps: rawSteps, auto_lost: { enabled: fuLostOn, hours: Number(fuLostHours) } });
     if (fuProblem) {
       setConfigTab("followup");
       toast({ title: "Confira o follow-up", description: fuProblem, variant: "destructive" });
@@ -980,7 +988,16 @@ export function AiAgentSection() {
                     Acompanhamento da Bia
                   </Label>
                   <p className="text-[11px] text-muted-foreground">
-                    Vale só para as conversas que a Bia atende. Os follow-ups do bot fixo (configurados em cada número) continuam iguais. A Bia escreve cada mensagem com o que já conversou, só entre 8h e 22h, e para quando o cliente responde, marca visita ou é passado para a equipe.
+                    Vale só para as conversas que a Bia atende. Os follow-ups do bot fixo (configurados em cada número) continuam iguais. A Bia escreve cada mensagem com o que já conversou, só entre 8h e 22h, e para quando o cliente responde, marca visita, a equipe assume ou o robô é desligado na conversa.
+                  </p>
+                  <div className="flex items-center justify-between gap-3 pt-1">
+                    <Label className="text-xs font-bold">Ligar acompanhamento da Bia</Label>
+                    <Switch checked={fuEnabled} onCheckedChange={setFuEnabled} />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    {fuEnabled
+                      ? "Ligado: as conversas da Bia saem dos follow-ups fixos do número e seguem as etapas abaixo. Conversas que já estavam paradas antes de ligar ficam de fora."
+                      : "Desligado: as conversas da Bia recebem os follow-ups fixos do número, como hoje."}
                   </p>
                 </div>
 

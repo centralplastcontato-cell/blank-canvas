@@ -11,6 +11,8 @@ import {
 const H = 3600000;
 const T0 = Date.UTC(2026, 9, 7, 13, 0, 0); // 10h em Brasília
 const cfg = normalizeFollowUpConfig({
+  enabled: true,
+  since: "2026-01-01T00:00:00Z",
   inactivity: { enabled: true, minutes: 60 },
   steps: [{ delay_hours: 72, goal: "retomar" }, { delay_hours: 288, goal: "última" }],
   auto_lost: { enabled: true, hours: 48 },
@@ -21,7 +23,7 @@ const kind = (msgs: JourneyMessage[], now: number) => {
 };
 const base: JourneyMessage[] = [
   { atMs: T0 - 10 * 60000, fromMe: false },
-  { atMs: T0, fromMe: true }, // resposta da Bia (âncora)
+  { atMs: T0, fromMe: true, byAi: true, text: "Quer que eu veja as datas de dezembro? 😊" }, // resposta da Bia (âncora)
 ];
 
 Deno.test("normalizeFollowUpConfig: vazio usa o padrão; limites e ordem", () => {
@@ -59,7 +61,7 @@ Deno.test("nextJourneyAction: cliente respondeu recomeça; cliente por último n
   const s1 = [...base, { atMs: T0 + 72 * H, fromMe: true, followup: "etapa_1" }];
   assertEquals(kind([...s1, { atMs: T0 + 73 * H, fromMe: false }], T0 + 80 * H), null);
   // Bia respondeu de novo: nova âncora, jornada do zero
-  const again = [...s1, { atMs: T0 + 73 * H, fromMe: false }, { atMs: T0 + 73 * H + 60000, fromMe: true }];
+  const again = [...s1, { atMs: T0 + 73 * H, fromMe: false }, { atMs: T0 + 73 * H + 60000, fromMe: true, byAi: true, text: "Combinado! E qual horário prefere?" }];
   assertEquals(kind(again, T0 + 74 * H + 120000), "inactivity");
   assertEquals(kind(again, T0 + 73 * H + 72 * H + 60000), "step1");
 });
@@ -71,10 +73,10 @@ Deno.test("nextJourneyAction: duas etapas vencidas juntas respeitam o intervalo"
 });
 
 Deno.test("nextJourneyAction: sem etapas, perdido conta da última resposta", () => {
-  const c = normalizeFollowUpConfig({ inactivity: { enabled: false, minutes: 60 }, steps: [], auto_lost: { enabled: true, hours: 24 } });
+  const c = normalizeFollowUpConfig({ enabled: true, since: "2026-01-01T00:00:00Z", inactivity: { enabled: false, minutes: 60 }, steps: [], auto_lost: { enabled: true, hours: 24 } });
   assertEquals(nextJourneyAction(c, base, T0 + 23 * H).action, null);
   assertEquals(nextJourneyAction(c, base, T0 + 24 * H).action, { kind: "lost" });
-  const off = normalizeFollowUpConfig({ inactivity: { enabled: false, minutes: 60 }, steps: [], auto_lost: { enabled: false, hours: 24 } });
+  const off = normalizeFollowUpConfig({ enabled: true, since: "2026-01-01T00:00:00Z", inactivity: { enabled: false, minutes: 60 }, steps: [], auto_lost: { enabled: false, hours: 24 } });
   assertEquals(nextJourneyAction(off, base, T0 + 999 * H).action, null);
 });
 
@@ -85,4 +87,26 @@ Deno.test("followupLabel e inSendWindowBR", () => {
   assertEquals(inSendWindowBR(Date.UTC(2026, 9, 7, 13)), true); // 10h
   assertEquals(inSendWindowBR(Date.UTC(2026, 9, 7, 10)), false); // 7h
   assertEquals(inSendWindowBR(Date.UTC(2026, 9, 8, 1)), false); // 22h
+});
+
+Deno.test("nextJourneyAction: desligado, antes de ligar, equipe e mensagem de encerramento", () => {
+  // Chave geral desligada (padrão) ou sem data de ativação: nada
+  assertEquals(nextJourneyAction(normalizeFollowUpConfig(null), base, T0 + 72 * H).action, null);
+  assertEquals(normalizeFollowUpConfig({ enabled: true }).enabled, false);
+  // Conversa parada antes de ligar o acompanhamento
+  const late = normalizeFollowUpConfig({ ...cfg, since: new Date(T0 + H).toISOString() });
+  assertEquals(nextJourneyAction(late, base, T0 + 72 * H).action, null);
+  // Equipe escreveu depois do cliente
+  assertEquals(kind([...base, { atMs: T0 + 60000, fromMe: true, byAi: false, text: "Oi! Aqui é a Ana" }], T0 + 72 * H), null);
+  // Bia encerrou sem pergunta: sem lembrete de inatividade (etapas continuam)
+  const closing: JourneyMessage[] = [{ atMs: T0 - 60000, fromMe: false }, { atMs: T0, fromMe: true, byAi: true, text: "Imagina! Qualquer coisa estou aqui 😊" }];
+  assertEquals(kind(closing, T0 + 2 * H), null);
+  assertEquals(kind(closing, T0 + 72 * H), "step1");
+  // Depois dos materiais (PDF por último): lembrete vale
+  const materials: JourneyMessage[] = [
+    { atMs: T0 - 60000, fromMe: false },
+    { atMs: T0, fromMe: true, byAi: true, text: "Vou te mostrar o espaço 😍👇" },
+    { atMs: T0 + 60000, fromMe: true, byAi: true, isMedia: true },
+  ];
+  assertEquals(kind(materials, T0 + 2 * H), "inactivity");
 });

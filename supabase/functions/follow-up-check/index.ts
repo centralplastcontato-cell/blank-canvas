@@ -9,7 +9,7 @@ import { isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
 import { teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { decideUnconfirmedMedia, MEDIA_ACK_TIMEOUT_MS, type MediaAckMeta } from "../_shared/media-ack.ts";
 import { BOT_STEPS_WAITING_ANSWER, botShouldHaveAnswered, UNANSWERED_MAX_AGE_HOURS, UNANSWERED_MINUTES } from "../_shared/unanswered-bot.ts";
-import { aiInstanceIds, loadAiJourneyTargets, runAiJourney } from "./ai-journey.ts";
+import { type AiTarget, journeyCovers, type JourneyScope, journeyScopes, loadAiJourneyTargets, runAiJourney } from "./ai-journey.ts";
 
 type SupabaseAdmin = any;
 
@@ -415,28 +415,36 @@ Deno.serve(async (req) => {
       console.error("[follow-up-check] Erros no alerta de passagem da IA:", handoffResult.errors);
     }
 
-    // Acompanhamento da Bia (Configurar IA): só nos números com a IA ligada e
-    // só nas conversas que ela atende. Nesses números, os follow-ups fixos
-    // abaixo pulam as conversas da Bia; o resto (bot fixo, outros números e
-    // outros buffets) segue exatamente como antes.
-    let aiInstances = new Set<string>();
+    // Acompanhamento da Bia (Configurar IA → Follow-up): só nos números com a
+    // IA e o acompanhamento ligados, e só nas conversas que ela atende. Nesses
+    // casos os follow-ups fixos abaixo pulam a conversa; o resto (bot fixo,
+    // outros números e outros buffets) segue exatamente como antes. A jornada
+    // em si roda no fim, depois dos follow-ups fixos, com tempo limitado.
+    let aiTargets: AiTarget[] = [];
+    let aiScopes = new Map<string, JourneyScope>();
     try {
-      const aiTargets = await loadAiJourneyTargets(supabase);
-      aiInstances = aiInstanceIds(aiTargets);
-      const healthyTargets = [];
-      for (const t of aiTargets) {
-        const health = await checkInstanceHealth(supabase, t.instance.id);
-        if (health.healthy) healthyTargets.push(t);
-        else console.log(`[follow-up-check] 🛡️ Jornada da Bia pulada no número ${t.instance.unit}: ${health.reason}`);
-      }
-      if (healthyTargets.length > 0) {
-        const journey = await runAiJourney(supabase, healthyTargets);
+      aiTargets = await loadAiJourneyTargets(supabase);
+      aiScopes = journeyScopes(aiTargets);
+    } catch (err) {
+      console.error("[follow-up-check] Erro ao carregar a jornada da Bia:", err);
+    }
+    const runBiaJourney = async () => {
+      try {
+        const healthy: AiTarget[] = [];
+        for (const t of aiTargets) {
+          if (!aiScopes.has(String(t.instance.id))) continue;
+          const health = await checkInstanceHealth(supabase, t.instance.id);
+          if (health.healthy) healthy.push(t);
+          else console.log(`[follow-up-check] 🛡️ Jornada da Bia pulada no número ${t.instance.unit}: ${health.reason}`);
+        }
+        if (healthy.length === 0) return;
+        const journey = await runAiJourney(supabase, healthy);
         console.log(`[follow-up-check] Jornada da Bia: ${journey.sent} mensagem(ns), ${journey.lost} perdido(s)`);
         if (journey.errors.length > 0) console.error("[follow-up-check] Erros na jornada da Bia:", journey.errors);
+      } catch (err) {
+        console.error("[follow-up-check] Erro na jornada da Bia:", err);
       }
-    } catch (err) {
-      console.error("[follow-up-check] Erro na jornada da Bia:", err);
-    }
+    };
 
     // Fetch all bot settings with any follow-up enabled
     const { data: allSettings, error: settingsError } = await supabase
@@ -450,6 +458,7 @@ Deno.serve(async (req) => {
     }
 
     if (!allSettings || allSettings.length === 0) {
+      await runBiaJourney();
       console.log("[follow-up-check] Follow-up is disabled for all instances");
       return new Response(
         JSON.stringify({ success: true, message: "Follow-up disabled", count: 0 }),
@@ -569,7 +578,7 @@ Deno.serve(async (req) => {
           imageUrl: fu.imageUrl,
           historyAction: fu.historyAction,
           checkPreviousAction: previousAction,
-          aiInstances,
+          aiScope: aiScopes.get(settings.instance_id),
         });
         totalSuccessCount += result.successCount;
         allErrors.push(...result.errors);
@@ -586,6 +595,8 @@ Deno.serve(async (req) => {
         allErrors.push(...result.errors);
       }
     }
+
+    await runBiaJourney();
 
     console.log(`[follow-up-check] Completed. Sent ${totalSuccessCount} follow-ups, ${allErrors.length} errors`);
 
@@ -759,8 +770,8 @@ interface ProcessFollowUpParams {
   imageUrl?: string | null;
   historyAction: string;
   checkPreviousAction: string | null;
-  // Números com a Bia: as conversas dela têm a jornada própria (ai-journey.ts)
-  aiInstances?: Set<string>;
+  // Número com a jornada da Bia ligada: as conversas que ela cobre saem daqui (ai-journey.ts)
+  aiScope?: JourneyScope;
 }
 
 async function processFollowUp({
@@ -772,7 +783,7 @@ async function processFollowUp({
   imageUrl,
   historyAction,
   checkPreviousAction,
-  aiInstances,
+  aiScope,
 }: ProcessFollowUpParams): Promise<{ successCount: number; errors: string[] }> {
   const errors: string[] = [];
   let successCount = 0;
@@ -914,20 +925,29 @@ async function processFollowUp({
     console.log(`[follow-up-check] After filtering replied leads: ${leadsNeedingFollowUp.length} leads need follow-up #${followUpNumber}`);
   }
 
-  // Número com a Bia: conversa atendida por ela segue a jornada da Bia
-  if (aiInstances?.has(settings.instance_id) && leadsNeedingFollowUp.length > 0) {
-    const { data: aiConvs } = await chunkedInQuery(
+  // Número com a jornada da Bia ligada: conversa que ela cobre segue a jornada da Bia
+  if (aiScope && leadsNeedingFollowUp.length > 0) {
+    const { data: aiConvs, error: aiConvError } = await chunkedInQuery(
       (chunk) =>
         supabase
           .from("wapi_conversations")
-          .select("lead_id")
+          .select("lead_id, remote_jid")
           .in("lead_id", chunk)
           .eq("instance_id", settings.instance_id)
           .eq("bot_step", "ai_agent")
           .eq("bot_data->>ai_agent", "on"),
       leadsNeedingFollowUp,
     );
-    const aiLeads = new Set((aiConvs || []).map((c: { lead_id: string }) => c.lead_id));
+    if (aiConvError) {
+      // Sem saber quais são da Bia, não manda o fixo (evita o cliente receber os dois)
+      console.error(`[follow-up-check] Erro ao separar conversas da Bia — follow-up #${followUpNumber} adiado:`, aiConvError);
+      return { successCount: 0, errors: [String(aiConvError)] };
+    }
+    const aiLeads = new Set(
+      ((aiConvs || []) as Array<{ lead_id: string; remote_jid: string }>)
+        .filter((c) => journeyCovers(aiScope, c.remote_jid))
+        .map((c) => c.lead_id),
+    );
     if (aiLeads.size > 0) {
       leadsNeedingFollowUp = leadsNeedingFollowUp.filter((id) => !aiLeads.has(id));
       console.log(`[follow-up-check] ${aiLeads.size} lead(s) da Bia ficam com a jornada da Bia (follow-up #${followUpNumber} fixo pulado)`);

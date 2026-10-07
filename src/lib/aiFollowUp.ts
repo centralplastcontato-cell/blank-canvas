@@ -8,6 +8,8 @@ export interface FollowUpStep {
 }
 
 export interface AiFollowUpConfig {
+  enabled: boolean; // desligado = conversas da Bia seguem os follow-ups fixos do número
+  since: string | null; // quando foi ligado (conversas paradas antes ficam de fora)
   inactivity: { enabled: boolean; minutes: number };
   steps: FollowUpStep[];
   auto_lost: { enabled: boolean; hours: number };
@@ -22,6 +24,8 @@ export const DEFAULT_STEP_GOALS = [
 ];
 
 export const DEFAULT_AI_FOLLOWUP: AiFollowUpConfig = {
+  enabled: false,
+  since: null,
   inactivity: { enabled: true, minutes: 60 },
   steps: [
     { delay_hours: 72, goal: DEFAULT_STEP_GOALS[0] },
@@ -40,13 +44,18 @@ const num = (v: unknown, def: number, min: number, max: number): number => {
 export function normalizeFollowUpConfig(raw: unknown): AiFollowUpConfig {
   if (!raw || typeof raw !== "object") return structuredClone(DEFAULT_AI_FOLLOWUP);
   type Raw = {
+    enabled?: unknown;
+    since?: unknown;
     inactivity?: { enabled?: unknown; minutes?: unknown };
     steps?: unknown;
     auto_lost?: { enabled?: unknown; hours?: unknown };
   };
   const r = raw as Raw;
   const rawSteps = (Array.isArray(r.steps) ? r.steps : DEFAULT_AI_FOLLOWUP.steps) as Array<{ delay_hours?: unknown; goal?: unknown } | null>;
+  const since = typeof r.since === "string" && !Number.isNaN(Date.parse(r.since)) ? r.since : null;
   return {
+    enabled: r.enabled === true && since !== null,
+    since,
     inactivity: {
       enabled: r.inactivity ? r.inactivity.enabled === true : DEFAULT_AI_FOLLOWUP.inactivity.enabled,
       minutes: num(r.inactivity?.minutes, DEFAULT_AI_FOLLOWUP.inactivity.minutes, 5, 720),
@@ -70,8 +79,9 @@ export function splitDelay(hours: number): { value: number; unit: "horas" | "dia
   return hours % 24 === 0 ? { value: hours / 24, unit: "dias" } : { value: hours, unit: "horas" };
 }
 
+/** Prazo digitado → horas (0/vazio continua 0, para a validação avisar) */
 export function joinDelay(value: number, unit: "horas" | "dias"): number {
-  const v = Math.max(1, Math.round(Number(value) || 1));
+  const v = Math.round(Number(value) || 0);
   return unit === "dias" ? v * 24 : v;
 }
 
@@ -82,9 +92,17 @@ export function delayLabel(hours: number): string {
   return `${value} ${unit}`;
 }
 
+export const MAX_DELAY_HOURS = 2160; // 90 dias
+
 /** Problema para mostrar ao salvar (null = ok) */
 export function followUpConfigProblem(cfg: AiFollowUpConfig): string | null {
   if (cfg.steps.some((s) => !s.goal.trim())) return "Escreva o objetivo de cada etapa.";
+  if (cfg.steps.some((s) => !Number.isFinite(s.delay_hours) || s.delay_hours < 1 || s.delay_hours > MAX_DELAY_HOURS)) {
+    return "O prazo de cada etapa precisa ser de pelo menos 1 hora e no máximo 90 dias.";
+  }
+  if (cfg.auto_lost.enabled && (!Number.isFinite(cfg.auto_lost.hours) || cfg.auto_lost.hours < 1 || cfg.auto_lost.hours > MAX_DELAY_HOURS)) {
+    return "O prazo para mover para Perdido precisa ser de pelo menos 1 hora e no máximo 2160 horas (90 dias).";
+  }
   const delays = cfg.steps.map((s) => s.delay_hours);
   if (new Set(delays).size !== delays.length) return "Duas etapas estão com o mesmo prazo.";
   return null;
