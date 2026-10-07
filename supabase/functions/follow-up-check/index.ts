@@ -9,6 +9,7 @@ import { isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
 import { teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { decideUnconfirmedMedia, MEDIA_ACK_TIMEOUT_MS, type MediaAckMeta } from "../_shared/media-ack.ts";
 import { BOT_STEPS_WAITING_ANSWER, botShouldHaveAnswered, UNANSWERED_MAX_AGE_HOURS, UNANSWERED_MINUTES } from "../_shared/unanswered-bot.ts";
+import { aiInstanceIds, loadAiJourneyTargets, runAiJourney } from "./ai-journey.ts";
 
 type SupabaseAdmin = any;
 
@@ -414,6 +415,29 @@ Deno.serve(async (req) => {
       console.error("[follow-up-check] Erros no alerta de passagem da IA:", handoffResult.errors);
     }
 
+    // Acompanhamento da Bia (Configurar IA): só nos números com a IA ligada e
+    // só nas conversas que ela atende. Nesses números, os follow-ups fixos
+    // abaixo pulam as conversas da Bia; o resto (bot fixo, outros números e
+    // outros buffets) segue exatamente como antes.
+    let aiInstances = new Set<string>();
+    try {
+      const aiTargets = await loadAiJourneyTargets(supabase);
+      aiInstances = aiInstanceIds(aiTargets);
+      const healthyTargets = [];
+      for (const t of aiTargets) {
+        const health = await checkInstanceHealth(supabase, t.instance.id);
+        if (health.healthy) healthyTargets.push(t);
+        else console.log(`[follow-up-check] 🛡️ Jornada da Bia pulada no número ${t.instance.unit}: ${health.reason}`);
+      }
+      if (healthyTargets.length > 0) {
+        const journey = await runAiJourney(supabase, healthyTargets);
+        console.log(`[follow-up-check] Jornada da Bia: ${journey.sent} mensagem(ns), ${journey.lost} perdido(s)`);
+        if (journey.errors.length > 0) console.error("[follow-up-check] Erros na jornada da Bia:", journey.errors);
+      }
+    } catch (err) {
+      console.error("[follow-up-check] Erro na jornada da Bia:", err);
+    }
+
     // Fetch all bot settings with any follow-up enabled
     const { data: allSettings, error: settingsError } = await supabase
       .from("wapi_bot_settings")
@@ -545,6 +569,7 @@ Deno.serve(async (req) => {
           imageUrl: fu.imageUrl,
           historyAction: fu.historyAction,
           checkPreviousAction: previousAction,
+          aiInstances,
         });
         totalSuccessCount += result.successCount;
         allErrors.push(...result.errors);
@@ -734,6 +759,8 @@ interface ProcessFollowUpParams {
   imageUrl?: string | null;
   historyAction: string;
   checkPreviousAction: string | null;
+  // Números com a Bia: as conversas dela têm a jornada própria (ai-journey.ts)
+  aiInstances?: Set<string>;
 }
 
 async function processFollowUp({
@@ -745,6 +772,7 @@ async function processFollowUp({
   imageUrl,
   historyAction,
   checkPreviousAction,
+  aiInstances,
 }: ProcessFollowUpParams): Promise<{ successCount: number; errors: string[] }> {
   const errors: string[] = [];
   let successCount = 0;
@@ -884,6 +912,26 @@ async function processFollowUp({
     leadsNeedingFollowUp = leadsNeedingFollowUp.filter(id => !repliedLeads.has(id));
     
     console.log(`[follow-up-check] After filtering replied leads: ${leadsNeedingFollowUp.length} leads need follow-up #${followUpNumber}`);
+  }
+
+  // Número com a Bia: conversa atendida por ela segue a jornada da Bia
+  if (aiInstances?.has(settings.instance_id) && leadsNeedingFollowUp.length > 0) {
+    const { data: aiConvs } = await chunkedInQuery(
+      (chunk) =>
+        supabase
+          .from("wapi_conversations")
+          .select("lead_id")
+          .in("lead_id", chunk)
+          .eq("instance_id", settings.instance_id)
+          .eq("bot_step", "ai_agent")
+          .eq("bot_data->>ai_agent", "on"),
+      leadsNeedingFollowUp,
+    );
+    const aiLeads = new Set((aiConvs || []).map((c: { lead_id: string }) => c.lead_id));
+    if (aiLeads.size > 0) {
+      leadsNeedingFollowUp = leadsNeedingFollowUp.filter((id) => !aiLeads.has(id));
+      console.log(`[follow-up-check] ${aiLeads.size} lead(s) da Bia ficam com a jornada da Bia (follow-up #${followUpNumber} fixo pulado)`);
+    }
   }
 
   if (leadsNeedingFollowUp.length === 0) {

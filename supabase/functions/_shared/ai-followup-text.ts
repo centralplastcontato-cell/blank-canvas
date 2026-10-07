@@ -1,0 +1,85 @@
+// Texto das mensagens da jornada da Bia (lembrete de inatividade e
+// follow-ups): o aviso que a IA recebe para escrever e a conferência do que
+// ela escreveu antes de sair para o cliente.
+
+import { allowedMoneyValues, moneyValuesIn } from "./package-pricing.ts";
+import { falseMaterialClaims, hasMaterialClaim, type MaterialKind } from "./material-claims.ts";
+import { fixWeekdays, formatDateLong, markTodayTomorrow, moneyWithCents } from "./whatsapp-format.ts";
+
+export interface FollowUpContext {
+  kind: "inactivity" | "step";
+  stepNumber?: number; // 1, 2, ...
+  stepsTotal?: number;
+  goal?: string;
+  silenceMs: number;
+  todayYmd: string;
+  clientName?: string | null;
+  birthdayName?: string | null;
+  partyYmd?: string | null; // data da festa que o cliente pediu
+  partyMonth?: string | null;
+  guests?: string | null;
+  partyDateFree?: string[] | null; // horários livres na data pedida ("almoço (13h)"); [] = ocupada; null = não conferido
+  promoLine?: string | null;
+  valuesAlreadyGiven: boolean;
+}
+
+const silenceText = (ms: number): string => {
+  const min = Math.round(ms / 60000);
+  if (min < 120) return `${min} minutos`;
+  const h = Math.round(ms / 3600000);
+  if (h < 48) return `${h} horas`;
+  return `${Math.round(h / 24)} dias`;
+};
+
+/** Aviso interno para a IA escrever a mensagem desta etapa da jornada */
+export function followUpInstruction(c: FollowUpContext): string {
+  const who = [
+    c.clientName ? `cliente: ${c.clientName}` : null,
+    c.birthdayName ? `aniversariante: ${c.birthdayName}` : null,
+    c.partyYmd ? `data da festa pedida: ${formatDateLong(c.partyYmd)}` : c.partyMonth ? `mês da festa: ${c.partyMonth}` : null,
+    c.guests ? `convidados: ${c.guests}` : null,
+  ].filter(Boolean).join("; ");
+  const agenda = !c.partyYmd || c.partyDateFree === null || c.partyDateFree === undefined
+    ? ""
+    : c.partyDateFree.length > 0
+    ? ` AGENDA AGORA: ${formatDateLong(c.partyYmd)} ainda está disponível neste momento (${c.partyDateFree.join(" ou ")}). Se citar, diga "disponível neste momento" — você não reserva nem segura a data.`
+    : ` AGENDA AGORA: ${formatDateLong(c.partyYmd)} NÃO está mais disponível. Não ofereça essa data; se fizer sentido, ofereça ver outras datas com ele.`;
+  const what = c.kind === "inactivity"
+    ? `O cliente parou de responder há ${silenceText(c.silenceMs)}, no meio da conversa. Escreva UM lembrete curto (1 ou 2 frases) retomando de onde vocês pararam, com uma pergunta simples ligada à sua última mensagem. Sem repetir o que você já disse.`
+    : `Follow-up ${c.stepNumber} de ${c.stepsTotal}: o cliente não responde há ${silenceText(c.silenceMs)}. OBJETIVO DESTA MENSAGEM (definido pelo buffet): ${c.goal} Escreva UMA mensagem curta (2 a 4 frases), no seu tom, terminando com uma pergunta simples.`;
+  return [
+    `MENSAGEM DE ACOMPANHAMENTO (o cliente não vê este aviso). ${what}`,
+    who ? `Dados do cliente: ${who}.` : "",
+    agenda,
+    c.promoLine ? ` ${c.promoLine}` : "",
+    ` Regras: não se apresente de novo; não diga que é mensagem automática; não use menu de opções numeradas; não pressione; não invente escassez (nada de "últimas vagas" ou "datas esgotando" — só o que estiver escrito acima); não reserve nem prometa nada; não diga que mandou fotos, vídeo ou PDF se isso não aparece na conversa.`,
+    c.valuesAlreadyGiven
+      ? " Valores: só se precisar, e só os mesmos que você já passou nesta conversa."
+      : " Valores: NÃO cite valores (o cliente não perguntou).",
+    " Responda só com o texto da mensagem para o cliente.",
+  ].join("");
+}
+
+export interface FollowUpCheck {
+  ok: boolean;
+  text: string;
+  problem?: string;
+}
+
+/** Confere e arruma o texto antes de sair: valores, "te mandei", datas e centavos */
+export function checkFollowUpText(
+  raw: string,
+  opts: { previousAssistantTexts: string[]; sentMaterials: Set<MaterialKind>; todayYmd: string },
+): FollowUpCheck {
+  let text = String(raw || "").trim().replace(/^["“]|["”]$/g, "").trim();
+  if (text.length < 8) return { ok: false, text, problem: "texto vazio" };
+  if (/1️⃣|2️⃣|3️⃣/.test(text)) return { ok: false, text, problem: "menu numerado" };
+  const allowed = allowedMoneyValues(opts.previousAssistantTexts.flatMap((t) => moneyValuesIn(t)));
+  const unknown = moneyValuesIn(text).filter((v) => !allowed.some((a) => Math.abs(a - v) < 0.01));
+  if (unknown.length > 0) return { ok: false, text, problem: `valor fora da conversa (${unknown.join(", ")})` };
+  if (hasMaterialClaim(text) && falseMaterialClaims(text, opts.sentMaterials).length > 0) {
+    return { ok: false, text, problem: "disse que mandou material que não saiu" };
+  }
+  text = moneyWithCents(markTodayTomorrow(fixWeekdays(text, opts.todayYmd), opts.todayYmd));
+  return { ok: true, text };
+}

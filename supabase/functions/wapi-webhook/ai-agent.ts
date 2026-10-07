@@ -1532,7 +1532,8 @@ async function materialTexts(
   const guests = parseInt(String(bd.convidados || '').replace(/\D/g, ''), 10);
   return {
     photosIntro: clean(args.legenda_fotos)
-      || `${nome ? `Aaah, ${nome}, olha` : 'Olha'} só onde vai ser a festa${child ? ` de ${child}` : ''}! 😍🏰`,
+      // "do Murilo" / "da Lívia" depende do gênero, que não sabemos: frase neutra
+      || `${nome ? `Aaah, ${nome}, olha` : 'Olha'} só onde vai ser a festa!${child ? ` ${child} vai amar` : ''} 😍🏰`,
     videoCaption: clean(args.legenda_video) || `E esse vídeo mostra o ${companyName} funcionando de verdade 🎬🎉`,
     pdfIntro: clean(args.legenda_pdf) || `E aqui estão os nossos pacotes${guests ? ` pra ${guests} convidados` : ''} 📋✨`,
   };

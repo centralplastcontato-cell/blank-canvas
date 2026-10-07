@@ -77,11 +77,9 @@ class OpenAiSession implements LlmSession {
 
   async step(): Promise<LlmStep> {
     const { model } = this.input;
-    const body: Record<string, unknown> = {
-      model,
-      messages: this.messages,
-      tools: this.input.tools.map((t) => ({ type: "function", function: t })),
-    };
+    const body: Record<string, unknown> = { model, messages: this.messages };
+    // Sem ferramentas (ex.: mensagem de acompanhamento): a API não aceita lista vazia
+    if (this.input.tools.length > 0) body.tools = this.input.tools.map((t) => ({ type: "function", function: t }));
     if (isOpenAiReasoningModel(model)) {
       // Família GPT-5: sem temperature; o limite inclui o "raciocínio" interno
       body.max_completion_tokens = 1500;
@@ -163,7 +161,7 @@ class AnthropicSession implements LlmSession {
       max_tokens: withEffort ? 4000 : 1024,
       system: [{ type: "text", text: this.input.system, cache_control: { type: "ephemeral" } }],
       messages: this.messages,
-      tools: this.tools,
+      ...(this.tools.length > 0 ? { tools: this.tools } : {}),
     };
     if (withEffort) {
       params.output_config = { effort: "low" };
