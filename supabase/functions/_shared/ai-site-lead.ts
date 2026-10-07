@@ -83,7 +83,7 @@ export function buildAiSiteWelcome(info: SiteLeadInfo, companyName: string, toda
     info.guests ? `👥 ${info.guests}` : "",
   ].filter(Boolean);
   const question = info.guests && (ymd || month)
-    ? `Quer que eu já te passe os valores dos pacotes${ymd ? " para essa data" : ""}? 😊`
+    ? "Me conta: de quem é a festa? 🎈😊"
     : !info.guests
     ? "Me conta: quantos convidados você imagina para a festa? 😊"
     : "Me conta: qual dia você tem em mente para a festa? 😊";
