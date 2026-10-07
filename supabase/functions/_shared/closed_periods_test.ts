@@ -24,7 +24,10 @@ Deno.test("textos do recesso", () => {
   const note = closedPeriodsNote(recesso, "2026-10-07") || "";
   assertEquals(note.includes("de 23 de dezembro a 3 de janeiro de 2027"), true);
   assertEquals(note.includes("HOJE"), false);
-  assertEquals((closedPeriodsNote(recesso, "2026-12-28") || "").includes("a equipe volta segunda, 4 de janeiro"), true);
+  // No recesso a equipe segue atendendo: só festas e visitas param
+  const during = closedPeriodsNote(recesso, "2026-12-28") || "";
+  assertEquals(during.includes("sem festas e visitas até segunda, 4 de janeiro"), true);
+  assertEquals(during.includes("não diga que a equipe está em recesso"), true);
   assertEquals(closedPeriodsNote(recesso, "2027-01-04"), null);
   assertEquals(closedPeriodAt("2026-12-28", recesso), recesso[0]);
 });

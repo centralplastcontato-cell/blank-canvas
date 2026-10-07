@@ -36,7 +36,7 @@ import { guardAiDb } from "./ai-db-guard.ts";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
 import { findPromotion, promoMentions, promoNote } from "../_shared/promo.ts";
-import { closedPeriodAt, closedPeriodsNote, formatClosedPeriod, isClosedDay, parseClosedPeriods, reopenText } from "../_shared/closed-periods.ts";
+import { closedPeriodAt, closedPeriodsNote, formatClosedPeriod, isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
 import { asksPartnership, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 import { falseMaterialClaims, hasMaterialClaim, hasSubstance, refersToMaterial, stripFalseMaterialClaims } from "../_shared/material-claims.ts";
@@ -282,14 +282,11 @@ const visitText = (date: string, time: string) => `${formatDateLong(date)}, às 
 // Texto com o horário da equipe para o cliente, dizendo quando volta se estiver fechado
 const ymdBR = (ms: number) => new Date(ms - 3 * 3600000).toISOString().slice(0, 10);
 // Recesso em andamento (hoje está dentro de um período fechado)
-const recessNow = (settings: AiSettings, nowMs = Date.now()) => closedPeriodAt(ymdBR(nowMs), parseClosedPeriods(settings.closed_periods));
-// Equipe atendendo agora: dentro do horário e fora do recesso
-const teamOpenNow = (settings: AiSettings, nowMs = Date.now()) => isOpenAt(teamHoursOf(settings), nowMs) && !recessNow(settings, nowMs);
-// Quando a equipe volta ("amanhã às 09:00" / "segunda-feira, 4 de janeiro")
-const teamReturnText = (settings: AiSettings, nowMs = Date.now()) => {
-  const recess = recessNow(settings, nowMs);
-  return recess ? reopenText(recess) : hoursForWhatsApp(nextOpeningText(teamHoursOf(settings), nowMs));
-};
+// Equipe atendendo agora: dentro do horário. O recesso fecha festas e visitas,
+// mas a equipe continua atendendo (pedido do buffet)
+const teamOpenNow = (settings: AiSettings, nowMs = Date.now()) => isOpenAt(teamHoursOf(settings), nowMs);
+// Quando a equipe volta ("amanhã às 9h")
+const teamReturnText = (settings: AiSettings, nowMs = Date.now()) => hoursForWhatsApp(nextOpeningText(teamHoursOf(settings), nowMs));
 
 // Horário da equipe para o cliente, com "9h às 18h" (sem "09:00", que o WhatsApp sublinha)
 function teamHoursMessage(settings: AiSettings, nowMs = Date.now()): string {
@@ -299,8 +296,6 @@ function teamHoursMessage(settings: AiSettings, nowMs = Date.now()): string {
 function teamHoursRaw(settings: AiSettings, nowMs: number): string {
   const hours = teamHoursOf(settings);
   const text = describeTeamHours(hours);
-  const recess = recessNow(settings, nowMs);
-  if (recess) return `Nossa equipe atende ${text} — está em recesso ${formatClosedPeriod(recess, ymdBR(nowMs))} e volta ${reopenText(recess)}.`;
   if (isOpenAt(hours, nowMs)) return `Nossa equipe atende ${text}.`;
   return `Nossa equipe atende ${text} — volta ${nextOpeningText(hours, nowMs)}.`;
 }
