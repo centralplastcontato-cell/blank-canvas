@@ -25,6 +25,7 @@ export interface FollowUpContext {
   promoLine?: string | null;
   valuesAlreadyGiven: boolean;
   materialsSent: MaterialKind[]; // confirmados pelo WhatsApp nesta conversa
+  withImage?: boolean; // a mensagem vai como legenda de uma arte do buffet
 }
 
 const MATERIAL_NAME: Record<MaterialKind, string> = { fotos: "as fotos do espaço", video: "o vídeo", pacotes: "o PDF dos pacotes" };
@@ -75,6 +76,7 @@ export function followUpInstruction(c: FollowUpContext): string {
     c.valuesAlreadyGiven
       ? " Valores: só se precisar, e só os mesmos que você já passou nesta conversa."
       : " Valores: NÃO cite valores (o cliente não perguntou).",
+    c.withImage ? " Esta mensagem vai como legenda de uma arte do buffet: não descreva a imagem nem diga \"veja a imagem\"; escreva normalmente." : "",
     " Responda só com o texto da mensagem para o cliente.",
   ].join("");
 }

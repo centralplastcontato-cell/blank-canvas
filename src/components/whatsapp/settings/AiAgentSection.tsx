@@ -24,6 +24,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { AiSimulatorDialog } from "./AiSimulatorDialog";
+import { FollowUpImageUploader } from "./FollowUpImageUploader";
 import { DEFAULT_TEAM_HOURS, parseVisitHours, serializeTeamHours, serializeVisitHours } from "@/lib/businessHours";
 import {
   DEFAULT_STEP_GOALS,
@@ -80,6 +81,7 @@ interface FollowUpStepDraft {
   value: number;
   unit: "horas" | "dias";
   goal: string;
+  image_url?: string | null;
 }
 
 interface ClosedPeriod {
@@ -281,6 +283,7 @@ export function AiAgentSection() {
   const [fuFarMonths, setFuFarMonths] = useState(3);
   const [fuReactOn, setFuReactOn] = useState(true);
   const [fuReactDays, setFuReactDays] = useState<number[]>([60, 30]);
+  const [fuReactImage, setFuReactImage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!currentCompany?.id) return;
@@ -447,12 +450,13 @@ export function AiAgentSection() {
     setFuEnabled(fu.enabled);
     setFuInactivityOn(fu.inactivity.enabled);
     setFuInactivityMinutes(fu.inactivity.minutes);
-    setFuSteps(fu.steps.map((st) => ({ ...splitDelay(st.delay_hours), goal: st.goal })));
+    setFuSteps(fu.steps.map((st) => ({ ...splitDelay(st.delay_hours), goal: st.goal, image_url: st.image_url || null })));
     setFuLostOn(fu.auto_lost.enabled);
     setFuLostHours(fu.auto_lost.hours);
     setFuFarMonths(fu.far_months);
     setFuReactOn(fu.reactivation.enabled);
     setFuReactDays(fu.reactivation.days_before);
+    setFuReactImage(fu.reactivation.image_url || null);
     setConfigTab("basico");
     setConfigOpen(true);
   };
@@ -492,7 +496,7 @@ export function AiAgentSection() {
     // Ligou agora: só conversas paradas a partir deste momento entram (sem disparo em massa)
     const prevFu = normalizeFollowUpConfig(settings.followup_config);
     const fuSince = fuEnabled ? (prevFu.enabled && prevFu.since ? prevFu.since : new Date().toISOString()) : null;
-    const rawSteps = fuSteps.map((st) => ({ delay_hours: joinDelay(st.value, st.unit), goal: st.goal }));
+    const rawSteps = fuSteps.map((st) => ({ delay_hours: joinDelay(st.value, st.unit), goal: st.goal, image_url: st.image_url || null }));
     const followUp = normalizeFollowUpConfig({
       enabled: fuEnabled,
       since: fuSince,
@@ -500,7 +504,7 @@ export function AiAgentSection() {
       steps: rawSteps,
       auto_lost: { enabled: fuLostOn, hours: fuLostHours },
       far_months: fuFarMonths,
-      reactivation: { enabled: fuReactOn, days_before: fuReactDays },
+      reactivation: { enabled: fuReactOn, days_before: fuReactDays, image_url: fuReactImage },
     });
     // Desligado: rascunho incompleto das etapas não impede salvar o resto
     const fuProblem = fuEnabled
@@ -1103,6 +1107,15 @@ export function AiAgentSection() {
                         className="text-base sm:text-sm bg-card border-border shadow-sm resize-none"
                         placeholder="O que a Bia deve fazer nesta mensagem (ex.: convidar para conhecer o espaço)"
                       />
+                      <FollowUpImageUploader
+                        value={st.image_url}
+                        onChange={(url) => setFuSteps((list) => list.map((x, i) => (i === idx ? { ...x, image_url: url } : x)))}
+                        companyId={currentCompany?.id}
+                        followUpNumber={1}
+                        fileTag={`bia_etapa${idx + 1}`}
+                        successText={`A arte vai junto com a etapa ${idx + 1} (a mensagem da Bia vira a legenda). Salve para valer.`}
+                        helpText="Opcional: uma arte (ex.: a Bia, a promoção). A Bia escreve a mensagem como legenda. Sem imagem, vai só o texto. JPG/PNG/WebP até 10MB."
+                      />
                     </div>
                   ))}
                   {fuSteps.length < MAX_FOLLOWUP_STEPS && (
@@ -1186,6 +1199,17 @@ export function AiAgentSection() {
                         </Button>
                       )}
                     </div>
+                  )}
+                  {fuReactOn && (
+                    <FollowUpImageUploader
+                      value={fuReactImage}
+                      onChange={setFuReactImage}
+                      companyId={currentCompany?.id}
+                      followUpNumber={1}
+                      fileTag="bia_lembrete"
+                      successText="A arte vai junto com os lembretes antes da festa. Salve para valer."
+                      helpText="Opcional: uma arte para os lembretes antes da festa (a mensagem da Bia vira a legenda). JPG/PNG/WebP até 10MB."
+                    />
                   )}
                   <p className="text-[11px] text-muted-foreground">
                     {fuReactOn

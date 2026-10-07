@@ -12,6 +12,10 @@ interface FollowUpImageUploaderProps {
   companyId: string | null | undefined;
   followUpNumber: 1 | 2 | 3 | 4;
   disabled?: boolean;
+  // Outros usos (ex.: etapas da Bia): nome do arquivo e textos próprios
+  fileTag?: string;
+  successText?: string;
+  helpText?: string;
 }
 
 export function FollowUpImageUploader({
@@ -20,6 +24,9 @@ export function FollowUpImageUploader({
   companyId,
   followUpNumber,
   disabled,
+  fileTag,
+  successText,
+  helpText,
 }: FollowUpImageUploaderProps) {
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -43,14 +50,14 @@ export function FollowUpImageUploader({
     try {
       const normalized = await normalizeImageOrientation(file);
       const ext = (normalized.name.split(".").pop() || "jpg").toLowerCase();
-      const fileName = `${companyId}/followups/fu${followUpNumber}_${Date.now()}.${ext}`;
+      const fileName = `${companyId}/followups/${fileTag || `fu${followUpNumber}`}_${Date.now()}.${ext}`;
       const { error } = await supabase.storage
         .from("sales-materials")
         .upload(fileName, normalized, { cacheControl: "3600", upsert: false });
       if (error) throw error;
       const { data: urlData } = supabase.storage.from("sales-materials").getPublicUrl(fileName);
       onChange(urlData.publicUrl);
-      toast({ title: "Imagem adicionada", description: `Será enviada junto com o ${followUpNumber}º Follow-up.` });
+      toast({ title: "Imagem adicionada", description: successText || `Será enviada junto com o ${followUpNumber}º Follow-up.` });
     } catch (err: any) {
       toast({ title: "Erro no upload", description: err.message || String(err), variant: "destructive" });
     } finally {
@@ -136,7 +143,7 @@ export function FollowUpImageUploader({
         </Button>
       )}
       <p className="text-xs text-muted-foreground">
-        Opcional. Se deixar vazio, o follow-up será enviado apenas como texto. JPG/PNG/WebP até 10MB.
+        {helpText || "Opcional. Se deixar vazio, o follow-up será enviado apenas como texto. JPG/PNG/WebP até 10MB."}
       </p>
     </div>
   );

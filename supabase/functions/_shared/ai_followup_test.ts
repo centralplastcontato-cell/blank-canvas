@@ -1,5 +1,6 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
 import {
+  cleanImageUrl,
   clientPostponed,
   DEFAULT_AI_FOLLOWUP,
   journeyOwns,
@@ -231,4 +232,13 @@ Deno.test("partyReference, yearHintFrom e clientPostponed", () => {
   assertEquals(clientPostponed(["vou ver com meu marido e já te respondo hoje"]), false);
   assertEquals(clientPostponed(["depois eu vejo o pdf"]), false);
   assertEquals(normalizeFollowUpConfig({ reactivation: { enabled: true, days_before: [30, 60, 30, 999] } }).reactivation.days_before, [180, 60, 30]);
+});
+
+Deno.test("arte opcional nas etapas e nos lembretes antes da festa", () => {
+  const url = "https://x.supabase.co/storage/v1/object/public/sales-materials/c/followups/bia_1.jpg";
+  const c = normalizeFollowUpConfig({ steps: [{ delay_hours: 24, goal: "a", image_url: url }, { delay_hours: 96, goal: "b", image_url: "javascript:alert(1)" }], reactivation: { enabled: true, days_before: [30], image_url: url } });
+  assertEquals(c.steps.map((st) => st.image_url), [url, null]);
+  assertEquals(c.reactivation.image_url, url);
+  assertEquals(cleanImageUrl("http://inseguro.com/a.jpg"), null);
+  assertEquals(cleanImageUrl(null), null);
 });

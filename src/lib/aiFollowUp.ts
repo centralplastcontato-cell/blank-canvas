@@ -5,6 +5,12 @@
 export interface FollowUpStep {
   delay_hours: number;
   goal: string;
+  image_url?: string | null; // arte opcional (a mensagem da Bia vai como legenda)
+}
+
+export function cleanImageUrl(v: unknown): string | null {
+  const s = typeof v === "string" ? v.trim() : "";
+  return /^https:\/\/\S+$/.test(s) && s.length <= 1000 ? s : null;
 }
 
 export interface AiFollowUpConfig {
@@ -14,7 +20,7 @@ export interface AiFollowUpConfig {
   steps: FollowUpStep[];
   auto_lost: { enabled: boolean; hours: number };
   far_months: number; // festa a mais de X meses: só a 1ª etapa e espera os lembretes antes da festa
-  reactivation: { enabled: boolean; days_before: number[] }; // lembretes X dias antes da festa
+  reactivation: { enabled: boolean; days_before: number[]; image_url?: string | null }; // lembretes X dias antes da festa
 }
 
 export const MAX_FOLLOWUP_STEPS = 6;
@@ -32,13 +38,13 @@ export const DEFAULT_AI_FOLLOWUP: AiFollowUpConfig = {
   since: null,
   inactivity: { enabled: true, minutes: 60 },
   steps: [
-    { delay_hours: 24, goal: DEFAULT_STEP_GOALS[0] },
-    { delay_hours: 96, goal: DEFAULT_STEP_GOALS[1] },
-    { delay_hours: 240, goal: DEFAULT_STEP_GOALS[2] },
+    { delay_hours: 24, goal: DEFAULT_STEP_GOALS[0], image_url: null },
+    { delay_hours: 96, goal: DEFAULT_STEP_GOALS[1], image_url: null },
+    { delay_hours: 240, goal: DEFAULT_STEP_GOALS[2], image_url: null },
   ],
   auto_lost: { enabled: true, hours: 48 },
   far_months: 3,
-  reactivation: { enabled: true, days_before: [60, 30] },
+  reactivation: { enabled: true, days_before: [60, 30], image_url: null },
 };
 
 const num = (v: unknown, def: number, min: number, max: number): number => {
@@ -57,10 +63,10 @@ export function normalizeFollowUpConfig(raw: unknown): AiFollowUpConfig {
     steps?: unknown;
     auto_lost?: { enabled?: unknown; hours?: unknown };
     far_months?: unknown;
-    reactivation?: { enabled?: unknown; days_before?: unknown };
+    reactivation?: { enabled?: unknown; days_before?: unknown; image_url?: unknown };
   };
   const r = raw as Raw;
-  const rawSteps = (Array.isArray(r.steps) ? r.steps : DEFAULT_AI_FOLLOWUP.steps) as Array<{ delay_hours?: unknown; goal?: unknown } | null>;
+  const rawSteps = (Array.isArray(r.steps) ? r.steps : DEFAULT_AI_FOLLOWUP.steps) as Array<{ delay_hours?: unknown; goal?: unknown; image_url?: unknown } | null>;
   const since = typeof r.since === "string" && !Number.isNaN(Date.parse(r.since)) ? r.since : null;
   return {
     enabled: r.enabled === true && since !== null,
@@ -74,6 +80,7 @@ export function normalizeFollowUpConfig(raw: unknown): AiFollowUpConfig {
       .map((s, i) => ({
         delay_hours: num(s?.delay_hours, DEFAULT_AI_FOLLOWUP.steps[Math.min(i, DEFAULT_AI_FOLLOWUP.steps.length - 1)].delay_hours, 1, 2160),
         goal: String(s?.goal || "").trim().slice(0, 600) || DEFAULT_STEP_GOALS[Math.min(i, DEFAULT_STEP_GOALS.length - 1)],
+        image_url: cleanImageUrl(s?.image_url),
       }))
       .sort((a: FollowUpStep, b: FollowUpStep) => a.delay_hours - b.delay_hours),
     auto_lost: {
@@ -87,6 +94,7 @@ export function normalizeFollowUpConfig(raw: unknown): AiFollowUpConfig {
         (Array.isArray(r.reactivation?.days_before) ? r.reactivation!.days_before as unknown[] : DEFAULT_AI_FOLLOWUP.reactivation.days_before)
           .map((d) => num(d, 30, 1, 180)),
       )].sort((a, b) => b - a).slice(0, MAX_REACTIVATIONS),
+      image_url: cleanImageUrl(r.reactivation?.image_url),
     },
   };
 }
