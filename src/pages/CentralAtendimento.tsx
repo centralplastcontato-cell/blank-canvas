@@ -28,6 +28,7 @@ import { TransferAlertBanner } from "@/components/admin/TransferAlertBanner";
 import { ClientAlertBanner } from "@/components/admin/ClientAlertBanner";
 import { VisitAlertBanner } from "@/components/admin/VisitAlertBanner";
 import { QuestionsAlertBanner } from "@/components/admin/QuestionsAlertBanner";
+import { AiHandoffAlertBanner } from "@/components/admin/AiHandoffAlertBanner";
 import { OnboardingBanner } from "@/components/admin/OnboardingBanner";
 import { WhatsAppChat } from "@/components/whatsapp/WhatsAppChat";
 import { OutboundQueueSheet } from "@/components/whatsapp/OutboundQueueSheet";
@@ -1029,6 +1030,15 @@ export default function CentralAtendimento() {
           }}
         />
 
+        {/* Bia (IA) passou cliente para a equipe - Mobile */}
+        <AiHandoffAlertBanner
+          userId={user.id}
+          onOpenConversation={(conversationId, phone) => {
+            setInitialPhone(phone);
+            setActiveTab("chat");
+          }}
+        />
+
         {/* Client Alert Banner - Mobile */}
         <ClientAlertBanner 
           userId={user.id} 
@@ -1523,6 +1533,15 @@ export default function CentralAtendimento() {
                   }
                 });
               }
+            }}
+          />
+
+          {/* Bia (IA) passou cliente para a equipe - Desktop */}
+          <AiHandoffAlertBanner
+            userId={user.id}
+            onOpenConversation={(conversationId, phone) => {
+              setInitialPhone(phone);
+              setActiveTab("chat");
             }}
           />
 

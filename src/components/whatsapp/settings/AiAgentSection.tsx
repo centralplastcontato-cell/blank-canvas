@@ -853,7 +853,7 @@ export function AiAgentSection() {
                     Recesso / dias fechados
                   </Label>
                   <p className="text-[11px] text-muted-foreground">
-                    Sem festas, visitas e atendimento da equipe. A IA continua respondendo, não oferece esses dias e avisa quando a equipe volta. No site, esses dias ficam bloqueados.
+                    Sem festas e sem visitas nesses dias. A Bia e a equipe continuam atendendo normalmente (a Bia só não oferece esses dias). No site, esses dias ficam bloqueados.
                   </p>
                   {closedPeriods.map((p, idx) => (
                     <div key={idx} className="rounded-lg border border-border/70 bg-muted/30 p-3 space-y-2">

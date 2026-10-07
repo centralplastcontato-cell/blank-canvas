@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Bell, Check, Trash2, UserPlus, ArrowRightLeft, Crown, CalendarCheck,
   ExternalLink, MessageCircle, Search, Send, UserX, Clock, AlertTriangle, Headset,
-  WifiOff, Hand,
+  WifiOff, Hand, Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,7 +47,13 @@ const ICON_MAP: Record<string, { icon: React.ElementType; className: string }> =
   new_support_ticket: { icon: Headset,    className: "text-purple-500" },
 };
 
-function NotificationIcon({ type }: { type: string }) {
+// Avisos da Bia (IA): passagem para a equipe e cliente sem resposta — na cor dela
+const isBiaNotification = (n: AppNotification) =>
+  n.type === "lead_needs_human" && !!n.data && typeof n.data === "object" &&
+  ["ai_handoff", "ai_handoff_unanswered"].includes(String((n.data as Record<string, unknown>).reason || ""));
+
+function NotificationIcon({ type, bia = false }: { type: string; bia?: boolean }) {
+  if (bia) return <Sparkles className="w-4 h-4 text-violet-600 dark:text-violet-300" />;
   const mapping = ICON_MAP[type];
   if (!mapping) return <Bell className="w-4 h-4 text-muted-foreground" />;
   const Icon = mapping.icon;
@@ -69,13 +75,16 @@ function NotificationItem({
 }) {
   const isClientAlert = notification.type === "existing_client";
   const isVisitAlert = notification.type === "visit_scheduled";
+  const isBia = isBiaNotification(notification);
   const isPriority = isClientAlert || isVisitAlert;
 
   return (
     <div
       className={cn(
         "p-3 sm:p-4 cursor-pointer transition-all duration-200 group relative overflow-hidden",
-        isVisitAlert && !notification.read
+        isBia && !notification.read
+          ? "bg-gradient-to-r from-violet-500/10 via-fuchsia-500/5 to-transparent border-l-4 border-l-violet-500 hover:from-violet-500/15"
+          : isVisitAlert && !notification.read
           ? "bg-gradient-to-r from-blue-500/10 via-blue-500/5 to-transparent border-l-4 border-l-blue-500 hover:from-blue-500/15"
           : isClientAlert && !notification.read
             ? "bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border-l-4 border-l-amber-500 hover:from-amber-500/15"
@@ -95,7 +104,9 @@ function NotificationItem({
       <div className="flex items-start gap-3 relative z-10">
         <div className={cn(
           "flex-shrink-0 p-2 rounded-xl shadow-sm transition-transform group-hover:scale-105",
-          isVisitAlert
+          isBia
+            ? "bg-gradient-to-br from-violet-100 to-fuchsia-50 dark:from-violet-900/60 dark:to-fuchsia-900/40 ring-1 ring-violet-200/50 dark:ring-violet-700/50"
+            : isVisitAlert
             ? "bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/60 dark:to-blue-800/40 ring-1 ring-blue-200/50 dark:ring-blue-700/50"
             : isClientAlert
               ? "bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-900/60 dark:to-amber-800/40 ring-1 ring-amber-200/50 dark:ring-amber-700/50"
@@ -103,7 +114,7 @@ function NotificationItem({
                 ? "bg-gradient-to-br from-primary/20 to-primary/10 ring-1 ring-primary/20"
                 : "bg-muted ring-1 ring-border/50"
         )}>
-          <NotificationIcon type={notification.type} />
+          <NotificationIcon type={notification.type} bia={isBia} />
         </div>
 
         <div className="flex-1 min-w-0">
@@ -151,6 +162,11 @@ function NotificationItem({
             {isClientAlert && !notification.read && (
               <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold uppercase tracking-wide text-white bg-gradient-to-r from-amber-600 to-amber-500 px-2 py-0.5 rounded-full shadow-sm">
                 Cliente
+              </span>
+            )}
+            {isBia && (
+              <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold uppercase tracking-wide text-white bg-gradient-to-r from-violet-600 to-fuchsia-500 px-2 py-0.5 rounded-full shadow-sm">
+                Bia
               </span>
             )}
           </div>

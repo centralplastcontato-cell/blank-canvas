@@ -55,7 +55,7 @@ export function closedPeriodsNote(periods: ClosedPeriod[], todayYmd: string): st
   if (next.length === 0) return null;
   const now = closedPeriodAt(todayYmd, next);
   const list = next.map((p) => formatClosedPeriod(p, todayYmd)).join("; ");
-  return `RECESSO DO BUFFET: fechado ${list} — sem festas, sem visitas e sem atendimento da equipe nesses dias. ` +
+  return `RECESSO DO BUFFET: ${list} — sem festas e sem visitas nesses dias (a equipe continua atendendo normalmente). ` +
     `Nunca ofereça festa nem visita nesses dias; se o cliente pedir uma data dentro do recesso, explique com gentileza e ofereça outra.` +
-    (now ? ` HOJE o buffet está em recesso: a equipe volta ${reopenText(now)}. Você continua atendendo normalmente (dúvidas, valores de outras datas e visitas depois do recesso).` : "");
+    (now ? ` HOJE o buffet está em recesso (sem festas e visitas até ${reopenText(now)}), mas você e a equipe seguem atendendo: não diga que a equipe está em recesso nem fora.` : "");
 }
