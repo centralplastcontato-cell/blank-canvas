@@ -7,7 +7,10 @@ import { falseMaterialClaims, hasMaterialClaim, type MaterialKind } from "./mate
 import { fixWeekdays, formatDateLong, markTodayTomorrow, moneyWithCents } from "./whatsapp-format.ts";
 
 export interface FollowUpContext {
-  kind: "inactivity" | "step";
+  kind: "inactivity" | "step" | "reactivation";
+  daysBefore?: number; // lembrete antes da festa: quantos dias antes
+  partyExact?: boolean; // false = só o mês (dia 15 aproximado)
+  alternatives?: string | null; // linhas prontas de outras datas livres ("🗓️ Sábado, 6 de março" + "🌙 Noite (19h às 23h)")
   stepNumber?: number; // 1, 2, ...
   stepsTotal?: number;
   goal?: string;
@@ -42,12 +45,22 @@ export function followUpInstruction(c: FollowUpContext): string {
     c.partyYmd ? `data da festa pedida: ${formatDateLong(c.partyYmd)}` : c.partyMonth ? `mês da festa: ${c.partyMonth}` : null,
     c.guests ? `convidados: ${c.guests}` : null,
   ].filter(Boolean).join("; ");
-  const agenda = !c.partyYmd || c.partyDateFree === null || c.partyDateFree === undefined
+  const monthOnly = c.kind === "reactivation" && c.partyExact === false;
+  const altText = c.alternatives
+    ? ` Outras datas disponíveis neste momento — linhas prontas (copie como estão, uma data por bloco):\n${c.alternatives}\n`
+    : "";
+  const agenda = monthOnly
+    ? (c.alternatives ? ` AGENDA AGORA: o cliente falou só do mês.${altText}` : " AGENDA AGORA: não achei datas livres nesse mês — ofereça ver com a equipe ou o mês seguinte.")
+    : !c.partyYmd || c.partyDateFree === null || c.partyDateFree === undefined
     ? ""
     : c.partyDateFree.length > 0
     ? ` AGENDA AGORA: ${formatDateLong(c.partyYmd)} ainda está disponível neste momento (${c.partyDateFree.join(" ou ")}). Se citar, diga "disponível neste momento" — você não reserva nem segura a data.`
+    : c.kind === "reactivation"
+    ? ` AGENDA AGORA: ${formatDateLong(c.partyYmd)} NÃO está mais disponível (foi reservada). Avise com gentileza e honestidade, sem drama, e ofereça as alternativas abaixo.${altText || " Não achei outras datas livres perto: ofereça ver com a equipe."}`
     : ` AGENDA AGORA: ${formatDateLong(c.partyYmd)} NÃO está mais disponível. Não ofereça essa data; se fizer sentido, ofereça ver outras datas com ele.`;
-  const what = c.kind === "inactivity"
+  const what = c.kind === "reactivation"
+    ? `LEMBRETE ANTES DA FESTA: faltam cerca de ${c.daysBefore} dias para a festa e o cliente não responde há ${silenceText(c.silenceMs)}. Retome o contato com carinho (a festa está chegando), mostre a agenda real (abaixo) e convide para conhecer o espaço ou garantir a data com a equipe. Escreva UMA mensagem curta (2 a 5 frases + as linhas de datas, se houver), terminando com uma pergunta simples. Não diga que é um lembrete automático.`
+    : c.kind === "inactivity"
     ? `O cliente parou de responder há ${silenceText(c.silenceMs)}, no meio da conversa. Escreva UM lembrete curto (1 ou 2 frases) retomando de onde vocês pararam, com uma pergunta simples ligada à sua última mensagem. Sem repetir o que você já disse.`
     : `Follow-up ${c.stepNumber} de ${c.stepsTotal}: o cliente não responde há ${silenceText(c.silenceMs)}. OBJETIVO DESTA MENSAGEM (definido pelo buffet): ${c.goal} Escreva UMA mensagem curta (2 a 4 frases), no seu tom, terminando com uma pergunta simples.`;
   return [
@@ -72,7 +85,7 @@ const MATERIAL_MENTION: Record<MaterialKind, RegExp> = {
   pacotes: /(?<![\p{L}])pdf(?![\p{L}])/iu,
 };
 // Escassez que a Bia não tem como saber (o prazo da promoção e a agenda real vêm no aviso)
-const SCARCITY = /[úu]ltimas?\s+(?:vagas?|datas?|unidades)|esgot|quase\s+(?:lotad|cheia|sem\s+data)|poucas\s+(?:vagas|datas)|restam\s+poucas|corr(?:e|a)\s+(?:que|antes)|muita\s+procura/iu;
+const SCARCITY = /[úu]ltimas?\s+(?:vagas?|datas?|unidades)|esgot|quase\s+(?:lotad|cheia|sem\s+data)|poucas\s+(?:vagas|datas)|restam\s+poucas|corr(?:e|a)\s+(?:que|antes)|muita\s+procura|saindo\s+r[áa]pido|(?:bem|muito)\s+concorrid/iu;
 
 export interface FollowUpCheck {
   ok: boolean;

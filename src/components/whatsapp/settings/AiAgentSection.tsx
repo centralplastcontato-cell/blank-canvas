@@ -29,6 +29,7 @@ import {
   DEFAULT_STEP_GOALS,
   INACTIVITY_MINUTE_OPTIONS,
   MAX_FOLLOWUP_STEPS,
+  MAX_REACTIVATIONS,
   delayLabel,
   followUpConfigProblem,
   joinDelay,
@@ -277,6 +278,9 @@ export function AiAgentSection() {
   const [fuSteps, setFuSteps] = useState<FollowUpStepDraft[]>([]);
   const [fuLostOn, setFuLostOn] = useState(true);
   const [fuLostHours, setFuLostHours] = useState(48);
+  const [fuFarMonths, setFuFarMonths] = useState(3);
+  const [fuReactOn, setFuReactOn] = useState(true);
+  const [fuReactDays, setFuReactDays] = useState<number[]>([60, 30]);
 
   useEffect(() => {
     if (!currentCompany?.id) return;
@@ -446,6 +450,9 @@ export function AiAgentSection() {
     setFuSteps(fu.steps.map((st) => ({ ...splitDelay(st.delay_hours), goal: st.goal })));
     setFuLostOn(fu.auto_lost.enabled);
     setFuLostHours(fu.auto_lost.hours);
+    setFuFarMonths(fu.far_months);
+    setFuReactOn(fu.reactivation.enabled);
+    setFuReactDays(fu.reactivation.days_before);
     setConfigTab("basico");
     setConfigOpen(true);
   };
@@ -492,9 +499,19 @@ export function AiAgentSection() {
       inactivity: { enabled: fuInactivityOn, minutes: fuInactivityMinutes },
       steps: rawSteps,
       auto_lost: { enabled: fuLostOn, hours: fuLostHours },
+      far_months: fuFarMonths,
+      reactivation: { enabled: fuReactOn, days_before: fuReactDays },
     });
     // Desligado: rascunho incompleto das etapas não impede salvar o resto
-    const fuProblem = fuEnabled ? followUpConfigProblem({ ...followUp, steps: rawSteps, auto_lost: { enabled: fuLostOn, hours: Number(fuLostHours) } }) : null;
+    const fuProblem = fuEnabled
+      ? followUpConfigProblem({
+        ...followUp,
+        steps: rawSteps,
+        auto_lost: { enabled: fuLostOn, hours: Number(fuLostHours) },
+        far_months: Number(fuFarMonths),
+        reactivation: { enabled: fuReactOn, days_before: fuReactDays.map(Number) },
+      })
+      : null;
     if (fuProblem) {
       setConfigTab("followup");
       toast({ title: "Confira o follow-up", description: fuProblem, variant: "destructive" });
@@ -1105,6 +1122,71 @@ export function AiAgentSection() {
                   )}
                 </div>
 
+                {/* Festa distante: sem insistir; lembretes antes da festa com a agenda real */}
+                <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
+                  <Label className="text-xs font-bold">Festa distante e lembretes antes da festa</Label>
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">Festa distante: mais de</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={12}
+                      value={fuFarMonths}
+                      onChange={(e) => setFuFarMonths(Number(e.target.value))}
+                      className="h-10 w-16 text-base sm:text-sm bg-card border-border shadow-sm"
+                    />
+                    <span className="text-muted-foreground">meses</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Festa distante, ou cliente que disse "vou pensar" / "é só ano que vem": a Bia manda só a 1ª etapa e não insiste. Quem traz o cliente de volta são os lembretes antes da festa.
+                  </p>
+                  <div className="flex items-center justify-between gap-3 pt-1">
+                    <Label className="text-xs font-bold">Lembretes antes da festa</Label>
+                    <Switch checked={fuReactOn} onCheckedChange={setFuReactOn} />
+                  </div>
+                  {fuReactOn && (
+                    <div className="space-y-2">
+                      {fuReactDays.map((d, idx) => (
+                        <div key={idx} className="flex items-center gap-2 text-sm">
+                          <Input
+                            type="number"
+                            min={1}
+                            max={180}
+                            value={d}
+                            onChange={(e) => setFuReactDays((list) => list.map((x, i) => (i === idx ? Number(e.target.value) : x)))}
+                            className="h-10 w-20 text-base sm:text-sm bg-card border-border shadow-sm"
+                          />
+                          <span className="text-muted-foreground flex-1">dias antes da festa</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground"
+                            aria-label="Remover lembrete"
+                            onClick={() => setFuReactDays((list) => list.filter((_, i) => i !== idx))}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                      {fuReactDays.length < MAX_REACTIVATIONS && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="gap-1"
+                          onClick={() => setFuReactDays((list) => [...list, list.length === 0 ? 30 : Math.max(7, Math.min(...list) - 15)])}
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Adicionar lembrete
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                  <p className="text-[11px] text-muted-foreground">
+                    A Bia escreve com a agenda real: se a data do cliente ainda estiver livre, ela avisa; se foi reservada, oferece outras datas livres perto dela. Se o cliente só disse o mês, ela mostra datas livres do mês. Nessas conversas, a reativação fixa não manda mensagem.
+                  </p>
+                </div>
+
                 {/* Perdido automático depois da última etapa */}
                 <div className="rounded-xl border border-border bg-card p-3.5 space-y-2.5">
                   <div className="flex items-center justify-between gap-3">
@@ -1121,13 +1203,13 @@ export function AiAgentSection() {
                         className="h-10 w-20 text-base sm:text-sm bg-card border-border shadow-sm"
                       />
                       <span className="text-muted-foreground">
-                        horas {fuSteps.length > 0 ? "depois da última etapa" : "depois da última resposta da Bia"} sem resposta
+                        horas {fuSteps.length > 0 ? "depois da última mensagem automática" : "depois da última resposta da Bia"} sem resposta
                         {fuLostHours >= 24 && fuLostHours % 24 === 0 ? ` (${delayLabel(fuLostHours)})` : ""}
                       </span>
                     </div>
                   )}
                   <p className="text-[11px] text-muted-foreground">
-                    Se o cliente voltar a falar depois, a Bia continua o atendimento normalmente.
+                    Se ainda houver lembrete antes da festa para mandar, o lead espera por ele (não vira Perdido antes). Festa que já passou vira Perdido. Se o cliente voltar a falar depois, a Bia continua o atendimento normalmente.
                   </p>
                 </div>
               </div>

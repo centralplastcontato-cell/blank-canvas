@@ -13,25 +13,32 @@ export interface AiFollowUpConfig {
   inactivity: { enabled: boolean; minutes: number };
   steps: FollowUpStep[];
   auto_lost: { enabled: boolean; hours: number };
+  far_months: number; // festa a mais de X meses: só a 1ª etapa e espera os lembretes antes da festa
+  reactivation: { enabled: boolean; days_before: number[] }; // lembretes X dias antes da festa
 }
 
 export const MAX_FOLLOWUP_STEPS = 6;
 export const INACTIVITY_MINUTE_OPTIONS = [15, 30, 45, 60, 90, 120, 180, 240];
 
 export const DEFAULT_STEP_GOALS = [
-  "Retomar o contato com leveza: perguntar se conseguiu ver as fotos, o vídeo e os pacotes, lembrar da data que ele pediu (se ainda estiver disponível) e convidar para conhecer o espaço.",
-  "Última mensagem, gentil e sem pressão: dizer que o contato fica em aberto, lembrar da data dele (só se ainda estiver disponível) e que é só responder aqui quando quiser.",
+  "Convidar para conhecer o espaço, oferecendo 2 horários de visita, de forma leve.",
+  "Lembrar da data dele (se ainda estiver disponível) e da promoção, se houver, com o prazo real. Perguntar se ficou alguma dúvida.",
+  "Despedida gentil e sem pressão: o contato fica em aberto e é só responder aqui quando quiser.",
 ];
+export const MAX_REACTIVATIONS = 3;
 
 export const DEFAULT_AI_FOLLOWUP: AiFollowUpConfig = {
   enabled: false,
   since: null,
   inactivity: { enabled: true, minutes: 60 },
   steps: [
-    { delay_hours: 72, goal: DEFAULT_STEP_GOALS[0] },
-    { delay_hours: 288, goal: DEFAULT_STEP_GOALS[1] },
+    { delay_hours: 24, goal: DEFAULT_STEP_GOALS[0] },
+    { delay_hours: 96, goal: DEFAULT_STEP_GOALS[1] },
+    { delay_hours: 240, goal: DEFAULT_STEP_GOALS[2] },
   ],
   auto_lost: { enabled: true, hours: 48 },
+  far_months: 3,
+  reactivation: { enabled: true, days_before: [60, 30] },
 };
 
 const num = (v: unknown, def: number, min: number, max: number): number => {
@@ -49,6 +56,8 @@ export function normalizeFollowUpConfig(raw: unknown): AiFollowUpConfig {
     inactivity?: { enabled?: unknown; minutes?: unknown };
     steps?: unknown;
     auto_lost?: { enabled?: unknown; hours?: unknown };
+    far_months?: unknown;
+    reactivation?: { enabled?: unknown; days_before?: unknown };
   };
   const r = raw as Raw;
   const rawSteps = (Array.isArray(r.steps) ? r.steps : DEFAULT_AI_FOLLOWUP.steps) as Array<{ delay_hours?: unknown; goal?: unknown } | null>;
@@ -63,13 +72,21 @@ export function normalizeFollowUpConfig(raw: unknown): AiFollowUpConfig {
     steps: rawSteps
       .slice(0, MAX_FOLLOWUP_STEPS)
       .map((s, i) => ({
-        delay_hours: num(s?.delay_hours, DEFAULT_AI_FOLLOWUP.steps[Math.min(i, 1)].delay_hours, 1, 2160),
+        delay_hours: num(s?.delay_hours, DEFAULT_AI_FOLLOWUP.steps[Math.min(i, DEFAULT_AI_FOLLOWUP.steps.length - 1)].delay_hours, 1, 2160),
         goal: String(s?.goal || "").trim().slice(0, 600) || DEFAULT_STEP_GOALS[Math.min(i, DEFAULT_STEP_GOALS.length - 1)],
       }))
       .sort((a: FollowUpStep, b: FollowUpStep) => a.delay_hours - b.delay_hours),
     auto_lost: {
       enabled: r.auto_lost ? r.auto_lost.enabled === true : DEFAULT_AI_FOLLOWUP.auto_lost.enabled,
       hours: num(r.auto_lost?.hours, DEFAULT_AI_FOLLOWUP.auto_lost.hours, 1, 2160),
+    },
+    far_months: num(r.far_months, DEFAULT_AI_FOLLOWUP.far_months, 1, 12),
+    reactivation: {
+      enabled: r.reactivation ? r.reactivation.enabled === true : DEFAULT_AI_FOLLOWUP.reactivation.enabled,
+      days_before: [...new Set(
+        (Array.isArray(r.reactivation?.days_before) ? r.reactivation!.days_before as unknown[] : DEFAULT_AI_FOLLOWUP.reactivation.days_before)
+          .map((d) => num(d, 30, 1, 180)),
+      )].sort((a, b) => b - a).slice(0, MAX_REACTIVATIONS),
     },
   };
 }
@@ -102,6 +119,12 @@ export function followUpConfigProblem(cfg: AiFollowUpConfig): string | null {
   }
   if (cfg.auto_lost.enabled && (!Number.isFinite(cfg.auto_lost.hours) || cfg.auto_lost.hours < 1 || cfg.auto_lost.hours > MAX_DELAY_HOURS)) {
     return "O prazo para mover para Perdido precisa ser de pelo menos 1 hora e no máximo 2160 horas (90 dias).";
+  }
+  if (!Number.isFinite(cfg.far_months) || cfg.far_months < 1 || cfg.far_months > 12) {
+    return "Festa distante: escolha entre 1 e 12 meses.";
+  }
+  if (cfg.reactivation.enabled && cfg.reactivation.days_before.some((d) => !Number.isFinite(d) || d < 1 || d > 180)) {
+    return "Lembretes antes da festa: cada um precisa ser de 1 a 180 dias antes.";
   }
   const delays = cfg.steps.map((s) => s.delay_hours);
   if (new Set(delays).size !== delays.length) return "Duas etapas estão com o mesmo prazo.";

@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
+import { biaJourneyLeadIds } from "../_shared/ai-journey-scope.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -207,6 +208,19 @@ Deno.serve(async (req) => {
         const filteredLeads = leads.filter(l => !excludeStatuses.includes(l.status));
         const leadIds = filteredLeads.map(l => l.id);
 
+        // Conversas acompanhadas pela Bia (Configurar IA → Follow-up): o lembrete
+        // antes da festa é ela que escreve, com a agenda real — aqui pula.
+        // Empresa sem a Bia: conjunto vazio, nada muda.
+        let biaLeads = new Set<string>();
+        try {
+          biaLeads = await biaJourneyLeadIds(supabase, settings.company_id, leadIds);
+        } catch (err) {
+          // Sem saber quais são da Bia, não manda a reativação fixa desta empresa nesta rodada
+          errors.push(`bia leads: ${String(err)}`);
+          continue;
+        }
+        if (biaLeads.size > 0) console.log(`[reactivation-engine] ${biaLeads.size} lead(s) com a Bia — lembrete antes da festa fica com ela`);
+
         // Batch fetch: existing history
         const { data: existingHistory } = await supabase
           .from("lead_reactivation_history")
@@ -298,6 +312,7 @@ Deno.serve(async (req) => {
           }
 
           try {
+            if (biaLeads.has(lead.id)) { totalSkipped++; continue; }
             const totalSentForLead = sentCountMap.get(lead.id) || 0;
             if (totalSentForLead >= settings.max_messages_per_lead) { totalSkipped++; continue; }
             if (leadsWithEvents.has(lead.id)) { totalSkipped++; continue; }

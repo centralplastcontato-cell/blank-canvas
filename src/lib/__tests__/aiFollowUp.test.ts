@@ -33,6 +33,17 @@ describe("aiFollowUp", () => {
     expect(followUpConfigProblem({ ...DEFAULT_AI_FOLLOWUP, auto_lost: { enabled: false, hours: 0 } })).toBeNull();
   });
 
+  it("festa distante e lembretes antes da festa", () => {
+    expect(normalizeFollowUpConfig(null).far_months).toBe(3);
+    expect(normalizeFollowUpConfig(null).reactivation).toEqual({ enabled: true, days_before: [60, 30] });
+    expect(normalizeFollowUpConfig({ far_months: 40, reactivation: { enabled: false, days_before: [30, 90, 30] } })).toMatchObject({
+      far_months: 12,
+      reactivation: { enabled: false, days_before: [90, 30] },
+    });
+    expect(followUpConfigProblem({ ...DEFAULT_AI_FOLLOWUP, reactivation: { enabled: true, days_before: [0] } })).toMatch(/1 a 180/);
+    expect(followUpConfigProblem({ ...DEFAULT_AI_FOLLOWUP, far_months: 0 })).toMatch(/1 e 12/);
+  });
+
   it("chave geral só vale com a data de ativação", () => {
     expect(normalizeFollowUpConfig(null).enabled).toBe(false);
     expect(normalizeFollowUpConfig({ enabled: true }).enabled).toBe(false);
