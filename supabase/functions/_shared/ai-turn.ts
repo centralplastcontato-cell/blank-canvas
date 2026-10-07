@@ -273,10 +273,25 @@ export function clientDeclined(text: string): boolean {
  * Remove da resposta as frases que convidam para visita (o resto fica). Se
  * sobrar quase nada, devolve a resposta original.
  */
+// Pergunta que só faz sentido junto do convite cortado ("Qual horário fica melhor?")
+const ORPHAN_VISIT_QUESTION = /(?:^|[\s,])(?:qual|quais)\s+(?:hor[aá]rio|hor[aá]rios|dia|dos dois|das duas|op[cç][aã]o|deles|delas|desses|dessas)[^?]*\?|(?:^|[\s,])(?:qual|o que) (?:voc[eê] )?prefere\b[^?]*\?/i;
+
+/**
+ * Resposta curta de "aceite" do cliente ("ok", "ótimo", "gostei", "pode ser"):
+ * é a hora de conduzir para o próximo passo, não de travar o convite.
+ */
+export function clientAffirms(text: string): boolean {
+  const t = (text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+  if (!t || t.split(" ").length > 6) return /^\s*(?:👍|👏|🙏|❤️|😍|🥰)+\s*$/u.test(text || "");
+  return /^(ok|okay|oks|otimo|perfeito|gostei|adorei|amei|legal|show|top|beleza|blz|massa|maravilha|bacana|joia|sim|claro|pode ser|bom|muito bom|certo|entendi|ta bom|tudo bem|combinado|fechado|interessante|lindo|que lindo|gostei muito|achei otimo|achei lindo)( (sim|demais|muito|entao|obrigad[oa]))*$/.test(t);
+}
+
 export function stripVisitInvite(text: string): { text: string; removed: boolean } {
   let removed = false;
-  const paragraphs = text.split(/\n/).map((line) => {
+  const touched = new Set<number>(); // parágrafos de onde saiu um convite
+  const paragraphs = text.split(/\n/).map((line, idx) => {
     if (!VISIT_INVITE_SENTENCE.test(line)) return line;
+    touched.add(idx);
     // Frases da linha (mantém a pontuação/emojis de cada uma)
     const sentences = line.match(/[^.!?]+[.!?]+[^\p{L}\p{N}*_(]*|[^.!?]+$/gu) || [line];
     const kept = sentences.filter((sentence) => {
@@ -288,7 +303,15 @@ export function stripVisitInvite(text: string): { text: string; removed: boolean
     });
     return kept.join("").trim();
   });
-  const out = paragraphs.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  // Sem o convite, "Qual horário fica melhor?" (no mesmo parágrafo) fica solta: sai junto
+  const cleaned = removed
+    ? paragraphs.map((line, idx) => {
+      if (!touched.has(idx)) return line;
+      const sentences = line.match(/[^.!?]+[.!?]+[^\p{L}\p{N}*_(]*|[^.!?]+$/gu) || [line];
+      return sentences.filter((sentence) => !ORPHAN_VISIT_QUESTION.test(sentence)).join("").trim();
+    })
+    : paragraphs;
+  const out = cleaned.join("\n").replace(/\n{3,}/g, "\n\n").trim();
   if (!removed || out.replace(/\s/g, "").length < 15) return { text, removed: false };
   return { text: out, removed: true };
 }

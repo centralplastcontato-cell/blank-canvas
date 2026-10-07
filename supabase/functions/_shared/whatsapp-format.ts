@@ -170,6 +170,10 @@ export function airyParagraphs(text: string): string {
       if (pieces.length > 0 && ABBREVIATION_END.test(pieces[pieces.length - 1])) pieces[pieces.length - 1] += ` ${part}`;
       else pieces.push(part);
     }
+    // Emoji do começo da frase ("🎁 E tem mais…") não é uma frase: vai junto da próxima
+    for (let i = pieces.length - 2; i >= 0; i--) {
+      if (!/[\p{L}\p{N}]/u.test(pieces[i])) pieces.splice(i, 2, `${pieces[i]} ${pieces[i + 1]}`);
+    }
     if (pieces.length < 2) return line;
     const blocks: string[] = [];
     for (const sentence of pieces) {

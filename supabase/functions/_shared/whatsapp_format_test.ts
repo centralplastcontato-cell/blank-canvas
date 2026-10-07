@@ -92,3 +92,10 @@ Deno.test("airyParagraphs: parágrafo corrido vira blocos curtos", () => {
   assertEquals(airyParagraphs(addr).includes("Av.\n"), false);
   assertEquals(airyParagraphs(addr).includes("Av. General Osório"), true);
 });
+
+Deno.test("airyParagraphs: emoji do começo da frase fica junto dela", () => {
+  const promo = "🎁 E tem mais: fechando até sábado, 17 de outubro, para festa ainda em 2026, você ganha 10x sem juros e +10 amiguinhos grátis no pacote (crianças até 8 anos) — faltam 10 dias! ✨";
+  const out = airyParagraphs(promo);
+  assertEquals(out.startsWith("🎁 E tem mais"), true);
+  assertEquals(out.split("\n").some((l) => l.trim() === "🎁"), false);
+});
