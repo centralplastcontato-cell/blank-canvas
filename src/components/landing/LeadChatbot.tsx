@@ -4,6 +4,7 @@ import { X, Send, Loader2, MessageCircle, MapPin, Smile } from "lucide-react";
 import { campaignConfig } from "@/config/campaignConfig";
 import { originLabel, originWelcomeIntro } from "@/lib/landingOrigin";
 import { captureLandingUtms } from "@/lib/landingUtm";
+import { daysInMonthOption, firstWeekdayOf, formatLeadDate, isPastDay, monthOptionLabel, upcomingMonthOptions } from "@/lib/partyDate";
 import { trackMetaPixelEvent } from "@/lib/metaPixel";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -14,6 +15,8 @@ interface Message {
   type: "bot" | "user";
   content: string;
   options?: string[];
+  /** Opções que aparecem mas não dá para escolher (dias que já passaram) */
+  disabledOptions?: string[];
   isInput?: boolean;
 }
 
@@ -67,8 +70,6 @@ interface LeadChatbotProps {
   origem?: string | null;
 }
 
-// Default month options (all months from current month forward)
-const DEFAULT_MONTH_OPTIONS = ["Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
 export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLogo, companyWhatsApp, lpBotConfig, unitOptions, interestContext, origem }: LeadChatbotProps) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -113,49 +114,23 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const monthNameToIndex: Record<string, number> = {
-    "Janeiro": 0, "Fevereiro": 1, "Março": 2, "Abril": 3,
-    "Maio": 4, "Junho": 5, "Julho": 6, "Agosto": 7,
-    "Setembro": 8, "Outubro": 9, "Novembro": 10, "Dezembro": 11,
-  };
-
-  const parseMonthOption = (option: string): { monthName: string; year: number } => {
-    const parts = option.split('/');
-    const monthName = parts[0].trim();
-    let year = new Date().getFullYear();
-    if (parts[1]) {
-      const yearPart = parts[1].trim();
-      year = yearPart.length <= 2 ? 2000 + parseInt(yearPart) : parseInt(yearPart);
-    }
-    return { monthName, year };
-  };
-
-  const getDaysInMonth = (month: string): number => {
-    const { monthName, year } = parseMonthOption(month);
-    const monthIndex = monthNameToIndex[monthName];
-    if (monthIndex === undefined) return 31;
-    return new Date(year, monthIndex + 1, 0).getDate();
-  };
-
+  // Calendário do mês escolhido: dia da semana pelo ano certo e dias que já passaram bloqueados
   const addDayOfMonthStep = (month: string) => {
-    const daysInMonth = getDaysInMonth(month);
-    const { monthName, year } = parseMonthOption(month);
-    const monthIndex = monthNameToIndex[monthName];
-    const firstDayOfWeek = monthIndex !== undefined
-      ? new Date(year, monthIndex, 1).getDay()
-      : 0;
+    const daysInMonth = daysInMonthOption(month);
     // Padding empty strings so day 1 falls on the correct weekday column
-    const padding = Array.from({ length: firstDayOfWeek }, () => "");
+    const padding = Array.from({ length: firstWeekdayOf(month) }, () => "");
     const days = Array.from({ length: daysInMonth }, (_, i) => `${i + 1}`);
     const calendarGrid = [...padding, ...days];
+    const pastDays = days.filter((d) => isPastDay(month, Number(d)));
 
     setMessages((prev) => [
       ...prev,
       {
         id: "day-of-month",
         type: "bot",
-        content: `Para qual dia de ${month} você gostaria de agendar?`,
+        content: `Para qual dia de ${monthOptionLabel(month)} você gostaria de agendar?`,
         options: calendarGrid,
+        disabledOptions: pastDays,
       },
     ]);
   };
@@ -185,7 +160,8 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     return maxGuests > lpBotConfig.guest_limit;
   };
 
-  const dynamicMonthOptions = lpBotConfig?.month_options || DEFAULT_MONTH_OPTIONS;
+  // Meses da LP configurados no painel; sem configuração, os próximos 12 com ano
+  const dynamicMonthOptions = lpBotConfig?.month_options || upcomingMonthOptions();
   const dynamicGuestOptions = lpBotConfig?.guest_options || campaignConfig.chatbot.guestOptions;
 
   const handleDayOfMonthSelect = (day: string) => {
@@ -265,7 +241,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
           id: "month",
           type: "bot",
           content: "Para qual mês você pretende realizar a festa?",
-          options: campaignConfig.chatbot.monthOptions,
+          options: upcomingMonthOptions(),
         },
       ]);
       setCurrentStep(1);
@@ -472,14 +448,15 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
       const redirectText = (redirectInfo?.customMessage && redirectInfo.customMessage.trim())
         || `Nossa capacidade máxima é de ${redirectInfo?.limit || 0} convidados.`;
 
-      const dateStr = `${leadInfo.dayOfMonth || ''}/${leadInfo.month || ''}`;
+      // "sábado, 18 de setembro de 2027" — com ano e dia da semana, sem ambiguidade
+      const dateStr = formatLeadDate(leadInfo.month, leadInfo.dayOfMonth);
       const interestLine = effectiveInterestContext ? `\n🎯 Interesse: ${effectiveInterestContext}` : '';
       // Mensagem na voz do buffet (quem envia), cumprimentando pelo primeiro nome
       const firstName = (leadInfo.name || '').trim().split(/\s+/)[0] || '';
       const greeting = firstName ? `Olá, *${firstName}*! 👋` : 'Olá! 👋';
       // Quem veio do QR Code da mesa é recebido pela festa; os demais, pela frase de sempre
       const intro = originWelcomeIntro(origem, displayName) ?? `Recebemos seu pedido pelo site do *${displayName}*! ✨`;
-      const defaultNormalMsg = `${greeting} ${intro}\n\nAnotei por aqui:${interestLine}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\nPara agilizar, me diz o que você prefere 👇\n\n1️⃣ - 📩 Receber o orçamento agora\n2️⃣ - 💬 Falar com um atendente`;
+      const defaultNormalMsg = `${greeting} ${intro}\n\nAnotei por aqui:${interestLine}\n🗓️ Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\nPara agilizar, me diz o que você prefere 👇\n\n1️⃣ - 📩 Receber o orçamento agora\n2️⃣ - 💬 Falar com um atendente`;
 
       const applyTemplate = (template: string) => template
         .replace(/\{primeiro_nome\}/g, firstName)
@@ -490,7 +467,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         .replace(/\{empresa\}/g, displayName)
         .replace(/\{interesse\}/g, effectiveInterestContext || '');
 
-      const redirectDefaultMsg = `${greeting} ${intro}\n\nAnotei por aqui:${interestLine}\n📅 Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\n${redirectText}\n\nObrigado pelo interesse! 💜`;
+      const redirectDefaultMsg = `${greeting} ${intro}\n\nAnotei por aqui:${interestLine}\n🗓️ Data: ${dateStr}\n👥 Convidados: ${leadInfo.guests || ''}\n\n${redirectText}\n\nObrigado pelo interesse! 💜`;
 
       const message = redirectInfo
         ? redirectDefaultMsg
@@ -506,6 +483,16 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
           message,
           unit: normalizedUnit,
           lpMode: true,
+          // Com a IA atendendo este cliente, o servidor manda a boas-vindas dela
+          // (sem o menu 1/2) e ela já começa sabendo nome, data e convidados
+          siteLead: redirectInfo ? undefined : {
+            name: leadInfo.name || '',
+            month: leadInfo.month || '',
+            day: leadInfo.dayOfMonth || null,
+            guests: leadInfo.guests || '',
+            interest: effectiveInterestContext || '',
+            intro,
+          },
         },
       });
 
@@ -682,7 +669,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
   // fica na voz dele — sem trechos na voz do buffet.
   const buildWhatsAppMessage = () => {
     const via = originLabel(origem) ?? 'site';
-    return `Olá! 👋🏼✨\n\nVim pelo ${via} do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadData.name || ''}\n📅 Data: ${leadData.dayOfMonth || ''}/${leadData.month || ''}\n👥 Convidados: ${leadData.guests || ''}`;
+    return `Olá! 👋🏼✨\n\nVim pelo ${via} do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadData.name || ''}\n🗓️ Data: ${formatLeadDate(leadData.month, leadData.dayOfMonth)}\n👥 Convidados: ${leadData.guests || ''}`;
   };
 
   return (
@@ -788,6 +775,15 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
                             if (message.id === "day-of-month" && option === "") {
                               return <div key={`empty-${idx}`} className="w-9 h-9" />;
                             }
+                            if (message.disabledOptions?.includes(option)) {
+                              return (
+                                <div key={`past-${idx}`} aria-disabled="true" className="w-9 h-9 rounded-lg text-sm flex items-center justify-center text-muted-foreground/40 line-through">
+                                  {option}
+                                </div>
+                              );
+                            }
+                            // "Outubro/26": o ano vai embaixo, menor (cabe na grade do celular)
+                            const monthWithYear = message.id === "month" ? option.match(/^(\p{L}+)\/(\d{2,4})$/u) : null;
                             const isPromoMonth = false;
                             return (
                               <button
@@ -809,7 +805,12 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
                                         : "bg-card text-foreground px-4 py-2 rounded-full text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"
                                 }`}
                               >
-                                {isPromoMonth ? `🎉 ${option}` : option}
+                                {isPromoMonth ? `🎉 ${option}` : monthWithYear ? (
+                                  <span className="flex flex-col items-center leading-tight">
+                                    <span>{monthWithYear[1]}</span>
+                                    <span className="text-[10px] font-medium opacity-70">{monthWithYear[2].length === 2 ? `20${monthWithYear[2]}` : monthWithYear[2]}</span>
+                                  </span>
+                                ) : option}
                               </button>
                             );
                           })}

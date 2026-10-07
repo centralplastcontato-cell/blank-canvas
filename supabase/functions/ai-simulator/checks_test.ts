@@ -21,7 +21,7 @@ Deno.test("te_mandei: disse que mandou sem o material ter saído", () => {
 });
 
 Deno.test("datas_da_agenda: data listada tem de vir da agenda", () => {
-  const list = "Olha as datas 🎉\n📅 Sábado, 5 de dezembro\n☀️ Almoço (13h às 17h)\n📅 Domingo, 6 de dezembro\n🌙 Noite (19h às 23h)\nQual prefere?";
+  const list = "Olha as datas 🎉\n🗓️ Sábado, 5 de dezembro\n☀️ Almoço (13h às 17h)\n🗓️ Domingo, 6 de dezembro\n🌙 Noite (19h às 23h)\nQual prefere?";
   assertEquals(listedPartyDates(list), ["5 de dezembro", "6 de dezembro"]);
   // Horário de visita (sem ☀️/🌙) não entra
   assertEquals(listedPartyDates("📅 Quarta, 8 de outubro às 14h\nPode ser?"), []);

@@ -43,16 +43,19 @@ const MONTHS = "janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|set
 const normMonth = (m: string) => m.toLowerCase().replace("marco", "março");
 
 /**
- * Datas de festa que a IA listou no formato da agenda ("📅 Sábado, 5 de
+ * Datas de festa que a IA listou no formato da agenda ("🗓️ Sábado, 5 de
  * dezembro" com ☀️/🌙 embaixo). Horários de visita não entram.
  */
+// 🗓️ (atual) ou 📅 (conversas antigas)
+const DAY_ICON = /📅|🗓/u;
+
 export function listedPartyDates(text: string): string[] {
   const lines = text.split("\n");
   const out: string[] = [];
   lines.forEach((line, i) => {
-    if (!line.includes("📅")) return;
+    if (!DAY_ICON.test(line)) return;
     const block: string[] = [];
-    for (let j = i + 1; j < lines.length && !lines[j].includes("📅") && lines[j].trim(); j++) block.push(lines[j]);
+    for (let j = i + 1; j < lines.length && !DAY_ICON.test(lines[j]) && lines[j].trim(); j++) block.push(lines[j]);
     // Só o formato da agenda ("☀️ Almoço (13h às 17h)"); horário de visita ("🌙 noite (19h)") não entra
     if (!block.some((l) => /(☀️|🌙)\s*(almo[çc]o|noite)\s*\(\d{1,2}h(\d{2})?\s+[àa]s\s+\d{1,2}h/i.test(l))) return;
     const m = line.match(new RegExp(`(\\d{1,2})\\s+de\\s+(${MONTHS})`, "i"));

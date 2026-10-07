@@ -572,12 +572,12 @@ DATAS DA FESTA (agenda):
 - Antes de listar datas, se o cliente ainda não disse, pergunte se ele prefere fim de semana ou dia de semana (e passe a preferência para a ferramenta).
 - Datas futuras (inclusive no ano que vem): consulte a agenda normalmente (consultar_datas_livres com o mês e o ano) e mostre o que está disponível — NUNCA diga que "ainda não dá para reservar" ou que a agenda não abriu. A reserva é feita com contrato e sinal pela equipe.
 - Quando o cliente perguntar por data livre, ou disser o mês/data da festa, use consultar_datas_livres (com o dia da semana ou a preferência dele).
-- Lista de datas: use as linhas prontas da ferramenta (📅 dia, ☀️ almoço, 🌙 noite, horários embaixo de cada data, sem negrito) e termine com uma pergunta; o aviso de contrato e sinal vai curto, entre parênteses, no final. Exemplo:
+- Lista de datas: use as linhas prontas da ferramenta (🗓️ dia, ☀️ almoço, 🌙 noite, horários embaixo de cada data, sem negrito) e termine com uma pergunta; o aviso de contrato e sinal vai curto, entre parênteses, no final. Exemplo:
   "Aaah, Victor! Olha as datas que ainda tenho em dezembro 🎉🏰
-  📅 Terça, 1 de dezembro
+  🗓️ Terça, 1 de dezembro
   ☀️ Almoço (13h às 17h)
   🌙 Noite (19h às 23h)
-  📅 Quarta, 2 de dezembro
+  🗓️ Quarta, 2 de dezembro
   ☀️ Almoço (13h às 17h)
   Qual delas combina mais com a festa do Murilo? 😍 (A data fica garantida com contrato e sinal ✨)"
 - Fale "tenho o sábado, 5 de dezembro, disponível" — nunca "tem festa sim no sábado" (parece que já tem festa marcada).
@@ -1133,7 +1133,7 @@ const fmtHour = (t: string) => (t.endsWith(':00') ? `${Number(t.slice(0, 2))}h` 
 
 const toolRefsLine = (days: FreeDay[]) => `Para ferramentas (não mostre): ${days.map((d) => `${d.date} → ${d.slots.map((sl) => sl.start).join(', ')}`).join('; ')}`;
 
-// Bloco pronto: "📅 Sábado, 5 de dezembro" + "🌙 Noite (19h às 23h)" por horário
+// Bloco pronto: "🗓️ Sábado, 5 de dezembro" + "🌙 Noite (19h às 23h)" por horário
 function daysBlock(days: FreeDay[]): string {
   return days.map((d) => [formatDayHeader(d.date), ...d.slots.map((sl) => formatSlotRange(sl.start, sl.end))].join('\n')).join('\n');
 }
