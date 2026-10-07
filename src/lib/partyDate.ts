@@ -70,3 +70,24 @@ export function formatLeadDate(option: string | undefined, day: number | undefin
   const weekday = WEEKDAYS[new Date(p.year, p.monthIndex, day).getDay()];
   return `${weekday}, ${day} de ${month} de ${p.year}`;
 }
+
+/** Recesso / dias fechados do buffet (Configurar IA): [{ start, end }] em AAAA-MM-DD */
+export interface ClosedPeriod {
+  start: string;
+  end: string;
+}
+
+export function parseClosedPeriods(raw: unknown): ClosedPeriod[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((p) => ({ start: String(p?.start || ""), end: String(p?.end || p?.start || "") }))
+    .filter((p) => /^\d{4}-\d{2}-\d{2}$/.test(p.start) && /^\d{4}-\d{2}-\d{2}$/.test(p.end) && p.start <= p.end);
+}
+
+/** O dia cai num recesso do buffet */
+export function isClosedLeadDay(option: string, day: number, periods: ClosedPeriod[], now: Date = new Date()): boolean {
+  const p = parseMonthOption(option, now);
+  if (!p) return false;
+  const ymd = `${p.year}-${String(p.monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  return periods.some((c) => ymd >= c.start && ymd <= c.end);
+}

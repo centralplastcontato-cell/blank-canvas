@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sparkles, Loader2, Save, Pencil, Check, FlaskConical, Cpu, Wallet, BellRing } from "lucide-react";
+import { Sparkles, Loader2, Save, Pencil, Check, FlaskConical, Cpu, Wallet, BellRing, CalendarOff, Plus, Trash2 } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -57,6 +57,13 @@ interface AiAgentSettings {
   handoff_alert_phone?: string | null;
   // Horários de festa para a IA dizer as datas livres da agenda
   party_slots?: string | null;
+  // Recesso / dias fechados: sem festas, visitas e atendimento da equipe
+  closed_periods?: ClosedPeriod[] | null;
+}
+
+interface ClosedPeriod {
+  start: string; // AAAA-MM-DD
+  end: string;
 }
 
 const BASE_COLUMNS = "id, enabled, unit, activated_at, extra_instructions, visit_hours, test_mode_enabled, test_mode_number, model";
@@ -72,7 +79,7 @@ function modelLabel(id: string): string {
 
 // Banco ainda sem as colunas novas (migration não rodada)
 function isMissingNewColumn(error: { message?: string } | null): boolean {
-  return !!error?.message && /test_model|team_hours|handoff_alert|party_slots/.test(error.message);
+  return !!error?.message && /test_model|team_hours|handoff_alert|party_slots|closed_periods/.test(error.message);
 }
 
 const DEFAULT_VISIT_HOURS = "Segunda a sexta, das 10:00 às 17:00, de meia em meia hora";
@@ -242,6 +249,7 @@ export function AiAgentSection() {
   const [alertMinutes, setAlertMinutes] = useState(10);
   const [alertPhone, setAlertPhone] = useState("");
   const [partySlots, setPartySlots] = useState(DEFAULT_PARTY_SLOTS);
+  const [closedPeriods, setClosedPeriods] = useState<ClosedPeriod[]>([]);
 
   useEffect(() => {
     if (!currentCompany?.id) return;
@@ -316,6 +324,7 @@ export function AiAgentSection() {
       handoff_alert_minutes: next.handoff_alert_minutes ?? 10,
       handoff_alert_phone: next.handoff_alert_phone ?? null,
       party_slots: next.party_slots ?? null,
+      closed_periods: next.closed_periods ?? [],
       updated_at: new Date().toISOString(),
     };
     const save = (body: Record<string, unknown>, columns: string) => (supabase as any)
@@ -326,7 +335,7 @@ export function AiAgentSection() {
     let { data, error } = await save(payload, "*");
     if (error && isMissingNewColumn(error)) {
       // Banco sem as colunas novas: salva o resto e avisa que falta a atualização
-      const { test_model: _t, team_hours: _h, handoff_alert_minutes: _m, handoff_alert_phone: _p, party_slots: _s, ...withoutNew } = payload;
+      const { test_model: _t, team_hours: _h, handoff_alert_minutes: _m, handoff_alert_phone: _p, party_slots: _s, closed_periods: _c, ...withoutNew } = payload;
       ({ data, error } = await save(withoutNew, BASE_COLUMNS));
       if (!error) {
         data = { ...data, test_model: null };
@@ -401,6 +410,7 @@ export function AiAgentSection() {
     setAlertMinutes(settings.handoff_alert_minutes || 10);
     setAlertPhone(settings.handoff_alert_phone || "");
     setPartySlots(settings.party_slots || DEFAULT_PARTY_SLOTS);
+    setClosedPeriods(Array.isArray(settings.closed_periods) ? settings.closed_periods : []);
     setConfigTab("basico");
     setConfigOpen(true);
   };
@@ -432,6 +442,11 @@ export function AiAgentSection() {
       toast({ title: "WhatsApp do alerta inválido", description: "Informe com DDD, ex.: 15 98112-1710.", variant: "destructive" });
       return;
     }
+    const periods = closedPeriods.filter((p) => p.start || p.end);
+    if (periods.some((p) => !p.start || !p.end || p.end < p.start)) {
+      toast({ title: "Confira o recesso", description: "Preencha o primeiro e o último dia de cada período (o último não pode ser antes do primeiro).", variant: "destructive" });
+      return;
+    }
     if (testModeEnabled && !testModeNumber.trim()) {
       toast({ title: "Informe o número de teste", description: "Preencha o WhatsApp que vai testar a IA sozinho.", variant: "destructive" });
       return;
@@ -448,6 +463,7 @@ export function AiAgentSection() {
       handoff_alert_minutes: alertMinutes,
       handoff_alert_phone: alertPhone.trim() || null,
       party_slots: partySlots.trim() && partySlots.trim() !== DEFAULT_PARTY_SLOTS ? partySlots.trim() : null,
+      closed_periods: [...periods].sort((a, b) => a.start.localeCompare(b.start)),
     });
     if (saved) {
       setConfigOpen(false);
@@ -771,6 +787,60 @@ export function AiAgentSection() {
                   <p className="text-[11px] text-muted-foreground">
                     Se ninguém da equipe responder o cliente nesse tempo (contando só o horário de atendimento), esse WhatsApp recebe um alerta 🚨, além do sininho.
                   </p>
+                </div>
+
+                {/* Recesso / dias fechados: a IA não oferece festa nem visita
+                    nesses dias e avisa quando a equipe volta; o site bloqueia os dias */}
+                <div className="rounded-xl border border-border bg-card p-3.5 space-y-2.5">
+                  <Label className="text-xs font-bold flex items-center gap-1.5">
+                    <CalendarOff className="w-3.5 h-3.5 text-amber-600" />
+                    Recesso / dias fechados
+                  </Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Sem festas, visitas e atendimento da equipe. A IA continua respondendo, não oferece esses dias e avisa quando a equipe volta. No site, esses dias ficam bloqueados.
+                  </p>
+                  {closedPeriods.map((p, idx) => (
+                    <div key={idx} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Primeiro dia</Label>
+                        <Input
+                          type="date"
+                          value={p.start}
+                          onChange={(e) => setClosedPeriods((list) => list.map((x, i) => (i === idx ? { ...x, start: e.target.value } : x)))}
+                          className="h-10 text-base sm:text-sm bg-card border-border shadow-sm"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Último dia</Label>
+                        <Input
+                          type="date"
+                          value={p.end}
+                          min={p.start || undefined}
+                          onChange={(e) => setClosedPeriods((list) => list.map((x, i) => (i === idx ? { ...x, end: e.target.value } : x)))}
+                          className="h-10 text-base sm:text-sm bg-card border-border shadow-sm"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-10 w-10 text-muted-foreground"
+                        aria-label="Remover período"
+                        onClick={() => setClosedPeriods((list) => list.filter((_, i) => i !== idx))}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1"
+                    onClick={() => setClosedPeriods((list) => [...list, { start: "", end: "" }])}
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Adicionar período
+                  </Button>
                 </div>
 
                 {/* Horários de festa: a IA cruza com a agenda (festas e pré-reservas) */}

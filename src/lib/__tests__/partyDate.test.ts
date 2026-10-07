@@ -47,3 +47,16 @@ describe("partyDate", () => {
     expect(monthOptionLabel("Setembro/27", now)).toBe("setembro de 2027");
   });
 });
+
+describe("recesso no formulário", () => {
+  it("bloqueia os dias do recesso", async () => {
+    const { isClosedLeadDay, parseClosedPeriods } = await import("../partyDate");
+    const periods = parseClosedPeriods([{ start: "2026-12-23", end: "2027-01-03" }, { bad: true }]);
+    expect(periods).toHaveLength(1);
+    expect(isClosedLeadDay("Dezembro/26", 22, periods, now)).toBe(false);
+    expect(isClosedLeadDay("Dezembro/26", 23, periods, now)).toBe(true);
+    expect(isClosedLeadDay("Janeiro/27", 3, periods, now)).toBe(true);
+    expect(isClosedLeadDay("Janeiro/27", 4, periods, now)).toBe(false);
+    expect(parseClosedPeriods(null)).toEqual([]);
+  });
+});

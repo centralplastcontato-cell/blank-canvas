@@ -5,6 +5,7 @@ import { fetchLastReturns, leadsWithActionSinceReturn } from "../_shared/lead-re
 import { decideStuckAlert, formatContactList } from "../_shared/stuck-alert.ts";
 import { decideDegradedAlert } from "../_shared/degraded-alert.ts";
 import { businessMinutesBetween, parseVisitHours, teamHoursText } from "../_shared/business-hours.ts";
+import { isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
 import { teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { decideUnconfirmedMedia, MEDIA_ACK_TIMEOUT_MS, type MediaAckMeta } from "../_shared/media-ack.ts";
 import { BOT_STEPS_WAITING_ANSWER, botShouldHaveAnswered, UNANSWERED_MAX_AGE_HOURS, UNANSWERED_MINUTES } from "../_shared/unanswered-bot.ts";
@@ -2335,6 +2336,8 @@ async function processAiHandoffAlerts({
       if (!settings) continue;
       const minutes = Number(settings.handoff_alert_minutes) || DEFAULT_HANDOFF_ALERT_MINUTES;
       const hours = parseVisitHours(teamHoursText(settings.team_hours));
+      // Recesso: a equipe não está atendendo — sem alerta forte (volta a valer depois)
+      if (isClosedDay(new Date(nowMs - 3 * 3600000).toISOString().slice(0, 10), parseClosedPeriods(settings.closed_periods))) continue;
 
       const markAlerted = async (value: string) => {
         const { data: fresh } = await supabase.from("wapi_conversations").select("bot_data").eq("id", conv.id).maybeSingle();
