@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeImageOrientation } from "@/lib/image-orientation";
+import { EMPTY_IMAGE_MESSAGE, fileForUpload } from "@/lib/upload-bytes";
 
 interface FollowUpImageUploaderProps {
   value: string | null | undefined;
@@ -49,11 +50,13 @@ export function FollowUpImageUploader({
     setUploading(true);
     try {
       const normalized = await normalizeImageOrientation(file);
-      const ext = (normalized.name.split(".").pop() || "jpg").toLowerCase();
+      const body = await fileForUpload(normalized);
+      if (!body) throw new Error(EMPTY_IMAGE_MESSAGE);
+      const ext = (normalized.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
       const fileName = `${companyId}/followups/${fileTag || `fu${followUpNumber}`}_${Date.now()}.${ext}`;
       const { error } = await supabase.storage
         .from("sales-materials")
-        .upload(fileName, normalized, { cacheControl: "3600", upsert: false });
+        .upload(fileName, body, { cacheControl: "3600", contentType: normalized.type, upsert: false });
       if (error) throw error;
       const { data: urlData } = supabase.storage.from("sales-materials").getPublicUrl(fileName);
       onChange(urlData.publicUrl);
