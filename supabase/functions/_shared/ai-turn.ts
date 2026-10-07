@@ -190,6 +190,23 @@ export function asksPartnership(text: string): boolean {
       /(?<![\p{L}])(divulg\p{L}*|post\p{L}*|stories|story|reels|publi\p{L}*|troca|marcar|mostrar)(?![\p{L}])/iu.test(t));
 }
 
+export type ContactIntent = "trabalhar" | "fornecedor" | "cliente_com_festa" | "duvida_festa";
+
+/**
+ * Nem todo contato quer orçamento: quem quer trabalhar, quem quer vender algo,
+ * quem já tem festa marcada, ou quem diz que "tem uma festa" e quer tirar
+ * dúvida (pode ser cliente ou orçamento — a IA pergunta antes de supor).
+ */
+export function contactIntent(text: string): ContactIntent | null {
+  const t = text || "";
+  const w = (re: string) => new RegExp(`(?<![\\p{L}])(${re})(?![\\p{L}])`, "iu").test(t);
+  if (w("quero trabalhar|gostaria de trabalhar|trabalhar (a[íi]|com voc[êe]s|no buffet|na empresa)|vaga(s)?( de emprego| de trabalho| para| pra)?|curr[íi]culo|emprego|freela(ncer)?|trabalhe conosco|oportunidade de trabalho|t[ãa]o contratando|est[ãa]o contratando")) return "trabalhar";
+  if (w("sou (representante|vendedor[a]?|fornecedor[a]?)|represento a|gostaria de (oferecer|apresentar|divulgar) (meu|minha|nosso|nossa|os|as)|tenho (uma|um) (empresa|loja|marca) de|ofere[çc]o (servi[çc]os?|produtos?)|parceria comercial|vendemos|trabalho com (venda|revenda)")) return "fornecedor";
+  if (w("j[áa] (fechei|contratei|tenho (contrato|festa marcada)|sou cliente)|sou cliente|minha festa (est[áa]|j[áa] est[áa]) marcada|festa (j[áa] )?(marcada|agendada|contratada|fechada) (com voc[êe]s|a[íi]|no buffet|dia)|tenho (uma )?festa (marcada|agendada|contratada|fechada)|contrato (da|de) festa")) return "cliente_com_festa";
+  if (w("tenho uma festa|vou ter uma festa|minha festa") && w("d[úu]vida|pergunta|saber")) return "duvida_festa";
+  return null;
+}
+
 /** O cliente desistiu / disse que não vai fechar agora */
 export function clientDeclined(text: string): boolean {
   return /(n[aã]o vai dar|n[aã]o d[aá] pra|n[aã]o vou (fechar|conseguir)|desist|fica pra (pr[oó]xima|outra)|sem interesse|n[aã]o tenho interesse|acho que n[aã]o|vou procurar outro|muito caro pra mim)/i.test(text || "");

@@ -86,3 +86,16 @@ Deno.test("permuta_equipe: proposta de permuta tem de ir para a equipe", () => {
   assertEquals(byId(deterministicChecks({ transcript: ok })).permuta_equipe, true);
   assertEquals(byId(deterministicChecks({ transcript: [{ who: "cliente", text: "oi", turn: 1 }] })).permuta_equipe, null);
 });
+
+Deno.test("contato_certo: quem quer trabalhar vai para a equipe sem valores", () => {
+  const base: TranscriptEntry[] = [
+    { who: "cliente", text: "Oi, vocês estão contratando? Queria trabalhar aí", turn: 1 },
+    { who: "ia", text: "Que legal! Me manda seu currículo aqui 😊", kind: "text", turn: 1 },
+  ];
+  assertEquals(byId(deterministicChecks({ transcript: base })).contato_certo, false);
+  const ok: TranscriptEntry[] = [...base, { who: "ferramenta", text: 'transferir_para_atendente({"motivo":"currículo","assunto":"trabalhar"})\n→ OK', turn: 1 }];
+  assertEquals(byId(deterministicChecks({ transcript: ok })).contato_certo, true);
+  const quoted: TranscriptEntry[] = [...ok, { who: "ia", text: "O Castelo fica R$ 6.890,00", kind: "text", turn: 2 }];
+  assertEquals(byId(deterministicChecks({ transcript: quoted })).contato_certo, false);
+  assertEquals(byId(deterministicChecks({ transcript: [{ who: "cliente", text: "quanto fica?", turn: 1 }] })).contato_certo, null);
+});

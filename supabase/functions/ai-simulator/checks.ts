@@ -2,7 +2,7 @@
 // poderem ser testadas sem carregar a IA inteira).
 
 import { allowedMoneyValues, moneyValuesIn } from "../_shared/package-pricing.ts";
-import { asksPartnership, clientAsksVisit, clientDeclined, hasVisitInvite } from "../_shared/ai-turn.ts";
+import { asksPartnership, clientAsksVisit, clientDeclined, contactIntent, hasVisitInvite } from "../_shared/ai-turn.ts";
 import { falseMaterialClaims, hasMaterialClaim, type MaterialKind } from "../_shared/material-claims.ts";
 import { houseRuleViolatingSentences, parseHouseRules, topicsAsked } from "../_shared/house-rules.ts";
 import { weekdayMismatches } from "../_shared/whatsapp-format.ts";
@@ -36,6 +36,7 @@ const DETERMINISTIC: Record<string, string> = {
   regra_do_buffet: "Seguiu as regras do cadastro (comida de fora, animal)",
   dia_da_semana: "Dia da semana certo nas datas",
   permuta_equipe: "Permuta/parceria passada para a equipe",
+  contato_certo: "Quem não quer orçamento foi para a equipe, sem oferta de festa",
 };
 
 const MEDIA_KIND: Record<string, MaterialKind> = { image: "fotos", video: "video", document: "pacotes" };
@@ -154,6 +155,14 @@ export function deterministicChecks(state: { transcript: TranscriptEntry[] }, op
   const transferred = partnershipTurn !== undefined &&
     state.transcript.some((e) => e.who === "ferramenta" && e.turn >= partnershipTurn && e.text.startsWith("transferir_para_atendente("));
 
+  // Quem quer trabalhar, fornecedor ou cliente com festa marcada: sem valores
+  // de festa e passado para a equipe
+  const intentEntry = state.transcript.find((e) => e.who === "cliente" && ["trabalhar", "fornecedor", "cliente_com_festa"].includes(contactIntent(e.text) || ""));
+  const intent = intentEntry ? contactIntent(intentEntry.text) : null;
+  const handedOff = state.transcript.some((e) => e.who === "ferramenta" && e.text.startsWith("transferir_para_atendente("));
+  const quoted = intent ? aiTexts.some((t) => moneyValuesIn(t).length > 0) : false;
+  const contactProblem = !intent ? "" : quoted ? `Contato de "${intent}" recebeu valores de festa` : !handedOff ? `Contato de "${intent}" não foi passado para a equipe` : "";
+
   return [
     { id: "uma_resposta_por_vez", label: DETERMINISTIC.uma_resposta_por_vez, ok: doubleTurn === undefined, note: doubleTurn !== undefined ? `Mais de uma mensagem de conversa na vez ${doubleTurn}` : "" },
     { id: "convite_na_hora", label: DETERMINISTIC.convite_na_hora, ok: !inviteProblem, note: inviteProblem },
@@ -168,6 +177,7 @@ export function deterministicChecks(state: { transcript: TranscriptEntry[] }, op
     { id: "datas_da_agenda", label: DETERMINISTIC.datas_da_agenda, ok: listedAny ? !inventedDate : null, note: inventedDate },
     { id: "regra_do_buffet", label: DETERMINISTIC.regra_do_buffet, ok: ruleBroken ? false : ruleAsked ? true : null, note: ruleBroken },
     { id: "dia_da_semana", label: DETERMINISTIC.dia_da_semana, ok: datedTexts.length > 0 ? !wrongDay : null, note: wrongDay },
+    { id: "contato_certo", label: DETERMINISTIC.contato_certo, ok: intent ? !contactProblem : null, note: contactProblem },
     {
       id: "permuta_equipe",
       label: DETERMINISTIC.permuta_equipe,
