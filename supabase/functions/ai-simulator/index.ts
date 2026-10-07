@@ -19,6 +19,7 @@ import { DEFAULT_AI_MODEL } from "../_shared/ai-models.ts";
 import { listAvailableSlots, normalizeTime, parseVisitHours, slotKey, teamHoursText, visitSlotsByDay } from "../_shared/business-hours.ts";
 import { GENERAL_SCENARIOS } from "./scenarios.ts";
 import { auditConversation, type RealMessage, realTranscript } from "./audit.ts";
+import { closedPeriodsNote, isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
 import { AI_ACTOR, AI_ACTOR_HEADER } from "../wapi-webhook/ai-db-guard.ts";
 import {
   agentCostUsd,
@@ -238,10 +239,13 @@ async function loadKnowledge(companyId: string): Promise<string> {
     const t = normalizeTime(v.horario_visita || "");
     if (t) booked.add(slotKey({ date: String(v.data_visita).slice(0, 10), time: t }));
   }
-  const freeVisits = visitSlotsByDay(listAvailableSlots(parseVisitHours(settings?.visit_hours || null), Date.now(), booked, { days: 14, minLeadMinutes: 120, max: 60 }), 7, 12)
+  const closed = parseClosedPeriods(settings?.closed_periods);
+  const freeVisits = visitSlotsByDay(listAvailableSlots(parseVisitHours(settings?.visit_hours || null), Date.now(), booked, { days: 28, minLeadMinutes: 120, max: 120 })
+    .filter((sl) => !isClosedDay(sl.date, closed)), 7, 12)
     .map((d) => `${d.date}: ${d.times.join(", ")}`).join("; ");
   return [
     settings?.extra_instructions || "",
+    closedPeriodsNote(closed, today) || "",
     freeVisits ? `Horários de VISITA livres agora (a IA recebe esta lista e pode oferecê-los): ${freeVisits}` : "",
     settings?.visit_hours ? `Horários de VISITA ao espaço: ${settings.visit_hours}` : "",
     `Horário de atendimento da EQUIPE (a IA informa ao passar a conversa): ${teamHoursText(settings?.team_hours)}`,

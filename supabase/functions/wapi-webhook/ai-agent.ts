@@ -35,6 +35,7 @@ import { fixWeekdays, weekdayMismatches, formatBRLShort, formatDateLong, formatD
 import { guardAiDb } from "./ai-db-guard.ts";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
+import { closedPeriodAt, closedPeriodsNote, formatClosedPeriod, isClosedDay, parseClosedPeriods, reopenText } from "../_shared/closed-periods.ts";
 import { asksPartnership, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 import { falseMaterialClaims, hasMaterialClaim, hasSubstance, refersToMaterial, stripFalseMaterialClaims } from "../_shared/material-claims.ts";
@@ -87,6 +88,8 @@ interface AiSettings {
   // Alerta forte quando a equipe não responde depois da passagem
   handoff_alert_minutes?: number | null;
   handoff_alert_phone?: string | null;
+  // Recesso / dias fechados: [{ start, end }] (sem festas, visitas e equipe)
+  closed_periods?: unknown;
 }
 
 // Áudio ou foto que o cliente acabou de mandar (a mensagem já está salva)
@@ -274,9 +277,22 @@ async function loadLeadVisit(supabase: any, leadId: string | null): Promise<{ id
 const visitText = (date: string, time: string) => `${formatDateLong(date)}, às ${time.endsWith(':00') ? `${Number(time.slice(0, 2))}h` : time.replace(':', 'h')}`;
 
 // Texto com o horário da equipe para o cliente, dizendo quando volta se estiver fechado
+const ymdBR = (ms: number) => new Date(ms - 3 * 3600000).toISOString().slice(0, 10);
+// Recesso em andamento (hoje está dentro de um período fechado)
+const recessNow = (settings: AiSettings, nowMs = Date.now()) => closedPeriodAt(ymdBR(nowMs), parseClosedPeriods(settings.closed_periods));
+// Equipe atendendo agora: dentro do horário e fora do recesso
+const teamOpenNow = (settings: AiSettings, nowMs = Date.now()) => isOpenAt(teamHoursOf(settings), nowMs) && !recessNow(settings, nowMs);
+// Quando a equipe volta ("amanhã às 09:00" / "segunda-feira, 4 de janeiro")
+const teamReturnText = (settings: AiSettings, nowMs = Date.now()) => {
+  const recess = recessNow(settings, nowMs);
+  return recess ? reopenText(recess) : nextOpeningText(teamHoursOf(settings), nowMs);
+};
+
 function teamHoursMessage(settings: AiSettings, nowMs = Date.now()): string {
   const hours = teamHoursOf(settings);
   const text = describeTeamHours(hours);
+  const recess = recessNow(settings, nowMs);
+  if (recess) return `Nossa equipe atende ${text} — está em recesso ${formatClosedPeriod(recess, ymdBR(nowMs))} e volta ${reopenText(recess)}.`;
   if (isOpenAt(hours, nowMs)) return `Nossa equipe atende ${text}.`;
   return `Nossa equipe atende ${text} — volta ${nextOpeningText(hours, nowMs)}.`;
 }
@@ -505,6 +521,7 @@ interface PromptContext {
   visitSlotsText: string; // horários de visita livres dos próximos dias
   weekdayNote: string | null; // cliente escreveu dia da semana que não bate com a data
   houseNote: string | null; // cliente perguntou de regra do cadastro (comida de fora, animal)
+  recessNote: string | null; // recesso / dias fechados (Configurar IA)
 }
 
 // Convidar para a visita no máximo a cada 3–4 respostas, ou quando fizer sentido
@@ -522,7 +539,7 @@ function buildSystemPrompt(companyName: string, unit: string, settings: AiSettin
     : 'nenhum horário livre nos próximos dias — nesse caso transfira para a equipe';
   return `Você é a assistente virtual de vendas do ${companyName} (buffet infantil), atendendo pelo WhatsApp da unidade ${unit}. Hoje é ${today}.
 
-${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}${ctx.houseNote ? `ATENÇÃO — REGRA DO BUFFET: ${ctx.houseNote}\n\n` : ''}SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até AGENDAR UMA VISITA ao buffet. A visita é o passo que mais fecha festas.
+${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}${ctx.houseNote ? `ATENÇÃO — REGRA DO BUFFET: ${ctx.houseNote}\n\n` : ''}${ctx.recessNote ? `ATENÇÃO — ${ctx.recessNote}\n\n` : ''}SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até AGENDAR UMA VISITA ao buffet. A visita é o passo que mais fecha festas.
 
 COMO CONVERSAR:
 - Português brasileiro, tom caloroso, animado e humano, mensagens CURTAS (2 a 4 frases; a de valores pode ter uma linha por pacote).
@@ -756,11 +773,16 @@ async function toolAgendarVisita(
   // horários livres mais próximos para a IA oferecer.
   const visitHours = parseVisitHours(settings.visit_hours);
   const booked = await loadBookedSlots(supabase, instance, conv.lead_id);
-  const available = listAvailableSlots(visitHours, Date.now(), booked, { days: 21, minLeadMinutes: 60, max: 1000 });
+  // Recesso: sem visitas nesses dias
+  const closed = parseClosedPeriods(settings.closed_periods);
+  const available = listAvailableSlots(visitHours, Date.now(), booked, { days: 21, minLeadMinutes: 60, max: 1000 })
+    .filter((sl) => !isClosedDay(sl.date, closed));
   const requested: Slot = { date: dataVisita, time: horario };
   const isAvailable = available.some((sl) => slotKey(sl) === slotKey(requested));
   if (!isAvailable) {
-    const why = !isSlotInHours(visitHours, dataVisita, horario)
+    const recess = closedPeriodAt(dataVisita, closed);
+    const why = recess ? `cai no recesso do buffet (fechado ${formatClosedPeriod(recess, ymdBR(Date.now()))})`
+      : !isSlotInHours(visitHours, dataVisita, horario)
       ? 'está fora das janelas de visita'
       : booked.has(slotKey(requested)) ? 'já está ocupado' : 'já passou ou está muito em cima da hora';
     const options = nearestSlots(available, dataVisita, horario).map(formatSlot);
@@ -1158,12 +1180,15 @@ async function loadFreeSlots(
       .gte('event_date', from).lte('event_date', to),
   ]);
   const slots = parsePartySlots(settings.party_slots);
+  // Recesso: sem festas nesses dias
+  const closed = parseClosedPeriods(settings.closed_periods);
   const unitNames = ((units || []) as Array<{ name: string }>).map((u) => u.name).filter(Boolean);
   const units_ = unitNames.length > 1 ? unitNames : [unitNames[0] || null];
   return {
     perUnit: units_.map((unit) => ({
       unit,
-      free: freePartySlots({ from, to, slots, events: (events || []) as any[], preReservations: (pre || []) as any[], unit, physicalUnits: unitNames }),
+      free: freePartySlots({ from, to, slots, events: (events || []) as any[], preReservations: (pre || []) as any[], unit, physicalUnits: unitNames })
+        .filter((f) => !isClosedDay(f.date, closed)),
     })),
     events: (events || []).length,
     pre: (pre || []).length,
@@ -1240,9 +1265,10 @@ async function toolConsultarDatas(
     if (askedDate) {
       const onDay = pickPartyDates(free.filter((f) => f.date === askedDate), [], 1);
       const others = pickPartyDates(free.filter((f) => f.date !== askedDate), [weekdayOf(askedDate)], 3);
+      const recess = closedPeriodAt(askedDate, parseClosedPeriods(settings.closed_periods));
       blocks.push(onDay.length > 0
         ? `${label}${formatDateLong(askedDate)} — disponível neste momento. Linhas prontas:\n${daysBlock(onDay)}\n${toolRefs(onDay)}`
-        : `${label}${formatDateLong(askedDate)} está OCUPADO. Datas próximas disponíveis neste momento — linhas prontas:\n${others.length > 0 ? `${daysBlock(others)}\n${toolRefs(others)}` : '(nenhuma nas semanas próximas — passe para a equipe)'}`);
+        : `${label}${formatDateLong(askedDate)} ${recess ? `cai no RECESSO do buffet (fechado ${formatClosedPeriod(recess, today)}, sem festas) — explique isso com gentileza.` : 'está OCUPADO.'} Datas próximas disponíveis neste momento — linhas prontas:\n${others.length > 0 ? `${daysBlock(others)}\n${toolRefs(others)}` : '(nenhuma nas semanas próximas — passe para a equipe)'}`);
     } else {
       const days = pickPartyDates(free, preferredDows, 3);
       blocks.push(days.length > 0
@@ -1316,7 +1342,10 @@ async function toolConsultarValor(
       const nearest = [...(onDay.length > 0 ? pickPartyDates(onDay, [], 1) : []), ...others]
         .slice(0, 3)
         .sort((x, y) => x.date.localeCompare(y.date));
-      const what = isNaN(wantHour) ? `${fmtDateBR(date)} está OCUPADO` : `${fmtDateBR(date)}, ${formatSlotLabel(`${String(wantHour).padStart(2, '0')}:00`)}, está OCUPADO`;
+      const recess = closedPeriodAt(date, parseClosedPeriods(settings.closed_periods));
+      const what = recess
+        ? `${fmtDateBR(date)} cai no RECESSO do buffet (fechado ${formatClosedPeriod(recess, today)}, sem festas)`
+        : isNaN(wantHour) ? `${fmtDateBR(date)} está OCUPADO` : `${fmtDateBR(date)}, ${formatSlotLabel(`${String(wantHour).padStart(2, '0')}:00`)}, está OCUPADO`;
       console.log(`[AI Agent] Valor pedido para horário ocupado (${date} ${args.horario || 'dia todo'}) — oferecendo alternativas`);
       return `${what} na agenda: NÃO informe valor para esse horário. Avise o cliente e ofereça o(s) horário(s) livre(s) mais próximo(s) (disponível neste momento) — linhas prontas:\n${nearest.length > 0 ? `${daysBlock(nearest)}\n${toolRefsLine(nearest)}` : '(nenhum nas semanas próximas — passe para a equipe)'}\nSe ele escolher um deles, consulte o valor de novo com a nova data/horário.`;
     }
@@ -1659,7 +1688,7 @@ export async function maybeHandleWithAiAgent(
     if (conv.bot_step === 'human_takeover') {
       const handoff = (conv.bot_data as Json | null)?.ai_handoff as Json | undefined;
       const handoffAt = typeof handoff?.at === 'string' ? handoff.at : null;
-      if (handoffAt && !isOpenAt(teamHoursOf(settings), Date.now()) && !(await teamRepliedSince(supabase, conv.id, handoffAt))) {
+      if (handoffAt && !teamOpenNow(settings) && !(await teamRepliedSince(supabase, conv.id, handoffAt))) {
         afterHoursHandoff = handoff as Json;
         console.log(`[AI Agent] Conversa ${conv.id} já passada para a equipe, fora do horário e sem resposta humana — IA segue tirando dúvidas`);
       } else {
@@ -1783,7 +1812,11 @@ export async function maybeHandleWithAiAgent(
     });
     const nowMs = Date.now();
     const booked = await loadBookedSlots(supabase, instance);
-    const available = listAvailableSlots(parseVisitHours(settings.visit_hours), nowMs, booked, { days: 14, minLeadMinutes: 120, max: 60 });
+    const closedPeriods = parseClosedPeriods(settings.closed_periods);
+    // Recesso: sem visitas nesses dias (14 dias à frente + o tamanho do recesso)
+    const available = listAvailableSlots(parseVisitHours(settings.visit_hours), nowMs, booked, { days: 28, minLeadMinutes: 120, max: 120 })
+      .filter((sl) => !isClosedDay(sl.date, closedPeriods))
+      .slice(0, 60);
     const sent = sentMaterials(conv);
     const sentList = (Object.keys(sent) as MaterialTipo[]).map((k) => `${MATERIAL_LABEL[k]} (${fmtTimeBR(sent[k] as string)})`);
     const bd = (conv.bot_data || {}) as Json;
@@ -1806,7 +1839,7 @@ export async function maybeHandleWithAiAgent(
       isFirstReply,
       pendingUserMessages,
       afterHoursHandoff: afterHoursHandoff
-        ? { reason: String(afterHoursHandoff.reason || ''), returns: nextOpeningText(teamHoursOf(settings), nowMs) }
+        ? { reason: String(afterHoursHandoff.reason || ''), returns: teamReturnText(settings, nowMs) }
         : null,
       visitRepliesAgo: repliesSinceVisitInvite(chatMessages),
       minPackageGuests: smallestPackageGuests(await loadSalesMaterials(supabase, instance)),
@@ -1818,6 +1851,7 @@ export async function maybeHandleWithAiAgent(
         return wrong.length > 0 ? wrong.map((w) => `o cliente escreveu "${w.said}", mas no calendário é "${w.right}".`).join(' ') : null;
       })(),
       houseNote: houseRuleNote(houseRules, askedTopics),
+      recessNote: closedPeriodsNote(closedPeriods, ymdBR(nowMs)),
       visitSlotsText: visitSlotsByDay(available)
         .map((d) => `${formatDateLong(d.date)}: ${d.times.map((t) => (t.endsWith(':00') ? `${Number(t.slice(0, 2))}h` : t.replace(':', 'h'))).join(', ')}`)
         .join('; ') || 'nenhum',

@@ -4,7 +4,7 @@ import { X, Send, Loader2, MessageCircle, MapPin, Smile } from "lucide-react";
 import { campaignConfig } from "@/config/campaignConfig";
 import { originLabel, originWelcomeIntro } from "@/lib/landingOrigin";
 import { captureLandingUtms } from "@/lib/landingUtm";
-import { daysInMonthOption, firstWeekdayOf, formatLeadDate, isPastDay, monthOptionLabel, upcomingMonthOptions } from "@/lib/partyDate";
+import { type ClosedPeriod, daysInMonthOption, firstWeekdayOf, formatLeadDate, isClosedLeadDay, isPastDay, monthOptionLabel, parseClosedPeriods, upcomingMonthOptions } from "@/lib/partyDate";
 import { trackMetaPixelEvent } from "@/lib/metaPixel";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -86,6 +86,17 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
   const [venueChoice, setVenueChoice] = useState<VenueOption | null>(null);
   const [externalLocation, setExternalLocation] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // Recesso do buffet (Configurar IA): esses dias ficam bloqueados no calendário
+  const [closedPeriods, setClosedPeriods] = useState<ClosedPeriod[]>([]);
+  useEffect(() => {
+    if (!isOpen) return;
+    const id = companyId || campaignConfig.companyId;
+    if (!id) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).rpc("public_closed_periods", { p_company_id: id })
+      .then(({ data }: { data: unknown }) => setClosedPeriods(parseClosedPeriods(data)))
+      .catch(() => undefined);
+  }, [isOpen, companyId]);
 
   // Build dynamic interest context: prop > venue choice
   const venueInterestText = venueChoice
@@ -121,7 +132,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     const padding = Array.from({ length: firstWeekdayOf(month) }, () => "");
     const days = Array.from({ length: daysInMonth }, (_, i) => `${i + 1}`);
     const calendarGrid = [...padding, ...days];
-    const pastDays = days.filter((d) => isPastDay(month, Number(d)));
+    const pastDays = days.filter((d) => isPastDay(month, Number(d)) || isClosedLeadDay(month, Number(d), closedPeriods));
 
     setMessages((prev) => [
       ...prev,
