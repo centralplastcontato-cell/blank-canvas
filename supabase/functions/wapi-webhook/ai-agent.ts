@@ -31,7 +31,7 @@ import {
 import { allowedMoneyValues, formatBRL, holidayName, isHolidayEveYmd, isHolidayYmd, localHolidaysFrom, moneyValuesIn, type PackageQuote, type PartyDay, quotePackages, weekdayYmd } from "../_shared/package-pricing.ts";
 import { addDaysYmd, type FreeDay, type FreeSlot, freePartySlots, monthFromText, monthRange, parsePartySlots, pickPartyDates, weekdayOf } from "../_shared/party-availability.ts";
 import { waitForMediaAck } from "../_shared/media-ack.ts";
-import { fixWeekdays, moneyWithCents, weekdayMismatches, formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
+import { fixWeekdays, hoursForWhatsApp, moneyWithCents, weekdayMismatches, formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
 import { guardAiDb } from "./ai-db-guard.ts";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
@@ -285,10 +285,15 @@ const teamOpenNow = (settings: AiSettings, nowMs = Date.now()) => isOpenAt(teamH
 // Quando a equipe volta ("amanhã às 09:00" / "segunda-feira, 4 de janeiro")
 const teamReturnText = (settings: AiSettings, nowMs = Date.now()) => {
   const recess = recessNow(settings, nowMs);
-  return recess ? reopenText(recess) : nextOpeningText(teamHoursOf(settings), nowMs);
+  return recess ? reopenText(recess) : hoursForWhatsApp(nextOpeningText(teamHoursOf(settings), nowMs));
 };
 
+// Horário da equipe para o cliente, com "9h às 18h" (sem "09:00", que o WhatsApp sublinha)
 function teamHoursMessage(settings: AiSettings, nowMs = Date.now()): string {
+  return hoursForWhatsApp(teamHoursRaw(settings, nowMs));
+}
+
+function teamHoursRaw(settings: AiSettings, nowMs: number): string {
   const hours = teamHoursOf(settings);
   const text = describeTeamHours(hours);
   const recess = recessNow(settings, nowMs);
@@ -2038,7 +2043,7 @@ export async function maybeHandleWithAiAgent(
       }
       // Passou para a equipe neste turno: o horário da EQUIPE vai sempre por
       // conta do sistema (a IA confundia com as janelas de visita)
-      if (conv.__handoffThisTurn && !finalText.includes(describeTeamHours(teamHoursOf(settings)))) {
+      if (conv.__handoffThisTurn && !finalText.includes(hoursForWhatsApp(describeTeamHours(teamHoursOf(settings))))) {
         finalText = `${finalText}\n\n${teamHoursMessage(settings)}`;
       }
       // Dia da semana errado junto de uma data ("sexta-feira, 17 de outubro" quando é sábado): corrige
