@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "./whatsapp-format.ts";
+import { formatBRLShort, moneyWithCents, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "./whatsapp-format.ts";
 
 Deno.test("formatDateLong: data por extenso", () => {
   assertEquals(formatDateLong("2026-12-26"), "sábado, 26 de dezembro");
@@ -12,8 +12,8 @@ Deno.test("formatSlotLabel: almoço/noite com a hora", () => {
   assertEquals(formatSlotLabel("18:30"), "noite (18h30)");
 });
 
-Deno.test("formatBRLShort: sem centavos quando redondo", () => {
-  assertEquals(formatBRLShort(6890), "R$ 6.890");
+Deno.test("formatBRLShort: sempre com centavos", () => {
+  assertEquals(formatBRLShort(6890), "R$ 6.890,00");
   assertEquals(formatBRLShort(6890.5), "R$ 6.890,50");
 });
 
@@ -50,4 +50,10 @@ import { weekdayMismatches } from "./whatsapp-format.ts";
 Deno.test("weekdayMismatches: aponta dia da semana errado no texto do cliente", () => {
   assertEquals(weekdayMismatches("Pode ser a sexta dia 12 de dezembro ou dia 19", "2026-10-06"), [{ said: "sexta dia 12 de dezembro", right: "sábado dia 12 de dezembro" }]);
   assertEquals(weekdayMismatches("sábado, 12 de dezembro", "2026-10-06"), []);
+});
+
+Deno.test("moneyWithCents: põe ,00 em valor sem centavos", () => {
+  assertEquals(moneyWithCents("🏰 *Castelo* — R$ 7.400\nDiferença de R$ 1.820."), "🏰 *Castelo* — R$ 7.400,00\nDiferença de R$ 1.820,00.");
+  assertEquals(moneyWithCents("R$ 7.400,00 e R$ 150,5 e R$150"), "R$ 7.400,00 e R$ 150,5 e R$ 150,00");
+  assertEquals(moneyWithCents("sem valor"), "sem valor");
 });

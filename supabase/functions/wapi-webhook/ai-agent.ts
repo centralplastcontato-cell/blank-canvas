@@ -31,7 +31,7 @@ import {
 import { allowedMoneyValues, formatBRL, holidayName, isHolidayEveYmd, isHolidayYmd, localHolidaysFrom, moneyValuesIn, type PackageQuote, type PartyDay, quotePackages, weekdayYmd } from "../_shared/package-pricing.ts";
 import { addDaysYmd, type FreeDay, type FreeSlot, freePartySlots, monthFromText, monthRange, parsePartySlots, pickPartyDates, weekdayOf } from "../_shared/party-availability.ts";
 import { waitForMediaAck } from "../_shared/media-ack.ts";
-import { fixWeekdays, weekdayMismatches, formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
+import { fixWeekdays, moneyWithCents, weekdayMismatches, formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
 import { guardAiDb } from "./ai-db-guard.ts";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
@@ -559,12 +559,13 @@ COMO CONVERSAR:
 
 FORMATAÇÃO NO WHATSAPP:
 - Negrito do WhatsApp com asterisco simples (*assim*) só para nomes de pacotes e valores. Datas e horários SEM negrito (o celular já sublinha e fica pesado). Nada de **duplo**, # ou listas com hífen.
+- Valores sempre com centavos: "R$ 7.400,00" (nunca "R$ 7.400" nem "7,4 mil").
 - Datas sempre por extenso ("sábado, 26 de dezembro"), nunca "26/12". Horários como "almoço (13h)" ou "noite (19h)", nunca "13:00" (o WhatsApp sublinha como link). O que vier entre [colchetes] nas ferramentas é só para você — não copie.
 - Mensagem de valores: comece com entusiasmo, use as linhas prontas da ferramenta (um pacote por linha, com o emoji: 🏰 Castelo, ⭐ Super Castelo, 👑 Castelo Premium) e termine com uma pergunta que puxe o próximo passo. Exemplo:
   "Aaah, que demais, Victor! 🥳 Olha os valores para 60 convidados no sábado, 26 de dezembro:
-  🏰 *Castelo* — R$ 6.890
-  ⭐ *Super Castelo* — R$ 8.530
-  👑 *Castelo Premium* — R$ 9.670
+  🏰 *Castelo* — R$ 6.890,00
+  ⭐ *Super Castelo* — R$ 8.530,00
+  👑 *Castelo Premium* — R$ 9.670,00
   E o melhor: esse dia ainda tem os dois horários livres, almoço (13h) ou noite (19h) 🎉
   Quer que eu te conte o que cada pacote tem? 😍"
 
@@ -1138,7 +1139,7 @@ function weekdayFromText(text: string): number | null {
   return i >= 0 ? i : null;
 }
 
-// Linha pronta para o cliente: "🏰 *Castelo* — R$ 6.890"
+// Linha pronta para o cliente: "🏰 *Castelo* — R$ 6.890,00"
 function quoteLine(q: PackageQuote): string {
   const turno = q.shift === 'almoco' ? ' (almoço)' : q.shift === 'jantar' ? ' (noite)' : '';
   const name = `${packageEmoji(q.packageName)} *${prettyPackageName(q.packageName)}*${turno}`;
@@ -2058,6 +2059,8 @@ export async function maybeHandleWithAiAgent(
           return true;
         }
       }
+      // Valores sempre com centavos ("R$ 7.400,00")
+      finalText = moneyWithCents(finalText);
       // "digitando..." por 2 s no WhatsApp do cliente antes da resposta (Z-API)
       const tSend = Date.now();
       const delivered = await sendViaWapiSend(supabase, 'send-text', instance, conv, { message: finalText, delayTyping: 2 });
