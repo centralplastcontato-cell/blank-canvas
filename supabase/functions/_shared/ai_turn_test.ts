@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { crossedWithLastReply, debounceMsFor, mergeConsecutiveTurns, priceRequestPending, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, teamRepliedAfter } from "./ai-turn.ts";
+import { closingAfterMaterials, confirmsPartyInterest, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, priceRequestPending, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, teamRepliedAfter } from "./ai-turn.ts";
 
 Deno.test("pickLatestIncoming: a última mensagem do cliente responde por todas", () => {
   assertEquals(pickLatestIncoming([
@@ -206,4 +206,25 @@ Deno.test("contactIntent: quem não quer orçamento", async () => {
   assertEquals(contactIntent("Tenho uma festa no mês que vem e quero tirar uma dúvida"), "duvida_festa");
   assertEquals(contactIntent("Quanto fica uma festa pra 60 pessoas?"), null);
   assertEquals(contactIntent("Os monitores trabalham até que horas?"), null);
+});
+
+Deno.test("confirmsPartyInterest: resposta sobre a festa libera os materiais; oi, foto solta e outros assuntos não", () => {
+  for (const t of ["Murilo", "É do meu filho Pedro", "oi, é pro Murilo 🎈", "Quanto custa?", "sim, é pra minha filha", "[Áudio do cliente, transcrito]: é a festa do Murilo"]) {
+    assertEquals(confirmsPartyInterest(t), true, t);
+  }
+  for (const t of ["oi", "Olá, bom dia!", "Oi tudo bem?", "ok", "👍", "?", "Quem é?", "quem fala", "[Foto enviada pelo cliente — o que aparece: print de uma conversa de WhatsApp]", "[O cliente mandou uma foto que não foi possível ver]", "[sticker] ", "Quero trabalhar com vocês", "Sou fornecedor de doces", "Já tenho festa marcada aí"]) {
+    assertEquals(confirmsPartyInterest(t), false, t);
+  }
+  // Foto com legenda sobre a festa conta
+  assertEquals(confirmsPartyInterest("[Foto enviada pelo cliente — o que aparece: bolo] Legenda: quero esse tema"), true);
+});
+
+Deno.test("splitAroundMaterials: antes das fotos e depois do PDF", () => {
+  assertEquals(splitAroundMaterials("Que lindo, Murilo! 🥳\nVou te mostrar o espaço 👇\n---\nE aí, o que achou? 😍"), { before: "Que lindo, Murilo! 🥳\nVou te mostrar o espaço 👇", after: "E aí, o que achou? 😍" });
+  assertEquals(splitAroundMaterials("Sem divisão 😊"), { before: "Sem divisão 😊", after: "" });
+  assertEquals(splitAroundMaterials("A\n --- \nB\n---\nC"), { before: "A", after: "B\n\nC" });
+  assertEquals(dropMaterialsBreak("A\n---\nB"), "A\n\nB");
+  assertEquals(dropMaterialsBreak("Sem nada"), "Sem nada");
+  assertEquals(closingAfterMaterials("Victor", 0).includes("Victor"), true);
+  assertEquals(closingAfterMaterials("", 7).includes(", ,"), false);
 });

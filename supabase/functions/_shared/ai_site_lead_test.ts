@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { buildAiSiteWelcome, cleanSiteLead, parseSiteMonth, siteLeadBotData, siteLeadYmd } from "./ai-site-lead.ts";
+import { buildAiSiteWelcome, cleanIntroImage, cleanSiteLead, parseSiteMonth, siteLeadBotData, siteLeadYmd } from "./ai-site-lead.ts";
 
 const today = "2026-10-07";
 
@@ -43,6 +43,16 @@ Deno.test("buildAiSiteWelcome: sem menu, com data por extenso e pergunta", () =>
   assertEquals(buildAiSiteWelcome({ name: "Ana", month: "Dezembro/26", day: 5 }, "Castelo", today).endsWith("quantos convidados você imagina para a festa? 😊"), true);
   // Frase de abertura do site (ex.: QR Code da mesa)
   assertEquals(buildAiSiteWelcome({ name: "Ana", intro: "Que bom te ver na festa! 🎉" }, "Castelo", today).startsWith("Olá, *Ana*! 👋 Que bom te ver na festa! 🎉"), true);
+});
+
+Deno.test("buildAiSiteWelcome: com o nome da assistente, ela se apresenta", () => {
+  const msg = buildAiSiteWelcome({ name: "Victor", month: "Dezembro/26", day: 18, guests: "70 pessoas", intro: "Recebemos seu pedido pelo site do *Castelo da Diversão*! ✨" }, "Castelo da Diversão", today, "Bia");
+  assertEquals(msg.startsWith("Olá, *Victor*! 👋 Eu sou a *Bia*, do *Castelo da Diversão* 🏰 Recebi seu pedido pelo site! ✨\n\nAnotei por aqui:"), true);
+  // Frase própria da origem (QR Code da mesa) continua
+  assertEquals(buildAiSiteWelcome({ name: "Ana", intro: "Que bom te ver na festa! 🎉" }, "Castelo", today, "Bia").startsWith("Olá, *Ana*! 👋 Eu sou a *Bia*, do *Castelo* 🏰 Que bom te ver na festa! 🎉"), true);
+  assertEquals(cleanIntroImage("https://x.supabase.co/a.png"), "https://x.supabase.co/a.png");
+  assertEquals(cleanIntroImage("http://x.com/a.png"), null);
+  assertEquals(cleanIntroImage(null), null);
 });
 
 Deno.test("siteLeadBotData: o que a IA já fica sabendo", () => {
