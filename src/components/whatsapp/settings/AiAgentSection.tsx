@@ -19,12 +19,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sparkles, Loader2, Save, Pencil, Check, FlaskConical, Cpu, Wallet, BellRing, CalendarOff, Plus, Trash2 } from "lucide-react";
+import { Sparkles, Loader2, Save, Pencil, Check, FlaskConical, Cpu, Wallet, BellRing, CalendarOff, Plus, Trash2, MessageCircleHeart } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { AiSimulatorDialog } from "./AiSimulatorDialog";
 import { DEFAULT_TEAM_HOURS, parseVisitHours, serializeTeamHours, serializeVisitHours } from "@/lib/businessHours";
+import {
+  DEFAULT_STEP_GOALS,
+  INACTIVITY_MINUTE_OPTIONS,
+  MAX_FOLLOWUP_STEPS,
+  delayLabel,
+  followUpConfigProblem,
+  joinDelay,
+  normalizeFollowUpConfig,
+  splitDelay,
+  type AiFollowUpConfig,
+} from "@/lib/aiFollowUp";
 import {
   AI_MODELS,
   DEFAULT_AI_MODEL,
@@ -59,6 +70,15 @@ interface AiAgentSettings {
   party_slots?: string | null;
   // Recesso / dias fechados: sem festas, visitas e atendimento da equipe
   closed_periods?: ClosedPeriod[] | null;
+  // Acompanhamento da Bia: inatividade, follow-ups por etapa e perdido automático
+  followup_config?: AiFollowUpConfig | null;
+}
+
+// Etapa de follow-up na tela (prazo em horas ou dias)
+interface FollowUpStepDraft {
+  value: number;
+  unit: "horas" | "dias";
+  goal: string;
 }
 
 interface ClosedPeriod {
@@ -79,7 +99,7 @@ function modelLabel(id: string): string {
 
 // Banco ainda sem as colunas novas (migration não rodada)
 function isMissingNewColumn(error: { message?: string } | null): boolean {
-  return !!error?.message && /test_model|team_hours|handoff_alert|party_slots|closed_periods/.test(error.message);
+  return !!error?.message && /test_model|team_hours|handoff_alert|party_slots|closed_periods|followup_config/.test(error.message);
 }
 
 const DEFAULT_VISIT_HOURS = "Segunda a sexta, das 10:00 às 17:00, de meia em meia hora";
@@ -139,6 +159,7 @@ const FIELD_GROUPS = [
   { id: "estrutura", label: "Estrutura" },
   { id: "perguntas", label: "Rápidas" },
   { id: "regras", label: "Regras" },
+  { id: "followup", label: "Follow-up" },
 ];
 
 export function serializeBuffetInfo(values: Record<string, string>): string | null {
@@ -250,6 +271,12 @@ export function AiAgentSection() {
   const [alertPhone, setAlertPhone] = useState("");
   const [partySlots, setPartySlots] = useState(DEFAULT_PARTY_SLOTS);
   const [closedPeriods, setClosedPeriods] = useState<ClosedPeriod[]>([]);
+  const [fuEnabled, setFuEnabled] = useState(false);
+  const [fuInactivityOn, setFuInactivityOn] = useState(true);
+  const [fuInactivityMinutes, setFuInactivityMinutes] = useState(60);
+  const [fuSteps, setFuSteps] = useState<FollowUpStepDraft[]>([]);
+  const [fuLostOn, setFuLostOn] = useState(true);
+  const [fuLostHours, setFuLostHours] = useState(48);
 
   useEffect(() => {
     if (!currentCompany?.id) return;
@@ -325,6 +352,7 @@ export function AiAgentSection() {
       handoff_alert_phone: next.handoff_alert_phone ?? null,
       party_slots: next.party_slots ?? null,
       closed_periods: next.closed_periods ?? [],
+      followup_config: next.followup_config ?? null,
       updated_at: new Date().toISOString(),
     };
     const save = (body: Record<string, unknown>, columns: string) => (supabase as any)
@@ -335,7 +363,7 @@ export function AiAgentSection() {
     let { data, error } = await save(payload, "*");
     if (error && isMissingNewColumn(error)) {
       // Banco sem as colunas novas: salva o resto e avisa que falta a atualização
-      const { test_model: _t, team_hours: _h, handoff_alert_minutes: _m, handoff_alert_phone: _p, party_slots: _s, closed_periods: _c, ...withoutNew } = payload;
+      const { test_model: _t, team_hours: _h, handoff_alert_minutes: _m, handoff_alert_phone: _p, party_slots: _s, closed_periods: _c, followup_config: _f, ...withoutNew } = payload;
       ({ data, error } = await save(withoutNew, BASE_COLUMNS));
       if (!error) {
         data = { ...data, test_model: null };
@@ -411,6 +439,13 @@ export function AiAgentSection() {
     setAlertPhone(settings.handoff_alert_phone || "");
     setPartySlots(settings.party_slots || DEFAULT_PARTY_SLOTS);
     setClosedPeriods(Array.isArray(settings.closed_periods) ? settings.closed_periods : []);
+    const fu = normalizeFollowUpConfig(settings.followup_config);
+    setFuEnabled(fu.enabled);
+    setFuInactivityOn(fu.inactivity.enabled);
+    setFuInactivityMinutes(fu.inactivity.minutes);
+    setFuSteps(fu.steps.map((st) => ({ ...splitDelay(st.delay_hours), goal: st.goal })));
+    setFuLostOn(fu.auto_lost.enabled);
+    setFuLostHours(fu.auto_lost.hours);
     setConfigTab("basico");
     setConfigOpen(true);
   };
@@ -447,6 +482,24 @@ export function AiAgentSection() {
       toast({ title: "Confira o recesso", description: "Preencha o primeiro e o último dia de cada período (o último não pode ser antes do primeiro).", variant: "destructive" });
       return;
     }
+    // Ligou agora: só conversas paradas a partir deste momento entram (sem disparo em massa)
+    const prevFu = normalizeFollowUpConfig(settings.followup_config);
+    const fuSince = fuEnabled ? (prevFu.enabled && prevFu.since ? prevFu.since : new Date().toISOString()) : null;
+    const rawSteps = fuSteps.map((st) => ({ delay_hours: joinDelay(st.value, st.unit), goal: st.goal }));
+    const followUp = normalizeFollowUpConfig({
+      enabled: fuEnabled,
+      since: fuSince,
+      inactivity: { enabled: fuInactivityOn, minutes: fuInactivityMinutes },
+      steps: rawSteps,
+      auto_lost: { enabled: fuLostOn, hours: fuLostHours },
+    });
+    // Desligado: rascunho incompleto das etapas não impede salvar o resto
+    const fuProblem = fuEnabled ? followUpConfigProblem({ ...followUp, steps: rawSteps, auto_lost: { enabled: fuLostOn, hours: Number(fuLostHours) } }) : null;
+    if (fuProblem) {
+      setConfigTab("followup");
+      toast({ title: "Confira o follow-up", description: fuProblem, variant: "destructive" });
+      return;
+    }
     if (testModeEnabled && !testModeNumber.trim()) {
       toast({ title: "Informe o número de teste", description: "Preencha o WhatsApp que vai testar a IA sozinho.", variant: "destructive" });
       return;
@@ -464,6 +517,7 @@ export function AiAgentSection() {
       handoff_alert_phone: alertPhone.trim() || null,
       party_slots: partySlots.trim() && partySlots.trim() !== DEFAULT_PARTY_SLOTS ? partySlots.trim() : null,
       closed_periods: [...periods].sort((a, b) => a.start.localeCompare(b.start)),
+      followup_config: followUp,
     });
     if (saved) {
       setConfigOpen(false);
@@ -539,7 +593,7 @@ export function AiAgentSection() {
 
           {/* Abinhas de navegação */}
           <div className="px-5 sm:px-6 pt-3 pb-1">
-            <div className="grid grid-cols-4 gap-1.5 bg-muted rounded-xl p-1">
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 bg-muted rounded-xl p-1">
               {FIELD_GROUPS.map((g) => {
                 const groupFields = BUFFET_FIELDS.filter((f) => f.group === g.id);
                 const filled = groupFields.filter((f) => (infoValues[f.key] || "").trim()).length;
@@ -552,9 +606,11 @@ export function AiAgentSection() {
                     className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-bold transition-all ${active ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"}`}
                   >
                     {g.label}
-                    <span className={`text-[10px] font-extrabold rounded-full px-1.5 py-0.5 ${filled === groupFields.length ? "bg-green-500/15 text-green-700" : "bg-border/70 text-muted-foreground"}`}>
-                      {filled === groupFields.length ? <Check className="w-3 h-3" /> : `${filled}/${groupFields.length}`}
-                    </span>
+                    {groupFields.length > 0 && (
+                      <span className={`text-[10px] font-extrabold rounded-full px-1.5 py-0.5 ${filled === groupFields.length ? "bg-green-500/15 text-green-700" : "bg-border/70 text-muted-foreground"}`}>
+                        {filled === groupFields.length ? <Check className="w-3 h-3" /> : `${filled}/${groupFields.length}`}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -925,7 +981,154 @@ export function AiAgentSection() {
               </div>
             )}
 
-            {configTab !== "basico" && (
+            {configTab === "followup" && (
+              <div className="space-y-4">
+                <div className="rounded-xl border border-violet-300/50 bg-violet-500/5 p-3.5 space-y-1.5">
+                  <Label className="text-xs font-bold flex items-center gap-1.5">
+                    <MessageCircleHeart className="w-3.5 h-3.5 text-violet-600" />
+                    Acompanhamento da Bia
+                  </Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Vale só para as conversas que a Bia atende. Os follow-ups do bot fixo (configurados em cada número) continuam iguais. A Bia escreve cada mensagem com o que já conversou, só entre 8h e 22h, e para quando o cliente responde, marca visita, a equipe assume ou o robô é desligado na conversa.
+                  </p>
+                  <div className="flex items-center justify-between gap-3 pt-1">
+                    <Label className="text-xs font-bold">Ligar acompanhamento da Bia</Label>
+                    <Switch checked={fuEnabled} onCheckedChange={setFuEnabled} />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    {fuEnabled
+                      ? "Ligado: as conversas da Bia saem dos follow-ups fixos do número e seguem as etapas abaixo. Conversas que já estavam paradas antes de ligar ficam de fora."
+                      : "Desligado: as conversas da Bia recebem os follow-ups fixos do número, como hoje."}
+                  </p>
+                </div>
+
+                {/* Lembrete curto quando o cliente some no meio da conversa */}
+                <div className="rounded-xl border border-border bg-card p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label className="text-xs font-bold">Lembrete de inatividade</Label>
+                    <Switch checked={fuInactivityOn} onCheckedChange={setFuInactivityOn} />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Quando o cliente para de responder no meio da conversa, a Bia retoma de onde pararam — uma vez só.
+                  </p>
+                  {fuInactivityOn && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-muted-foreground">Depois de</span>
+                      <Select value={String(fuInactivityMinutes)} onValueChange={(v) => setFuInactivityMinutes(Number(v))}>
+                        <SelectTrigger className="h-10 w-32 bg-card border-border shadow-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from(new Set([...INACTIVITY_MINUTE_OPTIONS, fuInactivityMinutes])).sort((a, b) => a - b).map((m) => (
+                            <SelectItem key={m} value={String(m)}>{m < 60 ? `${m} min` : m % 60 === 0 ? `${m / 60}h` : `${Math.floor(m / 60)}h${m % 60}`}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <span className="text-muted-foreground">sem resposta</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Follow-ups por etapa: prazo + objetivo (a Bia escreve) */}
+                <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
+                  <Label className="text-xs font-bold">Follow-ups</Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    O prazo conta desde a última resposta da Bia sem retorno do cliente. Em cada etapa, diga o que a Bia deve fazer — ela escreve no tom dela, com o nome, a data pedida e a agenda real (nunca inventa vagas nem passa valores que o cliente não pediu).
+                  </p>
+                  {fuSteps.map((st, idx) => (
+                    <div key={idx} className="rounded-lg border border-border/70 bg-muted/30 p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold">Etapa {idx + 1}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground"
+                          aria-label="Remover etapa"
+                          onClick={() => setFuSteps((list) => list.filter((_, i) => i !== idx))}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">Enviar depois de</span>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={st.value}
+                          onChange={(e) => setFuSteps((list) => list.map((x, i) => (i === idx ? { ...x, value: Number(e.target.value) } : x)))}
+                          className="h-10 w-20 text-base sm:text-sm bg-card border-border shadow-sm"
+                        />
+                        <Select
+                          value={st.unit}
+                          onValueChange={(v) => setFuSteps((list) => list.map((x, i) => (i === idx ? { ...x, unit: v as "horas" | "dias" } : x)))}
+                        >
+                          <SelectTrigger className="h-10 w-24 bg-card border-border shadow-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="horas">horas</SelectItem>
+                            <SelectItem value="dias">dias</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <span className="text-muted-foreground">sem resposta</span>
+                      </div>
+                      <Textarea
+                        value={st.goal}
+                        onChange={(e) => setFuSteps((list) => list.map((x, i) => (i === idx ? { ...x, goal: e.target.value } : x)))}
+                        rows={3}
+                        maxLength={600}
+                        className="text-base sm:text-sm bg-card border-border shadow-sm resize-none"
+                        placeholder="O que a Bia deve fazer nesta mensagem (ex.: convidar para conhecer o espaço)"
+                      />
+                    </div>
+                  ))}
+                  {fuSteps.length < MAX_FOLLOWUP_STEPS && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1"
+                      onClick={() => setFuSteps((list) => {
+                        const last = list[list.length - 1];
+                        const nextHours = last ? joinDelay(last.value, last.unit) + 72 : 72;
+                        return [...list, { ...splitDelay(nextHours), goal: list.length === 0 ? DEFAULT_STEP_GOALS[0] : "" }];
+                      })}
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Adicionar etapa
+                    </Button>
+                  )}
+                </div>
+
+                {/* Perdido automático depois da última etapa */}
+                <div className="rounded-xl border border-border bg-card p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label className="text-xs font-bold">Mover para Perdido automaticamente</Label>
+                    <Switch checked={fuLostOn} onCheckedChange={setFuLostOn} />
+                  </div>
+                  {fuLostOn && (
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      <Input
+                        type="number"
+                        min={1}
+                        value={fuLostHours}
+                        onChange={(e) => setFuLostHours(Number(e.target.value))}
+                        className="h-10 w-20 text-base sm:text-sm bg-card border-border shadow-sm"
+                      />
+                      <span className="text-muted-foreground">
+                        horas {fuSteps.length > 0 ? "depois da última etapa" : "depois da última resposta da Bia"} sem resposta
+                        {fuLostHours >= 24 && fuLostHours % 24 === 0 ? ` (${delayLabel(fuLostHours)})` : ""}
+                      </span>
+                    </div>
+                  )}
+                  <p className="text-[11px] text-muted-foreground">
+                    Se o cliente voltar a falar depois, a Bia continua o atendimento normalmente.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {configTab !== "basico" && configTab !== "followup" && (
               <div className="space-y-4">
                 {BUFFET_FIELDS.filter((f) => f.group === configTab).map((f) => (
                   <div key={f.key} className="space-y-1.5">
