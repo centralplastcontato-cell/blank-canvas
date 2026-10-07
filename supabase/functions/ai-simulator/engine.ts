@@ -270,6 +270,7 @@ Regras do negócio que a IA deve seguir:
 - Ao passar para a equipe, a frase "Nossa equipe atende ..." com o horário de atendimento (e, fora do horário, "— volta amanhã às ...") é acrescentada automaticamente pelo sistema e está correta — não conte como invenção nem como erro.
 - Regras do buffet que estão nas INFORMAÇÕES (ex.: comida/bolo de fora não pode, animal de estimação não pode) devem ser seguidas: dizer "não pode" nesses casos é o CERTO, não é inventar.
 - Pode dizer a diferença de preço entre dois pacotes (subtração exata dos valores da tabela).
+- A promoção vigente do cadastro (com prazo) deve ser OFERECIDA pela IA por conta própria depois dos valores, com o prazo e os dias que faltam, e lembrada no máximo mais uma vez — isso é o CERTO, não é desconto nem invenção. Errado é inventar quantas vagas restam ou oferecer para festa que não se encaixa.
 
 INFORMAÇÕES DO BUFFET que a IA conhece e pode afirmar (fonte da verdade, junto com os resultados das ferramentas):
 ${knowledge || "(não informadas)"}

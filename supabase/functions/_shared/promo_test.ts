@@ -1,0 +1,33 @@
+import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
+import { findPromotion, promoCountdown, promoMentions, promoNote } from "./promo.ts";
+
+const CADASTRO = [
+  "Regras e o que não fazemos: ... EXCEÇÃO: a promoção vigente descrita em \"Outras informações\" é pública (até 30/12).",
+  "PROMOÇÃO MÊS DAS CRIANÇAS (válida até 17/10/2026): para festas realizadas em 2026, quem fechar o contrato até 17/10 ganha 10x sem juros e +10 amiguinhos grátis.",
+].join("\n");
+
+Deno.test("findPromotion: prazo, dias que faltam e ano das festas", () => {
+  assertEquals(findPromotion(CADASTRO, "2026-10-07"), { title: "PROMOÇÃO MÊS DAS CRIANÇAS", endYmd: "2026-10-17", daysLeft: 10, partyYear: 2026 });
+  assertEquals(findPromotion(CADASTRO, "2026-10-17")?.daysLeft, 0);
+  assertEquals(findPromotion(CADASTRO, "2026-10-18"), null); // acabou: some sozinha
+  assertEquals(findPromotion("Sem promoção nenhuma", "2026-10-07"), null);
+  assertEquals(findPromotion(null, "2026-10-07"), null);
+});
+
+Deno.test("promoCountdown", () => {
+  const p = findPromotion(CADASTRO, "2026-10-07")!;
+  assertEquals(promoCountdown(p), "faltam 10 dias");
+  assertEquals(promoCountdown({ ...p, daysLeft: 1 }), "termina amanhã");
+  assertEquals(promoCountdown({ ...p, daysLeft: 0 }), "termina HOJE");
+});
+
+Deno.test("promoMentions e promoNote: oferece, lembra uma vez e para", () => {
+  const p = findPromotion(CADASTRO, "2026-10-07")!;
+  assertEquals(promoMentions(["Olha os valores 🥳", "Fechando até 17 de outubro você ganha 10x sem juros 🎁"], p), 1);
+  assertEquals(promoMentions(["Oi!"], p), 0);
+  assertEquals(promoNote(p, 0).includes("Na PRIMEIRA vez que passar valores"), true);
+  assertEquals(promoNote(p, 0).includes("sábado, 17 de outubro"), true);
+  assertEquals(promoNote(p, 0).includes("Só para festas em 2026"), true);
+  assertEquals(promoNote(p, 1).includes("MAIS UMA vez"), true);
+  assertEquals(promoNote(p, 2).includes("não fale mais dela"), true);
+});
