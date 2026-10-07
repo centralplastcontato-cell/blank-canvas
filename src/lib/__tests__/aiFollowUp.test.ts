@@ -42,6 +42,7 @@ describe("aiFollowUp", () => {
     });
     expect(followUpConfigProblem({ ...DEFAULT_AI_FOLLOWUP, reactivation: { enabled: true, days_before: [0] } })).toMatch(/1 a 180/);
     expect(followUpConfigProblem({ ...DEFAULT_AI_FOLLOWUP, far_months: 0 })).toMatch(/1 e 12/);
+    expect(followUpConfigProblem({ ...DEFAULT_AI_FOLLOWUP, reactivation: { enabled: true, days_before: [30, 30] } })).toMatch(/mesmo número/);
   });
 
   it("chave geral só vale com a data de ativação", () => {

@@ -24,15 +24,19 @@ export interface AiTarget {
 export async function loadAiJourneyTargets(supabase: Db, companyId?: string): Promise<AiTarget[]> {
   let q = supabase.from("ai_agent_settings").select("*").eq("enabled", true);
   if (companyId) q = q.eq("company_id", companyId);
-  const { data: allSettings } = await q;
+  const { data: allSettings, error } = await q;
+  // Erro de leitura: quem chama decide (sem silêncio que vire mensagem dupla)
+  if (error) throw new Error(`ai_agent_settings: ${error.message}`);
   const out: AiTarget[] = [];
   for (const s of (allSettings || []) as Json[]) {
     if (!s.unit) continue;
-    const { data: company } = await supabase.from("companies").select("name, settings").eq("id", s.company_id).maybeSingle();
+    const { data: company, error: cErr } = await supabase.from("companies").select("name, settings").eq("id", s.company_id).maybeSingle();
+    if (cErr) throw new Error(`companies: ${cErr.message}`);
     if (!isAiConversationalEnabled(company?.settings)) continue;
-    const { data: instances } = await supabase.from("wapi_instances")
+    const { data: instances, error: iErr } = await supabase.from("wapi_instances")
       .select("id, instance_id, instance_token, company_id, unit, provider, client_token")
       .eq("company_id", s.company_id);
+    if (iErr) throw new Error(`wapi_instances: ${iErr.message}`);
     for (const inst of (instances || []) as Json[]) {
       if (norm(inst.unit) === norm(s.unit)) out.push({ settings: s, instance: inst, companyName: String(company?.name || "buffet") });
     }
@@ -73,26 +77,34 @@ export function journeyCovers(scope: JourneyScope | undefined, remoteJid: string
 
 
 /**
- * Leads (desta empresa) cuja conversa está com a Bia e coberta pela jornada:
- * o lembrete antes da festa dessas conversas é escrito pela Bia, então a
- * reativação fixa pula esses leads. Empresa sem a jornada ligada = vazio.
+ * Conversas (desta empresa) em que o lembrete antes da festa é da Bia: com a
+ * Bia atendendo, coberta pela jornada, com os lembretes ligados e ainda sendo
+ * acompanhada (ativa nos últimos 100 dias ou com lembrete agendado). A
+ * reativação fixa pula SÓ essas conversas. Empresa sem a jornada = vazio.
  */
-export async function biaJourneyLeadIds(supabase: Db, companyId: string, leadIds: string[]): Promise<Set<string>> {
+export async function biaReminderConversationIds(supabase: Db, companyId: string, leadIds: string[]): Promise<Set<string>> {
   const out = new Set<string>();
   if (leadIds.length === 0) return out;
   const scopes = journeyScopes(await loadAiJourneyTargets(supabase, companyId));
-  if (scopes.size === 0) return out;
+  const withReminders = [...scopes.entries()].filter(([, sc]) => sc.cfg.reactivation.enabled);
+  if (withReminders.length === 0) return out;
+  const activeSince = Date.now() - 100 * 86400000;
   for (let i = 0; i < leadIds.length; i += 100) {
     const { data, error } = await supabase.from("wapi_conversations")
-      .select("lead_id, instance_id, remote_jid")
+      .select("id, instance_id, remote_jid, last_message_at, bot_data")
       .in("lead_id", leadIds.slice(i, i + 100))
-      .in("instance_id", [...scopes.keys()])
+      .in("instance_id", withReminders.map(([id]) => id))
       .eq("bot_step", "ai_agent")
       .eq("bot_enabled", true)
       .eq("bot_data->>ai_agent", "on");
     if (error) throw new Error(`conversas da Bia: ${error.message}`);
     for (const c of (data || []) as Json[]) {
-      if (journeyCovers(scopes.get(String(c.instance_id)), String(c.remote_jid))) out.add(String(c.lead_id));
+      const scope = scopes.get(String(c.instance_id));
+      if (!scope || !journeyCovers(scope, String(c.remote_jid))) continue;
+      const last = Date.parse(String(c.last_message_at || ""));
+      if (!(last >= Date.parse(scope.cfg.since as string))) continue;
+      const scheduled = typeof (c.bot_data as Json | null)?.ai_journey_next_at === "string";
+      if (last >= activeSince || scheduled) out.add(String(c.id));
     }
   }
   return out;

@@ -4,6 +4,7 @@ import {
   DEFAULT_AI_FOLLOWUP,
   journeyOwns,
   partyReference,
+  yearHintFrom,
   followupLabel,
   inSendWindowBR,
   type JourneyContext,
@@ -139,74 +140,91 @@ const far = normalizeFollowUpConfig({
   far_months: 3,
   reactivation: { enabled: true, days_before: [30, 60] },
 });
-const farCtx: JourneyContext = { partyYmd: "2027-03-13", partyExact: true, postponed: false };
-const plan = (msgs: JourneyMessage[], now: number, ctx: JourneyContext = farCtx) => {
-  const a = nextJourneyAction(far, msgs, now, ctx).action;
+const ctxOf = (dataFesta: string | null, mes: string | null = null, clientTexts: string[] = []): JourneyContext => ({ dataFesta, mes, clientTexts });
+const farCtx = ctxOf("2027-03-13");
+const run = (cfg: ReturnType<typeof normalizeFollowUpConfig>, msgs: JourneyMessage[], now: number, ctx: JourneyContext) => {
+  const a = nextJourneyAction(cfg, msgs, now, ctx).action;
   return a ? (a.kind === "step" ? `step${a.index + 1}` : a.kind === "reactivation" ? `reativacao_${a.daysBefore}` : a.kind) : null;
 };
+const plan = (msgs: JourneyMessage[], now: number, ctx: JourneyContext = farCtx) => run(far, msgs, now, ctx);
+const partyAt = (ymd: string) => Date.parse(`${ymd}T12:00:00-03:00`);
 
-Deno.test("festa distante: só a 1ª etapa, depois lembretes 60 e 30 dias antes, e só então perdido", () => {
+Deno.test("festa distante: só a 1ª etapa, lembretes 60 e 30 dias antes e só então perdido", () => {
   assertEquals(plan(base, T0 + D), "step1");
   const s1 = [...base, { atMs: T0 + D, fromMe: true, followup: "etapa_1" }];
-  // Não manda etapas 2 e 3 nem vira perdido enquanto espera a festa
   assertEquals(plan(s1, T0 + 30 * D), null);
-  assertEquals(plan(s1, T0 + 80 * D), null);
-  // 60 dias antes de 13/03/2027 = 12/01/2027
-  const r60At = Date.parse("2027-03-13T12:00:00-03:00") - 60 * D;
+  assertEquals(nextJourneyAction(far, s1, T0 + 30 * D, farCtx).nextDueMs, partyAt("2027-03-13") - 60 * D);
+  const r60At = partyAt("2027-03-13") - 60 * D;
   assertEquals(plan(s1, r60At - H), null);
   assertEquals(plan(s1, r60At + H), "reativacao_60");
   const r60 = [...s1, { atMs: r60At + H, fromMe: true, followup: "reativacao_60" }];
-  const r30At = Date.parse("2027-03-13T12:00:00-03:00") - 30 * D;
-  assertEquals(plan(r60, r30At - H), null);
+  const r30At = partyAt("2027-03-13") - 30 * D;
   assertEquals(plan(r60, r30At + H), "reativacao_30");
   const r30 = [...r60, { atMs: r30At + H, fromMe: true, followup: "reativacao_30" }];
   assertEquals(plan(r30, r30At + 3 * D), null);
   assertEquals(plan(r30, r30At + 8 * D), "lost");
 });
 
-Deno.test("festa próxima: todas as etapas; lembrete só o que ainda está no futuro", () => {
-  // Festa em 45 dias: etapas 1/4/10 dias, o de 60 já passou, o de 30 sai, depois perdido
-  const nearCtx = { partyYmd: "2026-11-21", partyExact: true, postponed: false }; // T0 = 7/10/2026
-  assertEquals(plan(base, T0 + D, nearCtx), "step1");
+Deno.test("festa próxima: todas as etapas; lembrete só com folga depois da última etapa", () => {
+  // Festa em 45 dias: etapas 1/4/10 dias; o de 30 dias (dia 15) fica colado na despedida (dia 10) → pula; perdido
+  const nearCtx = ctxOf("2026-11-21");
   const s3 = [
     ...base,
     { atMs: T0 + D, fromMe: true, followup: "etapa_1" },
     { atMs: T0 + 4 * D, fromMe: true, followup: "etapa_2" },
     { atMs: T0 + 10 * D, fromMe: true, followup: "etapa_3" },
   ];
-  // Antes do lembrete de 30 dias (22/10): não vira perdido
-  assertEquals(plan(s3, T0 + 13 * D, nearCtx), null);
-  const r30At = Date.parse("2026-11-21T12:00:00-03:00") - 30 * D;
-  assertEquals(plan(s3, r30At + H, nearCtx), "reativacao_30");
-  const done = [...s3, { atMs: r30At + H, fromMe: true, followup: "reativacao_30" }];
-  assertEquals(plan(done, r30At + 8 * D, nearCtx), "lost");
+  assertEquals(plan(base, T0 + D, nearCtx), "step1");
+  assertEquals(plan(s3, T0 + 18 * D, nearCtx), "lost");
+  // Festa em 75 dias: o de 30 dias (dia 45) tem folga e sai antes do perdido
+  const ctx75 = ctxOf("2026-12-21");
+  assertEquals(plan(s3, T0 + 18 * D, ctx75), null);
+  assertEquals(plan(s3, partyAt("2026-12-21") - 30 * D + H, ctx75), "reativacao_30");
 });
 
-Deno.test("cliente que vai decidir depois, data que passou e sem data", () => {
-  // "vou pensar": só a 1ª etapa, mesmo com festa próxima
-  const ctx = { partyYmd: "2026-11-21", partyExact: true, postponed: true };
+Deno.test("vou pensar, data que passou, sem data e lembretes desligados", () => {
+  // "vou pensar" com festa e lembrete à frente: só a 1ª etapa
   const s1 = [...base, { atMs: T0 + D, fromMe: true, followup: "etapa_1" }];
-  assertEquals(plan(s1, T0 + 5 * D, ctx), null);
-  // Data exata que já passou: perdido
-  assertEquals(plan(base, Date.parse("2026-11-23T12:00:00-03:00"), { partyYmd: "2026-11-21", partyExact: true, postponed: false }), "lost");
-  // Sem data: como antes (etapas e perdido)
-  const none = { partyYmd: null, partyExact: false, postponed: false };
+  assertEquals(plan(s1, T0 + 5 * D, ctxOf("2026-12-21", null, ["legal, vou pensar"])), null);
+  // ... sem lembrete à frente (sem data): segue todas as etapas
+  assertEquals(plan(s1, T0 + 5 * D, ctxOf(null, null, ["legal, vou pensar"])), "step2");
+  // Lembretes desligados: festa distante segue todas as etapas
+  const off = normalizeFollowUpConfig({ ...far, reactivation: { enabled: false, days_before: [60, 30] } });
+  assertEquals(run(off, s1, T0 + 5 * D, farCtx), "step2");
+  // Data exata que já passou: perdido só depois do silêncio do perdido automático
+  const old = ctxOf("2026-05-10");
+  assertEquals(plan(base, T0 + H, old), null);
+  assertEquals(plan(base, T0 + 7 * D + H, old), "lost");
+  // Sem data: etapas e perdido como antes
   const s3 = [...s1, { atMs: T0 + 4 * D, fromMe: true, followup: "etapa_2" }, { atMs: T0 + 10 * D, fromMe: true, followup: "etapa_3" }];
-  assertEquals(plan(s3, T0 + 18 * D, none), "lost");
+  assertEquals(plan(s3, T0 + 18 * D, ctxOf(null)), "lost");
   // Lembrete atrasado mais de 7 dias (sistema fora do ar) não sai
-  const r60At = Date.parse("2027-03-13T12:00:00-03:00") - 60 * D;
-  assertEquals(plan(s1, r60At + 8 * D), null);
+  assertEquals(plan(s1, partyAt("2027-03-13") - 60 * D + 8 * D), null);
 });
 
-Deno.test("partyReference e clientPostponed", () => {
+Deno.test("só o mês: conta a partir de quando a conversa parou; ano dito pelo cliente vale", () => {
+  // Parou em 7/10 com "outubro": a referência continua 15/10/2026 mesmo em novembro (não pula para 2027)
+  assertEquals(nextJourneyAction(far, base, Date.UTC(2026, 10, 2, 13), ctxOf(null, "Outubro")).party, { ymd: "2026-10-15", exact: false });
+  // "dezembro do ano que vem"
+  assertEquals(nextJourneyAction(far, base, T0 + D, ctxOf(null, "Dezembro", ["é só ano que vem, em dezembro"])).party, { ymd: "2027-12-15", exact: false });
+  assertEquals(nextJourneyAction(far, base, T0 + D, ctxOf(null, "Março")).party, { ymd: "2027-03-15", exact: false });
+});
+
+Deno.test("partyReference, yearHintFrom e clientPostponed", () => {
   assertEquals(partyReference("2027-03-13", "Março", "2026-10-07"), { ymd: "2027-03-13", exact: true });
   assertEquals(partyReference(null, "Março", "2026-10-07"), { ymd: "2027-03-15", exact: false });
   assertEquals(partyReference(null, "Dezembro", "2026-10-07"), { ymd: "2026-12-15", exact: false });
-  assertEquals(partyReference(null, "Outubro", "2026-10-07"), { ymd: "2026-10-15", exact: false });
+  assertEquals(partyReference(null, "Dezembro", "2026-10-07", 2027), { ymd: "2027-12-15", exact: false });
   assertEquals(partyReference(null, "", "2026-10-07"), null);
+  assertEquals(yearHintFrom(["a festa vai ser em 2027"], "2026-10-07"), 2027);
+  assertEquals(yearHintFrom(["oi"], "2026-10-07"), null);
   assertEquals(clientPostponed(["Legal, vou pensar e te falo"]), true);
   assertEquals(clientPostponed(["a festa é só ano que vem"]), true);
-  assertEquals(clientPostponed(["vou ver com meu marido"]), true);
-  assertEquals(clientPostponed(["Qual o valor para 70 pessoas?"]), false);
+  assertEquals(clientPostponed(["quero mais pra frente"]), true);
+  // Frases do dia a dia não contam
+  assertEquals(clientPostponed(["ainda não sei quantos convidados"]), false);
+  assertEquals(clientPostponed(["sem pressa, pode mandar"]), false);
+  assertEquals(clientPostponed(["vou ver com meu marido e já te respondo hoje"]), false);
+  assertEquals(clientPostponed(["depois eu vejo o pdf"]), false);
   assertEquals(normalizeFollowUpConfig({ reactivation: { enabled: true, days_before: [30, 60, 30, 999] } }).reactivation.days_before, [180, 60, 30]);
 });

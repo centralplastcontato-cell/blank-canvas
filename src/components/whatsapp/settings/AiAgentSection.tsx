@@ -1175,7 +1175,12 @@ export function AiAgentSection() {
                           variant="outline"
                           size="sm"
                           className="gap-1"
-                          onClick={() => setFuReactDays((list) => [...list, list.length === 0 ? 30 : Math.max(7, Math.min(...list) - 15)])}
+                          onClick={() => setFuReactDays((list) => {
+                            // Próximo lembrete: 15 dias antes do menor, sem repetir
+                            let next = list.length === 0 ? 30 : Math.max(1, Math.min(...list) - 15);
+                            while (list.includes(next) && next < 180) next++;
+                            return [...list, next];
+                          })}
                         >
                           <Plus className="w-3.5 h-3.5" /> Adicionar lembrete
                         </Button>
@@ -1183,7 +1188,9 @@ export function AiAgentSection() {
                     </div>
                   )}
                   <p className="text-[11px] text-muted-foreground">
-                    A Bia escreve com a agenda real: se a data do cliente ainda estiver livre, ela avisa; se foi reservada, oferece outras datas livres perto dela. Se o cliente só disse o mês, ela mostra datas livres do mês. Nessas conversas, a reativação fixa não manda mensagem.
+                    {fuReactOn
+                      ? "A Bia escreve com a agenda real: se a data do cliente ainda estiver livre, ela avisa; se foi reservada, oferece outras datas livres perto dela. Se o cliente só disse o mês, ela mostra datas livres do mês. Nessas conversas, a reativação fixa não manda mensagem."
+                      : "Desligado: a Bia segue todas as etapas, e quem lembra o cliente perto da festa é a reativação fixa (Automações), como hoje."}
                   </p>
                 </div>
 

@@ -126,6 +126,9 @@ export function followUpConfigProblem(cfg: AiFollowUpConfig): string | null {
   if (cfg.reactivation.enabled && cfg.reactivation.days_before.some((d) => !Number.isFinite(d) || d < 1 || d > 180)) {
     return "Lembretes antes da festa: cada um precisa ser de 1 a 180 dias antes.";
   }
+  if (cfg.reactivation.enabled && new Set(cfg.reactivation.days_before).size !== cfg.reactivation.days_before.length) {
+    return "Lembretes antes da festa: dois lembretes estão com o mesmo número de dias.";
+  }
   const delays = cfg.steps.map((s) => s.delay_hours);
   if (new Set(delays).size !== delays.length) return "Duas etapas estão com o mesmo prazo.";
   return null;

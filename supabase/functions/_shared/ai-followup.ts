@@ -38,6 +38,8 @@ export const MAX_REACTIVATIONS = 3;
 const DAY_MS = 86400000;
 // Lembrete antes da festa que passou do dia (sistema fora do ar) por mais que isso não sai mais
 const REACTIVATION_STALE_MS = 7 * DAY_MS;
+// Lembrete antes da festa só com essa folga depois da última etapa (nada de mensagens coladas)
+const REMINDER_BUFFER_MS = 10 * DAY_MS;
 
 export const DEFAULT_AI_FOLLOWUP: AiFollowUpConfig = {
   enabled: false,
@@ -107,15 +109,17 @@ export type JourneyAction =
 
 /** O que a jornada sabe da festa (para festa distante e lembretes antes da data) */
 export interface JourneyContext {
-  partyYmd: string | null; // data exata, ou o dia 15 do mês pedido (aproximada)
-  partyExact: boolean; // data exata (dá para dizer que "já passou")
-  postponed: boolean; // cliente disse "vou pensar", "só ano que vem"...
+  dataFesta: unknown; // bot_data.data_festa (AAAA-MM-DD)
+  mes: unknown; // bot_data.mes ("Março")
+  clientTexts: string[]; // últimas mensagens do cliente (até a parada)
 }
 
 export interface JourneyPlan {
   action: JourneyAction | null;
   anchorMs: number | null; // última resposta de verdade da Bia (o silêncio conta daqui)
   why: string;
+  party?: { ymd: string; exact: boolean } | null; // data da festa usada (exata ou aproximada pelo mês)
+  nextDueMs?: number | null; // próximo lembrete antes da festa agendado (para achar a conversa depois)
 }
 
 const stepIndexOf = (f: string | null | undefined): number | null => {
@@ -133,22 +137,39 @@ const MONTHS_PT = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "
 
 /**
  * Data da festa para a jornada: a exata (bot_data.data_festa) ou, só com o
- * mês, o dia 15 da próxima vez que esse mês chegar.
+ * mês, o dia 15 da próxima vez que esse mês chega A PARTIR DE `refYmd` (o dia
+ * em que a conversa parou — não "hoje", para não pular de ano depois). Ano
+ * dito pelo cliente ("2027", "ano que vem") vale mais.
  */
-export function partyReference(dataFesta: unknown, mes: unknown, todayYmd: string): { ymd: string; exact: boolean } | null {
+export function partyReference(dataFesta: unknown, mes: unknown, refYmd: string, yearHint: number | null = null): { ymd: string; exact: boolean } | null {
   if (typeof dataFesta === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dataFesta)) return { ymd: dataFesta, exact: true };
   const t = String(mes || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   if (!t) return null;
   const idx = MONTHS_PT.findIndex((m) => t.startsWith(m.normalize("NFD").replace(/[\u0300-\u036f]/g, "").slice(0, 3)));
   if (idx < 0) return null;
-  const [ty, tm] = todayYmd.split("-").map(Number);
+  const [ry, rm] = refYmd.split("-").map(Number);
   const yearInText = t.match(/(20\d{2})|\/(\d{2})\b/);
-  const year = yearInText ? Number(yearInText[1] || `20${yearInText[2]}`) : (idx + 1 >= tm ? ty : ty + 1);
+  const year = yearInText
+    ? Number(yearInText[1] || `20${yearInText[2]}`)
+    : yearHint && yearHint >= ry
+    ? yearHint
+    : (idx + 1 >= rm ? ry : ry + 1);
   return { ymd: `${year}-${String(idx + 1).padStart(2, "0")}-15`, exact: false };
 }
 
+/** Ano que o cliente falou: "em 2027" ou "ano que vem" (relativo a refYmd) */
+export function yearHintFrom(clientTexts: string[], refYmd: string): number | null {
+  const ry = Number(refYmd.slice(0, 4));
+  for (const t of [...clientTexts].reverse()) {
+    const y = t.match(/\b(20\d{2})\b/);
+    if (y && Number(y[1]) >= ry && Number(y[1]) <= ry + 2) return Number(y[1]);
+    if (/ano que vem|pr[óo]ximo ano/i.test(t)) return ry + 1;
+  }
+  return null;
+}
+
 // "vou pensar", "é só ano que vem", "mais pra frente", "vou ver com meu marido"...
-const POSTPONE = /vou pensar|pensar (?:com calma|melhor|direitinho)|mais (?:pra|para) frente|ano que vem|pr[óo]ximo ano|ainda (?:t[áa]|est[áa]|[ée]) (?:muito )?cedo|sem pressa|depois (?:eu )?(?:vejo|te chamo|te falo|falo|retorno)|vou ver com|ver com (?:meu|minha|o meu|a minha)|ainda n[ãa]o (?:decidi|sei|tenho certeza)|vou analisar|vou avaliar/i;
+const POSTPONE = /vou pensar|pensar (?:com calma|melhor|direitinho)|mais (?:pra|para) frente|(?:festa|anivers[áa]rio)[^.?!]{0,30}(?:ano que vem|pr[óo]ximo ano)|(?:s[óo]|somente|apenas) (?:no |pro |para o )?(?:ano que vem|pr[óo]ximo ano)|ainda (?:t[áa]|est[áa]|[ée]) (?:muito )?cedo/i;
 
 /** O cliente sinalizou que não vai decidir agora? (últimas mensagens dele) */
 export function clientPostponed(clientTexts: string[]): boolean {
@@ -200,22 +221,36 @@ export function nextJourneyAction(cfg: AiFollowUpConfig, messages: JourneyMessag
   const silence = nowMs - anchorMs;
   const gapOk = lastAutoMs === null || nowMs - lastAutoMs >= MIN_GAP_BETWEEN_FOLLOWUPS_MS;
 
-  // Festa com data exata que já passou: não há mais o que oferecer
-  const party = ctx?.partyYmd ? partyMs(ctx.partyYmd) : null;
-  if (party !== null && ctx?.partyExact && party < nowMs - DAY_MS / 2) {
-    return cfg.auto_lost.enabled
-      ? { action: { kind: "lost" }, anchorMs, why: "a data da festa já passou" }
-      : { action: null, anchorMs, why: "a data da festa já passou" };
+  // Data da festa, medida a partir do dia em que a conversa parou
+  const anchorYmd = new Date(anchorMs - 3 * 3600000).toISOString().slice(0, 10);
+  const clientTexts = ctx?.clientTexts || [];
+  const partyRef = ctx ? partyReference(ctx.dataFesta, ctx.mes, anchorYmd, yearHintFrom(clientTexts, anchorYmd)) : null;
+  const party = partyRef ? partyMs(partyRef.ymd) : null;
+  const base = { anchorMs, party: partyRef };
+  // Festa com data exata que já passou: perdido — mas só depois do silêncio
+  // do perdido automático (nunca no meio de uma conversa)
+  if (party !== null && partyRef?.exact && party < nowMs - DAY_MS / 2) {
+    if (cfg.auto_lost.enabled && silence >= cfg.auto_lost.hours * 3600000) {
+      return { ...base, action: { kind: "lost" }, why: "a data da festa já passou" };
+    }
+    return { ...base, action: null, why: "a data da festa já passou" };
   }
-  // Festa distante (medida quando a conversa parou) ou cliente que vai decidir depois:
-  // só a 1ª etapa; depois, os lembretes antes da festa
-  const distant = !!ctx?.postponed || (party !== null && party - anchorMs > cfg.far_months * 30 * DAY_MS);
-  const steps = distant ? cfg.steps.slice(0, 1) : cfg.steps;
+  // Lembretes antes da festa que ainda cabem (depois das etapas, com folga)
+  const reminderPoints = cfg.reactivation.enabled && party !== null
+    ? cfg.reactivation.days_before.map((d) => ({ d, at: party - d * DAY_MS })).sort((a, b) => a.at - b.at)
+    : [];
+  // Festa distante (medida quando a conversa parou) ou cliente que vai decidir
+  // depois: só a 1ª etapa — mas só quando há lembrete antes da festa marcado
+  // para depois; sem lembrete, segue todas as etapas
+  const distant = clientPostponed(clientTexts) || (party !== null && party - anchorMs > cfg.far_months * 30 * DAY_MS);
+  const firstStepEnd = anchorMs + (cfg.steps[0]?.delay_hours || 0) * 3600000;
+  const reminderAhead = reminderPoints.some((p) => p.at > firstStepEnd + REMINDER_BUFFER_MS);
+  const steps = distant && reminderAhead ? cfg.steps.slice(0, 1) : cfg.steps;
 
   if (stepsSent < steps.length) {
     const step = steps[stepsSent];
     if (silence >= step.delay_hours * 3600000 && gapOk) {
-      return { action: { kind: "step", index: stepsSent }, anchorMs, why: `etapa ${stepsSent + 1} (${step.delay_hours}h sem resposta)` };
+      return { ...base, action: { kind: "step", index: stepsSent }, why: `etapa ${stepsSent + 1} (${step.delay_hours}h sem resposta)` };
     }
     const firstStepMs = steps[0] ? steps[0].delay_hours * 3600000 : Infinity;
     // Lembrete só quando a Bia ficou esperando o cliente: depois dos materiais
@@ -227,25 +262,23 @@ export function nextJourneyAction(cfg: AiFollowUpConfig, messages: JourneyMessag
       silence >= cfg.inactivity.minutes * 60000 &&
       silence < Math.min(INACTIVITY_MAX_SILENCE_MS, firstStepMs)
     ) {
-      return { action: { kind: "inactivity" }, anchorMs, why: `inatividade (${cfg.inactivity.minutes} min sem resposta)` };
+      return { ...base, action: { kind: "inactivity" }, why: `inatividade (${cfg.inactivity.minutes} min sem resposta)` };
     }
-    return { action: null, anchorMs, why: "nada devido ainda" };
+    return { ...base, action: null, why: "nada devido ainda" };
   }
 
   // Etapas concluídas: lembretes antes da festa (60 e 30 dias antes, por exemplo)
-  if (cfg.reactivation.enabled && party !== null) {
+  if (reminderPoints.length > 0) {
     const sentDays = new Set(after.map((m) => reactivationDaysOf(m.followup)).filter((d): d is number => d !== null));
     const stepsEndMs = stepMsgs.length > 0 ? stepMsgs[stepMsgs.length - 1].atMs : anchorMs;
-    const points = cfg.reactivation.days_before
-      .map((d) => ({ d, at: party - d * DAY_MS }))
-      .sort((a, b) => a.at - b.at);
-    for (const p of points) {
+    for (const p of reminderPoints) {
       if (sentDays.has(p.d)) continue;
-      if (p.at <= stepsEndMs + DAY_MS) continue; // já tinha passado quando as etapas acabaram
-      if (nowMs < p.at) return { action: null, anchorMs, why: `aguardando o lembrete de ${p.d} dias antes da festa` };
+      // Colado demais na última etapa (ex.: logo depois da despedida): pula
+      if (p.at <= stepsEndMs + REMINDER_BUFFER_MS) continue;
+      if (nowMs < p.at) return { ...base, action: null, why: `aguardando o lembrete de ${p.d} dias antes da festa`, nextDueMs: p.at };
       if (nowMs - p.at > REACTIVATION_STALE_MS) continue; // passou do dia há muito tempo
-      if (!gapOk) return { action: null, anchorMs, why: "intervalo mínimo entre mensagens" };
-      return { action: { kind: "reactivation", daysBefore: p.d }, anchorMs, why: `lembrete ${p.d} dias antes da festa` };
+      if (!gapOk) return { ...base, action: null, why: "intervalo mínimo entre mensagens", nextDueMs: p.at };
+      return { ...base, action: { kind: "reactivation", daysBefore: p.d }, why: `lembrete ${p.d} dias antes da festa` };
     }
   }
 
@@ -254,10 +287,10 @@ export function nextJourneyAction(cfg: AiFollowUpConfig, messages: JourneyMessag
     const autoMsgs = after.filter((m) => stepIndexOf(m.followup) !== null || reactivationDaysOf(m.followup) !== null);
     const since = autoMsgs.length > 0 ? autoMsgs[autoMsgs.length - 1].atMs : anchorMs;
     if (nowMs - since >= cfg.auto_lost.hours * 3600000) {
-      return { action: { kind: "lost" }, anchorMs, why: `perdido (${cfg.auto_lost.hours}h depois da última mensagem)` };
+      return { ...base, action: { kind: "lost" }, why: `perdido (${cfg.auto_lost.hours}h depois da última mensagem)` };
     }
   }
-  return { action: null, anchorMs, why: "jornada concluída" };
+  return { ...base, action: null, why: "jornada concluída" };
 }
 
 /** Rótulo gravado na mensagem automática (metadata.ai_followup) */

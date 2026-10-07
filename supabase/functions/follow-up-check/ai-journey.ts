@@ -7,7 +7,7 @@
 
 import { DEFAULT_AI_MODEL, estimateChatCostUsd, providerForModel } from "../_shared/ai-models.ts";
 import { type ChatTurn, createLlmSession } from "../wapi-webhook/ai-llm.ts";
-import { clientPostponed, followupLabel, inSendWindowBR, type JourneyContext, type JourneyMessage, journeyOwns, nextJourneyAction, normalizeFollowUpConfig, partyReference } from "../_shared/ai-followup.ts";
+import { followupLabel, inSendWindowBR, type JourneyContext, type JourneyMessage, journeyOwns, nextJourneyAction, normalizeFollowUpConfig } from "../_shared/ai-followup.ts";
 import { checkFollowUpText, followUpInstruction } from "../_shared/ai-followup-text.ts";
 import type { MaterialKind } from "../_shared/material-claims.ts";
 import { phoneVariantsBR } from "../_shared/ai-site-lead.ts";
@@ -208,6 +208,15 @@ async function tagFollowUp(supabase: Db, convId: string, messageId: string, text
   return !error;
 }
 
+/** Grava/limpa bot_data.ai_journey_next_at (lido de novo na hora, para não apagar o que a Bia gravou) */
+async function mergeJourneyNext(supabase: Db, convId: string, nextIso: string | null): Promise<void> {
+  const { data: fresh } = await supabase.from("wapi_conversations").select("bot_data").eq("id", convId).maybeSingle();
+  const bd = { ...((fresh?.bot_data as Json) || {}) };
+  if (nextIso) bd.ai_journey_next_at = nextIso;
+  else delete bd.ai_journey_next_at;
+  await supabase.from("wapi_conversations").update({ bot_data: bd }).eq("id", convId);
+}
+
 /** Pega a conversa para esta rodada (atômico); false = outra execução está nela ou ela está bloqueada */
 async function claim(supabase: Db, convId: string, nowMs: number): Promise<boolean> {
   const cutoff = new Date(nowMs - LOCK_MS).toISOString();
@@ -284,7 +293,7 @@ export async function runAiJourney(
     const scope: JourneyScope = { cfg, testVariants: settings.test_mode_enabled ? phoneVariantsBR(String(settings.test_mode_number || "")) : null };
     // Só conversas com atividade depois de ligar o acompanhamento (as anteriores nunca entram)
     const sinceMs = Math.max(Date.parse(cfg.since as string), Date.now() - MAX_AGE_DAYS * 86400000);
-    const { data: convs, error } = await supabase.from("wapi_conversations")
+    const baseQuery = () => supabase.from("wapi_conversations")
       .select("id, remote_jid, lead_id, bot_data, bot_step, contact_name, last_message_at")
       .eq("instance_id", instance.id)
       .eq("bot_step", "ai_agent")
@@ -292,13 +301,18 @@ export async function runAiJourney(
       .eq("bot_data->>ai_agent", "on")
       .eq("last_message_from_me", true)
       .not("remote_jid", "like", "%@g.us%")
-      .gte("last_message_at", new Date(sinceMs).toISOString())
-      .order("last_message_at", { ascending: false })
-      .limit(300);
-    if (error) {
-      errors.push(`conversas da IA (${instance.unit}): ${error.message}`);
+      .gte("last_message_at", cfg.since as string);
+    // Conversas recentes + as paradas há mais tempo com lembrete antes da festa vencendo
+    const [recent, parked] = await Promise.all([
+      baseQuery().gte("last_message_at", new Date(sinceMs).toISOString()).order("last_message_at", { ascending: false }).limit(300),
+      baseQuery().lte("bot_data->>ai_journey_next_at", new Date(Date.now() + 3600000).toISOString()).limit(100),
+    ]);
+    if (recent.error || parked.error) {
+      errors.push(`conversas da IA (${instance.unit}): ${(recent.error || parked.error).message}`);
       continue;
     }
+    const seenConv = new Set<string>();
+    const convs = [...(parked.data || []), ...(recent.data || [])].filter((c: Json) => !seenConv.has(c.id) && !!seenConv.add(c.id));
 
     for (const conv of (convs || []) as Json[]) {
       if (sent >= MAX_SENDS_PER_RUN || Date.now() - startedMs > budgetMs) break;
@@ -313,10 +327,14 @@ export async function runAiJourney(
 
         const { history, msgs, historySince } = await loadJourneyMessages(supabase, conv);
         // Data da festa (exata ou pelo mês) e se o cliente disse que vai decidir depois
-        const party = partyReference(bd.data_festa, bd.mes, todayYmd);
         const clientTexts = history.filter((m) => !m.from_me && m.message_type === "text").slice(-3).map((m) => String(m.content || ""));
-        const ctx: JourneyContext = { partyYmd: party?.ymd || null, partyExact: party?.exact === true, postponed: clientPostponed(clientTexts) };
+        const ctx: JourneyContext = { dataFesta: bd.data_festa, mes: bd.mes, clientTexts };
         const plan = nextJourneyAction(cfg, msgs, nowMs, ctx);
+        const party = plan.party || null;
+        // Guarda quando vence o próximo lembrete antes da festa: a conversa parada
+        // há meses volta a ser encontrada nesse dia (e a reativação fixa sabe que é da Bia)
+        const nextIso = plan.nextDueMs ? new Date(plan.nextDueMs).toISOString() : null;
+        if ((bd.ai_journey_next_at || null) !== nextIso) await mergeJourneyNext(supabase, conv.id, nextIso);
         if (!plan.action) continue;
         if (plan.action.kind !== "lost" && !inSendWindowBR(nowMs)) continue;
 
