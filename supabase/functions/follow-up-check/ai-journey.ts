@@ -19,6 +19,7 @@ import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { type AiTarget, journeyCovers, type JourneyScope } from "../_shared/ai-journey-scope.ts";
 export { type AiTarget, journeyCovers, type JourneyScope, journeyScopes, loadAiJourneyTargets } from "../_shared/ai-journey-scope.ts";
 import { mergeConsecutiveTurns } from "../_shared/ai-turn.ts";
+import { resolveUnitNotificationTargets } from "../_shared/notification-targets.ts";
 
 // deno-lint-ignore no-explicit-any
 type Db = any;
@@ -235,7 +236,7 @@ async function blockFor(supabase: Db, convId: string, ms: number): Promise<void>
     .update({ ai_journey_claimed_at: new Date(Date.now() + ms - LOCK_MS).toISOString() }).eq("id", convId);
 }
 
-async function markLost(supabase: Db, lead: Json, conv: Json, companyId: string, why: string): Promise<void> {
+async function markLost(supabase: Db, lead: Json, conv: Json, companyId: string, unit: string | null, why: string): Promise<void> {
   const { data: moved, error } = await supabase.from("campaign_leads").update({ status: "perdido" })
     .eq("id", lead.id).in("status", OPEN_STATUSES).select("id");
   if (error) {
@@ -252,16 +253,18 @@ async function markLost(supabase: Db, lead: Json, conv: Json, companyId: string,
     old_value: lead.status,
     new_value: "perdido",
   });
-  if (lead.responsavel_id) {
-    const { error: notifError } = await supabase.from("notifications").insert({
-      user_id: lead.responsavel_id,
+  // Responsável pelo lead; sem responsável, a equipe do número
+  const recipients: string[] = lead.responsavel_id ? [lead.responsavel_id] : await resolveUnitNotificationTargets(supabase, companyId, unit);
+  if (recipients.length > 0) {
+    const { error: notifError } = await supabase.from("notifications").insert(recipients.map((uid) => ({
+      user_id: uid,
       company_id: companyId,
       type: "lead_lost",
       title: "Lead movido para Perdido",
-      message: `O lead ${lead.name} foi movido automaticamente para Perdido: ${why}.`,
-      data: { lead_id: lead.id, lead_name: lead.name, conversation_id: conv.id },
-    });
-    if (notifError) console.error("[ai-journey] Erro ao avisar o responsável:", notifError.message);
+      message: `A Bia moveu ${lead.name} para Perdido: ${why}.`,
+      data: { lead_id: lead.id, lead_name: lead.name, conversation_id: conv.id, contact_phone: String(conv.remote_jid || "").replace(/@.*/, "") },
+    })));
+    if (notifError) console.error("[ai-journey] Erro ao avisar sobre o perdido:", notifError.message);
   }
   console.log(`[ai-journey] Lead ${lead.name} (${lead.id}) → perdido (${why})`);
 }
@@ -354,7 +357,7 @@ export async function runAiJourney(
         if (!(await claim(supabase, conv.id, nowMs))) continue;
 
         if (plan.action.kind === "lost") {
-          await markLost(supabase, lead, conv, instance.company_id, `${plan.why} sem resposta do cliente`);
+          await markLost(supabase, lead, conv, instance.company_id, instance.unit || null, `${plan.why} sem resposta do cliente`);
           if (conv.ai_journey_next_at) await setJourneyNext(supabase, conv.id, null);
           lost++;
           continue;
