@@ -157,6 +157,8 @@ Deno.test("festa distante: só a 1ª etapa, lembretes 60 e 30 dias antes e só e
   const r60At = partyAt("2027-03-13") - 60 * D;
   assertEquals(plan(s1, r60At - H), null);
   assertEquals(plan(s1, r60At + H), "reativacao_60");
+  // O marcador continua até o envio (se algo impedir o envio, a conversa é achada de novo)
+  assertEquals(nextJourneyAction(far, s1, r60At + H, farCtx).nextDueMs, r60At);
   const r60 = [...s1, { atMs: r60At + H, fromMe: true, followup: "reativacao_60" }];
   const r30At = partyAt("2027-03-13") - 30 * D;
   assertEquals(plan(r60, r30At + H), "reativacao_30");
@@ -191,10 +193,10 @@ Deno.test("vou pensar, data que passou, sem data e lembretes desligados", () => 
   // Lembretes desligados: festa distante segue todas as etapas
   const off = normalizeFollowUpConfig({ ...far, reactivation: { enabled: false, days_before: [60, 30] } });
   assertEquals(run(off, s1, T0 + 5 * D, farCtx), "step2");
-  // Data exata que já passou: perdido só depois do silêncio do perdido automático
+  // Data exata que já passou: etapas normais (sem lembrete) e perdido depois da última
   const old = ctxOf("2026-05-10");
   assertEquals(plan(base, T0 + H, old), null);
-  assertEquals(plan(base, T0 + 7 * D + H, old), "lost");
+  assertEquals(plan(base, T0 + D, old), "step1");
   // Sem data: etapas e perdido como antes
   const s3 = [...s1, { atMs: T0 + 4 * D, fromMe: true, followup: "etapa_2" }, { atMs: T0 + 10 * D, fromMe: true, followup: "etapa_3" }];
   assertEquals(plan(s3, T0 + 18 * D, ctxOf(null)), "lost");
@@ -208,6 +210,8 @@ Deno.test("só o mês: conta a partir de quando a conversa parou; ano dito pelo 
   // "dezembro do ano que vem"
   assertEquals(nextJourneyAction(far, base, T0 + D, ctxOf(null, "Dezembro", ["é só ano que vem, em dezembro"])).party, { ymd: "2027-12-15", exact: false });
   assertEquals(nextJourneyAction(far, base, T0 + D, ctxOf(null, "Março")).party, { ymd: "2027-03-15", exact: false });
+  // "2026" com "março" (já passou em outubro/2026) não joga a festa para trás
+  assertEquals(nextJourneyAction(far, base, T0 + D, ctxOf(null, "Março", ["seria em 2026 mesmo"])).party, { ymd: "2027-03-15", exact: false });
 });
 
 Deno.test("partyReference, yearHintFrom e clientPostponed", () => {

@@ -4,7 +4,7 @@
 // não mandar mensagem por cima da Bia.
 
 import { isAiConversationalEnabled } from "./ai-module.ts";
-import { type AiFollowUpConfig, normalizeFollowUpConfig } from "./ai-followup.ts";
+import { type AiFollowUpConfig, normalizeFollowUpConfig, partyReference } from "./ai-followup.ts";
 import { phoneVariantsBR } from "./ai-site-lead.ts";
 
 // deno-lint-ignore no-explicit-any
@@ -85,13 +85,23 @@ export function journeyCovers(scope: JourneyScope | undefined, remoteJid: string
 export async function biaReminderConversationIds(supabase: Db, companyId: string, leadIds: string[]): Promise<Set<string>> {
   const out = new Set<string>();
   if (leadIds.length === 0) return out;
-  const scopes = journeyScopes(await loadAiJourneyTargets(supabase, companyId));
+  let targets: AiTarget[];
+  try {
+    targets = await loadAiJourneyTargets(supabase, companyId);
+  } catch (err) {
+    // Erro de leitura: só trava (quem chama pula a rodada) se a empresa tem a Bia;
+    // as outras seguem a reativação fixa normalmente
+    const { data: company, error } = await supabase.from("companies").select("settings").eq("id", companyId).maybeSingle();
+    if (!error && !isAiConversationalEnabled(company?.settings)) return out;
+    throw err;
+  }
+  const scopes = journeyScopes(targets);
   const withReminders = [...scopes.entries()].filter(([, sc]) => sc.cfg.reactivation.enabled);
   if (withReminders.length === 0) return out;
   const activeSince = Date.now() - 100 * 86400000;
   for (let i = 0; i < leadIds.length; i += 100) {
     const { data, error } = await supabase.from("wapi_conversations")
-      .select("id, instance_id, remote_jid, last_message_at, bot_data")
+      .select("id, instance_id, remote_jid, last_message_at, bot_data, ai_journey_next_at")
       .in("lead_id", leadIds.slice(i, i + 100))
       .in("instance_id", withReminders.map(([id]) => id))
       .eq("bot_step", "ai_agent")
@@ -103,8 +113,17 @@ export async function biaReminderConversationIds(supabase: Db, companyId: string
       if (!scope || !journeyCovers(scope, String(c.remote_jid))) continue;
       const last = Date.parse(String(c.last_message_at || ""));
       if (!(last >= Date.parse(scope.cfg.since as string))) continue;
-      const scheduled = typeof (c.bot_data as Json | null)?.ai_journey_next_at === "string";
-      if (last >= activeSince || scheduled) out.add(String(c.id));
+      // Lembrete da Bia já agendado: é dela
+      if (c.ai_journey_next_at) {
+        out.add(String(c.id));
+        continue;
+      }
+      // Ainda nas etapas e com data/mês da festa (a Bia vai agendar o lembrete): é dela.
+      // Sem data/mês na conversa da Bia, ou etapas já encerradas sem lembrete: fica com a reativação fixa
+      const bd = (c.bot_data || {}) as Json;
+      const lastStepMs = Math.max(0, ...scope.cfg.steps.map((st) => st.delay_hours)) * 3600000;
+      const ref = partyReference(bd.data_festa, bd.mes, new Date(last - 3 * 3600000).toISOString().slice(0, 10));
+      if (ref && last >= Math.max(activeSince, Date.now() - lastStepMs - 15 * 86400000)) out.add(String(c.id));
     }
   }
   return out;

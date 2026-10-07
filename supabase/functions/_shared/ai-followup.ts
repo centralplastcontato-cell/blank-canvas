@@ -149,12 +149,12 @@ export function partyReference(dataFesta: unknown, mes: unknown, refYmd: string,
   if (idx < 0) return null;
   const [ry, rm] = refYmd.split("-").map(Number);
   const yearInText = t.match(/(20\d{2})|\/(\d{2})\b/);
-  const year = yearInText
-    ? Number(yearInText[1] || `20${yearInText[2]}`)
-    : yearHint && yearHint >= ry
-    ? yearHint
-    : (idx + 1 >= rm ? ry : ry + 1);
-  return { ymd: `${year}-${String(idx + 1).padStart(2, "0")}-15`, exact: false };
+  const natural = idx + 1 >= rm ? ry : ry + 1;
+  const mm = String(idx + 1).padStart(2, "0");
+  let year = yearInText ? Number(yearInText[1] || `20${yearInText[2]}`) : natural;
+  // Ano dito pelo cliente vale, desde que não jogue a festa para antes de quando a conversa parou
+  if (!yearInText && yearHint && `${yearHint}-${mm}-15` >= refYmd) year = yearHint;
+  return { ymd: `${year}-${mm}-15`, exact: false };
 }
 
 /** Ano que o cliente falou: "em 2027" ou "ano que vem" (relativo a refYmd) */
@@ -227,14 +227,8 @@ export function nextJourneyAction(cfg: AiFollowUpConfig, messages: JourneyMessag
   const partyRef = ctx ? partyReference(ctx.dataFesta, ctx.mes, anchorYmd, yearHintFrom(clientTexts, anchorYmd)) : null;
   const party = partyRef ? partyMs(partyRef.ymd) : null;
   const base = { anchorMs, party: partyRef };
-  // Festa com data exata que já passou: perdido — mas só depois do silêncio
-  // do perdido automático (nunca no meio de uma conversa)
-  if (party !== null && partyRef?.exact && party < nowMs - DAY_MS / 2) {
-    if (cfg.auto_lost.enabled && silence >= cfg.auto_lost.hours * 3600000) {
-      return { ...base, action: { kind: "lost" }, why: "a data da festa já passou" };
-    }
-    return { ...base, action: null, why: "a data da festa já passou" };
-  }
+  // (Data que já passou: as etapas seguem normais, sem lembrete antes da festa,
+  // e o perdido automático vem depois da última etapa, como sem data.)
   // Lembretes antes da festa que ainda cabem (depois das etapas, com folga)
   const reminderPoints = cfg.reactivation.enabled && party !== null
     ? cfg.reactivation.days_before.map((d) => ({ d, at: party - d * DAY_MS })).sort((a, b) => a.at - b.at)
@@ -243,7 +237,7 @@ export function nextJourneyAction(cfg: AiFollowUpConfig, messages: JourneyMessag
   // depois: só a 1ª etapa — mas só quando há lembrete antes da festa marcado
   // para depois; sem lembrete, segue todas as etapas
   const distant = clientPostponed(clientTexts) || (party !== null && party - anchorMs > cfg.far_months * 30 * DAY_MS);
-  const firstStepEnd = anchorMs + (cfg.steps[0]?.delay_hours || 0) * 3600000;
+  const firstStepEnd = stepMsgs.length > 0 ? stepMsgs[0].atMs : Math.max(nowMs, anchorMs + (cfg.steps[0]?.delay_hours || 0) * 3600000);
   const reminderAhead = reminderPoints.some((p) => p.at > firstStepEnd + REMINDER_BUFFER_MS);
   const steps = distant && reminderAhead ? cfg.steps.slice(0, 1) : cfg.steps;
 
@@ -278,7 +272,7 @@ export function nextJourneyAction(cfg: AiFollowUpConfig, messages: JourneyMessag
       if (nowMs < p.at) return { ...base, action: null, why: `aguardando o lembrete de ${p.d} dias antes da festa`, nextDueMs: p.at };
       if (nowMs - p.at > REACTIVATION_STALE_MS) continue; // passou do dia há muito tempo
       if (!gapOk) return { ...base, action: null, why: "intervalo mínimo entre mensagens", nextDueMs: p.at };
-      return { ...base, action: { kind: "reactivation", daysBefore: p.d }, why: `lembrete ${p.d} dias antes da festa` };
+      return { ...base, action: { kind: "reactivation", daysBefore: p.d }, why: `lembrete ${p.d} dias antes da festa`, nextDueMs: p.at };
     }
   }
 

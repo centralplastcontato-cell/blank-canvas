@@ -208,13 +208,10 @@ async function tagFollowUp(supabase: Db, convId: string, messageId: string, text
   return !error;
 }
 
-/** Grava/limpa bot_data.ai_journey_next_at (lido de novo na hora, para não apagar o que a Bia gravou) */
-async function mergeJourneyNext(supabase: Db, convId: string, nextIso: string | null): Promise<void> {
-  const { data: fresh } = await supabase.from("wapi_conversations").select("bot_data").eq("id", convId).maybeSingle();
-  const bd = { ...((fresh?.bot_data as Json) || {}) };
-  if (nextIso) bd.ai_journey_next_at = nextIso;
-  else delete bd.ai_journey_next_at;
-  await supabase.from("wapi_conversations").update({ bot_data: bd }).eq("id", convId);
+/** Grava/limpa o vencimento do próximo lembrete antes da festa (coluna própria) */
+async function setJourneyNext(supabase: Db, convId: string, nextIso: string | null): Promise<void> {
+  const { error } = await supabase.from("wapi_conversations").update({ ai_journey_next_at: nextIso }).eq("id", convId);
+  if (error) console.error(`[ai-journey] Erro ao gravar o próximo lembrete (conv ${convId}): ${error.message}`);
 }
 
 /** Pega a conversa para esta rodada (atômico); false = outra execução está nela ou ela está bloqueada */
@@ -294,7 +291,7 @@ export async function runAiJourney(
     // Só conversas com atividade depois de ligar o acompanhamento (as anteriores nunca entram)
     const sinceMs = Math.max(Date.parse(cfg.since as string), Date.now() - MAX_AGE_DAYS * 86400000);
     const baseQuery = () => supabase.from("wapi_conversations")
-      .select("id, remote_jid, lead_id, bot_data, bot_step, contact_name, last_message_at")
+      .select("id, remote_jid, lead_id, bot_data, bot_step, contact_name, last_message_at, ai_journey_next_at")
       .eq("instance_id", instance.id)
       .eq("bot_step", "ai_agent")
       .eq("bot_enabled", true)
@@ -305,7 +302,7 @@ export async function runAiJourney(
     // Conversas recentes + as paradas há mais tempo com lembrete antes da festa vencendo
     const [recent, parked] = await Promise.all([
       baseQuery().gte("last_message_at", new Date(sinceMs).toISOString()).order("last_message_at", { ascending: false }).limit(300),
-      baseQuery().lte("bot_data->>ai_journey_next_at", new Date(Date.now() + 3600000).toISOString()).limit(100),
+      baseQuery().lte("ai_journey_next_at", new Date(Date.now() + 3600000).toISOString()).order("ai_journey_next_at", { ascending: true }).limit(100),
     ]);
     if (recent.error || parked.error) {
       errors.push(`conversas da IA (${instance.unit}): ${(recent.error || parked.error).message}`);
@@ -317,7 +314,11 @@ export async function runAiJourney(
     for (const conv of (convs || []) as Json[]) {
       if (sent >= MAX_SENDS_PER_RUN || Date.now() - startedMs > budgetMs) break;
       try {
-        if (!journeyCovers(scope, conv.remote_jid) || !conv.lead_id) continue;
+        if (!journeyCovers(scope, conv.remote_jid) || !conv.lead_id) {
+          // Fora da jornada (ex.: modo de teste): marcador velho não fica entupindo a busca
+          if (conv.ai_journey_next_at) await setJourneyNext(supabase, conv.id, null);
+          continue;
+        }
         const isTest = !!scope.testVariants;
         const nowMs = Date.now();
         const todayYmd = ymdBR(nowMs);
@@ -332,10 +333,14 @@ export async function runAiJourney(
         const plan = nextJourneyAction(cfg, msgs, nowMs, ctx);
         const party = plan.party || null;
         // Guarda quando vence o próximo lembrete antes da festa: a conversa parada
-        // há meses volta a ser encontrada nesse dia (e a reativação fixa sabe que é da Bia)
+        // há meses volta a ser encontrada nesse dia (e a reativação fixa sabe que
+        // é da Bia). Com algo a mandar agora, o marcador só muda depois do envio.
         const nextIso = plan.nextDueMs ? new Date(plan.nextDueMs).toISOString() : null;
-        if ((bd.ai_journey_next_at || null) !== nextIso) await mergeJourneyNext(supabase, conv.id, nextIso);
-        if (!plan.action) continue;
+        const currentNext = conv.ai_journey_next_at ? new Date(conv.ai_journey_next_at).toISOString() : null;
+        if (!plan.action) {
+          if (currentNext !== nextIso) await setJourneyNext(supabase, conv.id, nextIso);
+          continue;
+        }
         if (plan.action.kind !== "lost" && !inSendWindowBR(nowMs)) continue;
 
         // Só leads ainda em negociação
@@ -350,6 +355,7 @@ export async function runAiJourney(
 
         if (plan.action.kind === "lost") {
           await markLost(supabase, lead, conv, instance.company_id, `${plan.why} sem resposta do cliente`);
+          if (conv.ai_journey_next_at) await setJourneyNext(supabase, conv.id, null);
           lost++;
           continue;
         }
@@ -454,6 +460,8 @@ export async function runAiJourney(
           continue;
         }
         sent++;
+        // Enviado: a conversa volta a ser recente; a próxima rodada recalcula o próximo lembrete
+        if (conv.ai_journey_next_at) await setJourneyNext(supabase, conv.id, null);
         if (!(await tagFollowUp(supabase, conv.id, messageId, check.text, sinceIso, label))) {
           // Sem a marca, a próxima rodada não saberia que esta saiu: bloqueia a conversa
           console.error(`[ai-journey] Mensagem enviada mas não marcada como ${label} (conv ${conv.id}) — jornada pausada 7 dias nesta conversa`);
