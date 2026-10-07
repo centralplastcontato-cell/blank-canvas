@@ -45,10 +45,10 @@ const hourText = (t: string) => {
   return min ? `${h}h${String(min).padStart(2, "0")}` : `${h}h`;
 };
 
-/** "📅 Sábado, 5 de dezembro" */
+/** "🗓️ Sábado, 5 de dezembro" (🗓️ e não 📅: no iPhone o 📅 mostra "JUL 17" ao lado da data) */
 export function formatDayHeader(ymd: string): string {
   const long = formatDateLong(ymd);
-  return `📅 ${long.charAt(0).toUpperCase()}${long.slice(1)}`;
+  return `🗓️ ${long.charAt(0).toUpperCase()}${long.slice(1)}`;
 }
 
 /** "☀️ Almoço (13h às 17h)" / "🌙 Noite (19h às 23h)" */

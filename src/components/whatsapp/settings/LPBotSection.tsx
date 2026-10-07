@@ -46,7 +46,7 @@ const DEFAULTS: Omit<LPBotSettings, 'company_id'> = {
   guest_limit_redirect_name: null,
   redirect_completion_message: null,
   auto_rotate_months: false,
-  whatsapp_welcome_template: 'Olá, *{primeiro_nome}*! 👋 Recebemos seu pedido pelo site do *{empresa}*! ✨\n\nAnotei por aqui:\n📅 Data: {data}\n👥 Convidados: {convidados}\n\nPara agilizar, me diz o que você prefere 👇\n\n1️⃣ - 📩 Receber o orçamento agora\n2️⃣ - 💬 Falar com um atendente',
+  whatsapp_welcome_template: 'Olá, *{primeiro_nome}*! 👋 Recebemos seu pedido pelo site do *{empresa}*! ✨\n\nAnotei por aqui:\n🗓️ Data: {data}\n👥 Convidados: {convidados}\n\nPara agilizar, me diz o que você prefere 👇\n\n1️⃣ - 📩 Receber o orçamento agora\n2️⃣ - 💬 Falar com um atendente',
   lead_routing_mode: 'auto',
 };
 
@@ -211,7 +211,7 @@ export function LPBotSection() {
               value={settings.whatsapp_welcome_template ?? ''}
               onChange={(e) => updateField('whatsapp_welcome_template', e.target.value || null)}
               rows={6}
-              placeholder={`Olá, *{primeiro_nome}*! 👋 Recebemos seu pedido pelo site do *{empresa}*! ✨\n\nAnotei por aqui:\n📅 Data: {data}\n👥 Convidados: {convidados}`}
+              placeholder={`Olá, *{primeiro_nome}*! 👋 Recebemos seu pedido pelo site do *{empresa}*! ✨\n\nAnotei por aqui:\n🗓️ Data: {data}\n👥 Convidados: {convidados}`}
             />
             <p className="text-xs text-muted-foreground">
               Variáveis disponíveis: <code>{'{primeiro_nome}'}</code>, <code>{'{nome}'}</code>, <code>{'{unidade}'}</code>, <code>{'{data}'}</code>, <code>{'{convidados}'}</code>, <code>{'{empresa}'}</code>. Deixe vazio para usar a mensagem padrão.

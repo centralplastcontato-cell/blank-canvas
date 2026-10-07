@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { mediaAckMetadata } from "../_shared/media-ack.ts";
+import { aiTakesSiteLead, buildAiSiteWelcome, cleanSiteLead, type SiteLeadInfo, siteLeadBotData } from "../_shared/ai-site-lead.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1247,7 +1248,9 @@ Deno.serve(async (req) => {
     const supabase: any = createClient(supabaseUrl, supabaseServiceKey);
 
     const body = await req.json();
-    const { action, message, conversationId } = body;
+    const { action, conversationId } = body;
+    // Pode trocar: lead do site com a IA atendendo recebe a boas-vindas da IA
+    let message = body.message;
     let phone: string = body.phone;
 
     // Phase 2 trace — single tracking_id per outbound request
@@ -1553,6 +1556,24 @@ Deno.serve(async (req) => {
           quotedProviderMessageId = quotedMsg?.message_id || null;
         }
 
+        // Lead do site e a IA Conversacional atende este cliente: vai a
+        // boas-vindas da IA (sem o menu 1/2 do bot fixo) e a conversa fica com ela
+        let aiSiteLead: { info: SiteLeadInfo; todayYmd: string; instanceId: string } | null = null;
+        const siteLead = body.lpMode && !conversationId && phone ? cleanSiteLead(body.siteLead) : null;
+        if (siteLead) {
+          try {
+            const decision = await aiTakesSiteLead(supabase, instance_id, phone);
+            console.log(`send-text: lead do site ${decision.take ? 'vai para a IA' : 'segue com o bot fixo'} (${decision.reason})`);
+            if (decision.take) {
+              const todayYmd = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+              message = buildAiSiteWelcome(siteLead, decision.companyName, todayYmd);
+              aiSiteLead = { info: siteLead, todayYmd, instanceId: instance_id };
+            }
+          } catch (e) {
+            console.error('send-text: não deu para decidir se a IA atende o lead do site — segue o bot fixo', e);
+          }
+        }
+
         // 🔭 trace: provider_send_attempt
         const providerStart = Date.now();
         fireTrace(supabase, {
@@ -1740,6 +1761,18 @@ Deno.serve(async (req) => {
           }
         }
 
+        // Failover para outro número (outra unidade): a IA não atende lá — fica com o bot fixo
+        const aiOwnsSiteLead = Boolean(aiSiteLead && resolvedConvId && aiSiteLead.instanceId === instance_id);
+        if (aiOwnsSiteLead && aiSiteLead) {
+          const { data: convRow } = await supabase.from('wapi_conversations').select('bot_data').eq('id', resolvedConvId).maybeSingle();
+          await supabase.from('wapi_conversations').update({
+            bot_step: 'ai_agent',
+            bot_enabled: true,
+            bot_data: { ...((convRow?.bot_data as Record<string, unknown>) || {}), ...siteLeadBotData(aiSiteLead.info, aiSiteLead.todayYmd) },
+          }).eq('id', resolvedConvId);
+          console.log(`send-text: conversa ${resolvedConvId} do site entregue à IA`);
+        }
+
         if (resolvedConvId) {
           const quotedMessageId = quotedDbMessageId;
 
@@ -1753,7 +1786,8 @@ Deno.serve(async (req) => {
             timestamp: new Date().toISOString(),
             company_id: resolvedCompanyId,
             quoted_message_id: quotedMessageId,
-            metadata: { source: 'platform' },
+            // Boas-vindas da IA conta como mensagem dela (não como resposta da equipe)
+            metadata: { source: aiOwnsSiteLead ? 'ai_agent' : 'platform' },
           };
 
           await supabase

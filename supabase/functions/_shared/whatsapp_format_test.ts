@@ -25,7 +25,7 @@ Deno.test("prettyPackageName / packageEmoji", () => {
 });
 
 Deno.test("formatDayHeader / formatSlotRange: lista de datas da IA", () => {
-  assertEquals(formatDayHeader("2026-12-01"), "📅 Terça, 1 de dezembro");
+  assertEquals(formatDayHeader("2026-12-01"), "🗓️ Terça, 1 de dezembro");
   assertEquals(formatSlotRange("13:00", "17:00"), "☀️ Almoço (13h às 17h)");
   assertEquals(formatSlotRange("19:00", "23:00"), "🌙 Noite (19h às 23h)");
 });
