@@ -38,6 +38,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { normalizeImageOrientation } from "@/lib/image-orientation";
+import { EMPTY_IMAGE_MESSAGE, fileForUpload } from "@/lib/upload-bytes";
 
 // Pasta do Storage a partir do nome da unidade: o Storage recusa espaço e
 // acento ("Invalid key: castelo da diversão/..."), então vira "castelo-da-diversao".
@@ -369,10 +370,16 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
         const fileExt = (file.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
         const fileName = `${unitFolder(selectedUnit)}/collections/${Date.now()}_${i}.${fileExt}`;
 
+        const body = await fileForUpload(file);
+        if (!body) {
+          console.error("Upload error: arquivo vazio", file.name);
+          continue;
+        }
         const { error: uploadError } = await supabase.storage
           .from("sales-materials")
-          .upload(fileName, file, {
+          .upload(fileName, body, {
             cacheControl: "3600",
+            contentType: file.type,
             upsert: false,
           });
 
@@ -436,11 +443,16 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
       return null;
     }
     const normalized = await normalizeImageOrientation(file);
+    const body = await fileForUpload(normalized);
+    if (!body) {
+      toast({ title: "Erro no upload", description: EMPTY_IMAGE_MESSAGE, variant: "destructive" });
+      return null;
+    }
     const ext = (normalized.name.split(".").pop() || "jpg").toLowerCase();
     const fileName = `${unitFolder(selectedUnit)}/collections/${Date.now()}_edit.${ext}`;
     const { error } = await supabase.storage
       .from("sales-materials")
-      .upload(fileName, normalized, { cacheControl: "3600", upsert: false });
+      .upload(fileName, body, { cacheControl: "3600", contentType: normalized.type, upsert: false });
     if (error) {
       toast({ title: "Erro no upload", description: error.message, variant: "destructive" });
       return null;
