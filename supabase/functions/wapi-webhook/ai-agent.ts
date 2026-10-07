@@ -37,7 +37,7 @@ import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
 import { findPromotion, promoMentions, promoNote } from "../_shared/promo.ts";
 import { closedPeriodAt, closedPeriodsNote, formatClosedPeriod, isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
-import { asksPartnership, closingAfterMaterials, confirmsPartyInterest, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
+import { asksPartnership, clientAffirms, closingAfterMaterials, confirmsPartyInterest, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 import { falseMaterialClaims, hasMaterialClaim, hasSubstance, refersToMaterial, stripFalseMaterialClaims } from "../_shared/material-claims.ts";
 import { enforceHouseRules, houseRuleNote, houseRuleViolatingSentences, houseRuleViolations, parseHouseRules, topicsAsked, TOPIC_ASK } from "../_shared/house-rules.ts";
@@ -529,6 +529,8 @@ interface PromptContext {
   afterHoursHandoff: { reason: string; returns: string } | null;
   // Respostas da IA desde o último convite para visita (null = ainda não convidou)
   visitRepliesAgo: number | null;
+  // O cliente só confirmou ("ok", "ótimo", "gostei"): hora de conduzir para o próximo passo
+  clientAffirmed: boolean;
   minPackageGuests: number | null;
   packagesText: string | null; // o que cada pacote inclui (Operações → Pacotes)
   pricePending: boolean; // cliente pediu o valor e ainda não recebeu
@@ -544,7 +546,15 @@ interface PromptContext {
 }
 
 // Convidar para a visita no máximo a cada 3–4 respostas, ou quando fizer sentido
-function visitInviteRule(repliesAgo: number | null): string {
+function visitInviteRule(repliesAgo: number | null, clientAffirmed = false): string {
+  // "Ok" logo depois do convite: ele provavelmente aceitou — fecha o horário
+  if (clientAffirmed && repliesAgo === 0) {
+    return 'O cliente respondeu "ok"/"ótimo" logo depois do seu convite para visita: ele provavelmente aceitou. Confirme qual dos 2 horários que você ofereceu ele prefere (repita os dois) — ou, se ele já escolheu, agende. Não mude de assunto.';
+  }
+  // "Ok", "ótimo", "gostei" depois de valores/fotos: é a hora de conduzir, não de travar
+  if (clientAffirmed) {
+    return 'O cliente só confirmou ("ok", "ótimo", "gostei"). Conduza para o PRÓXIMO PASSO CONCRETO: se ele ainda não marcou visita, convide para conhecer o espaço oferecendo 2 horários concretos; se ele já disse que não quer visita, pergunte se quer que a equipe garanta a data dele. Nunca responda só com "o que você quer ver agora?" ou uma lista de opções.';
+  }
   if (repliesAgo !== null && repliesAgo < 3) {
     const when = repliesAgo === 0 ? 'na sua última resposta' : `há ${repliesAgo} resposta(s)`;
     return `Você já convidou para a visita ${when}. NESTA resposta NÃO convide de novo e não termine com "posso agendar uma visita" — só responda o que o cliente perguntou. Exceção: só se o próprio cliente falar de visita ou pedir para conhecer o espaço. (Se você convidar fora de hora, o convite é cortado da mensagem.)`;
@@ -572,7 +582,8 @@ COMO CONVERSAR:
   [um detalhe ou benefício, numa frase] ✨
 
   [uma pergunta simples para seguir] 😍"
-- Termine com UMA pergunta direta. Nada de "posso seguir de duas formas" nem de oferecer opções em sequência.
+- Termine com UMA pergunta direta, que diga a que se refere ("Qual horário fica melhor para a visita: quinta às 15h ou sábado às 10h?", nunca só "Qual horário fica melhor?"). Nada de "posso seguir de duas formas", de oferecer opções em sequência nem de "o que você quer ver agora?".
+- Você conduz a conversa: quando o cliente responde só "ok", "ótimo" ou "gostei", entenda a que ele está respondendo e dê o próximo passo (data → valores → visita → garantir a data com a equipe).
 - Se o cliente perguntar um detalhe que não está nas informações do buffet: responda o que você sabe e diga com leveza que a equipe explica certinho (ou que ele vê de perto na visita). Não se justifique ("prefiro não te passar nada errado", "os detalhes podem variar") — soa robótico.
 - ${ctx.isFirstReply ? 'ESTA É A SUA PRIMEIRA RESPOSTA: apresente-se (diga seu nome' + (assistantName ? ' — ' + assistantName : ', se ele estiver nas informações do buffet,') + ' e que é do ' + companyName + ') e, se ainda não souber o nome do cliente, já pergunte o nome dele NESTA mensagem, junto com a resposta ao que ele perguntou.' : 'Se ainda não souber o nome do cliente, não interrompa a conversa para pedir — aproveite um momento natural.'}
 - Dados do cliente já registrados: ${ctx.knownDataText}. Não pergunte de novo o que já sabe.${ctx.pricePending ? '\n- O CLIENTE JÁ PEDIU O VALOR e ainda não recebeu: assim que você souber a quantidade de convidados e o dia/data (já registrados ou nesta mensagem), chame consultar_valor_pacote e passe o valor NESTA resposta, sem esperar ele pedir de novo. Se ainda faltar um dos dois, pergunte só o que falta.' : ''}
@@ -672,7 +683,7 @@ ${ctx.packagesText
   🚗 [comodidades, ex.: estacionamento]"
 
 CONVITE PARA VISITA (não seja repetitiva):
-- ${visitInviteRule(ctx.visitRepliesAgo)}
+- ${visitInviteRule(ctx.visitRepliesAgo, ctx.clientAffirmed)}
 
 AGENDAMENTO DE VISITAS:
 - Janelas de visita: ${settings.visit_hours}.
@@ -2065,6 +2076,7 @@ export async function maybeHandleWithAiAgent(
         ? { reason: String(afterHoursHandoff.reason || ''), returns: teamReturnText(settings, nowMs) }
         : null,
       visitRepliesAgo: repliesSinceVisitInvite(chatMessages),
+      clientAffirmed: clientAffirms(lastUserText),
       minPackageGuests: smallestPackageGuests(await loadSalesMaterials(supabase, instance)),
       packagesText: await loadPackagesText(supabase, instance),
       pricePending: priceRequestPending(chatMessages),
@@ -2268,7 +2280,8 @@ export async function maybeHandleWithAiAgent(
       // Convite para visita fora de hora (convidou há menos de 3 respostas, o
       // cliente desistiu ou já tem visita marcada) e o cliente não pediu: sai da mensagem
       const visitAgo = repliesSinceVisitInvite(chatMessages);
-      if (!clientAsksVisit(lastUserText) && ((visitAgo !== null && visitAgo < 3) || clientDeclined(lastUserText) || leadVisit)) {
+      const affirmedNow = clientAffirms(lastUserText);
+      if (!clientAsksVisit(lastUserText) && ((visitAgo !== null && visitAgo < 3 && !affirmedNow) || clientDeclined(lastUserText) || leadVisit)) {
         const stripped = stripVisitInvite(finalText);
         if (stripped.removed) {
           console.warn(`[AI Agent] Convite para visita fora de hora tirado da resposta (conv ${conv.id}, convidou há ${visitAgo ?? '-'} resposta(s))`);

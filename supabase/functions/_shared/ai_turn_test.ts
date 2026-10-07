@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { closingAfterMaterials, confirmsPartyInterest, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, priceRequestPending, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, teamRepliedAfter } from "./ai-turn.ts";
+import { clientAffirms, closingAfterMaterials, confirmsPartyInterest, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, priceRequestPending, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, teamRepliedAfter } from "./ai-turn.ts";
 
 Deno.test("pickLatestIncoming: a última mensagem do cliente responde por todas", () => {
   assertEquals(pickLatestIncoming([
@@ -227,4 +227,18 @@ Deno.test("splitAroundMaterials: antes das fotos e depois do PDF", () => {
   assertEquals(dropMaterialsBreak("Sem nada"), "Sem nada");
   assertEquals(closingAfterMaterials("Victor", 0).includes("Victor"), true);
   assertEquals(closingAfterMaterials("", 7).includes(", ,"), false);
+});
+
+Deno.test("clientAffirms: aceite curto sim; pergunta ou texto longo não", () => {
+  for (const t of ["Ok", "Ótimo", "ótimo!", "Gostei", "Perfeito 😍", "pode ser", "Sim", "👍", "Adorei demais", "Ok obrigado"]) assertEquals(clientAffirms(t), true, t);
+  for (const t of ["Ok, mas quanto fica para 80?", "Não gostei", "Qual o valor?", "Gostei do Super Castelo, mas tem como trocar o salgado?", "Murilo"]) assertEquals(clientAffirms(t), false, t);
+});
+
+Deno.test("stripVisitInvite: tira a pergunta que dependia do convite cortado", () => {
+  const r = stripVisitInvite("Perfeito, Victor! 🥳 Fico feliz que tenha gostado ✨\n\nQue tal vir conhecer o espaço? Tenho quinta às 15h ou sábado às 10h 😍 Qual horário fica melhor pra você? 🎈");
+  assertEquals(r.removed, true);
+  assertEquals(r.text.includes("Qual horário"), false);
+  assertEquals(r.text.startsWith("Perfeito, Victor!"), true);
+  // Sem convite cortado, a pergunta fica
+  assertEquals(stripVisitInvite("Qual horário da festa você prefere: almoço ou noite? 😊").removed, false);
 });
