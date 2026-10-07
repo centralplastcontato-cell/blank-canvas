@@ -34,6 +34,9 @@ Deno.test("followUpInstruction: objetivo, agenda real e valores", () => {
   assertEquals(taken.includes("os mesmos que você já passou"), true);
   const inactive = followUpInstruction({ ...base, kind: "inactivity", silenceMs: 60 * 60000 });
   assertEquals(inactive.includes("há 60 minutos"), true);
+  const second = followUpInstruction({ ...base, kind: "inactivity", reminderNumber: 2, silenceMs: 200 * 60000 });
+  assertEquals(second.includes("2º lembrete"), true);
+  assertEquals(second.includes("sem repetir o 1º"), true);
   assertEquals(inactive.includes("Nenhum material"), true);
   assertEquals(followUpInstruction({ ...base, materialsSent: ["fotos", "pacotes"] }).includes("as fotos do espaço, o PDF dos pacotes"), true);
 });

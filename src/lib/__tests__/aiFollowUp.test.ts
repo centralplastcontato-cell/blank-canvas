@@ -9,7 +9,7 @@ describe("aiFollowUp", () => {
       steps: [{ delay_hours: 300, goal: "b" }, { delay_hours: 24, goal: "a" }],
       auto_lost: { enabled: false, hours: 99999 },
     });
-    expect(c.inactivity).toEqual({ enabled: false, minutes: 5 });
+    expect(c.inactivity).toEqual({ enabled: false, minutes: 5, second_minutes: null });
     expect(c.steps.map((s) => s.goal)).toEqual(["a", "b"]);
     expect(c.auto_lost).toEqual({ enabled: false, hours: 2160 });
   });
@@ -51,6 +51,12 @@ describe("aiFollowUp", () => {
     expect(c.steps[0].image_url).toBe(url);
     expect(c.reactivation.image_url).toBeNull();
     expect(cleanImageUrl("http://x.com/a.jpg")).toBeNull();
+  });
+
+  it("2º lembrete de inatividade: padrão ligado, configuração antiga sem ele", () => {
+    expect(normalizeFollowUpConfig(null).inactivity).toEqual({ enabled: true, minutes: 30, second_minutes: 180 });
+    expect(normalizeFollowUpConfig({ inactivity: { enabled: true, minutes: 15 } }).inactivity.second_minutes).toBeNull();
+    expect(normalizeFollowUpConfig({ inactivity: { enabled: true, minutes: 15, second_minutes: 9999 } }).inactivity.second_minutes).toBe(600);
   });
 
   it("chave geral só vale com a data de ativação", () => {

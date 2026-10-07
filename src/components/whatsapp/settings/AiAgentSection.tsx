@@ -29,6 +29,7 @@ import { DEFAULT_TEAM_HOURS, parseVisitHours, serializeTeamHours, serializeVisit
 import {
   DEFAULT_STEP_GOALS,
   INACTIVITY_MINUTE_OPTIONS,
+  SECOND_INACTIVITY_OPTIONS,
   MAX_FOLLOWUP_STEPS,
   MAX_REACTIVATIONS,
   delayLabel,
@@ -279,7 +280,9 @@ export function AiAgentSection() {
   const [closedPeriods, setClosedPeriods] = useState<ClosedPeriod[]>([]);
   const [fuEnabled, setFuEnabled] = useState(false);
   const [fuInactivityOn, setFuInactivityOn] = useState(true);
-  const [fuInactivityMinutes, setFuInactivityMinutes] = useState(60);
+  const [fuInactivityMinutes, setFuInactivityMinutes] = useState(30);
+  const [fuSecondOn, setFuSecondOn] = useState(true);
+  const [fuSecondMinutes, setFuSecondMinutes] = useState(180);
   const [fuSteps, setFuSteps] = useState<FollowUpStepDraft[]>([]);
   const [fuLostOn, setFuLostOn] = useState(true);
   const [fuLostHours, setFuLostHours] = useState(48);
@@ -460,6 +463,8 @@ export function AiAgentSection() {
     setFuEnabled(fu.enabled);
     setFuInactivityOn(fu.inactivity.enabled);
     setFuInactivityMinutes(fu.inactivity.minutes);
+    setFuSecondOn(fu.inactivity.second_minutes !== null);
+    setFuSecondMinutes(fu.inactivity.second_minutes ?? 180);
     setFuSteps(fu.steps.map((st) => ({ ...splitDelay(st.delay_hours), goal: st.goal, image_url: st.image_url || null })));
     setFuLostOn(fu.auto_lost.enabled);
     setFuLostHours(fu.auto_lost.hours);
@@ -512,7 +517,7 @@ export function AiAgentSection() {
     const followUp = normalizeFollowUpConfig({
       enabled: fuEnabled,
       since: fuSince,
-      inactivity: { enabled: fuInactivityOn, minutes: fuInactivityMinutes },
+      inactivity: { enabled: fuInactivityOn, minutes: fuInactivityMinutes, second_minutes: fuSecondOn ? fuSecondMinutes : null },
       steps: rawSteps,
       auto_lost: { enabled: fuLostOn, hours: fuLostHours },
       far_months: fuFarMonths,
@@ -1082,7 +1087,7 @@ export function AiAgentSection() {
                     <Switch checked={fuInactivityOn} onCheckedChange={setFuInactivityOn} />
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    Quando o cliente para de responder no meio da conversa, a Bia retoma de onde pararam — uma vez só.
+                    Quando o cliente para de responder no meio da conversa, a Bia retoma de onde pararam. Vale para cada pausa: se ele responder e parar de novo, o lembrete volta a valer.
                   </p>
                   {fuInactivityOn && (
                     <div className="flex items-center gap-2 text-sm">
@@ -1098,6 +1103,32 @@ export function AiAgentSection() {
                         </SelectContent>
                       </Select>
                       <span className="text-muted-foreground">sem resposta</span>
+                    </div>
+                  )}
+                  {fuInactivityOn && (
+                    <div className="rounded-lg border border-border/70 bg-muted/30 p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label className="text-xs font-bold">2º lembrete</Label>
+                        <Switch checked={fuSecondOn} onCheckedChange={setFuSecondOn} />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Se ele não responder nem ao 1º, a Bia manda mais um, em outro tom e sem pressão. Depois disso, só os follow-ups.
+                      </p>
+                      {fuSecondOn && (
+                        <div className="flex flex-wrap items-center gap-2 text-sm">
+                          <Select value={String(fuSecondMinutes)} onValueChange={(v) => setFuSecondMinutes(Number(v))}>
+                            <SelectTrigger className="h-10 w-32 bg-card border-border shadow-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from(new Set([...SECOND_INACTIVITY_OPTIONS, fuSecondMinutes])).sort((a, b) => a - b).map((m) => (
+                                <SelectItem key={m} value={String(m)}>{m < 60 ? `${m} min` : m % 60 === 0 ? `${m / 60}h` : `${Math.floor(m / 60)}h${m % 60}`}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <span className="text-muted-foreground">depois do 1º lembrete</span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

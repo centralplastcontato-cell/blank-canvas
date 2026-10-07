@@ -405,6 +405,7 @@ export async function runAiJourney(
         const instruction = followUpInstruction({
           kind: plan.action.kind,
           stepNumber: plan.action.kind === "step" ? plan.action.index + 1 : undefined,
+          reminderNumber: plan.action.kind === "inactivity" ? plan.action.nth : undefined,
           daysBefore: plan.action.kind === "reactivation" ? plan.action.daysBefore : undefined,
           partyExact: party?.exact,
           alternatives,
@@ -493,6 +494,8 @@ export async function runAiJourney(
           user_name: "Bia (IA)",
           action: label === "inatividade"
             ? "Lembrete da Bia (cliente parou de responder)"
+            : label === "inatividade_2"
+            ? "2º lembrete da Bia (cliente parou de responder)"
             : label.startsWith("reativacao_")
             ? `Lembrete da Bia antes da festa (${label.replace("reativacao_", "")} dias)`
             : `Follow-up da Bia #${label.replace("etapa_", "")}`,

@@ -12,6 +12,7 @@ export interface FollowUpContext {
   partyExact?: boolean; // false = só o mês (dia 15 aproximado)
   alternatives?: string | null; // linhas prontas de outras datas livres ("🗓️ Sábado, 6 de março" + "🌙 Noite (19h às 23h)")
   stepNumber?: number; // 1, 2, ...
+  reminderNumber?: number; // lembrete de inatividade: 1º ou 2º
   stepsTotal?: number;
   goal?: string;
   silenceMs: number;
@@ -61,6 +62,8 @@ export function followUpInstruction(c: FollowUpContext): string {
     : ` AGENDA AGORA: ${formatDateLong(c.partyYmd)} NÃO está mais disponível. Não ofereça essa data; se fizer sentido, ofereça ver outras datas com ele.`;
   const what = c.kind === "reactivation"
     ? `LEMBRETE ANTES DA FESTA: faltam cerca de ${c.daysBefore} dias para a festa e o cliente não responde há ${silenceText(c.silenceMs)}. Retome o contato com carinho (a festa está chegando), mostre a agenda real (abaixo) e convide para conhecer o espaço ou garantir a data com a equipe. Escreva UMA mensagem curta (2 a 5 frases + as linhas de datas, se houver), terminando com uma pergunta simples. Não diga que é um lembrete automático.`
+    : c.kind === "inactivity" && c.reminderNumber === 2
+    ? `O cliente parou de responder há ${silenceText(c.silenceMs)} e não respondeu nem ao seu 1º lembrete. Escreva UM 2º lembrete bem curto (1 ou 2 frases), em outro tom e sem repetir o 1º: leve e sem pressão — deixe claro que você fica por aqui quando ele puder e termine com uma pergunta simples.`
     : c.kind === "inactivity"
     ? `O cliente parou de responder há ${silenceText(c.silenceMs)}, no meio da conversa. Escreva UM lembrete curto (1 ou 2 frases) retomando de onde vocês pararam, com uma pergunta simples ligada à sua última mensagem. Sem repetir o que você já disse.`
     : `Follow-up ${c.stepNumber} de ${c.stepsTotal}: o cliente não responde há ${silenceText(c.silenceMs)}. OBJETIVO DESTA MENSAGEM (definido pelo buffet): ${c.goal} Escreva UMA mensagem curta (2 a 4 frases), no seu tom, terminando com uma pergunta simples.`;

@@ -16,7 +16,8 @@ export function cleanImageUrl(v: unknown): string | null {
 export interface AiFollowUpConfig {
   enabled: boolean; // desligado = conversas da Bia seguem os follow-ups fixos do número
   since: string | null; // quando foi ligado (conversas paradas antes ficam de fora)
-  inactivity: { enabled: boolean; minutes: number };
+  // 1º lembrete: X min sem resposta; 2º (opcional): Y min depois do 1º, se ele ainda não respondeu
+  inactivity: { enabled: boolean; minutes: number; second_minutes: number | null };
   steps: FollowUpStep[];
   auto_lost: { enabled: boolean; hours: number };
   far_months: number; // festa a mais de X meses: só a 1ª etapa e espera os lembretes antes da festa
@@ -24,7 +25,9 @@ export interface AiFollowUpConfig {
 }
 
 export const MAX_FOLLOWUP_STEPS = 6;
-export const INACTIVITY_MINUTE_OPTIONS = [5, 10, 15, 30, 45, 60, 90, 120, 180, 240]; // 5 e 10: para testes rápidos
+export const INACTIVITY_MINUTE_OPTIONS = [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240]; // 5 e 10: para testes rápidos
+// 2º lembrete: contado a partir do 1º
+export const SECOND_INACTIVITY_OPTIONS = [30, 60, 90, 120, 180, 240, 300, 360];
 
 export const DEFAULT_STEP_GOALS = [
   "Convidar para conhecer o espaço, oferecendo 2 horários de visita, de forma leve.",
@@ -36,7 +39,7 @@ export const MAX_REACTIVATIONS = 3;
 export const DEFAULT_AI_FOLLOWUP: AiFollowUpConfig = {
   enabled: false,
   since: null,
-  inactivity: { enabled: true, minutes: 60 },
+  inactivity: { enabled: true, minutes: 30, second_minutes: 180 },
   steps: [
     { delay_hours: 24, goal: DEFAULT_STEP_GOALS[0], image_url: null },
     { delay_hours: 96, goal: DEFAULT_STEP_GOALS[1], image_url: null },
@@ -59,7 +62,7 @@ export function normalizeFollowUpConfig(raw: unknown): AiFollowUpConfig {
   type Raw = {
     enabled?: unknown;
     since?: unknown;
-    inactivity?: { enabled?: unknown; minutes?: unknown };
+    inactivity?: { enabled?: unknown; minutes?: unknown; second_minutes?: unknown };
     steps?: unknown;
     auto_lost?: { enabled?: unknown; hours?: unknown };
     far_months?: unknown;
@@ -68,12 +71,15 @@ export function normalizeFollowUpConfig(raw: unknown): AiFollowUpConfig {
   const r = raw as Raw;
   const rawSteps = (Array.isArray(r.steps) ? r.steps : DEFAULT_AI_FOLLOWUP.steps) as Array<{ delay_hours?: unknown; goal?: unknown; image_url?: unknown } | null>;
   const since = typeof r.since === "string" && !Number.isNaN(Date.parse(r.since)) ? r.since : null;
+  // 2º lembrete: configuração antiga (sem o campo) fica sem ele
+  const rawSecond = r.inactivity ? r.inactivity.second_minutes : DEFAULT_AI_FOLLOWUP.inactivity.second_minutes;
   return {
     enabled: r.enabled === true && since !== null,
     since,
     inactivity: {
       enabled: r.inactivity ? r.inactivity.enabled === true : DEFAULT_AI_FOLLOWUP.inactivity.enabled,
       minutes: num(r.inactivity?.minutes, DEFAULT_AI_FOLLOWUP.inactivity.minutes, 5, 720),
+      second_minutes: rawSecond === null || rawSecond === undefined || rawSecond === "" ? null : num(rawSecond, 180, 10, 600),
     },
     steps: rawSteps
       .slice(0, MAX_FOLLOWUP_STEPS)
