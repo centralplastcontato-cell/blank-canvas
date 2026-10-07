@@ -207,6 +207,63 @@ export function contactIntent(text: string): ContactIntent | null {
   return null;
 }
 
+// Só cumprimento, confirmação solta ou "quem é?": não diz nada sobre a festa
+const FILLER_WORDS = /\b(oi+e?|ola|opa|eai|e ai|bom dia|boa tarde|boa noite|bom|boa|tudo bem|tudo bom|td bem|tdb|como vai|blz|beleza|ok|okay|certo|sim|nao|hum+|hm+|alo|obrigad[oa]|valeu|vlw|quem e voce|quem e vc|quem e|quem eh|quem fala|quem ta falando|quem esta falando)\b/g;
+
+/**
+ * A mensagem do cliente confirma que o assunto é a festa (lead do site, que
+ * já chega com data e convidados)? Foto/figurinha sem texto, só um "oi" ou
+ * "quem é?", e quem quer trabalhar/vender/já tem festa NÃO confirmam — aí a
+ * Bia pergunta antes de mandar fotos, vídeo e PDF.
+ */
+export function confirmsPartyInterest(text: string): boolean {
+  if (contactIntent(text)) return false;
+  const words = (text || "")
+    // Foto do cliente: só a legenda conta; áudio transcrito conta
+    .replace(/\[Foto enviada pelo cliente[^\]]*\]/g, " ")
+    .replace(/\[O cliente mandou [^\]]*\]/g, " ")
+    .replace(/\[Áudio do cliente, transcrito\]:/g, " ")
+    .replace(/Legenda:/g, " ")
+    .replace(/\[(sticker|document|video|image|audio|location|contact)\][^\n]*/gi, " ")
+    .toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(FILLER_WORDS, " ")
+    .replace(/\s+/g, " ").trim();
+  return words.replace(/[^a-z0-9]/g, "").length >= 2;
+}
+
+// Linha só com "---": separa o que vai antes dos materiais do que vai depois do PDF
+const MATERIALS_BREAK = /\n[ \t]*-{3,}[ \t]*(?:\n|$)/;
+
+/**
+ * Resposta que vai junto com os materiais: a 1ª parte sai antes das fotos e a
+ * 2ª (a pergunta) depois do PDF, para a Bia não ficar quieta no fim. Sem a
+ * linha "---", a 2ª parte fica vazia (o sistema usa uma pergunta padrão).
+ */
+export function splitAroundMaterials(text: string): { before: string; after: string } {
+  const m = MATERIALS_BREAK.exec(text || "");
+  if (!m) return { before: (text || "").trim(), after: "" };
+  return { before: text.slice(0, m.index).trim(), after: text.slice(m.index + m[0].length).replace(MATERIALS_BREAK, "\n\n").trim() };
+}
+
+/** Tira a linha "---" de uma resposta que não vai com materiais */
+export function dropMaterialsBreak(text: string): string {
+  let out = text || "";
+  while (MATERIALS_BREAK.test(out)) out = out.replace(MATERIALS_BREAK, "\n\n");
+  return out.trim();
+}
+
+/** Pergunta depois do PDF quando a IA não escreveu a 2ª parte */
+export function closingAfterMaterials(firstName: string, seed: number): string {
+  const name = firstName ? `, ${firstName}` : "";
+  const options = [
+    `E aí${name}, o que achou do nosso espaço? 😍✨`,
+    `Dá uma olhadinha com calma e me conta${name}: o que achou? 😊🏰`,
+    `Me conta${name}: curtiu o espaço? 🥰🎈`,
+  ];
+  return options[Math.abs(seed) % options.length];
+}
+
 /** O cliente desistiu / disse que não vai fechar agora */
 export function clientDeclined(text: string): boolean {
   return /(n[aã]o vai dar|n[aã]o d[aá] pra|n[aã]o vou (fechar|conseguir)|desist|fica pra (pr[oó]xima|outra)|sem interesse|n[aã]o tenho interesse|acho que n[aã]o|vou procurar outro|muito caro pra mim)/i.test(text || "");

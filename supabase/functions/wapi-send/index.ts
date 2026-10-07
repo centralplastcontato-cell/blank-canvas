@@ -1558,7 +1558,7 @@ Deno.serve(async (req) => {
 
         // Lead do site e a IA Conversacional atende este cliente: vai a
         // boas-vindas da IA (sem o menu 1/2 do bot fixo) e a conversa fica com ela
-        let aiSiteLead: { info: SiteLeadInfo; todayYmd: string; instanceId: string } | null = null;
+        let aiSiteLead: { info: SiteLeadInfo; todayYmd: string; instanceId: string; introImageUrl: string | null } | null = null;
         const siteLead = body.lpMode && !conversationId && phone ? cleanSiteLead(body.siteLead) : null;
         if (siteLead) {
           try {
@@ -1566,8 +1566,8 @@ Deno.serve(async (req) => {
             console.log(`send-text: lead do site ${decision.take ? 'vai para a IA' : 'segue com o bot fixo'} (${decision.reason})`);
             if (decision.take) {
               const todayYmd = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
-              message = buildAiSiteWelcome(siteLead, decision.companyName, todayYmd);
-              aiSiteLead = { info: siteLead, todayYmd, instanceId: instance_id };
+              message = buildAiSiteWelcome(siteLead, decision.companyName, todayYmd, decision.assistantName || '');
+              aiSiteLead = { info: siteLead, todayYmd, instanceId: instance_id, introImageUrl: decision.introImageUrl || null };
             }
           } catch (e) {
             console.error('send-text: não deu para decidir se a IA atende o lead do site — segue o bot fixo', e);
@@ -1594,9 +1594,26 @@ Deno.serve(async (req) => {
           },
         });
 
-        let sendResult = isZapi
-          ? await zapiSendText(instance_id, instance_token, client_token, phone, message, quotedProviderMessageId, Number(body.delayTyping) || undefined)
-          : await sendTextWithFallback(instance_id, instance_token, phone, message, quotedProviderMessageId);
+        // Boas-vindas da IA com a arte de apresentação dela: a mensagem vai
+        // como legenda. Se a imagem falhar, vai só o texto (nunca fica sem).
+        let welcomeImageUrl: string | null = null;
+        let sendResult: { ok: boolean; data?: unknown; error?: string } | null = null;
+        if (aiSiteLead?.introImageUrl && message.length <= 1000) {
+          const imgResult = isZapi
+            ? await zapiSendImage(instance_id, instance_token, client_token, phone, aiSiteLead.introImageUrl, message)
+            : await sendMediaWithGroupFallback(`${WAPI_BASE_URL}/message/send-image?instanceId=${instance_id}`, instance_token, phone, { image: aiSiteLead.introImageUrl, caption: message }, 'send-image');
+          if (imgResult.ok) {
+            sendResult = imgResult;
+            welcomeImageUrl = aiSiteLead.introImageUrl;
+          } else {
+            console.warn('send-text: arte de apresentação da IA não saiu — vai só o texto:', imgResult.error);
+          }
+        }
+        if (!sendResult) {
+          sendResult = isZapi
+            ? await zapiSendText(instance_id, instance_token, client_token, phone, message, quotedProviderMessageId, Number(body.delayTyping) || undefined)
+            : await sendTextWithFallback(instance_id, instance_token, phone, message, quotedProviderMessageId);
+        }
 
         console.log('send-text response:', JSON.stringify(sendResult));
 
@@ -1780,8 +1797,9 @@ Deno.serve(async (req) => {
             conversation_id: resolvedConvId,
             message_id: messageId,
             from_me: true,
-            message_type: 'text',
+            message_type: welcomeImageUrl ? 'image' : 'text',
             content: message,
+            ...(welcomeImageUrl ? { media_url: welcomeImageUrl } : {}),
             status: 'sent',
             timestamp: new Date().toISOString(),
             company_id: resolvedCompanyId,

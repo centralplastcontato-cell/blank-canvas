@@ -37,7 +37,7 @@ import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
 import { findPromotion, promoMentions, promoNote } from "../_shared/promo.ts";
 import { closedPeriodAt, closedPeriodsNote, formatClosedPeriod, isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
-import { asksPartnership, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
+import { asksPartnership, closingAfterMaterials, confirmsPartyInterest, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 import { falseMaterialClaims, hasMaterialClaim, hasSubstance, refersToMaterial, stripFalseMaterialClaims } from "../_shared/material-claims.ts";
 import { enforceHouseRules, houseRuleNote, houseRuleViolatingSentences, houseRuleViolations, parseHouseRules, topicsAsked, TOPIC_ASK } from "../_shared/house-rules.ts";
@@ -67,6 +67,10 @@ interface AgentConv {
   __quotedValues?: number[];
   // Fotos/vídeo/PDF ficam para DEPOIS da resposta deste turno (a IA cumprimenta antes)
   __deferMaterials?: boolean;
+  // Resposta ainda não confirma que é sobre a festa: materiais seguram neste turno
+  __holdMaterials?: boolean;
+  // 1ª resposta da IA: se os materiais forem liberados, vão DEPOIS da apresentação
+  __firstReply?: boolean;
 }
 
 interface AiSettings {
@@ -93,6 +97,9 @@ interface AiSettings {
   handoff_alert_phone?: string | null;
   // Recesso / dias fechados: [{ start, end }] (sem festas, visitas e equipe)
   closed_periods?: unknown;
+  // Apresentação: nome da assistente e a arte dela (vai na 1ª mensagem)
+  assistant_name?: string | null;
+  intro_image_url?: string | null;
 }
 
 // Áudio ou foto que o cliente acabou de mandar (a mensagem já está salva)
@@ -103,6 +110,12 @@ export interface AgentMedia {
 }
 
 const AI_STEP = 'ai_agent';
+
+// Arte de apresentação da Bia (só link https do nosso storage ou outro https)
+function introImageUrl(settings: AiSettings): string | null {
+  const url = String(settings.intro_image_url || '').trim();
+  return /^https:\/\/\S+$/.test(url) && url.length <= 1000 ? url : null;
+}
 const MAX_HISTORY_MESSAGES = 30;
 const MAX_TOOL_ROUNDS = 4;
 
@@ -543,7 +556,8 @@ function buildSystemPrompt(companyName: string, unit: string, settings: AiSettin
   const offersText = ctx.offers.length > 0
     ? ctx.offers.map(formatSlot).join(' ou ')
     : 'nenhum horário livre nos próximos dias — nesse caso transfira para a equipe';
-  return `Você é a assistente virtual de vendas do ${companyName} (buffet infantil), atendendo pelo WhatsApp da unidade ${unit}. Hoje é ${today}.
+  const assistantName = String(settings.assistant_name || '').trim();
+  return `Você é ${assistantName ? `a ${assistantName}, ` : ''}a assistente virtual de vendas do ${companyName} (buffet infantil), atendendo pelo WhatsApp da unidade ${unit}. Hoje é ${today}.
 
 ${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}${ctx.houseNote ? `ATENÇÃO — REGRA DO BUFFET: ${ctx.houseNote}\n\n` : ''}${ctx.recessNote ? `ATENÇÃO — ${ctx.recessNote}\n\n` : ''}${ctx.intentNote ? `ATENÇÃO — QUEM É O CONTATO: ${ctx.intentNote}\n\n` : ''}${ctx.promoNote ? `${ctx.promoNote}\n\n` : ''}${ctx.materialsNote ? `ATENÇÃO — MATERIAIS NESTE TURNO: ${ctx.materialsNote}\n\n` : ''}MENSAGENS DA EQUIPE: no histórico, o que começa com "[Equipe]" foi escrito por uma pessoa da equipe, não por você. Respeite o que ela combinou (valores, condições, horários, visitas): não contradiga nem repita; se o cliente pedir algo além do que ela combinou, passe para a equipe. Nunca escreva "[Equipe]" nas suas respostas.
 
@@ -552,7 +566,7 @@ SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até A
 COMO CONVERSAR:
 - Português brasileiro, tom caloroso, animado e humano, mensagens CURTAS (2 a 4 frases; a de valores pode ter um bloco curto por pacote).
 - Use 2 a 3 emojis por mensagem, variados e combinando com o assunto (🎉 🥳 🎈 🏰 😍 ✨ 🎂 💜…), sem repetir sempre os mesmos. Se as informações do buffet trouxerem instruções de estilo/personalidade, elas valem mais do que esta.
-- ${ctx.isFirstReply ? 'ESTA É A SUA PRIMEIRA RESPOSTA: apresente-se (diga seu nome, se ele estiver nas informações do buffet, e que é do ' + companyName + ') e, se ainda não souber o nome do cliente, já pergunte o nome dele NESTA mensagem, junto com a resposta ao que ele perguntou.' : 'Se ainda não souber o nome do cliente, não interrompa a conversa para pedir — aproveite um momento natural.'}
+- ${ctx.isFirstReply ? 'ESTA É A SUA PRIMEIRA RESPOSTA: apresente-se (diga seu nome' + (assistantName ? ' — ' + assistantName : ', se ele estiver nas informações do buffet,') + ' e que é do ' + companyName + ') e, se ainda não souber o nome do cliente, já pergunte o nome dele NESTA mensagem, junto com a resposta ao que ele perguntou.' : 'Se ainda não souber o nome do cliente, não interrompa a conversa para pedir — aproveite um momento natural.'}
 - Dados do cliente já registrados: ${ctx.knownDataText}. Não pergunte de novo o que já sabe.${ctx.pricePending ? '\n- O CLIENTE JÁ PEDIU O VALOR e ainda não recebeu: assim que você souber a quantidade de convidados e o dia/data (já registrados ou nesta mensagem), chame consultar_valor_pacote e passe o valor NESTA resposta, sem esperar ele pedir de novo. Se ainda faltar um dos dois, pergunte só o que falta.' : ''}
 - ${ctx.pendingUserMessages > 1 ? `O cliente mandou ${ctx.pendingUserMessages} mensagens seguidas desde a sua última resposta: responda a TODAS as perguntas delas numa única mensagem, sem ignorar nenhuma.` : 'Se o cliente mandar várias perguntas, responda todas numa única mensagem.'}
 - Uma pergunta por vez, e UMA mensagem por vez: depois de perguntar, espere a resposta antes de perguntar outra coisa. Nunca envie listas de opções numeradas — converse como gente.
@@ -560,6 +574,7 @@ COMO CONVERSAR:
 - Descubra naturalmente: nome da pessoa, mês/data desejada da festa e número de convidados, se ainda não souber — mas só depois de saber que a pessoa quer orçamento (veja QUEM É O CONTATO).
 
 QUEM É O CONTATO (nem todo mundo quer orçamento):
+- Se a pessoa só cumprimentou ("oi", "bom dia") ou mandou algo solto (uma foto, "quem é?"), não suponha que é orçamento: cumprimente e pergunte com naturalidade como pode ajudar — se é orçamento de festa, se ela já tem festa com a gente ou se é outro assunto (uma pergunta só, sem menu numerado).
 - Se não estiver claro o que a pessoa quer, pergunte com gentileza qual é a dúvida — e, se ela disser que "tem uma festa", se a festa já está marcada com a gente ou se ela está procurando orçamento — ANTES de falar de pacotes, mês ou convidados.
 - Já tem festa marcada/contrato com a gente: NÃO trate como orçamento (nada de pacotes, valores, promoção ou visita). Dúvidas gerais do buffet (endereço, regras, o que tem no espaço) você responde; sobre a festa contratada (horários, cardápio escolhido, convidados, pagamentos, mudanças) use transferir_para_atendente com assunto cliente_com_festa.
 - Quer trabalhar / enviar currículo: use transferir_para_atendente com assunto trabalhar.
@@ -987,6 +1002,9 @@ async function toolEnviarMateriais(
   tipo: string,
   reenviar = false,
 ): Promise<string> {
+  if (conv.__holdMaterials) {
+    return 'AINDA NÃO: a mensagem do cliente não deixa claro que é sobre a festa. Não mande materiais nem diga que vai mandar — pergunte antes como pode ajudar.';
+  }
   // Cada material vai uma vez por conversa (a menos que o cliente peça de novo)
   if (tipo === 'fotos' || tipo === 'video' || tipo === 'pacotes') {
     const sentAt = sentMaterials(conv)[tipo];
@@ -1112,6 +1130,12 @@ async function toolRegistrarDados(
   const missing = [!bd.mes && 'mês da festa', !bd.convidados && 'número de convidados'].filter(Boolean);
   if (missing.length > 0) return `OK: dados salvos. Ainda falta descobrir: ${missing.join(' e ')}.${minNote}`;
   if (conv.__deferMaterials) return `OK: dados salvos. As fotos, o vídeo e o PDF vão logo DEPOIS da sua resposta — não diga que já mandou.${minNote}`;
+  if (conv.__firstReply) {
+    // Primeira resposta: apresentação primeiro, fotos/vídeo/PDF depois dela
+    conv.__deferMaterials = true;
+    return `OK: dados salvos. As fotos, o vídeo e o PDF vão logo DEPOIS da sua resposta (não diga que já mandou). Escreva a resposta em DUAS partes, separadas por uma linha só com ---: a 1ª (antes dos materiais) se apresenta, responde o que o cliente disse e termina avisando que vai mostrar o espaço (ex.: "Vou te mostrar o nosso espaço 😍👇"); a 2ª (depois do PDF) é UMA frase curta perguntando o que ele achou. Nesta resposta, não passe valores nem convide para visita, a menos que o cliente tenha pedido.${minNote}`;
+  }
+  if (conv.__holdMaterials) return `OK: dados salvos. Ainda não mande materiais: a mensagem do cliente não deixa claro que é sobre a festa — pergunte antes como pode ajudar.${minNote}`;
   return await autoSendMaterials(supabase, instance, conv, phone, contactName, botSettings, args, minNote, askedGuests);
 }
 
@@ -1131,6 +1155,7 @@ async function autoSendMaterials(
   args: { legenda_fotos?: string; legenda_video?: string; legenda_pdf?: string },
   minNote = '',
   askedGuests = NaN,
+  out?: { sent: boolean },
 ): Promise<string> {
   const bd = (conv.bot_data || {}) as Json;
   const materials = await loadSalesMaterials(supabase, instance);
@@ -1189,6 +1214,7 @@ async function autoSendMaterials(
     return `OK: dados salvos. Os materiais automáticos não puderam ser enviados agora; siga a conversa (se o cliente pedir valores, use enviar_materiais).${minNote}`;
   }
 
+  if (out) out.sent = true;
   const nowIso = new Date().toISOString();
   const sentNow: Partial<Record<MaterialTipo, string>> = { ...flags };
   for (const tipo of ack.confirmed) if (!already[tipo]) sentNow[tipo] = nowIso;
@@ -1970,7 +1996,9 @@ export async function maybeHandleWithAiAgent(
       chatMessages.push({ role: 'user', content: media ? mediaHistoryText(media.type, content, null) : content });
     }
     const isFirstReply = !chatMessages.some((m) => m.role === 'assistant' && !m.content.startsWith('🧪'));
+    conv.__firstReply = isFirstReply;
     const { merged: mergedHistory, pendingUserMessages } = mergeConsecutiveTurns(chatMessages);
+    const lastUserText = [...mergedHistory].reverse().find((m) => m.role === 'user')?.content || '';
 
     let companyName = instance.unit || '';
     const { data: companyRow } = await supabase.from('companies').select('name').eq('id', instance.company_id).maybeSingle();
@@ -1993,9 +2021,17 @@ export async function maybeHandleWithAiAgent(
     let materialsNote: string | null = null;
     const bdNow = (conv.bot_data || {}) as Json;
     if (bdNow.mes && bdNow.convidados && !isWithinMaterialWindow(bdNow.ai_auto_materials_at) && !afterHoursHandoff) {
-      console.log(`[AI Agent] Mês e convidados já conhecidos e materiais ainda não enviados — saem depois da resposta (conv ${conv.id})`);
-      conv.__deferMaterials = true;
-      materialsNote = 'logo DEPOIS da sua resposta, o sistema vai mandar as fotos do espaço, o vídeo e o PDF dos pacotes (com legendas próprias). Responda o que o cliente disse (se ele cumprimentou, cumprimente de volta) e termine avisando, com naturalidade, que vai mostrar o espaço — ex.: "Vou te mostrar o nosso espaço 😍👇 Depois me conta o que achou!". NÃO diga que já mandou e não pergunte o que ele achou ainda. Nesta resposta, não passe valores nem convide para visita (isso vem depois que ele vir o espaço), a menos que o cliente tenha pedido.';
+      if (confirmsPartyInterest(lastUserText)) {
+        console.log(`[AI Agent] Mês e convidados já conhecidos e materiais ainda não enviados — saem depois da resposta (conv ${conv.id})`);
+        conv.__deferMaterials = true;
+        materialsNote = 'logo DEPOIS da sua resposta, o sistema vai mandar as fotos do espaço, o vídeo e o PDF dos pacotes (com legendas próprias). Escreva a resposta em DUAS partes, separadas por uma linha só com ---. A 1ª parte sai ANTES dos materiais: responda o que o cliente disse (se ele cumprimentou, cumprimente de volta) e termine avisando, com naturalidade, que vai mostrar o espaço — ex.: "Vou te mostrar o nosso espaço 😍👇". A 2ª parte sai DEPOIS do PDF: UMA frase curta perguntando o que ele achou — ex.: "E aí, o que achou do nosso espaço? 😍". NÃO diga que já mandou. Nesta resposta, não passe valores nem convide para visita (isso vem depois que ele vir o espaço), a menos que o cliente tenha pedido.';
+      } else {
+        // Lead do site com data e convidados, mas a resposta não fala da festa
+        // (só "oi", uma foto solta, outro assunto): pergunta antes de mandar
+        console.log(`[AI Agent] Dados da festa conhecidos, mas a mensagem não confirma que é sobre a festa — materiais seguram (conv ${conv.id})`);
+        conv.__holdMaterials = true;
+        materialsNote = 'a data e os convidados já estão anotados (vieram do formulário do site ou da conversa), mas a mensagem do cliente ainda NÃO deixa claro que é sobre a festa (pode ser só um oi, uma foto solta ou outro assunto). Ainda NÃO mande fotos, vídeo, PDF nem valores, e não diga que vai mandar. Responda com simpatia ao que ele mandou e pergunte com naturalidade como pode ajudar — se é sobre a festa do pedido, se ele já tem festa com a gente ou se é outro assunto. Uma pergunta só, sem menu numerado.';
+      }
     }
     const sent = sentMaterials(conv);
     const sentList = (Object.keys(sent) as MaterialTipo[]).map((k) => `${MATERIAL_LABEL[k]} (${fmtTimeBR(sent[k] as string)})`);
@@ -2007,7 +2043,6 @@ export async function maybeHandleWithAiAgent(
       typeof bd.data_festa === 'string' ? `data da festa ${formatDateLong(bd.data_festa)} (${bd.data_festa}) — use esta data em consultar_valor_pacote enquanto o cliente não mudar` : null,
     ].filter(Boolean) as string[];
     const leadVisit = await loadLeadVisit(supabase, conv.lead_id);
-    const lastUserText = [...mergedHistory].reverse().find((m) => m.role === 'user')?.content || '';
     // Regras do cadastro (comida de fora, animal): a IA recebe a resposta exata quando o cliente pergunta
     const houseRules = parseHouseRules(settings.extra_instructions);
     const askedTopics = topicsAsked(lastUserText);
@@ -2259,9 +2294,21 @@ export async function maybeHandleWithAiAgent(
       }
       // Valores sempre com centavos ("R$ 7.400,00")
       finalText = moneyWithCents(finalText);
+      // Resposta que vai com fotos, vídeo e PDF: a 1ª parte sai antes e a
+      // pergunta ("o que achou?") depois do PDF, para a Bia não ficar quieta
+      const withMaterials = Boolean(conv.__deferMaterials && !conv.__handoffThisTurn && conv.bot_step !== 'human_takeover');
+      const parts = withMaterials ? splitAroundMaterials(finalText) : { before: dropMaterialsBreak(finalText), after: '' };
+      const firstText = parts.before || dropMaterialsBreak(finalText);
       // "digitando..." por 2 s no WhatsApp do cliente antes da resposta (Z-API)
       const tSend = Date.now();
-      const delivered = await sendViaWapiSend(supabase, 'send-text', instance, conv, { message: finalText, delayTyping: 2 });
+      // 1ª resposta da Bia: vai com a arte dela, a apresentação na legenda
+      const introImage = isFirstReply ? introImageUrl(settings) : null;
+      let delivered = false;
+      if (introImage && firstText.length <= 1000) {
+        delivered = await sendViaWapiSend(supabase, 'send-image', instance, conv, { mediaUrl: introImage, caption: firstText });
+        if (!delivered) console.warn(`[AI Agent] Arte de apresentação não saiu — vai só o texto (conv ${conv.id})`);
+      }
+      if (!delivered) delivered = await sendViaWapiSend(supabase, 'send-text', instance, conv, { message: firstText, delayTyping: 2 });
       console.log(`[AI Agent] Tempos (conv ${conv.id}): espera ${((tAfterWait - tStart) / 1000).toFixed(1)}s (alvo ${waitMs / 1000}s), preparo ${((tPrepared - tAfterWait) / 1000).toFixed(1)}s, modelo ${(modelMs / 1000).toFixed(1)}s, ferramentas ${(toolMs / 1000).toFixed(1)}s, envio ${((Date.now() - tSend) / 1000).toFixed(1)}s, total ${((Date.now() - tStart) / 1000).toFixed(1)}s`);
       if (!delivered) {
         console.error(`[AI Agent] Resposta da IA não foi entregue ao WhatsApp (conv ${conv.id})`);
@@ -2271,9 +2318,21 @@ export async function maybeHandleWithAiAgent(
       await touchHandoffMark(supabase, conv);
       // Fotos, vídeo e PDF depois da resposta (lead do site com mês e
       // convidados já conhecidos) — só se a conversa seguiu com a IA
-      if (conv.__deferMaterials && !conv.__handoffThisTurn && conv.bot_step !== 'human_takeover') {
+      if (withMaterials) {
         conv.__deferMaterials = false;
-        await autoSendMaterials(supabase, instance, conv, phone, contactName, botSettings, {});
+        const out = { sent: false };
+        await autoSendMaterials(supabase, instance, conv, phone, contactName, botSettings, {}, '', NaN, out);
+        // Depois do PDF, a pergunta — a não ser que o cliente já tenha escrito
+        // de novo (aí a resposta a ele é que vale)
+        if (out.sent) {
+          const latestNow = myMessageId ? await latestIncomingId(supabase, conv.id) : null;
+          if (latestNow && latestNow !== myMessageId) {
+            console.log(`[AI Agent] Cliente escreveu durante o envio dos materiais — a pergunta final fica para a próxima resposta (conv ${conv.id})`);
+          } else {
+            const closing = parts.after || closingAfterMaterials(firstNameOrEmpty(String(bd.nome || '')), Math.floor(Date.now() / 1000));
+            await sendViaWapiSend(supabase, 'send-text', instance, conv, { message: closing, delayTyping: 2 });
+          }
+        }
       }
       return true;
     }

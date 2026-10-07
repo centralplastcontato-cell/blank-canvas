@@ -63,10 +63,15 @@ export function siteLeadYmd(info: SiteLeadInfo, todayYmd: string): string | null
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** Boas-vindas no tom da IA, sem menu numerado, terminando com uma pergunta */
-export function buildAiSiteWelcome(info: SiteLeadInfo, companyName: string, todayYmd: string): string {
+export function buildAiSiteWelcome(info: SiteLeadInfo, companyName: string, todayYmd: string, assistantName = ""): string {
   const firstName = (info.name || "").split(/\s+/)[0] || "";
   const greeting = firstName ? `Olá, *${firstName}*! 👋` : "Olá! 👋";
-  const intro = info.intro || `Recebemos seu pedido pelo site do *${companyName}*! ✨`;
+  const name = assistantName.trim();
+  // Com o nome da assistente, ela se apresenta (a frase do site repetiria o buffet)
+  const siteIntro = info.intro && !/^Recebemos seu pedido pelo site/i.test(info.intro) ? info.intro : "";
+  const intro = name
+    ? `Eu sou a *${name}*, do *${companyName}* 🏰 ${siteIntro || "Recebi seu pedido pelo site! ✨"}`
+    : info.intro || `Recebemos seu pedido pelo site do *${companyName}*! ✨`;
   const ymd = siteLeadYmd(info, todayYmd);
   const month = info.month ? parseSiteMonth(info.month, todayYmd) : null;
   const thisYear = Number(todayYmd.slice(0, 4));
@@ -135,7 +140,7 @@ export async function aiTakesSiteLead(
   supabase: any,
   instanceExternalId: string,
   phone: string,
-): Promise<{ take: boolean; companyName: string; reason: string }> {
+): Promise<{ take: boolean; companyName: string; reason: string; assistantName?: string; introImageUrl?: string | null }> {
   const no = (reason: string) => ({ take: false, companyName: "", reason });
   const { data: instance } = await supabase.from("wapi_instances").select("id, company_id, unit").eq("instance_id", instanceExternalId).maybeSingle();
   if (!instance?.company_id || !instance.unit) return no("instância sem empresa/unidade");
@@ -152,7 +157,9 @@ export async function aiTakesSiteLead(
   if (settings.test_mode_enabled && !isTestPhone) return no("modo de teste da IA (não é o número de teste)");
   const { data: company } = await supabase.from("companies").select("name").eq("id", instance.company_id).maybeSingle();
   const companyName = String(company?.name || instance.unit);
-  if (isTestPhone) return { take: true, companyName, reason: "número de teste da IA" };
+  // Apresentação: nome da assistente e a arte dela (a boas-vindas vai como legenda)
+  const intro = { assistantName: String(settings.assistant_name || "").trim(), introImageUrl: cleanIntroImage(settings.intro_image_url) };
+  if (isTestPhone) return { take: true, companyName, reason: "número de teste da IA", ...intro };
 
   const activatedAt = settings.activated_at ? Date.parse(settings.activated_at) : 0;
   if (!activatedAt) return no("IA sem data de ativação");
@@ -173,5 +180,11 @@ export async function aiTakesSiteLead(
   for (const l of (leads || []) as any[]) {
     if (Date.parse(l.created_at) < activatedAt || !["novo", "em_contato"].includes(l.status)) return no("lead antigo ou já trabalhado");
   }
-  return { take: true, companyName, reason: "cliente novo" };
+  return { take: true, companyName, reason: "cliente novo", ...intro };
+}
+
+/** Arte de apresentação: só link https */
+export function cleanIntroImage(v: unknown): string | null {
+  const s = typeof v === "string" ? v.trim() : "";
+  return /^https:\/\/\S+$/.test(s) && s.length <= 1000 ? s : null;
 }

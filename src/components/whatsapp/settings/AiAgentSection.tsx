@@ -74,6 +74,9 @@ interface AiAgentSettings {
   closed_periods?: ClosedPeriod[] | null;
   // Acompanhamento da Bia: inatividade, follow-ups por etapa e perdido automático
   followup_config?: AiFollowUpConfig | null;
+  // Apresentação: nome da assistente e a arte dela (vai na 1ª mensagem)
+  assistant_name?: string | null;
+  intro_image_url?: string | null;
 }
 
 // Etapa de follow-up na tela (prazo em horas ou dias)
@@ -102,7 +105,7 @@ function modelLabel(id: string): string {
 
 // Banco ainda sem as colunas novas (migration não rodada)
 function isMissingNewColumn(error: { message?: string } | null): boolean {
-  return !!error?.message && /test_model|team_hours|handoff_alert|party_slots|closed_periods|followup_config/.test(error.message);
+  return !!error?.message && /test_model|team_hours|handoff_alert|party_slots|closed_periods|followup_config|assistant_name|intro_image_url/.test(error.message);
 }
 
 const DEFAULT_VISIT_HOURS = "Segunda a sexta, das 10:00 às 17:00, de meia em meia hora";
@@ -284,6 +287,8 @@ export function AiAgentSection() {
   const [fuReactOn, setFuReactOn] = useState(true);
   const [fuReactDays, setFuReactDays] = useState<number[]>([60, 30]);
   const [fuReactImage, setFuReactImage] = useState<string | null>(null);
+  const [introName, setIntroName] = useState("");
+  const [introImage, setIntroImage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!currentCompany?.id) return;
@@ -360,6 +365,8 @@ export function AiAgentSection() {
       party_slots: next.party_slots ?? null,
       closed_periods: next.closed_periods ?? [],
       followup_config: next.followup_config ?? null,
+      assistant_name: next.assistant_name ?? null,
+      intro_image_url: next.intro_image_url ?? null,
       updated_at: new Date().toISOString(),
     };
     const save = (body: Record<string, unknown>, columns: string) => (supabase as any)
@@ -370,7 +377,7 @@ export function AiAgentSection() {
     let { data, error } = await save(payload, "*");
     if (error && isMissingNewColumn(error)) {
       // Banco sem as colunas novas: salva o resto e avisa que falta a atualização
-      const { test_model: _t, team_hours: _h, handoff_alert_minutes: _m, handoff_alert_phone: _p, party_slots: _s, closed_periods: _c, followup_config: _f, ...withoutNew } = payload;
+      const { test_model: _t, team_hours: _h, handoff_alert_minutes: _m, handoff_alert_phone: _p, party_slots: _s, closed_periods: _c, followup_config: _f, assistant_name: _n, intro_image_url: _i, ...withoutNew } = payload;
       ({ data, error } = await save(withoutNew, BASE_COLUMNS));
       if (!error) {
         data = { ...data, test_model: null };
@@ -457,6 +464,8 @@ export function AiAgentSection() {
     setFuReactOn(fu.reactivation.enabled);
     setFuReactDays(fu.reactivation.days_before);
     setFuReactImage(fu.reactivation.image_url || null);
+    setIntroName(settings.assistant_name || "");
+    setIntroImage(settings.intro_image_url || null);
     setConfigTab("basico");
     setConfigOpen(true);
   };
@@ -539,6 +548,8 @@ export function AiAgentSection() {
       party_slots: partySlots.trim() && partySlots.trim() !== DEFAULT_PARTY_SLOTS ? partySlots.trim() : null,
       closed_periods: [...periods].sort((a, b) => a.start.localeCompare(b.start)),
       followup_config: followUp,
+      assistant_name: introName.trim().slice(0, 30) || null,
+      intro_image_url: introImage || null,
     });
     if (saved) {
       setConfigOpen(false);
@@ -646,6 +657,33 @@ export function AiAgentSection() {
           <div className="overflow-y-auto px-5 sm:px-6 py-4 space-y-4 flex-1">
             {configTab === "basico" && (
               <div className="space-y-4">
+                <div className="rounded-xl border border-violet-300/50 bg-violet-500/5 p-3.5 space-y-3">
+                  <div>
+                    <p className="text-sm font-bold">Apresentação</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      A primeira mensagem da IA vai com esta arte e ela se apresenta pelo nome — no WhatsApp e na boas-vindas do site.
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold">Nome da assistente</Label>
+                    <Input
+                      value={introName}
+                      onChange={(e) => setIntroName(e.target.value)}
+                      placeholder="Ex.: Bia"
+                      maxLength={30}
+                      className="h-10 bg-card border-border shadow-sm"
+                    />
+                  </div>
+                  <FollowUpImageUploader
+                    value={introImage}
+                    onChange={setIntroImage}
+                    companyId={currentCompany?.id}
+                    followUpNumber={1}
+                    fileTag="bia_apresentacao"
+                    successText="A arte vai na primeira mensagem da IA (a apresentação vira a legenda). Salve para valer."
+                    helpText="Opcional: a arte da assistente (ex.: a Bia na recepção). Sem imagem, a primeira mensagem vai só com texto. JPG/PNG/WebP até 10MB."
+                  />
+                </div>
                 <div className="rounded-xl border border-violet-300/50 bg-violet-500/5 p-3.5 space-y-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs font-bold">Número que a IA atende</Label>
