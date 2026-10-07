@@ -20,8 +20,13 @@ export function formatSlotLabel(start: string): string {
 
 /** 6890 → "R$ 6.890"; 6890.5 → "R$ 6.890,50" */
 export function formatBRLShort(value: number): string {
-  const cents = Math.round(value * 100) % 100 !== 0;
-  return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: 2 })}`;
+  // Sempre com centavos ("R$ 7.400,00") — pedido do buffet
+  return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** Valor sem centavos na resposta ("R$ 7.400", "R$ 1.820") vira "R$ 7.400,00" */
+export function moneyWithCents(text: string): string {
+  return text.replace(/R\$\s*(\d{1,3}(?:\.\d{3})+|\d+)(?![\d]|[,.]\d)/g, "R$ $1,00");
 }
 
 const LOWER_WORDS = new Set(["de", "da", "do", "das", "dos", "e"]);
