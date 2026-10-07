@@ -13,8 +13,8 @@ Deno.test("formatSlotLabel: almoço/noite com a hora", () => {
 });
 
 Deno.test("formatBRLShort: sempre com centavos", () => {
-  assertEquals(formatBRLShort(6890), "R$ 6.890,00");
-  assertEquals(formatBRLShort(6890.5), "R$ 6.890,50");
+  assertEquals(formatBRLShort(6890), "R$\u00a06.890,00");
+  assertEquals(formatBRLShort(6890.5), "R$\u00a06.890,50");
 });
 
 Deno.test("prettyPackageName / packageEmoji", () => {
@@ -52,8 +52,10 @@ Deno.test("weekdayMismatches: aponta dia da semana errado no texto do cliente", 
   assertEquals(weekdayMismatches("sábado, 12 de dezembro", "2026-10-06"), []);
 });
 
-Deno.test("moneyWithCents: põe ,00 em valor sem centavos", () => {
-  assertEquals(moneyWithCents("🏰 *Castelo* — R$ 7.400\nDiferença de R$ 1.820."), "🏰 *Castelo* — R$ 7.400,00\nDiferença de R$ 1.820,00.");
-  assertEquals(moneyWithCents("R$ 7.400,00 e R$ 150,5 e R$150"), "R$ 7.400,00 e R$ 150,5 e R$ 150,00");
+Deno.test("moneyWithCents: põe ,00 e cola o R$ no número", () => {
+  const N = "\u00a0";
+  assertEquals(moneyWithCents("🏰 *Castelo* — R$ 7.400\nDiferença de R$ 1.820."), `🏰 *Castelo* — R$${N}7.400,00\nDiferença de R$${N}1.820,00.`);
+  assertEquals(moneyWithCents("R$ 7.400,00 e R$ 150,5 e R$150"), `R$${N}7.400,00 e R$${N}150,5 e R$${N}150,00`);
+  assertEquals(moneyWithCents(`R$${N}10.200,00`), `R$${N}10.200,00`);
   assertEquals(moneyWithCents("sem valor"), "sem valor");
 });
