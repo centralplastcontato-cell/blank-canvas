@@ -22,7 +22,8 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { 
   Info, MessageSquare, Clock, MapPin, Calendar, Users, 
-  ArrowRightLeft, Bot, Loader2, Pencil, Check, X, Trash2, UsersRound, Star, RotateCcw, PartyPopper, Package, AlertTriangle
+  ArrowRightLeft, Bot, Loader2, Pencil, Check, X, Trash2, UsersRound, Star, RotateCcw, PartyPopper, Package, AlertTriangle,
+  Sparkles, UserCheck,
 } from "lucide-react";
 import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -57,6 +58,8 @@ interface Conversation {
   contact_phone: string;
   remote_jid: string;
   bot_enabled: boolean | null;
+  bot_step?: string | null;
+  bot_data?: Record<string, unknown> | null;
   is_favorite: boolean | null;
 }
 
@@ -79,6 +82,8 @@ interface LeadInfoPopoverProps {
   onCreateAndClassifyLead: (status: string) => void;
   onToggleConversationBot: (conv: Conversation) => void;
   onReactivateBot: (conv: Conversation) => void;
+  onTakeOverFromBia?: (conv: Conversation) => void;
+  onReturnToBia?: (conv: Conversation) => void;
   onToggleFavorite: (conv: Conversation) => void;
   onLeadNameChange: (newName: string) => void;
   onLeadObsChange?: (newObs: string) => void;
@@ -153,6 +158,55 @@ function PopoverSection({ title, children, className, icon: Icon }: { title?: st
 }
 
 /* ── Info row helper ── */
+// Conversa atendida pela Bia (IA)
+const isBiaConversation = (conv: Conversation) => (conv.bot_data as Record<string, unknown> | null | undefined)?.ai_agent === "on";
+
+// Quem está atendendo esta conversa da Bia, com assumir / devolver para a Bia
+function BiaControl({ conversation, onTakeOver, onReturn }: {
+  conversation: Conversation;
+  onTakeOver: (conv: Conversation) => void;
+  onReturn: (conv: Conversation) => void;
+}) {
+  const biaActive = conversation.bot_step === "ai_agent" && conversation.bot_enabled !== false;
+  return (
+    <div className="flex items-center justify-between gap-2 px-1">
+      <div className="flex items-center gap-2 min-w-0">
+        <div className="p-1 rounded-md bg-violet-500/10">
+          <Sparkles className="w-3 h-3 text-violet-600" />
+        </div>
+        <span className={cn(
+          "text-[11px] font-bold rounded-full px-2 py-0.5 whitespace-nowrap",
+          biaActive ? "bg-violet-500/15 text-violet-700 dark:text-violet-300" : "bg-muted text-muted-foreground",
+        )}>
+          {biaActive ? "🤖 Bia atendendo" : "👤 Equipe atendendo"}
+        </span>
+      </div>
+      {biaActive ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-[11px] gap-1 rounded-lg font-medium"
+          onClick={() => onTakeOver(conversation)}
+          title="A Bia para de responder e de mandar follow-ups; a conversa fica com você"
+        >
+          <UserCheck className="w-3 h-3" />
+          Assumir
+        </Button>
+      ) : (
+        <Button
+          size="sm"
+          className="h-7 text-[11px] gap-1 rounded-lg font-medium bg-violet-600 hover:bg-violet-700 text-white"
+          onClick={() => onReturn(conversation)}
+          title="A Bia responde a próxima mensagem do cliente, já sabendo o que a equipe conversou (não manda nada sozinha)"
+        >
+          <Sparkles className="w-3 h-3" />
+          Devolver para a Bia
+        </Button>
+      )}
+    </div>
+  );
+}
+
 function InfoRow({ icon: Icon, children, accent }: { icon: React.ComponentType<{ className?: string }>; children: React.ReactNode; accent?: boolean }) {
   return (
     <div className="flex items-center gap-2.5 text-xs text-muted-foreground group/row">
@@ -182,6 +236,8 @@ export function LeadInfoPopover({
   onCreateAndClassifyLead,
   onToggleConversationBot,
   onReactivateBot,
+  onTakeOverFromBia,
+  onReturnToBia,
   onToggleFavorite,
   onLeadNameChange,
   onLeadObsChange,
@@ -896,36 +952,40 @@ export function LeadInfoPopover({
 
             {/* Bot + Actions */}
             <div className="px-5 pb-4 space-y-2.5">
-              {/* Bot Toggle */}
-              <div className="flex items-center justify-between gap-2 px-1">
-                <div className="flex items-center gap-2">
-                  <div className="p-1 rounded-md bg-primary/8">
-                    <Bot className="w-3 h-3 text-primary/70" />
+              {/* Bot Toggle (conversa da Bia: quem está atendendo + assumir/devolver) */}
+              {isBiaConversation(selectedConversation) && onTakeOverFromBia && onReturnToBia ? (
+                <BiaControl conversation={selectedConversation} onTakeOver={onTakeOverFromBia} onReturn={onReturnToBia} />
+              ) : (
+                <div className="flex items-center justify-between gap-2 px-1">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1 rounded-md bg-primary/8">
+                      <Bot className="w-3 h-3 text-primary/70" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground/60">Bot</span>
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground/60">Bot</span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[11px] gap-1 rounded-lg text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 border-amber-200/60 font-medium"
+                      onClick={() => onReactivateBot(selectedConversation)}
+                      title="Reativar bot"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      Reativar
+                    </Button>
+                    <Button
+                      variant={selectedConversation.bot_enabled !== false ? "secondary" : "ghost"}
+                      size="sm"
+                      className="h-7 text-[11px] gap-1 rounded-lg font-medium"
+                      onClick={() => onToggleConversationBot(selectedConversation)}
+                    >
+                      <Bot className="w-3 h-3" />
+                      {selectedConversation.bot_enabled !== false ? "Ativo" : "Inativo"}
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-[11px] gap-1 rounded-lg text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 border-amber-200/60 font-medium"
-                    onClick={() => onReactivateBot(selectedConversation)}
-                    title="Reativar bot"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    Reativar
-                  </Button>
-                  <Button
-                    variant={selectedConversation.bot_enabled !== false ? "secondary" : "ghost"}
-                    size="sm"
-                    className="h-7 text-[11px] gap-1 rounded-lg font-medium"
-                    onClick={() => onToggleConversationBot(selectedConversation)}
-                  >
-                    <Bot className="w-3 h-3" />
-                    {selectedConversation.bot_enabled !== false ? "Ativo" : "Inativo"}
-                  </Button>
-                </div>
-              </div>
+              )}
 
               {/* Action buttons */}
               <div className="space-y-1.5">
@@ -1149,31 +1209,35 @@ export function LeadInfoPopover({
 
             {/* Ações */}
             <div className="p-4 pt-3 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">Bot</span>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs gap-1 rounded-lg text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-200"
-                    onClick={() => onReactivateBot(selectedConversation)}
-                    title="Reativar bot e enviar mensagem de retomada"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    Reativar
-                  </Button>
-                  <Button
-                    variant={selectedConversation.bot_enabled !== false ? "secondary" : "ghost"}
-                    size="sm"
-                    className="h-7 text-xs gap-1 rounded-lg"
-                    onClick={() => onToggleConversationBot(selectedConversation)}
-                  >
-                    <Bot className="w-3 h-3" />
-                    {selectedConversation.bot_enabled !== false ? "Ativo" : "Inativo"}
-                  </Button>
+              {isBiaConversation(selectedConversation) && onTakeOverFromBia && onReturnToBia ? (
+                <BiaControl conversation={selectedConversation} onTakeOver={onTakeOverFromBia} onReturn={onReturnToBia} />
+              ) : (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">Bot</span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1 rounded-lg text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-200"
+                      onClick={() => onReactivateBot(selectedConversation)}
+                      title="Reativar bot e enviar mensagem de retomada"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      Reativar
+                    </Button>
+                    <Button
+                      variant={selectedConversation.bot_enabled !== false ? "secondary" : "ghost"}
+                      size="sm"
+                      className="h-7 text-xs gap-1 rounded-lg"
+                      onClick={() => onToggleConversationBot(selectedConversation)}
+                    >
+                      <Bot className="w-3 h-3" />
+                      {selectedConversation.bot_enabled !== false ? "Ativo" : "Inativo"}
+                    </Button>
+                  </div>
                 </div>
-              </div>
-             
+              )}
+
               {canDeleteFromChat && (
                 <Button 
                   variant="outline" 
