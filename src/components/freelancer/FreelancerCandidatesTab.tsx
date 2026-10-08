@@ -6,8 +6,13 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { UnitSelectDialog } from "@/pages/FreelancerManager";
-import { fetchConnectedInstances, sendFreelancerApprovalMessage, type WaInstance } from "@/lib/freelancerApproval";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  fetchConnectedInstances, fillApprovalMessage, loadCandidateApprovalMessage, saveCandidateApprovalMessage,
+  sendFreelancerApprovalMessage, toApprovalTemplate, type WaInstance,
+} from "@/lib/freelancerApproval";
 import { ageOn, candidateScore, dayIndex, distanceToBuffet, PARTY_DAYS, splitSavedAddress, WEEK_DAYS } from "@/lib/freelancerCandidate";
 
 // Aba Candidatos: quem se candidatou pelo formulário "Trabalhe Conosco"
@@ -156,7 +161,10 @@ export function FreelancerCandidatesTab() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmRefuse, setConfirmRefuse] = useState(false);
-  const [unitDialog, setUnitDialog] = useState<{ instances: WaInstance[]; candidate: Candidate } | null>(null);
+  // Aprovar: escolhe se avisa pelo WhatsApp, por qual número e com qual texto
+  const [approval, setApproval] = useState<{
+    candidateId: string; instances: WaInstance[]; instanceId: string | null; notify: boolean; text: string; saveDefault: boolean; loading: boolean;
+  } | null>(null);
   const [originAddress, setOriginAddress] = useState<string | null>(null);
   // Distância que não saiu no envio: recalcula aqui (uma tentativa por cadastro nesta tela)
   const triedDistance = useRef(new Set<string>());
@@ -272,41 +280,47 @@ export function FreelancerCandidatesTab() {
     toast({ title: done });
     setOpenId(null);
     setConfirmRefuse(false);
+    setApproval(null);
     if (nextStage && stage !== "todos") setStage(nextStage);
     await load();
     return true;
   };
 
-  const sendApproval = async (c: Candidate, instance: WaInstance) => {
-    const phone = c.phone.replace(/\D/g, "");
-    try {
-      await sendFreelancerApprovalMessage(companyId as string, instance, phone, c.name.split(" ")[0] ? c.name : "freelancer", c.id);
-      toast({ title: `${c.name.split(" ")[0]} aprovado(a)! ✅`, description: "Recebeu a mensagem no WhatsApp e já aparece nas escalas." });
-    } catch (err: any) {
-      toast({ title: "Aprovado, mas a mensagem não saiu", description: err?.message || "Tente reenviar pelo Cadastro.", variant: "destructive" });
-    }
+  const firstName = (c: Candidate) => c.name.split(" ")[0] || "tudo bem";
+  const validPhone = (c: Candidate) => c.phone.replace(/\D/g, "").length >= 10;
+
+  const startApproval = async (c: Candidate) => {
+    setConfirmRefuse(false);
+    setApproval({ candidateId: c.id, instances: [], instanceId: null, notify: false, text: "", saveDefault: false, loading: true });
+    const [instances, template] = await Promise.all([
+      fetchConnectedInstances(companyId as string),
+      loadCandidateApprovalMessage(companyId as string),
+    ]);
+    setApproval((prev) => prev && prev.candidateId === c.id ? {
+      ...prev,
+      instances,
+      instanceId: instances[0]?.instance_id || null,
+      notify: instances.length > 0 && validPhone(c),
+      text: fillApprovalMessage(template, firstName(c), currentCompany?.name || ""),
+      loading: false,
+    } : prev);
   };
 
-  const approve = async (c: Candidate) => {
+  const confirmApproval = async (c: Candidate) => {
+    if (!approval) return;
+    const { notify, text, instanceId, instances, saveDefault } = approval;
     const { data: { user } } = await supabase.auth.getUser();
-    const ok = await update(c, { approval_status: "aprovado", approved_by: user?.id, approved_at: new Date().toISOString() }, `${c.name.split(" ")[0]} aprovado(a)`, "aprovado");
+    const ok = await update(c, { approval_status: "aprovado", approved_by: user?.id, approved_at: new Date().toISOString() }, `${firstName(c)} aprovado(a) ✅`, "aprovado");
     if (!ok) return;
-    const phone = c.phone.replace(/\D/g, "");
-    if (phone.length < 10) {
-      toast({ title: "Aprovado(a) ✅", description: "Sem telefone válido — a mensagem de aprovação não foi enviada." });
-      return;
+    if (saveDefault && text.trim()) await saveCandidateApprovalMessage(companyId as string, toApprovalTemplate(text.trim(), firstName(c), currentCompany?.name || ""));
+    const instance = instances.find((i) => i.instance_id === instanceId);
+    if (!notify || !instance) return;
+    try {
+      await sendFreelancerApprovalMessage(companyId as string, instance, c.phone.replace(/\D/g, ""), c.name, c.id, text);
+      toast({ title: `Mensagem enviada para ${firstName(c)} ✅`, description: "Já aparece nas escalas." });
+    } catch (err: any) {
+      toast({ title: "Aprovado, mas a mensagem não saiu", description: err?.message || "Tente de novo pela conversa.", variant: "destructive" });
     }
-    const instances = await fetchConnectedInstances(companyId as string);
-    if (instances.length === 0) {
-      toast({ title: "Aprovado(a) ✅", description: "WhatsApp não conectado — mensagem não enviada." });
-      return;
-    }
-    if (instances.length === 1) {
-      await sendApproval(c, instances[0]);
-      load();
-      return;
-    }
-    setUnitDialog({ instances, candidate: c });
   };
 
   if (loading) {
@@ -324,18 +338,6 @@ export function FreelancerCandidatesTab() {
 
   return (
     <div className="space-y-4 max-w-3xl">
-      <UnitSelectDialog
-        open={!!unitDialog}
-        onOpenChange={(v) => { if (!v) { setUnitDialog(null); load(); } }}
-        instances={unitDialog?.instances || []}
-        onSelect={async (inst) => {
-          if (unitDialog) await sendApproval(unitDialog.candidate, inst);
-          setUnitDialog(null);
-          load();
-        }}
-        title="Mandar a aprovação por qual número?"
-      />
-
       {/* Funil */}
       <div className="grid grid-cols-5 gap-1 bg-card rounded-2xl p-1.5 shadow-sm border border-border/50" role="tablist" aria-label="Etapa">
         {FILTERS.map((s) => (
@@ -435,7 +437,7 @@ export function FreelancerCandidatesTab() {
       </p>
 
       {/* Detalhe */}
-      <Sheet open={!!open} onOpenChange={(v) => { if (!v) { setOpenId(null); setConfirmRefuse(false); } }}>
+      <Sheet open={!!open} onOpenChange={(v) => { if (!v) { setOpenId(null); setConfirmRefuse(false); setApproval(null); } }}>
         <SheetContent side="bottom" className="max-h-[92vh] overflow-y-auto rounded-t-3xl sm:max-w-xl sm:mx-auto">
           {open && (
             <div className="space-y-4 pb-2">
@@ -539,17 +541,87 @@ export function FreelancerCandidatesTab() {
                     <RotateCcw className="h-4 w-4 mr-1.5" /> Reabrir
                   </Button>
                 )}
-                {open.stage !== "aprovado" && (
-                  <Button type="button" className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white" disabled={busy === open.id} onClick={() => approve(open)}>
-                    {busy === open.id ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Check className="h-4 w-4 mr-1.5" />} Aprovar
+                {open.stage !== "aprovado" && approval?.candidateId !== open.id && (
+                  <Button type="button" className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white" disabled={busy === open.id} onClick={() => startApproval(open)}>
+                    <Check className="h-4 w-4 mr-1.5" /> Aprovar
                   </Button>
                 )}
-                {open.stage !== "recusado" && open.stage !== "aprovado" && !confirmRefuse && (
-                  <Button type="button" variant="outline" className="rounded-xl text-destructive hover:text-destructive" onClick={() => setConfirmRefuse(true)}>
+                {open.stage !== "recusado" && open.stage !== "aprovado" && !confirmRefuse && approval?.candidateId !== open.id && (
+                  <Button type="button" variant="outline" className="rounded-xl text-destructive hover:text-destructive" onClick={() => { setApproval(null); setConfirmRefuse(true); }}>
                     <X className="h-4 w-4 mr-1.5" /> Não aprovar
                   </Button>
                 )}
               </div>
+              {approval?.candidateId === open.id && (
+                <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3 space-y-3 text-sm">
+                  <div>
+                    <p className="font-semibold text-foreground">Aprovar {firstName(open)}?</p>
+                    <p className="text-xs text-muted-foreground">Vai para "Aprovados" e passa a aparecer nas escalas.</p>
+                  </div>
+                  {approval.loading ? (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Carregando…</div>
+                  ) : (
+                    <>
+                      <label className="flex items-center justify-between gap-3 cursor-pointer">
+                        <span className="font-medium">Avisar pelo WhatsApp</span>
+                        <Switch
+                          checked={approval.notify}
+                          disabled={approval.instances.length === 0 || !validPhone(open)}
+                          onCheckedChange={(v) => setApproval({ ...approval, notify: v })}
+                        />
+                      </label>
+                      {(approval.instances.length === 0 || !validPhone(open)) && (
+                        <p className="text-xs text-muted-foreground">
+                          {!validPhone(open) ? "Sem WhatsApp válido no cadastro — aprova sem mensagem." : "Nenhum WhatsApp conectado — aprova sem mensagem."}
+                        </p>
+                      )}
+                      {approval.notify && (
+                        <div className="space-y-2">
+                          {approval.instances.length > 1 && (
+                            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Número que envia">
+                              {approval.instances.map((i) => (
+                                <button
+                                  key={i.instance_id}
+                                  type="button"
+                                  role="radio"
+                                  aria-checked={approval.instanceId === i.instance_id}
+                                  onClick={() => setApproval({ ...approval, instanceId: i.instance_id })}
+                                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${approval.instanceId === i.instance_id ? "bg-emerald-600 text-white border-emerald-600" : "bg-card text-muted-foreground border-border"}`}
+                                >
+                                  {i.unit || i.phone_number || "WhatsApp"}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          <Textarea
+                            value={approval.text}
+                            onChange={(e) => setApproval({ ...approval, text: e.target.value })}
+                            rows={8}
+                            className="rounded-xl bg-card"
+                            aria-label="Mensagem"
+                          />
+                          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                            <Checkbox checked={approval.saveDefault} onCheckedChange={(v) => setApproval({ ...approval, saveDefault: v === true })} />
+                            Usar este texto como padrão para os próximos
+                          </label>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button type="button" variant="outline" className="rounded-xl" onClick={() => setApproval(null)}>Cancelar</Button>
+                    <Button
+                      type="button"
+                      className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white"
+                      disabled={approval.loading || busy === open.id || (approval.notify && (!approval.text.trim() || !approval.instanceId))}
+                      onClick={() => confirmApproval(open)}
+                    >
+                      {busy === open.id ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Check className="h-4 w-4 mr-1.5" />}
+                      {approval.notify ? "Aprovar e enviar" : "Aprovar sem mensagem"}
+                    </Button>
+                  </div>
+                </div>
+              )}
               {confirmRefuse && (
                 <div className="rounded-xl bg-destructive/10 p-3 space-y-2 text-sm">
                   <p>Não aprovar {open.name.split(" ")[0]}? O cadastro fica guardado em "Não aprovados" e dá para reabrir depois.</p>
