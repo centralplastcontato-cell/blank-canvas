@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { haversineKm, matchOptions, readPrefill } from "../freelancerCandidate";
+import { ageOn, candidateScore, dayIndex, distancePoints, haversineKm, matchOptions, readPrefill } from "../freelancerCandidate";
 
 describe("freelancerCandidate", () => {
   it("distância em linha reta", () => {
@@ -23,5 +23,27 @@ describe("freelancerCandidate", () => {
   it("link da Bia", () => {
     expect(readPrefill("?nome=Ana%20Souza&tel=5515999990000&vagas=monitor&via=bia")).toEqual({ name: "Ana Souza", phone: "5515999990000", roles: "monitor", source: "bia" });
     expect(readPrefill("")).toEqual({ name: null, phone: null, roles: null, source: "link" });
+  });
+
+  it("nota: fim de semana, perto, buffet e experiência", () => {
+    const full = candidateScore({ days: ["Quarta", "Sexta", "Sábado", "Domingo"], km: 1.2, workedBuffet: true, experience: true });
+    expect(full.total).toBe(94);
+    expect(full.parts.map((p) => p.got)).toEqual([29, 30, 20, 15]);
+    expect(candidateScore({ days: ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"], km: 2, workedBuffet: true, experience: true }).total).toBe(100);
+    expect(candidateScore({ days: ["Domingo"], km: 12.3, workedBuffet: false, experience: true }).total).toBe(34);
+    // Sem distância: 0 nesse critério, com o motivo
+    const noKm = candidateScore({ days: ["Sábado"], km: null, workedBuffet: false, experience: false });
+    expect(noKm.total).toBe(9);
+    expect(noKm.parts[1].why).toBe("distância não calculada");
+    expect([distancePoints(5), distancePoints(5.1), distancePoints(15), distancePoints(15.1)]).toEqual([30, 20, 10, 0]);
+    expect([dayIndex("Sábado"), dayIndex("sab"), dayIndex("Domingo"), dayIndex("feriado")]).toEqual([5, 5, 6, null]);
+  });
+
+  it("idade pela data de nascimento", () => {
+    const today = new Date(2026, 9, 8);
+    expect(ageOn("2004-03-12", today)).toBe(22);
+    expect(ageOn("2004-10-09", today)).toBe(21);
+    expect(ageOn("2004-10-08", today)).toBe(22);
+    expect(ageOn("", today)).toBeNull();
   });
 });

@@ -18,6 +18,7 @@ import { buildPublicFormPath, buildPublicFormUrl } from "@/lib/publicFormRoutes"
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { FreelancerEvaluationHistory, FreelancerAvgBadge } from "@/components/freelancer/FreelancerEvaluationHistory";
+import { fetchConnectedInstances as fetchConnectedInstancesFor, sendFreelancerApprovalMessage } from "@/lib/freelancerApproval";
 import { EditFreelancerDialog } from "@/components/freelancer/EditFreelancerDialog";
 import { SortableList, SortableItem } from "@/components/forms/SortableQuestionList";
 
@@ -194,7 +195,7 @@ function ApprovalBadge({ status }: { status: string }) {
 
 
 // UnitSelectDialog: lets admin pick which WhatsApp instance to send from
-function UnitSelectDialog({
+export function UnitSelectDialog({
   open,
   onOpenChange,
   instances,
@@ -321,95 +322,17 @@ function FreelancerResponseCards({ responses, template, companyId, onDeleted, is
     setPasswordDialogOpen(true);
   };
 
-  // Helper: fetch all connected instances for the company
-  const fetchConnectedInstances = async () => {
-    const { data } = await supabase
-      .from("wapi_instances")
-      .select("instance_id, unit, phone_number")
-      .eq("company_id", companyId)
-      .in("status", ["connected", "degraded"]);
-    return (data || []) as { instance_id: string; unit: string | null; phone_number: string | null }[];
-  };
+  // Números conectados e mensagem de aprovação: src/lib/freelancerApproval.ts
+  const fetchConnectedInstances = () => fetchConnectedInstancesFor(companyId);
 
-  // Helper: send approval message via a specific instance
   const sendApprovalMessage = async (
     instance: { instance_id: string },
     phone: string,
     freelancerName: string,
     responseId?: string,
   ) => {
-    try {
-      // Load custom message template (fallback to default)
-      const { DEFAULT_FREELANCER_APPROVAL_MESSAGE } = await import("@/components/whatsapp/settings/FreelancerApprovalMessageCard");
-      let messageTemplate = DEFAULT_FREELANCER_APPROVAL_MESSAGE;
-
-      const { data: companyData } = await supabase
-        .from("companies")
-        .select("settings")
-        .eq("id", companyId)
-        .single();
-
-      const settings = companyData?.settings as Record<string, any> | null;
-      if (settings?.freelancer_approval_message) {
-        messageTemplate = settings.freelancer_approval_message;
-      }
-
-      const message = messageTemplate.replace(/\{nome\}/g, freelancerName);
-
-      const { error: sendError } = await supabase.functions.invoke("wapi-send", {
-        body: {
-          action: "send-text",
-          phone,
-          message,
-          instanceId: instance.instance_id,
-          contactName: freelancerName,
-        },
-      });
-
-      if (sendError) throw sendError;
-
-      // Record success
-      if (responseId) {
-        await supabase
-          .from("freelancer_responses")
-          .update({ whatsapp_sent_at: new Date().toISOString(), whatsapp_send_error: null } as any)
-          .eq("id", responseId);
-      }
-
-      // Update conversation: tag as freelancer+equipe, disable bot
-      const { data: convData } = await (supabase as any)
-        .from("wapi_conversations")
-        .select("id, lead_id")
-        .eq("company_id", companyId)
-        .eq("contact_phone", phone)
-        .limit(1)
-        .maybeSingle();
-
-      if (convData) {
-        await (supabase as any)
-          .from("wapi_conversations")
-          .update({ is_freelancer: true, is_equipe: true, bot_enabled: false, bot_step: null })
-          .eq("id", convData.id);
-
-        if (convData.lead_id) {
-          await supabase
-            .from("campaign_leads")
-            .update({ status: "trabalhe_conosco" })
-            .eq("id", convData.lead_id);
-        }
-      }
-
-      toast({ title: "Freelancer aprovado! ✅", description: "Mensagem enviada via WhatsApp." });
-    } catch (err: any) {
-      // Record error
-      if (responseId) {
-        await supabase
-          .from("freelancer_responses")
-          .update({ whatsapp_send_error: err?.message || "Erro desconhecido", whatsapp_sent_at: null } as any)
-          .eq("id", responseId);
-      }
-      throw err;
-    }
+    await sendFreelancerApprovalMessage(companyId, instance, phone, freelancerName, responseId);
+    toast({ title: "Freelancer aprovado! ✅", description: "Mensagem enviada via WhatsApp." });
   };
 
   // Helper: send photo request via a specific instance
