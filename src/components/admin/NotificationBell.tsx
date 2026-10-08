@@ -26,7 +26,7 @@ const TAB_GROUPS = [
   { key: "visitas", label: "Visitas", types: ["visit_scheduled"] },
   { key: "clientes", label: "Clientes", types: ["existing_client"] },
   { key: "transferencias", label: "Transf.", types: ["lead_transfer", "lead_assigned"] },
-  { key: "outros", label: "Outros", types: ["lead_questions", "lead_analyzing", "follow_up_sent", "lead_lost", "stale_reminded", "lead_risk", "message_stuck", "lead_needs_human"] },
+  { key: "outros", label: "Outros", types: ["lead_questions", "lead_analyzing", "follow_up_sent", "lead_lost", "stale_reminded", "lead_risk", "message_stuck", "lead_needs_human", "new_candidate"] },
 ] as const;
 
 /* ── icon map ────────────────────────────────────────── */
@@ -45,6 +45,7 @@ const ICON_MAP: Record<string, { icon: React.ElementType; className: string }> =
   message_stuck:   { icon: WifiOff,        className: "text-amber-500" },
   lead_needs_human: { icon: Hand,          className: "text-red-500" },
   new_support_ticket: { icon: Headset,    className: "text-purple-500" },
+  new_candidate:   { icon: UserPlus,       className: "text-violet-500" },
 };
 
 // Avisos da Bia (IA): passagem para a equipe e cliente sem resposta — na cor dela
@@ -240,7 +241,10 @@ export function NotificationBell() {
     if (!notification.read) {
       await markAsRead(notification.id);
     }
-    if (notification.type === "existing_client" && notification.data && typeof notification.data === "object") {
+    if (notification.type === "new_candidate" && notification.data && typeof notification.data === "object" && "response_id" in notification.data) {
+      setIsOpen(false);
+      navigate(`/formularios?section=freelancer&sub=candidatos&candidato=${notification.data.response_id}`);
+    } else if (notification.type === "existing_client" && notification.data && typeof notification.data === "object") {
       if ("contact_phone" in notification.data) {
         setIsOpen(false);
         navigate(`/atendimento?phone=${notification.data.contact_phone}`);
