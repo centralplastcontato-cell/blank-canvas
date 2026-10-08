@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { AiConversationBadge } from "@/components/whatsapp/AiConversationBadge";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -107,6 +108,26 @@ export function LeadsTable({
 
   useEffect(() => {
     setSelectedIds(new Set());
+  }, [leads]);
+
+  // Conversa de cada lead da página: mostra o ✨ da IA ao lado do nome
+  const [aiConvByLead, setAiConvByLead] = useState<Record<string, { bot_step: string | null; bot_enabled: boolean | null; bot_data: unknown }>>({});
+  useEffect(() => {
+    const ids = leads.map((l) => l.id).filter(Boolean);
+    if (ids.length === 0) { setAiConvByLead({}); return; }
+    let cancelled = false;
+    (supabase as any)
+      .from("wapi_conversations")
+      .select("lead_id, bot_step, bot_enabled, bot_data, last_message_at")
+      .in("lead_id", ids)
+      .order("last_message_at", { ascending: false, nullsFirst: false })
+      .then(({ data }: { data: Array<{ lead_id: string; bot_step: string | null; bot_enabled: boolean | null; bot_data: unknown }> | null }) => {
+        if (cancelled) return;
+        const map: Record<string, { bot_step: string | null; bot_enabled: boolean | null; bot_data: unknown }> = {};
+        for (const c of data || []) if (!map[c.lead_id]) map[c.lead_id] = c; // a mais recente
+        setAiConvByLead(map);
+      });
+    return () => { cancelled = true; };
   }, [leads]);
 
   const formatWhatsAppLink = (phone: string) => {
@@ -379,6 +400,7 @@ export function LeadsTable({
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{lead.name}</span>
+                      {aiConvByLead[lead.id] && <AiConversationBadge conv={aiConvByLead[lead.id]} />}
                       {lead.observacoes && (
                         <MessageSquare className="w-3 h-3 text-primary" />
                       )}
