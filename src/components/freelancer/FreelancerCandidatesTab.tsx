@@ -632,16 +632,19 @@ export function FreelancerCandidatesTab() {
                       )}
                     </>
                   )}
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button type="button" variant="outline" className="rounded-xl" onClick={() => setApproval(null)}>Cancelar</Button>
+                  {/* Botão principal inteiro (no celular o texto não cabia em meia largura) */}
+                  <div className="space-y-1.5">
                     <Button
                       type="button"
-                      className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white"
+                      className="w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
                       disabled={approval.loading || busy === open.id || (approval.notify && (!approval.text.trim() || !approval.instanceId))}
                       onClick={() => confirmApproval(open)}
                     >
-                      {busy === open.id ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Check className="h-4 w-4 mr-1.5" />}
-                      {approval.notify ? "Aprovar e enviar" : "Aprovar sem mensagem"}
+                      {busy === open.id ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
+                      {approval.notify ? "Aprovar e enviar mensagem" : "Aprovar sem mensagem"}
+                    </Button>
+                    <Button type="button" variant="ghost" className="w-full h-10 rounded-xl text-muted-foreground" onClick={() => setApproval(null)}>
+                      Cancelar
                     </Button>
                   </div>
                 </div>
