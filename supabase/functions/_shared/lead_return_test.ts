@@ -3,10 +3,18 @@ import {
   decideWhatsAppReturn,
   leadsWithActionSinceReturn,
   returnWindowHours,
+  statusAfterLpReturn,
   type ReturnDecisionInput,
 } from "./lead-return.ts";
 
 const DAY = 24;
+
+Deno.test("statusAfterLpReturn: Perdido que volta pelo site vira Novo; o resto não muda", () => {
+  assertEquals(statusAfterLpReturn("perdido"), "novo");
+  assertEquals(statusAfterLpReturn("fechado"), null);
+  assertEquals(statusAfterLpReturn("em_contato"), null);
+  assertEquals(statusAfterLpReturn(null), null);
+});
 
 Deno.test("returnWindowHours: sem follow-up ligado vale o mínimo de 15 dias", () => {
   assertEquals(returnWindowHours([]), 15 * DAY);

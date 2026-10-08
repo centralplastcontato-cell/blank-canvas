@@ -25,6 +25,15 @@ export const WHATSAPP_RETURN_ACTION = 'Lead retornou pelo WhatsApp';
 export const LP_RETURN_ACTION = 'Lead retornou pela Landing Page';
 const AUTO_LOST_ACTION = 'Lead movido para perdido automaticamente';
 
+/**
+ * Status do lead que voltou pelo site pedindo orçamento. Quem estava Perdido
+ * volta a ser Novo — senão o robô (que não atende lead Perdido) fica calado
+ * quando o cliente responde à mensagem do site. Os outros status não mudam.
+ */
+export function statusAfterLpReturn(status: string | null | undefined): string | null {
+  return status === 'perdido' ? 'novo' : null;
+}
+
 export interface FollowUpTimingSettings {
   follow_up_enabled?: boolean | null;
   follow_up_delay_hours?: number | null;
