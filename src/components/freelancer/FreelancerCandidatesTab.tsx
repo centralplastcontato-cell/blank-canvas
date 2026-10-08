@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Loader2, MessageCircle, Check, X, ArrowRightLeft, RotateCcw, MapPin, Bot, UserPlus } from "lucide-react";
+import { Loader2, MessageCircle, Check, X, ArrowRightLeft, RotateCcw, MapPin, Bot, UserPlus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "@/hooks/use-toast";
@@ -161,6 +161,7 @@ export function FreelancerCandidatesTab() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmRefuse, setConfirmRefuse] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   // Aprovar: escolhe se avisa pelo WhatsApp, por qual número e com qual texto
   const [approval, setApproval] = useState<{
     candidateId: string; instances: WaInstance[]; instanceId: string | null; notify: boolean; text: string; saveDefault: boolean; loading: boolean;
@@ -281,12 +282,35 @@ export function FreelancerCandidatesTab() {
     setOpenId(null);
     setConfirmRefuse(false);
     setApproval(null);
+    setConfirmDelete(false);
     if (nextStage && stage !== "todos") setStage(nextStage);
     await load();
     return true;
   };
 
   const firstName = (c: Candidate) => c.name.split(" ")[0] || "tudo bem";
+
+  // Excluir de vez (o banco só deixa dono/administrador; sem permissão, nada some)
+  const remove = async (c: Candidate) => {
+    setBusy(c.id);
+    await (supabase as any).from("freelancer_evaluations").delete().eq("freelancer_response_id", c.id);
+    const { data, error } = await (supabase as any).from("freelancer_responses").delete().eq("id", c.id).select("id");
+    setBusy(null);
+    if (error || !data || data.length === 0) {
+      toast({
+        title: "Não deu para excluir",
+        description: error?.message || "Só o dono ou um administrador da empresa pode excluir candidatos.",
+        variant: "destructive",
+      });
+      return;
+    }
+    // O pop-up "Novo candidato" dele sai da tela
+    (supabase as any).from("notifications").update({ read: true }).eq("type", "new_candidate").eq("read", false).eq("data->>response_id", c.id).then(() => {});
+    toast({ title: `${firstName(c)} excluído(a)` });
+    setOpenId(null);
+    setConfirmDelete(false);
+    await load();
+  };
   const validPhone = (c: Candidate) => c.phone.replace(/\D/g, "").length >= 10;
 
   const startApproval = async (c: Candidate) => {
@@ -437,7 +461,7 @@ export function FreelancerCandidatesTab() {
       </p>
 
       {/* Detalhe */}
-      <Sheet open={!!open} onOpenChange={(v) => { if (!v) { setOpenId(null); setConfirmRefuse(false); setApproval(null); } }}>
+      <Sheet open={!!open} onOpenChange={(v) => { if (!v) { setOpenId(null); setConfirmRefuse(false); setApproval(null); setConfirmDelete(false); } }}>
         <SheetContent side="bottom" className="max-h-[92vh] overflow-y-auto rounded-t-3xl sm:max-w-xl sm:mx-auto">
           {open && (
             <div className="space-y-4 pb-2">
@@ -629,6 +653,29 @@ export function FreelancerCandidatesTab() {
                     <Button type="button" variant="outline" className="rounded-xl" onClick={() => setConfirmRefuse(false)}>Cancelar</Button>
                     <Button type="button" variant="destructive" className="rounded-xl" disabled={busy === open.id} onClick={() => update(open, { approval_status: "rejeitado" }, `${open.name.split(" ")[0]} não aprovado(a)`, "recusado")}>Não aprovar</Button>
                   </div>
+                </div>
+              )}
+              {confirmDelete ? (
+                <div className="rounded-xl bg-destructive/10 p-3 space-y-2 text-sm">
+                  <p>Excluir {firstName(open)} de vez? O cadastro sai da lista e não dá para desfazer.</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button type="button" variant="outline" className="rounded-xl" onClick={() => setConfirmDelete(false)}>Cancelar</Button>
+                    <Button type="button" variant="destructive" className="rounded-xl" disabled={busy === open.id} onClick={() => remove(open)}>
+                      {busy === open.id ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Trash2 className="h-4 w-4 mr-1.5" />} Excluir
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="pt-2 border-t border-border/60">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() => { setConfirmRefuse(false); setApproval(null); setConfirmDelete(true); }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1.5" /> Excluir candidato
+                  </Button>
                 </div>
               )}
             </div>

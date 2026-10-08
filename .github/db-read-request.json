@@ -1,1 +1,1 @@
-{"sql": "SELECT m.timestamp, m.from_me, m.message_type, m.metadata->>'ai_followup' AS followup, left(m.content, 160) AS content FROM wapi_messages m WHERE m.conversation_id = '72a9f2be-c2bd-418a-8600-cc445d121783' ORDER BY m.timestamp DESC LIMIT 4"}
+{"sql": "SELECT id, respondent_name, created_at, approval_status, source, left(photo_url, 140) AS photo FROM freelancer_responses WHERE template_id = '0f6faa11-1c36-4352-abea-b492d04294df' ORDER BY created_at DESC LIMIT 3"}
