@@ -20,7 +20,7 @@ const RESCHED_TIME_OPTIONS = Array.from({ length: 28 }, (_, i) => {
   const m = (i + 16) % 2 === 0 ? "00" : "30";
   return `${h}:${m}`;
 });
-import { Loader2, Clock, MapPin, ChevronLeft, ChevronRight, Phone, MessageSquare, Check, RefreshCw, X, Plus, User as UserIcon, AlertTriangle, Trash2, PartyPopper, Package } from "lucide-react";
+import { Loader2, Clock, MapPin, ChevronLeft, ChevronRight, Phone, MessageSquare, Check, RefreshCw, X, Plus, User as UserIcon, AlertTriangle, Trash2, PartyPopper, Package, Sparkles } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -49,6 +49,17 @@ const VISIT_STATUS_DOT: Record<string, string> = {
 };
 
 const getStatusInfo = (status: string) => VISIT_STATUSES.find((s) => s.value === status) || VISIT_STATUSES[0];
+
+// Visita marcada pela IA (ela grava "Visita agendada pela IA" nas observações)
+const isAiVisit = (v: { observacoes: string | null }) => /agendada pela IA/i.test(v.observacoes || "");
+
+function AiVisitTag() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-violet-600 text-white px-2 py-0.5 text-[10px] font-bold shrink-0" title="Visita agendada pela IA">
+      <Sparkles className="w-3 h-3" /> IA
+    </span>
+  );
+}
 
 interface Visit {
   id: string;
@@ -609,6 +620,7 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
                             <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70 mr-1.5">Cliente:</span>
                             {visit.lead_name}
                           </p>
+                          {isAiVisit(visit) && <AiVisitTag />}
                         </div>
                         <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                           {visit.horario_visita && (
@@ -679,7 +691,7 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
                       }
                     </div>
                     <div className="min-w-0 flex-1">
-                      <SheetTitle className="text-lg font-bold truncate">{detailVisit.lead_name}</SheetTitle>
+                      <SheetTitle className="text-lg font-bold truncate flex items-center gap-2">{detailVisit.lead_name}{isAiVisit(detailVisit) && <AiVisitTag />}</SheetTitle>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {isDetailEntrega && <span className="text-violet-600 font-semibold">Atendimento · </span>}
                         {format(parseISO(detailVisit.data_visita + "T12:00:00"), "dd 'de' MMMM, yyyy", { locale: ptBR })}
