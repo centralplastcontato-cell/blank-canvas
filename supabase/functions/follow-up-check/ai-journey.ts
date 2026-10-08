@@ -326,7 +326,7 @@ export async function runAiJourney(
     for (const conv of (convs || []) as Json[]) {
       if (sent >= MAX_SENDS_PER_RUN || Date.now() - startedMs > budgetMs) break;
       try {
-        if (!journeyCovers(scope, conv.remote_jid) || !conv.lead_id) {
+        if (!journeyCovers(scope, conv.remote_jid)) {
           // Fora da jornada (ex.: modo de teste): marcador velho não fica entupindo a busca
           if (conv.ai_journey_next_at) await setJourneyNext(supabase, conv.id, null);
           continue;
@@ -342,7 +342,13 @@ export async function runAiJourney(
         // Data da festa (exata ou pelo mês) e se o cliente disse que vai decidir depois
         const clientTexts = history.filter((m) => !m.from_me && m.message_type === "text").slice(-3).map((m) => String(m.content || ""));
         const ctx: JourneyContext = { dataFesta: bd.data_festa, mes: bd.mes, clientTexts };
-        const plan = nextJourneyAction(cfg, msgs, nowMs, ctx);
+        const planned = nextJourneyAction(cfg, msgs, nowMs, ctx);
+        // Ainda sem lead (ex.: a Bia perguntou o nome e a pessoa sumiu): só o
+        // lembrete de inatividade — etapas, lembretes antes da festa e perdido
+        // dependem do lead
+        const plan = !conv.lead_id && planned.action && planned.action.kind !== "inactivity"
+          ? { ...planned, action: null, why: "sem lead: só lembrete de inatividade", nextDueMs: null }
+          : planned;
         const party = plan.party || null;
         // Guarda quando vence o próximo lembrete antes da festa: a conversa parada
         // há meses volta a ser encontrada nesse dia (e a reativação fixa sabe que
@@ -355,17 +361,22 @@ export async function runAiJourney(
         }
         if (plan.action.kind !== "lost" && !inSendWindowBR(nowMs)) continue;
 
-        // Só leads ainda em negociação
-        const { data: lead } = await supabase.from("campaign_leads").select("id, name, status, responsavel_id").eq("id", conv.lead_id).maybeSingle();
-        if (!lead || !OPEN_STATUSES.includes(lead.status)) continue;
-        // Visita marcada: quem acompanha é a confirmação de visita
-        const { data: visits } = await supabase.from("lead_visits").select("id").eq("lead_id", lead.id).gte("data_visita", todayYmd)
-          .in("status_visita", ["agendada", "confirmada", "remarcada"]).limit(1);
-        if ((visits || []).length > 0) continue;
+        // Só leads ainda em negociação (sem lead: só chega aqui o lembrete de inatividade)
+        let lead: Json | null = null;
+        if (conv.lead_id) {
+          const { data } = await supabase.from("campaign_leads").select("id, name, status, responsavel_id").eq("id", conv.lead_id).maybeSingle();
+          if (!data || !OPEN_STATUSES.includes(data.status)) continue;
+          lead = data;
+          // Visita marcada: quem acompanha é a confirmação de visita
+          const { data: visits } = await supabase.from("lead_visits").select("id").eq("lead_id", data.id).gte("data_visita", todayYmd)
+            .in("status_visita", ["agendada", "confirmada", "remarcada"]).limit(1);
+          if ((visits || []).length > 0) continue;
+        }
         if (await isConversationPaused(supabase, conv.id)) continue;
         if (!(await claim(supabase, conv.id, nowMs))) continue;
 
         if (plan.action.kind === "lost") {
+          if (!lead) continue;
           await markLost(supabase, lead, conv, instance.company_id, instance.unit || null, `${plan.why} sem resposta do cliente`);
           if (conv.ai_journey_next_at) await setJourneyNext(supabase, conv.id, null);
           lost++;
@@ -413,7 +424,7 @@ export async function runAiJourney(
           goal: plan.action.kind === "step" ? cfg.steps[plan.action.index].goal : undefined,
           silenceMs: nowMs - (plan.anchorMs as number),
           todayYmd,
-          clientName: bd.nome || conv.contact_name || lead.name,
+          clientName: bd.nome || conv.contact_name || lead?.name || null,
           birthdayName: bd.aniversariante || null,
           partyYmd,
           partyMonth: bd.mes || null,
@@ -439,7 +450,7 @@ export async function runAiJourney(
           await supabase.from("ai_agent_usage").insert({
             company_id: instance.company_id,
             conversation_id: conv.id,
-            lead_id: lead.id,
+            lead_id: lead?.id ?? null,
             provider: providerForModel(step.servedModel || model),
             model: step.servedModel || model,
             kind: "chat",
@@ -487,7 +498,7 @@ export async function runAiJourney(
           console.error(`[ai-journey] Mensagem enviada mas não marcada como ${label} (conv ${conv.id}) — jornada pausada 7 dias nesta conversa`);
           await blockFor(supabase, conv.id, 7 * 86400000);
         }
-        await supabase.from("lead_history").insert({
+        if (lead) await supabase.from("lead_history").insert({
           lead_id: lead.id,
           company_id: instance.company_id,
           user_id: null,
