@@ -184,3 +184,30 @@ export function airyParagraphs(text: string): string {
     return blocks.join("\n\n");
   }).join("\n");
 }
+
+const EMOJI_START = /^\s*\p{Extended_Pictographic}/u;
+
+/**
+ * "Só aqui você vai encontrar 🥳" + itens com emoji: uma linha em branco entre
+ * os itens. No celular cada item quebra em 2 linhas e, colados, viravam um
+ * bloco só (o WhatsApp não tem recuo/tabulação).
+ */
+export function spaceHighlightList(text: string): string {
+  const lines = (text || "").split("\n");
+  const start = lines.findIndex((l) => /s[óo] aqui voc[êe] vai encontrar/i.test(l));
+  if (start < 0) return text;
+  const items: string[] = [];
+  let end = start + 1;
+  while (end < lines.length) {
+    const l = lines[end];
+    if (!l.trim()) { end++; continue; }
+    if (!EMOJI_START.test(l)) break;
+    items.push(l.trim());
+    end++;
+  }
+  if (items.length < 2) return text;
+  // Linhas em branco que vinham antes do próximo trecho não entram no bloco
+  while (end > start + 1 && !lines[end - 1].trim()) end--;
+  const rest = lines.slice(end);
+  return [...lines.slice(0, start + 1), "", items.join("\n\n"), ...(rest.length ? ["", ...rest.slice(rest[0].trim() ? 0 : 1)] : [])].join("\n");
+}
