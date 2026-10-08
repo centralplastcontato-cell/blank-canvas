@@ -1,1 +1,1 @@
-{"sql": "SELECT t.tgname, t.tgenabled, p.proname, p.prosecdef FROM pg_trigger t JOIN pg_proc p ON p.oid = t.tgfoid WHERE t.tgname = 'trg_notify_new_freelancer_candidate'"}
+{"sql": "SELECT c.slug, c.custom_domain, t.slug AS tpl_slug, t.is_active, t.purpose FROM companies c LEFT JOIN freelancer_templates t ON t.company_id = c.id AND t.purpose = 'candidatura' WHERE c.id = 'a0000000-0000-0000-0000-000000000001'"}
