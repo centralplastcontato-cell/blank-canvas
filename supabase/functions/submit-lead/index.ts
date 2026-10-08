@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { findLeadByPhone } from "../_shared/lead-phone.ts";
 import { formatLeadUtm, sanitizeLeadUtm } from "../_shared/lead-utm.ts";
+import { statusAfterLpReturn } from "../_shared/lead-return.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -321,6 +322,10 @@ Deno.serve(async (req) => {
       const existingHasUtm = !!(existingLead.utm_source || existingLead.utm_campaign || existingLead.utm_content);
       if (utm && !existingHasUtm) Object.assign(newData, utm);
 
+      // Perdido que voltou pedindo orçamento deixa de estar perdido (o robô não atende Perdido)
+      const reopenedStatus = statusAfterLpReturn(existingLead.status);
+      if (reopenedStatus) Object.assign(newData, { status: reopenedStatus });
+
       // Leads que voltaram antes desta mudança só têm o retorno no histórico
       const { count: pastReturns } = await supabase
         .from('lead_history')
@@ -355,6 +360,8 @@ Deno.serve(async (req) => {
       if ((month || null) !== existingLead.month) changes.push(`Mês: ${existingLead.month || '-'} → ${month || '-'}`);
       if ((day_of_month || null) !== existingLead.day_of_month) changes.push(`Dia: ${existingLead.day_of_month || '-'} → ${day_of_month || '-'}`);
       if ((guests || null) !== existingLead.guests) changes.push(`Convidados: ${existingLead.guests || '-'} → ${guests || '-'}`);
+
+      if (reopenedStatus) changes.push('Status: Perdido → Novo');
 
       const changeSummary = changes.length > 0 ? changes.join(' | ') : 'Mesmos dados';
 
