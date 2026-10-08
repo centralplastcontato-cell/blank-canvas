@@ -4888,7 +4888,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
               </button>
             </Collapsible>
             
-            <ScrollArea className="flex-1 w-full">
+            <ScrollArea className="flex-1 w-full [&_[data-radix-scroll-area-viewport]>div]:!block [&_[data-radix-scroll-area-viewport]>div]:!w-full [&_[data-radix-scroll-area-viewport]>div]:!min-w-0">
               {filteredConversations.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-48 text-center p-4">
                   <MessageSquare className="w-8 h-8 text-muted-foreground mb-2" />
@@ -5038,7 +5038,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                   />
                 </div>
                 
-                <ScrollArea className="flex-1">
+                {/* A lista encolhe com o painel: hora e nº de mensagens novas sempre à vista */}
+                <ScrollArea className="flex-1 [&_[data-radix-scroll-area-viewport]>div]:!block [&_[data-radix-scroll-area-viewport]>div]:!w-full [&_[data-radix-scroll-area-viewport]>div]:!min-w-0">
                   {filteredConversations.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-48 text-center p-4">
                       <MessageSquare className="w-8 h-8 text-muted-foreground mb-2" />
@@ -5115,7 +5116,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                   e.stopPropagation();
                                   toggleConversationClosed(conv);
                                 }}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded"
+                                className="hidden group-hover:inline-flex p-1 hover:bg-muted rounded"
                                 title={conv.is_closed ? "Reabrir conversa" : "Encerrar conversa"}
                               >
                                 <X className={cn(
@@ -5128,7 +5129,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                   e.stopPropagation();
                                   toggleScheduledVisit(conv);
                                 }}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded"
+                                className="hidden group-hover:inline-flex p-1 hover:bg-muted rounded"
                                 title={conv.has_scheduled_visit ? "Desmarcar visita" : "Marcar visita agendada"}
                               >
                                 <CalendarCheck className={cn(
@@ -5141,7 +5142,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                   e.stopPropagation();
                                   toggleFreelancer(conv);
                                 }}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded"
+                                className="hidden group-hover:inline-flex p-1 hover:bg-muted rounded"
                                 title={conv.is_freelancer ? "Desmarcar como Freelancer" : "Marcar como Freelancer"}
                               >
                                 <Briefcase className={cn(
@@ -5154,7 +5155,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                   e.stopPropagation();
                                   toggleEquipe(conv);
                                 }}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded"
+                                className="hidden group-hover:inline-flex p-1 hover:bg-muted rounded"
                                 title={conv.is_equipe ? "Desmarcar como Equipe" : "Marcar como Equipe"}
                               >
                                 <Users className={cn(
@@ -5167,7 +5168,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                   e.stopPropagation();
                                   toggleFavorite(conv);
                                 }}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded"
+                                className="hidden group-hover:inline-flex p-1 hover:bg-muted rounded"
                               >
                                 {conv.is_favorite ? (
                                   <StarOff className="w-3 h-3 text-muted-foreground" />
@@ -5189,7 +5190,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                           </div>
                           <div className={cn(
                             "grid mt-0.5 items-center gap-2",
-                            conv.unread_count > 0 ? "grid-cols-[1fr_auto]" : "grid-cols-1"
+                            conv.unread_count > 0 ? "grid-cols-[minmax(0,1fr)_auto]" : "grid-cols-1"
                           )}>
                             <span className={cn(
                               "text-xs truncate block",
