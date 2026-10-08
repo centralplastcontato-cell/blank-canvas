@@ -38,10 +38,25 @@ export function buildCandidateLink(input: CandidateLinkInput): string | null {
  */
 export function withCandidateLink(text: string, url: string): string {
   const clean = String(text || "")
-    .replace(/https?:\/\/\S+/g, "")
+    .replace(/(?:https?:\/\/|www\.)\S+/g, "")
     .split("\n").map((l) => l.replace(/[ \t]+$/, "")).join("\n")
     .replace(/[ \t]*(👉|👇)\s*$/u, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
   return clean ? `${clean}\n\n👉 ${url}` : `👉 ${url}`;
+}
+
+// Link curto (www.buffet.com.br/trabalhe/k7m2qx): sem letras/números que se confundem
+const CODE_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz";
+
+/** Código do link curto (6 caracteres; `bytes` aleatórios, um por caractere) */
+export function inviteCode(bytes: Uint8Array): string {
+  return Array.from(bytes.slice(0, 6), (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join("");
+}
+
+/** www.buffet.com.br/trabalhe/código — com "www." o WhatsApp já transforma em link, sem o "https://" */
+export function shortCandidateLink(domain: string, code: string): string | null {
+  const host = String(domain || "").trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+  if (!host || !code) return null;
+  return /^www\./i.test(host) ? `${host}/trabalhe/${code}` : `https://${host}/trabalhe/${code}`;
 }

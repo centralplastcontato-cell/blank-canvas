@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { buildCandidateLink, candidateName, withCandidateLink } from "./ai-candidate.ts";
+import { buildCandidateLink, candidateName, inviteCode, shortCandidateLink, withCandidateLink } from "./ai-candidate.ts";
 
 Deno.test("link do cadastro: domínio do buffet, nome, WhatsApp, funções e via=bia", () => {
   const url = buildCandidateLink({
@@ -38,4 +38,15 @@ Deno.test("link vai no fim pelo sistema; link escrito pela IA sai", () => {
     `Preenche aqui:\n\nObrigada! 💜\n\n👉 ${url}`,
   );
   assertEquals(withCandidateLink("", url), `👉 ${url}`);
+});
+
+Deno.test("link curto: código de 6 caracteres sem confusão e www sem https", () => {
+  const code = inviteCode(new Uint8Array([0, 1, 30, 31, 255, 100, 7]));
+  assertEquals(code.length, 6);
+  assertEquals(/^[2-9a-hjkmnp-z]{6}$/.test(code), true);
+  assertEquals(shortCandidateLink("https://www.castelodadiversao.com.br/", "k7m2qx"), "www.castelodadiversao.com.br/trabalhe/k7m2qx");
+  assertEquals(shortCandidateLink("buffet.online", "k7m2qx"), "https://buffet.online/trabalhe/k7m2qx");
+  assertEquals(shortCandidateLink("", "k7m2qx"), null);
+  // Link "www." escrito pela IA também sai
+  assertEquals(withCandidateLink("Preenche: www.errado.com/x", "www.a.com/trabalhe/k7m2qx"), "Preenche:\n\n👉 www.a.com/trabalhe/k7m2qx");
 });
