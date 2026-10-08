@@ -720,8 +720,8 @@ const TOOLS: ToolDef[] = [
         aniversariante: { type: 'string', description: 'Nome do aniversariante, se o cliente disse' },
         mes: { type: 'string', description: 'Mês da festa, com o ano se o cliente disse (ex.: Novembro, abril de 2027)' },
         convidados: { type: 'string', description: 'Número de convidados, ex.: 80' },
-        legenda_fotos: { type: 'string', description: 'Mensagem curta e animada que vai ANTES das fotos, personalizada com o nome do cliente e do aniversariante (só nomes que o cliente disse — nunca invente), 1–2 emojis. Ex.: "Aaah, [nome do cliente], olha só onde vai ser a festa! 😍🏰"' },
-        legenda_video: { type: 'string', description: 'Legenda curta e animada do vídeo de apresentação. Ex.: "E esse vídeo mostra o Castelo funcionando de verdade 🎬🎉"' },
+        legenda_fotos: { type: 'string', description: 'Mensagem que vai ANTES das fotos e precisa ENCANTAR (não só "olha onde vai ser a festa"): 2 frases curtas — chame pelo nome, cite o aniversariante se souber (só nomes que o cliente disse — nunca invente) e desperte a imaginação do dia da festa (o castelo todinho deles, a criançada brincando, a carinha de quem faz aniversário chegando). 2–3 emojis. Ex.: "Aaah, [nome], olha só o castelo que vai ser todinho de vocês no dia da festa! 😍🏰 Já imaginou a carinha de [aniversariante] chegando e vendo tudo isso preparado? ✨"' },
+        legenda_video: { type: 'string', description: 'Legenda curta e animada do vídeo, diferente da das fotos, mostrando a festa acontecendo. Ex.: "E agora olha o Castelo em dia de festa: brinquedos, monitores e muita diversão 🎬🎉"' },
         legenda_pdf: { type: 'string', description: 'Mensagem curta que vai ANTES do PDF de pacotes, com a quantidade de convidados. Ex.: "E aqui estão os nossos pacotes pra 80 convidados 📋✨". Sem valores. Se o cliente falou em menos convidados que o menor pacote, não cite o número dele.' },
       },
     },
@@ -1594,8 +1594,8 @@ async function materialTexts(
   return {
     photosIntro: clean(args.legenda_fotos)
       // "do Murilo" / "da Lívia" depende do gênero, que não sabemos: frase neutra
-      || `${nome ? `Aaah, ${nome}, olha` : 'Olha'} só onde vai ser a festa!${child ? ` ${child} vai amar` : ''} 😍🏰`,
-    videoCaption: clean(args.legenda_video) || `E esse vídeo mostra o ${companyName} funcionando de verdade 🎬🎉`,
+      || `${nome ? `Aaah, ${nome}, olha` : 'Olha'} só o castelo que vai ser todinho de vocês no dia da festa! 😍🏰 Já imaginou ${child ? `a carinha de ${child}` : 'a criançada'} chegando e vendo tudo isso preparado? ✨`,
+    videoCaption: clean(args.legenda_video) || `E agora olha o ${companyName} em dia de festa: brinquedos, monitores e muita diversão 🎬🎉`,
     pdfIntro: belowMin
       ? `E aqui estão os nossos pacotes, a partir de ${minGuests} convidados 📋✨`
       : clean(args.legenda_pdf) || `E aqui estão os nossos pacotes${guests ? ` pra ${guests} convidados` : ''} 📋✨`,
