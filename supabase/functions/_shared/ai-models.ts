@@ -47,9 +47,14 @@ const TRANSCRIBE_PER_MINUTE = 0.003;
 // dólar comercial em out/2026 ≈ R$ 5,00).
 export const USD_TO_BRL = 5.0;
 
+// A resposta do provedor traz o nome com a data da versão ("gpt-5.4-2026-03-05",
+// "claude-haiku-4-5-20251001"); sem tirar a data, o preço caía no do modelo padrão.
+const SNAPSHOT_SUFFIX = /-(\d{4}-\d{2}-\d{2}|\d{8})$/;
+
 export function getAiModel(id: string | null | undefined): AiModelInfo | null {
   if (!id) return null;
-  return AI_MODELS.find((m) => m.id === id) || null;
+  const base = id.replace(SNAPSHOT_SUFFIX, "");
+  return AI_MODELS.find((m) => m.id === id) || AI_MODELS.find((m) => m.id === base) || null;
 }
 
 export function providerForModel(id: string | null | undefined): AiProvider {
@@ -172,7 +177,9 @@ export function summarizeAiUsage(rows: AiUsageRow[]): AiUsageSummary[] {
   }
   const byModel = new Map<string, { convs: Set<string>; total: number }>();
   for (const r of rows) {
-    const model = r.kind === "chat" ? r.model : (r.conversation_id && chatModelByConv.get(r.conversation_id)) || r.model;
+    const raw = r.kind === "chat" ? r.model : (r.conversation_id && chatModelByConv.get(r.conversation_id)) || r.model;
+    // Junta "gpt-5.4" e "gpt-5.4-2026-03-05" na mesma linha
+    const model = getAiModel(raw)?.id || raw;
     const entry = byModel.get(model) || { convs: new Set<string>(), total: 0 };
     if (r.conversation_id) entry.convs.add(r.conversation_id);
     entry.total += Number(r.cost_usd) || 0;
