@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { LoadingScreen } from "@/components/ui/loading-screen";
+import { HubLayout } from "@/components/hub/HubLayout";
 import {
   AlertCircle,
   ArrowDownToLine,
@@ -224,7 +225,8 @@ export default function AdminMessageTrace() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/30 p-4 md:p-8">
+    <HubLayout currentPage="message-trace" header={<h1 className="text-lg font-semibold">Diagnóstico Msg</h1>}>
+      {() => (
       <div className="mx-auto max-w-[1400px] space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
@@ -487,7 +489,8 @@ export default function AdminMessageTrace() {
           </Card>
         )}
       </div>
-    </div>
+      )}
+    </HubLayout>
   );
 }
 

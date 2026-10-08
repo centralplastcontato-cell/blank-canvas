@@ -26,7 +26,6 @@ import { RelatoriosComerciais } from "@/components/inteligencia/RelatoriosComerc
 import { LeadsDoDiaTab } from "@/components/inteligencia/LeadsDoDiaTab";
 import { ResumoDiarioTab } from "@/components/inteligencia/ResumoDiarioTab";
 import { NegociacoesParadasTab } from "@/components/inteligencia/NegociacoesParadasTab";
-import { AlertsPanel } from "@/components/inteligencia/AlertsPanel";
 import { SalesPriorities } from "@/components/inteligencia/SalesPriorities";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
@@ -281,9 +280,8 @@ export default function Inteligencia() {
               />
             </div>
 
-            {/* Alertas Inteligentes */}
             <MonthlyReviewBanner isAdmin={isAdmin} unitSlug={selectedUnit !== "all" ? (units.find(u => u.name === selectedUnit)?.slug || selectedUnit) : undefined} canViewRevenue={canViewRevenue} />
-            <AlertsPanel onTabChange={setActiveTab} />
+            {/* Alertas inteligentes escondidos (out/2026): nunca geraram alertas */}
 
             {/* SalesPriorities moved inside Relatórios tab */}
 
