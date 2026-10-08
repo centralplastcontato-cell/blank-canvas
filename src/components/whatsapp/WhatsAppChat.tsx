@@ -3481,7 +3481,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
     setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, bot_enabled: false, bot_step: 'human_takeover' } : c));
     setSelectedConversation(prev => prev && prev.id === conv.id ? { ...prev, bot_enabled: false, bot_step: 'human_takeover' } : prev);
-    toast({ title: "Você assumiu a conversa", description: "A Bia parou de responder e de mandar follow-ups para este cliente." });
+    toast({ title: "Você assumiu a conversa", description: "A IA parou de responder e de mandar follow-ups para este cliente." });
   };
 
   const returnToBia = async (conv: Conversation) => {
@@ -3494,12 +3494,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const patch = { bot_enabled: true, bot_step: 'ai_agent', bot_data: botData, bot_paused_until: null, bot_paused_reason: null };
     const { error } = await supabase.from('wapi_conversations').update(patch as never).eq('id', conv.id);
     if (error) {
-      toast({ title: "Erro ao devolver para a Bia", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao devolver para a IA", description: error.message, variant: "destructive" });
       return;
     }
     setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, ...patch } : c));
     setSelectedConversation(prev => prev && prev.id === conv.id ? { ...prev, ...patch } : prev);
-    toast({ title: "Conversa devolvida para a Bia", description: "Ela responde a próxima mensagem do cliente, já sabendo o que a equipe conversou." });
+    toast({ title: "Conversa devolvida para a IA", description: "Ela responde a próxima mensagem do cliente, já sabendo o que a equipe conversou." });
   };
 
   const reactivateBot = async (conv: Conversation) => {

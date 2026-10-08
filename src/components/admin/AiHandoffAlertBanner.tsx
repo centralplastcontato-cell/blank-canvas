@@ -144,7 +144,7 @@ export function AiHandoffAlertBanner({ userId, onOpenConversation }: AiHandoffAl
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm sm:text-base font-extrabold text-white truncate">
-              <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-[10px] sm:text-xs font-black tracking-wide mr-1.5 align-middle">{candidate ? "CANDIDATO" : "BIA"}</span>
+              <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-[10px] sm:text-xs font-black tracking-wide mr-1.5 align-middle">{candidate ? "CANDIDATO" : "IA"}</span>
               {title}
             </p>
             <p className="text-xs sm:text-sm text-violet-100 truncate">

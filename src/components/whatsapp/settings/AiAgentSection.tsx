@@ -677,7 +677,7 @@ export function AiAgentSection() {
                     <Input
                       value={introName}
                       onChange={(e) => setIntroName(e.target.value)}
-                      placeholder="Ex.: Bia"
+                      placeholder="Ex.: Ana"
                       maxLength={30}
                       className="h-10 bg-card border-border shadow-sm"
                     />
@@ -690,7 +690,7 @@ export function AiAgentSection() {
                     followUpNumber={1}
                     fileTag="bia_apresentacao"
                     successText="A arte vai na primeira mensagem da IA (a apresentação vira a legenda). Salve para valer."
-                    helpText="Opcional: a arte da assistente (ex.: a Bia na recepção). Sem imagem, a primeira mensagem vai só com texto. JPG/PNG/WebP até 10MB."
+                    helpText="Opcional: a arte da assistente (ex.: a assistente na recepção). Sem imagem, a primeira mensagem vai só com texto. JPG/PNG/WebP até 10MB."
                   />
                 </div>
                 <div className="rounded-xl border border-violet-300/50 bg-violet-500/5 p-3.5 space-y-3">
@@ -914,7 +914,7 @@ export function AiAgentSection() {
                     </div>
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    Quando a Bia passa uma conversa para a equipe e ninguém responde o cliente nesse tempo (contando só o horário de atendimento), esse WhatsApp recebe um alerta 🚨 com o nome do cliente e o motivo, além do sininho. Sem número, fica só o sininho.
+                    Quando a IA passa uma conversa para a equipe e ninguém responde o cliente nesse tempo (contando só o horário de atendimento), esse WhatsApp recebe um alerta 🚨 com o nome do cliente e o motivo, além do sininho. Sem número, fica só o sininho.
                   </p>
                 </div>
 
@@ -926,7 +926,7 @@ export function AiAgentSection() {
                     Recesso / dias fechados
                   </Label>
                   <p className="text-[11px] text-muted-foreground">
-                    Sem festas e sem visitas nesses dias. A Bia e a equipe continuam atendendo normalmente (a Bia só não oferece esses dias). No site, esses dias ficam bloqueados.
+                    Sem festas e sem visitas nesses dias. A IA e a equipe continuam atendendo normalmente (a IA só não oferece esses dias). No site, esses dias ficam bloqueados.
                   </p>
                   {closedPeriods.map((p, idx) => (
                     <div key={idx} className="rounded-lg border border-border/70 bg-muted/30 p-3 space-y-2">
@@ -1064,19 +1064,19 @@ export function AiAgentSection() {
                 <div className="rounded-xl border border-violet-300/50 bg-violet-500/5 p-3.5 space-y-1.5">
                   <Label className="text-xs font-bold flex items-center gap-1.5">
                     <MessageCircleHeart className="w-3.5 h-3.5 text-violet-600" />
-                    Acompanhamento da Bia
+                    Acompanhamento da IA
                   </Label>
                   <p className="text-[11px] text-muted-foreground">
-                    Vale só para as conversas que a Bia atende. Os follow-ups do bot fixo (configurados em cada número) continuam iguais. A Bia escreve cada mensagem com o que já conversou, só entre 8h e 22h, e para quando o cliente responde, marca visita, a equipe assume ou o robô é desligado na conversa.
+                    Vale só para as conversas que a IA atende. Os follow-ups do bot fixo (configurados em cada número) continuam iguais. A IA escreve cada mensagem com o que já conversou, só entre 8h e 22h, e para quando o cliente responde, marca visita, a equipe assume ou o robô é desligado na conversa.
                   </p>
                   <div className="flex items-center justify-between gap-3 pt-1">
-                    <Label className="text-xs font-bold">Ligar acompanhamento da Bia</Label>
+                    <Label className="text-xs font-bold">Ligar acompanhamento da IA</Label>
                     <Switch checked={fuEnabled} onCheckedChange={setFuEnabled} />
                   </div>
                   <p className="text-[11px] text-muted-foreground">
                     {fuEnabled
-                      ? "Ligado: as conversas da Bia saem dos follow-ups fixos do número e seguem as etapas abaixo. Conversas que já estavam paradas antes de ligar ficam de fora."
-                      : "Desligado: as conversas da Bia recebem os follow-ups fixos do número, como hoje."}
+                      ? "Ligado: as conversas da IA saem dos follow-ups fixos do número e seguem as etapas abaixo. Conversas que já estavam paradas antes de ligar ficam de fora."
+                      : "Desligado: as conversas da IA recebem os follow-ups fixos do número, como hoje."}
                   </p>
                 </div>
 
@@ -1087,7 +1087,7 @@ export function AiAgentSection() {
                     <Switch checked={fuInactivityOn} onCheckedChange={setFuInactivityOn} />
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    Quando o cliente para de responder no meio da conversa, a Bia retoma de onde pararam. Vale para cada pausa: se ele responder e parar de novo, o lembrete volta a valer.
+                    Quando o cliente para de responder no meio da conversa, a IA retoma de onde pararam. Vale para cada pausa: se ele responder e parar de novo, o lembrete volta a valer.
                   </p>
                   {fuInactivityOn && (
                     <div className="flex items-center gap-2 text-sm">
@@ -1112,7 +1112,7 @@ export function AiAgentSection() {
                         <Switch checked={fuSecondOn} onCheckedChange={setFuSecondOn} />
                       </div>
                       <p className="text-[11px] text-muted-foreground">
-                        Se ele não responder nem ao 1º, a Bia manda mais um, em outro tom e sem pressão. Depois disso, só os follow-ups.
+                        Se ele não responder nem ao 1º, a IA manda mais um, em outro tom e sem pressão. Depois disso, só os follow-ups.
                       </p>
                       {fuSecondOn && (
                         <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -1133,11 +1133,11 @@ export function AiAgentSection() {
                   )}
                 </div>
 
-                {/* Follow-ups por etapa: prazo + objetivo (a Bia escreve) */}
+                {/* Follow-ups por etapa: prazo + objetivo (a IA escreve) */}
                 <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
                   <Label className="text-xs font-bold">Follow-ups</Label>
                   <p className="text-[11px] text-muted-foreground">
-                    O prazo conta desde a última resposta da Bia sem retorno do cliente. Em cada etapa, diga o que a Bia deve fazer — ela escreve no tom dela, com o nome, a data pedida e a agenda real (nunca inventa vagas nem passa valores que o cliente não pediu).
+                    O prazo conta desde a última resposta da IA sem retorno do cliente. Em cada etapa, diga o que a IA deve fazer — ela escreve no tom dela, com o nome, a data pedida e a agenda real (nunca inventa vagas nem passa valores que o cliente não pediu).
                   </p>
                   {fuSteps.map((st, idx) => (
                     <div key={idx} className="rounded-lg border border-border/70 bg-muted/30 p-3 space-y-2">
@@ -1183,7 +1183,7 @@ export function AiAgentSection() {
                         rows={3}
                         maxLength={600}
                         className="text-base sm:text-sm bg-card border-border shadow-sm resize-none"
-                        placeholder="O que a Bia deve fazer nesta mensagem (ex.: convidar para conhecer o espaço)"
+                        placeholder="O que a IA deve fazer nesta mensagem (ex.: convidar para conhecer o espaço)"
                       />
                       <FollowUpImageUploader
                         onUploadingChange={trackUpload}
@@ -1192,8 +1192,8 @@ export function AiAgentSection() {
                         companyId={currentCompany?.id}
                         followUpNumber={1}
                         fileTag={`bia_etapa${idx + 1}`}
-                        successText={`A arte vai junto com a etapa ${idx + 1} (a mensagem da Bia vira a legenda). Salve para valer.`}
-                        helpText="Opcional: uma arte (ex.: a Bia, a promoção). A Bia escreve a mensagem como legenda. Sem imagem, vai só o texto. JPG/PNG/WebP até 10MB."
+                        successText={`A arte vai junto com a etapa ${idx + 1} (a mensagem da IA vira a legenda). Salve para valer.`}
+                        helpText="Opcional: uma arte (ex.: a assistente, a promoção). A IA escreve a mensagem como legenda. Sem imagem, vai só o texto. JPG/PNG/WebP até 10MB."
                       />
                     </div>
                   ))}
@@ -1230,7 +1230,7 @@ export function AiAgentSection() {
                     <span className="text-muted-foreground">meses</span>
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    Festa distante, ou cliente que disse "vou pensar" / "é só ano que vem": a Bia manda só a 1ª etapa e não insiste. Quem traz o cliente de volta são os lembretes antes da festa.
+                    Festa distante, ou cliente que disse "vou pensar" / "é só ano que vem": a IA manda só a 1ª etapa e não insiste. Quem traz o cliente de volta são os lembretes antes da festa.
                   </p>
                   <div className="flex items-center justify-between gap-3 pt-1">
                     <Label className="text-xs font-bold">Lembretes antes da festa</Label>
@@ -1288,13 +1288,13 @@ export function AiAgentSection() {
                       followUpNumber={1}
                       fileTag="bia_lembrete"
                       successText="A arte vai junto com os lembretes antes da festa. Salve para valer."
-                      helpText="Opcional: uma arte para os lembretes antes da festa (a mensagem da Bia vira a legenda). JPG/PNG/WebP até 10MB."
+                      helpText="Opcional: uma arte para os lembretes antes da festa (a mensagem da IA vira a legenda). JPG/PNG/WebP até 10MB."
                     />
                   )}
                   <p className="text-[11px] text-muted-foreground">
                     {fuReactOn
-                      ? "A Bia escreve com a agenda real: se a data do cliente ainda estiver livre, ela avisa; se foi reservada, oferece outras datas livres perto dela. Se o cliente só disse o mês, ela mostra datas livres do mês. Nessas conversas, a reativação fixa não manda mensagem."
-                      : "Desligado: a Bia segue todas as etapas, e quem lembra o cliente perto da festa é a reativação fixa (Automações), como hoje."}
+                      ? "A IA escreve com a agenda real: se a data do cliente ainda estiver livre, ela avisa; se foi reservada, oferece outras datas livres perto dela. Se o cliente só disse o mês, ela mostra datas livres do mês. Nessas conversas, a reativação fixa não manda mensagem."
+                      : "Desligado: a IA segue todas as etapas, e quem lembra o cliente perto da festa é a reativação fixa (Automações), como hoje."}
                   </p>
                 </div>
 
@@ -1314,13 +1314,13 @@ export function AiAgentSection() {
                         className="h-10 w-20 text-base sm:text-sm bg-card border-border shadow-sm"
                       />
                       <span className="text-muted-foreground">
-                        horas {fuSteps.length > 0 ? "depois da última mensagem automática" : "depois da última resposta da Bia"} sem resposta
+                        horas {fuSteps.length > 0 ? "depois da última mensagem automática" : "depois da última resposta da IA"} sem resposta
                         {fuLostHours >= 24 && fuLostHours % 24 === 0 ? ` (${delayLabel(fuLostHours)})` : ""}
                       </span>
                     </div>
                   )}
                   <p className="text-[11px] text-muted-foreground">
-                    Se ainda houver lembrete antes da festa para mandar, o lead espera por ele (não vira Perdido antes). Festa que já passou vira Perdido. Se o cliente voltar a falar depois, a Bia continua o atendimento normalmente.
+                    Se ainda houver lembrete antes da festa para mandar, o lead espera por ele (não vira Perdido antes). Festa que já passou vira Perdido. Se o cliente voltar a falar depois, a IA continua o atendimento normalmente.
                   </p>
                 </div>
               </div>

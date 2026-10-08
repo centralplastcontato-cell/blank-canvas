@@ -178,7 +178,7 @@ function BiaControl({ conversation, onTakeOver, onReturn }: {
           "text-[11px] font-bold rounded-full px-2 py-0.5 whitespace-nowrap",
           biaActive ? "bg-violet-500/15 text-violet-700 dark:text-violet-300" : "bg-muted text-muted-foreground",
         )}>
-          {biaActive ? "🤖 Bia atendendo" : "👤 Equipe atendendo"}
+          {biaActive ? "🤖 IA atendendo" : "👤 Equipe atendendo"}
         </span>
       </div>
       {biaActive ? (
@@ -187,7 +187,7 @@ function BiaControl({ conversation, onTakeOver, onReturn }: {
           size="sm"
           className="h-7 text-[11px] gap-1 rounded-lg font-medium"
           onClick={() => onTakeOver(conversation)}
-          title="A Bia para de responder e de mandar follow-ups; a conversa fica com você"
+          title="A IA para de responder e de mandar follow-ups; a conversa fica com você"
         >
           <UserCheck className="w-3 h-3" />
           Assumir
@@ -197,10 +197,10 @@ function BiaControl({ conversation, onTakeOver, onReturn }: {
           size="sm"
           className="h-7 text-[11px] gap-1 rounded-lg font-medium bg-violet-600 hover:bg-violet-700 text-white"
           onClick={() => onReturn(conversation)}
-          title="A Bia responde a próxima mensagem do cliente, já sabendo o que a equipe conversou (não manda nada sozinha)"
+          title="A IA responde a próxima mensagem do cliente, já sabendo o que a equipe conversou (não manda nada sozinha)"
         >
           <Sparkles className="w-3 h-3" />
-          Devolver para a Bia
+          Devolver para a IA
         </Button>
       )}
     </div>
@@ -952,7 +952,7 @@ export function LeadInfoPopover({
 
             {/* Bot + Actions */}
             <div className="px-5 pb-4 space-y-2.5">
-              {/* Bot Toggle (conversa da Bia: quem está atendendo + assumir/devolver) */}
+              {/* Bot Toggle (conversa da IA: quem está atendendo + assumir/devolver) */}
               {isBiaConversation(selectedConversation) && onTakeOverFromBia && onReturnToBia ? (
                 <BiaControl conversation={selectedConversation} onTakeOver={onTakeOverFromBia} onReturn={onReturnToBia} />
               ) : (
