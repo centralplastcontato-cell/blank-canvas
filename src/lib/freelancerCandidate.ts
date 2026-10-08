@@ -76,7 +76,8 @@ async function geocodeCep(cep: string): Promise<LatLng | null> {
 async function geocodeAddress(q: string): Promise<LatLng | null> {
   if (!q.trim()) return null;
   return withTimeout(async (signal) => {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=${encodeURIComponent(q)}`, { signal, headers: { "Accept-Language": "pt-BR" } });
+    // Sem cabeçalho próprio: um cabeçalho extra faz o navegador pedir permissão (preflight) e o serviço recusa
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&accept-language=pt-BR&q=${encodeURIComponent(q)}`, { signal });
     if (!res.ok) return null;
     const rows = await res.json();
     const lat = Number(rows?.[0]?.lat);
@@ -91,9 +92,34 @@ export interface CandidateAddress { cep: string; street: string; number: string;
  * Distância (km, 1 casa) do candidato até o buffet. Nunca falha: sem
  * coordenadas de um dos dois, devolve null e o cadastro segue sem a distância.
  */
+/** Endereço do buffet → coordenadas (sem achar o número, tenta só a rua e depois o bairro) */
+export async function geocodeOrigin(originAddress: string): Promise<LatLng | null> {
+  const parts = originAddress.split(",").map((p) => p.trim()).filter(Boolean);
+  const attempts = [
+    originAddress,
+    parts.filter((p) => !/^\d+[a-z]?$/i.test(p)).join(", "), // sem o número
+    parts.slice(-3).join(", "), // bairro, cidade, UF
+  ].filter((q, i, all) => q && all.indexOf(q) === i);
+  for (const q of attempts) {
+    const hit = await geocodeAddress(q);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/** Endereço salvo ("Rua X, 12, Bairro, Cidade, UF") → partes (para recalcular a distância depois) */
+export function splitSavedAddress(address: string | null | undefined, cep: string | null | undefined): CandidateAddress {
+  const parts = String(address || "").split(",").map((p) => p.trim()).filter(Boolean);
+  const state = parts.length >= 1 && /^[A-Z]{2}$/.test(parts[parts.length - 1]) ? parts.pop() as string : "";
+  const city = parts.length >= 1 ? parts.pop() as string : "";
+  const neighborhood = parts.length >= 1 ? parts.pop() as string : "";
+  const number = parts.length >= 2 && /^\d+[a-z]?$/i.test(parts[parts.length - 1]) ? parts.pop() as string : "";
+  return { cep: String(cep || ""), street: parts.join(", "), number, neighborhood, city, state };
+}
+
 export async function distanceToBuffet(originAddress: string, addr: CandidateAddress): Promise<number | null> {
   try {
-    const [origin, byCep] = await Promise.all([geocodeAddress(originAddress), geocodeCep(addr.cep)]);
+    const [origin, byCep] = await Promise.all([geocodeOrigin(originAddress), geocodeCep(addr.cep)]);
     if (!origin) return null;
     const place = [addr.city, addr.state].filter(Boolean).join(", ");
     const candidate = byCep

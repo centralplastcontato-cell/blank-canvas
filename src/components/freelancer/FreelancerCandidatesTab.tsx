@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2, MessageCircle, Check, X, ArrowRightLeft, RotateCcw, MapPin, Bot, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { UnitSelectDialog } from "@/pages/FreelancerManager";
 import { fetchConnectedInstances, sendFreelancerApprovalMessage, type WaInstance } from "@/lib/freelancerApproval";
-import { ageOn, candidateScore, dayIndex, PARTY_DAYS, WEEK_DAYS } from "@/lib/freelancerCandidate";
+import { ageOn, candidateScore, dayIndex, distanceToBuffet, PARTY_DAYS, splitSavedAddress, WEEK_DAYS } from "@/lib/freelancerCandidate";
 
 // Aba Candidatos: quem se candidatou pelo formulário "Trabalhe Conosco"
 // (purpose = 'candidatura'), em funil — Novos → Em conversa → Aprovados /
@@ -148,12 +148,15 @@ export function FreelancerCandidatesTab() {
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmRefuse, setConfirmRefuse] = useState(false);
   const [unitDialog, setUnitDialog] = useState<{ instances: WaInstance[]; candidate: Candidate } | null>(null);
+  const [originAddress, setOriginAddress] = useState<string | null>(null);
+  // Distância que não saiu no envio: recalcula aqui (uma tentativa por cadastro nesta tela)
+  const triedDistance = useRef(new Set<string>());
 
   const load = useCallback(async () => {
     if (!companyId) return;
     const { data: tpls, error: tplErr } = await (supabase as any)
       .from("freelancer_templates")
-      .select("id, questions")
+      .select("id, questions, origin_address")
       .eq("company_id", companyId)
       .eq("purpose", "candidatura");
     if (tplErr) {
@@ -168,6 +171,7 @@ export function FreelancerCandidatesTab() {
       for (const o of qs.find((q) => q.id === "funcao")?.options || []) options.add(o);
     }
     setRoleOptions([...options]);
+    setOriginAddress(((tpls || []) as Array<{ origin_address: string | null }>).find((t) => t.origin_address)?.origin_address || null);
     if (ids.length === 0) {
       setSetupMissing(true);
       setRows([]);
@@ -187,6 +191,31 @@ export function FreelancerCandidatesTab() {
   }, [companyId]);
 
   useEffect(() => { setLoading(true); load(); }, [load]);
+
+  useEffect(() => {
+    if (!originAddress || rows.length === 0) return;
+    const missing = rows.filter((r) => (r.distance_km === null || r.distance_km === undefined) && !triedDistance.current.has(r.id)).slice(0, 5);
+    if (missing.length === 0) return;
+    missing.forEach((r) => triedDistance.current.add(r.id));
+    let cancelled = false;
+    (async () => {
+      let changed = false;
+      for (const r of missing) {
+        const answers = Array.isArray(r.answers) ? (r.answers as Array<{ questionId: string; value: unknown }>) : [];
+        const address = answers.find((x) => x.questionId === "endereco")?.value as string | undefined;
+        const cep = answers.find((x) => x.questionId === "endereco_cep")?.value as string | undefined;
+        if (!address && !cep) continue;
+        const km = await distanceToBuffet(originAddress, splitSavedAddress(address, cep));
+        if (cancelled) return;
+        if (km !== null) {
+          const { error } = await (supabase as any).from("freelancer_responses").update({ distance_km: km }).eq("id", r.id);
+          if (!error) changed = true;
+        }
+      }
+      if (changed && !cancelled) load();
+    })();
+    return () => { cancelled = true; };
+  }, [rows, originAddress, load]);
 
   const today = useMemo(() => new Date(), []);
   const candidates = useMemo(() => rows.map((r) => toCandidate(r, today)), [rows, today]);

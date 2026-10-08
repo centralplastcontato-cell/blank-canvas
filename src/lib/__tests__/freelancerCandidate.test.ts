@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ageOn, candidateScore, dayIndex, distancePoints, haversineKm, matchOptions, readPrefill } from "../freelancerCandidate";
+import { ageOn, candidateScore, splitSavedAddress, dayIndex, distancePoints, haversineKm, matchOptions, readPrefill } from "../freelancerCandidate";
 
 describe("freelancerCandidate", () => {
   it("distância em linha reta", () => {
@@ -45,5 +45,11 @@ describe("freelancerCandidate", () => {
     expect(ageOn("2004-10-09", today)).toBe(21);
     expect(ageOn("2004-10-08", today)).toBe(22);
     expect(ageOn("", today)).toBeNull();
+  });
+
+  it("endereço salvo vira partes para recalcular a distância", () => {
+    expect(splitSavedAddress("Rua das Flores, 120, Central Parque Sorocaba, Sorocaba, SP", "18051-000")).toEqual({ cep: "18051-000", street: "Rua das Flores", number: "120", neighborhood: "Central Parque Sorocaba", city: "Sorocaba", state: "SP" });
+    expect(splitSavedAddress("Rua das Flores, Central Parque Sorocaba, Sorocaba, SP", null)).toEqual({ cep: "", street: "Rua das Flores", number: "", neighborhood: "Central Parque Sorocaba", city: "Sorocaba", state: "SP" });
+    expect(splitSavedAddress("", null).city).toBe("");
   });
 });
