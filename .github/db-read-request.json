@@ -1,1 +1,1 @@
-{"sql": "SELECT c.id, c.bot_step, c.updated_at, c.bot_data->'ai_handoff' AS handoff, c.lead_id FROM wapi_conversations c WHERE c.instance_id = '75feab3b-eb12-44f0-8ada-463e5540c869' AND c.bot_data->'ai_handoff' IS NOT NULL ORDER BY c.last_message_at DESC LIMIT 2"}
+{"sql": "SELECT s.assistant_name, s.updated_at, position('Bia' in coalesce(s.extra_instructions,'')) AS bia_in_info, substring(s.extra_instructions from greatest(position('Bia' in s.extra_instructions) - 80, 1) for 200) AS around FROM ai_agent_settings s WHERE s.company_id = 'a0000000-0000-0000-0000-000000000001'"}
