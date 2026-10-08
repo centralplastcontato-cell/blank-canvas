@@ -111,6 +111,9 @@ export interface AgentMedia {
 
 const AI_STEP = 'ai_agent';
 
+/** "Como posso te ajudar?": as opções uma por linha, cada uma com um emoji (fica mais bonito que tudo numa frase) */
+const HELP_OPTIONS_FORMAT = 'Mostre as opções em linhas separadas, uma por linha, cada uma começando com um emoji (sem números e sem hífen), depois de uma linha em branco, e NÃO repita a pergunta depois da lista. Exemplo:\n"Me conta, como posso te ajudar? 😊\n\n🎈 Orçamento para uma festa\n🏰 Já tenho festa marcada com vocês\n💬 Outro assunto"';
+
 // Arte de apresentação da Bia (só link https do nosso storage ou outro https)
 function introImageUrl(settings: AiSettings): string | null {
   const url = String(settings.intro_image_url || '').trim();
@@ -588,12 +591,12 @@ COMO CONVERSAR:
 - ${ctx.isFirstReply ? 'ESTA É A SUA PRIMEIRA RESPOSTA: apresente-se (diga seu nome' + (assistantName ? ' — ' + assistantName : ', se ele estiver nas informações do buffet,') + ' e que é do ' + companyName + ') e, se ainda não souber o nome do cliente, já pergunte o nome dele NESTA mensagem, junto com a resposta ao que ele perguntou.' : 'Se ainda não souber o nome do cliente, não interrompa a conversa para pedir — aproveite um momento natural.'}
 - Dados do cliente já registrados: ${ctx.knownDataText}. Não pergunte de novo o que já sabe.${ctx.pricePending ? '\n- O CLIENTE JÁ PEDIU O VALOR e ainda não recebeu: assim que você souber a quantidade de convidados e o dia/data (já registrados ou nesta mensagem), chame consultar_valor_pacote e passe o valor NESTA resposta, sem esperar ele pedir de novo. Se ainda faltar um dos dois, pergunte só o que falta.' : ''}
 - ${ctx.pendingUserMessages > 1 ? `O cliente mandou ${ctx.pendingUserMessages} mensagens seguidas desde a sua última resposta: responda a TODAS as perguntas delas numa única mensagem, sem ignorar nenhuma.` : 'Se o cliente mandar várias perguntas, responda todas numa única mensagem.'}
-- Uma pergunta por vez, e UMA mensagem por vez: depois de perguntar, espere a resposta antes de perguntar outra coisa. Nunca envie listas de opções numeradas — converse como gente.
+- Uma pergunta por vez, e UMA mensagem por vez: depois de perguntar, espere a resposta antes de perguntar outra coisa. Nunca envie listas de opções numeradas — converse como gente (a única lista é a de "como posso te ajudar", no formato de QUEM É O CONTATO).
 - Nunca use a palavra "sistema" com o cliente (nada de "o sistema já te envia"): fale em primeira pessoa ("já te mando as fotos").${ctx.crossedMessage ? '\n- ATENÇÃO: a mensagem do cliente chegou junto com a sua última resposta, então ele ainda não viu a sua pergunta. NÃO faça uma pergunta nova: responda só o que ele disse agora (se precisar) e deixe a sua pergunta anterior em aberto. Se não houver nada a responder, mande só uma frase curta.' : ''}${ctx.visitText ? `\n- Este cliente JÁ TEM VISITA MARCADA: ${ctx.visitText}. "Ok", "beleza", "obrigado" depois disso são só confirmação — responda com carinho, sem agendar de novo.` : ''}
 - Descubra naturalmente: nome da pessoa, mês/data desejada da festa e número de convidados, se ainda não souber — mas só depois de saber que a pessoa quer orçamento (veja QUEM É O CONTATO).
 
 QUEM É O CONTATO (nem todo mundo quer orçamento):
-- Se a pessoa só cumprimentou ("oi", "bom dia") ou mandou algo solto (uma foto, "quem é?"), não suponha que é orçamento: cumprimente e pergunte com naturalidade como pode ajudar — se é orçamento de festa, se ela já tem festa com a gente ou se é outro assunto (uma pergunta só, sem menu numerado).
+- Se a pessoa só cumprimentou ("oi", "bom dia") ou mandou algo solto (uma foto, "quem é?"), não suponha que é orçamento: cumprimente e pergunte como pode ajudar — se é orçamento de festa, se ela já tem festa com a gente ou se é outro assunto. ${HELP_OPTIONS_FORMAT}
 - Se não estiver claro o que a pessoa quer, pergunte com gentileza qual é a dúvida — e, se ela disser que "tem uma festa", se a festa já está marcada com a gente ou se ela está procurando orçamento — ANTES de falar de pacotes, mês ou convidados.
 - Já tem festa marcada/contrato com a gente: NÃO trate como orçamento (nada de pacotes, valores, promoção ou visita). Dúvidas gerais do buffet (endereço, regras, o que tem no espaço) você responde; sobre a festa contratada (horários, cardápio escolhido, convidados, pagamentos, mudanças) use transferir_para_atendente com assunto cliente_com_festa.
 - Quer trabalhar / enviar currículo: use transferir_para_atendente com assunto trabalhar.
@@ -2049,7 +2052,7 @@ export async function maybeHandleWithAiAgent(
         // (só "oi", uma foto solta, outro assunto): pergunta antes de mandar
         console.log(`[AI Agent] Dados da festa conhecidos, mas a mensagem não confirma que é sobre a festa — materiais seguram (conv ${conv.id})`);
         conv.__holdMaterials = true;
-        materialsNote = 'a data e os convidados já estão anotados (vieram do formulário do site ou da conversa), mas a mensagem do cliente ainda NÃO deixa claro que é sobre a festa (pode ser só um oi, uma foto solta ou outro assunto). Ainda NÃO mande fotos, vídeo, PDF nem valores, e não diga que vai mandar. Responda com simpatia ao que ele mandou e pergunte com naturalidade como pode ajudar — se é sobre a festa do pedido, se ele já tem festa com a gente ou se é outro assunto. Uma pergunta só, sem menu numerado.';
+        materialsNote = 'a data e os convidados já estão anotados (vieram do formulário do site ou da conversa), mas a mensagem do cliente ainda NÃO deixa claro que é sobre a festa (pode ser só um oi, uma foto solta ou outro assunto). Ainda NÃO mande fotos, vídeo, PDF nem valores, e não diga que vai mandar. Responda com simpatia ao que ele mandou e pergunte como pode ajudar — se é sobre a festa do pedido, se ele já tem festa com a gente ou se é outro assunto. ' + HELP_OPTIONS_FORMAT;
       }
     }
     const sent = sentMaterials(conv);

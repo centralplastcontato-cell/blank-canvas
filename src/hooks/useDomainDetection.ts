@@ -79,3 +79,12 @@ export function redirectToPrimaryDomain(
   window.location.replace(target);
   return true;
 }
+
+/**
+ * Para onde os formulários públicos levam depois do envio: no domínio do
+ * próprio buffet, a página inicial (a página atual dele, ver RootPage); no
+ * domínio da Celebrei ou de testes, a página dinâmica /lp/<empresa>.
+ */
+export function companyHomeUrl(companySlug: string): string {
+  return isHubDomain() || isPreviewDomain() ? `/lp/${companySlug}` : "/";
+}

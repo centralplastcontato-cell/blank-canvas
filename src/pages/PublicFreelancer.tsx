@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { companyHomeUrl } from "@/hooks/useDomainDetection";
 import { useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { motion, AnimatePresence } from "framer-motion";
@@ -113,7 +114,7 @@ export default function PublicFreelancer() {
   useEffect(() => {
     if (!submitted || !template) return;
     const timer = setTimeout(() => {
-      if (template.company_slug) window.location.href = `/lp/${template.company_slug}`;
+      if (template.company_slug) window.location.href = companyHomeUrl(template.company_slug);
     }, 5000);
     return () => clearTimeout(timer);
   }, [submitted, template]);
@@ -540,7 +541,7 @@ export default function PublicFreelancer() {
   const stepQuestions = questionsForStep(currentStep);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex flex-col">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-primary/5 via-background to-accent/5 flex flex-col">
       <Helmet>
         <title>{template.template_name} | {template.company_name}</title>
         <meta name="description" content={template.description || `Cadastre-se como freelancer em ${template.company_name}`} />
@@ -556,8 +557,9 @@ export default function PublicFreelancer() {
         <p className="text-xs text-muted-foreground mt-1 text-center">Etapa {currentStep} de {totalSteps}</p>
       </div>
 
-      <div className="flex-1 flex items-start justify-center p-4 pt-6">
-        <div className="w-full max-w-lg">
+      {/* Botões logo abaixo das perguntas (no celular, presos no rodapé ficavam longe do que a pessoa está preenchendo) */}
+      <div className="flex justify-center px-4 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+        <div className="w-full max-w-lg space-y-5">
           <AnimatePresence mode="wait">
             <motion.div key={`step${currentStep}`} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} className="space-y-4">
               {currentStep === 1 && (
@@ -569,19 +571,17 @@ export default function PublicFreelancer() {
               {stepQuestions.map(renderQuestion)}
             </motion.div>
           </AnimatePresence>
-        </div>
-      </div>
 
-      <div className="p-4 border-t border-border bg-card/80 backdrop-blur-sm">
-        <div className="max-w-lg mx-auto flex items-center justify-between gap-3">
-          <Button variant="outline" onClick={handleBack} disabled={currentStep === 1} className="rounded-xl">
-            <ChevronLeft className="h-4 w-4 mr-1" /> Voltar
-          </Button>
-          <Button onClick={handleNext} disabled={!canAdvance() || submitting} className="rounded-xl">
-            {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {currentStep === totalSteps ? "Enviar" : "Próximo"}
-            {!submitting && <ChevronRight className="h-4 w-4 ml-1" />}
-          </Button>
+          <div className="flex items-center justify-between gap-3">
+            <Button variant="outline" onClick={handleBack} disabled={currentStep === 1} className="rounded-xl h-11">
+              <ChevronLeft className="h-4 w-4 mr-1" /> Voltar
+            </Button>
+            <Button onClick={handleNext} disabled={!canAdvance() || submitting} className="rounded-xl h-11 flex-1 max-w-[220px]">
+              {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {currentStep === totalSteps ? "Enviar" : "Próximo"}
+              {!submitting && <ChevronRight className="h-4 w-4 ml-1" />}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

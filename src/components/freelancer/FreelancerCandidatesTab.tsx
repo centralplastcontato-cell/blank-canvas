@@ -17,12 +17,21 @@ import { ageOn, candidateScore, dayIndex, distanceToBuffet, PARTY_DAYS, splitSav
 // e a pessoa passa a aparecer nas escalas.
 
 type Stage = "novo" | "conversa" | "aprovado" | "recusado";
+type StageFilter = Stage | "todos";
 const STAGES: { id: Stage; label: string }[] = [
   { id: "novo", label: "Novos" },
   { id: "conversa", label: "Em conversa" },
   { id: "aprovado", label: "Aprovados" },
   { id: "recusado", label: "Não aprovados" },
 ];
+const FILTERS: { id: StageFilter; label: string }[] = [{ id: "todos", label: "Todos" }, ...STAGES];
+// Etiqueta da etapa no cartão (fora de "Novos")
+const STAGE_PILL: Record<Stage, { label: string; cls: string } | null> = {
+  novo: null,
+  conversa: { label: "Em conversa", cls: "bg-sky-500/15 text-sky-700 dark:text-sky-300" },
+  aprovado: { label: "Aprovado", cls: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
+  recusado: { label: "Não aprovado", cls: "bg-destructive/10 text-destructive" },
+};
 
 interface ResponseRow {
   id: string;
@@ -140,7 +149,7 @@ export function FreelancerCandidatesTab() {
   const [setupMissing, setSetupMissing] = useState(false);
   const [rows, setRows] = useState<ResponseRow[]>([]);
   const [roleOptions, setRoleOptions] = useState<string[]>([]);
-  const [stage, setStage] = useState<Stage>("novo");
+  const [stage, setStage] = useState<StageFilter>("novo");
   const [role, setRole] = useState<string | null>(null);
   const [sort, setSort] = useState<"score" | "recent">("score");
   const [weekendOnly, setWeekendOnly] = useState(false);
@@ -219,16 +228,20 @@ export function FreelancerCandidatesTab() {
 
   const today = useMemo(() => new Date(), []);
   const candidates = useMemo(() => rows.map((r) => toCandidate(r, today)), [rows, today]);
-  const counts = useMemo(() => Object.fromEntries(STAGES.map((s) => [s.id, candidates.filter((c) => c.stage === s.id).length])) as Record<Stage, number>, [candidates]);
+  const counts = useMemo(() => ({
+    todos: candidates.length,
+    ...Object.fromEntries(STAGES.map((s) => [s.id, candidates.filter((c) => c.stage === s.id).length])),
+  }) as Record<StageFilter, number>, [candidates]);
   const visible = useMemo(() => candidates
-    .filter((c) => c.stage === stage)
+    .filter((c) => stage === "todos" || c.stage === stage)
     .filter((c) => !role || c.roles.includes(role))
     .filter((c) => !weekendOnly || c.days.some((d) => { const i = dayIndex(d); return i !== null && PARTY_DAYS.has(i); }))
     .sort((a, b) => (sort === "score" ? b.score.total - a.score.total || b.createdAt.getTime() - a.createdAt.getTime() : b.createdAt.getTime() - a.createdAt.getTime())),
   [candidates, stage, role, weekendOnly, sort]);
   const open = candidates.find((c) => c.id === openId) || null;
 
-  const update = async (c: Candidate, patch: Record<string, unknown>, done: string) => {
+  // Depois da ação, a tela vai para a etapa de destino (o cartão não "some")
+  const update = async (c: Candidate, patch: Record<string, unknown>, done: string, nextStage?: Stage) => {
     setBusy(c.id);
     const { error } = await (supabase as any).from("freelancer_responses").update(patch).eq("id", c.id);
     setBusy(null);
@@ -239,6 +252,7 @@ export function FreelancerCandidatesTab() {
     toast({ title: done });
     setOpenId(null);
     setConfirmRefuse(false);
+    if (nextStage && stage !== "todos") setStage(nextStage);
     await load();
     return true;
   };
@@ -255,7 +269,7 @@ export function FreelancerCandidatesTab() {
 
   const approve = async (c: Candidate) => {
     const { data: { user } } = await supabase.auth.getUser();
-    const ok = await update(c, { approval_status: "aprovado", approved_by: user?.id, approved_at: new Date().toISOString() }, `${c.name.split(" ")[0]} aprovado(a)`);
+    const ok = await update(c, { approval_status: "aprovado", approved_by: user?.id, approved_at: new Date().toISOString() }, `${c.name.split(" ")[0]} aprovado(a)`, "aprovado");
     if (!ok) return;
     const phone = c.phone.replace(/\D/g, "");
     if (phone.length < 10) {
@@ -303,8 +317,8 @@ export function FreelancerCandidatesTab() {
       />
 
       {/* Funil */}
-      <div className="grid grid-cols-4 gap-1.5 bg-card rounded-2xl p-1.5 shadow-sm border border-border/50" role="tablist" aria-label="Etapa">
-        {STAGES.map((s) => (
+      <div className="grid grid-cols-5 gap-1 bg-card rounded-2xl p-1.5 shadow-sm border border-border/50" role="tablist" aria-label="Etapa">
+        {FILTERS.map((s) => (
           <button
             key={s.id}
             type="button"
@@ -314,7 +328,7 @@ export function FreelancerCandidatesTab() {
             className={`rounded-xl py-2 px-1 grid justify-items-center gap-0.5 transition-colors ${stage === s.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/60"}`}
           >
             <span className={`text-xl font-bold tabular-nums ${stage === s.id ? "text-primary" : "text-foreground"}`}>{counts[s.id]}</span>
-            <span className="text-[11px] font-bold leading-tight text-center">{s.label}</span>
+            <span className="text-[10.5px] font-bold leading-tight text-center">{s.label}</span>
           </button>
         ))}
       </div>
@@ -371,6 +385,7 @@ export function FreelancerCandidatesTab() {
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="font-bold text-[15px] truncate">{c.name}</span>
                     {isNew && <span className="text-[10px] font-extrabold rounded-full px-1.5 py-0.5 bg-primary/10 text-primary">Novo</span>}
+                    {STAGE_PILL[c.stage] && <span className={`text-[10px] font-extrabold rounded-full px-1.5 py-0.5 ${STAGE_PILL[c.stage]!.cls}`}>{STAGE_PILL[c.stage]!.label}</span>}
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {c.roles.length > 0 ? c.roles.map((r) => (
@@ -490,17 +505,17 @@ export function FreelancerCandidatesTab() {
                   <MessageCircle className="h-4 w-4 mr-1.5" /> Conversa
                 </Button>
                 {open.stage === "novo" && (
-                  <Button type="button" variant="outline" className="rounded-xl" disabled={busy === open.id} onClick={() => update(open, { candidate_stage: "conversa" }, `${open.name.split(" ")[0]} em conversa`)}>
+                  <Button type="button" variant="outline" className="rounded-xl" disabled={busy === open.id} onClick={() => update(open, { candidate_stage: "conversa" }, `${open.name.split(" ")[0]} em conversa`, "conversa")}>
                     <ArrowRightLeft className="h-4 w-4 mr-1.5" /> Em conversa
                   </Button>
                 )}
                 {open.stage === "conversa" && (
-                  <Button type="button" variant="outline" className="rounded-xl" disabled={busy === open.id} onClick={() => update(open, { candidate_stage: null }, `${open.name.split(" ")[0]} voltou para Novos`)}>
+                  <Button type="button" variant="outline" className="rounded-xl" disabled={busy === open.id} onClick={() => update(open, { candidate_stage: null }, `${open.name.split(" ")[0]} voltou para Novos`, "novo")}>
                     <RotateCcw className="h-4 w-4 mr-1.5" /> Voltar p/ Novos
                   </Button>
                 )}
                 {(open.stage === "recusado" || open.stage === "aprovado") && (
-                  <Button type="button" variant="outline" className="rounded-xl" disabled={busy === open.id} onClick={() => update(open, { approval_status: "pendente", candidate_stage: "conversa" }, `${open.name.split(" ")[0]} voltou para Em conversa`)}>
+                  <Button type="button" variant="outline" className="rounded-xl" disabled={busy === open.id} onClick={() => update(open, { approval_status: "pendente", candidate_stage: "conversa" }, `${open.name.split(" ")[0]} voltou para Em conversa`, "conversa")}>
                     <RotateCcw className="h-4 w-4 mr-1.5" /> Reabrir
                   </Button>
                 )}
@@ -520,7 +535,7 @@ export function FreelancerCandidatesTab() {
                   <p>Não aprovar {open.name.split(" ")[0]}? O cadastro fica guardado em "Não aprovados" e dá para reabrir depois.</p>
                   <div className="grid grid-cols-2 gap-2">
                     <Button type="button" variant="outline" className="rounded-xl" onClick={() => setConfirmRefuse(false)}>Cancelar</Button>
-                    <Button type="button" variant="destructive" className="rounded-xl" disabled={busy === open.id} onClick={() => update(open, { approval_status: "rejeitado" }, `${open.name.split(" ")[0]} não aprovado(a)`)}>Não aprovar</Button>
+                    <Button type="button" variant="destructive" className="rounded-xl" disabled={busy === open.id} onClick={() => update(open, { approval_status: "rejeitado" }, `${open.name.split(" ")[0]} não aprovado(a)`, "recusado")}>Não aprovar</Button>
                   </div>
                 </div>
               )}
