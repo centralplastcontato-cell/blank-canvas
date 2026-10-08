@@ -143,11 +143,17 @@ function toast({ ...props }: Toast) {
       toast: { ...props, id },
     });
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id });
+  // Some sozinho: 3 s (erro, 6 s para dar tempo de ler). Timer próprio porque o
+  // da biblioteca pausa (ex.: com uma janela aberta por cima) e o aviso ficava
+  // preso na tela sem dar para tocar no X.
+  const duration = props.duration ?? (props.variant === "destructive" ? 6000 : 3000);
+  setTimeout(dismiss, duration);
 
   dispatch({
     type: "ADD_TOAST",
     toast: {
       ...props,
+      duration,
       id,
       open: true,
       onOpenChange: (open) => {
