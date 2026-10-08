@@ -87,7 +87,6 @@
 
 | URL clicável | O que é |
 |---|---|
-| [/admin/fix-prefesta](http://localhost:8080/admin/fix-prefesta) | Corrigir respostas de pré-festa |
 | [/admin/message-trace](http://localhost:8080/admin/message-trace) | Rastrear mensagens WhatsApp |
 
 ---

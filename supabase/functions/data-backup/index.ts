@@ -6,6 +6,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function json(payload: unknown, status = 200): Response {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 async function fetchAll(supabase: any, table: string, companyId: string, orderBy = "created_at") {
   const all: any[] = [];
   let from = 0;
@@ -36,11 +43,44 @@ Deno.serve(async (req) => {
 
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
 
+    // Baixar ou gerar o backup de uma empresa exige login com acesso a ela.
+    // Antes, a chave pública do site bastava para baixar o backup (leads com
+    // telefone, festas, despesas) de qualquer buffet.
+    const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+    const isService = !!jwt && jwt === serviceKey;
+    let userId: string | null = null;
+    let isAdmin = false;
+    if (!isService && jwt) {
+      const { data: { user } } = await supabase.auth.getUser(jwt);
+      if (user) {
+        userId = user.id;
+        const { data: admin } = await supabase.rpc("is_admin", { _user_id: user.id });
+        isAdmin = admin === true;
+      }
+    }
+    const canAccessCompany = async (companyId: string): Promise<boolean> => {
+      if (isService || isAdmin) return true;
+      if (!userId) return false;
+      const { data } = await supabase.rpc("user_has_company_access", { _user_id: userId, _company_id: companyId });
+      return data === true;
+    };
+    // O backup de domingo (cron) ainda chama com a chave pública: pode gerar o
+    // backup de todas as empresas, mas a resposta não traz nenhum detalhe.
+    const canSeeDetails = isService || isAdmin;
+
     // Handle download action
     if (body.action === "download" && body.file_name) {
+      // O arquivo fica em "<slug da empresa>/backup_<data>.xlsx"
+      const fileName = String(body.file_name);
+      const slug = fileName.split("/")[0];
+      const { data: owner } = await supabase.from("companies").select("id").eq("slug", slug).maybeSingle();
+      if (!userId && !isService) return json({ error: "Faça login" }, 401);
+      if (fileName.includes("..") || !owner || !(await canAccessCompany(owner.id))) {
+        return json({ error: "Sem acesso a este backup" }, 403);
+      }
       const { data: signedData, error: signError } = await supabase.storage
         .from("data-backups")
-        .createSignedUrl(body.file_name, 300);
+        .createSignedUrl(fileName, 300);
       if (signError || !signedData?.signedUrl) {
         return new Response(JSON.stringify({ error: "Não foi possível gerar URL de download" }), {
           status: 400,
@@ -53,6 +93,10 @@ Deno.serve(async (req) => {
     }
 
     const targetCompanyId = body.company_id;
+    if (targetCompanyId) {
+      if (!userId && !isService) return json({ error: "Faça login" }, 401);
+      if (!(await canAccessCompany(targetCompanyId))) return json({ error: "Sem acesso a esta empresa" }, 403);
+    }
 
     let companies: { id: string; name: string; slug: string }[];
     if (targetCompanyId) {
@@ -187,6 +231,8 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Quem pediu o backup de uma empresa já teve o acesso conferido acima
+    if (!canSeeDetails && !targetCompanyId) return json({ success: true });
     return new Response(JSON.stringify({ success: true, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
