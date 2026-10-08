@@ -31,6 +31,7 @@ import {
   horizontalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { DraggableFilterButton, FILTER_CONFIGS } from "./DraggableFilterButton";
+import { aiConversationState } from "@/lib/aiConversation";
 
 interface Conversation {
   id: string;
@@ -41,9 +42,12 @@ interface Conversation {
   is_freelancer: boolean;
   is_equipe: boolean;
   remote_jid: string;
+  bot_step?: string | null;
+  bot_enabled?: boolean | null;
+  bot_data?: unknown;
 }
 
-export type FilterType = 'all' | 'unread' | 'closed' | 'fechados' | 'visitas' | 'freelancer' | 'equipe' | 'oe' | 'favorites' | 'grupos';
+export type FilterType = 'all' | 'unread' | 'closed' | 'fechados' | 'visitas' | 'freelancer' | 'equipe' | 'oe' | 'favorites' | 'grupos' | 'ia' | 'ia_equipe';
 
 interface ConversationFiltersProps {
   filter: FilterType;
@@ -76,6 +80,8 @@ const FILTER_LABELS: Record<string, string> = {
   equipe: 'Equipe',
   favorites: 'Favoritos',
   grupos: 'Grupos',
+  ia: 'IA',
+  ia_equipe: 'IA → equipe',
 };
 
 export function ConversationFilters({
@@ -115,6 +121,8 @@ export function ConversationFilters({
     grupos: conversations.filter(c => c.remote_jid?.endsWith('@g.us')).length,
     fechados: closedLeadCount,
     oe: orcamentoEnviadoCount,
+    ia: conversations.filter(c => aiConversationState(c) !== null).length,
+    ia_equipe: conversations.filter(c => aiConversationState(c) === 'equipe').length,
   }), [conversations, closedLeadCount, orcamentoEnviadoCount, visitasCount]);
 
   const hasActiveFilter = filter !== 'all';
@@ -144,6 +152,8 @@ export function ConversationFilters({
             {filterOrder.map((filterId) => {
               const config = FILTER_CONFIGS[filterId];
               if (!config) return null;
+              // Filtros da IA só aparecem para quem tem conversas da IA
+              if ((filterId === 'ia' || filterId === 'ia_equipe') && counts.ia === 0 && filter !== filterId) return null;
 
               return (
                 <DraggableFilterButton

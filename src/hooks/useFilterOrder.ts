@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 const DEFAULT_FILTER_ORDER = [
-  'all', 'unread', 'closed', 'fechados', 'oe', 'visitas', 'freelancer', 'equipe', 'favorites', 'grupos'
+  'all', 'unread', 'ia_equipe', 'ia', 'closed', 'fechados', 'oe', 'visitas', 'freelancer', 'equipe', 'favorites', 'grupos'
 ];
 
 export function useFilterOrder(userId: string | null) {
@@ -29,7 +29,11 @@ export function useFilterOrder(userId: string | null) {
         }
 
         if (data?.filter_order) {
-          setFilterOrder(data.filter_order);
+          // Filtros novos (ex.: IA) entram na ordem salva, logo depois de "Não lidas"
+          const saved = data.filter_order as string[];
+          const missing = DEFAULT_FILTER_ORDER.filter((f) => !saved.includes(f));
+          const at = Math.max(0, saved.indexOf('unread') + 1);
+          setFilterOrder(missing.length ? [...saved.slice(0, at), ...missing, ...saved.slice(at)] : saved);
         }
       } catch (err) {
         console.error('Error loading filter preferences:', err);

@@ -495,6 +495,8 @@ const resolveBestLeadForConversation = (
 import { MediaMessage } from "@/components/whatsapp/MediaMessage";
 import { ConversationStatusActions } from "@/components/whatsapp/ConversationStatusActions";
 import { ConversationFilters, FilterType } from "@/components/whatsapp/ConversationFilters";
+import { AiConversationBadge } from "@/components/whatsapp/AiConversationBadge";
+import { aiConversationState } from "@/lib/aiConversation";
 import { LeadInfoPopover } from "@/components/whatsapp/LeadInfoPopover";
 import { LeadDetailSheet } from "@/components/admin/LeadDetailSheet";
 import { ContactInfoSheet } from "@/components/whatsapp/ContactInfoSheet";
@@ -4227,6 +4229,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
       if (filter === 'freelancer') return conv.is_freelancer;
       if (filter === 'equipe') return conv.is_equipe;
       if (filter === 'favorites') return conv.is_favorite;
+      if (filter === 'ia') return aiConversationState(conv) !== null;
+      if (filter === 'ia_equipe') return aiConversationState(conv) === 'equipe';
       if (filter === 'grupos') return conv.remote_jid?.endsWith('@g.us');
       // 'all' filter: hide closed by default, but include them when filtering by month
       // (so the totals match between "Tudo" and "Encerradas" within the same month)
@@ -4940,6 +4944,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         )}>
                           {getConversationDisplayName(conv, conversationLeadsMap)}
                         </p>
+                        <AiConversationBadge conv={conv} />
                         {conv.lead_id && (
                           <Link2 className="w-3 h-3 text-primary shrink-0" />
                         )}
@@ -5089,6 +5094,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                               )}>
                                 {getConversationDisplayName(conv, conversationLeadsMap)}
                               </p>
+                              <AiConversationBadge conv={conv} />
                               {conv.lead_id && (
                                 <Link2 className="w-3 h-3 text-primary shrink-0" />
                               )}
