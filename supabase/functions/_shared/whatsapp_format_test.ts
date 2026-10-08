@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { airyParagraphs, formatBRLShort, hoursForWhatsApp, moneyWithCents, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "./whatsapp-format.ts";
+import { airyParagraphs, spaceHighlightList, formatBRLShort, hoursForWhatsApp, moneyWithCents, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "./whatsapp-format.ts";
 
 Deno.test("formatDateLong: data por extenso", () => {
   assertEquals(formatDateLong("2026-12-26"), "sábado, 26 de dezembro");
@@ -98,4 +98,20 @@ Deno.test("airyParagraphs: emoji do começo da frase fica junto dela", () => {
   const out = airyParagraphs(promo);
   assertEquals(out.startsWith("🎁 E tem mais"), true);
   assertEquals(out.split("\n").some((l) => l.trim() === "🎁"), false);
+});
+
+Deno.test("spaceHighlightList: itens do 'Só aqui você vai encontrar' com linha em branco entre eles", () => {
+  const raw = "Oi! Eu sou a *Bia* 😊\n\nSó aqui você vai encontrar 🥳\n🏆 9 anos de tradição\n⭐ nota 4,7 no Google\n🚗 estacionamento grátis ✨\n\nMe conta, como posso te ajudar? 😊\n\n🎈 Orçamento\n🏰 Já tenho festa";
+  assertEquals(
+    spaceHighlightList(raw),
+    "Oi! Eu sou a *Bia* 😊\n\nSó aqui você vai encontrar 🥳\n\n🏆 9 anos de tradição\n\n⭐ nota 4,7 no Google\n\n🚗 estacionamento grátis ✨\n\nMe conta, como posso te ajudar? 😊\n\n🎈 Orçamento\n🏰 Já tenho festa",
+  );
+  // Já espaçado: fica igual
+  const spaced = "Só aqui você vai encontrar 🥳\n\n🏆 a\n\n⭐ b\n\nMe conta?";
+  assertEquals(spaceHighlightList(spaced), spaced);
+  // Sem o bloco, ou com item só: nada muda
+  assertEquals(spaceHighlightList("🎈 Orçamento\n🏰 Festa"), "🎈 Orçamento\n🏰 Festa");
+  assertEquals(spaceHighlightList("Só aqui você vai encontrar 🥳\n🏆 a\nTexto"), "Só aqui você vai encontrar 🥳\n🏆 a\nTexto");
+  // Bloco no fim da mensagem
+  assertEquals(spaceHighlightList("Só aqui você vai encontrar 🥳\n🏆 a\n⭐ b"), "Só aqui você vai encontrar 🥳\n\n🏆 a\n\n⭐ b");
 });

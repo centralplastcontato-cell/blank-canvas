@@ -31,7 +31,7 @@ import {
 import { allowedMoneyValues, formatBRL, holidayName, isHolidayEveYmd, isHolidayYmd, localHolidaysFrom, moneyValuesIn, type PackageQuote, type PartyDay, quotePackages, weekdayYmd } from "../_shared/package-pricing.ts";
 import { addDaysYmd, type FreeDay, type FreeSlot, freePartySlots, monthFromText, monthRange, parsePartySlots, pickPartyDates, weekdayOf } from "../_shared/party-availability.ts";
 import { waitForMediaAck } from "../_shared/media-ack.ts";
-import { airyParagraphs, fixWeekdays, hoursForWhatsApp, markTodayTomorrow, moneyWithCents, weekdayMismatches, formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
+import { airyParagraphs, spaceHighlightList, fixWeekdays, hoursForWhatsApp, markTodayTomorrow, moneyWithCents, weekdayMismatches, formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
 import { guardAiDb } from "./ai-db-guard.ts";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
@@ -115,7 +115,7 @@ export interface AgentMedia {
 const AI_STEP = 'ai_agent';
 
 /** "Como posso te ajudar?": as opções uma por linha, cada uma com um emoji (fica mais bonito que tudo numa frase) */
-const HELP_OPTIONS_FORMAT = 'Mostre as opções em linhas separadas, uma por linha, cada uma começando com um emoji (sem números e sem hífen), depois de uma linha em branco, e NÃO repita a pergunta depois da lista. Exemplo:\n"Me conta, como posso te ajudar? 😊\n\n🎈 Orçamento para uma festa\n🏰 Já tenho festa marcada com vocês\n💬 Outro assunto"';
+const HELP_OPTIONS_FORMAT = 'Mostre as opções em linhas separadas, uma por linha, cada uma começando com um emoji (sem números e sem hífen), depois de uma linha em branco, e NÃO repita a pergunta depois da lista. Exemplo:\n"Me conta, como posso te ajudar? 😊\n\n🎈 Orçamento para uma festa\n🏰 Já tenho festa marcada\n💬 Outro assunto"';
 
 // Arte de apresentação da Bia (só link https do nosso storage ou outro https)
 function introImageUrl(settings: AiSettings): string | null {
@@ -591,7 +591,7 @@ COMO CONVERSAR:
 - Termine com UMA pergunta direta, que diga a que se refere ("Qual horário fica melhor para a visita: quinta às 15h ou sábado às 10h?", nunca só "Qual horário fica melhor?"). Nada de "posso seguir de duas formas", de oferecer opções em sequência nem de "o que você quer ver agora?".
 - Você conduz a conversa: quando o cliente responde só "ok", "ótimo" ou "gostei", entenda a que ele está respondendo e dê o próximo passo (data → valores → visita → garantir a data com a equipe).
 - Se o cliente perguntar um detalhe que não está nas informações do buffet: responda o que você sabe e diga com leveza que a equipe explica certinho (ou que ele vê de perto na visita). Não se justifique ("prefiro não te passar nada errado", "os detalhes podem variar") — soa robótico.
-- ${ctx.isFirstReply ? 'ESTA É A SUA PRIMEIRA RESPOSTA: apresente-se (diga seu nome' + (assistantName ? ' — ' + assistantName : ', se ele estiver nas informações do buffet,') + ' e que é do ' + companyName + ') e, se ainda não souber o nome do cliente, já pergunte o nome dele NESTA mensagem, junto com a resposta ao que ele perguntou.' : 'Se ainda não souber o nome do cliente, não interrompa a conversa para pedir — aproveite um momento natural.'}
+- ${ctx.isFirstReply ? 'ESTA É A SUA PRIMEIRA RESPOSTA: apresente-se (diga seu nome' + (assistantName ? ' — ' + assistantName : ', se ele estiver nas informações do buffet,') + ' e que é do ' + companyName + ') e, se ainda não souber o nome do cliente, já pergunte o nome dele NESTA mensagem, junto com a resposta ao que ele perguntou. Se ele só cumprimentou e você ainda não sabe o nome, pergunte SÓ o nome nesta primeira resposta — a lista de "como posso te ajudar" vem na próxima, depois que ele disser o nome.' : 'Se ainda não souber o nome do cliente, não interrompa a conversa para pedir — aproveite um momento natural.'}
 - Dados do cliente já registrados: ${ctx.knownDataText}. Não pergunte de novo o que já sabe.${ctx.pricePending ? '\n- O CLIENTE JÁ PEDIU O VALOR e ainda não recebeu: assim que você souber a quantidade de convidados e o dia/data (já registrados ou nesta mensagem), chame consultar_valor_pacote e passe o valor NESTA resposta, sem esperar ele pedir de novo. Se ainda faltar um dos dois, pergunte só o que falta.' : ''}
 - ${ctx.pendingUserMessages > 1 ? `O cliente mandou ${ctx.pendingUserMessages} mensagens seguidas desde a sua última resposta: responda a TODAS as perguntas delas numa única mensagem, sem ignorar nenhuma.` : 'Se o cliente mandar várias perguntas, responda todas numa única mensagem.'}
 - Uma pergunta por vez, e UMA mensagem por vez: depois de perguntar, espere a resposta antes de perguntar outra coisa. Nunca envie listas de opções numeradas — converse como gente (a única lista é a de "como posso te ajudar", no formato de QUEM É O CONTATO).
@@ -599,7 +599,7 @@ COMO CONVERSAR:
 - Descubra naturalmente: nome da pessoa, mês/data desejada da festa e número de convidados, se ainda não souber — mas só depois de saber que a pessoa quer orçamento (veja QUEM É O CONTATO).
 
 QUEM É O CONTATO (nem todo mundo quer orçamento):
-- Se a pessoa só cumprimentou ("oi", "bom dia") ou mandou algo solto (uma foto, "quem é?"), não suponha que é orçamento: cumprimente e pergunte como pode ajudar — se é orçamento de festa, se ela já tem festa com a gente ou se é outro assunto. ${HELP_OPTIONS_FORMAT}
+- Se a pessoa só cumprimentou ("oi", "bom dia") ou mandou algo solto (uma foto, "quem é?"), não suponha que é orçamento: cumprimente e pergunte como pode ajudar — se é orçamento de festa, se ela já tem festa com a gente ou se é outro assunto. ${HELP_OPTIONS_FORMAT} (Na primeira resposta, se ainda não souber o nome, pergunte só o nome e deixe esta lista para a resposta seguinte.)
 - Se não estiver claro o que a pessoa quer, pergunte com gentileza qual é a dúvida — e, se ela disser que "tem uma festa", se a festa já está marcada com a gente ou se ela está procurando orçamento — ANTES de falar de pacotes, mês ou convidados.
 - Já tem festa marcada/contrato com a gente: NÃO trate como orçamento (nada de pacotes, valores, promoção ou visita). Dúvidas gerais do buffet (endereço, regras, o que tem no espaço) você responde; sobre a festa contratada (horários, cardápio escolhido, convidados, pagamentos, mudanças) use transferir_para_atendente com assunto cliente_com_festa.
 - Quer trabalhar / enviar currículo: use transferir_para_atendente com assunto trabalhar (e, em funcoes, as funções que a pessoa citou). Não precisa perguntar a função antes.
@@ -681,7 +681,7 @@ ${ctx.packagesText
       `  🏰 *Estrutura:* salão climatizado, Wi-Fi, fraldário, área VIP e convite virtual\n` +
       `  Quer que eu te mostre o que muda no *Castelo Premium*? 😍"\n` +
       `Para COMPARAR pacotes, mostre só o que muda (o que um tem a mais que o outro), no mesmo formato, sem repetir o que é igual.\n\n`
-    : 'O QUE CADA PACOTE INCLUI: não cadastrado — se perguntarem a diferença entre os pacotes, envie o PDF de pacotes (enviar_materiais, tipo "pacotes") em vez de transferir.\n\n'}${ctx.minPackageGuests ? `PACOTES: o menor pacote é para ${ctx.minPackageGuests} convidados. Se o cliente falar em menos de ${ctx.minPackageGuests} convidados ou pedir orçamento para menos, explique JÁ NA MESMA RESPOSTA (não espere ele perguntar), com naturalidade, que o menor pacote é para ${ctx.minPackageGuests} pessoas e que a equipe explica como fica para um grupo menor. Se ele pediu o valor e já disse o dia, consulte o valor para ${ctx.minPackageGuests} convidados (consultar_valor_pacote) e passe na mesma resposta, deixando claro que é o valor do pacote mínimo.\n\n` : ''}COMO APRESENTAR O BUFFET (diferenciais, estrutura, atrações — ex.: na primeira resposta): nunca um parágrafo corrido com tudo emendado. Abra com "Só aqui você vai encontrar 🥳" e depois 3 a 4 linhas curtas, cada uma começando com um emoji, juntando o que combina (mesmo que as informações do buffet peçam "2 ou 3 linhas", use este formato). Só cite o que estiver nas INFORMAÇÕES DO BUFFET. Formato:
+    : 'O QUE CADA PACOTE INCLUI: não cadastrado — se perguntarem a diferença entre os pacotes, envie o PDF de pacotes (enviar_materiais, tipo "pacotes") em vez de transferir.\n\n'}${ctx.minPackageGuests ? `PACOTES: o menor pacote é para ${ctx.minPackageGuests} convidados. Se o cliente falar em menos de ${ctx.minPackageGuests} convidados ou pedir orçamento para menos, explique JÁ NA MESMA RESPOSTA (não espere ele perguntar), com naturalidade, que o menor pacote é para ${ctx.minPackageGuests} pessoas e que a equipe explica como fica para um grupo menor. Se ele pediu o valor e já disse o dia, consulte o valor para ${ctx.minPackageGuests} convidados (consultar_valor_pacote) e passe na mesma resposta, deixando claro que é o valor do pacote mínimo.\n\n` : ''}COMO APRESENTAR O BUFFET (diferenciais, estrutura, atrações — ex.: na primeira resposta): nunca um parágrafo corrido com tudo emendado. Abra com "Só aqui você vai encontrar 🥳" e depois 3 a 4 linhas curtas (no máximo umas 7 palavras cada, para caber numa linha do celular), cada uma começando com um emoji, juntando o que combina (mesmo que as informações do buffet peçam "2 ou 3 linhas", use este formato). Só cite o que estiver nas INFORMAÇÕES DO BUFFET. Formato:
   "Só aqui você vai encontrar 🥳
   🏆 [tradição e número de festas]
   ⭐ [avaliação]
@@ -2372,7 +2372,7 @@ export async function maybeHandleWithAiAgent(
         }
       }
       // Valores sempre com centavos ("R$ 7.400,00") e parágrafo corrido em blocos curtos
-      finalText = airyParagraphs(moneyWithCents(finalText));
+      finalText = spaceHighlightList(airyParagraphs(moneyWithCents(finalText)));
       // Quer trabalhar: o link do cadastro vai sempre pelo sistema, no fim
       if (conv.__candidateLink) finalText = withCandidateLink(finalText, conv.__candidateLink);
       // Resposta que vai com fotos, vídeo e PDF: a 1ª parte sai antes e a
