@@ -105,3 +105,56 @@ export async function distanceToBuffet(originAddress: string, addr: CandidateAdd
     return null;
   }
 }
+
+// ---- Nota do candidato (0 a 100): ordena a aba Candidatos ----
+
+export const WEEK_DAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"] as const;
+const DAY_PREFIX = ["seg", "ter", "qua", "qui", "sex", "sab", "dom"];
+/** Dias de festa: sexta, sábado e domingo */
+export const PARTY_DAYS = new Set([4, 5, 6]);
+
+/** "Sábado", "sab", "Domingo" → índice 0 (seg) … 6 (dom); null se não for dia */
+export function dayIndex(label: string): number | null {
+  const n = norm(label).slice(0, 3);
+  const i = DAY_PREFIX.indexOf(n);
+  return i >= 0 ? i : null;
+}
+
+export interface CandidateFacts {
+  days: string[]; // como respondido ("Sábado", "Domingo"…)
+  km: number | null; // distância até o buffet (null = não calculada)
+  workedBuffet: boolean;
+  experience: boolean;
+}
+
+export interface ScorePart { key: "dias" | "distancia" | "buffet" | "experiencia"; label: string; got: number; max: number; why: string }
+
+export function distancePoints(km: number | null): number {
+  if (km === null || !Number.isFinite(km)) return 0;
+  return km <= 5 ? 30 : km <= 10 ? 20 : km <= 15 ? 10 : 0;
+}
+
+export function candidateScore(f: CandidateFacts): { total: number; parts: ScorePart[] } {
+  const idx = [...new Set(f.days.map(dayIndex).filter((i): i is number => i !== null))];
+  const party = idx.filter((i) => PARTY_DAYS.has(i)).length;
+  const week = idx.length - party;
+  const daysPts = party * 9 + Math.min(8, week * 2);
+  const distPts = distancePoints(f.km);
+  const parts: ScorePart[] = [
+    { key: "dias", label: "Disponibilidade", got: daysPts, max: 35, why: `${party} de 3 dias de festa + ${week} dia(s) de semana` },
+    { key: "distancia", label: "Distância", got: distPts, max: 30, why: f.km === null ? "distância não calculada" : `${f.km.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km até o buffet` },
+    { key: "buffet", label: "Já trabalhou em buffet", got: f.workedBuffet ? 20 : 0, max: 20, why: f.workedBuffet ? "sim" : "não" },
+    { key: "experiencia", label: "Experiência", got: f.experience ? 15 : 0, max: 15, why: f.experience ? "sim" : "não" },
+  ];
+  return { total: parts.reduce((n, p) => n + p.got, 0), parts };
+}
+
+/** Idade na data de hoje (data de nascimento AAAA-MM-DD) */
+export function ageOn(born: string | null | undefined, today: Date): number | null {
+  const m = String(born || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  let age = today.getFullYear() - y;
+  if (today.getMonth() + 1 < mo || (today.getMonth() + 1 === mo && today.getDate() < d)) age--;
+  return age >= 0 && age < 120 ? age : null;
+}

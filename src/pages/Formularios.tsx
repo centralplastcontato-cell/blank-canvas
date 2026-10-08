@@ -10,7 +10,7 @@ import { MobileMenu } from "@/components/admin/MobileMenu";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { FolderOpen, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature, UtensilsCrossed, ListChecks, FileText, Package, Users, Wrench, HardHat, ShieldAlert, CalendarClock, LayoutTemplate, CreditCard, UserCheck, Landmark } from "lucide-react";
+import { FolderOpen, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature, UtensilsCrossed, ListChecks, FileText, Package, Users, Wrench, HardHat, ShieldAlert, CalendarClock, LayoutTemplate, CreditCard, UserCheck, UserPlus, Landmark } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { AvaliacoesContent } from "./Avaliacoes";
 import { PreFestaContent } from "./PreFesta";
@@ -28,6 +28,7 @@ import { EventInfoManager } from "@/components/agenda/EventInfoManager";
 import { FreelancerManagerContent } from "./FreelancerManager";
 import { FreelancerEvaluationsTab } from "@/components/freelancer/FreelancerEvaluationsTab";
 import { FreelancerSchedulesTab } from "@/components/freelancer/FreelancerSchedulesTab";
+import { FreelancerCandidatesTab } from "@/components/freelancer/FreelancerCandidatesTab";
 import { CardFeesManager } from "@/components/admin/CardFeesManager";
 import { SellersManager } from "@/components/admin/SellersManager";
 import { BankAccountsManager } from "@/components/financial/BankAccountsManager";
@@ -334,6 +335,12 @@ export default function Formularios() {
                             Cadastro
                           </TabsTrigger>
                         )}
+                        {canFreelancer && (
+                          <TabsTrigger value="candidatos" className="gap-2.5 !rounded-xl !px-6 !py-2.5 !text-sm font-semibold border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-md data-[state=inactive]:bg-card data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground transition-all">
+                            <UserPlus className="h-[18px] w-[18px]" />
+                            Candidatos
+                          </TabsTrigger>
+                        )}
                         {canAvaliacoes && (
                           <TabsTrigger value="avaliacoes-fl" className="gap-2.5 !rounded-xl !px-6 !py-2.5 !text-sm font-semibold border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-md data-[state=inactive]:bg-card data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground transition-all">
                             <ClipboardCheck className="h-[18px] w-[18px]" />
@@ -351,6 +358,11 @@ export default function Formularios() {
                     {canFreelancer && (
                       <TabsContent value="cadastro" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
                         <div className="max-w-7xl mx-auto"><FreelancerManagerContent /></div>
+                      </TabsContent>
+                    )}
+                    {canFreelancer && (
+                      <TabsContent value="candidatos" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
+                        <div className="max-w-7xl mx-auto"><FreelancerCandidatesTab /></div>
                       </TabsContent>
                     )}
                     {canAvaliacoes && (
