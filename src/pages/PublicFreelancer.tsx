@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { distanceToBuffet, matchOptions, readPrefill } from "@/lib/freelancerCandidate";
+import { fileForUpload } from "@/lib/upload-bytes";
 
 interface FreelancerQuestion {
   id: string;
@@ -213,12 +214,25 @@ export default function PublicFreelancer() {
 
     let photoUrl: string | null = null;
     if (photoFile && template.company_id) {
-      const ext = photoFile.name.split(".").pop();
+      const ext = (photoFile.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
       const path = `freelancer/${template.company_id}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("onboarding-uploads").upload(path, photoFile);
+      // No iPhone a foto às vezes chega vazia: lê antes de enviar
+      const body = await fileForUpload(photoFile);
+      const { error: upErr } = body
+        ? await supabase.storage.from("onboarding-uploads").upload(path, body, { contentType: photoFile.type || "image/jpeg" })
+        : { error: new Error("foto vazia") };
       if (!upErr) {
         const { data: urlData } = supabase.storage.from("onboarding-uploads").getPublicUrl(path);
         photoUrl = urlData.publicUrl;
+      } else if (visibleQuestions.some((q) => q.type === "photo" && q.required)) {
+        setSubmitting(false);
+        // Volta para a etapa da foto, já sem a foto, para tirar de novo
+        const photoStep = visibleQuestions.find((q) => q.type === "photo")?.step || 1;
+        setPhotoFile(null);
+        setPhotoPreview(null);
+        setCurrentStep(photoStep);
+        toast({ title: "A foto não foi enviada", description: "Tire a foto de novo e envie outra vez.", variant: "destructive" });
+        return;
       }
     }
 
