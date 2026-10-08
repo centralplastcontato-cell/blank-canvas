@@ -134,7 +134,6 @@ const PublicClientData = lazy(() => import("./pages/PublicClientData"));
 const PublicContractSign = lazy(() => import("./pages/PublicContractSign"));
 const AdminMessageTrace = lazy(() => import("./pages/AdminMessageTrace"));
 
-const SupportChatbot = lazy(() => import("./components/support/SupportChatbot").then(m => ({ default: m.SupportChatbot })));
 
 const PageLoader = () => <LoadingScreen message="Carregando..." />;
 
@@ -268,7 +267,7 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-            <SupportChatbot />
+            {/* Chat de suporte escondido (out/2026): ninguém usava */}
           </Suspense>
         </BrowserRouter>
       </TooltipProvider>

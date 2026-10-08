@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useLocation } from "react-router-dom";
-import { Users, LogOut, RefreshCw, Headset, Settings, Building2, Brain, CalendarDays, FolderOpen, GraduationCap, Megaphone, MapPin, FileSignature, DollarSign, Handshake, Lightbulb, X } from "lucide-react";
+import { Users, LogOut, RefreshCw, Headset, Settings, Building2, Brain, CalendarDays, FolderOpen, Megaphone, MapPin, FileSignature, DollarSign, Handshake, Lightbulb, X } from "lucide-react";
 import { prefetchRoute } from "@/App";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { NavLink } from "@/components/NavLink";
@@ -78,7 +78,7 @@ export function AdminSidebar({
     ...(showFinanceiro ? [{ title: "Financeiro", url: "/financeiro", icon: DollarSign }] : []),
     ...(modules.config ? [{ title: "Configurações Gerais", url: "/configuracoes", icon: Settings }] : []),
     ...(isAdmin ? [{ title: "Empresas", url: "/hub/empresas", icon: Building2 }] : []),
-    ...(modules.treinamento ? [{ title: "Treinamento", url: "/treinamento", icon: GraduationCap }] : []),
+    // Treinamento escondido (out/2026): nenhuma aula cadastrada
     ...(modules.empresa_parceira ? [{ title: "Empresa Parceira", url: "/parceiro", icon: Handshake }] : []),
   ];
 

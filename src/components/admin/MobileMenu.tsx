@@ -11,7 +11,6 @@ import {
   Brain,
   CalendarDays,
   FolderOpen,
-  GraduationCap,
   Megaphone,
   MapPin,
   FileSignature,
@@ -152,13 +151,7 @@ export function MobileMenu({
       path: "/hub/empresas",
       show: !!isAdmin,
     },
-    {
-      id: "treinamento",
-      label: "Treinamento",
-      icon: GraduationCap,
-      path: "/treinamento",
-      show: !!modules.treinamento,
-    },
+    // Treinamento escondido (out/2026): nenhuma aula cadastrada
     {
       id: "parceiro",
       label: "Empresa Parceira",
