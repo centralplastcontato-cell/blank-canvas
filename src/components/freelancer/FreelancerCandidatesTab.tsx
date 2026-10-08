@@ -411,7 +411,7 @@ export function FreelancerCandidatesTab() {
         <div className="rounded-2xl bg-card border border-border/50 p-8 text-center text-sm text-muted-foreground">
           <UserPlus className="h-6 w-6 mx-auto mb-2 opacity-60" />
           {candidates.length === 0
-            ? "Ninguém se candidatou ainda. Quem preencher o formulário Trabalhe Conosco (pelo link ou pela Bia) aparece aqui."
+            ? "Ninguém se candidatou ainda. Quem preencher o formulário Trabalhe Conosco (pelo link ou pela IA) aparece aqui."
             : "Nenhum candidato nesta etapa com esses filtros."}
         </div>
       ) : (
@@ -441,7 +441,7 @@ export function FreelancerCandidatesTab() {
                   <div className="flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
                     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-bold ${zoneClass(c.km)}`}><MapPin className="h-3 w-3" />{fmtKm(c.km)}</span>
                     {c.viaBia
-                      ? <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-extrabold text-[10.5px] bg-violet-500/15 text-violet-700 dark:text-violet-300"><Bot className="h-3 w-3" />via Bia</span>
+                      ? <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-extrabold text-[10.5px] bg-violet-500/15 text-violet-700 dark:text-violet-300"><Bot className="h-3 w-3" />via IA</span>
                       : <span>via link</span>}
                     <span>{ago(c.createdAt)}</span>
                   </div>
@@ -474,7 +474,7 @@ export function FreelancerCandidatesTab() {
                       {open.roles.map((r) => <span key={r} className="text-[11.5px] font-semibold rounded-full border border-border bg-muted/50 px-2 py-0.5">{r}</span>)}
                     </div>
                     <SheetDescription className="text-xs">
-                      {open.viaBia ? "Veio pela Bia" : "Veio pelo link"} · se candidatou {ago(open.createdAt)}
+                      {open.viaBia ? "Veio pela IA" : "Veio pelo link"} · se candidatou {ago(open.createdAt)}
                     </SheetDescription>
                   </div>
                 </div>

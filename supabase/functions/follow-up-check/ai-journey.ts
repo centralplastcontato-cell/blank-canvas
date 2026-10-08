@@ -257,7 +257,7 @@ async function markLost(supabase: Db, lead: Json, conv: Json, companyId: string,
     lead_id: lead.id,
     company_id: companyId,
     user_id: null,
-    user_name: "Bia (IA)",
+    user_name: "IA",
     action: "Lead movido para perdido automaticamente",
     old_value: lead.status,
     new_value: "perdido",
@@ -270,7 +270,7 @@ async function markLost(supabase: Db, lead: Json, conv: Json, companyId: string,
       company_id: companyId,
       type: "lead_lost",
       title: "Lead movido para Perdido",
-      message: `A Bia moveu ${lead.name} para Perdido: ${why}.`,
+      message: `A IA moveu ${lead.name} para Perdido: ${why}.`,
       data: { lead_id: lead.id, lead_name: lead.name, conversation_id: conv.id, contact_phone: String(conv.remote_jid || "").replace(/@.*/, "") },
     })));
     if (notifError) console.error("[ai-journey] Erro ao avisar sobre o perdido:", notifError.message);
@@ -502,14 +502,14 @@ export async function runAiJourney(
           lead_id: lead.id,
           company_id: instance.company_id,
           user_id: null,
-          user_name: "Bia (IA)",
+          user_name: "IA",
           action: label === "inatividade"
-            ? "Lembrete da Bia (cliente parou de responder)"
+            ? "Lembrete da IA (cliente parou de responder)"
             : label === "inatividade_2"
-            ? "2º lembrete da Bia (cliente parou de responder)"
+            ? "2º lembrete da IA (cliente parou de responder)"
             : label.startsWith("reativacao_")
-            ? `Lembrete da Bia antes da festa (${label.replace("reativacao_", "")} dias)`
-            : `Follow-up da Bia #${label.replace("etapa_", "")}`,
+            ? `Lembrete da IA antes da festa (${label.replace("reativacao_", "")} dias)`
+            : `Follow-up da IA #${label.replace("etapa_", "")}`,
           new_value: check.text.slice(0, 500),
         });
         console.log(`[ai-journey] ${plan.why} — enviado (conv ${conv.id}, ${instance.unit})`);

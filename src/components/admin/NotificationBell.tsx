@@ -167,7 +167,7 @@ function NotificationItem({
             )}
             {isBia && (
               <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold uppercase tracking-wide text-white bg-gradient-to-r from-violet-600 to-fuchsia-500 px-2 py-0.5 rounded-full shadow-sm">
-                Bia
+                IA
               </span>
             )}
           </div>
