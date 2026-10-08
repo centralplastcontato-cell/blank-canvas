@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
+import { distanceToBuffet, matchOptions, readPrefill } from "@/lib/freelancerCandidate";
 
 interface FreelancerQuestion {
   id: string;
@@ -45,6 +46,10 @@ export default function PublicFreelancer() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoQuestionId, setPhotoQuestionId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Formulário de candidatura: tipo e endereço do buffet (para a distância)
+  const [extras, setExtras] = useState<{ purpose: string; origin_address: string | null } | null>(null);
+  // Link da Bia: ?nome=…&tel=…&vagas=…&via=bia
+  const prefill = useRef(readPrefill(typeof window !== "undefined" ? window.location.search : ""));
 
   useEffect(() => {
     async function load() {
@@ -76,6 +81,25 @@ export default function PublicFreelancer() {
         thank_you_message: row.thank_you_message,
         questions,
       });
+      // Link da Bia: nome, WhatsApp e vagas já preenchidos
+      const pf = prefill.current;
+      const initial: Record<string, any> = {};
+      const visibleQs = questions.filter((q: any) => q.internal !== true);
+      const nameQ = visibleQs.find((q) => q.type === "text");
+      if (pf.name && nameQ) initial[nameQ.id] = pf.name;
+      const phoneQ = visibleQs.find((q) => q.type === "text" && /telefone|whatsapp/i.test(q.text));
+      if (pf.phone && phoneQ) initial[phoneQ.id] = formatPhone(pf.phone.replace(/^\+?55(?=\d{10,11}$)/, ""));
+      const rolesQ = visibleQs.find((q) => q.id === "funcao") || visibleQs.find((q) => q.type === "multiselect");
+      const roles = rolesQ ? matchOptions(pf.roles, rolesQ.options || []) : [];
+      if (rolesQ && roles.length > 0) initial[rolesQ.id] = roles;
+      if (Object.keys(initial).length > 0) setAnswers((prev) => ({ ...initial, ...prev }));
+      if (row.id) {
+        // Banco sem a atualização da candidatura: segue como formulário comum
+        (supabase as any).rpc("get_freelancer_template_extras", { _template_id: row.id }).then(({ data: ex, error: exErr }: any) => {
+          const r = Array.isArray(ex) ? ex[0] : null;
+          if (!exErr && r) setExtras({ purpose: String(r.purpose || "cadastro"), origin_address: r.origin_address || null });
+        });
+      }
       setLoading(false);
       // Increment view count
       if (row.id) {
@@ -203,6 +227,28 @@ export default function PublicFreelancer() {
       value: q.type === "photo" ? (photoUrl || null) : (answers[q.id] ?? null),
     }));
 
+    // Candidatura: bairro, CEP e distância até o buffet (sem a distância, segue normal)
+    const candidate: Record<string, unknown> = {};
+    if (extras?.purpose === "candidatura") {
+      const addrQ = visibleQuestions.find((q) => q.type === "text" && /endere[cç]o/i.test(q.text));
+      const cd = addrQ ? cepData[addrQ.id] : undefined;
+      const cep = addrQ ? String(answers[`${addrQ.id}_cep`] || "") : "";
+      if (addrQ && cep) answersArray.push({ questionId: `${addrQ.id}_cep`, value: cep });
+      const distance = addrQ && extras.origin_address && (cd?.city || cep)
+        ? await distanceToBuffet(extras.origin_address, {
+          cep,
+          street: cd?.street || "",
+          number: addrQ ? addressNumbers[addrQ.id] || "" : "",
+          neighborhood: cd?.neighborhood || "",
+          city: cd?.city || "",
+          state: cd?.state || "",
+        })
+        : null;
+      candidate.distance_km = distance;
+      candidate.bairro = cd?.neighborhood || null;
+      candidate.source = prefill.current.source;
+    }
+
     // Try to find name from first text field
     const nameQuestion = visibleQuestions.find(q => q.type === "text");
     const respondentName = nameQuestion ? String(answers[nameQuestion.id] || "").trim() || null : null;
@@ -219,6 +265,7 @@ export default function PublicFreelancer() {
       photo_url: photoUrl,
       pix_type: pixTipoAnswer?.value || null,
       pix_key: pixChaveAnswer?.value || null,
+      ...candidate,
     } as any);
 
     setSubmitting(false);
@@ -456,7 +503,7 @@ export default function PublicFreelancer() {
           <label className="text-sm font-medium text-foreground">
             {q.text} {q.required && <span className="text-destructive">*</span>}
           </label>
-          <input type="file" ref={fileInputRef} accept="image/*" onChange={handlePhotoChange} className="hidden" />
+          <input type="file" ref={fileInputRef} accept="image/*" {...(/selfie/i.test(q.text) ? { capture: "user" as const } : {})} onChange={handlePhotoChange} className="hidden" />
           {photoPreview ? (
             <div className="flex items-center gap-3">
               <img src={photoPreview} alt="" className="h-20 w-20 rounded-full object-cover" />
