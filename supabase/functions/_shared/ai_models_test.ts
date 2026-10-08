@@ -55,6 +55,16 @@ Deno.test("estimateChatCostUsd: aplica o preço de cada tipo de token", () => {
     estimateChatCostUsd("gpt-4o-mini", { inputTokens: 3000, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 100 }),
     0.00051,
   );
+  // Nome com a data da versão (como a OpenAI devolve): preço do GPT-5.4, não do padrão
+  // 3000 × $2,50/M + 1000 × $0,25/M + 100 × $15/M = 0,0075 + 0,00025 + 0,0015
+  assertEquals(
+    estimateChatCostUsd("gpt-5.4-2026-03-05", { inputTokens: 3000, cachedInputTokens: 1000, cacheWriteTokens: 0, outputTokens: 100 }),
+    0.00925,
+  );
+  assertEquals(
+    estimateChatCostUsd("claude-haiku-4-5-20251001", { inputTokens: 1000, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0 }),
+    0.001,
+  );
   // Modelo desconhecido: cobra como o padrão (nunca zera o custo)
   assertEquals(
     estimateChatCostUsd("modelo-novo", { inputTokens: 3000, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 100 }),

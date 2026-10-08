@@ -1,1 +1,1 @@
-{"sql": "SELECT s.enabled, s.unit, s.test_mode_enabled, right(regexp_replace(coalesce(s.test_mode_number,''), '\\D', '', 'g'), 4) AS test_end, s.activated_at, s.updated_at, s.followup_config->'inactivity' AS inactivity FROM ai_agent_settings s WHERE s.company_id = 'a0000000-0000-0000-0000-000000000001'"}
+{"sql": "SELECT status_code, left(coalesce(error_msg, ''), 90) AS erro, count(*) AS n, min(created) AS desde FROM net._http_response GROUP BY 1, 2 ORDER BY 3 DESC"}
