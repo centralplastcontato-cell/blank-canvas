@@ -14,7 +14,8 @@ export const AI_ACTOR_HEADER = "x-celebrei-actor";
 export const AI_ACTOR = "ai-agent";
 
 // O que a IA pode alterar: conversa/mensagens, lead (status e dados), histórico
-// do lead, visitas, avisos no sininho e o registro de consumo dela.
+// do lead, visitas, avisos no sininho, o registro de consumo dela e o link
+// curto do cadastro de candidatos que ela manda para quem quer trabalhar.
 export const AI_WRITABLE_TABLES = new Set([
   "wapi_conversations",
   "wapi_messages",
@@ -23,6 +24,7 @@ export const AI_WRITABLE_TABLES = new Set([
   "lead_visits",
   "notifications",
   "ai_agent_usage",
+  "freelancer_invites",
 ]);
 
 // Funções do banco que ela pode chamar (todas só de leitura)
