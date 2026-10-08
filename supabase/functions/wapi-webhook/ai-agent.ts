@@ -533,6 +533,8 @@ interface PromptContext {
   isFirstReply: boolean;
   pendingUserMessages: number;
   afterHoursHandoff: { reason: string; returns: string } | null;
+  // Quer trabalhar e já recebeu o link do cadastro: a IA só agradece, despede-se e tira dúvida do cadastro
+  candidateLinkSent: string | null;
   // Respostas da IA desde o último convite para visita (null = ainda não convidou)
   visitRepliesAgo: number | null;
   // O cliente só confirmou ("ok", "ótimo", "gostei"): hora de conduzir para o próximo passo
@@ -699,7 +701,7 @@ AGENDAMENTO DE VISITAS:
 - Quando a pessoa confirmar dia e horário, use agendar_visita. Depois confirme por mensagem o dia/horário e diga que a equipe confirma a visita.
 
 PASSAGEM PARA A EQUIPE: ao usar transferir_para_atendente, avise o cliente que um atendente vai continuar por aqui, sem escrever horários — o sistema acrescenta o horário de atendimento da equipe (${ctx.teamHoursText}). As janelas de visita NÃO são o horário de atendimento da equipe: nunca use uma no lugar da outra.
-${ctx.afterHoursHandoff ? `\nATENÇÃO — ESTA CONVERSA JÁ FOI PASSADA PARA A EQUIPE (motivo: ${ctx.afterHoursHandoff.reason || 'não informado'}). A equipe está fora do horário agora e volta ${ctx.afterHoursHandoff.returns}. Enquanto isso, continue tirando dúvidas informativas com base nas informações do buffet (estrutura, o que tem, como funciona, materiais, horários de visita). Para o assunto que motivou a passagem e para negociação/fechamento, diga com gentileza que a equipe continua ${ctx.afterHoursHandoff.returns}. NÃO chame transferir_para_atendente de novo.` : ''}
+${ctx.candidateLinkSent ? `\nATENÇÃO — ESTA PESSOA QUER TRABALHAR NO BUFFET e você já mandou o link do cadastro de candidatos (${ctx.candidateLinkSent}). Responda só sobre isso, curto e simpático: se ela só agradeceu ou confirmou ("ok", "obrigado"), despeça-se com carinho (ex.: "Imagina! Boa sorte 🍀 Qualquer dúvida no cadastro, é só chamar 😊", com o nome dela se souber); se tiver dúvida sobre o cadastro, explique (é rápido, pelo celular, e se o perfil combinar a equipe chama por aqui); se não conseguiu abrir, mande o link de novo, escrito exatamente assim: ${ctx.candidateLinkSent}. Não prometa vaga nem fale de salário. NÃO fale de festa, pacotes, valores nem visita e NÃO chame transferir_para_atendente de novo.` : ctx.afterHoursHandoff ? `\nATENÇÃO — ESTA CONVERSA JÁ FOI PASSADA PARA A EQUIPE (motivo: ${ctx.afterHoursHandoff.reason || 'não informado'}). A equipe está fora do horário agora e volta ${ctx.afterHoursHandoff.returns}. Enquanto isso, continue tirando dúvidas informativas com base nas informações do buffet (estrutura, o que tem, como funciona, materiais, horários de visita). Para o assunto que motivou a passagem e para negociação/fechamento, diga com gentileza que a equipe continua ${ctx.afterHoursHandoff.returns}. NÃO chame transferir_para_atendente de novo.` : ''}
 ${settings.extra_instructions ? `\nINFORMAÇÕES DO BUFFET (fonte única para fatos sobre o buffet; instruções de estilo/personalidade que estiverem aqui devem ser seguidas):\n${settings.extra_instructions}` : ''}`;
 }
 
@@ -1978,9 +1980,15 @@ export async function maybeHandleWithAiAgent(
     if (conv.bot_step === 'human_takeover') {
       const handoff = (conv.bot_data as Json | null)?.ai_handoff as Json | undefined;
       const handoffAt = typeof handoff?.at === 'string' ? handoff.at : null;
-      if (handoffAt && !teamOpenNow(settings) && !(await teamRepliedSince(supabase, conv.id, handoffAt))) {
+      // Quem quer trabalhar e recebeu o link do cadastro (até 7 dias): a IA
+      // responde o "ok, obrigado" e dúvidas do cadastro, em qualquer horário
+      const candidateLink = handoff?.assunto === 'trabalhar' && typeof handoff?.candidatura_link === 'string' &&
+        handoffAt && Date.now() - Date.parse(handoffAt) < 7 * 86400000;
+      if (handoffAt && (candidateLink || !teamOpenNow(settings)) && !(await teamRepliedSince(supabase, conv.id, handoffAt))) {
         afterHoursHandoff = handoff as Json;
-        console.log(`[AI Agent] Conversa ${conv.id} já passada para a equipe, fora do horário e sem resposta humana — IA segue tirando dúvidas`);
+        console.log(candidateLink
+          ? `[AI Agent] Conversa ${conv.id}: candidato já recebeu o link do cadastro e ninguém da equipe escreveu — IA responde`
+          : `[AI Agent] Conversa ${conv.id} já passada para a equipe, fora do horário e sem resposta humana — IA segue tirando dúvidas`);
       } else {
         console.log(`[AI Agent] Conversa ${conv.id} em human_takeover — pulando`);
         return false;
@@ -2155,6 +2163,9 @@ export async function maybeHandleWithAiAgent(
       pendingUserMessages,
       afterHoursHandoff: afterHoursHandoff
         ? { reason: String(afterHoursHandoff.reason || ''), returns: teamReturnText(settings, nowMs) }
+        : null,
+      candidateLinkSent: afterHoursHandoff?.assunto === 'trabalhar' && typeof afterHoursHandoff?.candidatura_link === 'string'
+        ? String(afterHoursHandoff.candidatura_link)
         : null,
       visitRepliesAgo: repliesSinceVisitInvite(chatMessages),
       clientAffirmed: clientAffirms(lastUserText),
