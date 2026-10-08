@@ -35,6 +35,7 @@ import { airyParagraphs, fixWeekdays, hoursForWhatsApp, markTodayTomorrow, money
 import { guardAiDb } from "./ai-db-guard.ts";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
+import { buildCandidateLink, withCandidateLink } from "../_shared/ai-candidate.ts";
 import { findPromotion, promoMentions, promoNote } from "../_shared/promo.ts";
 import { closedPeriodAt, closedPeriodsNote, formatClosedPeriod, isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
 import { asksPartnership, clientAffirms, closingAfterMaterials, confirmsPartyInterest, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
@@ -71,6 +72,8 @@ interface AgentConv {
   __holdMaterials?: boolean;
   // 1ª resposta da IA: se os materiais forem liberados, vão DEPOIS da apresentação
   __firstReply?: boolean;
+  // Quer trabalhar: link do cadastro de candidatos que o sistema põe no fim da resposta
+  __candidateLink?: string;
 }
 
 interface AiSettings {
@@ -599,7 +602,7 @@ QUEM É O CONTATO (nem todo mundo quer orçamento):
 - Se a pessoa só cumprimentou ("oi", "bom dia") ou mandou algo solto (uma foto, "quem é?"), não suponha que é orçamento: cumprimente e pergunte como pode ajudar — se é orçamento de festa, se ela já tem festa com a gente ou se é outro assunto. ${HELP_OPTIONS_FORMAT}
 - Se não estiver claro o que a pessoa quer, pergunte com gentileza qual é a dúvida — e, se ela disser que "tem uma festa", se a festa já está marcada com a gente ou se ela está procurando orçamento — ANTES de falar de pacotes, mês ou convidados.
 - Já tem festa marcada/contrato com a gente: NÃO trate como orçamento (nada de pacotes, valores, promoção ou visita). Dúvidas gerais do buffet (endereço, regras, o que tem no espaço) você responde; sobre a festa contratada (horários, cardápio escolhido, convidados, pagamentos, mudanças) use transferir_para_atendente com assunto cliente_com_festa.
-- Quer trabalhar / enviar currículo: use transferir_para_atendente com assunto trabalhar.
+- Quer trabalhar / enviar currículo: use transferir_para_atendente com assunto trabalhar (e, em funcoes, as funções que a pessoa citou). Não precisa perguntar a função antes.
 - Fornecedor, quer vender algo ou oferecer um serviço (fora permuta/parceria de divulgação, que tem regra própria): use transferir_para_atendente com assunto fornecedor.
 - Quer orçamento de festa: siga normalmente.
 - Quebre objeções com empatia ("vou pensar" → ofereça a visita sem compromisso; "tá caro" → valorize o que está incluso).
@@ -781,6 +784,10 @@ const TOOLS: ToolDef[] = [
           type: 'string',
           enum: ['orcamento', 'cliente_com_festa', 'trabalhar', 'fornecedor', 'outro'],
           description: 'Quem é o contato: orcamento (quer fazer festa), cliente_com_festa (já tem festa marcada/contrato), trabalhar (quer emprego/enviar currículo), fornecedor (quer vender algo ou oferecer serviço), outro',
+        },
+        funcoes: {
+          type: 'string',
+          description: 'Só com assunto trabalhar: as funções que a pessoa disse querer, em palavras simples separadas por vírgula (ex.: "garçom, monitor", "cozinha", "segurança"). Vazio se ela não disse.',
         },
       },
       required: ['motivo'],
@@ -1595,6 +1602,7 @@ async function toolTransferir(
   settings: AiSettings | null,
   motivo: string,
   assunto = '',
+  funcoes = '',
 ): Promise<string> {
   const reason = (motivo || '').trim() || 'sem motivo informado';
   // Já passada para a equipe (IA atendendo fora do horário): não repete aviso
@@ -1639,9 +1647,30 @@ async function toolTransferir(
   // "at" é renovado depois da última mensagem da IA neste turno.
   // Currículo e fornecedor não são urgentes: sem alerta forte no WhatsApp do dono
   const urgent = assunto !== 'trabalhar' && assunto !== 'fornecedor';
+  // Quer trabalhar e o buffet tem o formulário de candidatura: a Bia manda o
+  // link (já com nome, WhatsApp e funções) e a equipe só é avisada quando o
+  // formulário chegar (pop-up "Novo candidato") — nada de pedir currículo
+  const candidateLink = assunto === 'trabalhar'
+    ? await candidateFormLink(supabase, instance, conv, phone, contactName, funcoes).catch(() => null)
+    : null;
   await mergeBotData(supabase, conv, {
-    ai_handoff: { at: new Date().toISOString(), reason, lead_name: leadName, lead_id: leadId, alerted_at: urgent ? null : 'nao_urgente', assunto: assunto || null },
+    ai_handoff: { at: new Date().toISOString(), reason, lead_name: leadName, lead_id: leadId, alerted_at: urgent ? null : 'nao_urgente', assunto: assunto || null, ...(candidateLink ? { candidatura_link: candidateLink } : {}) },
   });
+  if (candidateLink) {
+    conv.__candidateLink = candidateLink;
+    console.log(`[AI Agent] Quer trabalhar: link do cadastro de candidatos vai na resposta (conv ${conv.id})`);
+    if (leadId) {
+      await supabase.from('lead_history').insert({
+        lead_id: leadId,
+        company_id: instance.company_id,
+        user_id: null,
+        user_name: 'IA (beta)',
+        action: 'Link do cadastro de candidatos enviado',
+        new_value: funcoes ? `Funções: ${funcoes}` : null,
+      }).then(({ error: hErr }: { error: unknown }) => { if (hErr) console.error('[AI Agent] lead_history error:', hErr); });
+    }
+    return 'OK: o cadastro de candidatos está pronto — o sistema coloca o link sozinho no fim da sua mensagem (NÃO escreva link nenhum). Agradeça o interesse com simpatia e diga que é só preencher o cadastro rapidinho pelo link abaixo (leva uns 2 minutinhos, o nome e o WhatsApp já vão preenchidos); se o perfil combinar, a equipe chama por aqui. NÃO peça currículo, NÃO fale de pacotes, valores nem visita e NÃO escreva horário nenhum.';
+  }
 
   await notifyTeam(supabase, instance, {
     title: assunto === 'trabalhar' ? '👷 Interesse em trabalhar na empresa'
@@ -1656,6 +1685,32 @@ async function toolTransferir(
   if (assunto === 'fornecedor') return `OK: passado para a equipe responsável. Agradeça com simpatia e diga que a equipe vai avaliar e retorna se tiver interesse. NÃO fale de pacotes, valores nem visita. ${noHours}`;
   if (assunto === 'cliente_com_festa') return `OK: passado para a equipe que cuida das festas. Diga com carinho que um atendente vai continuar por aqui para ajudar com a festa dele. NÃO fale de pacotes, valores, promoção nem visita. ${noHours}`;
   return `OK: conversa transferida para a equipe. Avise o cliente que um atendente vai continuar por aqui. ${noHours}`;
+}
+
+// Link do formulário de candidatura da empresa (ativo, com slug, no domínio
+// do buffet). Sem formulário ou sem domínio: null (a Bia pede o currículo, como antes)
+async function candidateFormLink(
+  supabase: any,
+  instance: AgentInstance,
+  conv: AgentConv,
+  phone: string,
+  contactName: string | null,
+  funcoes: string,
+): Promise<string | null> {
+  const [{ data: tpl }, { data: company }] = await Promise.all([
+    supabase.from('freelancer_templates').select('slug').eq('company_id', instance.company_id).eq('purpose', 'candidatura').eq('is_active', true).not('slug', 'is', null).order('created_at', { ascending: true }).limit(1).maybeSingle(),
+    supabase.from('companies').select('slug, custom_domain').eq('id', instance.company_id).maybeSingle(),
+  ]);
+  if (!tpl?.slug || !company?.slug || !company?.custom_domain) return null;
+  const botName = (conv.bot_data as Json | null)?.nome as string | undefined;
+  return buildCandidateLink({
+    domain: company.custom_domain as string,
+    companySlug: company.slug as string,
+    templateSlug: tpl.slug as string,
+    name: (botName && firstNameOrEmpty(botName)) ? botName : contactName,
+    phone,
+    roles: funcoes,
+  });
 }
 
 // Lead de quem não quer orçamento (mesmo formato do bot fixo): reaproveita o
@@ -2093,7 +2148,7 @@ export async function maybeHandleWithAiAgent(
       materialsNote,
       intentNote: (() => {
         const intent = contactIntent(lastUserText);
-        if (intent === 'trabalhar') return 'a pessoa parece querer trabalhar no buffet (vaga/currículo). Não fale de festa: use transferir_para_atendente com assunto trabalhar.';
+        if (intent === 'trabalhar') return 'a pessoa parece querer trabalhar no buffet (vaga/currículo). Não fale de festa: use transferir_para_atendente com assunto trabalhar (e funcoes, se ela citou alguma).';
         if (intent === 'fornecedor') return 'a pessoa parece ser fornecedor ou querer vender algo. Não fale de festa: use transferir_para_atendente com assunto fornecedor.';
         if (intent === 'cliente_com_festa') return 'a pessoa parece já ter festa marcada com a gente. Não trate como orçamento: entenda a dúvida; se for sobre a festa contratada, use transferir_para_atendente com assunto cliente_com_festa.';
         if (intent === 'duvida_festa') return 'a pessoa disse que tem uma festa e quer tirar uma dúvida. Pergunte qual é a dúvida e se a festa já está marcada com a gente, antes de falar de orçamento, mês ou convidados.';
@@ -2196,7 +2251,7 @@ export async function maybeHandleWithAiAgent(
               toolResult = 'NÃO TRANSFIRA por causa de visita: você mesma resolve. Ofereça horários livres da lista de visitas do sistema (2 opções no dia/turno que o cliente pediu) e, quando ele escolher, use agendar_visita — com remarcar=true se ele já tem visita marcada.';
               console.log(`[AI Agent] Passagem por visita recusada (conv ${conv.id}): ${motivo.slice(0, 80)}`);
             } else {
-              toolResult = await toolTransferir(supabase, instance, conv, phone, contactName, settings, motivo, String(args.assunto || ''));
+              toolResult = await toolTransferir(supabase, instance, conv, phone, contactName, settings, motivo, String(args.assunto || ''), String(args.funcoes || ''));
             }
           }
           results.push({ id: call.id, content: toolResult });
@@ -2266,7 +2321,7 @@ export async function maybeHandleWithAiAgent(
       }
       // Passou para a equipe neste turno: o horário da EQUIPE vai sempre por
       // conta do sistema (a IA confundia com as janelas de visita)
-      if (conv.__handoffThisTurn && !finalText.includes(hoursForWhatsApp(describeTeamHours(teamHoursOf(settings))))) {
+      if (conv.__handoffThisTurn && !conv.__candidateLink && !finalText.includes(hoursForWhatsApp(describeTeamHours(teamHoursOf(settings))))) {
         finalText = `${finalText}\n\n${teamHoursMessage(settings)}`;
       }
       // Dia da semana errado junto de uma data ("sexta-feira, 17 de outubro" quando é sábado): corrige
@@ -2318,6 +2373,8 @@ export async function maybeHandleWithAiAgent(
       }
       // Valores sempre com centavos ("R$ 7.400,00") e parágrafo corrido em blocos curtos
       finalText = airyParagraphs(moneyWithCents(finalText));
+      // Quer trabalhar: o link do cadastro vai sempre pelo sistema, no fim
+      if (conv.__candidateLink) finalText = withCandidateLink(finalText, conv.__candidateLink);
       // Resposta que vai com fotos, vídeo e PDF: a 1ª parte sai antes e a
       // pergunta ("o que achou?") depois do PDF, para a Bia não ficar quieta
       const withMaterials = Boolean(conv.__deferMaterials && !conv.__handoffThisTurn && conv.bot_step !== 'human_takeover');
