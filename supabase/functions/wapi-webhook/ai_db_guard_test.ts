@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { AiWriteBlockedError, guardAiDb } from "./ai-db-guard.ts";
+import { AI_WRITABLE_TABLES, AiWriteBlockedError, guardAiDb } from "./ai-db-guard.ts";
 
 // deno-lint-ignore no-explicit-any
 function assertThrows(fn: () => unknown, cls: any) {
@@ -31,4 +31,8 @@ Deno.test("guardAiDb: lê tudo, grava só nas tabelas liberadas", () => {
   assertEquals(db.rpc("get_company_notification_targets"), "rpc get_company_notification_targets");
   assertThrows(() => db.rpc("delete_event"), AiWriteBlockedError);
   assertEquals(calls.filter((c) => /company_events|event_payments/.test(c) && !c.startsWith("select")), []);
+});
+
+Deno.test("trava da IA: pode gravar o link curto do cadastro de candidatos", () => {
+  assertEquals(AI_WRITABLE_TABLES.has("freelancer_invites"), true);
 });

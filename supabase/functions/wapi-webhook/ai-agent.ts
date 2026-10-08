@@ -1709,7 +1709,8 @@ async function candidateFormLink(
   const roles = String(funcoes || '').replace(/\s+/g, ' ').trim().slice(0, 120);
   for (let attempt = 0; attempt < 2; attempt++) {
     const code = inviteCode(crypto.getRandomValues(new Uint8Array(6)));
-    const { error } = await supabase.from('freelancer_invites').insert({
+    // Qualquer falha aqui (tabela ainda não criada, trava de escrita) vira o link longo
+    const { error } = await Promise.resolve().then(() => supabase.from('freelancer_invites').insert({
       code,
       company_id: instance.company_id,
       template_id: tpl.id,
@@ -1718,7 +1719,7 @@ async function candidateFormLink(
       roles: roles || null,
       source: 'bia',
       conversation_id: conv.id,
-    });
+    })).catch((err: unknown) => ({ error: { code: 'thrown', message: String(err) } }));
     if (!error) return shortCandidateLink(company.custom_domain as string, code);
     if (error.code !== '23505') { // código repetido: tenta outro; outro erro: link longo
       console.warn('[AI Agent] Link curto do cadastro indisponível, vai o longo:', error.message);
