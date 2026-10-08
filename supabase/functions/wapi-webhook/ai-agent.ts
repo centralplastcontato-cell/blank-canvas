@@ -239,7 +239,9 @@ async function loadSettings(supabase: any, companyId: string): Promise<AiSetting
 
 // Número de teste da IA (Modo de Teste ligado e o telefone bate)
 function isAiTestNumber(settings: AiSettings, phone: string): boolean {
-  if (!settings.test_mode_enabled || !(settings.test_mode_number || '').replace(/\D/g, '')) return false;
+  // O número de teste vale mesmo com o "só esse número" desligado: o dono
+  // continua testando (#reiniciar) depois de liberar a IA para todos
+  if (!(settings.test_mode_number || '').replace(/\D/g, '')) return false;
   const testVariants = getPhoneVariantsBR(settings.test_mode_number || '');
   return getPhoneVariantsBR(phone).some(v => testVariants.includes(v));
 }

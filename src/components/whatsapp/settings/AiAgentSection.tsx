@@ -547,9 +547,11 @@ export function AiAgentSection() {
       visit_hours: serializeVisitHours(visitDays, visitStart, visitEnd, visitHalfHour, visitSatDifferent, visitSatStart, visitSatEnd),
       extra_instructions: serializeBuffetInfo(infoValues),
       test_mode_enabled: testModeEnabled,
-      test_mode_number: testModeEnabled ? testModeNumber.trim() : null,
+      // O número de teste fica guardado mesmo com o teste desligado: ele
+      // continua falando sempre com a IA e aceitando #reiniciar
+      test_mode_number: testModeNumber.trim() || null,
       model: editModel,
-      test_model: testModeEnabled && editTestModel !== SAME_MODEL && editTestModel !== editModel ? editTestModel : null,
+      test_model: testModeNumber.trim() && editTestModel !== SAME_MODEL && editTestModel !== editModel ? editTestModel : null,
       team_hours: serializeTeamHours(teamDays, teamStart, teamEnd, teamSatDifferent, teamSatStart, teamSatEnd),
       handoff_alert_minutes: alertMinutes,
       handoff_alert_phone: alertPhone.trim() || null,
@@ -995,42 +997,46 @@ export function AiAgentSection() {
                     pausa TODO o número). Aqui só a IA fica restrita a um telefone —
                     o resto dos clientes continua sendo atendido normalmente. */}
                 <div className="rounded-xl border border-dashed border-amber-400/60 bg-amber-500/5 p-3.5 space-y-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <Label className="text-xs font-bold flex items-center gap-1.5">
-                      <FlaskConical className="w-3.5 h-3.5 text-amber-600" />
-                      Testar só com um número
-                    </Label>
+                  <Label className="text-xs font-bold flex items-center gap-1.5">
+                    <FlaskConical className="w-3.5 h-3.5 text-amber-600" />
+                    Seu número de teste
+                  </Label>
+                  <Input
+                    value={testModeNumber}
+                    onChange={(e) => setTestModeNumber(e.target.value)}
+                    className="h-10 text-base sm:text-sm bg-card border-border shadow-sm"
+                    placeholder="Ex.: 15 98112-1710"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Esse WhatsApp sempre conversa com a IA, mesmo depois de liberada para todos. Mande <span className="font-bold">#reiniciar</span> dele para a IA começar uma conversa do zero (não apague a conversa na Central para testar).
+                  </p>
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <Label className="text-xs font-bold">Só esse número fala com a IA</Label>
                     <Switch checked={testModeEnabled} onCheckedChange={setTestModeEnabled} />
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    Enquanto ligado, só esse WhatsApp conversa com a IA. Os outros clientes continuam com o bot de sempre, sem nenhuma mudança.
+                    {testModeEnabled
+                      ? "Ligado: os outros clientes continuam com o bot de sempre, sem nenhuma mudança."
+                      : "Desligado: a IA atende os leads novos do número; o seu continua sendo o de teste."}
                   </p>
-                  {testModeEnabled && (
-                    <>
-                      <Input
-                        value={testModeNumber}
-                        onChange={(e) => setTestModeNumber(e.target.value)}
-                        className="h-10 text-base sm:text-sm bg-card border-border shadow-sm"
-                        placeholder="Ex.: 15 98112-1710"
-                      />
-                      <div className="space-y-1.5 pt-1">
-                        <Label className="text-xs font-bold">Modelo no número de teste</Label>
-                        <Select value={editTestModel} onValueChange={setEditTestModel}>
-                          <SelectTrigger className="h-auto min-h-10 py-1.5 bg-card border-border shadow-sm text-left">
-                            <SelectValue>{editTestModel === SAME_MODEL ? "O mesmo dos clientes" : modelLabel(editTestModel)}</SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value={SAME_MODEL} className="py-2">O mesmo dos clientes</SelectItem>
-                            {AI_MODELS.map((m) => (
-                              <SelectItem key={m.id} value={m.id} className="py-2"><ModelOption id={m.id} /></SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <p className="text-[11px] text-muted-foreground">
-                          Para comparar: escolha um modelo, converse; troque e converse de novo. Mande <span className="font-bold">#reiniciar</span> do número de teste para a IA começar uma conversa do zero.
-                        </p>
-                      </div>
-                    </>
+                  {testModeNumber.trim() && (
+                    <div className="space-y-1.5 pt-1">
+                      <Label className="text-xs font-bold">Modelo no número de teste</Label>
+                      <Select value={editTestModel} onValueChange={setEditTestModel}>
+                        <SelectTrigger className="h-auto min-h-10 py-1.5 bg-card border-border shadow-sm text-left">
+                          <SelectValue>{editTestModel === SAME_MODEL ? "O mesmo dos clientes" : modelLabel(editTestModel)}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={SAME_MODEL} className="py-2">O mesmo dos clientes</SelectItem>
+                          {AI_MODELS.map((m) => (
+                            <SelectItem key={m.id} value={m.id} className="py-2"><ModelOption id={m.id} /></SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-muted-foreground">
+                        Para comparar: escolha um modelo, converse; troque e converse de novo.
+                      </p>
+                    </div>
                   )}
                 </div>
 
