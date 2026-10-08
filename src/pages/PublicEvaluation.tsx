@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { companyHomeUrl } from "@/hooks/useDomainDetection";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { motion, AnimatePresence } from "framer-motion";
@@ -80,7 +81,7 @@ export default function PublicEvaluation() {
     if (!submitted || !template) return;
     const timer = setTimeout(() => {
       if (template.company_slug) {
-        window.location.href = `/lp/${template.company_slug}`;
+        window.location.href = companyHomeUrl(template.company_slug);
       }
     }, 5000);
     return () => clearTimeout(timer);

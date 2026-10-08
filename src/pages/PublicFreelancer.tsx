@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { companyHomeUrl } from "@/hooks/useDomainDetection";
 import { useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { motion, AnimatePresence } from "framer-motion";
@@ -113,7 +114,7 @@ export default function PublicFreelancer() {
   useEffect(() => {
     if (!submitted || !template) return;
     const timer = setTimeout(() => {
-      if (template.company_slug) window.location.href = `/lp/${template.company_slug}`;
+      if (template.company_slug) window.location.href = companyHomeUrl(template.company_slug);
     }, 5000);
     return () => clearTimeout(timer);
   }, [submitted, template]);
