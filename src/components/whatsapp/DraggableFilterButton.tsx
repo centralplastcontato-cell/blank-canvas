@@ -3,7 +3,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
-  X, Star, CheckCircle, CalendarCheck, Briefcase, Users, FileCheck, UsersRound, GripVertical
+  X, Star, CheckCircle, CalendarCheck, Briefcase, Users, FileCheck, UsersRound, GripVertical,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ReactNode } from "react";
@@ -149,6 +150,20 @@ export const FILTER_CONFIGS: Record<string, Omit<FilterConfig, 'id' | 'count'>> 
     activeClass: 'bg-amber-500 text-white shadow-md hover:bg-amber-500/90',
     inactiveClass: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/20',
     showBadge: false,
+  },
+  ia: {
+    label: 'IA',
+    icon: <Sparkles className="w-3.5 h-3.5 mr-1" />,
+    activeClass: 'bg-violet-600 text-white shadow-md hover:bg-violet-600/90',
+    inactiveClass: 'bg-violet-500/10 text-violet-700 dark:text-violet-300 hover:bg-violet-500/20 border border-violet-500/20',
+    showBadge: true,
+  },
+  ia_equipe: {
+    label: 'IA → equipe',
+    icon: <Sparkles className="w-3.5 h-3.5 mr-1" />,
+    activeClass: 'bg-orange-500 text-white shadow-md hover:bg-orange-500/90',
+    inactiveClass: 'bg-orange-500/10 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20 border border-orange-500/20',
+    showBadge: true,
   },
   grupos: {
     label: 'Grupos',
