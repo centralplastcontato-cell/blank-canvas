@@ -18,7 +18,6 @@ const lazyImports = {
   "/auth": () => import("./pages/Auth"),
   "/atendimento": () => import("./pages/CentralAtendimento"),
   "/configuracoes": () => import("./pages/Configuracoes"),
-  "/users": () => import("./pages/Users"),
   "/promo": () => import("./pages/PromoPage"),
   "/hub/comercial-b2b": () => import("./pages/ComercialB2B"),
   "/para-buffets": () => import("./pages/ParaBuffets"),
@@ -74,8 +73,6 @@ const Index = lazy(lazyImports["/dashboard"]);
 const Auth = lazy(lazyImports["/auth"]);
 const CentralAtendimento = lazy(lazyImports["/atendimento"]);
 const Configuracoes = lazy(lazyImports["/configuracoes"]);
-const UserSettings = lazy(() => import("./pages/UserSettings"));
-const Users = lazy(lazyImports["/users"]);
 const PromoPage = lazy(lazyImports["/promo"]);
 const ComercialB2B = lazy(lazyImports["/hub/comercial-b2b"]);
 const ParaBuffets = lazy(lazyImports["/para-buffets"]);

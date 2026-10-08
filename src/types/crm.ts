@@ -151,3 +151,16 @@ export interface UserPermission {
   created_at: string;
   updated_at: string;
 }
+
+// Filtros da lista de leads (Central de Atendimento → Leads)
+export interface LeadFilters {
+  campaign: string;
+  unit: string;
+  status: string;
+  responsavel: string;
+  month: string;
+  startDate: Date | undefined;
+  endDate: Date | undefined;
+  search: string;
+  hasScheduledVisit: boolean;
+}
