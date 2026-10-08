@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Loader2, MessageCircle, Check, X, ArrowRightLeft, RotateCcw, MapPin, Bot, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -200,6 +200,26 @@ export function FreelancerCandidatesTab() {
   }, [companyId]);
 
   useEffect(() => { setLoading(true); load(); }, [load]);
+
+  // Veio do pop-up "Novo candidato" (?candidato=<id>): abre o cartão dele
+  const [searchParams, setSearchParams] = useSearchParams();
+  const wantedId = searchParams.get("candidato");
+  useEffect(() => {
+    if (!wantedId || loading) return;
+    if (rows.some((r) => r.id === wantedId)) {
+      setStage("todos");
+      setOpenId(wantedId);
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete("candidato");
+    setSearchParams(next, { replace: true });
+  }, [wantedId, loading, rows, searchParams, setSearchParams]);
+
+  // Cartão aberto: o pop-up desse candidato sai da tela
+  useEffect(() => {
+    if (!openId) return;
+    (supabase as any).from("notifications").update({ read: true }).eq("type", "new_candidate").eq("read", false).eq("data->>response_id", openId).then(() => {});
+  }, [openId]);
 
   useEffect(() => {
     if (!originAddress || rows.length === 0) return;

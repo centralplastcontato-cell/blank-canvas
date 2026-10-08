@@ -319,7 +319,7 @@ export default function Formularios() {
 
               {(canFreelancer || canAvaliacoes) && (
                 <TabsContent value="freelancer" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
-                  <Tabs defaultValue={canFreelancer ? "escalas" : "avaliacoes-fl"} className="flex-1 flex flex-col overflow-hidden">
+                  <Tabs defaultValue={canFreelancer ? (searchParams.get("sub") === "candidatos" ? "candidatos" : "escalas") : "avaliacoes-fl"} className="flex-1 flex flex-col overflow-hidden">
                     <div className="px-3 md:px-5 pt-2">
                       <div className="max-w-7xl mx-auto">
                       <TabsList className="bg-transparent p-0 h-auto gap-2 flex-wrap">

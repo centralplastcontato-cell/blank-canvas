@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentCompanyId } from "@/lib/supabase-helpers";
-import { Sparkles, X, MessageSquare } from "lucide-react";
+import { Sparkles, X, MessageSquare, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNotificationSounds } from "@/hooks/useNotificationSounds";
 import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
@@ -10,13 +11,18 @@ import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
 // cliente para a equipe e quando o cliente continua sem resposta (alerta forte).
 // Só os avisos da IA — o "cliente sem resposta do robô" do bot fixo usa o
 // mesmo tipo de notificação e continua só no sininho, como antes.
+// Também avisa candidato novo do "Trabalhe Conosco" (no sininho ninguém via).
 const AI_REASONS = ["ai_handoff", "ai_handoff_unanswered"];
+const ALERT_TYPES = ["lead_needs_human", "new_candidate"];
 
 interface AiHandoffData {
   conversation_id: string;
   contact_phone: string;
   reason: string;
   unit?: string;
+  // new_candidate
+  response_id?: string;
+  photo_url?: string | null;
 }
 
 interface AiHandoffNotification {
@@ -40,7 +46,13 @@ const isAiHandoff = (n: { type: string; data: unknown }) =>
   AI_REASONS.includes(String((n.data as Record<string, unknown>).reason || "")) &&
   "conversation_id" in (n.data as object);
 
+const isNewCandidate = (n: { type: string; data: unknown }) =>
+  n.type === "new_candidate" && !!n.data && typeof n.data === "object" && "response_id" in (n.data as object);
+
+const isAlert = (n: { type: string; data: unknown }) => isAiHandoff(n) || isNewCandidate(n);
+
 export function AiHandoffAlertBanner({ userId, onOpenConversation }: AiHandoffAlertBannerProps) {
+  const navigate = useNavigate();
   const [alerts, setAlerts] = useState<AiHandoffNotification[]>([]);
   const { playClientSound } = useNotificationSounds();
   const { notificationsEnabled } = useChatNotificationToggle();
@@ -57,7 +69,7 @@ export function AiHandoffAlertBanner({ userId, onOpenConversation }: AiHandoffAl
         .from("notifications")
         .select("*")
         .eq("user_id", userId)
-        .eq("type", "lead_needs_human")
+        .in("type", ALERT_TYPES)
         .eq("read", false)
         .order("created_at", { ascending: false })
         .limit(50);
@@ -68,7 +80,7 @@ export function AiHandoffAlertBanner({ userId, onOpenConversation }: AiHandoffAl
       if (data) {
         setAlerts(
           data
-            .filter((n) => isAiHandoff(n))
+            .filter((n) => isAlert(n))
             .map((n) => ({ ...n, data: n.data as unknown as AiHandoffData })),
         );
       }
@@ -85,7 +97,7 @@ export function AiHandoffAlertBanner({ userId, onOpenConversation }: AiHandoffAl
           const notification = payload.new as AiHandoffNotification & { company_id?: string };
           const currentCompanyId = getCurrentCompanyId();
           if (notification.company_id && currentCompanyId && notification.company_id !== currentCompanyId) return;
-          if (isAiHandoff(notification)) {
+          if (isAlert(notification)) {
             setAlerts((prev) => [notification, ...prev]);
             if (notificationsEnabledRef.current) playClientSound();
           }
@@ -116,6 +128,7 @@ export function AiHandoffAlertBanner({ userId, onOpenConversation }: AiHandoffAl
   // O mais urgente primeiro (cliente sem resposta), senão o mais recente
   const latest = alerts.find((a) => a.data.reason === "ai_handoff_unanswered") || alerts[0];
   const urgent = latest.data.reason === "ai_handoff_unanswered";
+  const candidate = isNewCandidate(latest);
   const remaining = alerts.length - 1;
   const title = latest.title.replace(/^[^\p{L}\p{N}]+/u, "");
 
@@ -123,13 +136,15 @@ export function AiHandoffAlertBanner({ userId, onOpenConversation }: AiHandoffAl
     <div className="bg-gradient-to-r from-violet-700 via-fuchsia-600 to-violet-700 border-b-2 border-violet-400 px-4 py-3 animate-in slide-in-from-top duration-300 shadow-lg shadow-violet-500/40">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className={`relative flex items-center justify-center w-11 h-11 rounded-full bg-white/20 shrink-0 ring-2 ring-white/50 ${urgent ? "animate-pulse" : ""}`}>
-            <Sparkles className="w-5 h-5 text-white" />
+          <div className={`relative flex items-center justify-center w-11 h-11 rounded-full bg-white/20 shrink-0 ring-2 ring-white/50 overflow-hidden ${urgent ? "animate-pulse" : ""}`}>
+            {candidate && latest.data.photo_url
+              ? <img src={latest.data.photo_url} alt="" className="w-full h-full object-cover" />
+              : candidate ? <UserPlus className="w-5 h-5 text-white" /> : <Sparkles className="w-5 h-5 text-white" />}
             {urgent && <span className="absolute -top-1 -right-1 text-sm" aria-hidden>🚨</span>}
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm sm:text-base font-extrabold text-white truncate">
-              <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-[10px] sm:text-xs font-black tracking-wide mr-1.5 align-middle">BIA</span>
+              <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-[10px] sm:text-xs font-black tracking-wide mr-1.5 align-middle">{candidate ? "CANDIDATO" : "BIA"}</span>
               {title}
             </p>
             <p className="text-xs sm:text-sm text-violet-100 truncate">
@@ -149,11 +164,12 @@ export function AiHandoffAlertBanner({ userId, onOpenConversation }: AiHandoffAl
             className="h-9 gap-1.5 bg-white text-violet-700 hover:bg-violet-50 font-bold shadow-lg"
             onClick={async () => {
               await markRead(latest);
-              onOpenConversation(latest.data.conversation_id, latest.data.contact_phone);
+              if (candidate) navigate(`/formularios?section=freelancer&sub=candidatos&candidato=${latest.data.response_id}`);
+              else onOpenConversation(latest.data.conversation_id, latest.data.contact_phone);
             }}
           >
-            <MessageSquare className="w-4 h-4" />
-            Abrir Chat
+            {candidate ? <UserPlus className="w-4 h-4" /> : <MessageSquare className="w-4 h-4" />}
+            {candidate ? "Ver candidato" : "Abrir Chat"}
           </Button>
           <Button
             size="icon"
