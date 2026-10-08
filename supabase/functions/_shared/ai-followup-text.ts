@@ -65,7 +65,7 @@ export function followUpInstruction(c: FollowUpContext): string {
     : c.kind === "inactivity" && c.reminderNumber === 2
     ? `O cliente parou de responder há ${silenceText(c.silenceMs)} e não respondeu nem ao seu 1º lembrete. Escreva UM 2º lembrete bem curto (1 ou 2 frases), em outro tom e sem repetir o 1º: leve e sem pressão — deixe claro que você fica por aqui quando ele puder e termine com uma pergunta simples.`
     : c.kind === "inactivity"
-    ? `O cliente parou de responder há ${silenceText(c.silenceMs)}, no meio da conversa. Escreva UM lembrete curto (1 ou 2 frases) retomando de onde vocês pararam, com uma pergunta simples ligada à sua última mensagem. Sem repetir o que você já disse.`
+    ? `O cliente parou de responder há ${silenceText(c.silenceMs)}, no meio da conversa. Escreva UM lembrete curto (1 ou 2 frases) retomando de onde vocês pararam. NÃO repita a pergunta da sua última mensagem, nem com outras palavras: traga algo NOVO e útil (ex.: depois das fotos/PDF, convide para conhecer o espaço com 2 horários; ou destaque um diferencial do buffet que combine com a festa dele) e termine com uma pergunta DIFERENTE e simples.`
     : `Follow-up ${c.stepNumber} de ${c.stepsTotal}: o cliente não responde há ${silenceText(c.silenceMs)}. OBJETIVO DESTA MENSAGEM (definido pelo buffet): ${c.goal} Escreva UMA mensagem curta (2 a 4 frases), no seu tom, terminando com uma pergunta simples.`;
   return [
     `MENSAGEM DE ACOMPANHAMENTO (o cliente não vê este aviso). ${what}`,
@@ -99,6 +99,28 @@ export interface FollowUpCheck {
 }
 
 /** Confere e arruma o texto antes de sair: valores, "te mandei", datas e centavos */
+const QUESTION_STOPWORDS = new Set(["voce", "voces", "nosso", "nossa", "nossos", "nossas", "para", "pra", "esse", "essa", "isso", "aqui", "agora", "entao", "tudo", "como", "qual", "quer", "sobre", "ainda", "mais", "pode", "posso", "gente", "dela", "dele"]);
+const contentWords = (t: string) => new Set(
+  t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !QUESTION_STOPWORDS.has(w)),
+);
+const questionsOf = (t: string) => (t.match(/[^.!?\n]*\?/g) || []).map((q) => q.trim()).filter(Boolean);
+
+/**
+ * O lembrete repete a pergunta da última mensagem da IA ("E aí, o que achou
+ * do nosso espaço?" → "Ana, o que achou do espaço para a festinha?")?
+ */
+export function repeatsLastQuestion(reminder: string, lastAssistant: string): boolean {
+  const last = questionsOf(lastAssistant).pop();
+  if (!last) return false;
+  const lastWords = contentWords(last);
+  if (lastWords.size < 2) return false;
+  return questionsOf(reminder).some((q) => {
+    const words = contentWords(q);
+    const shared = [...lastWords].filter((w) => words.has(w)).length;
+    return shared / lastWords.size >= 0.6;
+  });
+}
+
 export function checkFollowUpText(
   raw: string,
   opts: { previousAssistantTexts: string[]; sentMaterials: Set<MaterialKind>; todayYmd: string },
@@ -116,6 +138,8 @@ export function checkFollowUpText(
   const unsent = (Object.keys(MATERIAL_MENTION) as MaterialKind[]).filter((k) => !opts.sentMaterials.has(k) && MATERIAL_MENTION[k].test(text));
   if (unsent.length > 0) return { ok: false, text, problem: `falou de ${unsent.map((k) => MATERIAL_NAME[k]).join(" e ")}, que não foi enviado` };
   if (SCARCITY.test(text)) return { ok: false, text, problem: "escassez inventada (vagas/datas acabando)" };
+  const lastAssistant = opts.previousAssistantTexts[opts.previousAssistantTexts.length - 1] || "";
+  if (repeatsLastQuestion(text, lastAssistant)) return { ok: false, text, problem: "repetiu a pergunta da sua última mensagem — pergunte outra coisa e traga algo novo" };
   text = airyParagraphs(moneyWithCents(markTodayTomorrow(fixWeekdays(text, opts.todayYmd), opts.todayYmd)));
   return { ok: true, text };
 }

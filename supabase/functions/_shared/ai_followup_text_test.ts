@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { checkFollowUpText, followUpInstruction } from "./ai-followup-text.ts";
+import { checkFollowUpText, followUpInstruction, repeatsLastQuestion } from "./ai-followup-text.ts";
 
 const opts = { previousAssistantTexts: ["🏰 *Castelo* — R$ 7.400,00"], sentMaterials: new Set<"fotos" | "video" | "pacotes">(["fotos"]), todayYmd: "2026-10-07" };
 
@@ -53,4 +53,13 @@ Deno.test("followUpInstruction: lembrete antes da festa com data livre, ocupada 
   const month = followUpInstruction({ ...base, partyYmd: "2027-03-15", partyExact: false, partyMonth: "Março", partyDateFree: null, alternatives: alt });
   assertEquals(month.includes("falou só do mês"), true);
   assertEquals(month.includes(alt), true);
+});
+
+Deno.test("lembrete não repete a pergunta da última mensagem", () => {
+  const last = "E aí, o que achou do nosso espaço? 😍";
+  assertEquals(repeatsLastQuestion("Ana, o que você achou do espaço para a festinha de 1 aninho da sua bebê? 🥳", last), true);
+  assertEquals(repeatsLastQuestion("Ana, quer vir conhecer o Castelo de pertinho? Tenho sábado às 10h ou domingo às 11h 😍", last), false);
+  assertEquals(repeatsLastQuestion("Oi! Tudo bem? 😊", "Que bom! 🎉"), false);
+  const r = checkFollowUpText("Ana, o que você achou do espaço para a festinha? 🥳", { previousAssistantTexts: ["Olha as fotos", last], sentMaterials: new Set(), todayYmd: "2026-10-08" });
+  assertEquals(r.ok, false);
 });
