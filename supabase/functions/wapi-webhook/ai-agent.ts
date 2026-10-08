@@ -623,7 +623,7 @@ FORMATAÇÃO NO WHATSAPP:
 - Datas sempre por extenso ("sábado, 26 de dezembro"), nunca "26/12". Se a data for hoje ou amanhã, diga isso: "amanhã (quarta, 7 de outubro), às 11h". Horários como "almoço (13h)" ou "noite (19h)", nunca "13:00" (o WhatsApp sublinha como link). O que vier entre [colchetes] nas ferramentas é só para você — não copie.
 ${ctx.packagesText
     ? `- Mensagem de valores: comece com entusiasmo e mostre o VALOR ANTES DO PREÇO — o que o pacote entrega e, embaixo, o preço (siga o "COMO PASSAR" da ferramenta consultar_valor_pacote). Termine com o próximo passo (garantir a data ou visita — respeitando a regra do CONVITE PARA VISITA), sem perguntar se ele quer saber o que muda entre os pacotes. Formato:
-  "Aaah, que demais, Victor! 🥳 Para 60 convidados no sábado, 26 de dezembro, todos os pacotes têm [o que é comum a todos, do cadastro] ✨
+  "Aaah, que demais, [nome]! 🥳 Para 60 convidados no sábado, 26 de dezembro, todos os pacotes têm [o que é comum a todos, do cadastro] ✨
   🏰 *[Pacote 1]* — [4 ou 5 itens principais]
   👉 R$ [valor da ferramenta]
   ⭐ *[Pacote 2]* — tudo do [Pacote 1] + [o que ele tem a mais]
@@ -632,7 +632,7 @@ ${ctx.packagesText
   Quer vir conhecer o espaço ou prefere já ver a melhor data? 😍"
 `
     : `- Mensagem de valores: comece com entusiasmo, use as linhas prontas da ferramenta (um pacote por linha, com o emoji: 🏰 Castelo, ⭐ Super Castelo, 👑 Castelo Premium) e termine com uma pergunta que puxe o próximo passo. Exemplo:
-  "Aaah, que demais, Victor! 🥳 Olha os valores para 60 convidados no sábado, 26 de dezembro:
+  "Aaah, que demais, [nome]! 🥳 Olha os valores para 60 convidados no sábado, 26 de dezembro:
   🏰 *Castelo* — R$ 6.890,00
   ⭐ *Super Castelo* — R$ 8.530,00
   👑 *Castelo Premium* — R$ 9.670,00
@@ -662,13 +662,13 @@ DATAS DA FESTA (agenda):
 - Datas futuras (inclusive no ano que vem): consulte a agenda normalmente (consultar_datas_livres com o mês e o ano) e mostre o que está disponível — NUNCA diga que "ainda não dá para reservar" ou que a agenda não abriu. A reserva é feita com contrato e sinal pela equipe.
 - Quando o cliente perguntar por data livre, ou disser o mês/data da festa, use consultar_datas_livres (com o dia da semana ou a preferência dele).
 - Lista de datas: use as linhas prontas da ferramenta (🗓️ dia, ☀️ almoço, 🌙 noite, horários embaixo de cada data, sem negrito) e termine com uma pergunta; o aviso de contrato e sinal vai curto, entre parênteses, no final. Exemplo:
-  "Aaah, Victor! Olha as datas que ainda tenho em dezembro 🎉🏰
+  "Aaah, [nome]! Olha as datas que ainda tenho em dezembro 🎉🏰
   🗓️ Terça, 1 de dezembro
   ☀️ Almoço (13h às 17h)
   🌙 Noite (19h às 23h)
   🗓️ Quarta, 2 de dezembro
   ☀️ Almoço (13h às 17h)
-  Qual delas combina mais com a festa do Murilo? 😍 (A data fica garantida com contrato e sinal ✨)"
+  Qual delas combina mais com a festa? 😍 (A data fica garantida com contrato e sinal ✨)"
 - Fale "tenho o sábado, 5 de dezembro, disponível" — nunca "tem festa sim no sábado" (parece que já tem festa marcada).
 - Ofereça no máximo 2 ou 3 opções por vez. Diga sempre "disponível neste momento" e que a data só fica garantida com contrato e sinal com a equipe.
 - Você NÃO reserva, NÃO segura e NÃO bloqueia datas — nunca diga que fez isso. Se o cliente quiser garantir a data, ofereça passar para a equipe fechar.
@@ -677,7 +677,7 @@ DATAS DA FESTA (agenda):
 ${ctx.packagesText
     ? `O QUE CADA PACOTE INCLUI (cadastro do buffet — use para explicar e comparar os pacotes; só cite o que está aqui; valores NUNCA daqui, só de consultar_valor_pacote):\n${ctx.packagesText}\n` +
       `COMO MOSTRAR O QUE O PACOTE INCLUI: nunca um parágrafo corrido. Agrupe em linhas curtas, cada uma começando com um emoji e o nome do grupo em negrito (só os grupos que existirem no cadastro), e termine com uma pergunta. Exemplo:\n` +
-      `  "No *Super Castelo* vem tudo isso, Victor 🥳\n` +
+      `  "No *Super Castelo* vem tudo isso, [nome] 🥳\n` +
       `  🍿 *Comidinhas:* pipoca, algodão-doce, 10 tipos de salgados, mini hot-dog, crepe e batata frita\n` +
       `  🍰 *Doces:* 3 tipos de doces, mini churros e o bolo\n` +
       `  🥤 *Bebidas:* refrigerante, 2 sabores de suco, suco de laranja e água\n` +
@@ -698,6 +698,7 @@ CONVITE PARA VISITA (não seja repetitiva):
 AGENDAMENTO DE VISITAS:
 - Janelas de visita: ${settings.visit_hours}.
 - Ao oferecer visita, ofereça JÁ NA MESMA MENSAGEM 2 horários concretos, por exemplo: ${offersText}. Nunca diga que vai passar horários sem passá-los.
+- O convite para visita TERMINA SEMPRE com uma pergunta direta para a pessoa escolher — nada de "se quiser, posso agendar…" solto. Ex.: "Tenho amanhã, sexta, às 11h ou sábado às 10h. Qual fica melhor pra você vir conhecer? 😍".
 - Horários de visita livres nos próximos dias: ${ctx.visitSlotsText}. Se o cliente pedir outro dia ou horário de visita, ou quiser TROCAR a visita que já marcou, ofereça desta lista e use agendar_visita (remarcar=true se ele já tem visita) — NUNCA passe para a equipe por causa de visita.
 - Se o cliente pedir um dia/horário fora das janelas ou já ocupado, NÃO transfira: diga com gentileza que nesse horário não dá e ofereça os horários livres mais próximos (a ferramenta agendar_visita devolve quais são).
 - Quando a pessoa confirmar dia e horário, use agendar_visita. Depois confirme por mensagem o dia/horário e diga que a equipe confirma a visita.
@@ -718,9 +719,9 @@ const TOOLS: ToolDef[] = [
         aniversariante: { type: 'string', description: 'Nome do aniversariante, se o cliente disse' },
         mes: { type: 'string', description: 'Mês da festa, com o ano se o cliente disse (ex.: Novembro, abril de 2027)' },
         convidados: { type: 'string', description: 'Número de convidados, ex.: 80' },
-        legenda_fotos: { type: 'string', description: 'Mensagem curta e animada que vai ANTES das fotos, personalizada com o nome do cliente e do aniversariante, 1–2 emojis. Ex.: "Aaah, Victor, olha só onde vai ser a festa do Murilo! 😍🏰"' },
+        legenda_fotos: { type: 'string', description: 'Mensagem curta e animada que vai ANTES das fotos, personalizada com o nome do cliente e do aniversariante (só nomes que o cliente disse — nunca invente), 1–2 emojis. Ex.: "Aaah, [nome do cliente], olha só onde vai ser a festa! 😍🏰"' },
         legenda_video: { type: 'string', description: 'Legenda curta e animada do vídeo de apresentação. Ex.: "E esse vídeo mostra o Castelo funcionando de verdade 🎬🎉"' },
-        legenda_pdf: { type: 'string', description: 'Mensagem curta que vai ANTES do PDF de pacotes, com a quantidade de convidados. Ex.: "E aqui estão os nossos pacotes pra 80 convidados 📋✨". Sem valores.' },
+        legenda_pdf: { type: 'string', description: 'Mensagem curta que vai ANTES do PDF de pacotes, com a quantidade de convidados. Ex.: "E aqui estão os nossos pacotes pra 80 convidados 📋✨". Sem valores. Se o cliente falou em menos convidados que o menor pacote, não cite o número dele.' },
       },
     },
   },
@@ -1586,12 +1587,17 @@ async function materialTexts(
   const nome = firstNameOrEmpty(bd.nome as string);
   const child = firstNameOrEmpty(bd.aniversariante as string);
   const guests = parseInt(String(bd.convidados || '').replace(/\D/g, ''), 10);
+  // Menos convidados que o menor pacote: a legenda não fala "pacotes pra 30" mandando o PDF de 50
+  const minGuests = smallestPackageGuests(await loadSalesMaterials(supabase, instance));
+  const belowMin = !!(minGuests && guests && guests < minGuests);
   return {
     photosIntro: clean(args.legenda_fotos)
       // "do Murilo" / "da Lívia" depende do gênero, que não sabemos: frase neutra
       || `${nome ? `Aaah, ${nome}, olha` : 'Olha'} só onde vai ser a festa!${child ? ` ${child} vai amar` : ''} 😍🏰`,
     videoCaption: clean(args.legenda_video) || `E esse vídeo mostra o ${companyName} funcionando de verdade 🎬🎉`,
-    pdfIntro: clean(args.legenda_pdf) || `E aqui estão os nossos pacotes${guests ? ` pra ${guests} convidados` : ''} 📋✨`,
+    pdfIntro: belowMin
+      ? `E aqui estão os nossos pacotes, a partir de ${minGuests} convidados 📋✨`
+      : clean(args.legenda_pdf) || `E aqui estão os nossos pacotes${guests ? ` pra ${guests} convidados` : ''} 📋✨`,
   };
 }
 
