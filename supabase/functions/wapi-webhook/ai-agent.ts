@@ -424,7 +424,7 @@ async function logUsage(supabase: any, u: UsageLog): Promise<void> {
 async function notifyTeam(
   supabase: any,
   instance: AgentInstance,
-  payload: { title: string; message: string; data: Json },
+  payload: { title: string; message: string; data: Json; type?: string },
 ): Promise<void> {
   try {
     const unitLower = (instance.unit || '').toLowerCase().trim().replace(/\s+/g, '-');
@@ -450,7 +450,7 @@ async function notifyTeam(
     const { error: insErr } = await supabase.from('notifications').insert(ids.map((uid) => ({
       user_id: uid,
       company_id: instance.company_id,
-      type: 'lead_needs_human',
+      type: payload.type || 'lead_needs_human',
       title: payload.title,
       message: payload.message,
       data: payload.data,
@@ -912,6 +912,7 @@ async function toolAgendarVisita(
       old_value: `${existing.data_visita.split('-').reverse().join('/')} às ${existing.horario_visita}`,
       new_value: `${dataVisita.split('-').reverse().join('/')} às ${horario}`,
     }).then(({ error: hErr }: { error: unknown }) => { if (hErr) console.error('[AI Agent] lead_history error:', hErr); });
+    await notifyAiVisit(supabase, instance, conv, phone, leadId, dataVisita, horario, true);
     return `OK: visita remarcada para ${visitText(dataVisita, horario)}. Confirme para o cliente.`;
   }
 
@@ -941,7 +942,29 @@ async function toolAgendarVisita(
     new_value: `${dataVisita.split('-').reverse().join('/')} às ${horario}`,
   }).then(({ error: hErr }: { error: unknown }) => { if (hErr) console.error('[AI Agent] lead_history error:', hErr); });
 
+  await notifyAiVisit(supabase, instance, conv, phone, leadId, dataVisita, horario, false);
   return `OK: visita registrada para ${visitText(dataVisita, horario)}. Confirme para o cliente.`;
+}
+
+// Visita marcada (ou remarcada) pela IA: aviso no sininho e no pop-up da equipe
+async function notifyAiVisit(
+  supabase: any,
+  instance: AgentInstance,
+  conv: AgentConv,
+  phone: string,
+  leadId: string,
+  dataVisita: string,
+  horario: string,
+  remarcada: boolean,
+): Promise<void> {
+  const { data: lead } = await supabase.from('campaign_leads').select('name').eq('id', leadId).maybeSingle();
+  const name = (lead?.name as string) || phone;
+  await notifyTeam(supabase, instance, {
+    type: 'visit_scheduled',
+    title: remarcada ? '🗓️ Visita remarcada pela IA' : '🗓️ Visita agendada pela IA',
+    message: `${name} (${instance.unit || 'WhatsApp'}) — ${visitText(dataVisita, horario)}. Confirme a visita com o cliente.`,
+    data: { conversation_id: conv.id, lead_id: leadId, contact_phone: phone, unit: instance.unit, reason: 'ai_visit', data_visita: dataVisita, horario_visita: horario },
+  });
 }
 
 // PDF de pacotes enviado = orçamento enviado: o lead passa para "Orçamento

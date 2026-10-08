@@ -50,8 +50,11 @@ const ICON_MAP: Record<string, { icon: React.ElementType; className: string }> =
 
 // Avisos da Bia (IA): passagem para a equipe e cliente sem resposta — na cor dela
 const isBiaNotification = (n: AppNotification) =>
-  n.type === "lead_needs_human" && !!n.data && typeof n.data === "object" &&
-  ["ai_handoff", "ai_handoff_unanswered"].includes(String((n.data as Record<string, unknown>).reason || ""));
+  !!n.data && typeof n.data === "object" && (
+    (n.type === "lead_needs_human" && ["ai_handoff", "ai_handoff_unanswered"].includes(String((n.data as Record<string, unknown>).reason || ""))) ||
+    // Visita marcada pela IA
+    (n.type === "visit_scheduled" && (n.data as Record<string, unknown>).reason === "ai_visit")
+  );
 
 function NotificationIcon({ type, bia = false }: { type: string; bia?: boolean }) {
   if (bia) return <Sparkles className="w-4 h-4 text-violet-600 dark:text-violet-300" />;
