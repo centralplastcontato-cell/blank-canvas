@@ -418,7 +418,7 @@ export function SupportChatbot() {
     "/lp", "/promo", "/para-buffets", "/onboarding",
     "/avaliacao", "/pre-festa", "/contrato", "/cardapio",
     "/equipe", "/manutencao", "/acompanhamento",
-    "/lista-presenca", "/informacoes", "/freelancer",
+    "/lista-presenca", "/informacoes", "/freelancer", "/trabalhe",
     "/escala", "/festa", "/hub-landing", "/hub-login",
     "/recrutamento-comercial",
   ];

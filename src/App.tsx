@@ -119,6 +119,7 @@ const PublicAttendance = lazy(() => import("./pages/PublicAttendance"));
 const PublicAttendanceReview = lazy(() => import("./pages/PublicAttendanceReview"));
 const PublicEventInfo = lazy(() => import("./pages/PublicEventInfo"));
 const PublicFreelancer = lazy(() => import("./pages/PublicFreelancer"));
+const FreelancerInvite = lazy(() => import("./pages/FreelancerInvite"));
 const PublicFreelancerSchedule = lazy(() => import("./pages/PublicFreelancerSchedule"));
 const Contrato = lazy(lazyImports["/contrato"]);
 const ContratosModule = lazy(lazyImports["/contratos"]);
@@ -257,6 +258,7 @@ const App = () => (
               {/* Public freelancer form */}
               <Route path="/freelancer/:companySlug/:templateSlug" element={<PublicFreelancer />} />
               <Route path="/freelancer/:templateId" element={<PublicFreelancer />} />
+              <Route path="/trabalhe/:code" element={<FreelancerInvite />} />
               {/* Public freelancer schedule */}
               <Route path="/escala/:companySlug/:scheduleSlug" element={<PublicFreelancerSchedule />} />
               <Route path="/escala/:scheduleId" element={<PublicFreelancerSchedule />} />

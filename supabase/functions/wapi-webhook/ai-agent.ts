@@ -35,7 +35,7 @@ import { airyParagraphs, spaceHighlightList, fixWeekdays, hoursForWhatsApp, mark
 import { guardAiDb } from "./ai-db-guard.ts";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
-import { buildCandidateLink, withCandidateLink } from "../_shared/ai-candidate.ts";
+import { buildCandidateLink, candidateName, inviteCode, shortCandidateLink, withCandidateLink } from "../_shared/ai-candidate.ts";
 import { findPromotion, promoMentions, promoNote } from "../_shared/promo.ts";
 import { closedPeriodAt, closedPeriodsNote, formatClosedPeriod, isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
 import { asksPartnership, clientAffirms, closingAfterMaterials, confirmsPartyInterest, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
@@ -591,7 +591,7 @@ COMO CONVERSAR:
 - Termine com UMA pergunta direta, que diga a que se refere ("Qual horário fica melhor para a visita: quinta às 15h ou sábado às 10h?", nunca só "Qual horário fica melhor?"). Nada de "posso seguir de duas formas", de oferecer opções em sequência nem de "o que você quer ver agora?".
 - Você conduz a conversa: quando o cliente responde só "ok", "ótimo" ou "gostei", entenda a que ele está respondendo e dê o próximo passo (data → valores → visita → garantir a data com a equipe).
 - Se o cliente perguntar um detalhe que não está nas informações do buffet: responda o que você sabe e diga com leveza que a equipe explica certinho (ou que ele vê de perto na visita). Não se justifique ("prefiro não te passar nada errado", "os detalhes podem variar") — soa robótico.
-- ${ctx.isFirstReply ? 'ESTA É A SUA PRIMEIRA RESPOSTA: apresente-se (diga seu nome' + (assistantName ? ' — ' + assistantName : ', se ele estiver nas informações do buffet,') + ' e que é do ' + companyName + ') e, se ainda não souber o nome do cliente, já pergunte o nome dele NESTA mensagem, junto com a resposta ao que ele perguntou. Se ele só cumprimentou e você ainda não sabe o nome, pergunte SÓ o nome nesta primeira resposta — a lista de "como posso te ajudar" vem na próxima, depois que ele disser o nome.' : 'Se ainda não souber o nome do cliente, não interrompa a conversa para pedir — aproveite um momento natural.'}
+- ${ctx.isFirstReply ? 'ESTA É A SUA PRIMEIRA RESPOSTA: apresente-se (diga seu nome' + (assistantName ? ' — ' + assistantName : ', se ele estiver nas informações do buffet,') + ' e que é do ' + companyName + ') e, se ainda não souber o nome do cliente, já pergunte o nome dele NESTA mensagem, junto com a resposta ao que ele perguntou. Se ele só cumprimentou e você ainda não sabe o nome: apresente-se, mostre os diferenciais do buffet no formato de COMO APRESENTAR O BUFFET ("Só aqui você vai encontrar 🥳" + as linhas com emoji) e termine perguntando SÓ o nome — a lista de "como posso te ajudar" vem na próxima, depois que ele disser o nome.' : 'Se ainda não souber o nome do cliente, não interrompa a conversa para pedir — aproveite um momento natural.'}
 - Dados do cliente já registrados: ${ctx.knownDataText}. Não pergunte de novo o que já sabe.${ctx.pricePending ? '\n- O CLIENTE JÁ PEDIU O VALOR e ainda não recebeu: assim que você souber a quantidade de convidados e o dia/data (já registrados ou nesta mensagem), chame consultar_valor_pacote e passe o valor NESTA resposta, sem esperar ele pedir de novo. Se ainda faltar um dos dois, pergunte só o que falta.' : ''}
 - ${ctx.pendingUserMessages > 1 ? `O cliente mandou ${ctx.pendingUserMessages} mensagens seguidas desde a sua última resposta: responda a TODAS as perguntas delas numa única mensagem, sem ignorar nenhuma.` : 'Se o cliente mandar várias perguntas, responda todas numa única mensagem.'}
 - Uma pergunta por vez, e UMA mensagem por vez: depois de perguntar, espere a resposta antes de perguntar outra coisa. Nunca envie listas de opções numeradas — converse como gente (a única lista é a de "como posso te ajudar", no formato de QUEM É O CONTATO).
@@ -1688,7 +1688,9 @@ async function toolTransferir(
 }
 
 // Link do formulário de candidatura da empresa (ativo, com slug, no domínio
-// do buffet). Sem formulário ou sem domínio: null (a Bia pede o currículo, como antes)
+// do buffet). Curto (www.buffet.com.br/trabalhe/k7m2qx, com nome/WhatsApp/
+// funções guardados no código); sem a tabela dos links curtos, o link longo.
+// Sem formulário ou sem domínio: null (a Bia pede o currículo, como antes)
 async function candidateFormLink(
   supabase: any,
   instance: AgentInstance,
@@ -1698,18 +1700,38 @@ async function candidateFormLink(
   funcoes: string,
 ): Promise<string | null> {
   const [{ data: tpl }, { data: company }] = await Promise.all([
-    supabase.from('freelancer_templates').select('slug').eq('company_id', instance.company_id).eq('purpose', 'candidatura').eq('is_active', true).not('slug', 'is', null).order('created_at', { ascending: true }).limit(1).maybeSingle(),
+    supabase.from('freelancer_templates').select('id, slug').eq('company_id', instance.company_id).eq('purpose', 'candidatura').eq('is_active', true).not('slug', 'is', null).order('created_at', { ascending: true }).limit(1).maybeSingle(),
     supabase.from('companies').select('slug, custom_domain').eq('id', instance.company_id).maybeSingle(),
   ]);
   if (!tpl?.slug || !company?.slug || !company?.custom_domain) return null;
   const botName = (conv.bot_data as Json | null)?.nome as string | undefined;
+  const name = (botName && firstNameOrEmpty(botName)) ? botName : contactName;
+  const roles = String(funcoes || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const code = inviteCode(crypto.getRandomValues(new Uint8Array(6)));
+    const { error } = await supabase.from('freelancer_invites').insert({
+      code,
+      company_id: instance.company_id,
+      template_id: tpl.id,
+      name: candidateName(name) || null,
+      phone: phone.replace(/\D/g, '') || null,
+      roles: roles || null,
+      source: 'bia',
+      conversation_id: conv.id,
+    });
+    if (!error) return shortCandidateLink(company.custom_domain as string, code);
+    if (error.code !== '23505') { // código repetido: tenta outro; outro erro: link longo
+      console.warn('[AI Agent] Link curto do cadastro indisponível, vai o longo:', error.message);
+      break;
+    }
+  }
   return buildCandidateLink({
     domain: company.custom_domain as string,
     companySlug: company.slug as string,
     templateSlug: tpl.slug as string,
-    name: (botName && firstNameOrEmpty(botName)) ? botName : contactName,
+    name,
     phone,
-    roles: funcoes,
+    roles,
   });
 }
 
