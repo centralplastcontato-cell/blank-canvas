@@ -189,3 +189,41 @@ O dono aprovou as 4 partes. Todas foram publicadas e os SQLs foram rodados por e
 **Para a rodada final da limpeza (com OK do dono):**
 - `src/contexts/CampaignSenderContext.tsx`: o envio antigo pelo navegador. Ninguém inicia envio por ele. Tirar o provider do `App.tsx` e o uso em `Campanhas.tsx`.
 - `campaign-image`: o modo `photo` não é mais chamado pela tela, que só usa `theme_only`.
+
+## 8. Central de Agenda (reforma em partes, a partir de 09/10/2026)
+
+O dono aprovou: parte 1 (financeiro e erros graves), parte 2 (números certos), parte 3 ("o que falta resolver"), parte 4 (visual no celular), esconder os modelos de tarefa e mandar a confirmação só para visitas. As pré-reservas ficam como estão.
+
+**Parte 1, o que mudou:**
+- **Salvar festa:**
+  - só refaz as parcelas se o plano de pagamento mudou;
+  - nunca refaz quando há recebimento parcial lançado (`event_payment_entries` some junto com a parcela, em cascata);
+  - não troca mais o `created_by` na edição;
+  - o valor do pacote com desconto % sobre o total não encolhe mais a cada salvamento.
+- **Aba Financeiro da festa:** só grava ao abrir para quem pode editar o financeiro. Nunca apaga parcela paga ou com recebimento parcial.
+- **Excluir festa:**
+  - o financeiro sai junto com a festa num comando só, em cascata, então se a exclusão falhar nada se perde;
+  - contrato ou formulário que trave a exclusão é apagado um por vez (lista em `src/lib/eventDelete.ts`).
+- **Valores da festa:** aparecem só com a permissão `agenda.faturamento` (ou admin), na lista, em Fechadas e no detalhe.
+- **Pré-reserva:**
+  - vira "convertida" só depois que a festa é salva, com `converted_event_id`. Antes o comando nem chegava ao banco;
+  - o aviso de vencimento (`pre-reservation-expiry`) agora sai de verdade, no formato do wapi-send. Só o Castelo tem essa automação ligada.
+- **Confirmação de visita:**
+  - não vai mais para atendimento;
+  - envio pulado pelo wapi-send (quarentena) fica como `skipped` e não como enviado;
+  - a confirmação manual conta como a primeira;
+  - não confirma visita que já começou.
+- **Visitas:** "Fechou na Visita" pede confirmação e acrescenta a anotação, sem apagar as observações do lead.
+- **Tarefas:**
+  - a que vence hoje não aparece mais como atrasada;
+  - "Ver atrasadas" mostra só as atrasadas;
+  - modelos de tarefa por festa escondidos, porque nunca criaram tarefas.
+- **Aba Geral:** a festa aberta por ela tem contrato, WhatsApp, editar e excluir funcionando.
+
+**Funções a publicar depois do merge:** `visit-confirmation` e `pre-reservation-expiry`.
+
+**Números em 09/10:**
+- 404 festas passadas ainda como confirmado/pendente (ninguém marca "realizada").
+- 233 visitas passadas sem resultado.
+- 82 festas sem unidade, 42 sem valor, 33 sem horário.
+- Pré-reservas: 15 no total, nenhuma virou festa.

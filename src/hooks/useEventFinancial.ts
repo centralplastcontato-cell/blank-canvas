@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
 
 export interface EventPayment {
   id: string;
@@ -87,7 +88,7 @@ export function useEventFinancial(eventId: string | undefined, companyId: string
         supabase.from('event_financial_timeline').select('*').eq('event_id', eventId).order('created_at', { ascending: false }),
       ]);
 
-      const now = new Date().toISOString().split('T')[0];
+      const now = format(new Date(), 'yyyy-MM-dd');
       const paymentData = (paymentsRes.data || []).map((p: any) => ({
         ...p,
         amount: Number(p.amount),
@@ -337,7 +338,7 @@ export function useEventFinancial(eventId: string | undefined, companyId: string
     if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
 
     // 2) Create a linked payment (parcela) so it can be received with bank/method/receipt
-    const today = new Date().toISOString().split('T')[0];
+    const today = format(new Date(), 'yyyy-MM-dd');
     const isPaid = !!data.alreadyReceived;
     const paymentInsert: any = {
       event_id: eventId,

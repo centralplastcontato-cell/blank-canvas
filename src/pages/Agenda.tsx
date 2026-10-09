@@ -42,7 +42,12 @@ import { AgendaVisitasTab } from "@/components/agenda/AgendaVisitasTab";
 import { GuiaAgendaDialog } from "@/components/guias/GuiaAgendaDialog";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
+import { packageValueFromTotal, samePaymentPlan } from "@/lib/eventPaymentPlan";
+import { CLEARABLE_EVENT_CHILDREN, blockingTable } from "@/lib/eventDelete";
 
+
+/** O que aconteceu com as parcelas ao salvar a festa */
+type PaymentSyncResult = "ok" | "unchanged" | "partial_receipts" | "check_failed";
 
 interface CompanyEvent {
   id: string;
@@ -128,20 +133,14 @@ const mapEventToFormData = (ev: CompanyEvent): EventFormData => ({
   package_name: ev.package_name || "",
   total_value: (() => {
     const optionals = Array.isArray(ev.event_optionals) ? ev.event_optionals : [];
-    const optionalsTotal = optionals.reduce((sum: number, o: any) => sum + (o.value || 0), 0);
     const pd = (ev.payment_details || {}) as any;
-    const discountVal = pd.discount_value || 0;
-    const discountType = pd.discount_type;
-    const discountBase = pd.discount_base || 'total';
-    const rawTotal = ev.total_value != null ? Math.max(0, ev.total_value - optionalsTotal) : null;
-    if (rawTotal == null || !discountType || !discountVal) return rawTotal;
-    // Reverse the discount to recover the original package value
-    if (discountBase === 'pacote') {
-      // grandTotal was (package - discount) + optionals, so rawTotal = package - discount
-      return discountType === 'percentage' ? Math.round(rawTotal / (1 - discountVal / 100) * 100) / 100 : rawTotal + discountVal;
-    }
-    // discountBase === 'total': grandTotal was (package + optionals) - discount, so rawTotal = package + optionals - discount - optionals = package - discount
-    return discountType === 'percentage' ? Math.round(rawTotal / (1 - discountVal / 100) * 100) / 100 : rawTotal + discountVal;
+    return packageValueFromTotal({
+      total: ev.total_value,
+      optionalsTotal: optionals.reduce((sum: number, o: any) => sum + (o.value || 0), 0),
+      discountType: pd.discount_type,
+      discountValue: pd.discount_value,
+      discountBase: pd.discount_base,
+    });
   })(),
   notes: ev.notes || "",
   lead_id: ev.lead_id || null,
@@ -278,6 +277,11 @@ export default function Agenda() {
   }, [agendaCardFees]);
 
   const [formOpen, setFormOpen] = useState(false);
+  // Pré-reserva sendo convertida em festa (marca "convertida" só depois de salvar)
+  const convertingPreRes = useRef<PreReservation | null>(null);
+  const [preResVersion, setPreResVersion] = useState(0);
+  // Muda quando uma festa é salva ou excluída (a aba Geral recarrega)
+  const [eventsVersion, setEventsVersion] = useState(0);
   const [editingEvent, setEditingEvent] = useState<EventFormData | null>(null);
   const [detailEvent, setDetailEvent] = useState<CompanyEvent | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -616,7 +620,8 @@ export default function Agenda() {
     initialLoadDone.current = true;
   }, [currentCompany?.id, month, selectedUnit, permUnitLoading, fetchClosedInPeriod]);
 
-  // Fetch the full pre-reservations list once per company (not on every month change)
+  // Fetch the full pre-reservations list once per company (not on every month change);
+  // preResVersion muda quando uma pré-reserva é criada, editada, cancelada ou vira festa
   useEffect(() => {
     if (!currentCompany?.id) return;
     let cancelled = false;
@@ -629,7 +634,7 @@ export default function Agenda() {
       if (!cancelled && !error && data) setAllPreReservations(data as PreReservation[]);
     })();
     return () => { cancelled = true; };
-  }, [currentCompany?.id]);
+  }, [currentCompany?.id, preResVersion]);
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
 
@@ -797,7 +802,6 @@ export default function Agenda() {
       package_name: data.package_name || null,
       total_value: data.total_value,
       notes: data.notes || null,
-      created_by: currentUser.id,
       lead_id: data.lead_id || null,
       data_fechamento_venda: data.data_fechamento_venda || null,
       vendedor_responsavel_id: data.vendedor_responsavel_id || null,
@@ -826,6 +830,13 @@ export default function Agenda() {
     console.log('[Evento:DadosAniversariante]', { child_name: payload.child_name, child_age: payload.child_age, parent_names: payload.parent_names, gifts: payload.gifts, extra_guest_value: payload.extra_guest_value });
 
     if (data.id) {
+      // Plano de pagamento antes de salvar: se não mudou, as parcelas ficam como estão
+      const { data: before } = await supabase
+        .from("company_events")
+        .select("payment_details")
+        .eq("id", data.id)
+        .maybeSingle();
+      const planChanged = !samePaymentPlan(before?.payment_details, data.payment_details);
       const { error, data: updatedEvent } = await supabase
         .from("company_events")
         .update(payload)
@@ -837,13 +848,37 @@ export default function Agenda() {
       if (updatedEvent) {
         mergeUpdatedEventIntoState(updatedEvent as CompanyEvent);
       }
-      await syncPaymentDetails(data.id, currentCompany.id, data.payment_details);
+      const sync = await syncPaymentDetails(data.id, currentCompany.id, data.payment_details, { planChanged });
       toast({ title: "Festa atualizada!" });
+      warnPaymentsNotRebuilt(sync);
+      setEventsVersion((v) => v + 1);
       fetchEvents();
       return data.id;
     } else {
-      const { data: newEvent, error } = await supabase.from("company_events").insert(payload).select("id").single();
+      const { data: newEvent, error } = await supabase
+        .from("company_events")
+        .insert({ ...payload, created_by: currentUser.id })
+        .select("id")
+        .single();
       if (error) { toast({ title: "Erro ao criar", description: error.message, variant: "destructive" }); return; }
+
+      // Festa criada a partir de uma pré-reserva: só agora marca como convertida
+      const fromPreRes = convertingPreRes.current;
+      convertingPreRes.current = null;
+      if (newEvent && fromPreRes?.id) {
+        await (supabase as any)
+          .from("pre_reservations")
+          .update({ status: "convertida", converted_event_id: newEvent.id })
+          .eq("id", fromPreRes.id);
+        if (fromPreRes.lead_id) {
+          await (supabase as any).from("lead_history").insert({
+            lead_id: fromPreRes.lead_id, company_id: fromPreRes.company_id,
+            action: "pre_reserva_convertida", details: "Pré-reserva convertida em festa oficial",
+            performed_by: currentUser.id,
+          });
+        }
+        setPreResVersion((v) => v + 1);
+      }
 
       // Apply checklist template if selected
       if (newEvent && data.checklist_template_id && data.checklist_template_id !== "none") {
@@ -870,14 +905,38 @@ export default function Agenda() {
     }
   };
 
-  const syncPaymentDetails = async (eventId: string, companyId: string, pd: any) => {
-    if (!pd) return;
+  /**
+   * Refaz as parcelas a partir do plano de pagamento. Nunca apaga parcela com
+   * recebimento parcial lançado (o recebimento sumiria junto). Na edição, se o
+   * plano não mudou, as parcelas ficam como estão.
+   */
+  const syncPaymentDetails = async (
+    eventId: string,
+    companyId: string,
+    pd: any,
+    opts: { planChanged: boolean } = { planChanged: true },
+  ): Promise<PaymentSyncResult> => {
+    if (!pd) return "ok";
     try {
       // Check if there are already manually-managed payments (paid ones should not be wiped)
-      const { data: existing } = await supabase
+      const { data: existing, error: existingErr } = await supabase
         .from("event_payments")
         .select("id, status, amount, gross_amount, type, payment_method, notes")
         .eq("event_id", eventId);
+      if (existingErr) return "check_failed";
+      if (!opts.planChanged && (existing || []).length > 0) return "unchanged";
+
+      // Parcela em aberto com recebimento parcial: não refaz nada
+      const unpaidIds = (existing || []).filter((p: any) => p.status !== "paid").map((p: any) => p.id);
+      if (unpaidIds.length > 0) {
+        const { data: entries, error: entriesErr } = await (supabase as any)
+          .from("event_payment_entries")
+          .select("payment_id")
+          .in("payment_id", unpaidIds)
+          .limit(1);
+        if (entriesErr) return "check_failed";
+        if (entries && entries.length > 0) return "partial_receipts";
+      }
       const paidPayments = (existing || []).filter((p: any) => p.status === "paid");
       const hasPaidPayments = paidPayments.length > 0;
 
@@ -952,7 +1011,7 @@ export default function Agenda() {
       const remainingGross = totalNewGross - paidGrossTotal;
       if (hasPaidPayments && remainingGross <= 0) {
         // All paid, nothing to create
-        return;
+        return "ok";
       }
 
       const rows: any[] = [];
@@ -968,7 +1027,7 @@ export default function Agenda() {
             company_id: companyId,
             type: "entrada",
             amount: applyFee(pd.entrada_valor, feeRate),
-            due_date: pd.entrada_data || new Date().toISOString().split("T")[0],
+            due_date: pd.entrada_data || format(new Date(), "yyyy-MM-dd"),
             payment_method: pd.entrada_forma || null,
             status: "pending",
           };
@@ -1012,7 +1071,7 @@ export default function Agenda() {
         if (saldoIsCard && saldoFeeRate > 0 && isNonAntecipado && totalSaldoGross > 0) {
           // CASE A: card non-antecipado → split into N monthly net rows
           const { splitNonAntecipadoInstallments } = await import("@/lib/cardFees");
-          const saleDate = pd.saldo_data || new Date().toISOString().split("T")[0];
+          const saleDate = pd.saldo_data || format(new Date(), "yyyy-MM-dd");
           const prazoDias = Number(operator.prazo_recebimento_dias) || 30;
           const slices = splitNonAntecipadoInstallments(totalSaldoGross, saldoFeeRate, saldoParcelas, saleDate, prazoDias);
           if (slices && slices.length > 0) {
@@ -1045,7 +1104,7 @@ export default function Agenda() {
             card_fee_percent: saldoFeeRate,
             card_installments: saldoParcelas,
             card_operator_id: operator?.id || null,
-            due_date: pd.saldo_data || new Date().toISOString().split("T")[0],
+            due_date: pd.saldo_data || format(new Date(), "yyyy-MM-dd"),
             payment_method: saldoForma,
             status: "pending",
           });
@@ -1059,7 +1118,7 @@ export default function Agenda() {
                   company_id: companyId,
                   type: "parcela",
                   amount: p.valor,
-                  due_date: p.vencimento || pd.saldo_data || new Date().toISOString().split("T")[0],
+                  due_date: p.vencimento || pd.saldo_data || format(new Date(), "yyyy-MM-dd"),
                   payment_method: saldoForma || null,
                   status: "pending",
                 });
@@ -1071,7 +1130,7 @@ export default function Agenda() {
               company_id: companyId,
               type: "parcela",
               amount: pd.saldo_valor,
-              due_date: pd.saldo_data || new Date().toISOString().split("T")[0],
+              due_date: pd.saldo_data || format(new Date(), "yyyy-MM-dd"),
               payment_method: saldoForma || null,
               status: "pending",
             });
@@ -1096,7 +1155,7 @@ export default function Agenda() {
                 company_id: companyId,
                 type: "parcela",
                 amount: p.valor,
-                due_date: p.vencimento || pd.saldo_data || new Date().toISOString().split("T")[0],
+                due_date: p.vencimento || pd.saldo_data || format(new Date(), "yyyy-MM-dd"),
                 payment_method: saldoForma || null,
                 status: "pending",
               });
@@ -1109,7 +1168,7 @@ export default function Agenda() {
       // Cada bloco tem prefixo de notes "[bloco:<id>]" para preservar parcelas já pagas via selective sync.
       const blocks: any[] = Array.isArray(pd.payment_blocks) ? pd.payment_blocks : [];
       if (blocks.length > 0) {
-        const today = new Date().toISOString().split("T")[0];
+        const today = format(new Date(), "yyyy-MM-dd");
         for (const b of blocks) {
           const blockId = String(b.id || crypto.randomUUID());
           const blockTag = `[bloco:${blockId}]`;
@@ -1190,45 +1249,64 @@ export default function Agenda() {
       if (rows.length > 0) {
         await supabase.from("event_payments").insert(rows);
       }
+      return "ok";
     } catch (err) {
       console.error("[syncPaymentDetails] error:", err);
+      return "ok";
+    }
+  };
+
+  const warnPaymentsNotRebuilt = (sync: PaymentSyncResult) => {
+    if (sync === "partial_receipts") {
+      toast({
+        title: "Parcelas não foram refeitas",
+        description: "Esta festa tem recebimento parcial lançado. Para não perder esse recebimento, ajuste as parcelas no Financeiro da festa.",
+      });
+    } else if (sync === "check_failed") {
+      toast({
+        title: "Parcelas não foram refeitas",
+        description: "Não deu para conferir os pagamentos agora. Salve de novo em instantes.",
+        variant: "destructive",
+      });
     }
   };
 
   const confirmDelete = async () => {
     if (!deleteConfirmId) return;
     setDeleting(true);
+    const eventId = deleteConfirmId;
+    // Pagamentos, parcelas, extras, descontos, histórico financeiro, checklist e equipe
+    // saem junto com a festa no mesmo comando (o banco apaga em cascata). Assim, se a
+    // exclusão falhar, nada do financeiro é perdido.
+    const deleteEvent = () => supabase.from("company_events").delete().eq("id", eventId).select("id");
     try {
-      // Delete dependent records first to avoid foreign key violations
-      // 1) Delete contract audit logs for contracts linked to this event
-      const { data: contracts } = await (supabase as any).from("generated_contracts").select("id").eq("event_id", deleteConfirmId);
-      const contractIds = (contracts || []).map((c: any) => c.id);
-      if (contractIds.length > 0) {
-        await (supabase as any).from("contract_audit_logs").delete().in("contract_id", contractIds);
+      let { data: deleted, error } = await deleteEvent();
+      // Contrato ou formulário preso à festa trava a exclusão: apaga só o que travou
+      // (um por vez) e tenta de novo. Se travar em outra coisa, para e não apaga nada.
+      for (let attempt = 0; attempt < 10 && error?.code === "23503"; attempt++) {
+        const table = blockingTable(error);
+        if (!table || !CLEARABLE_EVENT_CHILDREN.has(table)) break;
+        if (table === "generated_contracts") {
+          const { data: contracts } = await (supabase as any).from("generated_contracts").select("id").eq("event_id", eventId);
+          const contractIds = (contracts || []).map((c: any) => c.id);
+          if (contractIds.length > 0) {
+            await (supabase as any).from("contract_audit_logs").delete().in("contract_id", contractIds);
+          }
+        }
+        const { error: childErr } = await (supabase as any).from(table).delete().eq("event_id", eventId);
+        if (childErr) {
+          console.error(`[delete event] ${table}:`, childErr.message);
+          break;
+        }
+        ({ data: deleted, error } = await deleteEvent());
       }
-      // 2) Delete generated contracts and client data requests
-      const { error: gcErr } = await (supabase as any).from("generated_contracts").delete().eq("event_id", deleteConfirmId);
-      if (gcErr) console.error("[delete cascade] generated_contracts:", gcErr.message);
-      await (supabase as any).from("client_data_requests").delete().eq("event_id", deleteConfirmId);
-      // 3) Delete financial records
-      await (supabase as any).from("event_financial_timeline").delete().eq("event_id", deleteConfirmId);
-      await (supabase as any).from("event_payments").delete().eq("event_id", deleteConfirmId);
-      await (supabase as any).from("event_extras").delete().eq("event_id", deleteConfirmId);
-      await (supabase as any).from("event_discounts").delete().eq("event_id", deleteConfirmId);
-      // 4) Delete other dependent records
-      await (supabase as any).from("freelancer_evaluations").delete().eq("event_id", deleteConfirmId);
-      await (supabase as any).from("event_checklist_items").delete().eq("event_id", deleteConfirmId);
-      await (supabase as any).from("event_staff_entries").delete().eq("event_id", deleteConfirmId);
-      await (supabase as any).from("event_info_entries").delete().eq("event_id", deleteConfirmId);
-      await (supabase as any).from("attendance_entries").delete().eq("event_id", deleteConfirmId);
-      // 5) Delete pre-reservations linked to this event
-      await (supabase as any).from("pre_reservations").delete().eq("event_id", deleteConfirmId);
-      // 6) Delete cardapio responses
-      await (supabase as any).from("cardapio_responses").delete().eq("event_id", deleteConfirmId);
-
-      const { error } = await supabase.from("company_events").delete().eq("id", deleteConfirmId);
-      if (error) { toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" }); }
-      else { toast({ title: "Festa excluída" }); }
+      if (error) {
+        toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+      } else if (!deleted || deleted.length === 0) {
+        toast({ title: "Não foi possível excluir", description: "Você não tem permissão para excluir esta festa.", variant: "destructive" });
+      } else {
+        toast({ title: "Festa excluída" });
+      }
     } catch (err) {
       console.error("[delete event] unexpected error:", err);
       toast({ title: "Erro ao excluir", description: "Erro inesperado ao excluir festa", variant: "destructive" });
@@ -1236,6 +1314,7 @@ export default function Agenda() {
     setDeleting(false);
     setDeleteConfirmId(null);
     setDetailOpen(false);
+    setEventsVersion((v) => v + 1);
     fetchEvents();
   };
 
@@ -1445,7 +1524,13 @@ export default function Agenda() {
                     </div>
                   </div>
                 </div>
-                <AgendaTudoTab userId={currentUser?.id} />
+                <AgendaTudoTab
+                  userId={currentUser?.id}
+                  showRevenue={showRevenue}
+                  onEditEvent={(ev) => handleEdit(ev as CompanyEvent)}
+                  onDeleteEvent={(id) => setDeleteConfirmId(id)}
+                  eventsVersion={eventsVersion}
+                />
               </div>
             </div>
           )}
@@ -1857,7 +1942,7 @@ export default function Agenda() {
                                 </div>
                               )}
                               <div className="flex items-center justify-between mt-2">
-                                {ev.total_value != null && ev.total_value > 0 && (
+                                {showRevenue && ev.total_value != null && ev.total_value > 0 && (
                                   <p className="text-sm font-bold text-foreground">
                                     {getNetValue(ev).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                                   </p>
@@ -1871,14 +1956,14 @@ export default function Agenda() {
                               </div>
                             </button>
                           ))}
-                        <div className="pt-3 border-t border-border/30">
+                        {showRevenue && <div className="pt-3 border-t border-border/30">
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-muted-foreground font-medium">Total faturado:</span>
                             <span className="font-bold text-foreground">
                               {closedEvents.filter(e => !e.is_permuta).reduce((sum, e) => sum + getNetValue(e), 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                             </span>
                           </div>
-                        </div>
+                        </div>}
                       </div>
                     )}
                   </CardContent>
@@ -2320,6 +2405,7 @@ export default function Agenda() {
                         getConflicts={(ev) => getConflicts(ev as CompanyEvent)}
                         month={month}
                         onMonthChange={setMonth}
+                        showRevenue={showRevenue}
                       />
                     )}
                   </CardContent>
@@ -2335,7 +2421,11 @@ export default function Agenda() {
 
       <EventFormDialog
         open={formOpen}
-        onOpenChange={setFormOpen}
+        onOpenChange={(open) => {
+          setFormOpen(open);
+          // Fechou sem salvar: a pré-reserva continua ativa
+          if (!open) convertingPreRes.current = null;
+        }}
         onSubmit={handleSubmit}
         initialData={editingEvent}
         units={physicalUnits}
@@ -2350,6 +2440,7 @@ export default function Agenda() {
         onDelete={(id) => setDeleteConfirmId(id)}
         conflicts={detailEvent ? getConflicts(detailEvent) : []}
         userId={currentUser?.id}
+        showRevenue={showRevenue}
         onEventPatch={(eventId, updates) => setDetailEvent((prev) => (prev?.id === eventId ? { ...prev, ...updates } : prev))}
       />
 
@@ -2358,7 +2449,7 @@ export default function Agenda() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir festa?</AlertDialogTitle>
             <AlertDialogDescription>
-              Essa ação é irreversível. Todos os dados vinculados (checklist, equipe, avaliações) serão excluídos permanentemente.
+              Não dá para desfazer. Junto com a festa saem os pagamentos e recebimentos, contratos, formulários, checklist e equipe dela.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -2381,7 +2472,7 @@ export default function Agenda() {
         companyId={currentCompany?.id || ""}
         userId={currentUser?.id || ""}
         units={physicalUnits}
-        onSuccess={fetchEvents}
+        onSuccess={() => { fetchEvents(); setPreResVersion((v) => v + 1); }}
         initialData={editingPreRes}
         initialDate={selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined}
       />
@@ -2400,21 +2491,12 @@ export default function Agenda() {
             lead_id: pr.lead_id || null,
             start_time: "", end_time: "", event_type: "aniversario", guest_count: null, status: "pendente", package_name: "", total_value: null, notes: pr.notes || "",
           });
+          // Vira "convertida" só quando a festa for salva (handleSubmit)
+          convertingPreRes.current = pr;
           setFormOpen(true);
           setDetailPreResOpen(false);
-          // Mark as converted after event is created (handled via fetchEvents refresh)
-          if (pr.id) {
-            (supabase as any).from("pre_reservations").update({ status: "convertida" }).eq("id", pr.id);
-            if (pr.lead_id) {
-              (supabase as any).from("lead_history").insert({
-                lead_id: pr.lead_id, company_id: pr.company_id,
-                action: "pre_reserva_convertida", details: "Pré-reserva convertida em festa oficial",
-                performed_by: currentUser?.id,
-              });
-            }
-          }
         }}
-        onRefresh={fetchEvents}
+        onRefresh={() => { fetchEvents(); setPreResVersion((v) => v + 1); }}
         userId={currentUser?.id}
       />
 

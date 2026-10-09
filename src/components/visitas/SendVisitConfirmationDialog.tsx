@@ -152,6 +152,16 @@ export function SendVisitConfirmationDialog({ open, onOpenChange, visit, onSent 
         setSending(false);
         return;
       }
+      // O WhatsApp não mandou (número em pausa depois de reconectar): não registra como enviada
+      if (sendData?.skipped) {
+        toast({
+          title: "Mensagem não enviada",
+          description: "O número de WhatsApp está em pausa. Tente de novo mais tarde.",
+          variant: "destructive",
+        });
+        setSending(false);
+        return;
+      }
 
       // 4) Record in history
       await (supabase as any).from("visit_confirmation_history").insert({

@@ -247,9 +247,13 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
   };
 
   const handleClosedAtVisit = async (visit: Visit) => {
+    // Acrescenta a anotação sem apagar o que já estava nas observações do lead
+    const { data: lead } = await supabase.from("campaign_leads").select("observacoes").eq("id", visit.lead_id).maybeSingle();
+    const note = `Fechou na visita em ${format(parseISO(visit.data_visita + "T12:00:00"), "dd/MM/yyyy")}`;
+    const previous = (lead?.observacoes || "").trim();
     const { error: leadError } = await supabase
       .from("campaign_leads")
-      .update({ status: "fechado" as any, observacoes: `Fechou na visita em ${format(parseISO(visit.data_visita + "T12:00:00"), "dd/MM/yyyy")}` })
+      .update({ status: "fechado" as any, observacoes: previous ? `${previous}\n${note}` : note })
       .eq("id", visit.lead_id);
 
     if (leadError) {
@@ -258,7 +262,10 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
     }
 
     if (visit.status_visita !== "realizada") {
-      await (supabase as any).from("lead_visits").update({ status_visita: "realizada" }).eq("id", visit.id);
+      const { error: visitError } = await (supabase as any).from("lead_visits").update({ status_visita: "realizada" }).eq("id", visit.id);
+      if (visitError) {
+        toast({ title: "Lead marcado como Fechado, mas a visita não foi atualizada", description: visitError.message, variant: "destructive" });
+      }
     }
 
     toast({ title: "🎉 Festa fechada na visita!", description: `${visit.lead_name} marcado como Fechado.` });
@@ -796,13 +803,30 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
                       </Button>
                     )}
                     {!isDetailEntrega && (
-                      <Button
-                        size="sm"
-                        className="col-span-2 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
-                        onClick={() => handleClosedAtVisit(detailVisit)}
-                      >
-                        <PartyPopper className="h-3.5 w-3.5" /> Fechou na Visita 🎉
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            size="sm"
+                            className="col-span-2 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                          >
+                            <PartyPopper className="h-3.5 w-3.5" /> Fechou na Visita 🎉
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Fechou a festa na visita?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {detailVisit.lead_name || "O lead"} vai ficar como Fechado e a visita como realizada. Depois, cadastre a festa em Festas → Nova Festa.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleClosedAtVisit(detailVisit)} className="bg-emerald-600 text-white hover:bg-emerald-700">
+                              Sim, fechou
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     )}
                   </div>
                   {reschedForId === detailVisit.id && (

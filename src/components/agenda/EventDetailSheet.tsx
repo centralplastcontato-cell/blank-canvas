@@ -30,7 +30,7 @@ interface TeamMember {
   full_name: string;
 }
 
-interface EventData {
+export interface EventData {
   id: string;
   title: string;
   event_date: string;
@@ -66,6 +66,8 @@ interface EventDetailSheetProps {
   conflicts?: EventData[];
   userId?: string;
   onEventPatch?: (eventId: string, updates: Partial<EventData>) => void;
+  /** mostra o valor da festa (permissão de ver faturamento) */
+  showRevenue?: boolean;
 }
 
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -74,7 +76,7 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
   cancelado: { label: "Cancelado", variant: "destructive" },
 };
 
-export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, conflicts = [], userId, onEventPatch }: EventDetailSheetProps) {
+export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, conflicts = [], userId, onEventPatch, showRevenue = false }: EventDetailSheetProps) {
   const financialPerms = useFinancialPermissions(userId);
   const consentHook = useFinancialConsent();
   const navigate = useNavigate();
@@ -440,7 +442,7 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                   eventId={event.id}
                   companyId={event.company_id}
                   baseValue={event.total_value || 0}
-                  canEdit={financialPerms.canEdit}
+                  canEdit={financialPerms.canEdit && !financialPerms.isLoading}
                   canPay={financialPerms.canPay}
                   showValues={financialPerms.canViewValues}
                   onAddOptional={() => onEdit(event)}
@@ -484,7 +486,7 @@ export function EventDetailSheet({ open, onOpenChange, event, onEdit, onDelete, 
                 </div>
               )}
 
-              {event.total_value != null && (
+              {showRevenue && event.total_value != null && (
                 <div className="flex items-center gap-3 text-foreground">
                   <div className="p-1.5 rounded-lg bg-primary/10"><DollarSign className="h-4 w-4 text-primary" /></div>
                   <span className="font-medium">{event.total_value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
