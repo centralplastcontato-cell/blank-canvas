@@ -1,167 +1,133 @@
-import { CalendarDays, CheckCircle2, CalendarClock, XCircle, TrendingUp, DollarSign, Handshake } from "lucide-react";
-import { getDaysInMonth, isBefore, startOfDay } from "date-fns";
+import { CalendarDays, CheckCircle2, CalendarClock, TrendingUp, DollarSign, Handshake, type LucideIcon } from "lucide-react";
+import { format, getDaysInMonth } from "date-fns";
+import { eventSummary, occupancy, type KpiEvent } from "@/lib/agendaKpis";
+import { cn } from "@/lib/utils";
 
 interface MonthSummaryCardsProps {
-  events: Array<{ status: string; total_value: number | null; event_date: string }>;
+  events: KpiEvent[];
   month?: Date;
   periodLabel?: string;
   totalDaysOverride?: number;
-  onClearPeriod?: () => void;
   showRevenue?: boolean;
-  closedInPeriod?: number;
-  closedRevenue?: number;
+  /** vendas fechadas no mês/período (pela data de fechamento) */
+  closed: { count: number; cancelled: number; revenue: number };
+  /** unidades para mostrar a ocupação de cada uma (só com "Todas as unidades") */
+  units?: string[];
 }
 
-export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverride, showRevenue = true, closedInPeriod = 0, closedRevenue = 0 }: MonthSummaryCardsProps) {
-  const total = events.length;
-  const cancelados = events.filter(e => e.status === "cancelado").length;
-  const activeEvents = events.filter(e => e.status !== "cancelado");
-  
-  const today = startOfDay(new Date());
-  const realizadas = activeEvents.filter(e => isBefore(new Date(e.event_date + "T23:59:59"), today)).length;
-  const aRealizar = activeEvents.filter(e => !isBefore(new Date(e.event_date + "T23:59:59"), today)).length;
+const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  // Revenue from events happening in the period (confirmed only)
-  const faturamentoAgendado = events
-    .filter(e => e.status === "confirmado")
-    .reduce((sum, e) => sum + (e.total_value || 0), 0);
+function Stat({ icon: Icon, tone, value, label, hint }: { icon: LucideIcon; tone: string; value: number; label: string; hint?: string }) {
+  return (
+    <div className="rounded-2xl border border-border/50 bg-card p-3 shadow-sm flex items-center gap-3 min-w-0">
+      <div className={cn("h-10 w-10 rounded-full flex items-center justify-center shrink-0", tone)}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-xl md:text-2xl font-extrabold tracking-tight leading-none">{value}</p>
+        <p className="text-xs font-medium text-muted-foreground mt-1 truncate">{label}</p>
+        {hint && <p className="text-[11px] text-muted-foreground/70 truncate">{hint}</p>}
+      </div>
+    </div>
+  );
+}
 
-  // Occupancy calculation
-  const currentMonth = month || new Date();
-  const totalDays = totalDaysOverride || getDaysInMonth(currentMonth);
-  const uniqueDaysWithEvents = new Set(activeEvents.map(e => e.event_date)).size;
-  const freeDays = totalDays - uniqueDaysWithEvents;
-  const occupancyRate = totalDays > 0 ? Math.round((uniqueDaysWithEvents / totalDays) * 100) : 0;
+function Money({ icon: Icon, tone, value, label, hint, extra }: { icon: LucideIcon; tone: string; value: number; label: string; hint: string; extra?: string }) {
+  return (
+    <div className="rounded-2xl border border-border/50 bg-card p-3 md:p-4 shadow-sm flex items-center gap-3 min-w-0">
+      <div className={cn("h-10 w-10 rounded-full flex items-center justify-center shrink-0", tone)}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+        <p className="text-lg md:text-xl font-extrabold tracking-tight leading-tight">{brl(value)}</p>
+        <p className="text-[11px] text-muted-foreground/80">{hint}</p>
+        {extra && <p className="text-[11px] font-medium text-amber-700 dark:text-amber-400">{extra}</p>}
+      </div>
+    </div>
+  );
+}
 
-  const cards = [
-    { label: "Total de Festas", value: total, icon: CalendarDays, color: "text-primary", bg: "bg-primary/10", border: "border-l-primary", tint: "bg-primary/[0.02]" },
-    { label: "Realizadas", value: realizadas, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-500/10", border: "border-l-emerald-500", tint: "bg-emerald-500/[0.02]" },
-    { label: "A Realizar", value: aRealizar, icon: CalendarClock, color: "text-sky-600", bg: "bg-sky-500/10", border: "border-l-sky-500", tint: "bg-sky-500/[0.02]" },
-    { label: "Canceladas", value: cancelados, icon: XCircle, color: "text-red-600", bg: "bg-red-500/10", border: "border-l-red-500", tint: "bg-red-500/[0.02]" },
-  ];
+// Números do topo da Agenda. As contas ficam em src/lib/agendaKpis.ts:
+// cancelada não conta como venda nem faturamento; permuta não tem faturamento.
+export function MonthSummaryCards({ events, month, periodLabel, totalDaysOverride, showRevenue = true, closed, units = [] }: MonthSummaryCardsProps) {
+  const inPeriod = !!periodLabel;
+  const s = eventSummary(events, format(new Date(), "yyyy-MM-dd"));
+  const totalDays = totalDaysOverride || getDaysInMonth(month || new Date());
+  const occ = occupancy(events, totalDays, units);
+  const when = inPeriod ? "no período" : "no mês";
 
   return (
-    <div className="space-y-4 animate-fade-up">
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        {cards.map((c) => (
-          <div
-            key={c.label}
-            className={`group relative rounded-2xl border border-border/40 border-l-[3px] ${c.border} ${c.tint} backdrop-blur-sm shadow-[0_4px_24px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-200 ease-out cursor-default overflow-hidden`}
-          >
-            <div className="p-4 md:p-5 flex items-start gap-3">
-              <div className={`p-2.5 rounded-xl ${c.bg} shrink-0 transition-transform duration-200 group-hover:scale-105`}>
-                <c.icon className={`h-5 w-5 ${c.color}`} />
-              </div>
-              <div className="min-w-0 flex flex-col">
-                <p className="text-2xl md:text-3xl font-extrabold tracking-tight leading-none">{c.value}</p>
-                <p className="text-[10px] md:text-[11px] text-muted-foreground/80 font-medium uppercase tracking-widest mt-1">{c.label}</p>
-              </div>
-            </div>
-          </div>
-        ))}
+    <div className="space-y-3 animate-fade-up">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-3">
+        <Stat
+          icon={CalendarDays}
+          tone="bg-primary/10 text-primary"
+          value={s.total}
+          label={inPeriod ? "Festas no período" : "Festas no mês"}
+          hint={s.canceladas > 0 ? `${s.canceladas} cancelada${s.canceladas > 1 ? "s" : ""}` : undefined}
+        />
+        <Stat icon={CheckCircle2} tone="bg-emerald-500/15 text-emerald-600" value={s.realizadas} label="Realizadas" hint="já passaram" />
+        <Stat icon={CalendarClock} tone="bg-sky-500/15 text-sky-600" value={s.aRealizar} label="A realizar" hint="de hoje em diante" />
+        <Stat
+          icon={Handshake}
+          tone="bg-violet-500/15 text-violet-600"
+          value={closed.count}
+          label={`Fechadas ${when}`}
+          hint={closed.cancelled > 0 ? `+${closed.cancelled} cancelada${closed.cancelled > 1 ? "s" : ""}` : "pela data da venda"}
+        />
       </div>
 
-      {/* Closed sales card */}
-      {closedInPeriod > 0 && (
-        <div className="rounded-2xl border border-border/30 border-l-[3px] border-l-violet-500 bg-violet-500/[0.02] shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 md:p-5">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-violet-500/10 shrink-0">
-              <Handshake className="h-5 w-5 text-violet-600" />
-            </div>
-            <div className="min-w-0 flex flex-col flex-1">
-              <p className="text-2xl md:text-3xl font-extrabold tracking-tight leading-none">
-                {closedInPeriod}
-              </p>
-              <p className="text-[10px] md:text-[11px] text-muted-foreground/80 font-medium uppercase tracking-widest mt-1">
-                {periodLabel ? "Fechadas no Período" : "Fechadas no Mês"}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Revenue cards - shown when permission allows */}
       {showRevenue && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-          {/* Revenue from closed deals (by data_fechamento_venda) */}
-          {closedRevenue > 0 && (
-            <div className="rounded-2xl border border-border/30 border-l-[3px] border-l-emerald-500 bg-emerald-500/[0.02] shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 md:p-5">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-emerald-500/10 shrink-0">
-                  <DollarSign className="h-5 w-5 text-emerald-600" />
-                </div>
-                <div className="min-w-0 flex flex-col">
-                  <p className="text-2xl md:text-3xl font-extrabold tracking-tight leading-none">
-                    {closedRevenue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                  </p>
-                  <p className="text-[10px] md:text-[11px] text-muted-foreground/80 font-medium uppercase tracking-widest mt-1">
-                    {periodLabel ? "Faturamento Fechado no Período" : "Faturamento Fechado no Mês"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Revenue from events happening in the period (confirmed) */}
-          {faturamentoAgendado > 0 && (
-            <div className="rounded-2xl border border-border/30 border-l-[3px] border-l-sky-500 bg-sky-500/[0.02] shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 md:p-5">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-sky-500/10 shrink-0">
-                  <CalendarDays className="h-5 w-5 text-sky-600" />
-                </div>
-                <div className="min-w-0 flex flex-col">
-                  <p className="text-2xl md:text-3xl font-extrabold tracking-tight leading-none">
-                    {faturamentoAgendado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                  </p>
-                  <p className="text-[10px] md:text-[11px] text-muted-foreground/80 font-medium uppercase tracking-widest mt-1">
-                    {periodLabel ? "Faturamento Agendado no Período" : "Faturamento Agendado no Mês"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 md:gap-3">
+          <Money
+            icon={DollarSign}
+            tone="bg-emerald-500/15 text-emerald-600"
+            value={closed.revenue}
+            label={`Faturamento fechado ${when}`}
+            hint="vendas fechadas, já sem a taxa do cartão"
+          />
+          <Money
+            icon={CalendarDays}
+            tone="bg-sky-500/15 text-sky-600"
+            value={s.agendadoConfirmado}
+            label={`Faturamento agendado ${when}`}
+            hint="festas confirmadas que acontecem nesse tempo"
+            extra={s.agendadoPendente > 0 ? `+ ${brl(s.agendadoPendente)} em festas pendentes` : undefined}
+          />
         </div>
       )}
 
-      {/* Occupancy Bar */}
-      <div className="rounded-2xl border border-border/30 bg-card shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 md:p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-primary/10">
-              <TrendingUp className="h-4 w-4 text-primary" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground/80 uppercase tracking-wider">
-                {periodLabel ? "Ocupação do Período" : "Ocupação do Mês"}
-              </p>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <span className="text-2xl font-extrabold tracking-tight">{occupancyRate}%</span>
-                <span className="text-xs text-muted-foreground/60">
-                  {uniqueDaysWithEvents} dias com evento · {freeDays} dias livres
-                </span>
-              </div>
-            </div>
+      {/* Ocupação */}
+      <div className="rounded-2xl border border-border/50 bg-card p-3 md:p-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <TrendingUp className="h-5 w-5" />
           </div>
-          <div className="flex items-center gap-4 text-xs text-muted-foreground/70">
-            <div className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              <span>{realizadas} realiz.</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-sky-400" />
-              <span>{aRealizar} a realiz.</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-red-400" />
-              <span>{cancelados} canc.</span>
-            </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold text-muted-foreground">{inPeriod ? "Ocupação do período" : "Ocupação do mês"}</p>
+            <p className="flex items-baseline gap-2 flex-wrap">
+              <span className="text-xl font-extrabold tracking-tight">{occ.rate}%</span>
+              <span className="text-xs text-muted-foreground">
+                {occ.days} dia{occ.days === 1 ? "" : "s"} com festa · {occ.freeDays} livre{occ.freeDays === 1 ? "" : "s"}
+              </span>
+            </p>
           </div>
         </div>
-        {/* Progress bar */}
-        <div className="mt-3 h-2 rounded-full bg-muted/50 overflow-hidden">
-          <div className="h-full rounded-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-500 ease-out" style={{ width: `${occupancyRate}%` }} />
+        <div className="mt-3 h-2 rounded-full bg-muted overflow-hidden">
+          <div className="h-full rounded-full bg-primary transition-all duration-500 ease-out" style={{ width: `${occ.rate}%` }} />
         </div>
+        {occ.byUnit.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {occ.byUnit.map((u) => (
+              <span key={u.unit} className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-foreground/80">
+                {u.unit}
+                <span className="font-bold text-foreground">{u.rate}%</span>
+                <span className="text-muted-foreground">({u.days} dia{u.days === 1 ? "" : "s"})</span>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

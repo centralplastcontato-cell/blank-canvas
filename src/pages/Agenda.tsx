@@ -44,7 +44,11 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { packageValueFromTotal, samePaymentPlan } from "@/lib/eventPaymentPlan";
 import { CLEARABLE_EVENT_CHILDREN, blockingTable } from "@/lib/eventDelete";
+import { closedSummary, netEventValue } from "@/lib/agendaKpis";
 
+
+/** Festa fechada no mês/período, com nome e telefone do lead */
+type ClosedEvent = CompanyEvent & { lead_name?: string; lead_phone?: string };
 
 /** O que aconteceu com as parcelas ao salvar a festa */
 type PaymentSyncResult = "ok" | "unchanged" | "partial_receipts" | "check_failed";
@@ -192,9 +196,10 @@ export default function Agenda() {
   const [periodRange, setPeriodRange] = useState<{ from: Date; to: Date } | null>(null);
   const [periodEvents, setPeriodEvents] = useState<CompanyEvent[]>([]);
   const [periodLoading, setPeriodLoading] = useState(false);
-  const [closedInPeriod, setClosedInPeriod] = useState(0);
-  const [closedRevenue, setClosedRevenue] = useState(0);
-  const [closedEvents, setClosedEvents] = useState<(CompanyEvent & { lead_name?: string; lead_phone?: string })[]>([]);
+  // Vendas fechadas do mês e do período ficam separadas: trocar o mês não apaga o
+  // período consultado, e limpar o período volta para o mês
+  const [monthClosedEvents, setMonthClosedEvents] = useState<ClosedEvent[]>([]);
+  const [periodClosedEvents, setPeriodClosedEvents] = useState<ClosedEvent[]>([]);
   const [contentMode, setContentMode] = useState<"agendadas" | "fechadas" | "pre-reservas">("agendadas");
   const [allPreReservations, setAllPreReservations] = useState<PreReservation[]>([]);
   const [closedSortBy, setClosedSortBy] = useState<"event_date" | "fechamento">("fechamento");
@@ -231,50 +236,8 @@ export default function Agenda() {
   }, [currentCompany?.id]);
 
   // Helper: compute net value (after card fees) from event's payment_details
-  const getNetValue = useCallback((ev: CompanyEvent): number => {
-    const gross = ev.total_value || 0;
-    if (gross <= 0 || agendaCardFees.length === 0 || !ev.payment_details) return gross;
-    const pd = ev.payment_details as any;
-    const operator = agendaCardFees[0];
-
-    const parseNum = (v: unknown): number => {
-      if (typeof v === "number") return v;
-      if (typeof v !== "string") return 0;
-      const cleaned = v.trim().replace(/R\$\s?/g, "").replace(/\s/g, "");
-      const normalized = cleaned.includes(",") ? cleaned.replace(/\./g, "").replace(",", ".") : cleaned;
-      return Number(normalized) || 0;
-    };
-
-    let totalFee = 0;
-
-    // Entrada card fee
-    if (pd.entrada_forma === "cartao" || pd.entrada_forma === "cartao_credito") {
-      const brut = parseNum(pd.entrada_valor);
-      if (brut > 0) {
-        const parcelas = Math.max(1, Number(pd.entrada_parcelas) || 1);
-        const taxa = Number(operator[`taxa_credito_${Math.min(parcelas, 12)}x`] || 0);
-        if (taxa > 0) totalFee += brut * taxa / 100;
-      }
-    } else if (pd.entrada_forma === "cartao_debito") {
-      const brut = parseNum(pd.entrada_valor);
-      if (brut > 0) totalFee += brut * Number(operator.taxa_debito || 0) / 100;
-    }
-
-    // Saldo card fee
-    if (pd.saldo_forma === "cartao" || pd.saldo_forma === "cartao_credito") {
-      const brut = parseNum(pd.saldo_valor);
-      if (brut > 0) {
-        const parcelas = Math.max(1, Number(pd.parcelas) || 1);
-        const taxa = Number(operator[`taxa_credito_${Math.min(parcelas, 12)}x`] || 0);
-        if (taxa > 0) totalFee += brut * taxa / 100;
-      }
-    } else if (pd.saldo_forma === "cartao_debito") {
-      const brut = parseNum(pd.saldo_valor);
-      if (brut > 0) totalFee += brut * Number(operator.taxa_debito || 0) / 100;
-    }
-
-    return Math.round((gross - totalFee) * 100) / 100;
-  }, [agendaCardFees]);
+  // Valor líquido (sem as taxas de cartão gravadas na festa)
+  const getNetValue = useCallback((ev: CompanyEvent): number => netEventValue(ev, agendaCardFees), [agendaCardFees]);
 
   const [formOpen, setFormOpen] = useState(false);
   // Pré-reserva sendo convertida em festa (marca "convertida" só depois de salvar)
@@ -409,6 +372,16 @@ export default function Agenda() {
     return searchResults.filter(ev => ev.status === searchStatusFilter);
   }, [searchResults, searchStatusFilter]);
 
+  const closedEvents = periodRange ? periodClosedEvents : monthClosedEvents;
+  // Ocupação por unidade: só com "Todas as unidades" e mais de uma unidade de festa
+  const occupancyUnits = useMemo(() => {
+    if (selectedUnit !== "all") return [];
+    const names = (canViewAll ? physicalUnits : physicalUnits.filter((u) => unitAccess[u.name]))
+      .map((u) => u.name)
+      .filter((n) => !n.toLowerCase().includes("vendas"));
+    return names.length > 1 ? names : [];
+  }, [selectedUnit, canViewAll, physicalUnits, unitAccess]);
+  const closedStats = useMemo(() => closedSummary(closedEvents, getNetValue), [closedEvents, getNetValue]);
   const sortedClosedEvents = useMemo(
     () => [...closedEvents].sort((a, b) => compareClosedEvents(a, b, closedSortBy)),
     [closedEvents, closedSortBy],
@@ -418,7 +391,8 @@ export default function Agenda() {
     const replaceEvent = (list: CompanyEvent[]) => list.map((event) => (event.id === updatedEvent.id ? updatedEvent : event));
 
     setEvents((prev) => replaceEvent(prev));
-    setClosedEvents((prev) => replaceEvent(prev));
+    setMonthClosedEvents((prev) => replaceEvent(prev));
+    setPeriodClosedEvents((prev) => replaceEvent(prev));
     setPeriodEvents((prev) => replaceEvent(prev));
     setSearchResults((prev) => prev.map((event) => (event.id === updatedEvent.id ? { ...event, ...updatedEvent } : event)));
     setDetailEvent((prev) => (prev?.id === updatedEvent.id ? { ...prev, ...updatedEvent } : prev));
@@ -442,8 +416,8 @@ export default function Agenda() {
   }, [navigate]);
 
   // Fetch events for current month
-  const fetchClosedInPeriod = useCallback(async (start: string, end: string, unit?: string): Promise<{ count: number; revenue: number; events: (CompanyEvent & { lead_name?: string; lead_phone?: string })[] }> => {
-    if (!currentCompany?.id) return { count: 0, revenue: 0, events: [] };
+  const fetchClosedInPeriod = useCallback(async (start: string, end: string, unit?: string): Promise<{ events: ClosedEvent[] }> => {
+    if (!currentCompany?.id) return { events: [] };
     let query = supabase
       .from("company_events")
       .select("*")
@@ -480,10 +454,8 @@ export default function Agenda() {
       return { ...ev, lead_name: lead?.name, lead_phone: lead?.whatsapp };
     });
 
-    const count = enriched.length;
-    const revenue = enriched.filter(e => !e.is_permuta).reduce((sum, e) => sum + getNetValue(e), 0);
-    return { count, revenue, events: enriched };
-  }, [currentCompany?.id, canViewAll, allowedUnits, shouldRestrictEventUnits, getNetValue]);
+    return { events: enriched };
+  }, [currentCompany?.id, canViewAll, allowedUnits, shouldRestrictEventUnits]);
 
   const initialLoadDone = useRef(false);
   const fetchEvents = useCallback(async () => {
@@ -518,9 +490,7 @@ export default function Agenda() {
 
     if (!eventsRes.error && eventsRes.data) setEvents(eventsList);
     if (!preResRes.error && preResRes.data) setPreReservations(preResRes.data as PreReservation[]);
-    setClosedInPeriod(closedResult?.count || 0);
-    setClosedRevenue(closedResult?.revenue || 0);
-    setClosedEvents(closedResult?.events || []);
+    setMonthClosedEvents(closedResult?.events || []);
 
     // Phase 2: scoped to current month's event ids only (was previously full-company)
     let checklistRes: any = { data: [] };
@@ -645,9 +615,7 @@ export default function Agenda() {
     const start = format(periodRange.from, "yyyy-MM-dd");
     const end = format(periodRange.to, "yyyy-MM-dd");
     fetchClosedInPeriod(start, end, selectedUnit).then(result => {
-      setClosedInPeriod(result?.count || 0);
-      setClosedRevenue(result?.revenue || 0);
-      setClosedEvents(result?.events || []);
+      setPeriodClosedEvents(result?.events || []);
     });
   }, [selectedUnit]);
 
@@ -668,9 +636,7 @@ export default function Agenda() {
       fetchClosedInPeriod(start, end, selectedUnit),
     ]);
     if (!eventsRes.error && eventsRes.data) setPeriodEvents(eventsRes.data as CompanyEvent[]);
-    setClosedInPeriod(closedResult?.count || 0);
-    setClosedRevenue(closedResult?.revenue || 0);
-    setClosedEvents(closedResult?.events || []);
+    setPeriodClosedEvents(closedResult?.events || []);
     setPeriodLoading(false);
   };
 
@@ -682,6 +648,7 @@ export default function Agenda() {
   const handlePeriodClear = () => {
     setPeriodRange(null);
     setPeriodEvents([]);
+    setPeriodClosedEvents([]);
   };
 
   // Auto-select unit based on permissions (and force "all" for sales-channel-only companies)
@@ -1425,8 +1392,8 @@ export default function Agenda() {
                     <TabsTrigger value="fechadas" className="flex-1 gap-1.5 text-xs font-semibold rounded-xl px-3 py-2 transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 data-[state=active]:scale-[1.02] data-[state=inactive]:bg-muted data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/80">
                       <Handshake className="h-3.5 w-3.5" />
                       Fechadas
-                      {closedInPeriod > 0 && (
-                        <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{closedInPeriod}</Badge>
+                      {closedStats.count > 0 && (
+                        <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{closedStats.count}</Badge>
                       )}
                     </TabsTrigger>
                     <TabsTrigger value="pre-reservas" className="flex-1 gap-1.5 text-xs font-semibold rounded-xl px-3 py-2 transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 data-[state=active]:scale-[1.02] data-[state=inactive]:bg-muted data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/80">
@@ -1634,8 +1601,8 @@ export default function Agenda() {
                       <TabsTrigger value="fechadas" className="px-6 py-3 gap-2 text-base font-semibold rounded-xl transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 data-[state=active]:scale-[1.02] data-[state=inactive]:bg-muted data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/80">
                         <Handshake className="h-4 w-4" />
                         Fechadas
-                        {closedInPeriod > 0 && (
-                          <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{closedInPeriod}</Badge>
+                        {closedStats.count > 0 && (
+                          <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{closedStats.count}</Badge>
                         )}
                       </TabsTrigger>
                       <TabsTrigger value="pre-reservas" className="px-6 py-3 gap-2 text-base font-semibold rounded-xl transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 data-[state=active]:scale-[1.02] data-[state=inactive]:bg-muted data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/80">
@@ -1854,8 +1821,8 @@ export default function Agenda() {
                   periodLabel={periodRange ? `${format(periodRange.from, "dd/MM/yyyy")} – ${format(periodRange.to, "dd/MM/yyyy")}` : undefined}
                   totalDaysOverride={periodRange ? differenceInDays(periodRange.to, periodRange.from) + 1 : undefined}
                   showRevenue={showRevenue}
-                  closedInPeriod={closedInPeriod}
-                  closedRevenue={closedRevenue}
+                  closed={closedStats}
+                  units={occupancyUnits}
                 />
               </div>
 
@@ -1867,7 +1834,12 @@ export default function Agenda() {
                     <div className="flex items-center justify-between gap-2 mb-4">
                       <div className="flex items-center gap-2">
                         <Handshake className="h-5 w-5 text-violet-600" />
-                        <h2 className="font-bold text-lg tracking-tight">Festas Fechadas ({closedEvents.length})</h2>
+                        <h2 className="font-bold text-lg tracking-tight">
+                          Festas Fechadas ({closedStats.count})
+                          {closedStats.cancelled > 0 && (
+                            <span className="ml-1.5 text-xs font-medium text-muted-foreground">+{closedStats.cancelled} cancelada{closedStats.cancelled > 1 ? "s" : ""}</span>
+                          )}
+                        </h2>
                       </div>
                       <Button
                         variant="outline"
@@ -1943,8 +1915,12 @@ export default function Agenda() {
                               )}
                               <div className="flex items-center justify-between mt-2">
                                 {showRevenue && ev.total_value != null && ev.total_value > 0 && (
-                                  <p className="text-sm font-bold text-foreground">
-                                    {getNetValue(ev).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                                  // Cancelada e permuta aparecem, mas não entram no total
+                                  <p className="text-sm">
+                                    <span className={cn("font-bold text-foreground", (ev.status === "cancelado" || ev.is_permuta) && "line-through text-muted-foreground font-medium")}>
+                                      {getNetValue(ev).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                                    </span>
+                                    {ev.is_permuta && <span className="ml-1 text-[10px] text-muted-foreground">(permuta)</span>}
                                   </p>
                                 )}
                                 {(ev as any).data_fechamento_venda && (
@@ -1960,7 +1936,7 @@ export default function Agenda() {
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-muted-foreground font-medium">Total faturado:</span>
                             <span className="font-bold text-foreground">
-                              {closedEvents.filter(e => !e.is_permuta).reduce((sum, e) => sum + getNetValue(e), 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                              {closedStats.revenue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                             </span>
                           </div>
                         </div>}

@@ -220,7 +220,17 @@ O dono aprovou: parte 1 (financeiro e erros graves), parte 2 (números certos), 
   - modelos de tarefa por festa escondidos, porque nunca criaram tarefas.
 - **Aba Geral:** a festa aberta por ela tem contrato, WhatsApp, editar e excluir funcionando.
 
-**Funções a publicar depois do merge:** `visit-confirmation` e `pre-reservation-expiry`.
+**Funções publicadas (09/10):** `visit-confirmation` e `pre-reservation-expiry`.
+
+**Parte 2 (números do topo):** as contas ficam em `src/lib/agendaKpis.ts`.
+- **Fechadas e faturamento fechado:**
+  - festa cancelada não conta e aparece como "+N cancelada";
+  - permuta conta como venda, mas sem faturamento.
+- **Líquido:** usa a taxa de cartão gravada na festa (`saldo_taxa_percent` / `entrada_taxa_percent`); sem ela, a operadora da festa; sem ela, a primeira operadora da empresa.
+- **Faturamento agendado:** festas confirmadas do mês (bruto, sem permuta), com uma linha "+ R$ X em festas pendentes".
+- **Ocupação:** com "Todas as unidades", mostra também a de cada unidade.
+- **Período:** as vendas do mês e as do período ficam separadas. Trocar o mês ou a unidade não estraga mais o período, e limpar volta para o mês.
+- **Atalhos de período:** "Semestre atual" vai de janeiro a junho ou de julho a dezembro (`src/lib/periodPresets.ts`).
 
 **Números em 09/10:**
 - 404 festas passadas ainda como confirmado/pendente (ninguém marca "realizada").
