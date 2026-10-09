@@ -40,3 +40,9 @@ Deno.test("trava da IA: pode gravar o link curto do cadastro de candidatos", () 
 Deno.test("trava da IA: pode marcar que o cliente respondeu a confirmação da visita", () => {
   assertEquals(AI_WRITABLE_TABLES.has("visit_confirmation_history"), true);
 });
+
+Deno.test("trava da IA: análise semanal grava só as tabelas dela", () => {
+  assertEquals(AI_WRITABLE_TABLES.has("lead_insights"), true);
+  assertEquals(AI_WRITABLE_TABLES.has("weekly_insight_runs"), true);
+  assertEquals(AI_WRITABLE_TABLES.has("company_events"), false);
+});
