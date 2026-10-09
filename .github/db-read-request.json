@@ -1,1 +1,1 @@
-{"sql": "SELECT i.unit, i.status AS conexao, m.message_type, m.status, count(*) AS n, max(m.timestamp AT TIME ZONE 'America/Sao_Paulo') AS ultima FROM wapi_messages m JOIN wapi_conversations c ON c.id = m.conversation_id JOIN wapi_instances i ON i.id = c.instance_id WHERE i.company_id = 'a0000000-0000-0000-0000-000000000001' AND m.from_me AND m.timestamp > now() - interval '3 hours' GROUP BY 1,2,3,4 ORDER BY 1,3,4"}
+{"sql": "SELECT count(*) FILTER (WHERE jobname = 'monthly-review-generator') AS revisao_mensal,\n       count(*) AS total_agendamentos\nFROM cron.job"}

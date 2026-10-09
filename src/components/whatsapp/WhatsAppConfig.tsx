@@ -103,7 +103,9 @@ export function WhatsAppConfig({ userId, isAdmin, isGestor = false }: WhatsAppCo
   // Set initial active section when permissions load
   useEffect(() => {
     if (!isLoading && configSections.length > 0 && !activeSection) {
-      setActiveSection(configSections[0].id);
+      // ?secao=connection (alerta de número sem entregar abre direto a conexão)
+      const wanted = new URLSearchParams(window.location.search).get("secao");
+      setActiveSection(configSections.some((s) => s.id === wanted) ? (wanted as string) : configSections[0].id);
     }
   }, [isLoading, configSections, activeSection]);
 
