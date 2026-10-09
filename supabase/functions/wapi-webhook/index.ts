@@ -1,7 +1,7 @@
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { detectAndPauseBotLoop, isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { normalizeJid, type NormalizedJid } from "../_shared/jid-normalizer.ts";
-import { isAiTestPhoneFor, maybeHandleWithAiAgent } from "./ai-agent.ts";
+import { isAiOnlyInstance, isAiTestPhoneFor, maybeHandleWithAiAgent } from "./ai-agent.ts";
 import { AI_ACTOR, AI_ACTOR_HEADER } from "./ai-db-guard.ts";
 
 // Cliente próprio da IA: o cabeçalho x-celebrei-actor deixa o banco recusar
@@ -6489,7 +6489,26 @@ async function processWebhookEvent(body: JsonRecord) {
               break;
             }
           } catch (aiErr) {
-            console.error('[AI Agent] hook error (fallback to fixed bot):', aiErr);
+            console.error('[AI Agent] hook error:', aiErr);
+          }
+
+          // Número com a IA (sem o modo "só o número de teste"): o bot fixo não
+          // conversa. Se a IA não respondeu é porque a conversa está com a equipe.
+          if (await isAiOnlyInstance(aiAgentDb(), instance as any)) {
+            console.log(`[Bot] Número ${instance.unit} é da IA — bot fixo não responde (conv ${conv.id}, passo ${conv.bot_step})`);
+            fireTrace(supabase, 'bot_dispatch', {
+              tracking_id: rawWebhookEventId,
+              provider: instance.provider || null,
+              instance_id: instance.instance_id || null,
+              company_id: instance.company_id || null,
+              conversation_id: conv.id,
+              message_id: typeof msgId === 'string' ? msgId : (msgId ? String(msgId) : null),
+              phone,
+              direction: 'incoming',
+              status: 'skipped',
+              payload_summary: { reason: 'ai_only_instance', bot_step: conv.bot_step },
+            });
+            break;
           }
 
           const recoveredStep = shouldRecoverAccidentalHumanTakeover(instance.provider, conv);

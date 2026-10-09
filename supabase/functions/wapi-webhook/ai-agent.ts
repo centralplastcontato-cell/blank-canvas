@@ -466,82 +466,52 @@ async function notifyTeam(
 
 // Decide (uma única vez por conversa) se a IA pode assumir. O resultado fica
 // gravado em bot_data.ai_agent ('on'/'off') para não reavaliar a cada mensagem.
-// Já mandamos alguma mensagem nesta conversa (bot fixo, equipe ou IA)?
-async function hasOutgoingMessage(supabase: any, convId: string): Promise<boolean> {
-  const { data, error } = await supabase
-    .from('wapi_messages')
-    .select('id')
-    .eq('conversation_id', convId)
-    .eq('from_me', true)
-    .limit(1);
-  if (error) return true; // na dúvida, não rouba a conversa do bot fixo
-  return (data || []).length > 0;
-}
-
+/**
+ * A IA assume a conversa? Regra (pedido do dono): no número com a IA ligada,
+ * ONDE O BOT FIXO RESPONDERIA, QUEM RESPONDE É A IA — conversa nova, cliente
+ * antigo voltando, bot fixo no meio da qualificação ou lead do site. Onde o
+ * bot fixo já não responderia (a equipe assumiu ou desligou o bot naquela
+ * conversa), a IA também fica de fora: quem conversa é a equipe.
+ * "on" é definitivo; antes havia "off" definitivo (regras antigas de "só leads
+ * novos") — agora é reavaliado a cada mensagem.
+ */
 async function isEligible(
   supabase: any,
-  settings: AiSettings,
+  _settings: AiSettings,
   conv: AgentConv,
-  phone: string,
-  companyId: string,
+  _phone: string,
+  _companyId: string,
 ): Promise<boolean> {
   const botData = (conv.bot_data || {}) as Json;
   if (botData.ai_agent === 'on') return true;
-  if (botData.ai_agent === 'off') {
-    console.log(`[AI Agent] Conversa ${conv.id} já tinha sido marcada como não-elegível antes (decisão não é reavaliada a cada mensagem)`);
+
+  // Mesma regra do bot fixo: bot desligado na conversa (fora o lead do site
+  // aguardando resposta) = a equipe está com ela
+  const botWouldReply = conv.bot_step === 'lp_sent' || (conv.bot_enabled !== false && conv.bot_step !== 'human_takeover');
+  if (!botWouldReply) {
+    console.log(`[AI Agent] Conversa ${conv.id} com a equipe (bot desligado, passo "${conv.bot_step}") — IA não entra`);
     return false;
   }
 
-  const activatedAt = settings.activated_at ? new Date(settings.activated_at).getTime() : 0;
-  const convCreatedAt = conv.created_at ? new Date(conv.created_at).getTime() : 0;
-
-  let eligible = true;
-  let reason = '';
-
-  // Só conversas criadas depois da ativação da IA
-  if (!activatedAt || !convCreatedAt || convCreatedAt < activatedAt) {
-    eligible = false;
-    reason = `conversa criada em ${conv.created_at ?? '?'}, IA ligada em ${settings.activated_at ?? '?'}`;
-  }
-
-  // Bot fixo já engajado no meio de uma qualificação: não rouba a conversa.
-  // "welcome" sem nenhuma mensagem nossa ainda é só a conversa recém-criada
-  // (toda conversa nova nasce assim): o bot fixo não falou nada — é da IA.
-  // Antes isso barrava todo cliente novo que chegava direto pelo WhatsApp.
-  const untouchedWelcome = conv.bot_step === 'welcome' && !(await hasOutgoingMessage(supabase, conv.id));
-  if (eligible && conv.bot_step && conv.bot_step !== 'lp_sent' && conv.bot_step !== AI_STEP && !untouchedWelcome) {
-    eligible = false;
-    reason = `conversa já estava no passo "${conv.bot_step}" do bot fixo`;
-  }
-
-  // Lead antigo (criado antes da ativação, já trabalhado ou com orçamento): fora
-  if (eligible) {
-    const variants = getPhoneVariantsBR(phone);
-    const { data: leads } = await supabase
-      .from('campaign_leads')
-      .select('id, status, created_at')
-      .eq('company_id', companyId)
-      .in('whatsapp', variants)
-      .limit(10);
-    for (const lead of (leads || []) as Array<{ id: string; status: string; created_at: string }>) {
-      const leadCreated = new Date(lead.created_at).getTime();
-      const oldLead = leadCreated < activatedAt;
-      const workedStatus = !['novo', 'em_contato'].includes(lead.status);
-      if (oldLead || workedStatus) {
-        eligible = false;
-        reason = `lead ${lead.id} (status "${lead.status}", criado em ${lead.created_at}) é anterior à IA ou já foi trabalhado`;
-        break;
-      }
-    }
-  }
-
-  console.log(`[AI Agent] Avaliação de elegibilidade da conversa ${conv.id}: ${eligible ? 'ELEGÍVEL' : `NÃO elegível — ${reason}`}`);
-
-  // Grava a decisão
-  const newBotData = { ...(conv.bot_data || {}), ai_agent: eligible ? 'on' : 'off' } as Json;
+  console.log(`[AI Agent] Conversa ${conv.id}: a IA assume (passo anterior "${conv.bot_step ?? 'novo'}")`);
+  const newBotData = { ...(conv.bot_data || {}), ai_agent: 'on' } as Json;
   await supabase.from('wapi_conversations').update({ bot_data: newBotData }).eq('id', conv.id);
   conv.bot_data = newBotData;
-  return eligible;
+  return true;
+}
+
+/**
+ * Número em que só a IA conversa: IA ligada para ele e o "Só esse número fala
+ * com a IA" desligado. Nesses números o bot fixo nunca responde nem manda os
+ * lembretes dele (com o modo de teste ligado, o bot fixo segue com os outros
+ * clientes, como antes).
+ */
+export async function isAiOnlyInstance(supabase: any, instance: AgentInstance): Promise<boolean> {
+  if (!instance.company_id || !instance.unit) return false;
+  const settings = await loadSettings(supabase, instance.company_id);
+  if (!settings?.enabled || settings.test_mode_enabled) return false;
+  if (!aiUnitFor(settings, instance.unit)) return false;
+  return loadAiConversationalEnabled(supabase, instance.company_id);
 }
 
 interface PromptContext {
