@@ -91,7 +91,23 @@ Método seguido: levantamento → uso real no banco → lista manter/consertar/s
   - Removidos: 7 páginas sem rota, 13 componentes sem uso, 65 imagens/vídeos sem uso e o `_shared/template-resolver.ts` duplicado.
   - Menu do Hub no celular igual ao do computador.
 
-**Pendências do dono:**
+- **Nova Inteligência (09/10):**
+  - **Passo 1 (#196):** escondidas as abas que não funcionavam; `lead-summary` e `monthly-review` passaram a exigir login.
+  - **Passo 2 (#198 e #202):**
+    - aviso "A visita aconteceu?" na Central de Atendimento;
+    - aba Relatórios com as contas certas e a tabela por canal;
+    - aba "Precisam de atenção".
+  - **Passo 3 (#200):** aba "Por que não fechou" com IA, a função `weekly-insights` e o módulo "Inteligência com IA" (só no Castelo; o SQL foi rodado).
+  - **Radar (#201):** escondido, porque travava com muitos leads.
+- **Registros técnicos (conferido em 09/10):**
+  - `wapi_webhook_raw_events` caiu de 835 mil para 103 mil linhas;
+  - `message_trace_logs` caiu de 2,1 milhões para 1 milhão.
+  - O banco segue em 5 GB porque o espaço só volta com `VACUUM FULL` (opcional, de madrugada, com o dono). Ele parou de crescer.
+
+**Pendências do dono (conferidas em 09/10: ainda não feitas):**
+- [ ] Rodar o SQL `20261009150000_desliga_revisao_mensal.sql`. Ele desliga o cron `monthly-review-generator`, que falharia todo dia 1º porque a função agora exige login.
+- [ ] Inteligência → Motivos → **"Analisar agora"**: a primeira análise ainda não rodou. Depois de ver o resultado, aprovar o SQL do agendamento de segunda do `weekly-insights` (ainda não escrito).
+- [ ] VENDAS 1 mostrava "Sessão incompleta" na Central: tocar em Reparar ou Reconectar.
 - [ ] Hub → Empresas → Castelo → Módulos: desligar **Construtor de fluxos** (parado desde fev) e **Empresa Parceira**.
 - [ ] Desativar **Espaço Carrossel** (não é mais cliente) e **INFESTA** (nunca foi) no Hub. **Hub Celebrei NÃO se apaga:** é o site central (conexão do WhatsApp, materiais).
 - [ ] Ver se o número do Carrossel ainda é pago na W-API e se o domínio `www.espacocarrossel.online` ainda está na Vercel.
@@ -101,11 +117,24 @@ Método seguido: levantamento → uso real no banco → lista manter/consertar/s
   - Por isso o cron `reinforce-webhooks-30min` provavelmente nunca autenticou.
   - O conserto é do dono, no painel (Vault). Também há 2 segredos-lixo ("SUA_CHAVE_AQUI", "SUA_SERVICE_ROLE_KEY_AQUI").
 
-**Rodada final (a partir de ~15/10/2026, se nada reclamar):**
-- Apagar de vez as 8 funções desativadas (pasta + `supabase functions delete`) e as entradas delas no `config.toml`.
-- Apagar `AlertsPanel` + função `smart-alerts`.
-- Apagar `SupportChatbot` + função `support-chat`.
-- Com aprovação do dono, apagar as empresas Carrossel e INFESTA. Elas só têm 3 leads antigos, 1 usuário cada e o número do Carrossel parado.
+**Rodada final (a partir de ~15/10/2026, se nada reclamar e com o OK do dono no dia):**
+Lista conferida em 09/10. Nada disso é usado por tela nenhuma nem por agendamento: o único agendamento é o `monthly-review-generator`, que o SQL acima desliga.
+
+Apagar a pasta e a entrada no `config.toml` destas **12 funções**:
+- as 8 desativadas: `rescue-orphan-leads`, `fix-exif-rotation`, `upload-carrossel-photos`, `migrate-aventura-images`, `migrate-castelo-materials`, `link-orphan-conversations`, `scd-discover`, `fix-text`;
+- as das telas escondidas: `smart-alerts` (painel de alertas), `support-chat` (chat de suporte), `monthly-review` (revisão mensal) e `daily-summary` (Resumo do Dia).
+- Para tirá-las do Supabase, criar um workflow `delete-functions.yml` (manual, com uma confirmação) que roda `supabase functions delete`. Hoje só existe o de publicar.
+- **Manter:** `lead-summary`, que a ficha do lead no CRM usa (`LeadDetailSheet`). Os nomes em `HubAIUsage.tsx` são só rótulos do histórico de custo e podem ficar.
+
+Apagar estes **24 arquivos de tela**, que ficaram sem uso:
+- `src/components/admin/MonthlyReviewBanner.tsx`;
+- `src/components/support/SupportChatbot.tsx`;
+- em `src/components/inteligencia/`: `AlertsPanel`, `FollowUpLeadDetailSheet`, `FollowUpsTab`, `FunilTab`, `GuiaInteligenciaDialog`, `InlineAISummary`, `LeadsDoDiaTab`, `NegociacoesParadasTab`, `PrioridadesTab`, `ResponseTimeCard`, `ResumoDiarioTab`, `SalesPriorities`, `ScoreBadge`, `TemperatureBadge`;
+- em `src/hooks/`: `useDailySummary`, `useLeadIntelligence`, `useLeadJourneyTimes`, `useLeadStageDurations`, `useMonthlyReview`, `useNegociacoesParadas`, `useResponseTime`, `useScoreSnapshots`.
+
+Ainda com o dono:
+- Com aprovação dele, apagar as empresas Carrossel e INFESTA. Elas só têm 3 leads antigos, 1 usuário cada e o número do Carrossel parado.
+- Mais adiante (passo 4 da Inteligência): desligar os gatilhos da pontuação antiga (`recalculate_lead_score`, fotos de score, avisos de temperatura). Eles usam campos do robô antigo e só pesam no banco.
 - Depois que o cofre estiver certo: fazer o cron `weekly-data-backup` usar a chave de serviço do cofre (hoje usa a chave pública) e fechar a geração de backup de "todas as empresas" só para essa chave.
 
 **Achados para depois (não urgentes):**
