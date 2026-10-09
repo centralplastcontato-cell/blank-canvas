@@ -34,6 +34,7 @@ import { waitForMediaAck } from "../_shared/media-ack.ts";
 import { airyParagraphs, spaceHighlightList, fixWeekdays, hoursForWhatsApp, markTodayTomorrow, moneyWithCents, weekdayMismatches, formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
 import { guardAiDb } from "./ai-db-guard.ts";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
+import { aiUnitFor, aiUnits } from "../_shared/ai-units.ts";
 import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
 import { buildCandidateLink, candidateName, inviteCode, shortCandidateLink, withCandidateLink } from "../_shared/ai-candidate.ts";
 import { findPromotion, promoMentions, promoNote } from "../_shared/promo.ts";
@@ -253,7 +254,7 @@ export async function isAiTestPhoneFor(supabase: any, instance: AgentInstance, p
   if (!instance.company_id || !instance.unit) return false;
   const settings = await loadSettings(supabase, instance.company_id);
   if (!settings?.enabled) return false;
-  if ((settings.unit || '').trim().toLowerCase() !== instance.unit.trim().toLowerCase()) return false;
+  if (!aiUnitFor(settings, instance.unit)) return false;
   if (!(await loadAiConversationalEnabled(supabase, instance.company_id))) return false;
   return isAiTestNumber(settings, phone);
 }
@@ -261,7 +262,8 @@ export async function isAiTestPhoneFor(supabase: any, instance: AgentInstance, p
 const teamHoursOf = (settings: AiSettings): ParsedHours =>
   parseVisitHours(teamHoursText(settings.team_hours));
 
-// Visitas já marcadas na unidade (um horário = uma visita)
+// Visitas já marcadas (um horário = uma visita). Todos os números da empresa
+// atendem o mesmo espaço: a visita marcada por qualquer número ocupa o horário.
 // excludeLeadId: a visita do próprio cliente nunca conta como conflito para ele
 async function loadBookedSlots(supabase: any, instance: AgentInstance, excludeLeadId?: string | null): Promise<Set<string>> {
   const today = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
@@ -275,7 +277,6 @@ async function loadBookedSlots(supabase: any, instance: AgentInstance, excludeLe
   const booked = new Set<string>();
   for (const v of (data || []) as Array<{ data_visita: string; horario_visita: string | null; unit: string | null; lead_id?: string | null }>) {
     if (excludeLeadId && v.lead_id === excludeLeadId) continue;
-    if (v.unit && instance.unit && v.unit.trim().toLowerCase() !== instance.unit.trim().toLowerCase()) continue;
     const t = normalizeTime(v.horario_visita || '');
     if (t) booked.add(slotKey({ date: String(v.data_visita).slice(0, 10), time: t }));
   }
@@ -2010,10 +2011,14 @@ export async function maybeHandleWithAiAgent(
       console.log(`[AI Agent] Módulo IA Conversacional desligado no Hub para a empresa ${instance.company_id} — pulando`);
       return false;
     }
-    if ((settings.unit || '').trim().toLowerCase() !== (instance.unit || '').trim().toLowerCase()) {
-      console.log(`[AI Agent] IA configurada para "${settings.unit}", mensagem chegou em "${instance.unit}" — pulando`);
+    // Números com a IA (principal + outros liberados), cada um com a sua data de liberação
+    const aiUnit = aiUnitFor(settings, instance.unit);
+    if (!aiUnit) {
+      console.log(`[AI Agent] IA configurada para "${aiUnits(settings).map((u) => u.unit).join(', ')}", mensagem chegou em "${instance.unit}" — pulando`);
       return false;
     }
+    // "Só conversas novas" conta a partir da liberação DESTE número
+    settings = { ...settings, activated_at: aiUnit.activated_at };
 
     // Modo de Teste da IA: enquanto ligado, ela só conversa com este número.
     // Para qualquer outro, devolve false e a conversa segue com o bot fixo

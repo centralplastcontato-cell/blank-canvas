@@ -4,6 +4,7 @@
 // não mandar mensagem por cima da Bia.
 
 import { isAiConversationalEnabled } from "./ai-module.ts";
+import { aiUnitFor } from "./ai-units.ts";
 import { type AiFollowUpConfig, normalizeFollowUpConfig, partyReference } from "./ai-followup.ts";
 import { phoneVariantsBR } from "./ai-site-lead.ts";
 
@@ -12,7 +13,6 @@ type Db = any;
 // deno-lint-ignore no-explicit-any
 type Json = Record<string, any>;
 
-const norm = (s: string | null | undefined) => String(s || "").trim().toLowerCase();
 
 export interface AiTarget {
   settings: Json;
@@ -38,7 +38,7 @@ export async function loadAiJourneyTargets(supabase: Db, companyId?: string): Pr
       .eq("company_id", s.company_id);
     if (iErr) throw new Error(`wapi_instances: ${iErr.message}`);
     for (const inst of (instances || []) as Json[]) {
-      if (norm(inst.unit) === norm(s.unit)) out.push({ settings: s, instance: inst, companyName: String(company?.name || "buffet") });
+      if (aiUnitFor(s, inst.unit as string)) out.push({ settings: s, instance: inst, companyName: String(company?.name || "buffet") });
     }
   }
   return out;
