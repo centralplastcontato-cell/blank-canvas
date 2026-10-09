@@ -7,6 +7,7 @@
 // deno-lint-ignore-file no-explicit-any
 
 import { loadAiConversationalEnabled } from "./ai-module.ts";
+import { aiUnitFor } from "./ai-units.ts";
 import { formatDateLong } from "./whatsapp-format.ts";
 
 export interface SiteLeadInfo {
@@ -146,7 +147,8 @@ export async function aiTakesSiteLead(
   if (!instance?.company_id || !instance.unit) return no("instância sem empresa/unidade");
   const { data: settings } = await supabase.from("ai_agent_settings").select("*").eq("company_id", instance.company_id).maybeSingle();
   if (!settings?.enabled) return no("IA desligada");
-  if (String(settings.unit || "").trim().toLowerCase() !== String(instance.unit).trim().toLowerCase()) return no("IA é de outra unidade");
+  const aiUnit = aiUnitFor(settings, instance.unit);
+  if (!aiUnit) return no("IA é de outra unidade");
   if (!(await loadAiConversationalEnabled(supabase, instance.company_id))) return no("módulo da IA desligado no Hub");
 
   // Modo de teste do bot fixo com outro número: a IA também não entra (igual ao webhook)
@@ -161,7 +163,8 @@ export async function aiTakesSiteLead(
   const intro = { assistantName: String(settings.assistant_name || "").trim(), introImageUrl: cleanIntroImage(settings.intro_image_url) };
   if (isTestPhone) return { take: true, companyName, reason: "número de teste da IA", ...intro };
 
-  const activatedAt = settings.activated_at ? Date.parse(settings.activated_at) : 0;
+  // Data de liberação deste número
+  const activatedAt = aiUnit.activated_at ? Date.parse(aiUnit.activated_at) : 0;
   if (!activatedAt) return no("IA sem data de ativação");
   const variants = phoneVariantsBR(phone);
   const { data: convs } = await supabase.from("wapi_conversations")

@@ -235,7 +235,6 @@ async function loadKnowledge(companyId: string): Promise<string> {
     .eq("company_id", companyId).gte("data_visita", today).in("status_visita", ["agendada", "confirmada", "remarcada"]).limit(1000);
   const booked = new Set<string>();
   for (const v of (visits || []) as any[]) {
-    if (v.unit && settings?.unit && String(v.unit).trim().toLowerCase() !== String(settings.unit).trim().toLowerCase()) continue;
     const t = normalizeTime(v.horario_visita || "");
     if (t) booked.add(slotKey({ date: String(v.data_visita).slice(0, 10), time: t }));
   }

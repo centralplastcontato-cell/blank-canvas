@@ -78,6 +78,13 @@ interface AiAgentSettings {
   // Apresentação: nome da assistente e a arte dela (vai na 1ª mensagem)
   assistant_name?: string | null;
   intro_image_url?: string | null;
+  // Outros números com a IA, cada um com a sua data de liberação (só clientes novos dali em diante)
+  extra_units?: ExtraUnit[] | null;
+}
+
+interface ExtraUnit {
+  unit: string;
+  activated_at: string;
 }
 
 // Etapa de follow-up na tela (prazo em horas ou dias)
@@ -106,7 +113,7 @@ function modelLabel(id: string): string {
 
 // Banco ainda sem as colunas novas (migration não rodada)
 function isMissingNewColumn(error: { message?: string } | null): boolean {
-  return !!error?.message && /test_model|team_hours|handoff_alert|party_slots|closed_periods|followup_config|assistant_name|intro_image_url/.test(error.message);
+  return !!error?.message && /test_model|team_hours|handoff_alert|party_slots|closed_periods|followup_config|assistant_name|intro_image_url|extra_units/.test(error.message);
 }
 
 const DEFAULT_VISIT_HOURS = "Segunda a sexta, das 10:00 às 17:00, de meia em meia hora";
@@ -373,6 +380,8 @@ export function AiAgentSection() {
       followup_config: next.followup_config ?? null,
       assistant_name: next.assistant_name ?? null,
       intro_image_url: next.intro_image_url ?? null,
+      // Só manda quando o banco já tem a coluna (veio na leitura)
+      ...(next.extra_units !== undefined ? { extra_units: next.extra_units ?? [] } : {}),
       updated_at: new Date().toISOString(),
     };
     const save = (body: Record<string, unknown>, columns: string) => (supabase as any)
@@ -383,7 +392,7 @@ export function AiAgentSection() {
     let { data, error } = await save(payload, "*");
     if (error && isMissingNewColumn(error)) {
       // Banco sem as colunas novas: salva o resto e avisa que falta a atualização
-      const { test_model: _t, team_hours: _h, handoff_alert_minutes: _m, handoff_alert_phone: _p, party_slots: _s, closed_periods: _c, followup_config: _f, assistant_name: _n, intro_image_url: _i, ...withoutNew } = payload;
+      const { test_model: _t, team_hours: _h, handoff_alert_minutes: _m, handoff_alert_phone: _p, party_slots: _s, closed_periods: _c, followup_config: _f, assistant_name: _n, intro_image_url: _i, extra_units: _x, ...withoutNew } = payload;
       ({ data, error } = await save(withoutNew, BASE_COLUMNS));
       if (!error) {
         data = { ...data, test_model: null };
@@ -428,6 +437,27 @@ export function AiAgentSection() {
         description: checked
           ? `A IA vai atender leads novos no ${saved.unit}.`
           : "As conversas voltam para a equipe / bot padrão.",
+      });
+    }
+  };
+
+  // Liga/desliga a IA em outro número. Ligar marca "a partir de agora": a IA só
+  // pega os clientes novos desse número, não entra nas conversas em andamento.
+  const toggleExtraUnit = async (unit: string, on: boolean) => {
+    if (!settings) return;
+    if (settings.extra_units === undefined) {
+      toast({ title: "Falta atualizar o banco", description: "Rode o SQL dos outros números da IA e tente de novo.", variant: "destructive" });
+      return;
+    }
+    const others = (settings.extra_units || []).filter((e) => e.unit !== unit);
+    const extra_units = on ? [...others, { unit, activated_at: new Date().toISOString() }] : others;
+    const saved = await persist({ extra_units });
+    if (saved) {
+      toast({
+        title: on ? `IA ligada no ${unit}` : `IA desligada no ${unit}`,
+        description: on
+          ? "Ela atende os clientes novos desse número a partir de agora. As conversas em andamento continuam como estão."
+          : "As conversas novas desse número voltam para o bot padrão e a equipe.",
       });
     }
   };
@@ -607,7 +637,7 @@ export function AiAgentSection() {
         </div>
         <div className="mt-auto pt-1 flex items-center justify-between gap-2">
           {settings.enabled ? (
-            <span className="text-[11px] font-extrabold tracking-wide text-green-700 bg-green-500/15 rounded-full px-3 py-1">EM USO · {settings.unit}</span>
+            <span className="text-[11px] font-extrabold tracking-wide text-green-700 bg-green-500/15 rounded-full px-3 py-1">EM USO · {[settings.unit, ...(settings.extra_units || []).map((e) => e.unit)].filter(Boolean).join(" + ")}</span>
           ) : (
             <span className="text-[11px] font-extrabold tracking-wide text-muted-foreground bg-muted rounded-full px-3 py-1">DESLIGADA</span>
           )}
@@ -712,6 +742,37 @@ export function AiAgentSection() {
                       <p className="text-[11px] text-muted-foreground">Desligue a IA para trocar o número.</p>
                     )}
                   </div>
+                  {settings.unit && units.some((u) => u !== settings.unit) && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold">Outros números com a IA</Label>
+                      <p className="text-[11px] text-muted-foreground">
+                        Ligue um de cada vez. A IA só atende os clientes novos desse número a partir do momento em que você ligar — as conversas em andamento continuam com o bot e a equipe. Salva na hora.
+                      </p>
+                      <div className="space-y-1.5">
+                        {units.filter((u) => u !== settings.unit).map((u) => {
+                          const extra = (settings.extra_units || []).find((e) => e.unit === u);
+                          return (
+                            <div key={u} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2 shadow-sm">
+                              <div className="min-w-0">
+                                <p className="text-sm font-bold">{u}</p>
+                                <p className="text-[11px] text-muted-foreground">
+                                  {extra
+                                    ? `IA atendendo clientes novos desde ${new Date(extra.activated_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`
+                                    : "Só bot padrão e equipe"}
+                                </p>
+                              </div>
+                              <Switch
+                                checked={!!extra}
+                                onCheckedChange={(on) => toggleExtraUnit(u, on)}
+                                disabled={saving}
+                                aria-label={`IA no ${u}`}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   <div className="space-y-1.5">
                     <Label className="text-xs font-bold">Dias em que ela pode oferecer visita</Label>
                     <div className="flex flex-wrap gap-1.5">

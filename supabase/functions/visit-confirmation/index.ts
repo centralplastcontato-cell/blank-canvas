@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
+import { aiUnitFor } from "../_shared/ai-units.ts";
 import {
   AI_CONFIRMATION_STYLE,
   bookedRecently,
@@ -188,12 +189,10 @@ Deno.serve(async (req) => {
         // IA atendendo nesta empresa: em qual unidade (a confirmação sai no tom dela)
         const { data: aiSettings } = await supabase
           .from("ai_agent_settings")
-          .select("enabled, unit")
+          .select("*")
           .eq("company_id", companyId)
           .maybeSingle();
-        const aiUnit = aiSettings?.enabled && aiSettings?.unit && (await loadAiConversationalEnabled(supabase, companyId))
-          ? String(aiSettings.unit).trim().toLowerCase()
-          : null;
+        const aiOn = !!aiSettings?.enabled && (await loadAiConversationalEnabled(supabase, companyId));
 
         const { data: instances } = await supabase
           .from("wapi_instances")
@@ -310,7 +309,7 @@ Deno.serve(async (req) => {
 
             // Conversa que a IA está atendendo: confirmação no tom dela, sem
             // menu 1/2 — quem entende a resposta é a própria IA. Sem 2ª mensagem.
-            const aiStyle = !!aiUnit && (instance.unit || "").trim().toLowerCase() === aiUnit && isAiOwnedConversation(conv);
+            const aiStyle = aiOn && !!aiUnitFor(aiSettings, instance.unit) && isAiOwnedConversation(conv);
             if (aiStyle && messageType !== "first") continue;
 
             // Interpolate message with smart day reference
