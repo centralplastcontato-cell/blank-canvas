@@ -21,7 +21,7 @@ import { detectWhatsAppReturn } from "../_shared/lead-return.ts";
 import { isLiveReplyToBotQuestion } from "../_shared/reconnect-quarantine.ts";
 import { collectStatusMessageIds, isPlayedStatus, mapProviderMessageStatus, statusUpdateFilter } from "../_shared/message-status.ts";
 import { AI_CONFIRMATION_STYLE, fixedConfirmationTextChoice } from "../_shared/visit-confirm.ts";
-import { evolutionSendMedia, evolutionSendText, extractEvolutionMessageId, isEvolutionPayload, normalizeEvolutionPayload, redactEvolutionPayload, sameToken } from "../_shared/evolution.ts";
+import { evolutionDownloadMedia, evolutionSendMedia, evolutionSendText, extractEvolutionMessageId, isEvolutionPayload, normalizeEvolutionPayload, redactEvolutionPayload, sameToken } from "../_shared/evolution.ts";
 import { decryptWhatsAppMedia, encryptedMediaUrl, type WaMediaType } from "../_shared/whatsapp-media-crypto.ts";
 
 const corsHeaders = {
@@ -4441,27 +4441,38 @@ function getExt(mime: string, fn?: string): string {
   return m[mime] || 'bin';
 }
 
-async function downloadMedia(supabase: SupabaseClient, iId: string, iToken: string, msgId: string, type: string, fn?: string, mKey?: string | null, dPath?: string | null, mUrl?: string | null, mime?: string | null, provider?: string | null): Promise<{ url: string; fileName: string } | null> {
+async function downloadMedia(supabase: SupabaseClient, iId: string, iToken: string, msgId: string, type: string, fn?: string, mKey?: string | null, dPath?: string | null, mUrl?: string | null, mime?: string | null, provider?: string | null, rawMessage?: JsonRecord | null): Promise<{ url: string; fileName: string } | null> {
   try {
-    // Evolution Go: o link é o arquivo criptografado do WhatsApp — baixa e abre aqui
+    // Evolution Go: o link é o arquivo criptografado do WhatsApp — abre aqui com
+    // a mediaKey; se não der, pede para a Evolution (/message/downloadmedia).
+    // Os links do WhatsApp expiram: isto roda assim que o webhook chega.
     if (provider === 'evolution') {
-      const encUrl = encryptedMediaUrl(mUrl, dPath);
-      if (!mKey || !encUrl) {
-        console.log(`[${msgId}] Evolution: mídia sem mediaKey/link — não dá para baixar`);
-        return null;
-      }
-      const encRes = await fetch(encUrl);
-      if (!encRes.ok) {
-        console.error(`[${msgId}] Evolution: download do WhatsApp falhou: ${encRes.status}`);
-        return null;
-      }
       const waType: WaMediaType = (['image', 'video', 'audio', 'document', 'sticker'].includes(type) ? type : 'document') as WaMediaType;
-      const plain = await decryptWhatsAppMedia(new Uint8Array(await encRes.arrayBuffer()), mKey, waType);
+      let plain: Uint8Array | null = null;
+      let evoMimeFromApi: string | null = null;
+      const encUrl = encryptedMediaUrl(mUrl, dPath);
+      if (mKey && encUrl) {
+        try {
+          const encRes = await fetch(encUrl);
+          if (encRes.ok) plain = await decryptWhatsAppMedia(new Uint8Array(await encRes.arrayBuffer()), mKey, waType);
+          else console.warn(`[${msgId}] Evolution: download direto do WhatsApp falhou: ${encRes.status}`);
+        } catch (e) {
+          console.warn(`[${msgId}] Evolution: download direto falhou:`, e instanceof Error ? e.message : String(e));
+        }
+      }
+      if (!plain && rawMessage && Object.keys(rawMessage).length > 0) {
+        const viaApi = await evolutionDownloadMedia(iToken, rawMessage);
+        if (viaApi) {
+          plain = viaApi.bytes;
+          evoMimeFromApi = viaApi.mime;
+          console.log(`[${msgId}] Evolution: mídia baixada pelo /message/downloadmedia (${plain.length} bytes)`);
+        }
+      }
       if (!plain) {
-        console.error(`[${msgId}] Evolution: não foi possível abrir a mídia (chave não confere)`);
+        console.error(`[${msgId}] Evolution: não foi possível baixar a mídia`);
         return null;
       }
-      const evoMime = (mime || (type === 'image' ? 'image/jpeg' : type === 'video' ? 'video/mp4' : type === 'audio' ? 'audio/ogg' : 'application/octet-stream')).split(';')[0].trim();
+      const evoMime = (mime || evoMimeFromApi || (type === 'image' ? 'image/jpeg' : type === 'video' ? 'video/mp4' : type === 'audio' ? 'audio/ogg' : 'application/octet-stream')).split(';')[0].trim();
       const ext = getExt(evoMime, fn);
       const path = type === 'document' && fn ? `received/documents/${msgId}_${fn.replace(/[^a-zA-Z0-9\-_\.]/g, '_').substring(0, 100)}` : `received/${type}s/${msgId}.${ext}`;
       const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, plain, { contentType: evoMime, upsert: true });
@@ -6177,7 +6188,7 @@ async function processWebhookEvent(body: JsonRecord) {
       // Download media in parallel with message insert if needed (for both sent and received messages)
       let mediaPromise: Promise<{ url: string; fileName: string } | null> | null = null;
       if (download && msgId) {
-        mediaPromise = downloadMedia(supabase, instance.instance_id, instance.instance_token, msgId as string, type, fn, key, path, url, mime, instance.provider);
+        mediaPromise = downloadMedia(supabase, instance.instance_id, instance.instance_token, msgId as string, type, fn, key, path, url, mime, instance.provider, mc as JsonRecord);
       }
 
       // Insert message immediately (don't wait for media download)

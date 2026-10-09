@@ -3,6 +3,8 @@ import {
   evolutionNumber,
   extractEvolutionMessageId,
   isEvolutionPayload,
+  mediaUrlProblem,
+  parseDataUrl,
   normalizeEvolutionPayload,
   redactEvolutionPayload,
   sameToken,
@@ -167,4 +169,19 @@ Deno.test("número de envio e id da resposta", () => {
   assertEquals(extractEvolutionMessageId({ data: { Info: { ID: "3EB0ABCDEF123456" } } }), "3EB0ABCDEF123456");
   assertEquals(extractEvolutionMessageId({ data: { id: "3EB0ABCDEF999999" } }), "3EB0ABCDEF999999");
   assertEquals(extractEvolutionMessageId({ message: "ok" }), null);
+});
+
+Deno.test("link bloqueado (HTML/403) não vira vídeo vazio: envio é barrado antes", () => {
+  assertEquals(mediaUrlProblem(200, "video/mp4"), null);
+  assertEquals(mediaUrlProblem(206, "application/pdf"), null);
+  assertEquals(mediaUrlProblem(200, null), null);
+  assertEquals(mediaUrlProblem(403, "text/plain"), "o link da mídia respondeu 403");
+  assertEquals(mediaUrlProblem(200, "text/html; charset=utf-8"), "o link da mídia não devolve o arquivo (text/html)");
+});
+
+Deno.test("download da Evolution: data URL vira bytes + mimetype", () => {
+  const p = parseDataUrl("data:audio/ogg; codecs=opus;base64,T2dnUw==")!;
+  assertEquals(p.mime, "audio/ogg");
+  assertEquals(new TextDecoder().decode(p.bytes), "OggS");
+  assertEquals(parseDataUrl("T2dnUw=="), null);
 });

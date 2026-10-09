@@ -81,17 +81,77 @@ export function evolutionSendText(token: string, to: string, text: string): Prom
 
 export type EvolutionMediaType = "image" | "video" | "audio" | "document";
 
-export function evolutionSendMedia(
+/**
+ * O link da mídia devolve o arquivo de verdade? Nos testes (09/10), link
+ * bloqueado (página HTML / 403) virou vídeo vazio no celular sem erro na API,
+ * e áudio deu 500 "error during conversion". null = ok; texto = motivo.
+ */
+export function mediaUrlProblem(status: number, contentType: string | null): string | null {
+  if (status >= 400) return `o link da mídia respondeu ${status}`;
+  const ct = String(contentType || "").split(";")[0].trim().toLowerCase();
+  if (ct === "text/html" || ct === "application/json" || ct === "application/xml" || ct === "text/xml") {
+    return `o link da mídia não devolve o arquivo (${ct})`;
+  }
+  return null;
+}
+
+export async function checkMediaUrl(url: string): Promise<string | null> {
+  if (!/^https?:\/\//i.test(url)) return "a mídia precisa estar num link (https)";
+  try {
+    const res = await fetch(url, { method: "GET", headers: { Range: "bytes=0-0" }, signal: AbortSignal.timeout(10000) });
+    await res.body?.cancel();
+    return mediaUrlProblem(res.status, res.headers.get("content-type"));
+  } catch (err) {
+    return `o link da mídia não abriu (${err instanceof Error ? err.message : String(err)})`;
+  }
+}
+
+export async function evolutionSendMedia(
   token: string,
   to: string,
   type: EvolutionMediaType,
   url: string,
   opts: { caption?: string; filename?: string } = {},
 ): Promise<EvolutionResult> {
+  const problem = await checkMediaUrl(url);
+  if (problem) return { ok: false, error: `Mídia não enviada: ${problem}` };
   const body: Json = { number: evolutionNumber(to), type, url };
   if (opts.caption) body.caption = opts.caption;
   if (opts.filename) body.filename = opts.filename;
-  return evolutionRequest(token, "/send/media", "POST", body);
+  const res = await evolutionRequest(token, "/send/media", "POST", body);
+  // 500 de conversão (ffmpeg) não se resolve tentando de novo
+  if (!res.ok && /conversion|Invalid data/i.test(res.error || "")) {
+    return { ...res, error: `Mídia não enviada: o arquivo não pôde ser convertido (${res.error})` };
+  }
+  return res;
+}
+
+/** data URL ("data:audio/ogg; codecs=opus;base64,....") → bytes + mimetype */
+export function parseDataUrl(dataUrl: string): { bytes: Uint8Array; mime: string } | null {
+  const comma = dataUrl.indexOf(",");
+  if (!dataUrl.startsWith("data:") || comma < 0) return null;
+  const header = dataUrl.slice(5, comma);
+  const mime = header.split(";")[0].trim() || "application/octet-stream";
+  try {
+    const bin = atob(dataUrl.slice(comma + 1));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return { bytes, mime };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Baixa mídia recebida pela Evolution: POST /message/downloadmedia com o
+ * data.Message do webhook do jeito que veio. Resposta: { data: { base64: "data:...;base64,..." } }
+ */
+export async function evolutionDownloadMedia(token: string, message: Json): Promise<{ bytes: Uint8Array; mime: string } | null> {
+  const res = await evolutionRequest(token, "/message/downloadmedia", "POST", { message });
+  if (!res.ok) return null;
+  const d = res.data as Json | null;
+  const b64 = d?.data?.base64 ?? d?.base64;
+  return typeof b64 === "string" ? parseDataUrl(b64) : null;
 }
 
 // ─── Webhook ──────────────────────────────────────────────────────────────
