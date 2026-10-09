@@ -5,11 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCurrentCompanyId } from "@/hooks/useCurrentCompanyId";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Megaphone, Plus, CheckCircle2, XCircle, Clock, Loader2, Users, Menu, ImageIcon, Trash2, Play, RotateCcw, Eye, Pencil, Pause, AlertTriangle } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+import { Megaphone, Plus, Loader2, Users, Menu, ImageIcon, UserX } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,11 +17,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { CampaignWizard } from "@/components/campanhas/CampaignWizard";
 import { CampaignSendDialog } from "@/components/campanhas/CampaignSendDialog";
 import { CampaignDetailSheet } from "@/components/campanhas/CampaignDetailSheet";
+import { CampaignCard } from "@/components/campanhas/CampaignCard";
+import { OptoutListDialog } from "@/components/campanhas/OptoutListDialog";
 import { CampaignEditDialog } from "@/components/campanhas/CampaignEditDialog";
 import { BaseLeadsTab } from "@/components/campanhas/BaseLeadsTab";
 import { CampaignGalleryTab } from "@/components/campanhas/CampaignGalleryTab";
@@ -35,9 +32,9 @@ import { GuiaCampanhasDialog } from "@/components/guias/GuiaCampanhasDialog";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 import { useCampaignSender } from "@/contexts/CampaignSenderContext";
-import { campaignState, nextSendLabel, reactivatedStatus } from "@/lib/campaignState";
+import { campaignState, reactivatedStatus } from "@/lib/campaignState";
 import { useQuery } from "@tanstack/react-query";
-import { useCampaignResults, percentOf } from "@/hooks/useCampaignResults";
+import { useCampaignResults } from "@/hooks/useCampaignResults";
 
 interface Campaign {
   id: string;
@@ -92,6 +89,7 @@ export default function Campanhas() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [optoutsOpen, setOptoutsOpen] = useState(false);
   const [sendCampaign, setSendCampaign] = useState<Campaign | null>(null);
   const [detailCampaign, setDetailCampaign] = useState<Campaign | null>(null);
   const [editingAudienceCampaign, setEditingAudienceCampaign] = useState<Campaign | null>(null);
@@ -192,13 +190,6 @@ export default function Campanhas() {
     }
   };
 
-  const statusConfig: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
-    draft: { variant: "secondary", icon: Clock },
-    paused: { variant: "secondary", icon: Clock },
-    sending: { variant: "default", icon: Loader2 },
-    completed: { variant: "outline", icon: CheckCircle2 },
-    cancelled: { variant: "destructive", icon: XCircle },
-  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -281,8 +272,12 @@ export default function Campanhas() {
             </div>
 
             <TabsContent value="campanhas">
-              <div className="flex justify-end mb-4">
-                <Button onClick={() => setWizardOpen(true)} size="sm">
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <Button variant="ghost" size="sm" className="text-muted-foreground rounded-full" onClick={() => setOptoutsOpen(true)}>
+                  <UserX className="w-4 h-4 mr-1.5" />
+                  Pediram para sair
+                </Button>
+                <Button onClick={() => setWizardOpen(true)} size="sm" className="rounded-full">
                   <Plus className="w-4 h-4 mr-1.5" />
                   Nova Campanha
                 </Button>
@@ -299,146 +294,27 @@ export default function Campanhas() {
                   <p className="text-sm text-muted-foreground/70 mt-1">Clique em "Nova Campanha" para começar</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="grid gap-3 lg:grid-cols-2">
                   {campaigns.map((campaign) => {
                     const sendingHere = sender.isSending && sender.activeCampaignId === campaign.id;
                     const state = campaignState(campaign, sendingHere);
-                    const sc = statusConfig[state.kind];
-                    const StatusIcon = sc.icon;
-                    const result = results?.[campaign.id];
                     return (
-                      <Card key={campaign.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setDetailCampaign(campaign)}>
-                        <CardContent className="p-3 sm:p-4 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1 flex-wrap">
-                              <p className="font-semibold truncate">{campaign.name}</p>
-                              <Badge variant={sc.variant} className="shrink-0 text-[10px]">
-                                <StatusIcon className={`w-3 h-3 mr-1 ${state.kind === "sending" ? "animate-spin" : ""}`} />
-                                {state.label}
-                              </Badge>
-                            </div>
-                            {campaign.description && (
-                              <p className="text-sm text-muted-foreground truncate">{campaign.description}</p>
-                            )}
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {format(new Date(campaign.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                            </p>
-                            {state.action === "pause" && nextSendAt && (
-                              <p className="text-xs text-primary mt-1 flex items-center gap-1">
-                                <Clock className="w-3 h-3" /> Sai sozinha · próxima mensagem {nextSendLabel(nextSendAt, new Date())}
-                              </p>
-                            )}
-                            {campaign.last_error && state.kind !== "completed" && (
-                              <p className="text-xs text-amber-700 dark:text-amber-400 mt-1 flex items-start gap-1">
-                                <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" /> {campaign.last_error}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex items-center justify-between gap-2 lg:gap-3 lg:shrink-0 flex-wrap">
-                            <div className="flex items-center gap-3 text-sm">
-                              <div className="text-center">
-                                <p className="font-bold text-base sm:text-lg leading-tight">{campaign.total_recipients}</p>
-                                <p className="text-[10px] text-muted-foreground">Total</p>
-                              </div>
-                              <div className="text-center">
-                                <p className="font-bold text-base sm:text-lg text-green-600 leading-tight">{campaign.sent_count}</p>
-                                <p className="text-[10px] text-muted-foreground">Enviados</p>
-                              </div>
-                              {campaign.error_count > 0 && (
-                                <div className="text-center">
-                                  <p className="font-bold text-base sm:text-lg text-destructive leading-tight">{campaign.error_count}</p>
-                                  <p className="text-[10px] text-muted-foreground">Erros</p>
-                                </div>
-                              )}
-                              {result && campaign.sent_count > 0 && (
-                                <>
-                                  <div className="text-center" title="Responderam em até 3 dias depois de receber">
-                                    <p className="font-bold text-base sm:text-lg text-blue-600 leading-tight">
-                                      {result.replied}
-                                      <span className="text-[10px] font-medium text-muted-foreground ml-0.5">
-                                        {percentOf(result.replied, campaign.sent_count)}%
-                                      </span>
-                                    </p>
-                                    <p className="text-[10px] text-muted-foreground">Responderam</p>
-                                  </div>
-                                  <div className="text-center" title="Fecharam festa em até 45 dias depois de receber">
-                                    <p className="font-bold text-base sm:text-lg text-violet-600 leading-tight">{result.closed}</p>
-                                    <p className="text-[10px] text-muted-foreground">Fecharam</p>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 flex-wrap justify-end">
-                              <div
-                                className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-border bg-card"
-                                onClick={(e) => e.stopPropagation()}
-                                title={campaign.status === "cancelled" ? "Campanha desativada" : "Campanha ativa"}
-                              >
-                                <Switch
-                                  checked={campaign.status !== "cancelled"}
-                                  disabled={state.kind === "sending"}
-                                  onCheckedChange={(v) => handleToggleActive(campaign, v)}
-                                />
-                                <span className="text-[10px] text-muted-foreground">
-                                  {campaign.status === "cancelled" ? "Inativa" : "Ativa"}
-                                </span>
-                              </div>
-                              {state.action && (
-                                <Button
-                                  variant={state.action === "pause" ? "outline" : "default"}
-                                  size="sm"
-                                  className="h-8"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (state.action === "resume") {
-                                      setCampaignToReset(campaign);
-                                    } else if (state.action === "pause") {
-                                      handlePause(campaign);
-                                    } else {
-                                      setSendCampaign(campaign);
-                                    }
-                                  }}
-                                >
-                                  {state.action === "pause" ? (
-                                    <><Pause className="h-3.5 w-3.5 mr-1.5" /> Pausar</>
-                                  ) : state.action === "resume" ? (
-                                    <><RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Retomar</>
-                                  ) : state.action === "continue" ? (
-                                    <><Play className="h-3.5 w-3.5 mr-1.5" /> Continuar</>
-                                  ) : (
-                                    <><Play className="h-3.5 w-3.5 mr-1.5" /> Iniciar</>
-                                  )}
-                                </Button>
-                              )}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8"
-                                onClick={(e) => { e.stopPropagation(); setDetailCampaign(campaign); }}
-                              >
-                                <Eye className="h-3.5 w-3.5 mr-1.5" /> Prévia
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                title="Editar campanha"
-                                onClick={(e) => { e.stopPropagation(); setEditingCampaign(campaign); }}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                onClick={(e) => { e.stopPropagation(); setCampaignToDelete(campaign); }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      <CampaignCard
+                        key={campaign.id}
+                        campaign={campaign}
+                        state={state}
+                        result={results?.[campaign.id]}
+                        nextSendAt={nextSendAt}
+                        onOpen={() => setDetailCampaign(campaign)}
+                        onAction={() => {
+                          if (state.action === "resume") setCampaignToReset(campaign);
+                          else if (state.action === "pause") handlePause(campaign);
+                          else setSendCampaign(campaign);
+                        }}
+                        onEdit={() => setEditingCampaign(campaign)}
+                        onToggleActive={(active) => handleToggleActive(campaign, active)}
+                        onDelete={() => setCampaignToDelete(campaign)}
+                      />
                     );
                   })}
                 </div>
@@ -483,6 +359,9 @@ export default function Campanhas() {
             }}
           />
 
+          {companyId && (
+            <OptoutListDialog open={optoutsOpen} onOpenChange={setOptoutsOpen} companyId={companyId} />
+          )}
           {sendCampaign && (
             <CampaignSendDialog
               open={!!sendCampaign}

@@ -65,7 +65,18 @@ interface Props {
   onSave: (finalUrl: string) => void;
   companyId: string;
   campaignType?: string;
+  /** Já abre com o logo ligado nesta posição (top-left, top-right, center, bottom-left, bottom-right) */
+  initialLogoPosition?: string | null;
 }
+
+/** Onde o logo começa, em fração da imagem */
+const LOGO_START: Record<string, { x: number; y: number }> = {
+  "top-left": { x: 0.12, y: 0.12 },
+  "top-right": { x: 0.88, y: 0.12 },
+  center: { x: 0.5, y: 0.5 },
+  "bottom-left": { x: 0.12, y: 0.88 },
+  "bottom-right": { x: 0.88, y: 0.88 },
+};
 
 type TextPreset = { title: string; subtitle: string; cta: string };
 
@@ -769,7 +780,7 @@ const RENDER_MAP: Record<TemplateId, RenderFn> = {
 
 /* ── Component ───────────────────────────────────────────── */
 
-export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave, companyId, campaignType }: Props) {
+export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave, companyId, campaignType, initialLogoPosition }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [template, setTemplate] = useState<TemplateId>("oferta");
   const [layers, setLayers] = useState<TextLayer[]>(TEMPLATES[0].layers.map((l) => ({ ...l })));
@@ -812,6 +823,13 @@ export function CampaignTextOverlayEditor({ open, onOpenChange, imageUrl, onSave
       }
     });
   }, [open, companyId]);
+
+  // Logo escolhido antes de abrir o editor: já entra na posição pedida
+  useEffect(() => {
+    if (!open || !initialLogoPosition) return;
+    const start = LOGO_START[initialLogoPosition];
+    if (start) setLogoLayer((l) => ({ ...l, enabled: true, x: start.x, y: start.y }));
+  }, [open, initialLogoPosition]);
 
   // Reset appliedPresetRef when dialog closes so it re-applies on reopen
   useEffect(() => {

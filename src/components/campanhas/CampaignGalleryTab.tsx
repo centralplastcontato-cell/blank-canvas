@@ -28,6 +28,8 @@ interface GalleryImage {
 
 const sourceConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   ai_compose: { label: "IA", variant: "default" },
+  ai_compose_text: { label: "IA", variant: "default" },
+  photo_text: { label: "Foto", variant: "secondary" },
   upload: { label: "Upload", variant: "secondary" },
   logo: { label: "Logo", variant: "outline" },
 };

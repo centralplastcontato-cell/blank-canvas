@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { fetchAllPages } from "@/lib/fetchAllPages";
 import { phoneTail, prepareAudience, RECENT_CAMPAIGN_DAYS } from "@/lib/campaignAudience";
 import type { CampaignDraft } from "./CampaignWizard";
+import { OptoutListDialog } from "./OptoutListDialog";
 
 interface Props {
   draft: CampaignDraft;
@@ -89,6 +90,7 @@ export function CampaignAudienceStep({ draft, setDraft, companyId, editingCampai
   const [recentTails, setRecentTails] = useState<Set<string>>(new Set());
   const [includeClosed, setIncludeClosed] = useState(false);
   const [includeRecent, setIncludeRecent] = useState(false);
+  const [optoutsOpen, setOptoutsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
   const [filterMonth, setFilterMonth] = useState("all");
@@ -441,7 +443,14 @@ export function CampaignAudienceStep({ draft, setDraft, companyId, editingCampai
               <ul className="mt-0.5 text-muted-foreground">
                 {pool.hidden.closed > 0 && <li>{say(pool.hidden.closed, "já fechou, perdeu ou não é cliente", "já fecharam, perderam ou não são clientes")}</li>}
                 {pool.hidden.recent > 0 && <li>{say(pool.hidden.recent, "recebeu", "receberam")} campanha nos últimos {RECENT_CAMPAIGN_DAYS} dias</li>}
-                {pool.hidden.optout > 0 && <li>{say(pool.hidden.optout, "pediu", "pediram")} para não receber mais</li>}
+                {pool.hidden.optout > 0 && (
+                  <li>
+                    {say(pool.hidden.optout, "pediu", "pediram")} para não receber mais ·{" "}
+                    <button type="button" className="underline font-medium" onClick={() => setOptoutsOpen(true)}>
+                      ver lista
+                    </button>
+                  </li>
+                )}
                 {pool.hidden.duplicate > 0 && <li>{say(pool.hidden.duplicate, "telefone repetido", "telefones repetidos")} (cada número recebe uma vez só)</li>}
                 {pool.hidden.invalid > 0 && <li>{say(pool.hidden.invalid, "sem telefone válido", "sem telefone válido")}</li>}
               </ul>
@@ -557,6 +566,7 @@ export function CampaignAudienceStep({ draft, setDraft, companyId, editingCampai
           </div>
         </ScrollArea>
       )}
+      <OptoutListDialog open={optoutsOpen} onOpenChange={setOptoutsOpen} companyId={companyId} onChanged={loadAllLeads} />
     </div>
   );
 }
