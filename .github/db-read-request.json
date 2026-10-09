@@ -1,1 +1,1 @@
-{"sql": "SELECT jobid, jobname, schedule, active, command LIKE '%timeout_milliseconds := 60000%' AS espera_60s,\n       (SELECT count(*) FROM cron.job WHERE jobname = 'campaign-dispatch-every-2min') AS quantos\nFROM cron.job WHERE jobname = 'campaign-dispatch-every-2min'"}
+{"sql": "SELECT count(*) FILTER (WHERE jobname = 'monthly-review-generator') AS revisao_mensal,\n       count(*) AS total_agendamentos\nFROM cron.job"}
