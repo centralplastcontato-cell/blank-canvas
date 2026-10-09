@@ -5,6 +5,9 @@ import {
   confirmationsForCurrentDate,
   fixedConfirmationTextChoice,
   isAiOwnedConversation,
+  isConfirmableVisit,
+  isFirstConfirmationDone,
+  sendOutcome,
   visitStartMs,
   visitWhenText,
 } from "./visit-confirm.ts";
@@ -62,4 +65,26 @@ Deno.test("bookedRecently: marcada há pouco não recebe confirmação", () => {
   // remarcada pela IA há pouco (a criação é antiga)
   assertEquals(bookedRecently(["2026-10-01T12:00:00Z", "2026-10-09T18:30:00Z"], now), true);
   assertEquals(bookedRecently([null, undefined], now), false);
+});
+
+Deno.test("isConfirmableVisit: atendimento não recebe confirmação de visita", () => {
+  assertEquals(isConfirmableVisit("visita"), true);
+  assertEquals(isConfirmableVisit(null), true);
+  assertEquals(isConfirmableVisit("atendimento"), false);
+});
+
+Deno.test("isFirstConfirmationDone: conta a automática e a manual enviadas", () => {
+  assertEquals(isFirstConfirmationDone({ message_type: "first", status: "sent" }), true);
+  assertEquals(isFirstConfirmationDone({ message_type: "first", status: "responded" }), true);
+  assertEquals(isFirstConfirmationDone({ message_type: "manual", status: "sent" }), true);
+  assertEquals(isFirstConfirmationDone({ message_type: "first", status: "failed" }), false);
+  assertEquals(isFirstConfirmationDone({ message_type: "first", status: "skipped" }), false);
+  assertEquals(isFirstConfirmationDone({ message_type: "second", status: "sent" }), false);
+});
+
+Deno.test("sendOutcome: pulada não conta como enviada", () => {
+  assertEquals(sendOutcome(null, { ok: true } as never), "sent");
+  assertEquals(sendOutcome(null, { skipped: true }), "skipped");
+  assertEquals(sendOutcome(null, { error: "x" }), "failed");
+  assertEquals(sendOutcome(new Error("x"), null), "failed");
 });

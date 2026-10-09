@@ -103,3 +103,31 @@ export function bookedRecently(bookedAtIso: (string | null | undefined)[], nowMs
   if (times.length === 0) return false;
   return nowMs - Math.max(...times) < MIN_HOURS_AFTER_BOOKING * HOUR;
 }
+
+/** Atendimento (entrega/retirada) não é visita: não recebe "confirme sua visita" */
+export function isConfirmableVisit(visitType: string | null | undefined): boolean {
+  return visitType !== "atendimento";
+}
+
+/**
+ * Primeira confirmação já feita: a automática enviada (ou respondida) ou a que
+ * a equipe mandou à mão pela Agenda. Sem contar a manual, o cliente recebia as duas.
+ */
+export function isFirstConfirmationDone(row: { message_type?: string | null; status?: string | null }): boolean {
+  const type = row.message_type || "";
+  const status = row.status || "";
+  return (type === "first" || type === "manual") && (status === "sent" || status === "responded");
+}
+
+/**
+ * Resultado do envio pelo wapi-send. "skipped" = o wapi-send não mandou (número em
+ * quarentena, conversa pausada…) e não pode contar como enviada.
+ */
+export function sendOutcome(
+  sendErr: unknown,
+  sendData: { error?: unknown; skipped?: unknown } | null | undefined,
+): "sent" | "failed" | "skipped" {
+  if (sendErr || sendData?.error) return "failed";
+  if (sendData?.skipped) return "skipped";
+  return "sent";
+}

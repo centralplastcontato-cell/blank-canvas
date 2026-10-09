@@ -27,9 +27,11 @@ interface AgendaListViewProps {
   getConflicts: (event: CompanyEvent) => CompanyEvent[];
   month: Date;
   onMonthChange: (date: Date) => void;
+  /** mostra o valor da festa (permissão de ver faturamento) */
+  showRevenue?: boolean;
 }
 
-export function AgendaListView({ events, onEventClick, getConflicts, month, onMonthChange }: AgendaListViewProps) {
+export function AgendaListView({ events, onEventClick, getConflicts, month, onMonthChange, showRevenue = false }: AgendaListViewProps) {
   const [taskCounts, setTaskCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -126,7 +128,7 @@ export function AgendaListView({ events, onEventClick, getConflicts, month, onMo
                             {ev.guest_count}
                           </span>
                         )}
-                        {ev.total_value != null && (
+                        {showRevenue && ev.total_value != null && (
                           <span className="font-semibold text-foreground">
                             R$ {ev.total_value.toLocaleString("pt-BR")}
                           </span>

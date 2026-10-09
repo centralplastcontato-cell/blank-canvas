@@ -1226,7 +1226,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
             );
             // Tolerance of R$ 1,00 normally; raise to R$ 5,00 when card non-antecipado split is in play.
             const tolerance = (saldoIsCard && saldoParcelas > 1) || hasCardSplitRows ? 5 : 1;
-            const today = new Date().toISOString().split('T')[0];
+            const today = format(new Date(), 'yyyy-MM-dd');
             const decision = computeAdjustment(grandTotal, (existingPayments || []) as any, {
               tolerance,
               eventDate: finalForm.event_date || null,

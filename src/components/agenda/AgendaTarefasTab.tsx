@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,10 +9,18 @@ import { TaskFormDialog } from "./TaskFormDialog";
 import { TaskCard } from "./TaskCard";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { TaskProductivityDashboard } from "./TaskProductivityDashboard";
-import { EventTaskTemplateManager } from "./EventTaskTemplateManager";
+// Modelos de tarefa por festa escondidos (out/2026): nunca criaram tarefas sozinhos
+// import { EventTaskTemplateManager } from "./EventTaskTemplateManager";
 
 interface AgendaTarefasTabProps {
   userId: string;
+}
+
+// Atrasada = venceu antes de hoje (a que vence hoje ainda está no prazo).
+// Compara as datas como texto "aaaa-mm-dd": new Date("2026-10-09") é meia-noite UTC,
+// que em Brasília ainda é o dia anterior.
+function isOverdueTask(t: CompanyTask, todayYmd: string): boolean {
+  return t.status !== "concluida" && !!t.due_date && t.due_date.slice(0, 10) < todayYmd;
 }
 
 export function AgendaTarefasTab({ userId }: AgendaTarefasTabProps) {
@@ -20,25 +29,25 @@ export function AgendaTarefasTab({ userId }: AgendaTarefasTabProps) {
   const [editingTask, setEditingTask] = useState<CompanyTask | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [filterCategory, setFilterCategory] = useState("all");
-  const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "in_progress" | "completed">("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "in_progress" | "completed" | "overdue">("all");
+
+  const todayYmd = format(new Date(), "yyyy-MM-dd");
 
   const filtered = useMemo(() => {
     return tasks.filter((t) => {
       if (filterCategory !== "all" && t.category !== filterCategory) return false;
+      if (filterStatus === "overdue" && !isOverdueTask(t, todayYmd)) return false;
       if (filterStatus === "pending" && t.status !== "pendente") return false;
       if (filterStatus === "in_progress" && t.status !== "em_andamento") return false;
       if (filterStatus === "completed" && t.status !== "concluida") return false;
       return true;
     });
-  }, [tasks, filterCategory, filterStatus]);
+  }, [tasks, filterCategory, filterStatus, todayYmd]);
 
   const pendingCount = tasks.filter((t) => t.status === "pendente").length;
   const inProgressCount = tasks.filter((t) => t.status === "em_andamento").length;
   const completedCount = tasks.filter((t) => t.status === "concluida").length;
-  const overdueCount = tasks.filter((t) => {
-    if (t.status === "concluida" || !t.due_date) return false;
-    return new Date(t.due_date) < new Date(new Date().toDateString());
-  }).length;
+  const overdueCount = tasks.filter((t) => isOverdueTask(t, todayYmd)).length;
 
   const handleSubmit = (data: TaskFormData) => {
     if (editingTask) {
@@ -68,7 +77,7 @@ export function AgendaTarefasTab({ userId }: AgendaTarefasTabProps) {
             variant="outline"
             size="sm"
             className="shrink-0 border-red-200 text-red-700 hover:bg-red-100 dark:border-red-800 dark:text-red-400"
-            onClick={() => setFilterStatus("pending")}
+            onClick={() => setFilterStatus("overdue")}
           >
             Ver atrasadas
           </Button>
@@ -148,6 +157,7 @@ export function AgendaTarefasTab({ userId }: AgendaTarefasTabProps) {
             <SelectItem value="pending">⏳ Pendentes</SelectItem>
             <SelectItem value="in_progress">🔄 Em andamento</SelectItem>
             <SelectItem value="completed">✅ Concluídas</SelectItem>
+            <SelectItem value="overdue">⚠️ Atrasadas</SelectItem>
           </SelectContent>
         </Select>
         <div className="flex-1" />
@@ -189,7 +199,7 @@ export function AgendaTarefasTab({ userId }: AgendaTarefasTabProps) {
       </Card>
 
       {/* Event Task Templates */}
-      <EventTaskTemplateManager />
+      {/* <EventTaskTemplateManager /> — escondido (out/2026) */}
 
       <TaskFormDialog
         open={formOpen}

@@ -8,6 +8,9 @@ import {
   MIN_HOURS_AFTER_BOOKING,
   confirmationsForCurrentDate,
   isAiOwnedConversation,
+  isConfirmableVisit,
+  isFirstConfirmationDone,
+  sendOutcome,
   visitStartMs,
 } from "../_shared/visit-confirm.ts";
 
@@ -126,8 +129,10 @@ Deno.serve(async (req) => {
 
         const { data: visits, error: visitsError } = await supabase
           .from("lead_visits")
-          .select("id, lead_id, data_visita, horario_visita, status_visita, company_id, created_at")
+          .select("id, lead_id, data_visita, horario_visita, status_visita, company_id, created_at, visit_type")
           .eq("company_id", companyId)
+          // Atendimento (entrega/retirada) não é visita: não recebe "confirme sua visita"
+          .or("visit_type.is.null,visit_type.neq.atendimento")
           // remarcada também: a data nova precisa de confirmação
           .in("status_visita", ["agendada", "remarcada"])
           .gte("data_visita", targetDateMin)
@@ -211,6 +216,9 @@ Deno.serve(async (req) => {
 
         for (const visit of visits) {
           try {
+            if (!isConfirmableVisit(visit.visit_type)) continue;
+            // Visita que já começou: não pede mais confirmação
+            if (visitStartMs(visit.data_visita, visit.horario_visita) <= Date.now()) continue;
             // Só as confirmações da data atual (visita remarcada confirma de novo)
             const existingConfs = confirmationsForCurrentDate(
               confirmationMap.get(visit.id) || [],
@@ -227,8 +235,8 @@ Deno.serve(async (req) => {
             }
 
             // "responded": o cliente já respondeu (ex.: pediu para remarcar e a data
-            // ainda não mudou) — não manda de novo
-            const firstSent = existingConfs.find((c: any) => c.message_type === "first" && (c.status === "sent" || c.status === "responded"));
+            // ainda não mudou) — não manda de novo. A confirmação manual da equipe também conta.
+            const firstSent = existingConfs.find((c: any) => isFirstConfirmationDone(c));
             const secondSent = existingConfs.find((c: any) => c.message_type === "second" && c.status === "sent");
             const hasResponse = existingConfs.some((c: any) => c.response_received);
 
@@ -359,10 +367,16 @@ Deno.serve(async (req) => {
               },
             });
 
-            if (sendErr || (sendData && sendData.error)) {
+            const outcome = sendOutcome(sendErr, sendData);
+            if (outcome === "failed") {
               const errMsg = sendErr?.message || sendData?.error || "unknown";
               console.error(`[visit-confirmation] Send failed for ${phone} (${instance.provider || 'wapi'}):`, errMsg);
               sentStatus = "failed";
+            } else if (outcome === "skipped") {
+              // O wapi-send não mandou (número em quarentena, conversa pausada…): não conta
+              // como enviada; tenta de novo depois da trava de 4h
+              console.warn(`[visit-confirmation] Envio pulado para ${phone}: ${sendData?.reason || "sem motivo"}`);
+              sentStatus = "skipped";
             } else {
               sentMsgId = sendData?.messageId || sendData?.message_id || sendData?.result?.key?.id || sendData?.key?.id || null;
               await tagConfirmationMessage(supabase, conv.id, sentMsgId, message, sinceIso, messageMeta);

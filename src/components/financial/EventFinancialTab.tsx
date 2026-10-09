@@ -120,8 +120,9 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
 
   // Auto-sync: (A) if no payments exist, create from payment_details;
   // (B) if payments exist but card ones lack the frozen tax stamp, backfill it.
+  // Só para quem pode editar o financeiro: quem só olha não grava nada ao abrir.
   useEffect(() => {
-    if (financial.isLoading || syncAttempted.current) return;
+    if (financial.isLoading || syncAttempted.current || !canEdit) return;
     syncAttempted.current = true;
 
     (async () => {
@@ -151,7 +152,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
       // Snapshot operator: prefer the one congelado em payment_details
       const snapshotOperatorId: string | null = pd.card_operator_id || (fees[0]?.id ?? null);
 
-      const today = new Date().toISOString().split("T")[0];
+      const today = format(new Date(), "yyyy-MM-dd");
       const parseAmount = (value: unknown): number | null => {
         if (typeof value === "number") return Number.isFinite(value) ? value : null;
         if (typeof value !== "string") return null;
@@ -207,7 +208,9 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
         if (shouldCreateCardSplit && !alreadyHasCardSplit) {
           const removablePendingIds = financial.payments
             .filter((p: any) => {
-              if (p.status === "paid" || p.type !== "parcela") return false;
+              // Parcela paga ou com recebimento parcial lançado nunca é apagada
+              if (p.status === "paid" || p.status === "partial" || p.type !== "parcela") return false;
+              if (financial.entries.some((e) => e.payment_id === p.id)) return false;
               const notes = String(p.notes || "").toLowerCase();
               const isPostContractAdjustment = notes.includes("ajuste pós-contrato");
               const isWrongCardSaldo = isCardMethod(p.payment_method) && Number(p.card_installments || saldoParcelas) === saldoParcelas;
@@ -397,7 +400,7 @@ export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = tru
         financial.refresh();
       }
     })();
-  }, [financial.isLoading, financial.payments.length, eventId, companyId]);
+  }, [financial.isLoading, financial.payments.length, eventId, companyId, canEdit]);
 
   const handleMarkAsPaid = async (payment: any) => {
     setMarkPaidPayment(payment);

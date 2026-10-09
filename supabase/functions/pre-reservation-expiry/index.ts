@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
         const eventDate = pr.event_date
           ? new Date(pr.event_date + "T12:00:00").toLocaleDateString("pt-BR")
           : "";
-        const expiryDate = new Date(pr.reservation_expires_at).toLocaleDateString("pt-BR");
+        const expiryDate = new Date(pr.reservation_expires_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 
         message = message
           .replace(/\{\{nome\}\}/gi, pr.customer_name || "")
@@ -97,37 +97,45 @@ Deno.serve(async (req) => {
           .replace(/\{\{data_validade\}\}/gi, expiryDate)
           .replace(/\{\{unidade\}\}/gi, pr.unit || company?.name || "");
 
-        // Find instance for this company
-        const { data: instance } = await supabase
+        // Número da empresa: o da unidade da pré-reserva, senão o primeiro conectado
+        const { data: instances } = await supabase
           .from("wapi_instances")
-          .select("instance_id")
+          .select("instance_id, instance_token, unit")
           .eq("company_id", settings.company_id)
-          .eq("status", "connected")
-          .limit(1)
-          .single();
+          .eq("status", "connected");
+        const instance = (instances || []).find((i) => pr.unit && i.unit === pr.unit) || (instances || [])[0];
 
         if (!instance) continue;
 
-        // Send via wapi-send
-        const sendRes = await fetch(`${supabaseUrl}/functions/v1/wapi-send`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${serviceKey}`,
-          },
-          body: JSON.stringify({
-            instance_id: instance.instance_id,
-            phone: pr.customer_phone,
+        // Envia pelo wapi-send no mesmo formato das outras rotinas (antes faltavam a
+        // ação e o token da instância e a mensagem nunca saía)
+        const digits = String(pr.customer_phone).replace(/\D/g, "");
+        const phone = !digits.startsWith("55") && (digits.length === 10 || digits.length === 11) ? `55${digits}` : digits;
+        const { data: sendData, error: sendErr } = await supabase.functions.invoke("wapi-send", {
+          body: {
+            action: "send-text",
+            instanceId: instance.instance_id,
+            instanceToken: instance.instance_token,
+            phone,
             message,
-          }),
+            source: "pre-reservation-expiry",
+            automation: true,
+          },
         });
+        const failed = !!(sendErr || sendData?.error);
+        if (failed || sendData?.skipped) {
+          console.warn(`[pre-reservation-expiry] Não enviado para a pré-reserva ${pr.id}:`, sendErr?.message || sendData?.error || sendData?.reason);
+        }
+        // Pulada (número em pausa): tenta na próxima rodada. Com erro, não tenta de novo:
+        // às vezes o WhatsApp entrega mesmo dando erro, e o cliente receberia duas vezes.
+        if (sendData?.skipped && !failed) continue;
+        await supabase
+          .from("pre_reservations")
+          .update({ last_automation_sent_at: now.toISOString() })
+          .eq("id", pr.id);
 
-        if (sendRes.ok) {
+        if (!failed) {
           sentCount++;
-          await supabase
-            .from("pre_reservations")
-            .update({ last_automation_sent_at: now.toISOString() })
-            .eq("id", pr.id);
 
           if (pr.lead_id) {
             await supabase.from("lead_history").insert({

@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useTasks } from "@/hooks/useTasks";
 import { TaskDetailSheet } from "./TaskDetailSheet";
-import { EventDetailSheet } from "./EventDetailSheet";
+import { EventDetailSheet, type EventData } from "./EventDetailSheet";
 import { VisitDetailSheet } from "./VisitDetailSheet";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,13 @@ interface UnifiedItem {
 
 interface AgendaTudoTabProps {
   userId?: string;
+  /** mostra o valor da festa (permissão de ver faturamento) */
+  showRevenue?: boolean;
+  /** editar/excluir festa usam o formulário e a confirmação da página da Agenda */
+  onEditEvent?: (event: EventData) => void;
+  onDeleteEvent?: (id: string) => void;
+  /** muda quando uma festa é salva ou excluída (recarrega a lista) */
+  eventsVersion?: number;
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -46,7 +53,7 @@ const TYPE_LABELS: Record<string, string> = {
   tarefa: "📋 Tarefa",
 };
 
-export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
+export function AgendaTudoTab({ userId, showRevenue = false, onEditEvent, onDeleteEvent, eventsVersion = 0 }: AgendaTudoTabProps) {
   const { currentCompany } = useCompany();
   const { tasks, loading: tasksLoading, updateStatus, deleteTask } = useTasks();
   const [events, setEvents] = useState<any[]>([]);
@@ -71,7 +78,7 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
       const [evRes, visitRes] = await Promise.all([
         supabase
           .from("company_events")
-          .select("id, title, event_date, start_time, end_time, status, unit, event_type, package_name, guest_count, total_value, lead_id, child_name, child_age, notes, internal_notes, payment_method, created_by, created_at, updated_at, is_permuta, parent_names, gifts, extra_guest_value, extra_guest_value_antecipado, extra_guest_value_no_dia, event_optionals, birthday_children, child_birthdate, payment_details, data_fechamento_venda, vendedor_responsavel_id")
+          .select("id, company_id, title, event_date, start_time, end_time, status, unit, event_type, package_name, guest_count, total_value, lead_id, child_name, child_age, notes, internal_notes, payment_method, created_by, created_at, updated_at, is_permuta, parent_names, gifts, extra_guest_value, extra_guest_value_antecipado, extra_guest_value_no_dia, event_optionals, birthday_children, child_birthdate, payment_details, data_fechamento_venda, vendedor_responsavel_id")
           .eq("company_id", currentCompany.id)
           .gte("event_date", from)
           .lte("event_date", to),
@@ -88,7 +95,7 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
       setLoading(false);
     };
     fetchAll();
-  }, [currentCompany?.id, month]);
+  }, [currentCompany?.id, month, eventsVersion]);
 
   // Helper: expand recurring tasks into individual date entries for the month
   const expandedTaskDates = useMemo(() => {
@@ -371,9 +378,10 @@ export function AgendaTudoTab({ userId }: AgendaTudoTabProps) {
         open={eventSheetOpen}
         onOpenChange={setEventSheetOpen}
         event={selectedEvent}
-        onEdit={() => {}}
-        onDelete={() => {}}
+        onEdit={(ev) => { setEventSheetOpen(false); onEditEvent?.(ev); }}
+        onDelete={(id) => { setEventSheetOpen(false); onDeleteEvent?.(id); }}
         userId={userId}
+        showRevenue={showRevenue}
         onEventPatch={(eventId, updates) => setSelectedEvent((prev: any) => (prev?.id === eventId ? { ...prev, ...updates } : prev))}
       />
 
