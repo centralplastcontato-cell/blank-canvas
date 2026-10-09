@@ -94,3 +94,12 @@ export function fixedConfirmationTextChoice(text: string): 1 | 2 | null {
   if (/ (sim|confirmo|confirmado|confirmada|confirmar|confirmadissimo) /.test(clean)) return 1;
   return null;
 }
+
+/** Visita marcada (ou remarcada) há pouco: o cliente acabou de combinar, não pergunta se confirma */
+export const MIN_HOURS_AFTER_BOOKING = 12;
+
+export function bookedRecently(bookedAtIso: (string | null | undefined)[], nowMs: number): boolean {
+  const times = bookedAtIso.map((t) => Date.parse(t || "")).filter((t) => Number.isFinite(t));
+  if (times.length === 0) return false;
+  return nowMs - Math.max(...times) < MIN_HOURS_AFTER_BOOKING * HOUR;
+}
