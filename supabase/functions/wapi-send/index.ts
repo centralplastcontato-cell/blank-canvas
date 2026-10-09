@@ -1,7 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { mediaAckMetadata } from "../_shared/media-ack.ts";
-import { EVOLUTION_WEBHOOK_EVENTS, evolutionRequest, evolutionSendMedia, evolutionSendText, extractEvolutionMessageId } from "../_shared/evolution.ts";
+import { EVOLUTION_WEBHOOK_EVENTS, evolutionDownloadMedia, evolutionRequest, evolutionSendMedia, evolutionSendText, extractEvolutionMessageId } from "../_shared/evolution.ts";
 import { decryptWhatsAppMedia, encryptedMediaUrl, type WaMediaType } from "../_shared/whatsapp-media-crypto.ts";
 import { aiTakesSiteLead, buildAiSiteWelcome, cleanSiteLead, type SiteLeadInfo, siteLeadBotData } from "../_shared/ai-site-lead.ts";
 
@@ -3189,14 +3189,29 @@ Deno.serve(async (req) => {
             status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
           if (!msg.media_key || !encUrl) return failEvo('Mídia sem chave para download');
-          const encRes = await fetch(encUrl);
-          if (!encRes.ok) return failEvo(`WhatsApp não liberou o arquivo (${encRes.status})`);
           const mt = String(msg.message_type || 'document');
           const waType = (['image', 'video', 'audio', 'document', 'sticker'].includes(mt) ? mt : 'document') as WaMediaType;
-          const plain = await decryptWhatsAppMedia(new Uint8Array(await encRes.arrayBuffer()), msg.media_key, waType);
-          if (!plain) return failEvo('Não foi possível abrir a mídia');
-          const mimeType = waType === 'image' || waType === 'sticker' ? 'image/jpeg' : waType === 'video' ? 'video/mp4' : waType === 'audio' ? 'audio/ogg' : 'application/octet-stream';
-          const ext = ({ 'image/jpeg': 'jpg', 'video/mp4': 'mp4', 'audio/ogg': 'ogg' } as Record<string, string>)[mimeType] || 'bin';
+          let plain: Uint8Array | null = null;
+          let apiMime: string | null = null;
+          try {
+            const encRes = await fetch(encUrl);
+            if (encRes.ok) plain = await decryptWhatsAppMedia(new Uint8Array(await encRes.arrayBuffer()), msg.media_key, waType);
+          } catch (e) {
+            console.warn('download-media (evolution): download direto falhou:', e instanceof Error ? e.message : String(e));
+          }
+          if (!plain) {
+            // Plano B: a própria Evolution baixa (com o que ficou guardado da mensagem)
+            const viaApi = await evolutionDownloadMedia(instance_token, {
+              [`${waType}Message`]: { URL: msg.media_url, directPath: msg.media_direct_path, mediaKey: msg.media_key },
+            });
+            if (viaApi) {
+              plain = viaApi.bytes;
+              apiMime = viaApi.mime;
+            }
+          }
+          if (!plain) return failEvo('Não foi possível baixar a mídia (o link do WhatsApp pode ter expirado)');
+          const mimeType = apiMime || (waType === 'image' || waType === 'sticker' ? 'image/jpeg' : waType === 'video' ? 'video/mp4' : waType === 'audio' ? 'audio/ogg' : 'application/octet-stream');
+          const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'video/mp4': 'mp4', 'audio/ogg': 'ogg', 'audio/mpeg': 'mp3', 'application/pdf': 'pdf' } as Record<string, string>)[mimeType] || 'bin';
           const path = `received/downloads/${msgId}.${ext}`;
           const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, plain, { contentType: mimeType, upsert: true });
           if (upErr) return failEvo(upErr.message);
