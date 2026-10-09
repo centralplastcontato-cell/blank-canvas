@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, CheckCircle2, Pause, Megaphone, Maximize2, GripVertical, ChevronDown, ChevronUp, AlertCircle, Clock, Send } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { CAMPAIGN_DAILY_LIMIT } from "@/lib/campaignAudience";
+import { CAMPAIGN_DAILY_LIMIT, phoneTail } from "@/lib/campaignAudience";
+import { fetchAllPages } from "@/lib/fetchAllPages";
 
 interface Recipient {
   id: string;
@@ -236,11 +237,45 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Telefones que já receberam esta campanha. Havia listas com o mesmo número duas
+    // vezes (CRM + Base, ou "editar destinatários"), e a pessoa recebia de novo.
+    const sentTails = new Set<string>();
+    try {
+      const sentRows = await fetchAllPages<{ phone: string }>((a, b) =>
+        supabase
+          .from("campaign_recipients")
+          .select("phone")
+          .eq("campaign_id", campaign.id)
+          .eq("status", "sent")
+          .order("id")
+          .range(a, b),
+      );
+      for (const row of sentRows) {
+        const t = phoneTail(row.phone);
+        if (t) sentTails.add(t);
+      }
+    } catch (e) {
+      console.warn("Could not load already-sent phones:", e);
+    }
+
     for (let i = 0; i < recipients.length; i++) {
       if (pauseRequestedRef.current) break;
       if (dailyLimitHit) break;
       if (quarantined) break;
       const r = recipients[i];
+      const tail = phoneTail(r.phone);
+
+      // Repetido: não manda de novo (e não espera o intervalo por ele)
+      if (tail && sentTails.has(tail)) {
+        errorCount++;
+        onStatusChange?.(r.id, "error");
+        await supabase
+          .from("campaign_recipients")
+          .update({ status: "error", error_message: "Telefone repetido: já recebeu esta campanha" })
+          .eq("id", r.id);
+        await supabase.from("campaigns").update({ sent_count: successCount, error_count: errorCount }).eq("id", campaign.id);
+        continue;
+      }
 
       if (i > 0) {
         const totalDelay = campaign.delay_seconds + Math.floor(Math.random() * 5);
@@ -308,6 +343,7 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
           sessionSent++;
           dailySentToday++;
           onStatusChange?.(r.id, "sent");
+          if (tail) sentTails.add(tail);
           await supabase.from("campaign_recipients").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", r.id);
 
           if (dailySentToday >= DAILY_LIMIT) {

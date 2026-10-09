@@ -15,6 +15,7 @@ import { ChevronLeft, ChevronRight, Loader2, Megaphone, Check, Info, ChevronDown
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 import { phoneTail, uniqueByPhone } from "@/lib/campaignAudience";
+import { fetchAllPages } from "@/lib/fetchAllPages";
 import { usableVariations } from "@/lib/campaignMessages";
 
 interface CampaignWizardProps {
@@ -199,7 +200,7 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
       // Carrega quantas variações a campanha tem para distribuir corretamente
       const { data: campData } = await supabase
         .from("campaigns")
-        .select("message_variations, sent_count, error_count")
+        .select("message_variations")
         .eq("id", editingCampaign.id)
         .single();
 
@@ -214,7 +215,20 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
         .eq("status", "pending");
       if (delErr) throw delErr;
 
-      const recipients = selectedLeads.map((lead, i) => {
+      // Quem continua na campanha (já enviado, com erro, ou pendente que não saiu)
+      // não entra de novo: assim ninguém recebe a mesma campanha duas vezes
+      const remaining = await fetchAllPages<{ phone: string }>((a, b) =>
+        supabase
+          .from("campaign_recipients")
+          .select("phone")
+          .eq("campaign_id", editingCampaign.id)
+          .order("id")
+          .range(a, b),
+      );
+      const already = new Set(remaining.map((r) => phoneTail(r.phone)));
+      const toAdd = selectedLeads.filter((l) => !already.has(phoneTail(l.whatsapp)));
+
+      const recipients = toAdd.map((lead, i) => {
         const isBase = lead.id.startsWith("base_");
         return {
           campaign_id: editingCampaign.id,
@@ -233,8 +247,8 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
         if (insErr) throw insErr;
       }
 
-      // Atualiza total = enviados + erros + novos pendentes
-      const newTotal = (campData?.sent_count || 0) + (campData?.error_count || 0) + recipients.length;
+      // Total = todos que estão na campanha agora
+      const newTotal = remaining.length + recipients.length;
       await supabase
         .from("campaigns")
         .update({ total_recipients: newTotal })

@@ -134,3 +134,21 @@ CREATE TRIGGER trg_campaign_optout
   FOR EACH ROW
   WHEN (NEW.from_me = false AND NEW.content IS NOT NULL AND length(NEW.content) <= 40)
   EXECUTE FUNCTION public.record_campaign_optout();
+
+-- 3) Faltava a regra que deixa apagar. Sem ela o banco ignorava o "apagar" em silêncio:
+--    - "Editar destinatários" não tirava os pendentes antigos e somava os novos
+--      (a mesma pessoa podia receber duas vezes);
+--    - apagar imagem da galeria dizia "apagada", mas ela continuava lá.
+DROP POLICY IF EXISTS "Users can delete campaign_recipients via campaign" ON public.campaign_recipients;
+CREATE POLICY "Users can delete campaign_recipients via campaign"
+  ON public.campaign_recipients FOR DELETE TO authenticated
+  USING (EXISTS (
+    SELECT 1 FROM public.campaigns c
+    WHERE c.id = campaign_recipients.campaign_id
+      AND public.user_has_company_access(auth.uid(), c.company_id)
+  ));
+
+DROP POLICY IF EXISTS "Users can delete images from their companies" ON public.campaign_images;
+CREATE POLICY "Users can delete images from their companies"
+  ON public.campaign_images FOR DELETE TO authenticated
+  USING (public.user_has_company_access(auth.uid(), company_id));
