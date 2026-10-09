@@ -1,1 +1,1 @@
-{"sql": "SELECT unit, activated_at, extra_units, enabled, test_mode_enabled FROM ai_agent_settings WHERE company_id = 'a0000000-0000-0000-0000-000000000001'"}
+{"sql": "SELECT s.closed_periods, s.updated_at, has_function_privilege('anon', 'public.public_closed_periods(uuid)', 'execute') AS anon_pode, public.public_closed_periods('a0000000-0000-0000-0000-000000000001') AS rpc FROM ai_agent_settings s WHERE s.company_id = 'a0000000-0000-0000-0000-000000000001'"}
