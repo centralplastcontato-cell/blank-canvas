@@ -429,6 +429,11 @@ Deno.serve(async (req) => {
     } catch (err) {
       console.error("[follow-up-check] Erro ao carregar a jornada da Bia:", err);
     }
+    // Números em que só a IA conversa (IA ligada e sem o modo "só o número de
+    // teste"): o bot fixo não manda os lembretes nem retoma a qualificação dele
+    const aiOnlyInstanceIds = new Set(
+      aiTargets.filter((t) => !t.settings.test_mode_enabled).map((t) => String(t.instance.id)),
+    );
     const runBiaJourney = async () => {
       try {
         const healthy: AiTarget[] = [];
@@ -479,12 +484,12 @@ Deno.serve(async (req) => {
     await processStaleRemindedAlerts({ supabase });
 
     // Process stuck bot recovery (global, before per-instance follow-ups)
-    const stuckBotResult = await processStuckBotRecovery({ supabase });
+    const stuckBotResult = await processStuckBotRecovery({ supabase, skipInstanceIds: aiOnlyInstanceIds });
     totalSuccessCount += stuckBotResult.successCount;
     allErrors.push(...stuckBotResult.errors);
 
     // Process stuck sending_materials recovery (materials sent but proximo_passo question never arrived)
-    const stuckMaterialsResult = await processStuckSendingMaterials({ supabase });
+    const stuckMaterialsResult = await processStuckSendingMaterials({ supabase, skipInstanceIds: aiOnlyInstanceIds });
     totalSuccessCount += stuckMaterialsResult.successCount;
     allErrors.push(...stuckMaterialsResult.errors);
 
@@ -503,8 +508,11 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // Número da IA: os lembretes do bot fixo (inatividade e próximo passo) não saem
+      const fixedBotOff = aiOnlyInstanceIds.has(String(settings.instance_id));
+
       // Process bot inactive follow-up (leads who stopped responding during bot flow)
-      if (settings.bot_inactive_followup_enabled) {
+      if (settings.bot_inactive_followup_enabled && !fixedBotOff) {
         const result = await processBotInactiveFollowUp({
           supabase,
           settings,
@@ -514,7 +522,7 @@ Deno.serve(async (req) => {
       }
 
       // Process next-step reminder (10 min default)
-      if (settings.next_step_reminder_enabled) {
+      if (settings.next_step_reminder_enabled && !fixedBotOff) {
         const result = await processNextStepReminder({
           supabase,
           settings,
@@ -3044,7 +3052,8 @@ function recoveryReplaceVariables(text: string, data: Record<string, string>): s
 
 async function processStuckBotRecovery({
   supabase,
-}: { supabase: SupabaseAdmin }): Promise<{ successCount: number; errors: string[] }> {
+  skipInstanceIds,
+}: { supabase: SupabaseAdmin; skipInstanceIds?: Set<string> }): Promise<{ successCount: number; errors: string[] }> {
   const errors: string[] = [];
   let successCount = 0;
 
@@ -3082,6 +3091,7 @@ async function processStuckBotRecovery({
   const perInstanceSends = new Map<string, number>();
 
   for (const conv of stuckConversations) {
+    if (skipInstanceIds?.has(String(conv.instance_id))) continue; // número da IA: bot fixo não retoma
     // Per-instance ramp-up cap (anti-burst after reconnection)
     const rampUpEarly = await getReconnectRampUp(supabase, conv.instance_id);
     if (rampUpEarly && (perInstanceSends.get(conv.instance_id) ?? 0) >= rampUpEarly.maxSendsPerRun) {
@@ -4038,7 +4048,8 @@ async function processInstanceHealthCheck(
 // (typically because EdgeRuntime.waitUntil background task timed out)
 async function processStuckSendingMaterials({
   supabase,
-}: { supabase: SupabaseAdmin }): Promise<{ successCount: number; errors: string[] }> {
+  skipInstanceIds,
+}: { supabase: SupabaseAdmin; skipInstanceIds?: Set<string> }): Promise<{ successCount: number; errors: string[] }> {
   const now = new Date();
   const threeMinutesAgo = new Date(now.getTime() - 3 * 60 * 1000).toISOString();
   const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
@@ -4070,6 +4081,7 @@ async function processStuckSendingMaterials({
   const errors: string[] = [];
 
   for (const conv of stuckConversations) {
+    if (skipInstanceIds?.has(String(conv.instance_id))) continue; // número da IA: bot fixo não retoma
     try {
       const phone = conv.remote_jid.replace('@s.whatsapp.net', '').replace('@c.us', '');
 
