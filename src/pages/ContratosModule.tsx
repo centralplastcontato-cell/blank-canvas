@@ -68,7 +68,7 @@ export default function ContratosModule() {
               isOpen={isMobileMenuOpen}
               onOpenChange={setIsMobileMenuOpen}
               trigger={<button className="p-2 rounded-xl hover:bg-accent"><Menu className="h-5 w-5" /></button>}
-              currentPage="formularios"
+              currentPage="contratos"
               userName={profile?.full_name || ""}
               userEmail={profile?.email || user.email || ""}
               userAvatar={profile?.avatar_url}

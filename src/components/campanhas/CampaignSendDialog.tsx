@@ -327,13 +327,19 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
               </div>
             )}
             <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-4">
-                {recipients.length} mensagens serão enviadas com intervalo de {campaign.delay_seconds}s.
-                Tempo estimado: ~{Math.ceil((recipients.length * campaign.delay_seconds) / 60)} minutos.
-              </p>
-              <Button onClick={handleSend} className="w-full" size="lg" disabled={instances.length === 0}>
+              {recipients.length === 0 ? (
+                <p className="text-sm text-muted-foreground mb-4">Todos os contatos desta campanha já receberam a mensagem.</p>
+              ) : (
+                <p className="text-sm text-muted-foreground mb-4">
+                  {recipients.length} mensagens serão enviadas com intervalo de {campaign.delay_seconds}s.
+                  Tempo estimado: ~{Math.ceil((recipients.length * campaign.delay_seconds) / 60)} minutos.
+                  {recipients.length > 50 && " O WhatsApp aceita até 50 por dia por empresa: o resto fica para os próximos dias."}
+                  {" "}Deixe esta tela aberta durante o envio.
+                </p>
+              )}
+              <Button onClick={handleSend} className="w-full" size="lg" disabled={instances.length === 0 || recipients.length === 0}>
                 <Send className="w-4 h-4 mr-2" />
-                {instances.length === 0 ? "Nenhum WhatsApp conectado" : "Iniciar Envio"}
+                {instances.length === 0 ? "Nenhum WhatsApp conectado" : recipients.length === 0 ? "Nada para enviar" : "Iniciar Envio"}
               </Button>
             </div>
           </div>
