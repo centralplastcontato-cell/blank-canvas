@@ -343,6 +343,7 @@ export function LeadsTable({
             formatWhatsAppLink={formatWhatsAppLink}
             getResponsavelName={getResponsavelName}
             canViewContact={canViewContact}
+            aiConv={aiConvByLead[lead.id]}
           />
         ))}
         {totalCount > pageSize && (

@@ -41,6 +41,7 @@ import {
 import { LeadOriginBadge } from "./LeadOriginBadge";
 import { LeadUtmBadge } from "./LeadUtm";
 import { LeadReturnBadge } from "./LeadReturnBadge";
+import { AiConversationBadge } from "@/components/whatsapp/AiConversationBadge";
 import { maskPhone } from "@/lib/mask-utils";
 
 interface LeadCardProps {
@@ -56,6 +57,8 @@ interface LeadCardProps {
   formatWhatsAppLink: (phone: string) => string;
   getResponsavelName: (id: string | null) => string | null;
   canViewContact?: boolean;
+  /** Conversa mais recente do lead: mostra o ✨ da IA ao lado do nome */
+  aiConv?: { bot_step: string | null; bot_enabled: boolean | null; bot_data: unknown };
 }
 
 export function LeadCard({
@@ -71,6 +74,7 @@ export function LeadCard({
   formatWhatsAppLink,
   getResponsavelName,
   canViewContact = true,
+  aiConv,
 }: LeadCardProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -107,6 +111,7 @@ export function LeadCard({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h3 className="font-semibold text-foreground truncate">{lead.name}</h3>
+              {aiConv && <AiConversationBadge conv={aiConv} />}
               <LeadOriginBadge origem={lead.origem} />
               <LeadUtmBadge lead={lead} />
               <LeadReturnBadge
