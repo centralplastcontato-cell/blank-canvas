@@ -8,6 +8,9 @@ export const LIVE_REPLY_MAX_MINUTES = 60;
 
 const STEPS_WAITING_ANSWER = [
   'welcome', 'tipo', 'nome', 'mes', 'dia', 'convidados', 'proximo_passo', 'proximo_passo_reminded',
+  // Conversa com a IA: mensagem nova depois da última fala dela é conversa ao
+  // vivo (caso "Ok obrigado" sem resposta, VENDAS 2, 09/10)
+  'ai_agent',
 ];
 
 export interface LiveReplyInput {

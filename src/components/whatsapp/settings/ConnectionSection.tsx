@@ -637,7 +637,10 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
         const updateData: Record<string, unknown> = { status: wapiStatus };
         if (wapiStatus === 'connected') {
           updateData.phone_number = newPhone;
-          updateData.connected_at = new Date().toISOString();
+          // Só marca a hora da conexão quando o número estava desconectado: ela
+          // liga a quarentena pós-reconexão (15 min sem automação nas conversas
+          // que já existiam). "Atualizar status" num número já conectado não reconecta nada.
+          if (instance.status !== 'connected') updateData.connected_at = new Date().toISOString();
 
           // Se a instância acabou de transicionar para 'connected' (ex.: usuário
           // reconectou via QR em outro dispositivo), reaplica os webhooks na

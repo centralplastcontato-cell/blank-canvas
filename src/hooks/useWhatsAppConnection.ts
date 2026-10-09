@@ -87,9 +87,11 @@ export function useWhatsAppConnection(onConnected?: () => void) {
 
       if (response.data?.connected === true || response.data?.details?.connected === true) {
         toast({ title: "Já conectado!", description: "Esta instância já está conectada ao WhatsApp." });
+        // Já estava conectado: a hora da conexão só muda se o número estava fora
+        // (ela liga a quarentena pós-reconexão, que segura a automação por 15 min)
         await supabase
           .from("wapi_instances")
-          .update({ status: "connected", connected_at: new Date().toISOString() })
+          .update(instance.status === "connected" ? { status: "connected" } : { status: "connected", connected_at: new Date().toISOString() })
           .eq("id", instance.id);
         // Re-aplica os webhooks para garantir o recebimento de mensagens após reconexão
         void configureWapiWebhooks(instance.instance_id, instance.instance_token, "qr-already-connected");
