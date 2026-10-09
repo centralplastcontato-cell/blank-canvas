@@ -1,1 +1,1 @@
-{"start": "2026-10-07T21:00:00Z", "end": "2026-10-08T21:00:00Z", "sql": "select r.pathname as path, r.method as method, count(*) as n from function_edge_logs cross join unnest(metadata) as m cross join unnest(m.request) as r group by path, method order by n desc limit 200"}
+{"start": "2026-10-09T18:38:00Z", "end": "2026-10-09T18:41:00Z", "filter": "7867df11"}
