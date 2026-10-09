@@ -1,1 +1,1 @@
-{"sql": "SELECT p.proname, pg_get_function_arguments(p.oid) AS argumentos\nFROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace\nWHERE n.nspname = 'net' AND p.proname = 'http_post'"}
+{"sql": "SELECT jobid, jobname, schedule, active, command LIKE '%timeout_milliseconds := 60000%' AS espera_60s,\n       (SELECT count(*) FROM cron.job WHERE jobname = 'campaign-dispatch-every-2min') AS quantos\nFROM cron.job WHERE jobname = 'campaign-dispatch-every-2min'"}
