@@ -26,6 +26,8 @@ export const AI_WRITABLE_TABLES = new Set([
   "ai_agent_usage",
   "freelancer_invites",
   "visit_confirmation_history", // marcar que o cliente respondeu a confirmação da visita
+  "lead_insights", // análise semanal: por que o lead não fechou (weekly-insights)
+  "weekly_insight_runs", // resumo da semana enviado ao dono (weekly-insights)
 ]);
 
 // Funções do banco que ela pode chamar (todas só de leitura)

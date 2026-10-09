@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { campaignState } from "@/lib/campaignState";
+import { useCampaignResults, percentOf } from "@/hooks/useCampaignResults";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,17 +50,19 @@ interface CampaignDetailSheetProps {
   onRefresh: () => void;
 }
 
-const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
-  draft: { label: "Rascunho", variant: "secondary", icon: Clock },
-  sending: { label: "Enviando", variant: "default", icon: Loader2 },
-  completed: { label: "Concluída", variant: "outline", icon: CheckCircle2 },
-  cancelled: { label: "Cancelada", variant: "destructive", icon: XCircle },
+const statusConfig: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
+  draft: { variant: "secondary", icon: Clock },
+  paused: { variant: "secondary", icon: Clock },
+  sending: { variant: "default", icon: Loader2 },
+  completed: { variant: "outline", icon: CheckCircle2 },
+  cancelled: { variant: "destructive", icon: XCircle },
 };
 
 export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, onStartSend, onResend, onEditAudience, onRefresh }: CampaignDetailSheetProps) {
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
+  const { data: results } = useCampaignResults(companyId || undefined);
 
   useEffect(() => {
     if (campaign && open) {
@@ -131,7 +135,10 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
 
   if (!campaign) return null;
 
-  const sc = statusConfig[campaign.status] || statusConfig.draft;
+  const state = campaignState(campaign);
+  const result = results?.[campaign.id];
+  const sentTotal = sentCount || campaign.sent_count;
+  const sc = statusConfig[state.kind];
   const StatusIcon = sc.icon;
 
   return (
@@ -143,8 +150,8 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
             <div className="flex items-center gap-2">
               <SheetTitle className="text-lg truncate">{campaign.name}</SheetTitle>
               <Badge variant={sc.variant} className="shrink-0 text-[10px]">
-                <StatusIcon className={`w-3 h-3 mr-1 ${campaign.status === "sending" ? "animate-spin" : ""}`} />
-                {sc.label}
+                <StatusIcon className={`w-3 h-3 mr-1 ${state.kind === "sending" ? "animate-spin" : ""}`} />
+                {state.label}
               </Badge>
             </div>
           </SheetHeader>
@@ -164,6 +171,24 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
           <MetricCard label="Erros" value={errorCount || campaign.error_count} icon={XCircle} color="text-destructive" />
           <MetricCard label="Pendentes" value={pendingCount} icon={Clock} color="text-yellow-600" />
         </div>
+
+        {/* Resultado: quem respondeu e quem fechou festa depois de receber */}
+        {result && sentTotal > 0 && (
+          <div className="grid grid-cols-2 gap-2 px-4 sm:px-6 py-3 border-b border-border bg-muted/20">
+            <div className="rounded-xl bg-card border border-border p-2.5">
+              <p className="text-lg font-bold text-blue-600 leading-tight">
+                {result.replied} <span className="text-xs font-medium text-muted-foreground">({percentOf(result.replied, sentTotal)}%)</span>
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-snug">responderam em até 3 dias</p>
+            </div>
+            <div className="rounded-xl bg-card border border-border p-2.5">
+              <p className="text-lg font-bold text-violet-600 leading-tight">
+                {result.closed} <span className="text-xs font-medium text-muted-foreground">({percentOf(result.closed, sentTotal)}%)</span>
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-snug">fecharam festa em até 45 dias</p>
+            </div>
+          </div>
+        )}
 
         {/* Preview + Recipient list */}
         <ScrollArea className="flex-1 min-h-0 w-full max-w-full [&_[data-radix-scroll-area-viewport]>div]:!block [&_[data-radix-scroll-area-viewport]>div]:!w-full [&_[data-radix-scroll-area-viewport]>div]:!max-w-full [&_[data-radix-scroll-area-viewport]>div]:!min-w-0">
@@ -241,11 +266,11 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
 
         {/* Actions */}
         <div className="p-4 sm:px-6 border-t border-border space-y-2">
-          {campaign.status === "draft" && (
+          {campaign.status === "draft" && state.action && (
             <>
               <Button className="w-full" onClick={() => { onOpenChange(false); onStartSend(campaign); }}>
                 <Send className="w-4 h-4 mr-1.5" />
-                Iniciar Envio
+                {state.action === "continue" ? `Continuar envio (faltam ${state.pending})` : "Iniciar Envio"}
               </Button>
               {onEditAudience && (
                 <Button variant="outline" className="w-full" onClick={() => { onOpenChange(false); onEditAudience(campaign); }}>

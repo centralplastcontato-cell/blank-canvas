@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkCompanyAccess } from "../_shared/company-access.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,10 +15,16 @@ Deno.serve(async (req) => {
   try {
     const { base_image_url, logo_url, company_id, position, campaign_theme, context, generation_mode } = await req.json();
 
-    if (!company_id) {
+    // Só quem está logado com acesso à empresa (antes qualquer um gerava arte paga)
+    const access = await checkCompanyAccess(
+      createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!),
+      req,
+      company_id,
+    );
+    if (!access.ok) {
       return new Response(
-        JSON.stringify({ error: "company_id é obrigatório" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: access.error }),
+        { status: access.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

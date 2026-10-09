@@ -17,6 +17,8 @@ export interface CompanyModules {
   dashboard: boolean;
   inteligencia: boolean;
   relatorio_origem: boolean;
+  // Motivos de perda, perguntas mais comuns e resumo semanal no WhatsApp (IA)
+  inteligencia_ia: boolean;
   agenda: boolean;
   operacoes: boolean;
   // --- Automações & Bot ---
@@ -115,6 +117,7 @@ const DEFAULT_MODULES: CompanyModules = {
   dashboard: true,
   inteligencia: false,
   relatorio_origem: false,
+  inteligencia_ia: false,
   agenda: false,
   operacoes: true,
   // --- Automações & Bot ---
@@ -163,6 +166,7 @@ export function parseModules(settings: Json | null | undefined): CompanyModules 
     dashboard: modules.dashboard !== false,
     inteligencia: modules.inteligencia === true,
     relatorio_origem: modules.relatorio_origem === true,
+    inteligencia_ia: modules.inteligencia_ia === true,
     agenda: modules.agenda === true,
     operacoes: modules.operacoes !== false,
     // --- Automações & Bot ---
@@ -207,6 +211,7 @@ export const MODULE_LABELS: Record<keyof CompanyModules, { label: string; descri
   dashboard: { label: 'Dashboard', description: 'Métricas e gráficos de desempenho' },
   inteligencia: { label: 'Inteligência', description: 'Score de leads, priorização e análise de funil' },
   relatorio_origem: { label: 'Relatório de Origem', description: 'Leads por canal (site, WhatsApp, QR da mesa...) nos Relatórios da Inteligência' },
+  inteligencia_ia: { label: 'Inteligência com IA', description: 'Por que os leads não fecharam, perguntas mais comuns e resumo da semana no WhatsApp do dono (usa IA, com custo)' },
   agenda: { label: 'Agenda', description: 'Calendário de festas e eventos' },
   operacoes: { label: 'Operações', description: 'Formulários, checklists, pacotes e freelancers' },
   // --- Automações & Bot ---

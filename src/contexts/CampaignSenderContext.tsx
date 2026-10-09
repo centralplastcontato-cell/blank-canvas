@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, CheckCircle2, Pause, Megaphone, Maximize2, GripVertical, ChevronDown, ChevronUp, AlertCircle, Clock, Send } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { CAMPAIGN_DAILY_LIMIT, phoneTail } from "@/lib/campaignAudience";
+import { fetchAllPages } from "@/lib/fetchAllPages";
 
 interface Recipient {
   id: string;
@@ -119,14 +121,9 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
     const companyName = companyData?.name || "";
 
     await supabase.from("campaigns").update({ status: "sending", started_at: new Date().toISOString() }).eq("id", campaign.id);
-
-    // Limpa campanhas presas em "sending" de sessões anteriores (ex: browser fechado durante envio)
-    await supabase
-      .from("campaigns")
-      .update({ status: "draft" })
-      .eq("company_id", companyId)
-      .eq("status", "sending")
-      .neq("id", campaign.id);
+    // (Antes aqui as outras campanhas "enviando" da empresa voltavam para rascunho, inclusive
+    // as que estavam sendo enviadas de verdade em outro aparelho. A tela agora mostra
+    // "Retomar" nelas, sem mexer no que outra pessoa está fazendo.)
 
     // Smart mode: pre-resolve phone -> instance_id (WAPI string id)
     // Looks at wapi_conversations (most recent per phone) joined with wapi_instances.
@@ -176,6 +173,11 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
     // so that pausing/resuming a campaign does not overwrite previous progress.
     let successCount = 0;
     let errorCount = 0;
+    // Só o que saiu nesta rodada (para os avisos no fim)
+    let sessionSent = 0;
+    let sessionErrors = 0;
+    // O número acabou de reconectar: o servidor segura os envios de campanha por 15 min
+    let quarantined = false;
     try {
       const { count: sentCount } = await supabase
         .from("campaign_recipients")
@@ -196,7 +198,7 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
     // Limite diário anti-bloqueio WhatsApp (Z-API / W-API): 50 mensagens/dia por empresa.
     // Acima disso o WhatsApp bloqueia o número. Somamos os envios já feitos hoje
     // (em qualquer campanha desta empresa) e paramos ao atingir o teto.
-    const DAILY_LIMIT = 50;
+    const DAILY_LIMIT = CAMPAIGN_DAILY_LIMIT;
     let dailySentToday = 0;
     let dailyLimitHit = false;
     try {
@@ -235,10 +237,45 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Telefones que já receberam esta campanha. Havia listas com o mesmo número duas
+    // vezes (CRM + Base, ou "editar destinatários"), e a pessoa recebia de novo.
+    const sentTails = new Set<string>();
+    try {
+      const sentRows = await fetchAllPages<{ phone: string }>((a, b) =>
+        supabase
+          .from("campaign_recipients")
+          .select("phone")
+          .eq("campaign_id", campaign.id)
+          .eq("status", "sent")
+          .order("id")
+          .range(a, b),
+      );
+      for (const row of sentRows) {
+        const t = phoneTail(row.phone);
+        if (t) sentTails.add(t);
+      }
+    } catch (e) {
+      console.warn("Could not load already-sent phones:", e);
+    }
+
     for (let i = 0; i < recipients.length; i++) {
       if (pauseRequestedRef.current) break;
       if (dailyLimitHit) break;
+      if (quarantined) break;
       const r = recipients[i];
+      const tail = phoneTail(r.phone);
+
+      // Repetido: não manda de novo (e não espera o intervalo por ele)
+      if (tail && sentTails.has(tail)) {
+        errorCount++;
+        onStatusChange?.(r.id, "error");
+        await supabase
+          .from("campaign_recipients")
+          .update({ status: "error", error_message: "Telefone repetido: já recebeu esta campanha" })
+          .eq("id", r.id);
+        await supabase.from("campaigns").update({ sent_count: successCount, error_count: errorCount }).eq("id", campaign.id);
+        continue;
+      }
 
       if (i > 0) {
         const totalDelay = campaign.delay_seconds + Math.floor(Math.random() * 5);
@@ -272,27 +309,41 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
 
       try {
         let sendError: any = null;
+        let sendData: { skipped?: boolean } | null = null;
 
         if (campaign.image_url) {
-          const { error } = await supabase.functions.invoke("wapi-send", {
+          const { data, error } = await supabase.functions.invoke("wapi-send", {
             body: { action: "send-image", instanceId: useInstanceId, phone: r.phone, mediaUrl: campaign.image_url, caption: text, source: "campaign", automation: true },
           });
           sendError = error;
+          sendData = data;
         } else {
-          const { error } = await supabase.functions.invoke("wapi-send", {
+          const { data, error } = await supabase.functions.invoke("wapi-send", {
             body: { action: "send-text", instanceId: useInstanceId, phone: r.phone, message: text, source: "campaign", automation: true },
           });
           sendError = error;
+          sendData = data;
+        }
+
+        if (!sendError && sendData?.skipped) {
+          // O servidor não mandou (número em quarentena depois de reconectar). Antes isso
+          // era contado como enviado; agora a pessoa continua pendente e o envio para.
+          quarantined = true;
+          onStatusChange?.(r.id, "pending");
+          break;
         }
 
         if (sendError) {
           errorCount++;
+          sessionErrors++;
           onStatusChange?.(r.id, "error");
           await supabase.from("campaign_recipients").update({ status: "error", error_message: String(sendError) }).eq("id", r.id);
         } else {
           successCount++;
+          sessionSent++;
           dailySentToday++;
           onStatusChange?.(r.id, "sent");
+          if (tail) sentTails.add(tail);
           await supabase.from("campaign_recipients").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", r.id);
 
           if (dailySentToday >= DAILY_LIMIT) {
@@ -319,12 +370,26 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
         await supabase.from("campaigns").update({ sent_count: successCount, error_count: errorCount }).eq("id", campaign.id);
       } catch (err) {
         errorCount++;
+        sessionErrors++;
         onStatusChange?.(r.id, "error");
         await supabase.from("campaign_recipients").update({ status: "error", error_message: String(err) }).eq("id", r.id);
       }
     }
 
-    const wasPaused = pauseRequestedRef.current || dailyLimitHit;
+    // Concluída quando ninguém ficou pendente, mesmo que o limite do dia tenha batido
+    // exatamente no último envio (antes isso deixava a campanha como "Rascunho").
+    let stillPending = 0;
+    try {
+      const { count } = await supabase
+        .from("campaign_recipients")
+        .select("id", { count: "exact", head: true })
+        .eq("campaign_id", campaign.id)
+        .eq("status", "pending");
+      stillPending = count || 0;
+    } catch {
+      stillPending = recipients.length - sessionSent - sessionErrors;
+    }
+    const wasPaused = stillPending > 0;
 
     await supabase.from("campaigns").update({
       status: wasPaused ? "draft" : "completed",
@@ -333,18 +398,23 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
       error_count: errorCount,
     }).eq("id", campaign.id);
 
-    if (dailyLimitHit) {
+    if (quarantined) {
       toast.error(
-        `Limite diário de ${DAILY_LIMIT} mensagens atingido! Campanha pausada automaticamente para proteger seu número do WhatsApp contra bloqueio. Retome amanhã. (${successCount} enviados nesta sessão)`,
+        `O número acabou de reconectar e o WhatsApp segura os envios de campanha por 15 minutos, para evitar bloqueio. ${sessionSent} enviados agora; faltam ${stillPending}. Toque em "Continuar" daqui a pouco.`,
+        { duration: 12000 }
+      );
+    } else if (dailyLimitHit && wasPaused) {
+      toast.error(
+        `Limite diário de ${DAILY_LIMIT} mensagens atingido! Campanha pausada para proteger seu número do WhatsApp contra bloqueio. ${sessionSent} enviados hoje; faltam ${stillPending}. Continue amanhã.`,
         { duration: 12000 }
       );
     } else if (wasPaused) {
-      toast.success(`Campanha pausada. ${successCount} enviados, ${recipients.length - successCount - errorCount} pendentes.`);
+      toast.success(`Campanha pausada. ${sessionSent} enviados agora; faltam ${stillPending}.`);
     } else {
       toast.success(`Campanha finalizada! ${successCount} enviados${errorCount ? `, ${errorCount} falhas` : ""}.`);
     }
 
-    onComplete?.({ success: successCount, errors: errorCount, paused: wasPaused });
+    onComplete?.({ success: sessionSent, errors: sessionErrors, paused: wasPaused });
 
     setIsSending(false);
     isSendingRef.current = false;

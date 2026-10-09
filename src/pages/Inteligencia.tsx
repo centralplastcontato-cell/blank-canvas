@@ -17,7 +17,8 @@ import { generateComercialPDF, generateComercialXLSX } from "@/lib/generateComer
 import { Skeleton } from "@/components/ui/skeleton";
 import { AccessDeniedRedirect } from "@/components/AccessDeniedRedirect";
 import { RelatoriosComerciais } from "@/components/inteligencia/RelatoriosComerciais";
-import { NegociacoesParadasTab } from "@/components/inteligencia/NegociacoesParadasTab";
+import { AtencaoTab } from "@/components/inteligencia/AtencaoTab";
+import { MotivosTab } from "@/components/inteligencia/MotivosTab";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
@@ -28,7 +29,7 @@ import { NotificationBell } from "@/components/admin/NotificationBell";
 export default function Inteligencia() {
   const navigate = useNavigate();
   const modules = useCompanyModules();
-  const [activeTab, setActiveTab] = useState("relatorios");
+  const [activeTab, setActiveTab] = useState("atencao");
   // Puxar para atualizar recarrega os dados das abas
   const queryClient = useQueryClient();
   const refetch = () => queryClient.invalidateQueries();
@@ -224,14 +225,16 @@ export default function Inteligencia() {
             {/* Escondidos (out/2026), até a nova Inteligência: busca do topo, banner do
                 levantamento mensal, abas Resumo do Dia, Prioridades, Follow-ups, Funil e
                 Leads do Dia, e o bloco Prioridades de Venda — mostravam números errados
-                ou nem carregavam. */}
+                ou nem carregavam. O Radar (Neg. Paradas) saiu também: travava com muitos
+                leads e a aba "Precisam de atenção" faz o trabalho dele. */}
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <div className="overflow-x-auto -mx-2 px-2 pb-2 scrollbar-none flex justify-center">
                 <div className="flex md:inline-flex gap-1 md:gap-2 p-1 md:p-1.5 rounded-2xl bg-muted/50 border border-border/40 shadow-sm md:w-max">
                   {[
+                    { value: "atencao", label: "Precisam de atenção", mobileLabel: "Atenção" },
+                    ...(modules.inteligencia_ia ? [{ value: "motivos", label: "Por que não fechou", mobileLabel: "Motivos" }] : []),
                     { value: "relatorios", label: "Relatórios", mobileLabel: "Relatórios" },
-                    { value: "negociacoes", label: "Neg. Paradas", mobileLabel: "Radar" },
                   ].map(t => (
                     <button
                       key={t.value}
@@ -249,9 +252,15 @@ export default function Inteligencia() {
                 </div>
               </div>
 
-              <TabsContent value="negociacoes" className="animate-fade-up">
-                <NegociacoesParadasTab selectedUnit={selectedUnit !== "all" ? selectedUnit : undefined} />
+              <TabsContent value="atencao" className="animate-fade-up">
+                <AtencaoTab selectedUnit={selectedUnit !== "all" ? selectedUnit : undefined} />
               </TabsContent>
+
+              {modules.inteligencia_ia && (
+                <TabsContent value="motivos" className="animate-fade-up">
+                  <MotivosTab selectedUnit={selectedUnit !== "all" ? selectedUnit : undefined} isAdmin={isAdmin} />
+                </TabsContent>
+              )}
 
               <TabsContent value="relatorios" className="animate-fade-up">
                 <RelatoriosComerciais selectedUnit={selectedUnit !== "all" ? selectedUnit : undefined} canViewRevenue={canViewRevenue} />

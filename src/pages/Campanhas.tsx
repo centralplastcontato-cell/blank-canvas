@@ -34,6 +34,9 @@ import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { GuiaCampanhasDialog } from "@/components/guias/GuiaCampanhasDialog";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
+import { useCampaignSender } from "@/contexts/CampaignSenderContext";
+import { campaignState, reactivatedStatus } from "@/lib/campaignState";
+import { useCampaignResults, percentOf } from "@/hooks/useCampaignResults";
 
 interface Campaign {
   id: string;
@@ -64,6 +67,8 @@ export default function Campanhas() {
   }, []);
 
   const { isAdmin, canManageUsers } = useUserRole(user?.id);
+  const sender = useCampaignSender();
+  const { data: results, refetch: refetchResults } = useCampaignResults(companyId || undefined);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -96,6 +101,7 @@ export default function Campanhas() {
     }
     setCampaigns((data as Campaign[]) || []);
     setLoading(false);
+    refetchResults();
   };
 
   const handleDeleteCampaign = async () => {
@@ -140,7 +146,8 @@ export default function Campanhas() {
   };
 
   const handleToggleActive = async (campaign: Campaign, active: boolean) => {
-    const newStatus = active ? "draft" : "cancelled";
+    // Reativar uma campanha que já mandou para todos volta para "Concluída", não "Rascunho"
+    const newStatus = active ? reactivatedStatus(campaign) : "cancelled";
     const { error } = await supabase
       .from("campaigns")
       .update({ status: newStatus })
@@ -153,11 +160,12 @@ export default function Campanhas() {
     }
   };
 
-  const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
-    draft: { label: "Rascunho", variant: "secondary", icon: Clock },
-    sending: { label: "Enviando", variant: "default", icon: Loader2 },
-    completed: { label: "Concluída", variant: "outline", icon: CheckCircle2 },
-    cancelled: { label: "Cancelada", variant: "destructive", icon: XCircle },
+  const statusConfig: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
+    draft: { variant: "secondary", icon: Clock },
+    paused: { variant: "secondary", icon: Clock },
+    sending: { variant: "default", icon: Loader2 },
+    completed: { variant: "outline", icon: CheckCircle2 },
+    cancelled: { variant: "destructive", icon: XCircle },
   };
 
   const handleLogout = async () => {
@@ -187,7 +195,7 @@ export default function Campanhas() {
                       <Menu className="w-5 h-5" />
                     </Button>
                   }
-                  currentPage="atendimento"
+                  currentPage="campanhas"
                   userName={user?.user_metadata?.full_name || ""}
                   userEmail={user?.email || ""}
                   canManageUsers={canManageUsers}
@@ -261,8 +269,11 @@ export default function Campanhas() {
               ) : (
                 <div className="space-y-3">
                   {campaigns.map((campaign) => {
-                    const sc = statusConfig[campaign.status] || statusConfig.draft;
+                    const sendingHere = sender.isSending && sender.activeCampaignId === campaign.id;
+                    const state = campaignState(campaign, sendingHere);
+                    const sc = statusConfig[state.kind];
                     const StatusIcon = sc.icon;
+                    const result = results?.[campaign.id];
                     return (
                       <Card key={campaign.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setDetailCampaign(campaign)}>
                         <CardContent className="p-3 sm:p-4 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-4">
@@ -270,8 +281,8 @@ export default function Campanhas() {
                             <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <p className="font-semibold truncate">{campaign.name}</p>
                               <Badge variant={sc.variant} className="shrink-0 text-[10px]">
-                                <StatusIcon className={`w-3 h-3 mr-1 ${campaign.status === "sending" ? "animate-spin" : ""}`} />
-                                {sc.label}
+                                <StatusIcon className={`w-3 h-3 mr-1 ${state.kind === "sending" ? "animate-spin" : ""}`} />
+                                {state.label}
                               </Badge>
                             </div>
                             {campaign.description && (
@@ -297,6 +308,23 @@ export default function Campanhas() {
                                   <p className="text-[10px] text-muted-foreground">Erros</p>
                                 </div>
                               )}
+                              {result && campaign.sent_count > 0 && (
+                                <>
+                                  <div className="text-center" title="Responderam em até 3 dias depois de receber">
+                                    <p className="font-bold text-base sm:text-lg text-blue-600 leading-tight">
+                                      {result.replied}
+                                      <span className="text-[10px] font-medium text-muted-foreground ml-0.5">
+                                        {percentOf(result.replied, campaign.sent_count)}%
+                                      </span>
+                                    </p>
+                                    <p className="text-[10px] text-muted-foreground">Responderam</p>
+                                  </div>
+                                  <div className="text-center" title="Fecharam festa em até 45 dias depois de receber">
+                                    <p className="font-bold text-base sm:text-lg text-violet-600 leading-tight">{result.closed}</p>
+                                    <p className="text-[10px] text-muted-foreground">Fecharam</p>
+                                  </div>
+                                </>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 flex-wrap justify-end">
                               <div
@@ -306,28 +334,31 @@ export default function Campanhas() {
                               >
                                 <Switch
                                   checked={campaign.status !== "cancelled"}
+                                  disabled={state.kind === "sending"}
                                   onCheckedChange={(v) => handleToggleActive(campaign, v)}
                                 />
                                 <span className="text-[10px] text-muted-foreground">
                                   {campaign.status === "cancelled" ? "Inativa" : "Ativa"}
                                 </span>
                               </div>
-                              {(campaign.status === "draft" || campaign.status === "sending") && (
+                              {state.action && (
                                 <Button
                                   variant="default"
                                   size="sm"
                                   className="h-8"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    if (campaign.status === "sending") {
+                                    if (state.action === "resume") {
                                       setCampaignToReset(campaign);
                                     } else {
                                       setSendCampaign(campaign);
                                     }
                                   }}
                                 >
-                                  {campaign.status === "sending" ? (
+                                  {state.action === "resume" ? (
                                     <><RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Retomar</>
+                                  ) : state.action === "continue" ? (
+                                    <><Play className="h-3.5 w-3.5 mr-1.5" /> Continuar</>
                                   ) : (
                                     <><Play className="h-3.5 w-3.5 mr-1.5" /> Iniciar</>
                                   )}

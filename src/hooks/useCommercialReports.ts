@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/contexts/CompanyContext';
-import { startOfDay, endOfDay, subDays, startOfMonth, endOfMonth } from 'date-fns';
-import { buildChannelBreakdown, type ChannelBreakdownRow } from '@/lib/leadChannel';
+import { startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, format } from 'date-fns';
+import { buildCommercialReport, type CommercialReport, type ReportEvent, type ReportLead, type ReportVisit } from '@/lib/commercialReport';
+import { brtNow } from '@/lib/visitOutcome';
+import { fetchAllPages } from '@/lib/fetchAllPages';
 
 export type PeriodPreset = 'today' | '7d' | '30d' | 'month' | 'custom';
 
@@ -13,73 +15,39 @@ export interface CommercialFilters {
   unit: string; // 'all' or unit name
 }
 
-export interface CommercialReportData {
-  // Conversion
-  /** Leads que chegaram pela primeira vez no período */
-  leadsReceived: number;
-  /** Leads antigos que voltaram a pedir orçamento no período (não entram em "recebidos") */
-  leadsReturned: number;
-  leadsClosed: number;
-  conversionRate: number;
+export type CommercialReportData = CommercialReport;
 
-  // Funnel
-  funnelSteps: { status: string; label: string; count: number; pct: number }[];
-
-  // Origem (canal de captação)
-  channelBreakdown: ChannelBreakdownRow[];
-
-  // Visits
-  visitsTotal: number;
-  visitsRealized: number;
-  visitsNoShow: number;
-  visitsCancelled: number;
-  visitsRescheduled: number;
-  attendanceRate: number;
-
-  // Sales
-  salesCount: number;
-  salesTotal: number;
-  ticketMedio: number;
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  novo: 'Novo',
-  em_contato: 'Visita',
-  orcamento_enviado: 'Orçamento enviado',
-  aguardando_resposta: 'Negociando',
-  fechado: 'Fechado',
-  perdido: 'Perdido',
-};
-
-const FUNNEL_ORDER = ['novo', 'em_contato', 'orcamento_enviado', 'aguardando_resposta', 'fechado', 'perdido'];
+const EXCLUDED_LEAD_STATUSES = '("transferido","trabalhe_conosco","fornecedor","outros")';
 
 export function getDefaultFilters(): CommercialFilters {
-  const now = new Date();
-  return {
-    preset: '30d',
-    from: startOfDay(subDays(now, 30)),
-    to: endOfDay(now),
-    unit: 'all',
-  };
+  const { from, to } = buildDateRange('30d');
+  return { preset: '30d', from, to, unit: 'all' };
 }
 
+/** "7 dias" e "30 dias" contam com o dia de hoje (hoje + 6 dias antes = 7 dias). */
 export function buildDateRange(preset: PeriodPreset, customFrom?: Date, customTo?: Date): { from: Date; to: Date } {
   const now = new Date();
   switch (preset) {
     case 'today':
       return { from: startOfDay(now), to: endOfDay(now) };
     case '7d':
-      return { from: startOfDay(subDays(now, 7)), to: endOfDay(now) };
+      return { from: startOfDay(subDays(now, 6)), to: endOfDay(now) };
     case '30d':
-      return { from: startOfDay(subDays(now, 30)), to: endOfDay(now) };
+      return { from: startOfDay(subDays(now, 29)), to: endOfDay(now) };
     case 'month':
       return { from: startOfMonth(now), to: endOfMonth(now) };
     case 'custom':
       return {
-        from: customFrom ? startOfDay(customFrom) : startOfDay(subDays(now, 30)),
+        from: customFrom ? startOfDay(customFrom) : startOfDay(subDays(now, 29)),
         to: customTo ? endOfDay(customTo) : endOfDay(now),
       };
   }
+}
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
 }
 
 export function useCommercialReports(filters: CommercialFilters) {
@@ -93,144 +61,102 @@ export function useCommercialReports(filters: CommercialFilters) {
 
       const fromISO = filters.from.toISOString();
       const toISO = filters.to.toISOString();
-      const fromDate = filters.from.toISOString().split('T')[0];
-      const toDate = filters.to.toISOString().split('T')[0];
+      // Datas do calendário (dia local), não do UTC — senão o fim do período pula para o dia seguinte
+      const fromDate = format(filters.from, 'yyyy-MM-dd');
+      const toDate = format(filters.to, 'yyyy-MM-dd');
+      const unit = filters.unit !== 'all' ? filters.unit : null;
+      const unitFilter = unit ? `unit.eq."${unit}",unit.eq."As duas"` : null;
+      const matchesUnit = (u: string | null) => !unit || u === unit || u === 'As duas';
 
-      console.log('[RelatoriosComerciais] Fetching', { companyId, from: fromISO, to: toISO, unit: filters.unit });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any;
 
-      // Parallel queries
-      const [leadsResult, visitsResult, eventsResult, returnedResult] = await Promise.all([
-        // 1. All leads created in the period
-        (() => {
-          let q = supabase
+      const [leads, visits, rawEvents, returnedResult, aiResult] = await Promise.all([
+        // 1. Leads que chegaram no período
+        fetchAllPages<ReportLead>((a, b) => {
+          let q = db
             .from('campaign_leads')
-            .select('id, status, unit, created_at, origem, campaign_id')
+            .select('id, status, unit, origem, campaign_id')
             .eq('company_id', companyId)
             .gte('created_at', fromISO)
             .lte('created_at', toISO)
-            .not('status', 'in', '("transferido","trabalhe_conosco","fornecedor","outros")')
-            .limit(2000);
-          if (filters.unit !== 'all') {
-            q = q.or(`unit.eq.${filters.unit},unit.eq.As duas`);
-          }
-          return q;
-        })(),
+            .not('status', 'in', EXCLUDED_LEAD_STATUSES);
+          if (unitFilter) q = q.or(unitFilter);
+          return q.order('id').range(a, b);
+        }),
 
-        // 2. Visits in the period
-        (() => {
-          let q = (supabase as any)
+        // 2. Visitas marcadas para dentro do período
+        fetchAllPages<ReportVisit>((a, b) => {
+          let q = db
             .from('lead_visits')
-            .select('id, lead_id, status_visita, data_visita, company_id')
+            .select('id, lead_id, status_visita, data_visita, horario_visita, unit')
             .eq('company_id', companyId)
             .gte('data_visita', fromDate)
-            .lte('data_visita', toDate)
-            .limit(2000);
-          return q;
-        })(),
+            .lte('data_visita', toDate);
+          if (unitFilter) q = q.or(unitFilter);
+          return q.order('id').range(a, b);
+        }),
 
-        // 3. Events (sales) — use data_fechamento_venda if available, otherwise fall back to created_at
-        (() => {
-          let q = supabase
+        // 3. Festas vendidas no período (sem data de venda, vale o dia do cadastro)
+        fetchAllPages<{ lead_id: string | null; total_value: number | null; data_fechamento_venda: string | null; created_at: string; unit: string | null }>((a, b) =>
+          db
             .from('company_events')
-            .select('id, total_value, data_fechamento_venda, unit, status, created_at')
+            .select('id, lead_id, total_value, data_fechamento_venda, created_at, unit')
             .eq('company_id', companyId)
             .neq('status', 'cancelado')
-            .not('total_value', 'is', null)
-            .limit(2000);
-          if (filters.unit !== 'all') {
-            q = q.or(`unit.eq.${filters.unit},unit.eq.As duas`);
-          }
-          return q;
-        })(),
+            .or(
+              `and(data_fechamento_venda.gte.${fromDate},data_fechamento_venda.lte.${toDate}),` +
+              `and(data_fechamento_venda.is.null,created_at.gte."${fromISO}",created_at.lte."${toISO}")`,
+            )
+            .order('id')
+            .range(a, b),
+        ),
 
         // 4. Leads antigos que voltaram a pedir orçamento no período
         (() => {
-          let q = supabase
+          let q = db
             .from('campaign_leads')
             .select('id', { count: 'exact', head: true })
             .eq('company_id', companyId)
             .gte('last_return_at', fromISO)
             .lte('last_return_at', toISO)
-            .not('status', 'in', '("transferido","trabalhe_conosco","fornecedor","outros")');
-          if (filters.unit !== 'all') {
-            q = q.or(`unit.eq.${filters.unit},unit.eq.As duas`);
-          }
+            .not('status', 'in', EXCLUDED_LEAD_STATUSES);
+          if (unitFilter) q = q.or(unitFilter);
           return q;
         })(),
+
+        // 5. Canal que a IA atende, para marcar na tabela por canal
+        db.from('ai_agent_settings').select('unit').eq('company_id', companyId).maybeSingle(),
       ]);
 
-      if (leadsResult.error) throw leadsResult.error;
-      if (visitsResult.error) throw visitsResult.error;
-      if (eventsResult.error) throw eventsResult.error;
+      const events: ReportEvent[] = rawEvents
+        .filter((e) => matchesUnit(e.unit))
+        .map((e) => ({
+          lead_id: e.lead_id,
+          total_value: e.total_value,
+          data_fechamento_venda: e.data_fechamento_venda,
+          created_date: e.created_at ? brtNow(new Date(e.created_at)).date : null,
+        }));
 
-      const leads = leadsResult.data || [];
-      const visits = visitsResult.data || [];
-      const events = eventsResult.data || [];
+      // Canal de atendimento dos leads de cada festa
+      const eventLeadUnits = new Map<string, string | null>();
+      const leadIds = [...new Set(events.map((e) => e.lead_id).filter((id): id is string => !!id))];
+      for (const ids of chunk(leadIds, 200)) {
+        const { data } = await db.from('campaign_leads').select('id, unit').in('id', ids);
+        for (const l of data || []) eventLeadUnits.set(l.id, l.unit);
+      }
 
-      // Filter visits by unit if needed (via lead lookup)
-      // For simplicity, visits are company-wide unless we join lead unit
-      // (visits table doesn't have unit directly)
-
-      // --- Conversion ---
-      const leadsReceived = leads.length;
-      // Informativo: se a contagem falhar, o relatório segue sem ela
-      const leadsReturned = returnedResult.error ? 0 : returnedResult.count || 0;
-      const leadsClosed = leads.filter(l => l.status === 'fechado').length;
-      const conversionRate = leadsReceived > 0 ? (leadsClosed / leadsReceived) * 100 : 0;
-
-      // --- Funnel ---
-      const statusCounts: Record<string, number> = {};
-      FUNNEL_ORDER.forEach(s => { statusCounts[s] = 0; });
-      leads.forEach(l => {
-        if (l.status in statusCounts) statusCounts[l.status]++;
+      return buildCommercialReport({
+        leads,
+        // Informativo: se a contagem falhar, o relatório segue sem ela
+        leadsReturned: returnedResult.error ? 0 : returnedResult.count || 0,
+        visits,
+        events,
+        eventLeadUnits,
+        aiChannel: aiResult.error ? null : aiResult.data?.unit ?? null,
+        from: fromDate,
+        to: toDate,
       });
-      const total = leadsReceived || 1;
-      const funnelSteps = FUNNEL_ORDER.map(status => ({
-        status,
-        label: STATUS_LABELS[status] || status,
-        count: statusCounts[status] || 0,
-        pct: parseFloat((((statusCounts[status] || 0) / total) * 100).toFixed(1)),
-      }));
-
-      // --- Visits ---
-      const visitsTotal = visits.filter((v: any) =>
-        ['agendada', 'realizada', 'nao_compareceu'].includes(v.status_visita)
-      ).length;
-      const visitsRealized = visits.filter((v: any) => v.status_visita === 'realizada').length;
-      const visitsNoShow = visits.filter((v: any) => v.status_visita === 'nao_compareceu').length;
-      const visitsCancelled = visits.filter((v: any) => v.status_visita === 'cancelada').length;
-      const visitsRescheduled = visits.filter((v: any) => v.status_visita === 'remarcada').length;
-      const attendanceRate = visitsTotal > 0 ? (visitsRealized / visitsTotal) * 100 : 0;
-
-      // --- Sales (filter by data_fechamento_venda or created_at as fallback) ---
-      const filteredEvents = events.filter((e: any) => {
-        const refDate = e.data_fechamento_venda || (e.created_at ? e.created_at.split('T')[0] : null);
-        return refDate && refDate >= fromDate && refDate <= toDate;
-      });
-      const salesCount = filteredEvents.length;
-      const salesTotal = filteredEvents.reduce((sum: number, e: any) => sum + (e.total_value || 0), 0);
-      const ticketMedio = salesCount > 0 ? salesTotal / salesCount : 0;
-
-      const result: CommercialReportData = {
-        leadsReceived,
-        leadsReturned,
-        leadsClosed,
-        conversionRate,
-        funnelSteps,
-        channelBreakdown: buildChannelBreakdown(leads),
-        visitsTotal,
-        visitsRealized,
-        visitsNoShow,
-        visitsCancelled,
-        visitsRescheduled,
-        attendanceRate,
-        salesCount,
-        salesTotal,
-        ticketMedio,
-      };
-
-      console.log('[RelatoriosComerciais] Result', result);
-      return result;
     },
     enabled: !!companyId,
     staleTime: 60_000,
