@@ -22,7 +22,7 @@ function chunk<T>(items: T[], size: number): T[][] {
   return out;
 }
 
-export function useAttentionList(selectedUnit?: string) {
+export function useAttentionList(selectedUnit?: string, options: { enabled?: boolean } = {}) {
   const { currentCompany } = useCompany();
   const companyId = currentCompany?.id;
 
@@ -107,7 +107,7 @@ export function useAttentionList(selectedUnit?: string) {
 
       return buildAttentionList({ leads: unitLeads, conversations, visits, now });
     },
-    enabled: !!companyId,
+    enabled: !!companyId && options.enabled !== false,
     staleTime: 60_000,
     refetchInterval: 2 * 60_000,
   });
