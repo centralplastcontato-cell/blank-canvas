@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -10,21 +8,13 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Loader2, Send, Minus, CheckCircle2, XCircle, Clock, Megaphone, Pause, Smartphone, Sparkles } from "lucide-react";
+import { Loader2, Send, Megaphone, Smartphone, Sparkles, CalendarClock } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useCampaignSender } from "@/contexts/CampaignSenderContext";
 import { useInstancePermissions } from "@/hooks/useInstancePermissions";
-
-interface Recipient {
-  id: string;
-  lead_name: string;
-  phone: string;
-  variation_index: number;
-  status: string;
-}
+import { CAMPAIGN_DAILY_LIMIT, sendDays } from "@/lib/campaignAudience";
 
 interface InstanceOption {
   id: string;
@@ -39,53 +29,36 @@ interface CampaignSendDialogProps {
   campaign: {
     id: string;
     name: string;
-    message_variations: any;
-    image_url: string | null;
-    delay_seconds: number;
-    total_recipients: number;
-    pause_bot_on_reply?: boolean | null;
-    auto_reply_message?: string | null;
   };
   companyId: string;
   onComplete: () => void;
 }
 
+// O envio agora é feito pelo servidor (campaign-dispatch): esta tela só coloca a
+// campanha na fila, escolhendo por qual número sai. Pode fechar a tela depois.
 export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, onComplete }: CampaignSendDialogProps) {
-  const [recipients, setRecipients] = useState<Recipient[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ success: number; errors: number } | null>(null);
-  const [statuses, setStatuses] = useState<Map<string, string>>(new Map());
+  const [pendingCount, setPendingCount] = useState<number | null>(null);
   const [instances, setInstances] = useState<InstanceOption[]>([]);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string>("");
   const [sendMode, setSendMode] = useState<"single" | "smart">("smart");
-
-  const sender = useCampaignSender();
+  const [saving, setSaving] = useState(false);
   const { canViewAllInstances, allowedInstanceIds } = useInstancePermissions();
-  const isThisActive = sender.isSending && sender.activeCampaignId === campaign.id;
-  const sending = isThisActive;
-  const progress = isThisActive ? sender.progress : null;
-  const countdown = isThisActive ? sender.countdown : null;
-  const paused = isThisActive ? sender.paused : false;
 
   useEffect(() => {
     if (!open) return;
-    loadRecipients();
+    loadPending();
     loadInstances();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const loadRecipients = async () => {
-    setLoading(true);
-    const { data } = await supabase
+  const loadPending = async () => {
+    setPendingCount(null);
+    const { count } = await supabase
       .from("campaign_recipients")
-      .select("id, lead_name, phone, variation_index, status")
+      .select("id", { count: "exact", head: true })
       .eq("campaign_id", campaign.id)
-      .eq("status", "pending")
-      .order("created_at");
-    setRecipients((data as Recipient[]) || []);
-    const m = new Map<string, string>();
-    (data || []).forEach((r: Recipient) => m.set(r.id, "pending"));
-    setStatuses(m);
-    setLoading(false);
+      .in("status", ["pending", "sending"]);
+    setPendingCount(count || 0);
   };
 
   const loadInstances = async () => {
@@ -106,176 +79,76 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
     }
   };
 
-  const handleSend = async () => {
+  const handleQueue = async () => {
     const instanceId = selectedInstanceId || instances[0]?.instance_id || null;
     if (!instanceId) {
-      toast.error("Nenhuma instância de WhatsApp conectada!");
+      toast.error("Nenhum WhatsApp conectado!");
       return;
     }
-    if (sender.isSending) {
-      toast.error("Já existe uma campanha em andamento.");
-      return;
+    setSaving(true);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any;
+      // Quem ficou "enviando" no envio antigo pela tela (página fechada no meio) volta para a fila
+      await db
+        .from("campaign_recipients")
+        .update({ status: "pending" })
+        .eq("campaign_id", campaign.id)
+        .eq("status", "sending")
+        .is("claimed_at", null);
+      const { error } = await db
+        .from("campaigns")
+        .update({
+          status: "sending",
+          server_send: true,
+          send_mode: instances.length > 1 ? sendMode : "single",
+          send_instance_id: instanceId,
+          started_at: new Date().toISOString(),
+          last_error: null,
+        })
+        .eq("id", campaign.id);
+      if (error) throw error;
+      toast.success(`Campanha na fila! Ela sai sozinha, até ${CAMPAIGN_DAILY_LIMIT} por dia.`);
+      onOpenChange(false);
+      onComplete();
+    } catch (err) {
+      console.error("Erro ao colocar a campanha na fila:", err);
+      toast.error("Não foi possível começar o envio");
+    } finally {
+      setSaving(false);
     }
-    setResult(null);
-    sender.setMinimized(false);
-
-    await sender.startCampaign({
-      campaign,
-      companyId,
-      instanceId,
-      mode: sendMode,
-      recipients,
-      onStatusChange: (id, status) => {
-        setStatuses((prev) => new Map(prev).set(id, status));
-      },
-      onComplete: ({ success, errors, paused: wasPaused }) => {
-        if (wasPaused) {
-          onOpenChange(false);
-          onComplete();
-        } else {
-          setResult({ success, errors });
-          onComplete();
-        }
-      },
-    });
   };
 
-  const handlePause = () => sender.pauseCampaign();
-
-  const handleClose = () => {
-    setResult(null);
-    onOpenChange(false);
-    onComplete();
-  };
-
-  const handleMinimize = () => {
-    sender.setMinimized(true);
-    onOpenChange(false);
-  };
-
-  const handleDialogChange = (newOpen: boolean) => {
-    // Se está enviando e usuário fecha o dialog, apenas minimiza (envio segue rodando globalmente)
-    if (sending && !newOpen) {
-      handleMinimize();
-      return;
-    }
-    onOpenChange(newOpen);
-  };
-
-  const progressPercent = progress ? Math.round((progress.current / progress.total) * 100) : 0;
+  const days = sendDays(pendingCount || 0, CAMPAIGN_DAILY_LIMIT);
 
   return (
-    <Dialog open={open} onOpenChange={handleDialogChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90dvh] flex flex-col overflow-hidden p-4 sm:p-6">
-        {sending && (
-          <button
-            type="button"
-            onClick={handleMinimize}
-            className="absolute right-11 top-4 z-10 flex items-center justify-center h-6 w-6 rounded-md bg-muted hover:bg-accent text-foreground transition-colors"
-            title="Minimizar (envio continua em segundo plano)"
-          >
-            <Minus className="h-4 w-4" />
-          </button>
-        )}
-
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg max-h-[90dvh] flex flex-col overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Megaphone className="w-5 h-5 text-primary" />
             {campaign.name}
           </DialogTitle>
           <DialogDescription>
-            {sending ? "Enviando campanha..." : result ? "Resultado" : `${recipients.length} destinatários pendentes`}
+            {pendingCount === null ? "Carregando..." : `${pendingCount} pessoa(s) para receber`}
           </DialogDescription>
         </DialogHeader>
 
-        {result ? (
-          <div className="space-y-4 py-4">
-            <div className="flex flex-col items-center gap-3 text-center">
-              {result.errors === 0 ? (
-                <CheckCircle2 className="w-10 h-10 text-green-500" />
-              ) : (
-                <XCircle className="w-10 h-10 text-destructive" />
-              )}
-              <div>
-                <p className="text-base font-semibold">
-                  {result.success > 0 ? `Enviado para ${result.success} contato(s)!` : "Nenhuma mensagem enviada"}
-                </p>
-                {result.errors > 0 && (
-                  <p className="text-sm text-muted-foreground mt-1">{result.errors} falha(s)</p>
-                )}
-              </div>
-            </div>
-            <Button onClick={handleClose} className="w-full">Fechar</Button>
-          </div>
-        ) : loading ? (
+        {pendingCount === null ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : sending ? (
-          <div className="space-y-3 py-2 flex-1 overflow-hidden flex flex-col min-h-0">
-            <div className="space-y-1.5 shrink-0">
-              <p className="text-sm font-medium">{paused ? "Finalizando envio atual..." : `Enviando ${progress?.current || 0} de ${progress?.total || 0}...`}</p>
-              <Progress value={progressPercent} className="h-2" />
-              {progress?.waiting && countdown !== null && !paused && (
-                <p className="text-xs text-muted-foreground animate-pulse">Próximo envio em {countdown}s ⏳</p>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePause}
-                disabled={paused}
-                className="w-full mt-2"
-              >
-                <Pause className="w-3.5 h-3.5 mr-1.5" />
-                {paused ? "Pausando..." : "Pausar campanha"}
-              </Button>
-            </div>
-            <ScrollArea className="flex-1 border rounded-md min-h-0">
-              <div className="p-1 space-y-0.5">
-                {recipients.map((r) => {
-                  const s = statuses.get(r.id) || "pending";
-                  return (
-                    <div key={r.id} className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${s === "sending" ? "bg-accent" : ""}`}>
-                      {s === "pending" && <Clock className="w-4 h-4 shrink-0 text-muted-foreground" />}
-                      {s === "sending" && <Loader2 className="w-4 h-4 shrink-0 text-primary animate-spin" />}
-                      {s === "sent" && <CheckCircle2 className="w-4 h-4 shrink-0 text-green-500" />}
-                      {s === "error" && <XCircle className="w-4 h-4 shrink-0 text-destructive" />}
-                      <span className="truncate flex-1">{r.lead_name}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </ScrollArea>
-            <p className="text-xs text-muted-foreground shrink-0">
-              ✨ Você pode minimizar esta janela e usar a plataforma normalmente — o envio continua em segundo plano.
-            </p>
           </div>
         ) : (
           <div className="space-y-4 py-2">
             {instances.length > 1 && (
               <div className="space-y-2">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Modo de disparo
+                  Por qual número sai
                 </Label>
                 <RadioGroup value={sendMode} onValueChange={(v) => setSendMode(v as "single" | "smart")} className="space-y-2">
                   <label
-                    htmlFor="mode-single"
-                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${sendMode === "single" ? "border-primary bg-primary/5" : "bg-white hover:bg-muted/30"}`}
-                  >
-                    <RadioGroupItem value="single" id="mode-single" className="mt-0.5" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 text-sm font-semibold">
-                        <Smartphone className="w-3.5 h-3.5 text-primary" />
-                        Enviar tudo por um número
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                        Todas as mensagens saem pela instância selecionada abaixo.
-                      </p>
-                    </div>
-                  </label>
-                  <label
                     htmlFor="mode-smart"
-                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${sendMode === "smart" ? "border-primary bg-primary/5" : "bg-white hover:bg-muted/30"}`}
+                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${sendMode === "smart" ? "border-primary bg-primary/5" : "bg-card hover:bg-muted/30"}`}
                   >
                     <RadioGroupItem value="smart" id="mode-smart" className="mt-0.5" />
                     <div className="min-w-0 flex-1">
@@ -284,7 +157,22 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
                         Disparo inteligente
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                        Cada lead recebe pelo número onde já conversou. Leads sem histórico caem na instância selecionada abaixo (fallback).
+                        Cada pessoa recebe pelo número onde já conversou. Quem nunca conversou recebe pelo número escolhido abaixo.
+                      </p>
+                    </div>
+                  </label>
+                  <label
+                    htmlFor="mode-single"
+                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${sendMode === "single" ? "border-primary bg-primary/5" : "bg-card hover:bg-muted/30"}`}
+                  >
+                    <RadioGroupItem value="single" id="mode-single" className="mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 text-sm font-semibold">
+                        <Smartphone className="w-3.5 h-3.5 text-primary" />
+                        Tudo por um número
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                        Todas as mensagens saem pelo número escolhido abaixo.
                       </p>
                     </div>
                   </label>
@@ -295,11 +183,11 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                   <Smartphone className="w-3.5 h-3.5" />
-                  {sendMode === "smart" ? "Número de fallback" : "Enviar pelo WhatsApp"}
+                  {sendMode === "smart" ? "Número para quem nunca conversou" : "Número"}
                 </Label>
                 <Select value={selectedInstanceId} onValueChange={setSelectedInstanceId}>
-                  <SelectTrigger className="w-full bg-white">
-                    <SelectValue placeholder="Selecione a instância" />
+                  <SelectTrigger className="w-full bg-card">
+                    <SelectValue placeholder="Escolha o número" />
                   </SelectTrigger>
                   <SelectContent>
                     {instances.map((inst) => (
@@ -310,38 +198,39 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-[11px] text-muted-foreground">
-                  {sendMode === "smart"
-                    ? "Usado apenas para leads que ainda não têm conversa em nenhum número."
-                    : "Escolha por qual número os disparos serão feitos."}
-                </p>
               </div>
             )}
             {instances.length === 1 && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 text-xs text-muted-foreground">
                 <Smartphone className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate">
-                  Enviando por: <strong className="text-foreground">{instances[0].unit || "WhatsApp"}</strong>
+                  Sai pelo número: <strong className="text-foreground">{instances[0].unit || "WhatsApp"}</strong>
                   {instances[0].phone_number ? ` (${instances[0].phone_number})` : ""}
                 </span>
               </div>
             )}
-            <div className="text-center">
-              {recipients.length === 0 ? (
-                <p className="text-sm text-muted-foreground mb-4">Todos os contatos desta campanha já receberam a mensagem.</p>
-              ) : (
-                <p className="text-sm text-muted-foreground mb-4">
-                  {recipients.length} mensagens serão enviadas com intervalo de {campaign.delay_seconds}s.
-                  Tempo estimado: ~{Math.ceil((recipients.length * campaign.delay_seconds) / 60)} minutos.
-                  {recipients.length > 50 && " O WhatsApp aceita até 50 por dia por empresa: o resto fica para os próximos dias."}
-                  {" "}Deixe esta tela aberta durante o envio.
-                </p>
-              )}
-              <Button onClick={handleSend} className="w-full" size="lg" disabled={instances.length === 0 || recipients.length === 0}>
-                <Send className="w-4 h-4 mr-2" />
-                {instances.length === 0 ? "Nenhum WhatsApp conectado" : recipients.length === 0 ? "Nada para enviar" : "Iniciar Envio"}
-              </Button>
-            </div>
+
+            {pendingCount > 0 && (
+              <div className="flex items-start gap-2.5 p-3 rounded-xl border border-primary/20 bg-primary/5 text-xs leading-relaxed text-foreground/80">
+                <CalendarClock className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                <span>
+                  A campanha <strong>sai sozinha</strong>: até <strong>{CAMPAIGN_DAILY_LIMIT} por dia</strong>, de segunda a sábado
+                  das 9h às 19h, uma a cada ~20 minutos com tempo variado (para proteger o número).
+                  {days > 1 ? <> Leva cerca de <strong>{days} dias de envio</strong>.</> : " Termina hoje ou no próximo dia de envio."}
+                  {" "}Pode fechar esta tela. Se outra campanha estiver saindo, esta vem logo depois dela.
+                </span>
+              </div>
+            )}
+
+            <Button
+              onClick={handleQueue}
+              className="w-full"
+              size="lg"
+              disabled={saving || instances.length === 0 || pendingCount === 0}
+            >
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+              {instances.length === 0 ? "Nenhum WhatsApp conectado" : pendingCount === 0 ? "Nada para enviar" : "Começar envio"}
+            </Button>
           </div>
         )}
       </DialogContent>

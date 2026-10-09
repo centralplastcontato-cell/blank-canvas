@@ -13,8 +13,8 @@ export const CLOSED_LEAD_STATUSES = [
   "outros",
 ] as const;
 
-/** Limite de envios por dia por empresa (protege o número contra bloqueio) */
-export const CAMPAIGN_DAILY_LIMIT = 50;
+/** Limite de envios por dia por empresa (protege o número contra bloqueio). Igual ao do servidor. */
+export const CAMPAIGN_DAILY_LIMIT = 30;
 
 /** Quem recebeu campanha há menos que isso fica de fora */
 export const RECENT_CAMPAIGN_DAYS = 15;
