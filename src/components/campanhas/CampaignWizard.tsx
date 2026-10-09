@@ -14,6 +14,9 @@ import { CampaignConfigStep } from "./CampaignConfigStep";
 import { ChevronLeft, ChevronRight, Loader2, Megaphone, Check, Info, ChevronDown, Users } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
+import { phoneTail, uniqueByPhone } from "@/lib/campaignAudience";
+import { fetchAllPages } from "@/lib/fetchAllPages";
+import { usableVariations } from "@/lib/campaignMessages";
 
 interface CampaignWizardProps {
   open: boolean;
@@ -37,6 +40,8 @@ export interface CampaignDraft {
   imageUrl: string | null;
   selectedLeadIds: string[];
   leads: { id: string; name: string; whatsapp: string }[];
+  /** Ao editar destinatários: telefones (finais) que já estavam na lista, para marcar de novo */
+  preselectTails?: string[];
   delaySeconds: number;
   pauseBotOnReply: boolean;
   autoReplyMessage: string;
@@ -93,12 +98,14 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
           .eq("campaign_id", editingCampaign.id)
           .eq("status", "pending");
 
-        const preSelected = (data || []).map((r) => r.lead_id ?? `base_${r.phone}`);
-        setDraft({
+        // Marca pelo telefone: serve para leads do CRM e da Base
+        // Mantém a lista de leads, se ela já carregou antes desta busca terminar
+        setDraft((prev) => ({
           ...EMPTY_DRAFT,
+          leads: prev.leads,
           name: editingCampaign.name,
-          selectedLeadIds: preSelected.filter(Boolean) as string[],
-        });
+          preselectTails: (data || []).map((r) => phoneTail(r.phone)).filter(Boolean),
+        }));
       })();
     } else {
       setStep(0);
@@ -106,7 +113,7 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
     }
   }, [open, isEditingAudience, editingCampaign?.id]);
 
-  const canAdvanceStep0 = draft.name.trim() && draft.variations.length >= 1;
+  const canAdvanceStep0 = draft.name.trim() && usableVariations(draft.variations).length >= 1;
   const canAdvanceStep1 = draft.selectedLeadIds.length > 0;
 
   const handleCreate = async () => {
@@ -117,7 +124,9 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
       const { data: user } = await supabase.auth.getUser();
       if (!user?.user?.id) throw new Error("Não autenticado");
 
-      const selectedLeads = draft.leads.filter((l) => draft.selectedLeadIds.includes(l.id));
+      const selectedIds = new Set(draft.selectedLeadIds);
+      const selectedLeads = uniqueByPhone(draft.leads.filter((l) => selectedIds.has(l.id)));
+      const variations = usableVariations(draft.variations);
 
       const { data: campaign, error } = await supabase
         .from("campaigns")
@@ -126,7 +135,7 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
           created_by: user.user.id,
           name: draft.name.trim(),
           description: draft.description.trim() || null,
-          message_variations: draft.variations,
+          message_variations: variations,
           image_url: draft.imageUrl,
           delay_seconds: draft.delaySeconds,
           status: "draft",
@@ -147,7 +156,7 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
           lead_id: isBase ? null : lead.id,
           phone: lead.whatsapp,
           lead_name: lead.name,
-          variation_index: i % draft.variations.length,
+          variation_index: i % variations.length,
           status: "pending",
         };
       });
@@ -185,12 +194,13 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
     if (!editingCampaign) return;
     setSaving(true);
     try {
-      const selectedLeads = draft.leads.filter((l) => draft.selectedLeadIds.includes(l.id));
+      const selectedIds = new Set(draft.selectedLeadIds);
+      const selectedLeads = uniqueByPhone(draft.leads.filter((l) => selectedIds.has(l.id)));
 
       // Carrega quantas variações a campanha tem para distribuir corretamente
       const { data: campData } = await supabase
         .from("campaigns")
-        .select("message_variations, sent_count, error_count")
+        .select("message_variations")
         .eq("id", editingCampaign.id)
         .single();
 
@@ -205,7 +215,20 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
         .eq("status", "pending");
       if (delErr) throw delErr;
 
-      const recipients = selectedLeads.map((lead, i) => {
+      // Quem continua na campanha (já enviado, com erro, ou pendente que não saiu)
+      // não entra de novo: assim ninguém recebe a mesma campanha duas vezes
+      const remaining = await fetchAllPages<{ phone: string }>((a, b) =>
+        supabase
+          .from("campaign_recipients")
+          .select("phone")
+          .eq("campaign_id", editingCampaign.id)
+          .order("id")
+          .range(a, b),
+      );
+      const already = new Set(remaining.map((r) => phoneTail(r.phone)));
+      const toAdd = selectedLeads.filter((l) => !already.has(phoneTail(l.whatsapp)));
+
+      const recipients = toAdd.map((lead, i) => {
         const isBase = lead.id.startsWith("base_");
         return {
           campaign_id: editingCampaign.id,
@@ -224,8 +247,8 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
         if (insErr) throw insErr;
       }
 
-      // Atualiza total = enviados + erros + novos pendentes
-      const newTotal = (campData?.sent_count || 0) + (campData?.error_count || 0) + recipients.length;
+      // Total = todos que estão na campanha agora
+      const newTotal = remaining.length + recipients.length;
       await supabase
         .from("campaigns")
         .update({ total_recipients: newTotal })
@@ -318,10 +341,10 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
             <CampaignContextStep draft={draft} setDraft={setDraft} companyName={companyName} />
           )}
           {step === 1 && (
-            <CampaignAudienceStep draft={draft} setDraft={setDraft} companyId={companyId} />
+            <CampaignAudienceStep draft={draft} setDraft={setDraft} companyId={companyId} editingCampaignId={editingCampaign?.id} />
           )}
           {!isEditingAudience && step === 2 && (
-            <CampaignConfigStep draft={draft} setDraft={setDraft} />
+            <CampaignConfigStep draft={draft} setDraft={setDraft} companyName={companyName} />
           )}
         </div>
 

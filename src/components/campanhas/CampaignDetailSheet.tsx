@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { campaignState } from "@/lib/campaignState";
+import { useCampaignResults, percentOf } from "@/hooks/useCampaignResults";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,7 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
+  const { data: results } = useCampaignResults(companyId || undefined);
 
   useEffect(() => {
     if (campaign && open) {
@@ -134,6 +136,8 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
   if (!campaign) return null;
 
   const state = campaignState(campaign);
+  const result = results?.[campaign.id];
+  const sentTotal = sentCount || campaign.sent_count;
   const sc = statusConfig[state.kind];
   const StatusIcon = sc.icon;
 
@@ -167,6 +171,24 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
           <MetricCard label="Erros" value={errorCount || campaign.error_count} icon={XCircle} color="text-destructive" />
           <MetricCard label="Pendentes" value={pendingCount} icon={Clock} color="text-yellow-600" />
         </div>
+
+        {/* Resultado: quem respondeu e quem fechou festa depois de receber */}
+        {result && sentTotal > 0 && (
+          <div className="grid grid-cols-2 gap-2 px-4 sm:px-6 py-3 border-b border-border bg-muted/20">
+            <div className="rounded-xl bg-card border border-border p-2.5">
+              <p className="text-lg font-bold text-blue-600 leading-tight">
+                {result.replied} <span className="text-xs font-medium text-muted-foreground">({percentOf(result.replied, sentTotal)}%)</span>
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-snug">responderam em até 3 dias</p>
+            </div>
+            <div className="rounded-xl bg-card border border-border p-2.5">
+              <p className="text-lg font-bold text-violet-600 leading-tight">
+                {result.closed} <span className="text-xs font-medium text-muted-foreground">({percentOf(result.closed, sentTotal)}%)</span>
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-snug">fecharam festa em até 45 dias</p>
+            </div>
+          </div>
+        )}
 
         {/* Preview + Recipient list */}
         <ScrollArea className="flex-1 min-h-0 w-full max-w-full [&_[data-radix-scroll-area-viewport]>div]:!block [&_[data-radix-scroll-area-viewport]>div]:!w-full [&_[data-radix-scroll-area-viewport]>div]:!max-w-full [&_[data-radix-scroll-area-viewport]>div]:!min-w-0">
