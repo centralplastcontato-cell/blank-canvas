@@ -109,9 +109,16 @@ export function LeadCard({
             />
           )}
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+            {/* Nome sempre visível; as etiquetas (origem, anúncio, retorno) vão na
+                linha de baixo e quebram linha no celular em vez de sair da tela */}
+            <div className="flex items-center gap-2 min-w-0">
               <h3 className="font-semibold text-foreground truncate">{lead.name}</h3>
               {aiConv && <AiConversationBadge conv={aiConv} />}
+              {lead.observacoes && (
+                <MessageSquare className="w-3 h-3 text-primary shrink-0" />
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 min-w-0 empty:hidden mt-1 [&>*]:max-w-full">
               <LeadOriginBadge origem={lead.origem} />
               <LeadUtmBadge lead={lead} />
               <LeadReturnBadge
@@ -119,9 +126,6 @@ export function LeadCard({
                 lastReturnAt={lead.last_return_at}
                 createdAt={lead.created_at}
               />
-              {lead.observacoes && (
-                <MessageSquare className="w-3 h-3 text-primary shrink-0" />
-              )}
             </div>
             <div className="flex items-center gap-1 text-sm text-muted-foreground mt-0.5">
               <Phone className="w-3 h-3" />
