@@ -34,7 +34,7 @@ interface MobileMenuProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   trigger: React.ReactNode;
-  currentPage: "atendimento" | "configuracoes" | "users" | "whatsapp" | "inteligencia" | "agenda" | "avaliacoes" | "prefesta" | "formularios" | "perfil" | "treinamento" | "financeiro" | "parceiro";
+  currentPage: "atendimento" | "configuracoes" | "users" | "whatsapp" | "inteligencia" | "agenda" | "avaliacoes" | "prefesta" | "formularios" | "perfil" | "treinamento" | "financeiro" | "parceiro" | "campanhas" | "contratos";
   userName: string;
   userEmail: string;
   userAvatar?: string | null;

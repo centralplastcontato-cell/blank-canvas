@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { campaignState } from "@/lib/campaignState";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,11 +49,12 @@ interface CampaignDetailSheetProps {
   onRefresh: () => void;
 }
 
-const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
-  draft: { label: "Rascunho", variant: "secondary", icon: Clock },
-  sending: { label: "Enviando", variant: "default", icon: Loader2 },
-  completed: { label: "Concluída", variant: "outline", icon: CheckCircle2 },
-  cancelled: { label: "Cancelada", variant: "destructive", icon: XCircle },
+const statusConfig: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
+  draft: { variant: "secondary", icon: Clock },
+  paused: { variant: "secondary", icon: Clock },
+  sending: { variant: "default", icon: Loader2 },
+  completed: { variant: "outline", icon: CheckCircle2 },
+  cancelled: { variant: "destructive", icon: XCircle },
 };
 
 export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, onStartSend, onResend, onEditAudience, onRefresh }: CampaignDetailSheetProps) {
@@ -131,7 +133,8 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
 
   if (!campaign) return null;
 
-  const sc = statusConfig[campaign.status] || statusConfig.draft;
+  const state = campaignState(campaign);
+  const sc = statusConfig[state.kind];
   const StatusIcon = sc.icon;
 
   return (
@@ -143,8 +146,8 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
             <div className="flex items-center gap-2">
               <SheetTitle className="text-lg truncate">{campaign.name}</SheetTitle>
               <Badge variant={sc.variant} className="shrink-0 text-[10px]">
-                <StatusIcon className={`w-3 h-3 mr-1 ${campaign.status === "sending" ? "animate-spin" : ""}`} />
-                {sc.label}
+                <StatusIcon className={`w-3 h-3 mr-1 ${state.kind === "sending" ? "animate-spin" : ""}`} />
+                {state.label}
               </Badge>
             </div>
           </SheetHeader>
@@ -241,11 +244,11 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
 
         {/* Actions */}
         <div className="p-4 sm:px-6 border-t border-border space-y-2">
-          {campaign.status === "draft" && (
+          {campaign.status === "draft" && state.action && (
             <>
               <Button className="w-full" onClick={() => { onOpenChange(false); onStartSend(campaign); }}>
                 <Send className="w-4 h-4 mr-1.5" />
-                Iniciar Envio
+                {state.action === "continue" ? `Continuar envio (faltam ${state.pending})` : "Iniciar Envio"}
               </Button>
               {onEditAudience && (
                 <Button variant="outline" className="w-full" onClick={() => { onOpenChange(false); onEditAudience(campaign); }}>

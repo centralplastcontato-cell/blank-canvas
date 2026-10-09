@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkCompanyAccess } from "../_shared/company-access.ts";
 import { Image } from "https://deno.land/x/imagescript@1.3.0/mod.ts";
 
 const corsHeaders = {
@@ -19,6 +20,22 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "image_url e company_id são obrigatórios" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Só quem está logado com acesso à empresa, ou o campaign-image (chave de serviço).
+    // Antes qualquer um baixava qualquer endereço e gravava no armazenamento público.
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const access = await checkCompanyAccess(
+      createClient(Deno.env.get("SUPABASE_URL")!, serviceKey),
+      req,
+      company_id,
+      { allowService: true, serviceKey },
+    );
+    if (!access.ok) {
+      return new Response(
+        JSON.stringify({ error: access.error }),
+        { status: access.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

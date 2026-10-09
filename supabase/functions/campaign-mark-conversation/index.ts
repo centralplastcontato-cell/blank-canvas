@@ -4,6 +4,7 @@
 // and triggers the auto reply + notifications.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { checkCompanyAccess } from '../_shared/company-access.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -59,6 +60,27 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Instance not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Só quem tem acesso à empresa do número (antes a chave pública bastava para desligar o robô
+    // de qualquer conversa), e a campanha precisa ser da mesma empresa.
+    const access = await checkCompanyAccess(supabase, req, instance.company_id);
+    if (!access.ok) {
+      return new Response(
+        JSON.stringify({ error: access.error }),
+        { status: access.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const { data: campaignRow } = await supabase
+      .from('campaigns')
+      .select('company_id')
+      .eq('id', campaign_id)
+      .maybeSingle();
+    if (!campaignRow || campaignRow.company_id !== instance.company_id) {
+      return new Response(
+        JSON.stringify({ error: 'Campanha não é desta empresa' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
