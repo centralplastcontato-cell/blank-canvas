@@ -183,6 +183,7 @@ GRANT EXECUTE ON FUNCTION public.campaign_dispatch_claim(integer, timestamptz, i
 -- 5) Agendamento: a cada 2 minutos, de segunda a sábado entre 12h e 21h59 UTC
 --    (9h às 18h59 em Brasília). A função confere o horário de novo e só manda o que
 --    está na vez, então chamar a mais não manda mensagem a mais. Não precisa de chave.
+--    Espera até 60 s pela resposta (o padrão de 5 s é curto para um envio de WhatsApp).
 SELECT cron.unschedule('campaign-dispatch-every-2min')
 WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'campaign-dispatch-every-2min');
 
@@ -193,7 +194,8 @@ SELECT cron.schedule(
   SELECT net.http_post(
     url := 'https://rsezgnkfhodltrsewlhz.supabase.co/functions/v1/campaign-dispatch',
     headers := '{"Content-Type": "application/json"}'::jsonb,
-    body := '{}'::jsonb
+    body := '{}'::jsonb,
+    timeout_milliseconds := 60000
   ) AS request_id;
   $cron$
 );
