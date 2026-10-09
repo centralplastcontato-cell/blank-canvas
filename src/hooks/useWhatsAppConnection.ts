@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { providerLabel as providerLabelOf } from "@/lib/whatsappProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { configureWapiWebhooks } from "@/lib/wapi-webhook-config";
@@ -53,7 +54,7 @@ export function useWhatsAppConnection(onConnected?: () => void) {
     setConnectionStage(attempt > 0 ? "retrying" : "connecting");
     setRetryCount(attempt);
 
-    const providerLabel = instance.provider === "zapi" ? "Z-API" : "W-API";
+    const providerLabel = providerLabelOf(instance.provider);
 
     try {
       const timeout = TIMEOUTS[Math.min(attempt, TIMEOUTS.length - 1)];

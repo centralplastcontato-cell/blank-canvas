@@ -11,6 +11,7 @@ import { BOT_STEPS_WAITING_ANSWER, botShouldHaveAnswered, UNANSWERED_MAX_AGE_HOU
 import { resolveUnitNotificationTargets } from "../_shared/notification-targets.ts";
 import { decideDeliveryStall, type OutgoingRow, STALL_LOOKBACK_MS } from "../_shared/delivery-stall.ts";
 import { isAiConversationalEnabled } from "../_shared/ai-module.ts";
+import { evolutionSendMedia, evolutionSendText, extractEvolutionMessageId } from "../_shared/evolution.ts";
 import { type AiTarget, journeyOwnsConversation, type JourneyScope, journeyScopes, loadAiJourneyTargets, runAiJourney } from "./ai-journey.ts";
 
 type SupabaseAdmin = any;
@@ -1649,7 +1650,7 @@ async function processAutoLost({
 const WAPI_BASE_URL = 'https://api.w-api.app/v1';
 const ZAPI_BASE_URL = 'https://api.z-api.io/instances';
 
-type Provider = 'wapi' | 'zapi';
+type Provider = 'wapi' | 'zapi' | 'evolution';
 
 interface InstanceInfo {
   instance_id: string;
@@ -1673,6 +1674,10 @@ async function providerSendText(
 ): Promise<{ ok: boolean; messageId: string | null; error?: string }> {
   const provider = (inst.provider || 'wapi') as Provider;
   try {
+    if (provider === 'evolution') {
+      const r = await evolutionSendText(inst.instance_token, phone, message);
+      return r.ok ? { ok: true, messageId: extractEvolutionMessageId(r.data) } : { ok: false, messageId: null, error: r.error };
+    }
     let res: Response;
     if (provider === 'zapi') {
       const url = `${ZAPI_BASE_URL}/${inst.instance_id}/token/${inst.instance_token}/send-text`;
@@ -1711,6 +1716,10 @@ async function providerSendImage(
 ): Promise<{ ok: boolean; messageId: string | null }> {
   const provider = (inst.provider || 'wapi') as Provider;
   try {
+    if (provider === 'evolution') {
+      const r = await evolutionSendMedia(inst.instance_token, phone, 'image', image, { caption });
+      return { ok: r.ok, messageId: r.ok ? extractEvolutionMessageId(r.data) : null };
+    }
     let res: Response;
     if (provider === 'zapi') {
       const url = `${ZAPI_BASE_URL}/${inst.instance_id}/token/${inst.instance_token}/send-image`;
@@ -1739,6 +1748,10 @@ async function providerSendVideo(
 ): Promise<{ ok: boolean; messageId: string | null }> {
   const provider = (inst.provider || 'wapi') as Provider;
   try {
+    if (provider === 'evolution') {
+      const r = await evolutionSendMedia(inst.instance_token, phone, 'video', video, { caption });
+      return { ok: r.ok, messageId: r.ok ? extractEvolutionMessageId(r.data) : null };
+    }
     let res: Response;
     if (provider === 'zapi') {
       const url = `${ZAPI_BASE_URL}/${inst.instance_id}/token/${inst.instance_token}/send-video`;
@@ -1768,6 +1781,10 @@ async function providerSendDocument(
   const provider = (inst.provider || 'wapi') as Provider;
   const ext = document.split('.').pop()?.split('?')[0] || 'pdf';
   try {
+    if (provider === 'evolution') {
+      const r = await evolutionSendMedia(inst.instance_token, phone, 'document', document, { filename: fileName });
+      return { ok: r.ok, messageId: r.ok ? extractEvolutionMessageId(r.data) : null };
+    }
     let res: Response;
     if (provider === 'zapi') {
       const url = `${ZAPI_BASE_URL}/${inst.instance_id}/token/${inst.instance_token}/send-document/${ext}`;

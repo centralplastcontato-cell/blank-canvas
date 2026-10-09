@@ -219,6 +219,9 @@ Deno.serve(async (req) => {
         };
         results.push(entry);
         console.log(`[reinforce-webhooks] Z-API ${instanceId}: ${entry.detail}`);
+      } else if (provider === "evolution") {
+        // Evolution Go: o webhook é registrado no /instance/connect (Conectar no painel)
+        results.push({ instance_id: instanceId, provider, ok: true, detail: "evolution_skip" });
       } else if (provider === "wapi") {
         const ok = await reinforceWapi(instance as Record<string, unknown>, webhookUrl);
         const entry = { instance_id: instanceId, provider: "wapi", ok };

@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, memo, useEffect } from "react";
+import { providerLabel as providerLabelOf } from "@/lib/whatsappProvider";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
 import {
@@ -233,7 +234,7 @@ export function ConnectionDialog({
 }: ConnectionDialogProps) {
   const isLoadingQr = (qrLoading || connectionStage === "connecting" || connectionStage === "generating" || connectionStage === "retrying") && !qrCode;
   const isFailed = connectionStage === "failed" && !qrCode;
-  const providerLabel = instance?.provider === "zapi" ? "Z-API" : "W-API";
+  const providerLabel = providerLabelOf(instance?.provider);
   const normalizedQr = qrCode ? normalizeQrValue(qrCode) : null;
 
   return (
