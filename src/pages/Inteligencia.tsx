@@ -3,8 +3,7 @@ import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
-import { useLeadIntelligence } from "@/hooks/useLeadIntelligence";
-import { useLeadStageDurations } from "@/hooks/useLeadStageDurations";
+import { useQueryClient } from "@tanstack/react-query";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
@@ -12,35 +11,27 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Brain, ShieldAlert, Search, Menu, FileText } from "lucide-react";
-import { GuiaInteligenciaDialog } from "@/components/inteligencia/GuiaInteligenciaDialog";
+import { Brain, ShieldAlert, Menu, FileText } from "lucide-react";
 import { ReportDialog } from "@/components/reports/ReportDialog";
 import { generateComercialPDF, generateComercialXLSX } from "@/lib/generateComercialPDF";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AccessDeniedRedirect } from "@/components/AccessDeniedRedirect";
-import { PrioridadesTab } from "@/components/inteligencia/PrioridadesTab";
-import { FollowUpsTab } from "@/components/inteligencia/FollowUpsTab";
-import { FunilTab } from "@/components/inteligencia/FunilTab";
 import { RelatoriosComerciais } from "@/components/inteligencia/RelatoriosComerciais";
-import { LeadsDoDiaTab } from "@/components/inteligencia/LeadsDoDiaTab";
-import { ResumoDiarioTab } from "@/components/inteligencia/ResumoDiarioTab";
 import { NegociacoesParadasTab } from "@/components/inteligencia/NegociacoesParadasTab";
-import { SalesPriorities } from "@/components/inteligencia/SalesPriorities";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
 import { NotificationBell } from "@/components/admin/NotificationBell";
-import { MonthlyReviewBanner } from "@/components/admin/MonthlyReviewBanner";
 
 
 export default function Inteligencia() {
   const navigate = useNavigate();
   const modules = useCompanyModules();
   const [activeTab, setActiveTab] = useState("relatorios");
-  const { data, isLoading, refetch } = useLeadIntelligence(true);
-  const { data: stageDurations, isLoading: isDurationsLoading } = useLeadStageDurations(activeTab === "funil");
+  // Puxar para atualizar recarrega os dados das abas
+  const queryClient = useQueryClient();
+  const refetch = () => queryClient.invalidateQueries();
   const { currentCompany } = useCompany();
 
   const [isAdmin, setIsAdmin] = useState(false);
@@ -50,12 +41,11 @@ export default function Inteligencia() {
   const [permLoading, setPermLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string; email: string; avatar?: string | null } | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
 
   const { units } = useCompanyUnits(currentCompany?.id);
-  const { canViewAll, allowedUnits, isLoading: isLoadingUnitPerms } = useUnitPermissions(currentUser?.id, currentCompany?.id);
+  const { canViewAll, allowedUnits } = useUnitPermissions(currentUser?.id, currentCompany?.id);
   const { hasPermission: userHasPermission } = usePermissions(currentUser?.id);
   const canViewRevenue = isAdmin || userHasPermission("agenda.faturamento");
 
@@ -130,44 +120,6 @@ export default function Inteligencia() {
     return <AccessDeniedRedirect message="Você não tem permissão para acessar o módulo Inteligência." />;
   }
 
-  // Skeleton component for loading state
-  const LoadingSkeleton = () => (
-    <div className="space-y-4 animate-pulse">
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-16 rounded-xl" />
-        ))}
-      </div>
-      <Skeleton className="h-32 rounded-xl" />
-      <Skeleton className="h-48 rounded-xl" />
-    </div>
-  );
-
-  // Filter data by unit permissions, selected unit, and search query
-  const filteredData = (data || []).filter(d => {
-    // Unit filter
-    let unitMatch = true;
-    if (isAdmin || canViewAll) {
-      if (selectedUnit !== "all") {
-        unitMatch = d.lead_unit === selectedUnit || d.lead_unit === "As duas";
-      }
-    } else {
-      unitMatch = allowedUnits.includes(d.lead_unit || "") || d.lead_unit === "As duas";
-      if (selectedUnit !== "all") {
-        unitMatch = d.lead_unit === selectedUnit || d.lead_unit === "As duas";
-      }
-    }
-
-    // Search filter
-    if (!unitMatch) return false;
-    if (!searchQuery.trim()) return true;
-    
-    const q = searchQuery.trim().toLowerCase();
-    const nameMatch = (d.lead_name || "").toLowerCase().includes(q);
-    const phoneMatch = (d.lead_whatsapp || "").replace(/\D/g, "").includes(q.replace(/\D/g, ""));
-    return nameMatch || phoneMatch;
-  });
-
   // Build unit options for selector
   const physicalUnits = units.filter(u => u.slug !== 'trabalhe-conosco');
   const unitOptions = isAdmin || canViewAll
@@ -218,12 +170,11 @@ export default function Inteligencia() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 border-blue-300 text-blue-600 hover:bg-blue-50" onClick={() => setReportOpen(true)} title="Gerar Relatório Comercial">
-                    <FileText className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/admin")}>
-                    <Brain className="w-5 h-5 text-[hsl(155,75%,38%)]" style={{ filter: 'drop-shadow(0 0 4px hsl(155 75% 38% / 0.5))' }} />
-                  </Button>
+                  {hasExport && (
+                    <Button variant="outline" size="icon" className="h-9 w-9 shrink-0 border-blue-300 text-blue-600 hover:bg-blue-50" onClick={() => setReportOpen(true)} title="Gerar Relatório Comercial">
+                      <FileText className="h-4 w-4" />
+                    </Button>
+                  )}
                   <NotificationBell />
                 </div>
               </div>
@@ -231,7 +182,7 @@ export default function Inteligencia() {
           </header>
 
           <PullToRefresh onRefresh={async () => { await refetch(); }} className="flex-1 p-3 md:p-5 overflow-x-hidden overflow-y-auto">
-            <div className={`mx-auto space-y-4 ${activeTab === "follow-ups" ? "" : "max-w-7xl"}`}>
+            <div className="mx-auto space-y-4 max-w-7xl">
               {/* Desktop header */}
               <div className="hidden md:block">
                 <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
@@ -260,42 +211,27 @@ export default function Inteligencia() {
                     </SelectContent>
                   </Select>
                 )}
-                <Button variant="outline" size="icon" className="shrink-0 h-10 w-10 border-blue-300 text-blue-600 hover:bg-blue-50" onClick={() => setReportOpen(true)} title="Gerar Relatório Comercial">
-                  <FileText className="h-5 w-5" />
-                </Button>
-                <GuiaInteligenciaDialog />
+                {hasExport && (
+                  <Button variant="outline" size="icon" className="shrink-0 h-10 w-10 border-blue-300 text-blue-600 hover:bg-blue-50" onClick={() => setReportOpen(true)} title="Gerar Relatório Comercial">
+                    <FileText className="h-5 w-5" />
+                  </Button>
+                )}
               </div>
                   </div>
                 </div>
               </div>
 
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nome ou telefone..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 max-w-sm"
-              />
-            </div>
-
-            <MonthlyReviewBanner isAdmin={isAdmin} unitSlug={selectedUnit !== "all" ? (units.find(u => u.name === selectedUnit)?.slug || selectedUnit) : undefined} canViewRevenue={canViewRevenue} />
-            {/* Alertas inteligentes escondidos (out/2026): nunca geraram alertas */}
-
-            {/* SalesPriorities moved inside Relatórios tab */}
+            {/* Escondidos (out/2026), até a nova Inteligência: busca do topo, banner do
+                levantamento mensal, abas Resumo do Dia, Prioridades, Follow-ups, Funil e
+                Leads do Dia, e o bloco Prioridades de Venda — mostravam números errados
+                ou nem carregavam. */}
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <div className="overflow-x-auto -mx-2 px-2 pb-2 scrollbar-none flex justify-center">
                 <div className="flex md:inline-flex gap-1 md:gap-2 p-1 md:p-1.5 rounded-2xl bg-muted/50 border border-border/40 shadow-sm md:w-max">
                   {[
-                    { value: "relatorios", label: "Relatórios", mobileLabel: "Relat." },
-                    { value: "resumo", label: "Resumo do Dia", mobileLabel: "Resumo" },
-                    { value: "prioridades", label: "Prioridades", mobileLabel: "Prior." },
+                    { value: "relatorios", label: "Relatórios", mobileLabel: "Relatórios" },
                     { value: "negociacoes", label: "Neg. Paradas", mobileLabel: "Radar" },
-                    { value: "follow-ups", label: "Follow-ups", mobileLabel: "Follow" },
-                    { value: "funil", label: "Funil", mobileLabel: "Funil" },
-                    { value: "leads-dia", label: "Leads do Dia", mobileLabel: "Leads" },
                   ].map(t => (
                     <button
                       key={t.value}
@@ -313,50 +249,14 @@ export default function Inteligencia() {
                 </div>
               </div>
 
-              <TabsContent value="resumo" className="animate-fade-up">
-                {permLoading ? <LoadingSkeleton /> : <ResumoDiarioTab />}
-              </TabsContent>
-
-              <TabsContent value="prioridades" className="animate-fade-up">
-                {isLoading || !data || isLoadingUnitPerms || permLoading ? (
-                  <LoadingSkeleton />
-                ) : (
-                  <PrioridadesTab data={filteredData} />
-                )}
-              </TabsContent>
-
-              <TabsContent value="follow-ups" className="animate-fade-up">
-                {isLoading || !data || isLoadingUnitPerms || permLoading ? (
-                  <LoadingSkeleton />
-                ) : (
-                  <FollowUpsTab intelligenceData={filteredData} selectedUnit={selectedUnit} />
-                )}
-              </TabsContent>
-
-              <TabsContent value="funil" className="animate-fade-up">
-                {isLoading || !data || isLoadingUnitPerms || isDurationsLoading || permLoading ? (
-                  <LoadingSkeleton />
-                ) : (
-                  <FunilTab data={filteredData} stageDurations={stageDurations} selectedUnit={selectedUnit} />
-                )}
-              </TabsContent>
-
               <TabsContent value="negociacoes" className="animate-fade-up">
                 <NegociacoesParadasTab selectedUnit={selectedUnit !== "all" ? selectedUnit : undefined} />
               </TabsContent>
 
               <TabsContent value="relatorios" className="animate-fade-up">
                 <RelatoriosComerciais selectedUnit={selectedUnit !== "all" ? selectedUnit : undefined} canViewRevenue={canViewRevenue} />
-                <SalesPriorities selectedUnit={selectedUnit} />
               </TabsContent>
 
-              <TabsContent value="leads-dia" className="animate-fade-up">
-                {isLoading || !data || isLoadingUnitPerms || permLoading ? (
-                  <LoadingSkeleton />
-                ) : (
-                  <LeadsDoDiaTab data={filteredData} canExport={hasExport} />
-                )}
-              </TabsContent>
             </Tabs>
           </div>
         </PullToRefresh>

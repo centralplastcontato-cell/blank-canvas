@@ -18,6 +18,30 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const targetCompanyId = body.company_id;
 
+    // Só usuário logado: admin da plataforma, ou alguém da própria empresa
+    // pedindo a revisão dela. Antes qualquer um disparava a IA para todas as
+    // empresas (e o resultado sobrescrevia o contexto da IA de cada uma).
+    const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+    const { data: { user } } = jwt ? await supabase.auth.getUser(jwt) : { data: { user: null } };
+    if (!user) {
+      return new Response(JSON.stringify({ error: "Faça login" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: isAdmin } = await supabase.rpc("is_admin", { _user_id: user.id });
+    if (isAdmin !== true) {
+      const { data: hasAccess } = targetCompanyId
+        ? await supabase.rpc("user_has_company_access", { _user_id: user.id, _company_id: targetCompanyId })
+        : { data: false };
+      if (hasAccess !== true) {
+        return new Response(JSON.stringify({ error: "Sem acesso a esta empresa" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Determine reviewed month (previous month)
     const now = new Date();
     const reviewMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
