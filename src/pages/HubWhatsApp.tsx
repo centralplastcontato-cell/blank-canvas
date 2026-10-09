@@ -473,7 +473,7 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
                                 <Button
                                   size="icon"
                                   variant="ghost"
-                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                                  className="h-6 w-6 text-muted-foreground hover:text-foreground shrink-0"
                                   onClick={() => openEditDialog(inst)}
                                   title="Editar instância"
                                 >
