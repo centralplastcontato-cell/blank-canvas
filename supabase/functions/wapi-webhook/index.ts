@@ -6858,6 +6858,9 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
   const interactive = extractZapiInteractiveResponse(body);
 
   let message: JsonRecord = {};
+  // Reação: a mensagem que recebeu o emoji (vira quoted_message_id, e a Central
+  // mostra o emoji embaixo dela, como no WhatsApp)
+  let reactionTargetId: string | null = null;
   if (interactive) {
     const normalizedText = interactive.text || interactive.replyId;
     // Put interactive response AND set conversation to the extracted text
@@ -6906,8 +6909,15 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
       const lng = location.longitude;
       message = { conversation: `[Localização] ${lat},${lng}` };
     } else if (reaction) {
-      const emoji = (reaction.value as string) || (reaction.reaction as string) || '👍';
-      message = { conversation: `[Reação] ${emoji}` };
+      const emoji = String(reaction.value ?? reaction.reaction ?? '').trim();
+      const target = (reaction.referencedMessage as JsonRecord | undefined)?.messageId;
+      reactionTargetId = target ? String(target) : null;
+      if (emoji) {
+        message = { conversation: `[Reação] ${emoji}` };
+      } else {
+        // Reação removida: vem sem emoji. Antes virava um "👍" que ninguém mandou.
+        console.log(`[normalizeZapi] reação removida (msg ${reactionTargetId}) — ignorada`);
+      }
     } else if (poll) {
       const name = (poll.name as string) || (poll.question as string) || 'Enquete';
       message = { conversation: `[Enquete] ${name}` };
@@ -6937,7 +6947,7 @@ function normalizeZapiPayload(body: JsonRecord): JsonRecord {
 
   // Z-API may include profile picture in the payload
   const profilePic = (body.photo as string) || (body.senderPhoto as string) || (body.chatPhoto as string) || null;
-  const referenceMessageId = body.referenceMessageId ? String(body.referenceMessageId) : null;
+  const referenceMessageId = body.referenceMessageId ? String(body.referenceMessageId) : reactionTargetId;
   const quotedContext = referenceMessageId ? { stanzaId: referenceMessageId, quotedMessageId: referenceMessageId } : null;
 
   return {

@@ -496,6 +496,8 @@ import { MediaMessage } from "@/components/whatsapp/MediaMessage";
 import { ConversationStatusActions } from "@/components/whatsapp/ConversationStatusActions";
 import { ConversationFilters, FilterType } from "@/components/whatsapp/ConversationFilters";
 import { AiConversationBadge } from "@/components/whatsapp/AiConversationBadge";
+import { MessageReactions } from "@/components/whatsapp/MessageReactions";
+import { groupReactions } from "@/lib/messageReactions";
 import { aiConversationState } from "@/lib/aiConversation";
 import { LeadInfoPopover } from "@/components/whatsapp/LeadInfoPopover";
 import { LeadDetailSheet } from "@/components/admin/LeadDetailSheet";
@@ -525,6 +527,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const phoneFetchSeqRef = useRef(0);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  // Reações aparecem embaixo da mensagem que receberam, não como balão separado
+  const { reactionsByMessage, hiddenIds: hiddenReactionIds } = useMemo(() => groupReactions(messages), [messages]);
+  const displayMessages = useMemo(
+    () => (hiddenReactionIds.size ? messages.filter((m) => !hiddenReactionIds.has(m.id)) : messages),
+    [messages, hiddenReactionIds],
+  );
   const [newMessage, setNewMessageRaw] = useState("");
   const { getDraft, saveDraft, clearDraft } = useDraftMessages();
   const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -5772,8 +5780,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                             </p>
                           </div>
                         ) : (
-                          messages.map((msg, idx) => {
-                            const showDateSep = idx === 0 || getDateKey(msg.timestamp) !== getDateKey(messages[idx - 1].timestamp);
+                          displayMessages.map((msg, idx) => {
+                            const showDateSep = idx === 0 || getDateKey(msg.timestamp) !== getDateKey(displayMessages[idx - 1].timestamp);
                             return (
                             <div key={msg.id} id={`msg-${msg.id}`} className={cn(
                               messageSearchResults.includes(msg.id) && "ring-2 ring-primary/50 rounded-xl",
@@ -6142,6 +6150,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                               )}
                             </div>
                             )}
+                            <MessageReactions reactions={reactionsByMessage.get(msg.id)} fromMe={msg.from_me} contactName={selectedConversation?.contact_name} />
                             </div>
                             );
                           })
@@ -6976,8 +6985,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                           </p>
                         </div>
                       ) : (
-                      messages.map((msg, idx) => {
-                        const showDateSep = idx === 0 || getDateKey(msg.timestamp) !== getDateKey(messages[idx - 1].timestamp);
+                      displayMessages.map((msg, idx) => {
+                        const showDateSep = idx === 0 || getDateKey(msg.timestamp) !== getDateKey(displayMessages[idx - 1].timestamp);
                         return (
                         <div key={msg.id} id={`msg-${msg.id}`} className={cn(
                           messageSearchResults.includes(msg.id) && "ring-2 ring-primary/50 rounded-lg",
@@ -7333,6 +7342,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                           )}
                         </div>
                         )}
+                        <MessageReactions reactions={reactionsByMessage.get(msg.id)} fromMe={msg.from_me} contactName={selectedConversation?.contact_name} />
                         </div>
                         );
                       })
