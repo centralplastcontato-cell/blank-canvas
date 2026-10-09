@@ -5887,7 +5887,9 @@ async function processWebhookEvent(body: JsonRecord) {
         // Disable bot when a HUMAN sends a message from the phone directly.
         // Bot-sent and UI-sent messages are already saved in wapi_messages before the webhook fires.
         // Phone-sent messages are NOT in the DB yet → if msgId is absent from wapi_messages, it's human.
-        if (fromMe && ex.bot_enabled === true && msgId) {
+        // Reação (emoji numa mensagem) não é a equipe assumindo a conversa
+        const isReaction = /^\[Reação\]/.test(preview);
+        if (fromMe && ex.bot_enabled === true && msgId && !isReaction) {
           const isFlowStep = (ex.bot_step || '').startsWith('flow_');
           const isBotActive = isClassicBotStepActive(ex.bot_step) || isFlowStep;
 
@@ -6180,7 +6182,7 @@ async function processWebhookEvent(body: JsonRecord) {
             media_url: url, media_key: key, media_direct_path: path, status: 'sent',
             timestamp: messageTimestamp,
             company_id: instance.company_id,
-            metadata: grpMeta1,
+            metadata: /^\[Reação\]/.test(content) ? { ...(grpMeta1 || {}), source: 'reaction' } : grpMeta1,
             quoted_message_id: quotedDbId,
           }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
           if (_insErr1) {
@@ -6242,7 +6244,7 @@ async function processWebhookEvent(body: JsonRecord) {
           media_url: url, media_key: key, media_direct_path: path, status: fromMe ? 'sent' : 'received',
           timestamp: messageTimestamp,
           company_id: instance.company_id,
-          metadata: grpMeta2,
+          metadata: /^\[Reação\]/.test(content) ? { ...(grpMeta2 || {}), source: 'reaction' } : grpMeta2,
           quoted_message_id: quotedDbId,
         }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
         if (_insErr2) {

@@ -3252,6 +3252,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         body: {
           action: "send-reaction",
           instanceId: selectedInstance.instance_id,
+          conversationId: msg.conversation_id,
+          phone: selectedConversation?.remote_jid,
           messageId: msg.message_id,
           emoji,
         },
