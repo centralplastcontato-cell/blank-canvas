@@ -1,1 +1,1 @@
-{"sql": "SELECT c.bot_step, c.bot_enabled, i.unit FROM wapi_conversations c JOIN wapi_instances i ON i.id = c.instance_id WHERE c.id = '7e074d5d-cb8b-4f79-8c09-a6788115a960'"}
+{"sql": "SELECT c.id, c.bot_step, c.bot_enabled, c.last_message_at, i.unit FROM wapi_conversations c JOIN wapi_instances i ON i.id = c.instance_id WHERE c.lead_id = '9f77e998-84ac-4529-8153-c7b2c03a920e' AND c.remote_jid NOT LIKE '%@g.us%' ORDER BY c.last_message_at DESC NULLS LAST"}
