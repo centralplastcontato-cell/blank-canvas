@@ -1,9 +1,7 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Users, LogOut, RefreshCw, Headset, Settings, Building2, Brain, CalendarDays, FolderOpen, Megaphone, MapPin, FileSignature, DollarSign, Handshake, Lightbulb, X } from "lucide-react";
+import { LogOut, RefreshCw, Lightbulb, X } from "lucide-react";
 import { prefetchRoute } from "@/App";
-import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -19,12 +17,14 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { FloatingTips, reactivateFloatingTips } from "@/components/ui/floating-tips";
+import { cn } from "@/lib/utils";
 
 import { CompanySwitcher } from "./CompanySwitcher";
 import { useCompany } from "@/contexts/CompanyContext";
 import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
+import { MENU_GROUPS, badgeText, getInitials, roleLabel, useMenuItems } from "./menuItems";
 
 interface AdminSidebarProps {
   canManageUsers: boolean;
@@ -35,167 +35,206 @@ interface AdminSidebarProps {
   onLogout: () => void;
 }
 
-export function AdminSidebar({ 
-  canManageUsers,
+// Menu lateral do computador e do tablet, com o mesmo visual do menu do celular
+// (MobileMenu): cartão da empresa, grupos, ícones coloridos em círculo e números
+// de pendências. Recolhido, mostra só os círculos (com o nome ao passar o mouse).
+export function AdminSidebar({
   isAdmin,
-  currentUserName, 
+  currentUserName,
   canViewFinanceiro = true,
-  onRefresh, 
-  onLogout 
+  onRefresh,
+  onLogout,
 }: AdminSidebarProps) {
   const { state, isMobile, setOpenMobile, setOpen } = useSidebar();
-  const collapsed = state === "collapsed";
+  const collapsed = state === "collapsed" && !isMobile;
   const closeSidebar = () => (isMobile ? setOpenMobile(false) : setOpen(false));
   const location = useLocation();
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const modules = useCompanyModules();
-  const { currentCompany } = useCompany();
+  const [, setIsDropdownOpen] = useState(false);
+  const { currentCompany, currentRole } = useCompany();
+  const { items, authName } = useMenuItems({ isAdmin, canViewFinanceiro, badgesEnabled: true });
 
-  const [finViewAllowed, setFinViewAllowed] = useState(true);
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) return;
-      supabase
-        .from('user_permissions')
-        .select('granted')
-        .eq('user_id', data.user.id)
-        .eq('permission', 'financial.view')
-        .maybeSingle()
-        .then(({ data: perm }) => {
-          if (perm && perm.granted === false) setFinViewAllowed(false);
-        });
-    });
-  }, []);
-  const showFinanceiro = canViewFinanceiro !== false && finViewAllowed;
+  const companyName = currentCompany?.name || "Empresa";
+  const companyLogo = getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url);
+  // Algumas páginas mandam o nome da empresa no lugar do nome da pessoa
+  const who = currentUserName && currentUserName !== currentCompany?.name ? currentUserName : authName || currentUserName;
 
-  const allItems = [
-    ...(modules.central_atendimento ? [{ title: "Central de Atendimento", url: "/atendimento", icon: Headset }] : []),
-    ...(modules.inteligencia ? [{ title: "Inteligência", url: "/inteligencia", icon: Brain }] : []),
-    ...(modules.agenda ? [{ title: "Central de Agenda", url: "/agenda", icon: CalendarDays }] : []),
-    ...(modules.operacoes ? [{ title: "Operações", url: "/formularios", icon: FolderOpen }] : []),
-    ...(modules.campanhas ? [{ title: "Campanhas", url: "/campanhas", icon: Megaphone }] : []),
-    ...(modules.contrato ? [{ title: "Contratos", url: "/contratos", icon: FileSignature }] : []),
-    ...(showFinanceiro ? [{ title: "Financeiro", url: "/financeiro", icon: DollarSign }] : []),
-    ...(modules.config ? [{ title: "Configurações Gerais", url: "/configuracoes", icon: Settings }] : []),
-    ...(isAdmin ? [{ title: "Empresas", url: "/hub/empresas", icon: Building2 }] : []),
-    // Treinamento escondido (out/2026): nenhuma aula cadastrada
-    ...(modules.empresa_parceira ? [{ title: "Empresa Parceira", url: "/parceiro", icon: Handshake }] : []),
-  ];
+  const logoBox = (size: string, imgSize: string) => (
+    <div className={cn("rounded-2xl bg-white shadow-sm flex items-center justify-center overflow-hidden shrink-0", size)}>
+      {companyLogo ? (
+        <img src={companyLogo} alt={companyName} className={cn("object-contain", imgSize)} />
+      ) : (
+        <span className="text-xs font-bold text-primary">{getInitials(companyName)}</span>
+      )}
+    </div>
+  );
 
   return (
     <>
-    <Sidebar 
-      collapsible="icon" 
-      className="border-r border-sidebar-border z-40"
-    >
-      <SidebarHeader className="p-4 bg-gradient-to-b from-sidebar-primary/5 to-transparent">
-        <div className="flex items-center gap-3">
-          <img 
-            src={getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url) || '/placeholder.svg'} 
-            alt={currentCompany?.name || "Logo"} 
-            className="h-9 w-9 object-contain shrink-0 rounded-lg ring-2 ring-sidebar-primary/20"
-          />
-          {!collapsed && (
-            <div className="min-w-0 overflow-hidden flex-1">
-              <p className="font-display font-bold text-sm text-sidebar-foreground truncate">
-                {currentCompany?.name || "Empresa"}
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border z-40">
+      {/* Empresa e quem está logado */}
+      <SidebarHeader className="p-3 pb-1 group-data-[collapsible=icon]:p-2">
+        {collapsed ? (
+          <div className="mx-auto" title={companyName}>
+            {logoBox("h-9 w-9 rounded-xl", "h-7 w-7")}
+          </div>
+        ) : (
+          <div className="relative flex items-center gap-3 rounded-3xl p-3 pr-9 bg-gradient-to-br from-secondary/35 via-secondary/15 to-primary/10">
+            {logoBox("h-11 w-11", "h-9 w-9")}
+            <div className="min-w-0 flex-1">
+              <p className="font-display font-bold text-sm leading-tight tracking-tight text-sidebar-foreground truncate">
+                {companyName}
               </p>
-              <p className="text-xs text-sidebar-foreground/60 truncate">
-                {currentUserName}
-              </p>
+              <span className="flex items-center gap-1.5 mt-1 min-w-0">
+                <Avatar className="h-5 w-5 shrink-0">
+                  <AvatarFallback className="bg-primary/10 text-primary text-[9px] font-semibold">
+                    {getInitials(who || companyName)}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-xs text-muted-foreground truncate">
+                  {who ? `${who} · ` : ""}{roleLabel(currentRole, isAdmin)}
+                </span>
+              </span>
             </div>
-          )}
-          {!collapsed && (
             <button
               type="button"
               onClick={closeSidebar}
-              aria-label="Fechar menu"
-              title="Fechar menu"
-              className="ml-auto shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+              aria-label="Recolher menu"
+              title="Recolher menu"
+              className="absolute top-2 right-2 inline-flex h-7 w-7 items-center justify-center rounded-full text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-white/60 transition-colors"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4" />
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="px-1">
         <div className="px-2 pt-1">
           <CompanySwitcher collapsed={collapsed} onDropdownOpenChange={setIsDropdownOpen} />
         </div>
 
-        <SidebarGroup>
-          {!collapsed && <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs uppercase tracking-wider">Navegação</SidebarGroupLabel>}
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {allItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild 
-                    tooltip={item.title}
-                    isActive={location.pathname === item.url}
-                    className="h-11 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-all duration-200 data-[active=true]:bg-sidebar-primary/10 data-[active=true]:text-sidebar-primary data-[active=true]:font-semibold data-[active=true]:border-l-[3px] data-[active=true]:border-sidebar-primary data-[active=true]:shadow-[inset_0_0_12px_hsl(var(--sidebar-primary)/0.06)]"
-                  >
-                    <NavLink 
-                      to={item.url} 
-                      end 
-                      className="flex items-center gap-3"
-                      onMouseEnter={() => prefetchRoute(item.url)}
-                      onFocus={() => prefetchRoute(item.url)}
-                    >
-                      <item.icon className="h-[22px] w-[22px] shrink-0" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          {!collapsed && <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs uppercase tracking-wider">Ações</SidebarGroupLabel>}
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  tooltip="Atualizar Dados"
-                  onClick={onRefresh}
-                  className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                >
-                  <RefreshCw className="h-5 w-5 shrink-0" />
-                  <span>Atualizar Dados</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  tooltip="Dicas da Plataforma"
-                  onClick={() => reactivateFloatingTips()}
-                  className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                >
-                  <Lightbulb className="h-5 w-5 shrink-0" />
-                  <span>Dicas</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* Itens em grupos */}
+        {MENU_GROUPS.map((group) => {
+          const groupItems = items.filter((i) => i.group === group.id);
+          if (groupItems.length === 0) return null;
+          return (
+            <SidebarGroup key={group.id} className="py-1">
+              <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60">{group.label}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className="gap-0.5">
+                  {groupItems.map((item) => {
+                    const active = location.pathname === item.path;
+                    const hasBadge = !!item.badge && item.badge > 0;
+                    return (
+                      <SidebarMenuItem key={item.id}>
+                        <SidebarMenuButton
+                          asChild
+                          size="lg"
+                          tooltip={hasBadge ? `${item.label} (${badgeText(item.badge!)})` : item.label}
+                          isActive={active}
+                          className={cn(
+                            "relative h-11 gap-3 rounded-2xl px-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-muted/70 hover:text-sidebar-foreground",
+                            "data-[active=true]:bg-secondary/25 data-[active=true]:font-semibold data-[active=true]:text-sidebar-foreground data-[active=true]:shadow-sm",
+                            "group-data-[collapsible=icon]:rounded-full group-data-[collapsible=icon]:overflow-visible group-data-[collapsible=icon]:data-[active=true]:shadow-none",
+                          )}
+                        >
+                          <NavLink
+                            to={item.path}
+                            end
+                            onMouseEnter={() => prefetchRoute(item.path)}
+                            onFocus={() => prefetchRoute(item.path)}
+                          >
+                            {active && (
+                              <span className="absolute left-0.5 top-3 bottom-3 w-1 rounded-full bg-secondary group-data-[collapsible=icon]:hidden" />
+                            )}
+                            <span
+                              className={cn(
+                                "relative h-8 w-8 rounded-full flex items-center justify-center shrink-0",
+                                item.color,
+                                active && "group-data-[collapsible=icon]:ring-2 group-data-[collapsible=icon]:ring-inset group-data-[collapsible=icon]:ring-secondary",
+                              )}
+                            >
+                              <item.icon className="h-4 w-4" />
+                              {/* Recolhido: o número vira uma bolinha */}
+                              {hasBadge && (
+                                <span
+                                  className={cn(
+                                    "hidden group-data-[collapsible=icon]:block absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-sidebar",
+                                    item.badgeTone === "info" ? "bg-emerald-500" : "bg-red-500",
+                                  )}
+                                />
+                              )}
+                            </span>
+                            <span className="flex-1 truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
+                            {hasBadge && (
+                              <span
+                                className={cn(
+                                  "min-w-[1.5rem] h-6 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center shrink-0 group-data-[collapsible=icon]:hidden",
+                                  item.badgeTone === "info" ? "bg-emerald-500/15 text-emerald-700" : "bg-red-500 text-white",
+                                )}
+                              >
+                                {badgeText(item.badge!)}
+                              </span>
+                            )}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          );
+        })}
       </SidebarContent>
 
-      <SidebarFooter className="p-2">
-        <Separator className="mb-2 bg-sidebar-border" />
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton 
-              tooltip="Sair da Conta"
-              onClick={onLogout}
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+      {/* Ações no rodapé */}
+      <SidebarFooter className="p-3 pt-2 group-data-[collapsible=icon]:p-2">
+        {collapsed ? (
+          <SidebarMenu className="items-center gap-1">
+            <SidebarMenuItem>
+              <SidebarMenuButton tooltip="Atualizar dados" onClick={onRefresh} className="rounded-full text-sidebar-foreground/70">
+                <RefreshCw />
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton tooltip="Dicas da plataforma" onClick={() => reactivateFloatingTips()} className="rounded-full text-sidebar-foreground/70">
+                <Lightbulb />
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton tooltip="Sair da conta" onClick={onLogout} className="rounded-full text-destructive hover:text-destructive hover:bg-destructive/10">
+                <LogOut />
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        ) : (
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => reactivateFloatingTips()}
+              className="w-full h-9 rounded-full text-xs font-medium text-sidebar-foreground/60 hover:bg-muted/70 hover:text-sidebar-foreground flex items-center justify-center gap-1.5"
             >
-              <LogOut className="h-5 w-5 shrink-0" />
-              <span>Sair da Conta</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+              <Lightbulb className="h-3.5 w-3.5" /> Dicas da plataforma
+            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onRefresh}
+                className="flex-1 h-10 rounded-full bg-card shadow-sm border border-border/60 text-sm font-medium text-foreground/70 hover:bg-muted flex items-center justify-center gap-2"
+              >
+                <RefreshCw className="h-4 w-4" /> Atualizar
+              </button>
+              <button
+                type="button"
+                onClick={onLogout}
+                className="flex-1 h-10 rounded-full bg-destructive/10 text-sm font-medium text-destructive hover:bg-destructive/15 flex items-center justify-center gap-2"
+              >
+                <LogOut className="h-4 w-4" /> Sair
+              </button>
+            </div>
+          </div>
+        )}
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
