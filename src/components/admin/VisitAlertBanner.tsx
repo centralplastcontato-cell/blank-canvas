@@ -25,6 +25,10 @@ interface VisitNotification {
   type: string;
 }
 
+// Visita marcada pela IA já tem o pop-up roxo da IA (AiHandoffAlertBanner)
+const isAiVisit = (data: unknown) =>
+  !!data && typeof data === "object" && (data as Record<string, unknown>).reason === "ai_visit";
+
 interface VisitAlertBannerProps {
   userId: string;
   onOpenConversation: (conversationId: string, phone: string) => void;
@@ -64,7 +68,7 @@ export function VisitAlertBanner({ userId, onOpenConversation }: VisitAlertBanne
       if (data) {
         // Filter and cast only valid visit notifications
         const validAlerts = data
-          .filter((n) => n.data && typeof n.data === 'object' && 'conversation_id' in (n.data as object))
+          .filter((n) => n.data && typeof n.data === 'object' && 'conversation_id' in (n.data as object) && !isAiVisit(n.data))
           .map((n) => ({
             ...n,
             data: n.data as unknown as VisitNotificationData,
@@ -93,7 +97,7 @@ export function VisitAlertBanner({ userId, onOpenConversation }: VisitAlertBanne
           if (notification.company_id && currentCompanyId && notification.company_id !== currentCompanyId) {
             return;
           }
-          if (notification.type === "visit_scheduled") {
+          if (notification.type === "visit_scheduled" && !isAiVisit(notification.data)) {
             setAlerts((prev) => [notification, ...prev]);
             // Play sound for new visit alert
             if (notificationsEnabledRef.current) {
