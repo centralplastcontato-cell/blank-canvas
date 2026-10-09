@@ -30,3 +30,15 @@ Deno.test("isLiveReplyToBotQuestion: robô desligado, fluxo encerrado ou mensage
   assertEquals(isLiveReplyToBotQuestion({ ...base, fromMe: true }), false);
   assertEquals(isLiveReplyToBotQuestion({ ...base, lastBotMessageAt: null }), false);
 });
+
+Deno.test("isLiveReplyToBotQuestion: conversa com a IA — 'Ok obrigado' logo depois da fala dela → responde", () => {
+  assertEquals(isLiveReplyToBotQuestion({
+    ...base,
+    botStep: "ai_agent",
+    lastBotMessageAt: "2026-10-09T23:21:22Z",
+    incomingAt: "2026-10-09T23:21:34Z",
+    now: new Date("2026-10-09T23:21:35Z").getTime(),
+  }), true);
+  // Reenvio antigo do WhatsApp (anterior à última fala da IA) continua seguro
+  assertEquals(isLiveReplyToBotQuestion({ ...base, botStep: "ai_agent", incomingAt: "2026-09-30T19:50:00Z" }), false);
+});
