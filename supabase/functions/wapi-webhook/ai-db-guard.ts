@@ -25,6 +25,7 @@ export const AI_WRITABLE_TABLES = new Set([
   "notifications",
   "ai_agent_usage",
   "freelancer_invites",
+  "visit_confirmation_history", // marcar que o cliente respondeu a confirmação da visita
 ]);
 
 // Funções do banco que ela pode chamar (todas só de leitura)

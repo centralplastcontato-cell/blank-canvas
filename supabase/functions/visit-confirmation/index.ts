@@ -1,4 +1,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
+import {
+  AI_CONFIRMATION_STYLE,
+  buildAiVisitConfirmation,
+  confirmationsForCurrentDate,
+  isAiOwnedConversation,
+  visitStartMs,
+} from "../_shared/visit-confirm.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,6 +21,29 @@ function interpolateMessage(template: string, vars: Record<string, string>): str
     result = result.replace(new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, "g"), value);
   }
   return result;
+}
+
+// O wapi-send grava a mensagem como "platform" (igual à equipe) e ignora o
+// metadata enviado: marca aqui como confirmação de visita. Sem isso a IA lia a
+// confirmação como mensagem da equipe e a Central não mostrava o selo.
+// deno-lint-ignore no-explicit-any
+async function tagConfirmationMessage(supabase: any, convId: string, messageId: string | null, text: string, sinceIso: string, meta: Record<string, unknown>): Promise<void> {
+  let row: { id: string; metadata: Record<string, unknown> | null } | null = null;
+  if (messageId) {
+    const { data } = await supabase.from("wapi_messages").select("id, metadata").eq("conversation_id", convId).eq("message_id", messageId).maybeSingle();
+    row = data;
+  }
+  if (!row) {
+    const { data } = await supabase.from("wapi_messages").select("id, metadata").eq("conversation_id", convId).eq("from_me", true)
+      .gte("timestamp", sinceIso).eq("content", text).order("timestamp", { ascending: false }).limit(1);
+    row = (data || [])[0] || null;
+  }
+  if (!row) {
+    console.warn(`[visit-confirmation] Mensagem enviada não encontrada para marcar (conv ${convId})`);
+    return;
+  }
+  const { error } = await supabase.from("wapi_messages").update({ metadata: { ...(row.metadata || {}), ...meta } }).eq("id", row.id);
+  if (error) console.error(`[visit-confirmation] Falha ao marcar a mensagem (conv ${convId}): ${error.message}`);
 }
 
 function isOutsideSendWindow(start: number, end: number): boolean {
@@ -94,7 +125,8 @@ Deno.serve(async (req) => {
           .from("lead_visits")
           .select("id, lead_id, data_visita, horario_visita, status_visita, company_id")
           .eq("company_id", companyId)
-          .in("status_visita", ["agendada"])
+          // remarcada também: a data nova precisa de confirmação
+          .in("status_visita", ["agendada", "remarcada"])
           .gte("data_visita", targetDateMin)
           .lte("data_visita", targetDateMax);
 
@@ -114,7 +146,7 @@ Deno.serve(async (req) => {
         const visitIds = visits.map((v: any) => v.id);
         const { data: existingConfirmations } = await supabase
           .from("visit_confirmation_history")
-          .select("visit_id, message_type, status, sent_at, response_received")
+          .select("visit_id, message_type, status, sent_at, response_received, created_at")
           .eq("company_id", companyId)
           .in("visit_id", visitIds);
 
@@ -138,6 +170,16 @@ Deno.serve(async (req) => {
           .single();
         const companyName = company?.name || "nosso buffet";
 
+        // IA atendendo nesta empresa: em qual unidade (a confirmação sai no tom dela)
+        const { data: aiSettings } = await supabase
+          .from("ai_agent_settings")
+          .select("enabled, unit")
+          .eq("company_id", companyId)
+          .maybeSingle();
+        const aiUnit = aiSettings?.enabled && aiSettings?.unit && (await loadAiConversationalEnabled(supabase, companyId))
+          ? String(aiSettings.unit).trim().toLowerCase()
+          : null;
+
         const { data: instances } = await supabase
           .from("wapi_instances")
           .select("id, instance_id, instance_token, unit, status, provider")
@@ -155,11 +197,18 @@ Deno.serve(async (req) => {
 
         for (const visit of visits) {
           try {
-            const existingConfs = confirmationMap.get(visit.id) || [];
+            // Só as confirmações da data atual (visita remarcada confirma de novo)
+            const existingConfs = confirmationsForCurrentDate(
+              confirmationMap.get(visit.id) || [],
+              visitStartMs(visit.data_visita, visit.horario_visita),
+              hoursBefore,
+            );
             const lead = leadMap.get(visit.lead_id);
             if (!lead) continue;
 
-            const firstSent = existingConfs.find((c: any) => c.message_type === "first" && c.status === "sent");
+            // "responded": o cliente já respondeu (ex.: pediu para remarcar e a data
+            // ainda não mudou) — não manda de novo
+            const firstSent = existingConfs.find((c: any) => c.message_type === "first" && (c.status === "sent" || c.status === "responded"));
             const secondSent = existingConfs.find((c: any) => c.message_type === "second" && c.status === "sent");
             const hasResponse = existingConfs.some((c: any) => c.response_received);
 
@@ -203,7 +252,7 @@ Deno.serve(async (req) => {
             // Find conversation for this lead
             const { data: conv } = await supabase
               .from("wapi_conversations")
-              .select("id, remote_jid, instance_id")
+              .select("id, remote_jid, instance_id, bot_step, bot_enabled")
               .eq("lead_id", visit.lead_id)
               .not("remote_jid", "like", "%@g.us%")
               .order("last_message_at", { ascending: false })
@@ -238,22 +287,43 @@ Deno.serve(async (req) => {
             const instance = instances.find((i: any) => i.id === conv.instance_id);
             if (!instance) continue;
 
+            // Conversa que a IA está atendendo: confirmação no tom dela, sem
+            // menu 1/2 — quem entende a resposta é a própria IA. Sem 2ª mensagem.
+            const aiStyle = !!aiUnit && (instance.unit || "").trim().toLowerCase() === aiUnit && isAiOwnedConversation(conv);
+            if (aiStyle && messageType !== "first") continue;
+
             // Interpolate message with smart day reference
             const firstName = resolveFirstName(lead.name);
             const diaVisita = resolveDiaVisita(visit.data_visita, nowSP);
-            const message = interpolateMessage(messageToSend, {
-              nome: firstName,
-              data_visita: formatDateBR(visit.data_visita),
-              hora_visita: visit.horario_visita || "horário a confirmar",
-              nome_buffet: companyName,
-              dia_visita: diaVisita,
-            });
+            const todayYmd = `${nowSP.getFullYear()}-${String(nowSP.getMonth() + 1).padStart(2, "0")}-${String(nowSP.getDate()).padStart(2, "0")}`;
+            const message = aiStyle
+              ? buildAiVisitConfirmation({
+                name: lead.name,
+                dateYmd: visit.data_visita,
+                time: visit.horario_visita,
+                todayYmd,
+                companyName,
+              })
+              : interpolateMessage(messageToSend, {
+                nome: firstName,
+                data_visita: formatDateBR(visit.data_visita),
+                hora_visita: visit.horario_visita || "horário a confirmar",
+                nome_buffet: companyName,
+                dia_visita: diaVisita,
+              });
 
             // Send via wapi-send (multi-provider: Z-API or W-API auto-detected)
             const phone = conv.remote_jid.replace("@s.whatsapp.net", "").replace("@c.us", "");
 
             let sentStatus = "sent";
             let sentMsgId: string | null = null;
+            const sinceIso = new Date(Date.now() - 5000).toISOString();
+            const messageMeta = {
+              source: "visit_confirmation",
+              type: messageType,
+              visit_id: visit.id,
+              ...(aiStyle ? { style: AI_CONFIRMATION_STYLE } : {}),
+            };
 
             const { data: sendData, error: sendErr } = await supabase.functions.invoke("wapi-send", {
               body: {
@@ -265,7 +335,7 @@ Deno.serve(async (req) => {
                 conversationId: conv.id,
                 source: "visit-confirmation",
                 automation: true,
-                metadata: { source: "visit_confirmation", type: messageType, visit_id: visit.id },
+                metadata: messageMeta,
               },
             });
 
@@ -274,7 +344,8 @@ Deno.serve(async (req) => {
               console.error(`[visit-confirmation] Send failed for ${phone} (${instance.provider || 'wapi'}):`, errMsg);
               sentStatus = "failed";
             } else {
-              sentMsgId = sendData?.message_id || sendData?.result?.key?.id || sendData?.key?.id || null;
+              sentMsgId = sendData?.messageId || sendData?.message_id || sendData?.result?.key?.id || sendData?.key?.id || null;
+              await tagConfirmationMessage(supabase, conv.id, sentMsgId, message, sinceIso, messageMeta);
               console.log(`[visit-confirmation] ✅ Sent ${messageType} to ${phone} via ${instance.provider || 'wapi'} (lead: ${lead.name})`);
             }
 

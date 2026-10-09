@@ -546,6 +546,7 @@ interface PromptContext {
   pricePending: boolean; // cliente pediu o valor e ainda não recebeu
   crossedMessage: boolean; // a mensagem do cliente cruzou com a última resposta da IA
   visitText: string | null; // visita já marcada deste cliente
+  visitConfirmPending?: boolean; // perguntamos se ele confirma a visita e ainda não respondeu
   visitSlotsText: string; // horários de visita livres dos próximos dias
   weekdayNote: string | null; // cliente escreveu dia da semana que não bate com a data
   houseNote: string | null; // cliente perguntou de regra do cadastro (comida de fora, animal)
@@ -599,7 +600,7 @@ COMO CONVERSAR:
 - Dados do cliente já registrados: ${ctx.knownDataText}. Não pergunte de novo o que já sabe.${ctx.pricePending ? '\n- O CLIENTE JÁ PEDIU O VALOR e ainda não recebeu: assim que você souber a quantidade de convidados e o dia/data (já registrados ou nesta mensagem), chame consultar_valor_pacote e passe o valor NESTA resposta, sem esperar ele pedir de novo. Se ainda faltar um dos dois, pergunte só o que falta.' : ''}
 - ${ctx.pendingUserMessages > 1 ? `O cliente mandou ${ctx.pendingUserMessages} mensagens seguidas desde a sua última resposta: responda a TODAS as perguntas delas numa única mensagem, sem ignorar nenhuma.` : 'Se o cliente mandar várias perguntas, responda todas numa única mensagem.'}
 - Uma pergunta por vez, e UMA mensagem por vez: depois de perguntar, espere a resposta antes de perguntar outra coisa. Nunca envie listas de opções numeradas — converse como gente (a única lista é a de "como posso te ajudar", no formato de QUEM É O CONTATO).
-- Nunca use a palavra "sistema" com o cliente (nada de "o sistema já te envia"): fale em primeira pessoa ("já te mando as fotos").${ctx.crossedMessage ? '\n- ATENÇÃO: a mensagem do cliente chegou junto com a sua última resposta, então ele ainda não viu a sua pergunta. NÃO faça uma pergunta nova: responda só o que ele disse agora (se precisar) e deixe a sua pergunta anterior em aberto. Se não houver nada a responder, mande só uma frase curta.' : ''}${ctx.visitText ? `\n- Este cliente JÁ TEM VISITA MARCADA: ${ctx.visitText}. "Ok", "beleza", "obrigado" depois disso são só confirmação — responda com carinho, sem agendar de novo.` : ''}
+- Nunca use a palavra "sistema" com o cliente (nada de "o sistema já te envia"): fale em primeira pessoa ("já te mando as fotos").${ctx.crossedMessage ? '\n- ATENÇÃO: a mensagem do cliente chegou junto com a sua última resposta, então ele ainda não viu a sua pergunta. NÃO faça uma pergunta nova: responda só o que ele disse agora (se precisar) e deixe a sua pergunta anterior em aberto. Se não houver nada a responder, mande só uma frase curta.' : ''}${ctx.visitText ? `\n- Este cliente JÁ TEM VISITA MARCADA: ${ctx.visitText}. "Ok", "beleza", "obrigado" depois disso são só confirmação — responda com carinho, sem agendar de novo.` : ''}${ctx.visitText && ctx.visitConfirmPending ? `\n- ATENÇÃO — PERGUNTAMOS AO CLIENTE SE ELE CONFIRMA ESSA VISITA (${ctx.visitText}) e ele ainda não tinha respondido. Se a resposta confirma (sim, ok, confirmo, vou sim, estarei aí, 👍, ❤️), chame confirmar_visita e responda curto e carinhoso que está tudo certo e que estamos esperando. Se ele não puder nesse dia/horário ou quiser trocar, ofereça 2 horários livres e use agendar_visita com remarcar=true quando ele escolher. Se ele disser que não vem mais, não insista: use transferir_para_atendente com o motivo "cliente avisou que não vem mais — desmarcar na agenda". Não pergunte de novo se ele confirma.` : ''}
 - Descubra naturalmente: nome da pessoa, mês/data desejada da festa e número de convidados, se ainda não souber — mas só depois de saber que a pessoa quer orçamento (veja QUEM É O CONTATO).
 
 QUEM É O CONTATO (nem todo mundo quer orçamento):
@@ -802,6 +803,60 @@ const TOOLS: ToolDef[] = [
   },
 ];
 
+// Só entra na lista quando perguntamos se o cliente confirma a visita
+const CONFIRM_VISIT_TOOL: ToolDef = {
+  name: 'confirmar_visita',
+  description: 'Marca como CONFIRMADA a visita que o cliente já tem marcada, quando perguntamos se ele confirma e ele disse que sim. Não use para marcar visita nova nem para trocar dia/horário (para isso é agendar_visita).',
+  parameters: { type: 'object', properties: {} },
+};
+
+// Confirmação de visita enviada (pela rotina de confirmação) e ainda sem resposta
+async function loadPendingVisitConfirmation(supabase: any, visitId: string): Promise<string | null> {
+  const cutoff = new Date(Date.now() - 72 * 3600000).toISOString();
+  const { data } = await supabase
+    .from('visit_confirmation_history')
+    .select('id')
+    .eq('visit_id', visitId)
+    .eq('status', 'sent')
+    .eq('response_received', false)
+    .gte('sent_at', cutoff)
+    .order('sent_at', { ascending: false })
+    .limit(1);
+  return (data || [])[0]?.id || null;
+}
+
+// O cliente respondeu a confirmação (confirmou ou remarcou com a IA)
+async function markVisitConfirmationAnswered(supabase: any, visitId: string, responseType: 'confirmed' | 'reschedule'): Promise<void> {
+  const { error } = await supabase
+    .from('visit_confirmation_history')
+    .update({ response_received: true, response_type: responseType, response_at: new Date().toISOString(), status: 'responded' })
+    .eq('visit_id', visitId)
+    .eq('response_received', false)
+    .eq('status', 'sent');
+  if (error) console.error('[AI Agent] visit_confirmation_history update error:', error);
+}
+
+async function toolConfirmarVisita(supabase: any, instance: AgentInstance, conv: AgentConv): Promise<string> {
+  const visit = await loadLeadVisit(supabase, conv.lead_id);
+  if (!visit || !conv.lead_id) return 'ERRO: este cliente não tem visita marcada. Não diga que confirmou.';
+  const { error } = await supabase.from('lead_visits').update({ status_visita: 'confirmada' }).eq('id', visit.id);
+  if (error) {
+    console.error('[AI Agent] lead_visits confirm error:', error);
+    return 'ERRO: falha ao confirmar a visita. Diga ao cliente que está anotado e que a equipe confirma por aqui.';
+  }
+  await markVisitConfirmationAnswered(supabase, visit.id, 'confirmed');
+  await supabase.from('lead_history').insert({
+    lead_id: conv.lead_id,
+    company_id: instance.company_id,
+    user_id: null,
+    user_name: 'IA',
+    action: 'Visita confirmada pelo cliente (IA)',
+    new_value: `${visit.data_visita.split('-').reverse().join('/')} às ${visit.horario_visita}`,
+  }).then(({ error: hErr }: { error: unknown }) => { if (hErr) console.error('[AI Agent] lead_history error:', hErr); });
+  console.log(`[AI Agent] Visita ${visit.id} confirmada pelo cliente (conv ${conv.id})`);
+  return `OK: visita de ${visitText(visit.data_visita, visit.horario_visita)} confirmada. Responda curto e carinhoso que está tudo certo e que estamos esperando — sem perguntar mais nada sobre a visita.`;
+}
+
 async function ensureLead(
   supabase: any,
   instance: AgentInstance,
@@ -913,6 +968,8 @@ async function toolAgendarVisita(
       old_value: `${existing.data_visita.split('-').reverse().join('/')} às ${existing.horario_visita}`,
       new_value: `${dataVisita.split('-').reverse().join('/')} às ${horario}`,
     }).then(({ error: hErr }: { error: unknown }) => { if (hErr) console.error('[AI Agent] lead_history error:', hErr); });
+    // Se ele estava respondendo a confirmação da visita, ela fica respondida (a data nova é confirmada perto do dia)
+    await markVisitConfirmationAnswered(supabase, existing.id, 'reschedule');
     await notifyAiVisit(supabase, instance, conv, phone, leadId, dataVisita, horario, true);
     return `OK: visita remarcada para ${visitText(dataVisita, horario)}. Confirme para o cliente.`;
   }
@@ -2184,6 +2241,7 @@ export async function maybeHandleWithAiAgent(
       typeof bd.data_festa === 'string' ? `data da festa ${formatDateLong(bd.data_festa)} (${bd.data_festa}) — use esta data em consultar_valor_pacote enquanto o cliente não mudar` : null,
     ].filter(Boolean) as string[];
     const leadVisit = await loadLeadVisit(supabase, conv.lead_id);
+    const visitConfirmPending = leadVisit ? !!(await loadPendingVisitConfirmation(supabase, leadVisit.id)) : false;
     // Regras do cadastro (comida de fora, animal): a IA recebe a resposta exata quando o cliente pergunta
     const houseRules = parseHouseRules(settings.extra_instructions);
     const askedTopics = topicsAsked(lastUserText);
@@ -2230,13 +2288,14 @@ export async function maybeHandleWithAiAgent(
         .map((d) => `${formatDateLong(d.date)}: ${d.times.map((t) => (t.endsWith(':00') ? `${Number(t.slice(0, 2))}h` : t.replace(':', 'h'))).join(', ')}`)
         .join('; ') || 'nenhum',
       visitText: leadVisit ? visitText(leadVisit.data_visita, leadVisit.horario_visita) : null,
+      visitConfirmPending,
     });
 
     const session = createLlmSession({
       model,
       system: systemPrompt,
       history: mergedHistory,
-      tools: TOOLS,
+      tools: visitConfirmPending ? [...TOOLS, CONFIRM_VISIT_TOOL] : TOOLS,
       openaiKey,
       anthropicKey,
     });
@@ -2304,6 +2363,8 @@ export async function maybeHandleWithAiAgent(
             toolResult = await toolRegistrarDados(supabase, instance, conv, phone, contactName, botSettings, args);
           } else if (call.name === 'agendar_visita') {
             toolResult = await toolAgendarVisita(supabase, instance, conv, phone, contactName, settings, args);
+          } else if (call.name === 'confirmar_visita' && visitConfirmPending) {
+            toolResult = await toolConfirmarVisita(supabase, instance, conv);
           } else if (call.name === 'enviar_materiais') {
             toolResult = await toolEnviarMateriais(supabase, instance, conv, phone, contactName, String(args.tipo || ''), args.reenviar === true);
           } else if (call.name === 'consultar_datas_livres') {
