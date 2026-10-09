@@ -116,7 +116,12 @@ export function MobileMenu({
         {trigger}
       </SheetTrigger>
       {/* Sem foco automático: senão o cabeçalho abre com uma borda de seleção */}
-      <SheetContent side="left" className="w-[19rem] p-0 flex flex-col h-full" onOpenAutoFocus={(e) => e.preventDefault()}>
+      {/* Cartão flutuante com cantos redondos, sem encostar nas bordas da tela */}
+      <SheetContent
+        side="left"
+        className="inset-y-2 left-2 h-auto w-[19rem] p-0 flex flex-col rounded-[28px] border-0 shadow-2xl overflow-hidden"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <MobileMenuPanel
           companyName={currentCompany?.name || ""}
           companyLogo={getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url)}
@@ -184,9 +189,12 @@ export function MobileMenuPanel({
   return (
     <>
       {/* Empresa e quem está logado */}
-      <SheetHeader className="p-4 pr-10 pb-3 border-b border-border text-left">
-        <button className="flex items-center gap-3 text-left w-full rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/40" onClick={() => onNavigate("/configuracoes")}>
-          <div className="h-12 w-12 rounded-xl bg-white border border-border/60 shadow-sm flex items-center justify-center overflow-hidden shrink-0">
+      <SheetHeader className="p-3 pb-1 text-left">
+        <button
+          className="flex items-center gap-3 text-left w-full rounded-3xl p-3 pr-9 bg-gradient-to-br from-secondary/35 via-secondary/15 to-primary/10 outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          onClick={() => onNavigate("/configuracoes")}
+        >
+          <div className="h-12 w-12 rounded-2xl bg-white shadow-sm flex items-center justify-center overflow-hidden shrink-0">
             {companyLogo ? (
               <img src={companyLogo} alt={companyName} className="h-10 w-10 object-contain" />
             ) : (
@@ -212,13 +220,13 @@ export function MobileMenuPanel({
       </SheetHeader>
 
       {/* Itens em grupos */}
-      <nav className="flex-1 overflow-y-auto px-3 py-2">
+      <nav className="flex-1 overflow-y-auto px-3 py-1">
         {GROUPS.map((group) => {
           const groupItems = items.filter((i) => i.group === group.id);
           if (groupItems.length === 0) return null;
           return (
             <div key={group.id} className="py-1.5">
-              <p className="text-[11px] font-semibold text-muted-foreground/80 uppercase tracking-wider px-3 pb-1">{group.label}</p>
+              <p className="text-xs font-semibold text-muted-foreground/80 px-3 pt-1 pb-1">{group.label}</p>
               {groupItems.map((item) => {
                 const active = currentPage === item.id;
                 return (
@@ -226,12 +234,12 @@ export function MobileMenuPanel({
                     key={item.id}
                     onClick={() => onNavigate(item.path)}
                     className={cn(
-                      "relative w-full flex items-center gap-3 h-11 px-3 rounded-xl text-sm font-medium transition-colors",
-                      active ? "bg-secondary/20 text-foreground font-semibold" : "text-foreground/80 hover:bg-muted",
+                      "relative w-full flex items-center gap-3 h-12 px-2.5 rounded-2xl text-sm font-medium transition-colors",
+                      active ? "bg-secondary/25 text-foreground font-semibold shadow-sm" : "text-foreground/80 hover:bg-muted/70",
                     )}
                   >
-                    {active && <span className="absolute left-0 top-2 bottom-2 w-1 rounded-full bg-secondary" />}
-                    <span className={cn("h-8 w-8 rounded-lg flex items-center justify-center shrink-0", item.color)}>
+                    {active && <span className="absolute left-1 top-3 bottom-3 w-1 rounded-full bg-secondary" />}
+                    <span className={cn("h-9 w-9 rounded-full flex items-center justify-center shrink-0", item.color)}>
                       <item.icon className="h-4 w-4" />
                     </span>
                     <span className="flex-1 text-left truncate">{item.label}</span>
@@ -254,13 +262,13 @@ export function MobileMenuPanel({
       </nav>
 
       {/* Ações no rodapé */}
-      <div className="border-t border-border p-3 flex gap-2">
+      <div className="p-3 pt-2 flex gap-2">
         {onRefresh && (
-          <button onClick={onRefresh} className="flex-1 h-10 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted flex items-center justify-center gap-2">
+          <button onClick={onRefresh} className="flex-1 h-11 rounded-full bg-card shadow-sm text-sm font-medium text-foreground/70 hover:bg-muted flex items-center justify-center gap-2">
             <RefreshCw className="h-4 w-4" /> Atualizar
           </button>
         )}
-        <button onClick={onLogout} className="flex-1 h-10 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 flex items-center justify-center gap-2">
+        <button onClick={onLogout} className="flex-1 h-11 rounded-full bg-destructive/10 text-sm font-medium text-destructive hover:bg-destructive/15 flex items-center justify-center gap-2">
           <LogOut className="h-4 w-4" /> Sair
         </button>
       </div>
