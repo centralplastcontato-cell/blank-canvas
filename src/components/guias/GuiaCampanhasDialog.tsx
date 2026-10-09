@@ -1,6 +1,6 @@
 import {
   Megaphone, Users, ImageIcon, Send, BarChart3, Filter,
-  CheckCircle, Clock, ListChecks, Zap
+  CheckCircle, Clock, ListChecks, Zap, ShieldCheck, UserX
 } from "lucide-react";
 import { GuiaDialogBase, SectionCard, FeatureItem, SmartTip, type GuiaTab } from "./GuiaDialogBase";
 
@@ -19,13 +19,15 @@ const tabs: GuiaTab[] = [
             Envie mensagens personalizadas para sua base de leads via WhatsApp.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <FeatureItem icon={Send} iconColor="bg-primary/15 text-primary" title="Criação de Campanha" description="Wizard passo-a-passo: nome, mensagem, imagem e destinatários" />
-            <FeatureItem icon={Zap} iconColor="bg-amber-100 text-amber-600" title="Variações de Mensagem" description="Crie múltiplas versões para evitar bloqueios do WhatsApp" />
-            <FeatureItem icon={Clock} iconColor="bg-blue-100 text-blue-600" title="Agendamento" description="Programe envios para horários estratégicos" />
-            <FeatureItem icon={BarChart3} iconColor="bg-emerald-100 text-emerald-600" title="Métricas" description="Acompanhe enviados, erros e taxa de sucesso em tempo real" />
+            <FeatureItem icon={Send} iconColor="bg-primary/15 text-primary" title="Criação em 3 passos" description="Mensagem, público e revisão. Se fechar sem querer, o rascunho fica guardado" />
+            <FeatureItem icon={Zap} iconColor="bg-amber-100 text-amber-600" title="Várias mensagens" description="A IA escreve 5 versões e você pode escrever as suas; cada pessoa recebe uma delas" />
+            <FeatureItem icon={Clock} iconColor="bg-blue-100 text-blue-600" title="Sai sozinha" description="Até 30 por dia, de segunda a sábado das 9h às 19h, uma a cada ~20 min. Pode fechar a tela" />
+            <FeatureItem icon={BarChart3} iconColor="bg-emerald-100 text-emerald-600" title="Resultado" description="Quantos responderam em até 3 dias e quantos fecharam festa em até 45 dias" />
+            <FeatureItem icon={ShieldCheck} iconColor="bg-violet-100 text-violet-600" title="Público protegido" description="Ficam de fora quem já fechou, quem recebeu campanha há menos de 15 dias e números repetidos" />
+            <FeatureItem icon={UserX} iconColor="bg-rose-100 text-rose-600" title="Pediram para sair" description="Quem responde “sair” ou “parar” não recebe mais; dá para tirar da lista se a pessoa pedir" />
           </div>
         </SectionCard>
-        <SmartTip>Use pelo menos 3 variações de mensagem para reduzir o risco de bloqueio pelo WhatsApp.</SmartTip>
+        <SmartTip>Mensagens curtas e pessoais, com o nome do cliente ({"{nome}"}), costumam ter mais respostas. Use o Resultado para ver qual campanha funcionou melhor.</SmartTip>
       </>
     ),
   },

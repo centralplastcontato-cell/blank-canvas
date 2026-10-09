@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { campaignState, reactivatedStatus } from "../campaignState";
+import { campaignState, nextSendLabel, reactivatedStatus } from "../campaignState";
 
 const c = (status: string, total: number, sent: number, errors = 0) => ({ status, total_recipients: total, sent_count: sent, error_count: errors });
 
@@ -31,5 +31,26 @@ describe("campaignState", () => {
     expect(reactivatedStatus(c("cancelled", 50, 50))).toBe("completed");
     expect(reactivatedStatus(c("cancelled", 50, 20))).toBe("draft");
     expect(reactivatedStatus(c("cancelled", 50, 0))).toBe("draft");
+  });
+});
+
+describe("campaignState no servidor", () => {
+  it("enviando pelo servidor: mostra quantos faltam e permite pausar", () => {
+    const s = campaignState({ ...c("sending", 100, 40, 2), server_send: true });
+    expect(s).toEqual({ kind: "sending", label: "Enviando · faltam 58", pending: 58, action: "pause" });
+  });
+  it("envio antigo pela tela que parou no meio: Retomar", () => {
+    expect(campaignState({ ...c("sending", 100, 40), server_send: false }).action).toBe("resume");
+  });
+});
+
+describe("nextSendLabel", () => {
+  // 09/10/2026 é sexta
+  const now = new Date("2026-10-09T10:00:00-03:00");
+  it("hoje, amanhã e dia da semana, no horário de Brasília", () => {
+    expect(nextSendLabel(new Date("2026-10-09T14:32:00-03:00"), now)).toBe("hoje às 14:32");
+    expect(nextSendLabel(new Date("2026-10-10T09:05:00-03:00"), now)).toBe("amanhã às 09:05");
+    expect(nextSendLabel(new Date("2026-10-12T09:10:00-03:00"), now)).toBe("segunda às 09:10");
+    expect(nextSendLabel(new Date("2026-10-09T09:00:00-03:00"), now)).toBe("em instantes");
   });
 });

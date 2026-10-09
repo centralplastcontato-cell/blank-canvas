@@ -105,3 +105,8 @@ verify_jwt = false
 
 [functions.weekly-insights]
 verify_jwt = false
+
+# Envio das campanhas pelo servidor: chamada pelo agendamento sem chave. Cada chamada
+# só manda o que já está na vez (ritmo guardado no banco), então chamar a mais não manda a mais.
+[functions.campaign-dispatch]
+verify_jwt = false

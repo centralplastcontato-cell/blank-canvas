@@ -13,7 +13,7 @@ export interface MenuBadges {
   visitsToday: number;
 }
 
-/** Números de pendências do menu lateral. Só busca enquanto o menu está aberto. */
+/** Números de pendências do menu lateral. Só busca enquanto o menu está à vista. */
 export function useMenuBadges(enabled: boolean, withAttention: boolean): MenuBadges {
   const { currentCompany } = useCompany();
   const companyId = currentCompany?.id;
@@ -38,6 +38,8 @@ export function useMenuBadges(enabled: boolean, withAttention: boolean): MenuBad
     },
     enabled: enabled && !!companyId,
     staleTime: 60_000,
+    // No computador o menu fica sempre à vista: atualiza sozinho a cada minuto
+    refetchInterval: enabled ? 60_000 : false,
   });
 
   const { data: attention } = useAttentionList(undefined, { enabled: enabled && withAttention });

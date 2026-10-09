@@ -975,7 +975,7 @@ function ch17(doc: jsPDF) {
   addBulletList(doc, [
     "Contexto: Defina o nome da campanha, descreva o objetivo e gere as variações de mensagem com auxílio da IA. Você também pode anexar uma imagem promocional.",
     "Audiência: Filtre e selecione os leads que receberão a campanha usando filtros de status (Novo, Fechado, Perdido, etc.), unidade e mês de interesse.",
-    "Configuração: Revise o resumo da campanha, ajuste o intervalo entre envios (delay) e confira a prévia da mensagem antes de criar.",
+    "Configuração: Revise o resumo da campanha e confira a prévia da mensagem antes de criar. O envio sai sozinho pelo servidor: até 30 por dia, de segunda a sábado das 9h às 19h.",
   ]);
 
   addSectionTitle(doc, "Variações de mensagem com IA");

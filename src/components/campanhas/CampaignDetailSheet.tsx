@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { CheckCircle2, XCircle, Clock, Loader2, Users, RefreshCw, Send, ImageIcon, MessageSquare, UserCog, Filter } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Loader2, Users, RefreshCw, Send, ImageIcon, MessageSquare, UserCog, Filter, Pause } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -27,6 +27,8 @@ interface Campaign {
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
+  server_send?: boolean | null;
+  last_error?: string | null;
 }
 
 interface Recipient {
@@ -47,6 +49,7 @@ interface CampaignDetailSheetProps {
   onStartSend: (campaign: Campaign) => void;
   onResend: (campaign: Campaign) => void;
   onEditAudience?: (campaign: Campaign) => void;
+  onPause?: (campaign: Campaign) => void;
   onRefresh: () => void;
 }
 
@@ -58,7 +61,7 @@ const statusConfig: Record<string, { variant: "default" | "secondary" | "destruc
   cancelled: { variant: "destructive", icon: XCircle },
 };
 
-export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, onStartSend, onResend, onEditAudience, onRefresh }: CampaignDetailSheetProps) {
+export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, onStartSend, onResend, onEditAudience, onPause, onRefresh }: CampaignDetailSheetProps) {
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -110,7 +113,7 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
           status: "draft",
           error_count: 0,
           sent_count: sentCount,
-          total_recipients: sentCount + errorCount,
+          total_recipients: recipients.length,
         })
         .eq("id", campaign.id);
 
@@ -266,6 +269,15 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
 
         {/* Actions */}
         <div className="p-4 sm:px-6 border-t border-border space-y-2">
+          {campaign.last_error && state.kind !== "completed" && (
+            <p className="text-xs text-amber-700 dark:text-amber-400">{campaign.last_error}</p>
+          )}
+          {state.action === "pause" && onPause && (
+            <Button variant="outline" className="w-full" onClick={() => onPause(campaign)}>
+              <Pause className="w-4 h-4 mr-1.5" />
+              Pausar envio (faltam {state.pending})
+            </Button>
+          )}
           {campaign.status === "draft" && state.action && (
             <>
               <Button className="w-full" onClick={() => { onOpenChange(false); onStartSend(campaign); }}>
@@ -376,6 +388,7 @@ function RecipientRow({ recipient, formatPhone, messageVariations }: { recipient
     sent: { icon: CheckCircle2, label: "Enviado", cls: "text-green-600" },
     error: { icon: XCircle, label: "Erro", cls: "text-destructive" },
     pending: { icon: Clock, label: "Pendente", cls: "text-yellow-600" },
+    sending: { icon: Loader2, label: "Saindo agora", cls: "text-primary" },
   };
   const s = statusMap[recipient.status] || statusMap.pending;
   const SIcon = s.icon;

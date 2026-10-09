@@ -1,8 +1,7 @@
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Users, Clock, MessageSquare, ImageIcon, Info, PauseCircle, CalendarDays } from "lucide-react";
+import { Users, Clock, MessageSquare, ImageIcon, PauseCircle, CalendarDays } from "lucide-react";
 import type { CampaignDraft } from "./CampaignWizard";
 import { CAMPAIGN_DAILY_LIMIT, sendDays } from "@/lib/campaignAudience";
 import { previewMessage, usableVariations } from "@/lib/campaignMessages";
@@ -16,17 +15,16 @@ interface Props {
 export function CampaignConfigStep({ draft, setDraft, companyName = "" }: Props) {
   const total = draft.selectedLeadIds.length;
   const variations = usableVariations(draft.variations);
-  // Até 50 por dia: o envio de cada dia leva alguns minutos, e o total leva dias
+  // O servidor manda até 30 por dia, espalhadas entre 9h e 19h (segunda a sábado)
   const days = sendDays(total, CAMPAIGN_DAILY_LIMIT);
-  const minutesPerDay = Math.ceil((Math.min(total, CAMPAIGN_DAILY_LIMIT) * draft.delaySeconds) / 60);
 
   const summaryItems = [
     { icon: Users, label: "Destinatários", value: total.toLocaleString("pt-BR"), color: "text-primary" },
     { icon: MessageSquare, label: "Mensagens", value: String(variations.length), color: "text-primary" },
     {
       icon: Clock,
-      label: days > 1 ? "Para enviar tudo" : "Tempo estimado",
-      value: days > 1 ? `${days} dias` : `~${minutesPerDay}min`,
+      label: "Dias de envio",
+      value: String(Math.max(days, 1)),
       color: "text-primary",
     },
     { icon: ImageIcon, label: "Com imagem", value: draft.imageUrl ? "Sim" : "Não", color: "text-primary" },
@@ -49,37 +47,17 @@ export function CampaignConfigStep({ draft, setDraft, companyName = "" }: Props)
         ))}
       </div>
 
-      {/* Limite por dia */}
-      {days > 1 && (
-        <div className="flex items-start gap-2.5 p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-foreground/80 leading-relaxed">
-          <CalendarDays className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-          <span>
-            Para proteger seu número, o sistema envia até <strong>{CAMPAIGN_DAILY_LIMIT} mensagens por dia</strong>.
-            Com {total.toLocaleString("pt-BR")} pessoas, a campanha leva cerca de <strong>{days} dias</strong> —
-            a cada dia você clica em <strong>Continuar</strong> (cerca de {minutesPerDay} min de envio).
-          </span>
-        </div>
-      )}
-
-      {/* Delay config */}
-      <div className="space-y-3 p-4 rounded-xl border bg-muted/10">
-        <div className="flex items-center justify-between">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Intervalo entre mensagens
-          </Label>
-          <span className="text-sm font-bold text-primary">{draft.delaySeconds}s</span>
-        </div>
-        <Slider
-          value={[draft.delaySeconds]}
-          onValueChange={([v]) => setDraft((prev) => ({ ...prev, delaySeconds: v }))}
-          min={30}
-          max={120}
-          step={5}
-        />
-        <div className="flex items-start gap-2 text-xs text-muted-foreground">
-          <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-          <span>Intervalos maiores reduzem o risco de bloqueio. Recomendado: 60–90 segundos.</span>
-        </div>
+      {/* Como sai: pelo servidor, espalhado ao longo do dia */}
+      <div className="flex items-start gap-2.5 p-3 rounded-xl border border-primary/20 bg-primary/5 text-xs text-foreground/80 leading-relaxed">
+        <CalendarDays className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+        <span>
+          A campanha <strong>sai sozinha</strong>, sem precisar deixar a tela aberta: até{" "}
+          <strong>{CAMPAIGN_DAILY_LIMIT} mensagens por dia</strong>, de segunda a sábado das 9h às 19h, uma a cada
+          ~20 minutos com tempo variado (ritmo de robô é o que mais bloqueia o número).
+          {total > 0 && (
+            <> Com {total.toLocaleString("pt-BR")} pessoas, leva cerca de <strong>{Math.max(days, 1)} dia(s) de envio</strong>.</>
+          )}
+        </span>
       </div>
 
       {/* Pause bot on reply */}
@@ -132,7 +110,7 @@ export function CampaignConfigStep({ draft, setDraft, companyName = "" }: Props)
       </div>
 
       <p className="text-[11px] text-muted-foreground/70 text-center pt-1">
-        Ao clicar em "Criar e Iniciar Envio", a campanha será salva e você poderá iniciar o disparo imediatamente.
+        Ao clicar em "Criar e Iniciar Envio", a campanha é salva e você escolhe por qual número ela sai.
       </p>
     </div>
   );

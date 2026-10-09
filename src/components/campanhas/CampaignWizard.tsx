@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { phoneTail, uniqueByPhone } from "@/lib/campaignAudience";
 import { fetchAllPages } from "@/lib/fetchAllPages";
 import { usableVariations } from "@/lib/campaignMessages";
+import { clearCampaignDraft, loadCampaignDraft, saveCampaignDraft } from "@/lib/campaignDraft";
 
 interface CampaignWizardProps {
   open: boolean;
@@ -56,15 +57,15 @@ export interface CampaignDraft {
 }
 
 const STEPS = [
-  { label: "Contexto", description: "Mensagem & IA" },
-  { label: "Audiência", description: "Selecionar leads" },
-  { label: "Configuração", description: "Revisar & enviar" },
+  { label: "Mensagem", description: "Mensagem & IA" },
+  { label: "Público", description: "Quem vai receber" },
+  { label: "Revisar", description: "Revisar & enviar" },
 ];
 
 const STEP_DESCRIPTIONS = [
   "Escolha um nome para sua campanha, descreva o objetivo e gere as variações de mensagem com a IA. Você também pode anexar uma imagem ou gerar uma arte com IA.",
   "Filtre e selecione os leads que receberão a campanha. Use os filtros de status, unidade e mês para refinar sua lista.",
-  "Revise o resumo da campanha, ajuste o intervalo entre envios e confira a prévia da mensagem antes de criar.",
+  "Revise o resumo da campanha e confira a prévia da mensagem antes de criar. O envio sai sozinho, até 30 por dia, de segunda a sábado das 9h às 19h.",
 ];
 
 const EMPTY_DRAFT: CampaignDraft = {
@@ -85,6 +86,8 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
   const [step, setStep] = useState(isEditingAudience ? 1 : 0);
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<CampaignDraft>(EMPTY_DRAFT);
+  // Abriu continuando um rascunho guardado neste aparelho
+  const [restored, setRestored] = useState(false);
 
   // Quando entra em modo edição de audiência, pré-carrega destinatários atuais (status=pending) como pré-selecionados.
   useEffect(() => {
@@ -108,10 +111,31 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
         }));
       })();
     } else {
-      setStep(0);
-      setDraft(EMPTY_DRAFT);
+      const saved = loadCampaignDraft<CampaignDraft>(companyId);
+      if (saved) {
+        setDraft({ ...EMPTY_DRAFT, ...saved.draft, leads: [] });
+        setStep(Math.min(Math.max(saved.step, 0), 2));
+        setRestored(true);
+      } else {
+        setStep(0);
+        setDraft(EMPTY_DRAFT);
+        setRestored(false);
+      }
     }
   }, [open, isEditingAudience, editingCampaign?.id]);
+
+  // Guarda o rascunho enquanto a pessoa monta a campanha
+  useEffect(() => {
+    if (!open || isEditingAudience || !companyId) return;
+    saveCampaignDraft(companyId, step, draft);
+  }, [open, isEditingAudience, companyId, step, draft]);
+
+  const startOver = () => {
+    clearCampaignDraft(companyId);
+    setDraft(EMPTY_DRAFT);
+    setStep(0);
+    setRestored(false);
+  };
 
   const canAdvanceStep0 = draft.name.trim() && usableVariations(draft.variations).length >= 1;
   const canAdvanceStep1 = draft.selectedLeadIds.length > 0;
@@ -178,6 +202,8 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
       }
 
       toast.success("Campanha criada!");
+      clearCampaignDraft(companyId);
+      setRestored(false);
       setStep(0);
       setDraft(EMPTY_DRAFT);
       onCampaignCreated(campaign);
@@ -284,10 +310,10 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
 
           {/* Step indicators - escondidos no modo edição */}
           {!isEditingAudience && (
-            <div className="flex items-center gap-2 pb-4">
+            <div className="flex items-center gap-1.5 sm:gap-2 pb-4">
               {STEPS.map((s, i) => (
-                <div key={i} className="flex items-center gap-2 flex-1">
-                  <div className={`flex items-center gap-2 flex-1 px-3 py-2 rounded-lg transition-all text-xs font-medium ${
+                <div key={i} className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
+                  <div className={`flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 px-2 sm:px-3 py-2 rounded-full transition-all text-xs font-medium ${
                     i === step
                       ? "bg-primary/10 text-primary border border-primary/20"
                       : i < step
@@ -303,13 +329,22 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
                     }`}>
                       {i < step ? <Check className="w-3 h-3" /> : i + 1}
                     </div>
-                    <span className="hidden sm:inline truncate">{s.label}</span>
+                    <span className="truncate">{s.label}</span>
                   </div>
                   {i < STEPS.length - 1 && (
-                    <div className={`w-4 h-px shrink-0 ${i < step ? "bg-primary" : "bg-border"}`} />
+                    <div className={`hidden sm:block w-4 h-px shrink-0 ${i < step ? "bg-primary" : "bg-border"}`} />
                   )}
                 </div>
               ))}
+            </div>
+          )}
+
+          {!isEditingAudience && restored && (
+            <div className="flex items-center justify-between gap-2 mb-3 px-3 py-2 rounded-xl bg-amber-500/10 text-xs text-amber-800 dark:text-amber-300">
+              <span>Continuando a campanha que você não terminou.</span>
+              <button type="button" className="font-semibold underline shrink-0" onClick={startOver}>
+                Começar do zero
+              </button>
             </div>
           )}
 
