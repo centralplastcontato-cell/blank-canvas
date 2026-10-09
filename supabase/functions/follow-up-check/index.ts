@@ -9,6 +9,7 @@ import { teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { decideUnconfirmedMedia, MEDIA_ACK_TIMEOUT_MS, type MediaAckMeta } from "../_shared/media-ack.ts";
 import { BOT_STEPS_WAITING_ANSWER, botShouldHaveAnswered, UNANSWERED_MAX_AGE_HOURS, UNANSWERED_MINUTES } from "../_shared/unanswered-bot.ts";
 import { resolveUnitNotificationTargets } from "../_shared/notification-targets.ts";
+import { decideDeliveryStall, type OutgoingRow, STALL_LOOKBACK_MS } from "../_shared/delivery-stall.ts";
 import { isAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { type AiTarget, journeyOwnsConversation, type JourneyScope, journeyScopes, loadAiJourneyTargets, runAiJourney } from "./ai-journey.ts";
 
@@ -492,6 +493,13 @@ Deno.serve(async (req) => {
     const stuckMaterialsResult = await processStuckSendingMaterials({ supabase, skipInstanceIds: aiOnlyInstanceIds });
     totalSuccessCount += stuckMaterialsResult.successCount;
     allErrors.push(...stuckMaterialsResult.errors);
+
+    // Número que parou de entregar (fica "enviado" e nada chega ao cliente)
+    try {
+      await processDeliveryStallAlerts(supabase);
+    } catch (err) {
+      console.error("[follow-up-check] Erro no alerta de número sem entregar:", err);
+    }
 
     // Process each instance with follow-up enabled
     for (const settings of allSettings) {
@@ -2641,7 +2649,89 @@ const OWNER_ALERT_PHONE = "5515981121710";
 const OWNER_ALERT_COOLDOWN_HOURS = 3;
 const CASTELO_COMPANY_ID = "a0000000-0000-0000-0000-000000000001";
 
-type OwnerAlertKind = "silent" | "disconnected" | "degraded";
+type OwnerAlertKind = "silent" | "disconnected" | "degraded" | "not_delivering" | "media_not_delivering";
+
+/**
+ * Número que parou de entregar: as mensagens saem da plataforma ("enviado"),
+ * mas o WhatsApp não confirma a entrega para nenhum cliente. Avisa a equipe
+ * (pop-up e sininho) e o dono no WhatsApp, por outro número. Uma vez a cada 3h
+ * por número, só das 8h às 22h (de madrugada cliente não lê e daria alarme falso).
+ */
+async function processDeliveryStallAlerts(supabase: SupabaseAdmin): Promise<void> {
+  const nowMs = Date.now();
+  const hourBR = new Date(nowMs - 3 * 3600000).getUTCHours();
+  if (hourBR < 8 || hourBR >= 22) return;
+  const sinceIso = new Date(nowMs - STALL_LOOKBACK_MS).toISOString();
+
+  const { data: instances } = await supabase
+    .from("wapi_instances")
+    .select("id, instance_id, company_id, unit, status")
+    .eq("is_active", true)
+    .in("status", ["connected", "degraded"]);
+
+  for (const inst of (instances || []) as Array<{ id: string; instance_id: string; company_id: string; unit: string | null }>) {
+    const { data: convs } = await supabase
+      .from("wapi_conversations")
+      .select("id")
+      .eq("instance_id", inst.id)
+      .gte("last_message_at", sinceIso)
+      .limit(300);
+    const convIds = (convs || []).map((c: { id: string }) => c.id);
+    if (convIds.length < 2) continue;
+    const { data: rows } = await supabase
+      .from("wapi_messages")
+      .select("status, timestamp, conversation_id, message_type, metadata")
+      .in("conversation_id", convIds)
+      .eq("from_me", true)
+      .gte("timestamp", sinceIso)
+      .limit(2000);
+    const decision = decideDeliveryStall((rows || []) as OutgoingRow[], nowMs);
+    if (!decision.stalled) continue;
+
+    const cooldown = new Date(nowMs - 3 * 3600000).toISOString();
+    const { data: recent } = await supabase
+      .from("notifications")
+      .select("id")
+      .eq("type", "delivery_stall")
+      .eq("data->>instance_id", inst.id)
+      .gte("created_at", cooldown)
+      .limit(1);
+    if (recent && recent.length > 0) continue;
+
+    const unitName = inst.unit || "WhatsApp";
+    const sinceLabel = new Date(decision.since as string).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
+    const mediaOnly = decision.kind === "media";
+    console.warn(`[delivery-stall] ${unitName} (${inst.company_id}) sem entregar ${mediaOnly ? "mídia" : "nada"} desde ${sinceLabel}: ${decision.stuck} mensagens paradas em ${decision.conversations} conversas`);
+
+    const ownerWhatsAppSent = await sendOwnerSilentInstanceAlert(
+      supabase, inst, inst.id, decision.since, mediaOnly ? "media_not_delivering" : "not_delivering",
+    );
+    let targets = await resolveUnitNotificationTargets(supabase, inst.company_id, inst.unit);
+    if (targets.length === 0) {
+      const { data: companyUsers } = await supabase.from("user_companies").select("user_id").eq("company_id", inst.company_id);
+      targets = (companyUsers || []).map((u: { user_id: string }) => u.user_id);
+    }
+    if (targets.length === 0) continue;
+    await supabase.from("notifications").insert(targets.map((uid) => ({
+      user_id: uid,
+      company_id: inst.company_id,
+      type: "delivery_stall",
+      title: mediaOnly ? `⚠️ ${unitName}: fotos e PDFs não estão chegando` : `🚨 ${unitName} não está entregando mensagens`,
+      message: mediaOnly
+        ? `Desde ${sinceLabel}, fotos, vídeos e PDFs enviados por este número não chegam aos clientes (${decision.stuck} parados). Reconecte o número.`
+        : `Desde ${sinceLabel}, nenhuma mensagem enviada por este número chegou aos clientes (${decision.stuck} paradas em ${decision.conversations} conversas). Reconecte o número.`,
+      data: {
+        instance_id: inst.id,
+        unit: unitName,
+        reason: "delivery_stall",
+        kind: decision.kind,
+        since: decision.since,
+        stuck: decision.stuck,
+        owner_whatsapp_sent: ownerWhatsAppSent,
+      },
+    })));
+  }
+}
 
 async function sendOwnerSilentInstanceAlert(
   supabase: SupabaseAdmin,
@@ -2655,7 +2745,7 @@ async function sendOwnerSilentInstanceAlert(
     const { data: recent } = await supabase
       .from("notifications")
       .select("id")
-      .in("type", ["message_stuck", "instance_disconnected", "instance_degraded"])
+      .in("type", ["message_stuck", "instance_disconnected", "instance_degraded", "delivery_stall"])
       .eq("data->>instance_id", instId)
       .eq("data->>owner_whatsapp_sent", "true")
       .gte("created_at", since)
@@ -2685,7 +2775,11 @@ async function sendOwnerSilentInstanceAlert(
       : "algumas horas";
     const who = `${company?.name || "Buffet"} · *${inst.unit || "WhatsApp"}*`;
     const reconnect = `👉 Reconecte: no celular do número, WhatsApp → Dispositivos conectados → Desconectar; depois leia o QR Code no Hub.`;
-    const text = kind === "disconnected"
+    const text = kind === "not_delivering"
+      ? `🚨 *Celebrei — número não está entregando*\n\n${who}: desde ${sinceLabel} nenhuma mensagem enviada pela plataforma chegou aos clientes. O número aparece conectado, mas as mensagens ficam só como "enviadas".\n\n${reconnect}`
+      : kind === "media_not_delivering"
+      ? `⚠️ *Celebrei — fotos e PDFs não estão chegando*\n\n${who}: desde ${sinceLabel} fotos, vídeos e PDFs enviados pela plataforma não chegam aos clientes (os textos ainda chegam).\n\n${reconnect}`
+      : kind === "disconnected"
       ? `🔴 *Celebrei — número desconectado*\n\n${who} está desconectado do WhatsApp. Nada entra nem sai pela plataforma.\n\n${reconnect}`
       : kind === "degraded"
         ? `⚠️ *Celebrei — sessão incompleta*\n\n${who} está com a sessão do WhatsApp incompleta: as mensagens podem não ser entregues.\n\n${reconnect}`

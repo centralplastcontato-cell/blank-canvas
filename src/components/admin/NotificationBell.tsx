@@ -26,7 +26,7 @@ const TAB_GROUPS = [
   { key: "visitas", label: "Visitas", types: ["visit_scheduled"] },
   { key: "clientes", label: "Clientes", types: ["existing_client"] },
   { key: "transferencias", label: "Transf.", types: ["lead_transfer", "lead_assigned"] },
-  { key: "outros", label: "Outros", types: ["lead_questions", "lead_analyzing", "follow_up_sent", "lead_lost", "stale_reminded", "lead_risk", "message_stuck", "lead_needs_human", "new_candidate"] },
+  { key: "outros", label: "Outros", types: ["lead_questions", "lead_analyzing", "follow_up_sent", "lead_lost", "stale_reminded", "lead_risk", "message_stuck", "lead_needs_human", "new_candidate", "delivery_stall"] },
 ] as const;
 
 /* ── icon map ────────────────────────────────────────── */
@@ -43,6 +43,7 @@ const ICON_MAP: Record<string, { icon: React.ElementType; className: string }> =
   stale_reminded:  { icon: Clock,          className: "text-gray-500" },
   lead_risk:       { icon: AlertTriangle,  className: "text-red-500" },
   message_stuck:   { icon: WifiOff,        className: "text-amber-500" },
+  delivery_stall:  { icon: WifiOff,        className: "text-red-500" },
   lead_needs_human: { icon: Hand,          className: "text-red-500" },
   new_support_ticket: { icon: Headset,    className: "text-purple-500" },
   new_candidate:   { icon: UserPlus,       className: "text-violet-500" },
@@ -244,7 +245,10 @@ export function NotificationBell() {
     if (!notification.read) {
       await markAsRead(notification.id);
     }
-    if (notification.type === "new_candidate" && notification.data && typeof notification.data === "object" && "response_id" in notification.data) {
+    if (notification.type === "delivery_stall") {
+      setIsOpen(false);
+      navigate("/configuracoes?secao=connection");
+    } else if (notification.type === "new_candidate" && notification.data && typeof notification.data === "object" && "response_id" in notification.data) {
       setIsOpen(false);
       navigate(`/formularios?section=freelancer&sub=candidatos&candidato=${notification.data.response_id}`);
     } else if (notification.type === "existing_client" && notification.data && typeof notification.data === "object") {
