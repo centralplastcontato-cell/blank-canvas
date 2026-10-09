@@ -25,6 +25,26 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Só quem está logado e tem acesso à empresa do lead. Antes qualquer um
+    // com o id do lead recebia o resumo da conversa.
+    const jwt = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+    const { data: { user } } = jwt ? await supabase.auth.getUser(jwt) : { data: { user: null } };
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'Faça login' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const { data: lead } = await supabase.from('campaign_leads').select('company_id').eq('id', lead_id).maybeSingle();
+    const { data: isAdmin } = await supabase.rpc('is_admin', { _user_id: user.id });
+    const { data: hasAccess } = await supabase.rpc('user_has_company_access', { _user_id: user.id, _company_id: company_id });
+    if (!lead || lead.company_id !== company_id || (isAdmin !== true && hasAccess !== true)) {
+      return new Response(JSON.stringify({ error: 'Sem acesso a este lead' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Find conversation linked to this lead
     const { data: conversation, error: convError } = await supabase
       .from('wapi_conversations')
