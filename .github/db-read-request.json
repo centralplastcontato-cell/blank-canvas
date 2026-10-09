@@ -1,1 +1,1 @@
-{"sql": "SELECT tablename, indexname, indexdef FROM pg_indexes\nWHERE schemaname = 'public' AND tablename IN ('wapi_messages', 'wapi_conversations', 'campaign_recipients', 'company_events', 'base_leads')\nORDER BY tablename, indexname"}
+{"sql": "SELECT tablename, policyname, cmd, roles::text, left(coalesce(qual, ''), 120) AS qual\nFROM pg_policies\nWHERE schemaname = 'public' AND tablename IN ('campaign_recipients', 'campaign_images', 'campaigns', 'base_leads')\nORDER BY tablename, cmd"}
