@@ -26,3 +26,46 @@ export const AI_STATE_LABEL: Record<AiConversationState, string> = {
   equipe: "A IA passou para a equipe",
   participou: "A IA atendeu antes; agora está com a equipe",
 };
+
+// ── "Responder": a IA passou a conversa e ninguém da equipe escreveu ainda ──
+
+// Mensagens nossas que não são de uma pessoa da equipe (mesma regra do servidor)
+const AUTOMATED_SOURCES = new Set(["auto_reminder", "campaign_auto_reply", "system_alert", "ai_agent", "reactivation_engine", "visit_confirmation", "reaction"]);
+// Até aqui as mensagens da IA saíam gravadas como "platform" (iguais às da equipe)
+const AI_SOURCE_MARKED_SINCE = Date.parse("2026-10-05T23:10:00Z");
+
+export interface OutgoingMessage {
+  from_me: boolean;
+  timestamp: string;
+  metadata?: unknown;
+}
+
+/** Alguém da equipe escreveu depois da passagem? (Central ou celular; IA, avisos e reações não contam) */
+export function teamRepliedSince(rows: OutgoingMessage[], sinceIso: string): boolean {
+  const since = Date.parse(sinceIso);
+  return rows.some((r) => {
+    const at = Date.parse(r.timestamp);
+    if (!r.from_me || !(at > since)) return false;
+    const meta = (r.metadata && typeof r.metadata === "object" ? r.metadata : {}) as Record<string, unknown>;
+    const source = typeof meta.source === "string" ? meta.source : null;
+    if (source === "platform" && at < AI_SOURCE_MARKED_SINCE) return false;
+    return !source || !AUTOMATED_SOURCES.has(source);
+  });
+}
+
+/** Passagem da IA ainda em aberto: quando foi e se o alerta de "sem resposta" já disparou */
+export function openAiHandoff(conv: AiConvLike): { at: string; late: boolean } | null {
+  if (aiConversationState(conv) !== "equipe") return null;
+  const bd = (conv.bot_data && typeof conv.bot_data === "object" ? conv.bot_data : {}) as Record<string, unknown>;
+  const h = (bd.ai_handoff && typeof bd.ai_handoff === "object" ? bd.ai_handoff : {}) as Record<string, unknown>;
+  if (typeof h.at !== "string") return null;
+  if (h.alerted_at === "respondido") return null; // a equipe respondeu antes do alerta
+  return { at: h.at, late: typeof h.alerted_at === "string" && !Number.isNaN(Date.parse(h.alerted_at)) };
+}
+
+/** Prévia da última mensagem na lista: "[Reação] ❤️" vira "Você reagiu ❤️" / "Reagiu ❤️" */
+export function friendlyLastMessage(content: string | null | undefined, fromMe: boolean | null | undefined): string | null | undefined {
+  const m = /^\[Reação\]\s*(.*)$/s.exec(content || "");
+  if (!m) return content;
+  return `${fromMe ? "Você reagiu" : "Reagiu"} ${m[1].trim()}`.trim();
+}

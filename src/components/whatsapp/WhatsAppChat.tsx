@@ -495,10 +495,11 @@ const resolveBestLeadForConversation = (
 import { MediaMessage } from "@/components/whatsapp/MediaMessage";
 import { ConversationStatusActions } from "@/components/whatsapp/ConversationStatusActions";
 import { ConversationFilters, FilterType } from "@/components/whatsapp/ConversationFilters";
-import { AiConversationBadge } from "@/components/whatsapp/AiConversationBadge";
+import { AiConversationBadge, NeedsReplyTag } from "@/components/whatsapp/AiConversationBadge";
+import { useAwaitingTeamReply } from "@/hooks/useAwaitingTeamReply";
 import { MessageReactions } from "@/components/whatsapp/MessageReactions";
 import { groupReactions } from "@/lib/messageReactions";
-import { aiConversationState } from "@/lib/aiConversation";
+import { aiConversationState, friendlyLastMessage } from "@/lib/aiConversation";
 import { LeadInfoPopover } from "@/components/whatsapp/LeadInfoPopover";
 import { LeadDetailSheet } from "@/components/admin/LeadDetailSheet";
 import { ContactInfoSheet } from "@/components/whatsapp/ContactInfoSheet";
@@ -4202,6 +4203,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
 
   // useMemo: filtrar/ordenar centenas de conversas a cada tecla digitada
   // (qualquer re-render) pesava na digitacao em tablets
+  // A IA passou e ninguém da equipe respondeu: etiqueta "Responder" e sobe para o topo
+  const awaitingTeam = useAwaitingTeamReply(conversations);
   const filteredConversations = useMemo(() => conversations
     .filter((conv) => {
       // Apply text search (normalize phone digits for matching)
@@ -4248,13 +4251,16 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
       return !conv.is_closed;
     })
     .sort((a, b) => {
-      // Favorites first, then by last message
+      // Esperando resposta da equipe primeiro, depois favoritos, depois a mais recente
+      const waitA = awaitingTeam.has(a.id);
+      const waitB = awaitingTeam.has(b.id);
+      if (waitA !== waitB) return waitA ? -1 : 1;
       if (a.is_favorite && !b.is_favorite) return -1;
       if (!a.is_favorite && b.is_favorite) return 1;
       const timeA = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
       const timeB = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
       return timeB - timeA;
-    }), [conversations, searchQuery, monthFilter, filter, conversationLeadsMap, leadStatusConversationIds]);
+    }), [conversations, searchQuery, monthFilter, filter, conversationLeadsMap, leadStatusConversationIds, awaitingTeam]);
 
   const toggleConversationClosed = async (conv: Conversation) => {
     if (!canCloseConversations) {
@@ -4955,6 +4961,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                           {getConversationDisplayName(conv, conversationLeadsMap)}
                         </p>
                         <AiConversationBadge conv={conv} />
+                        {awaitingTeam.has(conv.id) && <NeedsReplyTag late={awaitingTeam.get(conv.id) === true} />}
                         {conv.lead_id && (
                           <Link2 className="w-3 h-3 text-primary shrink-0" />
                         )}
@@ -4981,7 +4988,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         {conv.last_message_from_me && (
                           <CheckCheck className="w-3 h-3 shrink-0 text-primary inline mr-1 align-text-bottom" />
                         )}
-                        {conv.last_message_content || conv.contact_phone}
+                        {friendlyLastMessage(conv.last_message_content, conv.last_message_from_me) || conv.contact_phone}
                       </span>
                       {/* Row 2, Col 2: Badge */}
                       <div className="flex justify-end items-center mt-0.5">
@@ -5106,6 +5113,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                 {getConversationDisplayName(conv, conversationLeadsMap)}
                               </p>
                               <AiConversationBadge conv={conv} />
+                              {awaitingTeam.has(conv.id) && <NeedsReplyTag late={awaitingTeam.get(conv.id) === true} />}
                               {conv.lead_id && (
                                 <Link2 className="w-3 h-3 text-primary shrink-0" />
                               )}
@@ -5209,7 +5217,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                               {conv.last_message_from_me && (
                                 <CheckCheck className="w-3 h-3 shrink-0 text-primary inline mr-1 align-text-bottom" />
                               )}
-                              {conv.last_message_content || conv.contact_phone}
+                              {friendlyLastMessage(conv.last_message_content, conv.last_message_from_me) || conv.contact_phone}
                             </span>
                             {conv.unread_count > 0 && (
                               <AnimatedBadge 

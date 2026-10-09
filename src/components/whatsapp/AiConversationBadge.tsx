@@ -24,3 +24,21 @@ export function AiConversationBadge({ conv }: { conv: { bot_step?: string | null
     </span>
   );
 }
+
+// Etiqueta "Responder": a IA passou a conversa e ninguém da equipe escreveu.
+// Vermelha quando o alerta de "cliente sem resposta" já disparou.
+export function NeedsReplyTag({ late }: { late: boolean }) {
+  const label = late ? "Cliente sem resposta — responda agora" : "A IA passou para a equipe — falta responder";
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none text-white shrink-0",
+        late ? "bg-red-600 animate-pulse" : "bg-orange-500",
+      )}
+      title={label}
+      aria-label={label}
+    >
+      Responder
+    </span>
+  );
+}
