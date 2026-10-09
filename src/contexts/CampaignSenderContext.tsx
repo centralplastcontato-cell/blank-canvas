@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, CheckCircle2, Pause, Megaphone, Maximize2, GripVertical, ChevronDown, ChevronUp, AlertCircle, Clock, Send } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { CAMPAIGN_DAILY_LIMIT } from "@/lib/campaignAudience";
 
 interface Recipient {
   id: string;
@@ -196,7 +197,7 @@ export function CampaignSenderProvider({ children }: { children: ReactNode }) {
     // Limite diário anti-bloqueio WhatsApp (Z-API / W-API): 50 mensagens/dia por empresa.
     // Acima disso o WhatsApp bloqueia o número. Somamos os envios já feitos hoje
     // (em qualquer campanha desta empresa) e paramos ao atingir o teto.
-    const DAILY_LIMIT = 50;
+    const DAILY_LIMIT = CAMPAIGN_DAILY_LIMIT;
     let dailySentToday = 0;
     let dailyLimitHit = false;
     try {

@@ -4,6 +4,7 @@ import { useCompany } from '@/contexts/CompanyContext';
 import { startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, format } from 'date-fns';
 import { buildCommercialReport, type CommercialReport, type ReportEvent, type ReportLead, type ReportVisit } from '@/lib/commercialReport';
 import { brtNow } from '@/lib/visitOutcome';
+import { fetchAllPages } from '@/lib/fetchAllPages';
 
 export type PeriodPreset = 'today' | '7d' | '30d' | 'month' | 'custom';
 
@@ -17,8 +18,6 @@ export interface CommercialFilters {
 export type CommercialReportData = CommercialReport;
 
 const EXCLUDED_LEAD_STATUSES = '("transferido","trabalhe_conosco","fornecedor","outros")';
-const PAGE_SIZE = 1000;
-const MAX_PAGES = 50;
 
 export function getDefaultFilters(): CommercialFilters {
   const { from, to } = buildDateRange('30d');
@@ -43,19 +42,6 @@ export function buildDateRange(preset: PeriodPreset, customFrom?: Date, customTo
         to: customTo ? endOfDay(customTo) : endOfDay(now),
       };
   }
-}
-
-/** Busca todas as páginas (o banco devolve no máximo 1000 linhas por vez). */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function fetchAll<T>(page: (from: number, to: number) => PromiseLike<{ data: any; error: any }>): Promise<T[]> {
-  const rows: T[] = [];
-  for (let i = 0; i < MAX_PAGES; i++) {
-    const { data, error } = await page(i * PAGE_SIZE, (i + 1) * PAGE_SIZE - 1);
-    if (error) throw error;
-    rows.push(...((data || []) as T[]));
-    if (!data || data.length < PAGE_SIZE) break;
-  }
-  return rows;
 }
 
 function chunk<T>(items: T[], size: number): T[][] {
@@ -87,7 +73,7 @@ export function useCommercialReports(filters: CommercialFilters) {
 
       const [leads, visits, rawEvents, returnedResult, aiResult] = await Promise.all([
         // 1. Leads que chegaram no período
-        fetchAll<ReportLead>((a, b) => {
+        fetchAllPages<ReportLead>((a, b) => {
           let q = db
             .from('campaign_leads')
             .select('id, status, unit, origem, campaign_id')
@@ -100,7 +86,7 @@ export function useCommercialReports(filters: CommercialFilters) {
         }),
 
         // 2. Visitas marcadas para dentro do período
-        fetchAll<ReportVisit>((a, b) => {
+        fetchAllPages<ReportVisit>((a, b) => {
           let q = db
             .from('lead_visits')
             .select('id, lead_id, status_visita, data_visita, horario_visita, unit')
@@ -112,7 +98,7 @@ export function useCommercialReports(filters: CommercialFilters) {
         }),
 
         // 3. Festas vendidas no período (sem data de venda, vale o dia do cadastro)
-        fetchAll<{ lead_id: string | null; total_value: number | null; data_fechamento_venda: string | null; created_at: string; unit: string | null }>((a, b) =>
+        fetchAllPages<{ lead_id: string | null; total_value: number | null; data_fechamento_venda: string | null; created_at: string; unit: string | null }>((a, b) =>
           db
             .from('company_events')
             .select('id, lead_id, total_value, data_fechamento_venda, created_at, unit')
