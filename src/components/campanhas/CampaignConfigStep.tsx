@@ -2,21 +2,33 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Users, Clock, MessageSquare, ImageIcon, Info, PauseCircle } from "lucide-react";
+import { Users, Clock, MessageSquare, ImageIcon, Info, PauseCircle, CalendarDays } from "lucide-react";
 import type { CampaignDraft } from "./CampaignWizard";
+import { CAMPAIGN_DAILY_LIMIT, sendDays } from "@/lib/campaignAudience";
+import { previewMessage, usableVariations } from "@/lib/campaignMessages";
 
 interface Props {
   draft: CampaignDraft;
   setDraft: React.Dispatch<React.SetStateAction<CampaignDraft>>;
+  companyName?: string;
 }
 
-export function CampaignConfigStep({ draft, setDraft }: Props) {
-  const estimatedMinutes = Math.ceil((draft.selectedLeadIds.length * draft.delaySeconds) / 60);
+export function CampaignConfigStep({ draft, setDraft, companyName = "" }: Props) {
+  const total = draft.selectedLeadIds.length;
+  const variations = usableVariations(draft.variations);
+  // Até 50 por dia: o envio de cada dia leva alguns minutos, e o total leva dias
+  const days = sendDays(total, CAMPAIGN_DAILY_LIMIT);
+  const minutesPerDay = Math.ceil((Math.min(total, CAMPAIGN_DAILY_LIMIT) * draft.delaySeconds) / 60);
 
   const summaryItems = [
-    { icon: Users, label: "Destinatários", value: String(draft.selectedLeadIds.length), color: "text-primary" },
-    { icon: MessageSquare, label: "Variações", value: String(draft.variations.length), color: "text-primary" },
-    { icon: Clock, label: "Tempo estimado", value: `~${estimatedMinutes}min`, color: "text-primary" },
+    { icon: Users, label: "Destinatários", value: total.toLocaleString("pt-BR"), color: "text-primary" },
+    { icon: MessageSquare, label: "Mensagens", value: String(variations.length), color: "text-primary" },
+    {
+      icon: Clock,
+      label: days > 1 ? "Para enviar tudo" : "Tempo estimado",
+      value: days > 1 ? `${days} dias` : `~${minutesPerDay}min`,
+      color: "text-primary",
+    },
     { icon: ImageIcon, label: "Com imagem", value: draft.imageUrl ? "Sim" : "Não", color: "text-primary" },
   ];
 
@@ -36,6 +48,18 @@ export function CampaignConfigStep({ draft, setDraft }: Props) {
           </div>
         ))}
       </div>
+
+      {/* Limite por dia */}
+      {days > 1 && (
+        <div className="flex items-start gap-2.5 p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs text-foreground/80 leading-relaxed">
+          <CalendarDays className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+          <span>
+            Para proteger seu número, o sistema envia até <strong>{CAMPAIGN_DAILY_LIMIT} mensagens por dia</strong>.
+            Com {total.toLocaleString("pt-BR")} pessoas, a campanha leva cerca de <strong>{days} dias</strong> —
+            a cada dia você clica em <strong>Continuar</strong> (cerca de {minutesPerDay} min de envio).
+          </span>
+        </div>
+      )}
 
       {/* Delay config */}
       <div className="space-y-3 p-4 rounded-xl border bg-muted/10">
@@ -103,7 +127,7 @@ export function CampaignConfigStep({ draft, setDraft }: Props) {
           Prévia da primeira mensagem
         </Label>
         <div className="p-3.5 bg-muted/30 rounded-xl border text-sm whitespace-pre-wrap leading-relaxed text-foreground/80">
-          {draft.variations[0]?.text?.replace(/\{nome\}/g, "João") || "Nenhuma variação gerada"}
+          {variations[0] ? previewMessage(variations[0].text, "João", companyName) : "Nenhuma mensagem ainda"}
         </div>
       </div>
 

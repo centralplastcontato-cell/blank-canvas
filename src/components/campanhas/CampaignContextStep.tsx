@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, RefreshCw, Pencil, ImagePlus, ZoomIn, Trash2, Building2, Image, Wand2, Type, Palette } from "lucide-react";
+import { Loader2, Sparkles, RefreshCw, Pencil, ImagePlus, ZoomIn, Trash2, Building2, Image, Wand2, Type, Palette, PenLine, X } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CampaignTextOverlayEditor } from "./CampaignTextOverlayEditor";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import type { CampaignDraft } from "./CampaignWizard";
+import { MANUAL_TONE, mergeGenerated } from "@/lib/campaignMessages";
 
 interface Props {
   draft: CampaignDraft;
@@ -84,6 +85,7 @@ const TONE_LABELS: Record<string, string> = {
   urgente: "⏰ Urgente",
   curta: "⚡ Curta",
   detalhada: "📝 Detalhada",
+  [MANUAL_TONE]: "✍️ Escrita por você",
 };
 
 export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
@@ -133,7 +135,9 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      setDraft((prev) => ({ ...prev, variations: data.variations || [] }));
+      // As mensagens escritas à mão continuam; só as da IA são trocadas
+      setDraft((prev) => ({ ...prev, variations: mergeGenerated(prev.variations, data.variations || []) }));
+      setEditingIndex(null);
       toast.success("5 variações geradas pela IA!");
     } catch (err: any) {
       console.error("campaign-ai error:", err);
@@ -301,12 +305,34 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
   };
 
   const saveEdit = (index: number) => {
+    if (!editText.trim()) {
+      removeVariation(index);
+      return;
+    }
     setDraft((prev) => {
       const v = [...prev.variations];
       v[index] = { ...v[index], text: editText };
       return { ...prev, variations: v };
     });
     setEditingIndex(null);
+  };
+
+  // Mensagem escrita pela própria pessoa, sem IA
+  const addManualVariation = () => {
+    setDraft((prev) => ({ ...prev, variations: [...prev.variations, { tone: MANUAL_TONE, text: "" }] }));
+    setEditingIndex(draft.variations.length);
+    setEditText("");
+  };
+
+  const removeVariation = (index: number) => {
+    setDraft((prev) => ({ ...prev, variations: prev.variations.filter((_, i) => i !== index) }));
+    setEditingIndex(null);
+  };
+
+  const cancelEdit = (index: number) => {
+    // Mensagem nova que ficou vazia: some
+    if (!draft.variations[index]?.text.trim()) removeVariation(index);
+    else setEditingIndex(null);
   };
 
   return (
@@ -385,7 +411,16 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
         ) : (
           <Sparkles className="w-4 h-4" />
         )}
-        {draft.variations.length > 0 ? "Regenerar Variações" : "Gerar 5 Variações com IA"}
+        {draft.variations.some((v) => v.tone !== MANUAL_TONE) ? "Regenerar Variações" : "Gerar 5 Variações com IA"}
+      </Button>
+      <Button
+        onClick={addManualVariation}
+        disabled={editingIndex !== null && !draft.variations[editingIndex]?.text.trim()}
+        variant="ghost"
+        className="w-full h-9 gap-2 -mt-3 text-muted-foreground"
+      >
+        <PenLine className="w-4 h-4" />
+        Escrever minha própria mensagem
       </Button>
 
       {/* Variações */}
@@ -405,7 +440,7 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
               Regenerar
             </Button>
           </div>
-          <ScrollArea className="h-48 rounded-xl border bg-muted/20">
+          <div className="max-h-80 overflow-y-auto rounded-xl border bg-muted/20">
             <div className="p-2.5 space-y-2">
               {draft.variations.map((v, i) => (
                 <div key={i} className="p-3 rounded-lg border bg-background shadow-sm text-sm transition-all hover:shadow-md">
@@ -413,18 +448,30 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
                     <Badge variant="outline" className="text-[10px] font-medium">
                       {TONE_LABELS[v.tone] || v.tone}
                     </Badge>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" onClick={() => {
-                      setEditingIndex(i);
-                      setEditText(v.text);
-                    }}>
-                      <Pencil className="w-3 h-3" />
-                    </Button>
+                    <div className="flex items-center gap-0.5">
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" title="Editar" onClick={() => {
+                        setEditingIndex(i);
+                        setEditText(v.text);
+                      }}>
+                        <Pencil className="w-3 h-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive" title="Tirar esta mensagem" onClick={() => removeVariation(i)}>
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
                   {editingIndex === i ? (
                     <div className="space-y-2">
-                      <Textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3} className="text-sm resize-none" />
+                      <Textarea
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        rows={4}
+                        autoFocus
+                        placeholder="Oi {nome}! Aqui é da {empresa}..."
+                        className="text-sm resize-none"
+                      />
                       <div className="flex gap-1.5 justify-end">
-                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingIndex(null)}>Cancelar</Button>
+                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => cancelEdit(i)}>Cancelar</Button>
                         <Button size="sm" className="h-7 text-xs" onClick={() => saveEdit(i)}>Salvar</Button>
                       </div>
                     </div>
@@ -434,7 +481,10 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
                 </div>
               ))}
             </div>
-          </ScrollArea>
+          </div>
+          <p className="text-[11px] text-muted-foreground px-1">
+            Use <strong>{"{nome}"}</strong> para o nome do cliente e <strong>{"{empresa}"}</strong> para o nome do buffet. Cada pessoa recebe uma das mensagens, em rodízio.
+          </p>
         </div>
       )}
 

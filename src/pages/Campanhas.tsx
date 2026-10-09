@@ -36,6 +36,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 import { useCampaignSender } from "@/contexts/CampaignSenderContext";
 import { campaignState, reactivatedStatus } from "@/lib/campaignState";
+import { useCampaignResults, percentOf } from "@/hooks/useCampaignResults";
 
 interface Campaign {
   id: string;
@@ -67,6 +68,7 @@ export default function Campanhas() {
 
   const { isAdmin, canManageUsers } = useUserRole(user?.id);
   const sender = useCampaignSender();
+  const { data: results, refetch: refetchResults } = useCampaignResults(companyId || undefined);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -99,6 +101,7 @@ export default function Campanhas() {
     }
     setCampaigns((data as Campaign[]) || []);
     setLoading(false);
+    refetchResults();
   };
 
   const handleDeleteCampaign = async () => {
@@ -270,6 +273,7 @@ export default function Campanhas() {
                     const state = campaignState(campaign, sendingHere);
                     const sc = statusConfig[state.kind];
                     const StatusIcon = sc.icon;
+                    const result = results?.[campaign.id];
                     return (
                       <Card key={campaign.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setDetailCampaign(campaign)}>
                         <CardContent className="p-3 sm:p-4 flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-4">
@@ -303,6 +307,23 @@ export default function Campanhas() {
                                   <p className="font-bold text-base sm:text-lg text-destructive leading-tight">{campaign.error_count}</p>
                                   <p className="text-[10px] text-muted-foreground">Erros</p>
                                 </div>
+                              )}
+                              {result && campaign.sent_count > 0 && (
+                                <>
+                                  <div className="text-center" title="Responderam em até 3 dias depois de receber">
+                                    <p className="font-bold text-base sm:text-lg text-blue-600 leading-tight">
+                                      {result.replied}
+                                      <span className="text-[10px] font-medium text-muted-foreground ml-0.5">
+                                        {percentOf(result.replied, campaign.sent_count)}%
+                                      </span>
+                                    </p>
+                                    <p className="text-[10px] text-muted-foreground">Responderam</p>
+                                  </div>
+                                  <div className="text-center" title="Fecharam festa em até 45 dias depois de receber">
+                                    <p className="font-bold text-base sm:text-lg text-violet-600 leading-tight">{result.closed}</p>
+                                    <p className="text-[10px] text-muted-foreground">Fecharam</p>
+                                  </div>
+                                </>
                               )}
                             </div>
                             <div className="flex items-center gap-2 flex-wrap justify-end">
