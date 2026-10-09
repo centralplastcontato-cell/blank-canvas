@@ -242,3 +242,9 @@ Deno.test("stripVisitInvite: tira a pergunta que dependia do convite cortado", (
   // Sem convite cortado, a pergunta fica
   assertEquals(stripVisitInvite("Qual horário da festa você prefere: almoço ou noite? 😊").removed, false);
 });
+
+Deno.test("teamRepliedAfter: reação (emoji) da equipe não conta como resposta", () => {
+  assertEquals(teamRepliedAfter([
+    { from_me: true, timestamp: "2026-10-09T12:00:00Z", metadata: { source: "reaction" } },
+  ], "2026-10-09T11:00:00Z"), false);
+});

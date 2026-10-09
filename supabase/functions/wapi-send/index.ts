@@ -3665,6 +3665,55 @@ Deno.serve(async (req) => {
 
         console.log(`send-reaction: msgId=${reactionMsgId}, emoji=${emoji}, phone=${phone}, instance=${instance_id}`);
 
+        // Z-API: endpoint próprio (antes só havia o da W-API e a reação falhava
+        // com "não disponível neste plano" nos números da Z-API)
+        if (isZapi) {
+          const { data: reactConv } = conversationId
+            ? await supabase.from('wapi_conversations').select('remote_jid, contact_phone, company_id').eq('id', conversationId).maybeSingle()
+            : { data: null };
+          const jid = String(reactConv?.remote_jid || phone || '');
+          const target = jid.endsWith('@g.us')
+            ? jid
+            : String(reactConv?.contact_phone || phone || jid).replace(/@.*$/, '').replace(/\D/g, '');
+          if (!target) {
+            return new Response(JSON.stringify({ success: false, error: 'Conversa sem telefone para reagir' }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          const res = await zapiRequest(instance_id, instance_token, client_token, 'send-reaction', 'POST', {
+            phone: target, reaction: emoji, messageId: reactionMsgId,
+          });
+          console.log(`send-reaction (Z-API) => ok=${res.ok}${res.error ? ` erro=${res.error}` : ''}`);
+          if (!res.ok) {
+            return new Response(JSON.stringify({ success: false, error: res.error || 'Não foi possível reagir agora' }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          // Grava a reação na hora: aparece embaixo da mensagem e o eco do
+          // WhatsApp (mesmo id) não é confundido com mensagem do celular
+          const sentId = extractZapiMessageId(res.data);
+          if (conversationId && reactConv) {
+            const { data: targetMsg } = await supabase.from('wapi_messages').select('id')
+              .eq('conversation_id', conversationId).eq('message_id', reactionMsgId).maybeSingle();
+            const { error: insErr } = await supabase.from('wapi_messages').upsert({
+              conversation_id: conversationId,
+              message_id: sentId || `reaction_${Date.now()}`,
+              from_me: true,
+              message_type: 'text',
+              content: `[Reação] ${emoji}`,
+              status: 'sent',
+              timestamp: new Date().toISOString(),
+              company_id: reactConv.company_id,
+              quoted_message_id: targetMsg?.id || null,
+              metadata: { source: 'reaction' },
+            }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
+            if (insErr) console.error('send-reaction: falha ao gravar a reação:', insErr.message);
+          }
+          return new Response(JSON.stringify({ success: true, messageId: sentId }), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
         const reactionBody = { phone, messageId: reactionMsgId, emoji };
         
         // Try multiple endpoint/method combinations since W-API versions differ

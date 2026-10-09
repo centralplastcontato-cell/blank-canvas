@@ -50,7 +50,8 @@ export function pickLatestIncoming(rows: IncomingRow[]): string | null {
 }
 
 // Mensagens nossas que NÃO são de uma pessoa da equipe (robôs/avisos)
-const AUTOMATED_SOURCES = new Set(["auto_reminder", "campaign_auto_reply", "system_alert", "ai_agent", "reactivation_engine", "visit_confirmation"]);
+// "reaction": emoji numa mensagem (pela Central ou celular) não é a equipe respondendo
+const AUTOMATED_SOURCES = new Set(["auto_reminder", "campaign_auto_reply", "system_alert", "ai_agent", "reactivation_engine", "visit_confirmation", "reaction"]);
 
 export interface OutgoingRow {
   from_me: boolean;
