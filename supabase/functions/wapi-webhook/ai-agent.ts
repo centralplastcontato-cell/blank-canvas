@@ -466,6 +466,18 @@ async function notifyTeam(
 
 // Decide (uma única vez por conversa) se a IA pode assumir. O resultado fica
 // gravado em bot_data.ai_agent ('on'/'off') para não reavaliar a cada mensagem.
+// Já mandamos alguma mensagem nesta conversa (bot fixo, equipe ou IA)?
+async function hasOutgoingMessage(supabase: any, convId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('wapi_messages')
+    .select('id')
+    .eq('conversation_id', convId)
+    .eq('from_me', true)
+    .limit(1);
+  if (error) return true; // na dúvida, não rouba a conversa do bot fixo
+  return (data || []).length > 0;
+}
+
 async function isEligible(
   supabase: any,
   settings: AiSettings,
@@ -492,8 +504,12 @@ async function isEligible(
     reason = `conversa criada em ${conv.created_at ?? '?'}, IA ligada em ${settings.activated_at ?? '?'}`;
   }
 
-  // Bot fixo já engajado no meio de uma qualificação: não rouba a conversa
-  if (eligible && conv.bot_step && conv.bot_step !== 'lp_sent' && conv.bot_step !== AI_STEP) {
+  // Bot fixo já engajado no meio de uma qualificação: não rouba a conversa.
+  // "welcome" sem nenhuma mensagem nossa ainda é só a conversa recém-criada
+  // (toda conversa nova nasce assim): o bot fixo não falou nada — é da IA.
+  // Antes isso barrava todo cliente novo que chegava direto pelo WhatsApp.
+  const untouchedWelcome = conv.bot_step === 'welcome' && !(await hasOutgoingMessage(supabase, conv.id));
+  if (eligible && conv.bot_step && conv.bot_step !== 'lp_sent' && conv.bot_step !== AI_STEP && !untouchedWelcome) {
     eligible = false;
     reason = `conversa já estava no passo "${conv.bot_step}" do bot fixo`;
   }

@@ -1,1 +1,1 @@
-{"sql": "SELECT to_char(m.timestamp AT TIME ZONE 'America/Sao_Paulo', 'HH24') AS hora, m.message_type, m.status, count(*) AS n FROM wapi_messages m JOIN wapi_conversations c ON c.id = m.conversation_id JOIN wapi_instances i ON i.id = c.instance_id WHERE i.unit = 'VENDAS 2' AND i.company_id = 'a0000000-0000-0000-0000-000000000001' AND m.from_me AND m.timestamp > '2026-10-09T03:00:00Z' GROUP BY 1,2,3 ORDER BY 1,2,3"}
+{"sql": "SELECT count(*) FILTER (WHERE jobname = 'monthly-review-generator') AS revisao_mensal,\n       count(*) AS total_agendamentos\nFROM cron.job"}
