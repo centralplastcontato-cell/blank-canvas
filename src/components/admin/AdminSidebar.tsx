@@ -70,12 +70,12 @@ export function AdminSidebar({
 
   return (
     <>
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border z-40">
+    <Sidebar collapsible="icon" iconWidth="4.5rem" className="border-r border-sidebar-border z-40">
       {/* Empresa e quem está logado */}
       <SidebarHeader className="p-3 pb-1 group-data-[collapsible=icon]:p-2">
         {collapsed ? (
           <div className="mx-auto" title={companyName}>
-            {logoBox("h-9 w-9 rounded-xl", "h-7 w-7")}
+            {logoBox("h-11 w-11 rounded-2xl", "h-9 w-9")}
           </div>
         ) : (
           <div className="relative flex items-center gap-3 rounded-3xl p-3 pr-9 bg-gradient-to-br from-secondary/35 via-secondary/15 to-primary/10">
@@ -121,7 +121,7 @@ export function AdminSidebar({
             <SidebarGroup key={group.id} className="py-1">
               <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/60">{group.label}</SidebarGroupLabel>
               <SidebarGroupContent>
-                <SidebarMenu className="gap-0.5">
+                <SidebarMenu className="gap-0.5 group-data-[collapsible=icon]:gap-2">
                   {groupItems.map((item) => {
                     const active = location.pathname === item.path;
                     const hasBadge = !!item.badge && item.badge > 0;
@@ -133,9 +133,9 @@ export function AdminSidebar({
                           tooltip={hasBadge ? `${item.label} (${badgeText(item.badge!)})` : item.label}
                           isActive={active}
                           className={cn(
-                            "relative h-11 gap-3 rounded-2xl px-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-muted/70 hover:text-sidebar-foreground",
+                            "relative h-12 gap-3 rounded-2xl px-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-muted/70 hover:text-sidebar-foreground",
                             "data-[active=true]:bg-secondary/25 data-[active=true]:font-semibold data-[active=true]:text-sidebar-foreground data-[active=true]:shadow-sm",
-                            "group-data-[collapsible=icon]:rounded-full group-data-[collapsible=icon]:overflow-visible group-data-[collapsible=icon]:data-[active=true]:shadow-none",
+                            "group-data-[collapsible=icon]:!size-11 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:rounded-full group-data-[collapsible=icon]:overflow-visible group-data-[collapsible=icon]:data-[active=true]:shadow-none",
                           )}
                         >
                           <NavLink
@@ -149,17 +149,17 @@ export function AdminSidebar({
                             )}
                             <span
                               className={cn(
-                                "relative h-8 w-8 rounded-full flex items-center justify-center shrink-0",
+                                "relative h-9 w-9 group-data-[collapsible=icon]:h-11 group-data-[collapsible=icon]:w-11 rounded-full flex items-center justify-center shrink-0",
                                 item.color,
                                 active && "group-data-[collapsible=icon]:ring-2 group-data-[collapsible=icon]:ring-inset group-data-[collapsible=icon]:ring-secondary",
                               )}
                             >
-                              <item.icon className="h-4 w-4" />
+                              <item.icon className="h-[18px] w-[18px] group-data-[collapsible=icon]:h-5 group-data-[collapsible=icon]:w-5" />
                               {/* Recolhido: o número vira uma bolinha */}
                               {hasBadge && (
                                 <span
                                   className={cn(
-                                    "hidden group-data-[collapsible=icon]:block absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-sidebar",
+                                    "hidden group-data-[collapsible=icon]:block absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-sidebar",
                                     item.badgeTone === "info" ? "bg-emerald-500" : "bg-red-500",
                                   )}
                                 />
@@ -193,17 +193,17 @@ export function AdminSidebar({
         {collapsed ? (
           <SidebarMenu className="items-center gap-1">
             <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Atualizar dados" onClick={onRefresh} className="rounded-full text-sidebar-foreground/70">
+              <SidebarMenuButton tooltip="Atualizar dados" onClick={onRefresh} className="group-data-[collapsible=icon]:!size-11 group-data-[collapsible=icon]:!p-0 justify-center [&>svg]:size-5 rounded-full text-sidebar-foreground/70">
                 <RefreshCw />
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Dicas da plataforma" onClick={() => reactivateFloatingTips()} className="rounded-full text-sidebar-foreground/70">
+              <SidebarMenuButton tooltip="Dicas da plataforma" onClick={() => reactivateFloatingTips()} className="group-data-[collapsible=icon]:!size-11 group-data-[collapsible=icon]:!p-0 justify-center [&>svg]:size-5 rounded-full text-sidebar-foreground/70">
                 <Lightbulb />
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Sair da conta" onClick={onLogout} className="rounded-full text-destructive hover:text-destructive hover:bg-destructive/10">
+              <SidebarMenuButton tooltip="Sair da conta" onClick={onLogout} className="group-data-[collapsible=icon]:!size-11 group-data-[collapsible=icon]:!p-0 justify-center [&>svg]:size-5 rounded-full text-destructive hover:text-destructive hover:bg-destructive/10">
                 <LogOut />
               </SidebarMenuButton>
             </SidebarMenuItem>

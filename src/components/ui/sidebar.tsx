@@ -134,8 +134,10 @@ const Sidebar = React.forwardRef<
     side?: "left" | "right";
     variant?: "sidebar" | "floating" | "inset";
     collapsible?: "offcanvas" | "icon" | "none";
+    /** Largura quando recolhido em ícones (padrão 3rem). Vale só para este menu. */
+    iconWidth?: string;
   }
->(({ side = "left", variant = "sidebar", collapsible = "offcanvas", className, children, ...props }, ref) => {
+>(({ side = "left", variant = "sidebar", collapsible = "offcanvas", iconWidth, className, children, ...props }, ref) => {
   const { isMobile, state, openMobile, setOpenMobile, open, setOpen } = useSidebar();
   const hoverTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [hoverExpanded, setHoverExpanded] = React.useState(false);
@@ -201,6 +203,7 @@ const Sidebar = React.forwardRef<
     <div
       ref={ref}
       className="group peer hidden text-sidebar-foreground md:block"
+      style={iconWidth ? ({ "--sidebar-width-icon": iconWidth } as React.CSSProperties) : undefined}
       data-state={state}
       data-collapsible={state === "collapsed" ? collapsible : ""}
       data-variant={variant}
