@@ -36,3 +36,7 @@ Deno.test("guardAiDb: lê tudo, grava só nas tabelas liberadas", () => {
 Deno.test("trava da IA: pode gravar o link curto do cadastro de candidatos", () => {
   assertEquals(AI_WRITABLE_TABLES.has("freelancer_invites"), true);
 });
+
+Deno.test("trava da IA: pode marcar que o cliente respondeu a confirmação da visita", () => {
+  assertEquals(AI_WRITABLE_TABLES.has("visit_confirmation_history"), true);
+});

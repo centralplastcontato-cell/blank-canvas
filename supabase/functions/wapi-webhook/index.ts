@@ -20,6 +20,7 @@ import { findLeadByPhone } from "../_shared/lead-phone.ts";
 import { detectWhatsAppReturn } from "../_shared/lead-return.ts";
 import { isLiveReplyToBotQuestion } from "../_shared/reconnect-quarantine.ts";
 import { collectStatusMessageIds, isPlayedStatus, mapProviderMessageStatus, statusUpdateFilter } from "../_shared/message-status.ts";
+import { AI_CONFIRMATION_STYLE, fixedConfirmationTextChoice } from "../_shared/visit-confirm.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -4778,12 +4779,8 @@ async function handleVisitConfirmationResponse(
     if (emojiNum && emojiNum >= 1 && emojiNum <= 2) optionNum = emojiNum;
   }
 
-  // Try text matching
-  if (!optionNum) {
-    const clean = normalized.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    if (clean.includes('confirmo') || clean.includes('confirmado') || clean.includes('sim')) optionNum = 1;
-    else if (clean.includes('remarcar') || clean.includes('remarca') || clean.includes('reagendar')) optionNum = 2;
-  }
+  // Try text matching (palavras inteiras: "sim" dentro de "assim" não confirma)
+  if (!optionNum) optionNum = fixedConfirmationTextChoice(content);
 
   if (!optionNum) return false;
 
@@ -4815,6 +4812,22 @@ async function handleVisitConfirmationResponse(
   const visit = matchingVisits[0];
   const confirmation = pendingConfirmation.find(p => p.visit_id === visit.id);
   if (!confirmation) return false;
+
+  // Confirmação no tom da IA (sem menu 1/2): quem entende a resposta é a IA
+  const { data: confirmationMsg } = await supabase
+    .from('wapi_messages')
+    .select('metadata')
+    .eq('conversation_id', conv.id)
+    .eq('from_me', true)
+    .eq('metadata->>source', 'visit_confirmation')
+    .eq('metadata->>visit_id', visit.id)
+    .order('timestamp', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if ((confirmationMsg?.metadata as JsonRecord | null)?.style === AI_CONFIRMATION_STYLE) {
+    console.log(`[Visit Confirmation] Confirmação da IA para a visita ${visit.id} — a resposta fica com a IA`);
+    return false;
+  }
 
   console.log(`[Visit Confirmation] Lead ${conv.lead_id} chose option ${optionNum} for visit ${visit.id}`);
 
