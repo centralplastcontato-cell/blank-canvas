@@ -1,6 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { mediaAckMetadata } from "../_shared/media-ack.ts";
+import { EVOLUTION_WEBHOOK_EVENTS, evolutionRequest, evolutionSendMedia, evolutionSendText, extractEvolutionMessageId } from "../_shared/evolution.ts";
+import { decryptWhatsAppMedia, encryptedMediaUrl, type WaMediaType } from "../_shared/whatsapp-media-crypto.ts";
 import { aiTakesSiteLead, buildAiSiteWelcome, cleanSiteLead, type SiteLeadInfo, siteLeadBotData } from "../_shared/ai-site-lead.ts";
 
 const corsHeaders = {
@@ -12,7 +14,7 @@ const WAPI_BASE_URL = 'https://api.w-api.app/v1';
 const ZAPI_BASE_URL = 'https://api.z-api.io/instances';
 const RECONNECT_AUTOMATION_QUARANTINE_MS = 15 * 60 * 1000;
 
-type Provider = 'wapi' | 'zapi';
+type Provider = 'wapi' | 'zapi' | 'evolution';
 
 function waitUntil(promise: Promise<unknown>): void {
   const runtime = (globalThis as Record<string, unknown>).EdgeRuntime as { waitUntil?: (promise: Promise<unknown>) => void } | undefined;
@@ -661,6 +663,83 @@ function logZapiMediaResponse(action: string, phone: string, data: unknown): voi
   console.log(`[Z-API] ${action} aceito para ${String(phone).slice(-4).padStart(8, '*')}: ${JSON.stringify(data).slice(0, 200)}`);
 }
 
+// ─── Envio direto por link: Z-API e Evolution Go ─────────────────────────
+// As duas recebem a mídia por link e usam o mesmo fluxo; muda só a chamada.
+// Na Evolution (whatsmeow) a resposta só volta depois que o servidor do
+// WhatsApp aceitou a mensagem, então a mídia já nasce "enviada".
+
+type DirectProvider = 'zapi' | 'evolution';
+type DirectMediaKind = 'image' | 'audio' | 'video' | 'document';
+
+function directSendText(provider: DirectProvider, instanceId: string, token: string, clientToken: string | null, phone: string, message: string, quotedProviderMessageId?: string | null, delayTyping?: number): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  if (provider === 'evolution') return evolutionSendText(token, phone, message);
+  return zapiSendText(instanceId, token, clientToken, phone, message, quotedProviderMessageId, delayTyping);
+}
+
+function directSendMedia(provider: DirectProvider, instanceId: string, token: string, clientToken: string | null, phone: string, kind: DirectMediaKind, url: string, opts: { caption?: string; fileName?: string } = {}): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  if (provider === 'evolution') return evolutionSendMedia(token, phone, kind, url, { caption: opts.caption, filename: opts.fileName });
+  if (kind === 'image') return zapiSendImage(instanceId, token, clientToken, phone, url, opts.caption);
+  if (kind === 'audio') return zapiSendAudio(instanceId, token, clientToken, phone, url);
+  if (kind === 'video') return zapiSendVideo(instanceId, token, clientToken, phone, url, opts.caption);
+  return zapiSendDocument(instanceId, token, clientToken, phone, url, opts.fileName || 'document');
+}
+
+function directMessageId(provider: DirectProvider, data: unknown): string | null {
+  return provider === 'evolution' ? extractEvolutionMessageId(data) : extractZapiMessageId(data);
+}
+
+function directMediaStatus(provider: DirectProvider, messageId: string | null): 'pending' | 'sent' {
+  return provider === 'evolution' ? 'sent' : mediaInitialStatus(messageId);
+}
+
+function directMediaMetadata(provider: DirectProvider, source: string, ack: ReturnType<typeof mediaAckMetadata>): Record<string, unknown> {
+  return { source, provider, ...ack, ...(provider === 'evolution' ? { ack: 'confirmed' } : {}) };
+}
+
+/** Evolution só manda mídia por link: base64 vai antes para o storage */
+async function base64ToSignedUrl(supabase: any, companyId: string | null, base64: string, fallbackMime: string, prefix: string): Promise<string | null> {
+  try {
+    const match = /^data:([^;,]+)[^,]*,/.exec(base64);
+    const mime = match?.[1] || fallbackMime;
+    const raw = base64.includes(',') ? base64.split(',')[1] : base64;
+    const bin = atob(raw);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const ext = mime.split('/')[1]?.split(/[;+]/)[0] || 'bin';
+    const path = `${companyId || 'unknown'}/${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await supabase.storage.from('whatsapp-media').upload(path, bytes.buffer, { contentType: mime, upsert: false });
+    if (error) {
+      console.error('[Evolution] upload da mídia falhou:', error.message);
+      return null;
+    }
+    const { data } = await supabase.storage.from('whatsapp-media').createSignedUrl(path, 60 * 60 * 24 * 365);
+    return data?.signedUrl || null;
+  } catch (e) {
+    console.error('[Evolution] upload da mídia falhou:', e);
+    return null;
+  }
+}
+
+function evolutionWebhookUrl(): string {
+  return `${(Deno.env.get('SUPABASE_URL') || 'https://rsezgnkfhodltrsewlhz.supabase.co').replace(/\/$/, '')}/functions/v1/wapi-webhook`;
+}
+
+/** Valor do QR na resposta da Evolution, qualquer que seja a capitalização */
+function findEvolutionQr(payload: unknown): unknown {
+  const visit = (v: unknown, depth: number): unknown => {
+    if (!v || typeof v !== 'object' || depth > 3) return null;
+    const o = v as Record<string, unknown>;
+    for (const k of Object.keys(o)) {
+      if (/^(qrcode|qr_code|qr|base64)$/i.test(k) && typeof o[k] === 'string' && o[k]) return o[k];
+    }
+    for (const k of Object.keys(o)) {
+      if (/^code$/i.test(k) && typeof o[k] === 'string' && o[k]) return o[k];
+    }
+    return visit(o.data, depth + 1);
+  };
+  return visit(payload, 0);
+}
+
 function extractWapiMessageId(payload: unknown): string | null {
   const data = payload as Record<string, unknown> | undefined;
   const nested = (data?.data as Record<string, unknown> | undefined) || {};
@@ -1261,6 +1340,19 @@ Deno.serve(async (req) => {
     // Mutáveis: o failover de LP (número bloqueado) pode trocar a instância no meio do envio.
     let { instance_id, instance_token, provider, client_token } = creds;
     let isZapi = provider === 'zapi';
+    // Evolution Go segue o mesmo fluxo de envio direto por link da Z-API
+    let isEvolution = provider === 'evolution';
+    let directProvider: DirectProvider | null = isZapi ? 'zapi' : isEvolution ? 'evolution' : null;
+
+    // Evolution Go: só o que já foi testado no servidor. O resto responde claro
+    // em vez de cair na W-API com o token da Evolution.
+    const EVOLUTION_ACTIONS = ['send-text', 'send-image', 'send-audio', 'send-video', 'send-document', 'get-status', 'get-qr', 'configure-webhooks', 'download-media'];
+    if (isEvolution && !EVOLUTION_ACTIONS.includes(action)) {
+      console.warn(`wapi-send: ${action} ainda não disponível para Evolution Go (instance ${instance_id})`);
+      return new Response(JSON.stringify({ success: false, error: 'Esta ação ainda não está disponível para números da Evolution Go.', errorType: 'UNSUPPORTED_PROVIDER', provider }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     console.log('wapi-send:', action, phone ? `phone:${phone}` : '', 'instance:', instance_id, 'trace:', trackingId);
 
@@ -1275,7 +1367,7 @@ Deno.serve(async (req) => {
       phone: phone ?? null,
       payload_summary: {
         action,
-        provider_kind: isZapi ? 'zapi' : 'wapi',
+        provider_kind: provider,
         source: typeof body.source === 'string' ? body.source : null,
         automation: body.automation === true,
         has_message: typeof message === 'string' && message.length > 0,
@@ -1378,7 +1470,7 @@ Deno.serve(async (req) => {
     }
 
     // === PHASE 1: Preflight session health check for all send actions ===
-    const preflightResult = await checkSessionHealth(instance_id, instance_token, supabase, action, conversationId, companyId, message, isZapi);
+    const preflightResult = await checkSessionHealth(instance_id, instance_token, supabase, action, conversationId, companyId, message, directProvider !== null);
     if (preflightResult) return preflightResult;
 
     // === BOT LOOP GUARD: silently block automated outbound when convo is paused ===
@@ -1587,7 +1679,7 @@ Deno.serve(async (req) => {
           phone: phone ?? null,
           payload_summary: {
             action: 'send-text',
-            provider_kind: isZapi ? 'zapi' : 'wapi',
+            provider_kind: provider,
             remote_jid: String(phone || '').endsWith('@g.us') ? phone : null,
             has_quoted: Boolean(quotedProviderMessageId),
             message_length: typeof message === 'string' ? message.length : 0,
@@ -1599,8 +1691,8 @@ Deno.serve(async (req) => {
         let welcomeImageUrl: string | null = null;
         let sendResult: { ok: boolean; data?: unknown; error?: string } | null = null;
         if (aiSiteLead?.introImageUrl && message.length <= 1000) {
-          const imgResult = isZapi
-            ? await zapiSendImage(instance_id, instance_token, client_token, phone, aiSiteLead.introImageUrl, message)
+          const imgResult = directProvider
+            ? await directSendMedia(directProvider, instance_id, instance_token, client_token, phone, 'image', aiSiteLead.introImageUrl, { caption: message })
             : await sendMediaWithGroupFallback(`${WAPI_BASE_URL}/message/send-image?instanceId=${instance_id}`, instance_token, phone, { image: aiSiteLead.introImageUrl, caption: message }, 'send-image');
           if (imgResult.ok) {
             sendResult = imgResult;
@@ -1610,8 +1702,8 @@ Deno.serve(async (req) => {
           }
         }
         if (!sendResult) {
-          sendResult = isZapi
-            ? await zapiSendText(instance_id, instance_token, client_token, phone, message, quotedProviderMessageId, Number(body.delayTyping) || undefined)
+          sendResult = directProvider
+            ? await directSendText(directProvider, instance_id, instance_token, client_token, phone, message, quotedProviderMessageId, Number(body.delayTyping) || undefined)
             : await sendTextWithFallback(instance_id, instance_token, phone, message, quotedProviderMessageId);
         }
 
@@ -1638,9 +1730,10 @@ Deno.serve(async (req) => {
                 .order('created_at', { ascending: true });
 
               for (const alt of (altInstances || [])) {
-                const altIsZapi = (alt.provider || 'wapi') === 'zapi';
-                const altResult = altIsZapi
-                  ? await zapiSendText(alt.instance_id, alt.instance_token, alt.client_token, phone, message, quotedProviderMessageId, Number(body.delayTyping) || undefined)
+                const altProvider = ((alt.provider as Provider) || 'wapi');
+                const altDirect: DirectProvider | null = altProvider === 'wapi' ? null : altProvider;
+                const altResult = altDirect
+                  ? await directSendText(altDirect, alt.instance_id, alt.instance_token, alt.client_token, phone, message, quotedProviderMessageId, Number(body.delayTyping) || undefined)
                   : await sendTextWithFallback(alt.instance_id, alt.instance_token, phone, message, quotedProviderMessageId);
 
                 if (!altResult.ok) {
@@ -1664,9 +1757,11 @@ Deno.serve(async (req) => {
                 // Passa a operar como a instância alternativa daqui em diante
                 instance_id = alt.instance_id;
                 instance_token = alt.instance_token;
-                provider = (alt.provider as Provider) || 'wapi';
+                provider = altProvider;
                 client_token = alt.client_token || null;
-                isZapi = altIsZapi;
+                isZapi = altProvider === 'zapi';
+                isEvolution = altProvider === 'evolution';
+                directProvider = altDirect;
                 sendResult = altResult;
 
                 // Atualiza o lead para a unidade que realmente entregou a mensagem
@@ -1720,7 +1815,7 @@ Deno.serve(async (req) => {
             error_message: sendResult.error ?? 'unknown_provider_error',
             latency_ms: Date.now() - providerStart,
             payload_summary: {
-              provider_kind: isZapi ? 'zapi' : 'wapi',
+              provider_kind: provider,
               attempt: (sendResult as { attempt?: string }).attempt ?? null,
             },
           });
@@ -1743,7 +1838,7 @@ Deno.serve(async (req) => {
           });
         }
 
-        const messageId = (isZapi ? extractZapiMessageId(sendResult.data) : extractWapiMessageId(sendResult.data)) || `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const messageId = (directProvider ? directMessageId(directProvider, sendResult.data) : extractWapiMessageId(sendResult.data)) || `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
         // 🔭 trace: send_provider_success
         fireTrace(supabase, {
@@ -1758,7 +1853,7 @@ Deno.serve(async (req) => {
           message_id: messageId,
           latency_ms: Date.now() - providerStart,
           payload_summary: {
-            provider_kind: isZapi ? 'zapi' : 'wapi',
+            provider_kind: provider,
             attempt: (sendResult as { attempt?: string }).attempt ?? null,
             provider_status: (sendResult.data as { status?: unknown })?.status ?? null,
             had_real_message_id: !messageId.startsWith('manual_'),
@@ -1850,21 +1945,23 @@ Deno.serve(async (req) => {
       case 'send-image': {
         const { base64, caption, mediaUrl } = body;
 
-        // Z-API path: send image by URL or base64
-        if (isZapi) {
-          const imageSource = mediaUrl || base64;
+        // Z-API / Evolution: envio direto (Evolution só por link)
+        if (directProvider) {
+          const imageSource = isEvolution
+            ? (mediaUrl || (base64 ? await base64ToSignedUrl(supabase, companyId, base64, 'image/jpeg', 'image') : null))
+            : (mediaUrl || base64);
           if (!imageSource) {
             return new Response(JSON.stringify({ error: 'Imagem é obrigatória' }), {
               status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
           }
-          const zapiRes = await zapiSendImage(instance_id, instance_token, client_token, phone, imageSource, caption);
+          const zapiRes = await directSendMedia(directProvider, instance_id, instance_token, client_token, phone, 'image', imageSource, { caption });
           if (!zapiRes.ok) {
             return new Response(JSON.stringify({ error: zapiRes.error }), {
               status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
           }
-          const messageId = extractZapiMessageId(zapiRes.data);
+          const messageId = directMessageId(directProvider, zapiRes.data);
           logZapiMediaResponse('send-image', phone, zapiRes.data);
 
           // Resolve or create conversation for DB tracking (campaigns/outbound)
@@ -1881,9 +1978,9 @@ Deno.serve(async (req) => {
           if (resolvedConvId) {
             await supabase.from('wapi_messages').insert({
               conversation_id: resolvedConvId, message_id: messageId, from_me: true,
-              message_type: 'image', content: caption || '[Imagem]', media_url: mediaUrl || null,
-              status: mediaInitialStatus(messageId), timestamp: new Date().toISOString(), company_id: resolvedCompanyId,
-              metadata: { source: body.messageSource === 'ai_agent' ? 'ai_agent' : 'platform', provider: 'zapi', ...mediaAckMetadata('send-image', { mediaUrl, caption }, { automation: body.automation === true, retryOf: body.retryOf }) },
+              message_type: 'image', content: caption || '[Imagem]', media_url: mediaUrl || (isEvolution ? imageSource : null),
+              status: directMediaStatus(directProvider, messageId), timestamp: new Date().toISOString(), company_id: resolvedCompanyId,
+              metadata: directMediaMetadata(directProvider, body.messageSource === 'ai_agent' ? 'ai_agent' : 'platform', mediaAckMetadata('send-image', { mediaUrl, caption }, { automation: body.automation === true, retryOf: body.retryOf })),
             });
             await supabase.from('wapi_conversations').update({ 
               last_message_at: new Date().toISOString(),
@@ -1973,23 +2070,30 @@ Deno.serve(async (req) => {
       case 'send-audio': {
         const { base64: audioBase64, mediaUrl: audioMediaUrl, mimeType: clientMimeType } = body;
 
-        // Z-API path
-        if (isZapi && (audioMediaUrl || audioBase64)) {
-          const audioSource = audioMediaUrl || audioBase64;
-          const zapiRes = await zapiSendAudio(instance_id, instance_token, client_token, phone, audioSource);
+        // Z-API / Evolution path (Evolution só por link)
+        if (directProvider && (audioMediaUrl || audioBase64)) {
+          const audioSource = isEvolution
+            ? (audioMediaUrl || await base64ToSignedUrl(supabase, companyId, audioBase64, typeof clientMimeType === 'string' && clientMimeType ? clientMimeType : 'audio/ogg', 'audio'))
+            : (audioMediaUrl || audioBase64);
+          if (!audioSource) {
+            return new Response(JSON.stringify({ success: false, error: 'Falha ao preparar o áudio para envio' }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          const zapiRes = await directSendMedia(directProvider, instance_id, instance_token, client_token, phone, 'audio', audioSource);
           if (!zapiRes.ok) {
             return new Response(JSON.stringify({ error: zapiRes.error }), {
               status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
           }
-          const messageId = extractZapiMessageId(zapiRes.data);
+          const messageId = directMessageId(directProvider, zapiRes.data);
           logZapiMediaResponse('send-audio', phone, zapiRes.data);
           if (conversationId) {
             await supabase.from('wapi_messages').insert({
               conversation_id: conversationId, message_id: messageId, from_me: true,
-              message_type: 'audio', content: '🎤 Áudio', media_url: audioMediaUrl || null,
-              status: mediaInitialStatus(messageId), timestamp: new Date().toISOString(), company_id: companyId,
-              metadata: { source: body.messageSource === 'ai_agent' ? 'ai_agent' : 'platform', provider: 'zapi', ...mediaAckMetadata('send-audio', { mediaUrl: audioMediaUrl }, { automation: body.automation === true, retryOf: body.retryOf }) },
+              message_type: 'audio', content: '🎤 Áudio', media_url: audioMediaUrl || (isEvolution ? audioSource : null),
+              status: directMediaStatus(directProvider, messageId), timestamp: new Date().toISOString(), company_id: companyId,
+              metadata: directMediaMetadata(directProvider, body.messageSource === 'ai_agent' ? 'ai_agent' : 'platform', mediaAckMetadata('send-audio', { mediaUrl: audioMediaUrl }, { automation: body.automation === true, retryOf: body.retryOf })),
             });
             await supabase.from('wapi_conversations').update({ 
               last_message_at: new Date().toISOString(),
@@ -2136,13 +2240,13 @@ Deno.serve(async (req) => {
 
       case 'send-document': {
         const { fileName, mediaUrl: docUrl } = body;
-        if (isZapi && docUrl) {
-          const zapiRes = await zapiSendDocument(instance_id, instance_token, client_token, phone, docUrl, fileName || 'document');
+        if (directProvider && docUrl) {
+          const zapiRes = await directSendMedia(directProvider, instance_id, instance_token, client_token, phone, 'document', docUrl, { fileName: fileName || 'document' });
           if (!zapiRes.ok) return new Response(JSON.stringify({ error: zapiRes.error }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-          const messageId = extractZapiMessageId(zapiRes.data);
+          const messageId = directMessageId(directProvider, zapiRes.data);
           logZapiMediaResponse('send-document', phone, zapiRes.data);
           if (conversationId) {
-            await supabase.from('wapi_messages').insert({ conversation_id: conversationId, message_id: messageId, from_me: true, message_type: 'document', content: `📄 ${fileName || 'Documento'}`, media_url: docUrl, status: mediaInitialStatus(messageId), timestamp: new Date().toISOString(), company_id: companyId, metadata: { source: body.messageSource === 'ai_agent' ? 'ai_agent' : 'platform', provider: 'zapi', ...mediaAckMetadata('send-document', { mediaUrl: docUrl, fileName }, { automation: body.automation === true, retryOf: body.retryOf }) } });
+            await supabase.from('wapi_messages').insert({ conversation_id: conversationId, message_id: messageId, from_me: true, message_type: 'document', content: `📄 ${fileName || 'Documento'}`, media_url: docUrl, status: directMediaStatus(directProvider, messageId), timestamp: new Date().toISOString(), company_id: companyId, metadata: directMediaMetadata(directProvider, body.messageSource === 'ai_agent' ? 'ai_agent' : 'platform', mediaAckMetadata('send-document', { mediaUrl: docUrl, fileName }, { automation: body.automation === true, retryOf: body.retryOf })) });
             await supabase.from('wapi_conversations').update({ last_message_at: new Date().toISOString(), last_message_content: `📄 ${fileName || 'Documento'}`, last_message_from_me: true }).eq('id', conversationId);
           }
           return new Response(JSON.stringify({ success: true, messageId }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -2200,13 +2304,13 @@ Deno.serve(async (req) => {
 
       case 'send-video': {
         const { mediaUrl: videoUrl, caption } = body;
-        if (isZapi && videoUrl) {
-          const zapiRes = await zapiSendVideo(instance_id, instance_token, client_token, phone, videoUrl, caption);
+        if (directProvider && videoUrl) {
+          const zapiRes = await directSendMedia(directProvider, instance_id, instance_token, client_token, phone, 'video', videoUrl, { caption });
           if (!zapiRes.ok) return new Response(JSON.stringify({ error: zapiRes.error }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-          const messageId = extractZapiMessageId(zapiRes.data);
+          const messageId = directMessageId(directProvider, zapiRes.data);
           logZapiMediaResponse('send-video', phone, zapiRes.data);
           if (conversationId) {
-            await supabase.from('wapi_messages').insert({ conversation_id: conversationId, message_id: messageId, from_me: true, message_type: 'video', content: caption || '🎥 Vídeo', media_url: videoUrl, status: mediaInitialStatus(messageId), timestamp: new Date().toISOString(), company_id: companyId, metadata: { source: body.messageSource === 'ai_agent' ? 'ai_agent' : 'platform', provider: 'zapi', ...mediaAckMetadata('send-video', { mediaUrl: videoUrl, caption }, { automation: body.automation === true, retryOf: body.retryOf }) } });
+            await supabase.from('wapi_messages').insert({ conversation_id: conversationId, message_id: messageId, from_me: true, message_type: 'video', content: caption || '🎥 Vídeo', media_url: videoUrl, status: directMediaStatus(directProvider, messageId), timestamp: new Date().toISOString(), company_id: companyId, metadata: directMediaMetadata(directProvider, body.messageSource === 'ai_agent' ? 'ai_agent' : 'platform', mediaAckMetadata('send-video', { mediaUrl: videoUrl, caption }, { automation: body.automation === true, retryOf: body.retryOf })) });
             await supabase.from('wapi_conversations').update({ last_message_at: new Date().toISOString(), last_message_content: caption ? `🎥 ${caption.substring(0, 90)}` : '🎥 Vídeo', last_message_from_me: true }).eq('id', conversationId);
           }
           return new Response(JSON.stringify({ success: true, messageId }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -2348,6 +2452,18 @@ Deno.serve(async (req) => {
       }
 
       case 'get-status': {
+        // Evolution Go: GET /instance/status → { data: { Connected, LoggedIn, Name } }
+        if (isEvolution) {
+          const { data: instRecord } = await supabase.from('wapi_instances').select('phone_number').eq('instance_id', instance_id).maybeSingle();
+          const evoRes = await evolutionRequest(instance_token, '/instance/status');
+          if (!evoRes.ok) {
+            return new Response(JSON.stringify({ status: 'degraded', connected: false, error: evoRes.error, errorType: 'TIMEOUT_OR_GATEWAY', provider }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
+          const d = (((evoRes.data as Record<string, unknown>)?.data ?? evoRes.data) || {}) as Record<string, unknown>;
+          const connected = d.Connected === true && d.LoggedIn === true;
+          const phoneNumber = extractConnectedPhone(d) || instRecord?.phone_number || null;
+          return new Response(JSON.stringify({ status: connected ? 'connected' : 'disconnected', connected, phoneNumber, provider }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
         // Z-API status check
         if (isZapi) {
           try {
@@ -2585,6 +2701,32 @@ Deno.serve(async (req) => {
       }
 
       case 'get-qr': {
+        // Evolution Go: se ainda não há QR, /instance/connect (que também
+        // registra o webhook) e busca de novo. Não chama o connect a cada
+        // atualização da tela para não trocar o QR que está sendo lido.
+        if (isEvolution) {
+          const statusRes = await evolutionRequest(instance_token, '/instance/status');
+          const sd = (((statusRes.data as Record<string, unknown>)?.data ?? statusRes.data) || {}) as Record<string, unknown>;
+          if (statusRes.ok && sd.Connected === true && sd.LoggedIn === true) {
+            return new Response(JSON.stringify({ connected: true, success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
+          let qrRes = await evolutionRequest(instance_token, '/instance/qr');
+          let qrStr = qrRes.ok ? normalizeZapiQrValue(findEvolutionQr(qrRes.data)) : null;
+          if (!qrStr) {
+            const connectRes = await evolutionRequest(instance_token, '/instance/connect', 'POST', { webhookUrl: evolutionWebhookUrl(), subscribe: EVOLUTION_WEBHOOK_EVENTS });
+            if (!connectRes.ok) console.warn('get-qr (evolution): /instance/connect falhou:', connectRes.error);
+            await new Promise((r) => setTimeout(r, 1500));
+            qrRes = await evolutionRequest(instance_token, '/instance/qr');
+            qrStr = qrRes.ok ? normalizeZapiQrValue(findEvolutionQr(qrRes.data)) : null;
+          }
+          if (qrStr) {
+            return new Response(JSON.stringify({ qrCode: qrStr, success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
+          if (!qrRes.ok) {
+            return new Response(JSON.stringify({ error: qrRes.error || 'Evolution Go instável', errorType: 'TIMEOUT_OR_GATEWAY' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
+          return new Response(JSON.stringify({ error: 'QR não disponível (Evolution Go)' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
         // Z-API QR code
         if (isZapi) {
           try {
@@ -2840,6 +2982,10 @@ Deno.serve(async (req) => {
         if (!webhookUrl || typeof webhookUrl !== 'string' || !webhookUrl.startsWith('https://')) {
           return new Response(JSON.stringify({ error: 'Webhook HTTPS inválido' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
+        if (isEvolution) {
+          const evoRes = await evolutionRequest(instance_token, '/instance/connect', 'POST', { webhookUrl, subscribe: EVOLUTION_WEBHOOK_EVENTS });
+          return new Response(JSON.stringify({ success: evoRes.ok, error: evoRes.error, provider }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
         if (isZapi) {
           const zapiRes = await zapiConfigureWebhooks(instance_id, instance_token, client_token, webhookUrl);
           return new Response(JSON.stringify({ success: zapiRes.ok, error: zapiRes.error, provider: 'zapi' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -3036,6 +3182,32 @@ Deno.serve(async (req) => {
           });
         }
         
+        // Evolution Go: o arquivo do WhatsApp vem criptografado — abre com a mediaKey
+        if (isEvolution) {
+          const encUrl = encryptedMediaUrl(msg.media_url, msg.media_direct_path);
+          const failEvo = (error: string) => new Response(JSON.stringify({ success: false, error, canRetry: false }), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+          if (!msg.media_key || !encUrl) return failEvo('Mídia sem chave para download');
+          const encRes = await fetch(encUrl);
+          if (!encRes.ok) return failEvo(`WhatsApp não liberou o arquivo (${encRes.status})`);
+          const mt = String(msg.message_type || 'document');
+          const waType = (['image', 'video', 'audio', 'document', 'sticker'].includes(mt) ? mt : 'document') as WaMediaType;
+          const plain = await decryptWhatsAppMedia(new Uint8Array(await encRes.arrayBuffer()), msg.media_key, waType);
+          if (!plain) return failEvo('Não foi possível abrir a mídia');
+          const mimeType = waType === 'image' || waType === 'sticker' ? 'image/jpeg' : waType === 'video' ? 'video/mp4' : waType === 'audio' ? 'audio/ogg' : 'application/octet-stream';
+          const ext = ({ 'image/jpeg': 'jpg', 'video/mp4': 'mp4', 'audio/ogg': 'ogg' } as Record<string, string>)[mimeType] || 'bin';
+          const path = `received/downloads/${msgId}.${ext}`;
+          const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, plain, { contentType: mimeType, upsert: true });
+          if (upErr) return failEvo(upErr.message);
+          const { data: signedUrlData } = await supabase.storage.from('whatsapp-media').createSignedUrl(path, 604800);
+          if (!signedUrlData?.signedUrl) return failEvo('Falha ao gerar o link da mídia');
+          await supabase.from('wapi_messages').update({ media_key: null, media_direct_path: null, media_url: signedUrlData.signedUrl }).eq('message_id', msgId);
+          return new Response(JSON.stringify({ success: true, url: signedUrlData.signedUrl, mimeType }), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
         // Try to download from WhatsApp URL directly if available
         if (msg.media_url && (msg.media_url.includes('mmg.whatsapp.net') || msg.media_url.includes('w-api.app'))) {
           console.log('Trying direct download from WhatsApp URL:', msg.media_url.substring(0, 60));

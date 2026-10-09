@@ -21,6 +21,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { AI_ACTOR, AI_ACTOR_HEADER, guardAiDb } from "../wapi-webhook/ai-db-guard.ts";
+import { evolutionSendText } from "../_shared/evolution.ts";
 import { estimateChatCostUsd, normalizeOpenAiUsage, openAiReasoningEffortWithTools, providerForModel } from "../_shared/ai-models.ts";
 import {
   aggregateInsights,
@@ -362,6 +363,10 @@ async function sendSummary(db: any, companyId: string, text: string): Promise<{ 
   if (!sender) return { sent: false, error: "nenhum número conectado" };
 
   try {
+    if (sender.provider === "evolution") {
+      const r = await evolutionSendText(sender.instance_token, phone, text);
+      return r.ok ? { sent: true } : { sent: false, error: String(r.error || "").slice(0, 300) };
+    }
     let res: Response;
     if (sender.provider === "zapi") {
       const headers: Record<string, string> = { "Content-Type": "application/json" };

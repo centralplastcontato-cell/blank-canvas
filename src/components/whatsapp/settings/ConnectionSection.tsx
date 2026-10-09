@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { asWhatsAppProvider, WHATSAPP_PROVIDERS, type WhatsAppProvider } from "@/lib/whatsappProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
@@ -91,7 +92,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
     instanceId: "",
     instanceToken: "",
     unit: "",
-    provider: "wapi" as "wapi" | "zapi",
+    provider: "wapi" as WhatsAppProvider,
     clientToken: "",
   });
 
@@ -875,7 +876,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
         instanceId: instance.instance_id,
         instanceToken: instance.instance_token,
         unit: instance.unit || "",
-        provider: (instance.provider as "wapi" | "zapi") || "wapi",
+        provider: asWhatsAppProvider(instance.provider),
         clientToken: instance.client_token || "",
       });
     } else {
@@ -1120,6 +1121,11 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                             <span className="w-1.5 h-1.5 rounded-full bg-white mr-1.5 inline-block" />
                             Z-API
                           </Badge>
+                        ) : instance.provider === 'evolution' ? (
+                          <Badge className="bg-violet-600 hover:bg-violet-600 text-white border-0 text-[10px] px-2 py-0.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-white mr-1.5 inline-block" />
+                            Evolution Go
+                          </Badge>
                         ) : (
                           <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white border-0 text-[10px] px-2 py-0.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-white mr-1.5 inline-block" />
@@ -1257,6 +1263,11 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                               <Badge className="text-xs font-bold bg-blue-600 hover:bg-blue-600 text-white border-0 gap-1.5">
                                 <span className="w-1.5 h-1.5 rounded-full bg-white" />
                                 Z-API
+                              </Badge>
+                            ) : instance.provider === 'evolution' ? (
+                              <Badge className="text-xs font-bold bg-violet-600 hover:bg-violet-600 text-white border-0 gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                                Evolution Go
                               </Badge>
                             ) : (
                               <Badge className="text-xs font-bold bg-emerald-600 hover:bg-emerald-600 text-white border-0 gap-1.5">
@@ -1483,22 +1494,25 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
               <Label>Provedor *</Label>
               <Select
                 value={formData.provider}
-                onValueChange={(value: "wapi" | "zapi") => setFormData({ ...formData, provider: value })}
+                onValueChange={(value: WhatsAppProvider) => setFormData({ ...formData, provider: value })}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="wapi">W-API</SelectItem>
-                  <SelectItem value="zapi">Z-API</SelectItem>
+                  {WHATSAPP_PROVIDERS.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="bg-muted/50 rounded-lg p-3 text-sm">
-              {formData.provider === 'zapi' 
+              {formData.provider === 'zapi'
                 ? <>Na Z-API, acesse "<strong>Detalhes da instância</strong>" para copiar o ID e o Token. O Client Token fica em "<strong>Segurança</strong>" da sua conta.</>
-                : <>Na W-API, acesse "<strong>Detalhes da instância</strong>" para copiar o ID e o Token.</>
+                : formData.provider === 'evolution'
+                  ? <>Na Evolution Go, use o <strong>instanceId</strong> e o <strong>token da instância</strong> (não a chave global).</>
+                  : <>Na W-API, acesse "<strong>Detalhes da instância</strong>" para copiar o ID e o Token.</>
               }
             </div>
 
@@ -1529,7 +1543,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
               <Label htmlFor="instanceId">ID da Instância *</Label>
               <Input
                 id="instanceId"
-                placeholder={formData.provider === 'zapi' ? "Ex: A20DA9C0..." : "Ex: LITE-YGE96V-MKGKLK"}
+                placeholder={formData.provider === 'zapi' ? "Ex: A20DA9C0..." : formData.provider === 'evolution' ? "Ex: dcd61a4e-a22d-..." : "Ex: LITE-YGE96V-MKGKLK"}
                 value={formData.instanceId}
                 onChange={(e) => setFormData({ ...formData, instanceId: e.target.value })}
               />

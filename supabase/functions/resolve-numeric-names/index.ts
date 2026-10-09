@@ -47,6 +47,9 @@ Deno.serve(async (req) => {
     const phone = String(c.remote_jid).replace(/@(s\.whatsapp\.net|c\.us|g\.us|lid)/g, '');
     let name: string | null = null;
 
+    // Evolution Go: o nome já vem no webhook (PushName)
+    if (inst.provider === 'evolution') { results.push({ id: c.id, old: c.contact_name, provider: inst.provider, status: 'skipped' }); continue; }
+
     try {
       if (inst.provider === 'zapi') {
         const base = `https://api.z-api.io/instances/${inst.instance_id}/token/${inst.instance_token}`;

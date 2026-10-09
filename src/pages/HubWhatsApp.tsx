@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { asWhatsAppProvider, providerLabel, WHATSAPP_PROVIDERS, type WhatsAppProvider } from "@/lib/whatsappProvider";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { HubLayout } from "@/components/hub/HubLayout";
@@ -98,7 +99,7 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
     instanceToken: "",
     unit: "",
     companyId: "",
-    provider: "wapi" as "wapi" | "zapi",
+    provider: "wapi" as WhatsAppProvider,
     clientToken: "",
   });
 
@@ -114,7 +115,7 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
     instanceToken: "",
     unit: "",
     companyId: "",
-    provider: "wapi" as "wapi" | "zapi",
+    provider: "wapi" as WhatsAppProvider,
     clientToken: "",
   });
   const connection = useWhatsAppConnection(() => fetchData());
@@ -127,7 +128,7 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
       instanceToken: inst.instance_token,
       unit: inst.unit || "",
       companyId: inst.company_id,
-      provider: (inst.provider || "wapi") as "wapi" | "zapi",
+      provider: asWhatsAppProvider(inst.provider),
       clientToken: inst.client_token || "",
     });
   };
@@ -492,6 +493,9 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
                             {inst.provider === 'zapi' && (
                               <Badge variant="outline" className="text-xs mt-0.5 w-fit border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400">Z-API</Badge>
                             )}
+                            {inst.provider === 'evolution' && (
+                              <Badge variant="outline" className="text-xs mt-0.5 w-fit border-emerald-300 text-emerald-700 dark:border-emerald-700 dark:text-emerald-400">Evolution Go</Badge>
+                            )}
                           </div>
                           {getStatusBadge(inst.status)}
                         </div>
@@ -596,13 +600,14 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
           <div className="space-y-4">
             <div>
               <Label>Provedor *</Label>
-              <Select value={formData.provider} onValueChange={(v: "wapi" | "zapi") => setFormData(prev => ({ ...prev, provider: v }))}>
+              <Select value={formData.provider} onValueChange={(v: WhatsAppProvider) => setFormData(prev => ({ ...prev, provider: v }))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="wapi">W-API</SelectItem>
-                  <SelectItem value="zapi">Z-API</SelectItem>
+                  {WHATSAPP_PROVIDERS.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -638,7 +643,7 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
             <div>
               <Label>Instance ID *</Label>
               <Input
-                placeholder={formData.provider === 'zapi' ? "ID da instância na Z-API" : "ID da instância na W-API"}
+                placeholder={`ID da instância na ${providerLabel(formData.provider)}`}
                 value={formData.instanceId}
                 onChange={(e) => setFormData(prev => ({ ...prev, instanceId: e.target.value }))}
               />
@@ -729,13 +734,14 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
           <div className="space-y-4">
             <div>
               <Label>Provedor *</Label>
-              <Select value={editData.provider} onValueChange={(v: "wapi" | "zapi") => setEditData(prev => ({ ...prev, provider: v }))}>
+              <Select value={editData.provider} onValueChange={(v: WhatsAppProvider) => setEditData(prev => ({ ...prev, provider: v }))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="wapi">W-API</SelectItem>
-                  <SelectItem value="zapi">Z-API</SelectItem>
+                  {WHATSAPP_PROVIDERS.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -771,7 +777,7 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
             <div>
               <Label>Instance ID *</Label>
               <Input
-                placeholder={editData.provider === 'zapi' ? "ID da instância na Z-API" : "ID da instância na W-API"}
+                placeholder={`ID da instância na ${providerLabel(editData.provider)}`}
                 value={editData.instanceId}
                 onChange={(e) => setEditData(prev => ({ ...prev, instanceId: e.target.value }))}
               />

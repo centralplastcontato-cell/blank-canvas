@@ -21,6 +21,8 @@ import { detectWhatsAppReturn } from "../_shared/lead-return.ts";
 import { isLiveReplyToBotQuestion } from "../_shared/reconnect-quarantine.ts";
 import { collectStatusMessageIds, isPlayedStatus, mapProviderMessageStatus, statusUpdateFilter } from "../_shared/message-status.ts";
 import { AI_CONFIRMATION_STYLE, fixedConfirmationTextChoice } from "../_shared/visit-confirm.ts";
+import { evolutionSendMedia, evolutionSendText, extractEvolutionMessageId, isEvolutionPayload, normalizeEvolutionPayload, redactEvolutionPayload, sameToken } from "../_shared/evolution.ts";
+import { decryptWhatsAppMedia, encryptedMediaUrl, type WaMediaType } from "../_shared/whatsapp-media-crypto.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,7 +43,7 @@ const INTERACTIVE_ENABLED_INSTANCES = new Set([
 const MEGA_MAGIC_INSTANCE_ID = 'fff981eb-ebdd-49b6-9643-0251e252b586';
 const MEGA_MAGIC_PILOT_PHONE = '15981121710';
 
-type Provider = 'wapi' | 'zapi';
+type Provider = 'wapi' | 'zapi' | 'evolution';
 type JsonRecord = Record<string, any>;
 
 // ============================================================================
@@ -451,11 +453,13 @@ function inferRawWebhookFacts(payload: JsonRecord): JsonRecord {
     msg?.from,
     msg?.chat?.id,
     payload?.chat?.id,
+    data?.Info?.Chat,
+    data?.Chat,
     payload.phone ? normalizeZapiRemoteJid(String(payload.phone)) : null,
   );
   const participant = pickFirstString(msg?.key?.participant, msg?.participant, msg?.author);
   const eventType = pickFirstString(payload.event, payload.type, data.event) || 'unknown';
-  const messageId = pickFirstString(msg?.key?.id, msg?.id, msg?.messageId, data?.messageId, payload?.messageId, Array.isArray(payload.ids) ? payload.ids[0] : null);
+  const messageId = pickFirstString(msg?.key?.id, msg?.id, msg?.messageId, data?.messageId, payload?.messageId, Array.isArray(payload.ids) ? payload.ids[0] : null, data?.Info?.ID, Array.isArray(data?.MessageIDs) ? data.MessageIDs[0] : null);
   const hasContent = Boolean(
     msg?.message || msg?.msgContent || msg?.body || msg?.text ||
     payload.text || payload.image || payload.audio || payload.video || payload.document || payload.sticker ||
@@ -463,7 +467,7 @@ function inferRawWebhookFacts(payload: JsonRecord): JsonRecord {
     payload.message || payload.hydratedTemplate || payload.templateMessage || payload.buttonsResponseMessage ||
     payload.buttonResponseMessage || payload.interactiveResponseMessage || payload.listResponseMessage || payload.listMessage
   );
-  const provider = payload.type || payload.phone ? 'zapi' : 'wapi';
+  const provider = 'instanceToken' in payload ? 'evolution' : payload.type || payload.phone ? 'zapi' : 'wapi';
 
   // Classificação canônica via JID normalizer (fonte única de verdade)
   const norm: NormalizedJid = normalizeJid(remoteJid);
@@ -477,7 +481,7 @@ function inferRawWebhookFacts(payload: JsonRecord): JsonRecord {
     instance_id: pickFirstString(payload.instanceId, payload.instance_id, data.instanceId),
     event_type: eventType,
     remote_jid: remoteJid,
-    from_me: Boolean(msg?.key?.fromMe ?? msg?.fromMe ?? payload.fromMe ?? false),
+    from_me: Boolean(msg?.key?.fromMe ?? msg?.fromMe ?? payload.fromMe ?? data?.Info?.IsFromMe ?? data?.IsFromMe ?? false),
     message_id: messageId,
     is_group: norm.kind === 'group',
     is_status_broadcast: isStatusOrBroadcast,
@@ -1479,7 +1483,7 @@ let _activeProvider: Provider = 'wapi';
 let _activeClientToken: string | null = null;
 
 function setActiveProvider(provider: string | null | undefined, clientToken: string | null | undefined) {
-  _activeProvider = (provider === 'zapi' ? 'zapi' : 'wapi');
+  _activeProvider = (provider === 'zapi' || provider === 'evolution' ? provider : 'wapi');
   _activeClientToken = clientToken || null;
 }
 
@@ -1487,6 +1491,12 @@ async function sendBotMessage(instanceId: string, instanceToken: string, remoteJ
   try {
     const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
     console.log(`[Bot] Sending message to ${phone} via instance ${instanceId} (${_activeProvider})`);
+
+    if (_activeProvider === 'evolution') {
+      const res = await evolutionSendText(instanceToken, remoteJid.endsWith('@g.us') ? remoteJid : phone, message);
+      if (!res.ok) console.error(`[Bot] Evolution send-text falhou: ${res.error}`);
+      return res.ok ? extractEvolutionMessageId(res.data) : null;
+    }
 
     if (_activeProvider === 'zapi') {
       const res = await zapiRequest(instanceId, instanceToken, _activeClientToken, 'send-text', 'POST', { phone, message });
@@ -1638,6 +1648,12 @@ async function sendBotImage(instanceId: string, instanceToken: string, remoteJid
   try {
     const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
 
+    if (_activeProvider === 'evolution') {
+      const res = await evolutionSendMedia(instanceToken, phone, 'image', imageUrl, { caption });
+      if (!res.ok) console.error(`[Bot] Evolution send-image falhou: ${res.error}`);
+      return res.ok ? extractEvolutionMessageId(res.data) : null;
+    }
+
     if (_activeProvider === 'zapi') {
       const res = await zapiRequest(instanceId, instanceToken, _activeClientToken, 'send-image', 'POST', { phone, image: imageUrl, caption: caption || '' });
       const msgId = res.data ? ((res.data as JsonRecord).zapiMessageId || (res.data as JsonRecord).messageId) as string || null : null;
@@ -1674,6 +1690,12 @@ async function sendBotVideo(instanceId: string, instanceToken: string, remoteJid
   try {
     const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
 
+    if (_activeProvider === 'evolution') {
+      const res = await evolutionSendMedia(instanceToken, phone, 'video', videoUrl, { caption });
+      if (!res.ok) console.error(`[Bot] Evolution send-video falhou: ${res.error}`);
+      return res.ok ? extractEvolutionMessageId(res.data) : null;
+    }
+
     if (_activeProvider === 'zapi') {
       const res = await zapiRequest(instanceId, instanceToken, _activeClientToken, 'send-video', 'POST', { phone, video: videoUrl, caption: caption || '' });
       const msgId = res.data ? ((res.data as JsonRecord).zapiMessageId || (res.data as JsonRecord).messageId) as string || null : null;
@@ -1698,6 +1720,12 @@ async function sendBotDocument(instanceId: string, instanceToken: string, remote
   try {
     const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace(/\D/g, '');
     const ext = docUrl.split('.').pop()?.split('?')[0] || 'pdf';
+
+    if (_activeProvider === 'evolution') {
+      const res = await evolutionSendMedia(instanceToken, phone, 'document', docUrl, { filename: fileName });
+      if (!res.ok) console.error(`[Bot] Evolution send-document falhou: ${res.error}`);
+      return res.ok ? extractEvolutionMessageId(res.data) : null;
+    }
 
     if (_activeProvider === 'zapi') {
       const res = await zapiRequest(instanceId, instanceToken, _activeClientToken, `send-document/${ext}`, 'POST', { phone, document: docUrl, fileName });
@@ -4413,8 +4441,38 @@ function getExt(mime: string, fn?: string): string {
   return m[mime] || 'bin';
 }
 
-async function downloadMedia(supabase: SupabaseClient, iId: string, iToken: string, msgId: string, type: string, fn?: string, mKey?: string | null, dPath?: string | null, mUrl?: string | null, mime?: string | null): Promise<{ url: string; fileName: string } | null> {
+async function downloadMedia(supabase: SupabaseClient, iId: string, iToken: string, msgId: string, type: string, fn?: string, mKey?: string | null, dPath?: string | null, mUrl?: string | null, mime?: string | null, provider?: string | null): Promise<{ url: string; fileName: string } | null> {
   try {
+    // Evolution Go: o link é o arquivo criptografado do WhatsApp — baixa e abre aqui
+    if (provider === 'evolution') {
+      const encUrl = encryptedMediaUrl(mUrl, dPath);
+      if (!mKey || !encUrl) {
+        console.log(`[${msgId}] Evolution: mídia sem mediaKey/link — não dá para baixar`);
+        return null;
+      }
+      const encRes = await fetch(encUrl);
+      if (!encRes.ok) {
+        console.error(`[${msgId}] Evolution: download do WhatsApp falhou: ${encRes.status}`);
+        return null;
+      }
+      const waType: WaMediaType = (['image', 'video', 'audio', 'document', 'sticker'].includes(type) ? type : 'document') as WaMediaType;
+      const plain = await decryptWhatsAppMedia(new Uint8Array(await encRes.arrayBuffer()), mKey, waType);
+      if (!plain) {
+        console.error(`[${msgId}] Evolution: não foi possível abrir a mídia (chave não confere)`);
+        return null;
+      }
+      const evoMime = (mime || (type === 'image' ? 'image/jpeg' : type === 'video' ? 'video/mp4' : type === 'audio' ? 'audio/ogg' : 'application/octet-stream')).split(';')[0].trim();
+      const ext = getExt(evoMime, fn);
+      const path = type === 'document' && fn ? `received/documents/${msgId}_${fn.replace(/[^a-zA-Z0-9\-_\.]/g, '_').substring(0, 100)}` : `received/${type}s/${msgId}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('whatsapp-media').upload(path, plain, { contentType: evoMime, upsert: true });
+      if (upErr) {
+        console.error(`[${msgId}] Evolution: upload error:`, upErr.message);
+        return null;
+      }
+      const { data: signedUrlData } = await supabase.storage.from('whatsapp-media').createSignedUrl(path, 604800);
+      return signedUrlData?.signedUrl ? { url: signedUrlData.signedUrl, fileName: fn || `${msgId}.${ext}` } : null;
+    }
+
     // If no media key/path but we have a URL, try direct download
     if ((!mKey || !dPath) && mUrl && !mUrl.includes('supabase.co')) {
       console.log(`[${msgId}] No mediaKey/directPath, trying direct URL download: ${mUrl.substring(0, 60)}...`);
@@ -4559,6 +4617,8 @@ async function fetchAndUpdateProfilePicture(
   provider: string = 'wapi'
 ): Promise<void> {
   try {
+    // Evolution Go: ainda sem consulta de foto de perfil
+    if (provider === 'evolution') return;
     const phone = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '').replace('@g.us', '');
     let picUrl: string | null = null;
 
@@ -4623,6 +4683,8 @@ async function fetchAndUpdateContactName(
     const cleanName = (currentName || '').trim();
     const isNumeric = !cleanName || /^[\d\s+()-]+$/.test(cleanName);
     if (!isNumeric) return;
+    // Evolution Go: o nome vem no próprio webhook (PushName)
+    if (provider === 'evolution') return;
 
     let resolvedName: string | null = null;
 
@@ -6115,7 +6177,7 @@ async function processWebhookEvent(body: JsonRecord) {
       // Download media in parallel with message insert if needed (for both sent and received messages)
       let mediaPromise: Promise<{ url: string; fileName: string } | null> | null = null;
       if (download && msgId) {
-        mediaPromise = downloadMedia(supabase, instance.instance_id, instance.instance_token, msgId as string, type, fn, key, path, url, mime);
+        mediaPromise = downloadMedia(supabase, instance.instance_id, instance.instance_token, msgId as string, type, fn, key, path, url, mime, instance.provider);
       }
 
       // Insert message immediately (don't wait for media download)
@@ -6659,7 +6721,7 @@ async function processWebhookEvent(body: JsonRecord) {
                 // Download media to persistent storage if it's a media message
                 if ((tp === 'image' || tp === 'video' || tp === 'audio' || tp === 'document') && mId) {
                   const fn = tp === 'document' ? ct : undefined;
-                  downloadMedia(supabase, instance.instance_id, instance.instance_token, mId as string, tp, fn, mk, dp, mu, mm)
+                  downloadMedia(supabase, instance.instance_id, instance.instance_token, mId as string, tp, fn, mk, dp, mu, mm, instance.provider)
                     .then(async (res) => {
                       if (res) {
                         await supabase.from('wapi_messages').update({ media_url: res.url, media_key: null, media_direct_path: null }).eq('message_id', mId);
@@ -7034,7 +7096,30 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Invalid JSON', raw_event_id: rawWebhookEventId }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    rawWebhookEventId = await saveRawWebhookEvent(supabase, body, req);
+    // Evolution Go: envelope próprio que traz o token da instância. O bruto é
+    // guardado sem o token; só segue se o token bater com o do número cadastrado.
+    if (isEvolutionPayload(body)) {
+      const evoToken = body.instanceToken;
+      rawWebhookEventId = await saveRawWebhookEvent(supabase, redactEvolutionPayload(body), req);
+      const { data: evoInst } = await supabase
+        .from('wapi_instances')
+        .select('instance_token, provider')
+        .eq('instance_id', String(body.instanceId))
+        .maybeSingle();
+      if (!evoInst || evoInst.provider !== 'evolution' || !sameToken(evoToken, evoInst.instance_token)) {
+        console.warn(`[Webhook] Evolution: token não confere para a instância ${body.instanceId} — rejeitado`);
+        await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'ignored', processing_note: 'evolution_invalid_token' });
+        return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const normalized = normalizeEvolutionPayload(body);
+      if (!normalized) {
+        await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'ignored', processing_note: `evolution_${String(body.event || 'unknown')}` });
+        return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      body = normalized;
+    } else {
+      rawWebhookEventId = await saveRawWebhookEvent(supabase, body, req);
+    }
     const originalRawWebhookEventId = rawWebhookEventId;
     
     // Detect Z-API payload and normalize
