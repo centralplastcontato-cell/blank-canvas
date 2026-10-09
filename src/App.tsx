@@ -18,7 +18,6 @@ const lazyImports = {
   "/auth": () => import("./pages/Auth"),
   "/atendimento": () => import("./pages/CentralAtendimento"),
   "/configuracoes": () => import("./pages/Configuracoes"),
-  "/users": () => import("./pages/Users"),
   "/promo": () => import("./pages/PromoPage"),
   "/hub/comercial-b2b": () => import("./pages/ComercialB2B"),
   "/para-buffets": () => import("./pages/ParaBuffets"),
@@ -74,8 +73,6 @@ const Index = lazy(lazyImports["/dashboard"]);
 const Auth = lazy(lazyImports["/auth"]);
 const CentralAtendimento = lazy(lazyImports["/atendimento"]);
 const Configuracoes = lazy(lazyImports["/configuracoes"]);
-const UserSettings = lazy(() => import("./pages/UserSettings"));
-const Users = lazy(lazyImports["/users"]);
 const PromoPage = lazy(lazyImports["/promo"]);
 const ComercialB2B = lazy(lazyImports["/hub/comercial-b2b"]);
 const ParaBuffets = lazy(lazyImports["/para-buffets"]);
@@ -134,7 +131,6 @@ const PublicClientData = lazy(() => import("./pages/PublicClientData"));
 const PublicContractSign = lazy(() => import("./pages/PublicContractSign"));
 const AdminMessageTrace = lazy(() => import("./pages/AdminMessageTrace"));
 
-const SupportChatbot = lazy(() => import("./components/support/SupportChatbot").then(m => ({ default: m.SupportChatbot })));
 
 const PageLoader = () => <LoadingScreen message="Carregando..." />;
 
@@ -268,7 +264,7 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-            <SupportChatbot />
+            {/* Chat de suporte escondido (out/2026): ninguém usava */}
           </Suspense>
         </BrowserRouter>
       </TooltipProvider>

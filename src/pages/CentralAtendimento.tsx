@@ -13,7 +13,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useLeadNotifications } from "@/hooks/useLeadNotifications";
 import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
 import { useUnreadCountRealtime, useLeadsRealtime } from "@/hooks/useRealtimeOptimized";
-import { Lead, LeadStatus, UserWithRole, Profile, AppRole } from "@/types/crm";
+import { Lead, LeadStatus, UserWithRole, Profile, AppRole, LeadFilters } from "@/types/crm";
 import { mergeLeadUpdate, summarizeLegacyReturns, withReturnInfo } from "@/lib/leadReturns";
 import { LeadsTable } from "@/components/admin/LeadsTable";
 import { LeadsFilters } from "@/components/admin/LeadsFilters";
@@ -48,18 +48,6 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
-
-export interface LeadFilters {
-  campaign: string;
-  unit: string;
-  status: string;
-  responsavel: string;
-  month: string;
-  startDate: Date | undefined;
-  endDate: Date | undefined;
-  search: string;
-  hasScheduledVisit: boolean;
-}
 
 export default function CentralAtendimento() {
   const navigate = useNavigate();

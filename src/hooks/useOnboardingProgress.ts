@@ -62,7 +62,7 @@ export function useOnboardingProgress() {
           label: 'Preencher onboarding',
           description: 'Complete o formulário inicial com dados do buffet',
           completed: (onboardingRes.data?.length ?? 0) > 0,
-          route: '/onboarding',
+          route: currentCompany?.slug ? `/onboarding/${currentCompany.slug}` : undefined,
         },
         {
           id: 'landing_page',
@@ -90,14 +90,7 @@ export function useOnboardingProgress() {
           label: 'Convidar equipe',
           description: 'Adicione membros da sua equipe ao painel',
           completed: (membersRes.count ?? 0) > 1,
-          route: '/usuarios',
-        },
-        {
-          id: 'training',
-          label: 'Assistir treinamento',
-          description: 'Assista as videoaulas de capacitação',
-          completed: false, // no auto-check
-          route: '/treinamento',
+          route: '/configuracoes?tab=usuarios',
         },
       ]);
 
@@ -105,7 +98,7 @@ export function useOnboardingProgress() {
     };
 
     checkProgress();
-  }, [currentCompanyId, currentCompany?.settings]);
+  }, [currentCompanyId, currentCompany?.settings, currentCompany?.slug]);
 
   const completedCount = steps.filter(s => s.completed).length;
   const totalCount = steps.length;

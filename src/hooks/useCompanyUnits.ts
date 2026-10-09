@@ -21,7 +21,7 @@ export interface CompanyUnit {
  * must NOT appear in Agenda/Financeiro/Inteligência selectors.
  *
  * Use `allUnits` only in screens that need the full list for permission/slug
- * mapping (InstanceVisibilityCard, TransferLeadDialog, CampaignAudienceStep,
+ * mapping (InstanceVisibilityCard, CampaignAudienceStep,
  * PermissionsPanel).
  */
 export function useCompanyUnits(companyId?: string) {

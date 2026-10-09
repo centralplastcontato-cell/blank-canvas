@@ -19,8 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { LeadFilters } from "@/pages/Admin";
-import { LEAD_STATUS_LABELS, UserWithRole } from "@/types/crm";
+import { LEAD_STATUS_LABELS, UserWithRole, LeadFilters } from "@/types/crm";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 

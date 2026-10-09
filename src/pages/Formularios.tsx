@@ -10,7 +10,7 @@ import { MobileMenu } from "@/components/admin/MobileMenu";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { FolderOpen, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature, UtensilsCrossed, ListChecks, FileText, Package, Users, Wrench, HardHat, ShieldAlert, CalendarClock, LayoutTemplate, CreditCard, UserCheck, UserPlus, Landmark } from "lucide-react";
+import { FolderOpen, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature, UtensilsCrossed, ListChecks, FileText, Package, Users, Wrench, HardHat, ShieldAlert, LayoutTemplate, CreditCard, UserCheck, UserPlus, Landmark } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { AvaliacoesContent } from "./Avaliacoes";
 import { PreFestaContent } from "./PreFesta";
@@ -27,7 +27,6 @@ import { AttendanceManager } from "@/components/agenda/AttendanceManager";
 import { EventInfoManager } from "@/components/agenda/EventInfoManager";
 import { FreelancerManagerContent } from "./FreelancerManager";
 import { FreelancerEvaluationsTab } from "@/components/freelancer/FreelancerEvaluationsTab";
-import { FreelancerSchedulesTab } from "@/components/freelancer/FreelancerSchedulesTab";
 import { FreelancerCandidatesTab } from "@/components/freelancer/FreelancerCandidatesTab";
 import { CardFeesManager } from "@/components/admin/CardFeesManager";
 import { SellersManager } from "@/components/admin/SellersManager";
@@ -319,16 +318,11 @@ export default function Formularios() {
 
               {(canFreelancer || canAvaliacoes) && (
                 <TabsContent value="freelancer" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
-                  <Tabs defaultValue={canFreelancer ? (searchParams.get("sub") === "candidatos" ? "candidatos" : "escalas") : "avaliacoes-fl"} className="flex-1 flex flex-col overflow-hidden">
+                  <Tabs defaultValue={canFreelancer ? (searchParams.get("sub") === "candidatos" ? "candidatos" : "cadastro") : "avaliacoes-fl"} className="flex-1 flex flex-col overflow-hidden">
                     <div className="px-3 md:px-5 pt-2">
                       <div className="max-w-7xl mx-auto">
                       <TabsList className="bg-transparent p-0 h-auto gap-2 flex-wrap">
-                        {canFreelancer && (
-                          <TabsTrigger value="escalas" className="gap-2.5 !rounded-xl !px-6 !py-2.5 !text-sm font-semibold border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-md data-[state=inactive]:bg-card data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground transition-all">
-                            <CalendarClock className="h-[18px] w-[18px]" />
-                            Escalas
-                          </TabsTrigger>
-                        )}
+                        {/* Escalas escondida (out/2026): sem uso desde abril */}
                         {canFreelancer && (
                           <TabsTrigger value="cadastro" className="gap-2.5 !rounded-xl !px-6 !py-2.5 !text-sm font-semibold border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-md data-[state=inactive]:bg-card data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground transition-all">
                             <HardHat className="h-[18px] w-[18px]" />
@@ -350,11 +344,6 @@ export default function Formularios() {
                       </TabsList>
                       </div>
                     </div>
-                    {canFreelancer && (
-                      <TabsContent value="escalas" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                        <div className="max-w-7xl mx-auto"><FreelancerSchedulesTab /></div>
-                      </TabsContent>
-                    )}
                     {canFreelancer && (
                       <TabsContent value="cadastro" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
                         <div className="max-w-7xl mx-auto"><FreelancerManagerContent /></div>
