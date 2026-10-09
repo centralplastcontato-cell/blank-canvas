@@ -27,6 +27,7 @@ import { NotificationBell } from "@/components/admin/NotificationBell";
 import { TransferAlertBanner } from "@/components/admin/TransferAlertBanner";
 import { ClientAlertBanner } from "@/components/admin/ClientAlertBanner";
 import { VisitAlertBanner } from "@/components/admin/VisitAlertBanner";
+import { VisitOutcomeBanner } from "@/components/admin/VisitOutcomeBanner";
 import { QuestionsAlertBanner } from "@/components/admin/QuestionsAlertBanner";
 import { AiHandoffAlertBanner } from "@/components/admin/AiHandoffAlertBanner";
 import { OnboardingBanner } from "@/components/admin/OnboardingBanner";
@@ -1045,6 +1046,9 @@ export default function CentralAtendimento() {
           }}
         />
 
+        {/* A visita aconteceu? - Mobile */}
+        <VisitOutcomeBanner />
+
         {/* Questions Alert Banner - Mobile */}
         <QuestionsAlertBanner 
           userId={user.id} 
@@ -1550,6 +1554,9 @@ export default function CentralAtendimento() {
               setActiveTab("chat");
             }}
           />
+
+          {/* A visita aconteceu? - Desktop */}
+          <VisitOutcomeBanner />
 
           {/* Questions Alert Banner - Desktop */}
           <QuestionsAlertBanner 
