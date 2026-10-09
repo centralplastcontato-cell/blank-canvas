@@ -1,5 +1,6 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
 import {
+  bookedRecently,
   buildAiVisitConfirmation,
   confirmationsForCurrentDate,
   fixedConfirmationTextChoice,
@@ -52,4 +53,13 @@ Deno.test("fixedConfirmationTextChoice: 'assim' não confirma mais", () => {
   assertEquals(fixedConfirmationTextChoice("Não vou poder, quero reagendar"), 2);
   assertEquals(fixedConfirmationTextChoice("simples assim"), null);
   assertEquals(fixedConfirmationTextChoice("que horas abre?"), null);
+});
+
+Deno.test("bookedRecently: marcada há pouco não recebe confirmação", () => {
+  const now = Date.parse("2026-10-09T20:00:00Z"); // sexta 17h
+  assertEquals(bookedRecently(["2026-10-09T19:00:00Z"], now), true); // marcou 16h
+  assertEquals(bookedRecently(["2026-10-08T23:52:00Z"], now), false); // marcou ontem à noite
+  // remarcada pela IA há pouco (a criação é antiga)
+  assertEquals(bookedRecently(["2026-10-01T12:00:00Z", "2026-10-09T18:30:00Z"], now), true);
+  assertEquals(bookedRecently([null, undefined], now), false);
 });

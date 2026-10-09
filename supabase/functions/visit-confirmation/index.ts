@@ -2,7 +2,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import {
   AI_CONFIRMATION_STYLE,
+  bookedRecently,
   buildAiVisitConfirmation,
+  MIN_HOURS_AFTER_BOOKING,
   confirmationsForCurrentDate,
   isAiOwnedConversation,
   visitStartMs,
@@ -123,7 +125,7 @@ Deno.serve(async (req) => {
 
         const { data: visits, error: visitsError } = await supabase
           .from("lead_visits")
-          .select("id, lead_id, data_visita, horario_visita, status_visita, company_id")
+          .select("id, lead_id, data_visita, horario_visita, status_visita, company_id, created_at")
           .eq("company_id", companyId)
           // remarcada também: a data nova precisa de confirmação
           .in("status_visita", ["agendada", "remarcada"])
@@ -162,6 +164,19 @@ Deno.serve(async (req) => {
           .select("id, name, whatsapp, unit")
           .in("id", leadIds);
         const leadMap = new Map((leads || []).map((l: any) => [l.id, l]));
+
+        // Remarcações recentes feitas pela IA (a Agenda não registra a hora da remarcação)
+        const { data: recentResched } = await supabase
+          .from("lead_history")
+          .select("lead_id, created_at")
+          .in("lead_id", leadIds)
+          .eq("action", "Visita remarcada")
+          .gte("created_at", new Date(Date.now() - MIN_HOURS_AFTER_BOOKING * 3600000).toISOString());
+        const reschedAt = new Map<string, string>();
+        for (const r of recentResched || []) {
+          const prev = reschedAt.get(r.lead_id);
+          if (!prev || r.created_at > prev) reschedAt.set(r.lead_id, r.created_at);
+        }
 
         const { data: company } = await supabase
           .from("companies")
@@ -205,6 +220,12 @@ Deno.serve(async (req) => {
             );
             const lead = leadMap.get(visit.lead_id);
             if (!lead) continue;
+
+            // Marcou (ou remarcou com a IA) há poucas horas: acabou de combinar, não pergunta se confirma
+            if (bookedRecently([visit.created_at, reschedAt.get(visit.lead_id)], Date.now())) {
+              console.log(`[visit-confirmation] Visita ${visit.id} marcada há menos de ${MIN_HOURS_AFTER_BOOKING}h — sem confirmação`);
+              continue;
+            }
 
             // "responded": o cliente já respondeu (ex.: pediu para remarcar e a data
             // ainda não mudou) — não manda de novo
