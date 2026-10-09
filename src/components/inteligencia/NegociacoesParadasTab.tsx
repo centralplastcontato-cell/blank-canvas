@@ -146,12 +146,9 @@ export function NegociacoesParadasTab({ selectedUnit }: NegociacoesParadasTabPro
   const totalPages = Math.max(1, Math.ceil(filteredLeads.length / PAGE_SIZE));
   const paginatedLeads = filteredLeads.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
+  // A Central de Atendimento abre a conversa pelo leadId (não entende "conversation" nem "search")
   const handleOpenConversation = (lead: NegociacaoParada) => {
-    if (lead.conversationId) {
-      navigate(`/atendimento?conversation=${lead.conversationId}`);
-    } else {
-      navigate(`/atendimento?search=${encodeURIComponent(lead.whatsapp)}`);
-    }
+    navigate(`/atendimento?leadId=${lead.leadId}`);
   };
 
   if (isLoading) {
