@@ -102,3 +102,6 @@ verify_jwt = false
 
 [functions.ai-simulator]
 verify_jwt = false
+
+[functions.weekly-insights]
+verify_jwt = false

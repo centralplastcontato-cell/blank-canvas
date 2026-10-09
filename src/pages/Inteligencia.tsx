@@ -19,6 +19,7 @@ import { AccessDeniedRedirect } from "@/components/AccessDeniedRedirect";
 import { RelatoriosComerciais } from "@/components/inteligencia/RelatoriosComerciais";
 import { NegociacoesParadasTab } from "@/components/inteligencia/NegociacoesParadasTab";
 import { AtencaoTab } from "@/components/inteligencia/AtencaoTab";
+import { MotivosTab } from "@/components/inteligencia/MotivosTab";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
@@ -232,6 +233,7 @@ export default function Inteligencia() {
                 <div className="flex md:inline-flex gap-1 md:gap-2 p-1 md:p-1.5 rounded-2xl bg-muted/50 border border-border/40 shadow-sm md:w-max">
                   {[
                     { value: "atencao", label: "Precisam de atenção", mobileLabel: "Atenção" },
+                    ...(modules.inteligencia_ia ? [{ value: "motivos", label: "Por que não fechou", mobileLabel: "Motivos" }] : []),
                     { value: "relatorios", label: "Relatórios", mobileLabel: "Relatórios" },
                     { value: "negociacoes", label: "Neg. Paradas", mobileLabel: "Radar" },
                   ].map(t => (
@@ -254,6 +256,12 @@ export default function Inteligencia() {
               <TabsContent value="atencao" className="animate-fade-up">
                 <AtencaoTab selectedUnit={selectedUnit !== "all" ? selectedUnit : undefined} />
               </TabsContent>
+
+              {modules.inteligencia_ia && (
+                <TabsContent value="motivos" className="animate-fade-up">
+                  <MotivosTab selectedUnit={selectedUnit !== "all" ? selectedUnit : undefined} isAdmin={isAdmin} />
+                </TabsContent>
+              )}
 
               <TabsContent value="negociacoes" className="animate-fade-up">
                 <NegociacoesParadasTab selectedUnit={selectedUnit !== "all" ? selectedUnit : undefined} />
