@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { biaReminderConversationIds } from "../_shared/ai-journey-scope.ts";
+import { evolutionSendText, extractEvolutionMessageId } from "../_shared/evolution.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -294,7 +295,7 @@ Deno.serve(async (req) => {
 
         const { data: instances } = await supabase
           .from("wapi_instances")
-          .select("id, instance_id, instance_token, unit, status")
+          .select("id, instance_id, instance_token, unit, status, provider")
           .eq("company_id", settings.company_id)
           .eq("status", "connected");
 
@@ -424,7 +425,12 @@ Deno.serve(async (req) => {
                 continue;
               }
 
-              const sendResponse = await fetch(
+              // Evolution Go: envia pela Evolution (o resto segue pela W-API como antes)
+              const sendResponse = instance.provider === "evolution"
+                ? await evolutionSendText(instance.instance_token, phone, message).then((r) =>
+                  new Response(JSON.stringify(r.ok ? { messageId: extractEvolutionMessageId(r.data) } : { error: r.error }), { status: r.ok ? 200 : 502 })
+                )
+                : await fetch(
                 `https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`,
                 {
                   method: "POST",
