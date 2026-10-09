@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AccessDeniedRedirect } from "@/components/AccessDeniedRedirect";
 import { RelatoriosComerciais } from "@/components/inteligencia/RelatoriosComerciais";
 import { NegociacoesParadasTab } from "@/components/inteligencia/NegociacoesParadasTab";
+import { AtencaoTab } from "@/components/inteligencia/AtencaoTab";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
@@ -28,7 +29,7 @@ import { NotificationBell } from "@/components/admin/NotificationBell";
 export default function Inteligencia() {
   const navigate = useNavigate();
   const modules = useCompanyModules();
-  const [activeTab, setActiveTab] = useState("relatorios");
+  const [activeTab, setActiveTab] = useState("atencao");
   // Puxar para atualizar recarrega os dados das abas
   const queryClient = useQueryClient();
   const refetch = () => queryClient.invalidateQueries();
@@ -230,6 +231,7 @@ export default function Inteligencia() {
               <div className="overflow-x-auto -mx-2 px-2 pb-2 scrollbar-none flex justify-center">
                 <div className="flex md:inline-flex gap-1 md:gap-2 p-1 md:p-1.5 rounded-2xl bg-muted/50 border border-border/40 shadow-sm md:w-max">
                   {[
+                    { value: "atencao", label: "Precisam de atenção", mobileLabel: "Atenção" },
                     { value: "relatorios", label: "Relatórios", mobileLabel: "Relatórios" },
                     { value: "negociacoes", label: "Neg. Paradas", mobileLabel: "Radar" },
                   ].map(t => (
@@ -248,6 +250,10 @@ export default function Inteligencia() {
                   ))}
                 </div>
               </div>
+
+              <TabsContent value="atencao" className="animate-fade-up">
+                <AtencaoTab selectedUnit={selectedUnit !== "all" ? selectedUnit : undefined} />
+              </TabsContent>
 
               <TabsContent value="negociacoes" className="animate-fade-up">
                 <NegociacoesParadasTab selectedUnit={selectedUnit !== "all" ? selectedUnit : undefined} />
