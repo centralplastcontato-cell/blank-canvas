@@ -18,8 +18,8 @@ import { LeadsPorOrigemCard } from "./LeadsPorOrigemCard";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  Users, TrendingUp, Eye, DollarSign, Target, Calendar as CalendarIcon,
-  ArrowDown, BarChart3, X, UserCheck, UserX,
+  Users, TrendingUp, Eye, DollarSign, PartyPopper, Calendar as CalendarIcon,
+  BarChart3, UserCheck, Sparkles,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -41,6 +41,7 @@ const FUNNEL_COLORS: Record<string, string> = {
   aguardando_resposta: "hsl(30,90%,55%)",
   fechado: "hsl(140,60%,45%)",
   perdido: "hsl(0,70%,55%)",
+  cliente_retorno: "hsl(190,60%,45%)",
 };
 
 function formatBRL(value: number): string {
@@ -191,26 +192,32 @@ export function RelatoriosComerciais({ selectedUnit: externalUnit, canViewRevenu
           hint={data.leadsReturned > 0 ? `+ ${data.leadsReturned} ${data.leadsReturned === 1 ? "voltou" : "voltaram"} a pedir orçamento` : undefined}
         />
         <SummaryCard
-          icon={<Target className="h-4 w-4" />}
-          label="Leads fechados"
-          value={String(data.leadsClosed)}
+          icon={<Eye className="h-4 w-4" />}
+          label="Visitas realizadas"
+          value={String(data.visitsRealized)}
+          hint={data.visitsPendingAnswer > 0 ? `${data.visitsPendingAnswer} sem resposta` : undefined}
+          hintColor="text-amber-600"
+        />
+        <SummaryCard
+          icon={<UserCheck className="h-4 w-4" />}
+          label="Comparecimento"
+          value={data.attendanceRate === null ? "—" : `${data.attendanceRate.toFixed(0)}%`}
+          highlight={data.attendanceRate !== null && data.attendanceRate >= 70}
+          hint="veio ÷ (veio + faltou)"
+          hintColor="text-muted-foreground"
+        />
+        <SummaryCard
+          icon={<PartyPopper className="h-4 w-4" />}
+          label="Festas fechadas"
+          value={String(data.salesCount)}
         />
         <SummaryCard
           icon={<TrendingUp className="h-4 w-4" />}
           label="Conversão"
           value={`${data.conversionRate.toFixed(1)}%`}
           highlight={data.conversionRate >= 15}
-        />
-        <SummaryCard
-          icon={<Eye className="h-4 w-4" />}
-          label="Visitas realizadas"
-          value={String(data.visitsRealized)}
-        />
-        <SummaryCard
-          icon={<UserCheck className="h-4 w-4" />}
-          label="Comparecimento"
-          value={`${data.attendanceRate.toFixed(0)}%`}
-          highlight={data.attendanceRate >= 70}
+          hint="festas ÷ leads"
+          hintColor="text-muted-foreground"
         />
         {canViewRevenue && (
           <SummaryCard
@@ -228,29 +235,68 @@ export function RelatoriosComerciais({ selectedUnit: externalUnit, canViewRevenu
         )}
       </div>
 
+      {/* Por canal de atendimento (VENDAS 1, 2, 3...) */}
+      {data.byChannel.length > 1 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Por canal de atendimento</CardTitle>
+            <p className="text-xs text-muted-foreground">Leads que chegaram, visitas que aconteceram e festas fechadas em cada número de atendimento.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs sm:text-sm">
+                <thead>
+                  <tr className="text-muted-foreground border-b">
+                    <th className="text-left font-medium py-2 pr-2">Canal</th>
+                    <th className="text-right font-medium py-2 px-2">Leads</th>
+                    <th className="text-right font-medium py-2 px-2">Visitas</th>
+                    <th className="text-right font-medium py-2 px-2">Festas</th>
+                    <th className="text-right font-medium py-2 pl-2">Conversão</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.byChannel.map(c => (
+                    <tr key={c.channel} className="border-b last:border-0">
+                      <td className="py-2 pr-2 font-medium whitespace-nowrap">
+                        {c.channel === "SEM CANAL" ? "Sem canal" : c.channel}
+                        {c.isAi && (
+                          <Badge variant="secondary" className="ml-1.5 gap-0.5 text-[10px] px-1.5 py-0 bg-violet-500/10 text-violet-700">
+                            <Sparkles className="h-2.5 w-2.5" /> IA
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="text-right py-2 px-2">{c.leads}</td>
+                      <td className="text-right py-2 px-2">{c.visitsRealized}</td>
+                      <td className="text-right py-2 px-2">{c.sales}</td>
+                      <td className="text-right py-2 pl-2 font-semibold">{c.leads > 0 ? `${c.conversion.toFixed(1)}%` : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Origem dos leads (módulo opcional, ligado por empresa no Hub) */}
       {modules.relatorio_origem && <LeadsPorOrigemCard rows={data.channelBreakdown} />}
 
       {/* Funnel */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Funil de Conversão por Etapa</CardTitle>
+          <CardTitle className="text-base">Situação atual dos leads do período</CardTitle>
+          <p className="text-xs text-muted-foreground">Em que etapa estão hoje os leads que chegaram no período.</p>
         </CardHeader>
         <CardContent>
           {data.leadsReceived === 0 ? (
             <EmptyState message="Nenhum lead no período selecionado." />
           ) : (
             <div className="space-y-1">
-              {data.funnelSteps.map((step, idx) => {
+              {data.funnelSteps.map((step) => {
                 const maxCount = Math.max(...data.funnelSteps.map(s => s.count), 1);
                 const barWidth = Math.max((step.count / maxCount) * 100, 4);
                 return (
                   <div key={step.status}>
-                    {idx > 0 && (
-                      <div className="flex justify-center py-0.5">
-                        <ArrowDown className="h-3.5 w-3.5 text-muted-foreground/40" />
-                      </div>
-                    )}
                     <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-card/50 border transition-all duration-200">
                       <div className="w-20 sm:w-28 shrink-0">
                         <p className="text-sm font-medium">{step.label}</p>
@@ -285,33 +331,39 @@ export function RelatoriosComerciais({ selectedUnit: externalUnit, canViewRevenu
         {/* Visits */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Comparecimento em Visitas</CardTitle>
+            <CardTitle className="text-base">Visitas do período</CardTitle>
           </CardHeader>
           <CardContent>
-            {data.visitsTotal === 0 && data.visitsCancelled === 0 && data.visitsRescheduled === 0 ? (
-              <EmptyState message="Nenhuma visita registrada no período." />
+            {data.visitsRealized + data.visitsNoShow + data.visitsPendingAnswer + data.visitsUpcoming + data.visitsCancelled === 0 ? (
+              <EmptyState message="Nenhuma visita marcada no período." />
             ) : (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-2">
-                  <MiniStat label="Visitas previstas" value={data.visitsTotal} />
                   <MiniStat label="Realizadas" value={data.visitsRealized} color="text-green-600" />
                   <MiniStat label="Não compareceu" value={data.visitsNoShow} color="text-red-600" />
-                  <MiniStat label="Remarcadas" value={data.visitsRescheduled} color="text-amber-600" />
+                  <MiniStat label="Sem resposta" value={data.visitsPendingAnswer} color="text-amber-600" />
+                  <MiniStat label="Próximas" value={data.visitsUpcoming} color="text-blue-600" />
                   <MiniStat label="Canceladas" value={data.visitsCancelled} color="text-muted-foreground" />
                   <MiniStat
-                    label="Taxa de comparecimento"
-                    value={`${data.attendanceRate.toFixed(0)}%`}
-                    color={data.attendanceRate >= 70 ? "text-green-600" : "text-amber-600"}
+                    label="Comparecimento"
+                    value={data.attendanceRate === null ? "—" : `${data.attendanceRate.toFixed(0)}%`}
+                    color={data.attendanceRate !== null && data.attendanceRate >= 70 ? "text-green-600" : "text-amber-600"}
                   />
                 </div>
+                {data.visitsPendingAnswer > 0 && (
+                  <p className="text-xs text-amber-700 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
+                    {data.visitsPendingAnswer === 1 ? "1 visita já passou" : `${data.visitsPendingAnswer} visitas já passaram`} e ninguém marcou se o cliente veio.
+                    Responda no aviso amarelo da Central de Atendimento para o comparecimento ficar certo.
+                  </p>
+                )}
                 {/* Mini bar chart */}
                 <div className="h-40">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={[
-                      { name: "Realizadas", value: data.visitsRealized, fill: "hsl(140,60%,45%)" },
-                      { name: "Não comp.", value: data.visitsNoShow, fill: "hsl(0,70%,55%)" },
-                      { name: "Remarcadas", value: data.visitsRescheduled, fill: "hsl(40,90%,55%)" },
-                      { name: "Canceladas", value: data.visitsCancelled, fill: "hsl(var(--muted-foreground))" },
+                      { name: "Realizadas", value: data.visitsRealized },
+                      { name: "Não comp.", value: data.visitsNoShow },
+                      { name: "Sem resp.", value: data.visitsPendingAnswer },
+                      { name: "Canceladas", value: data.visitsCancelled },
                     ]}>
                       <XAxis dataKey="name" tick={{ fontSize: 10 }} className="fill-muted-foreground" />
                       <YAxis allowDecimals={false} tick={{ fontSize: 10 }} className="fill-muted-foreground" />
@@ -324,13 +376,8 @@ export function RelatoriosComerciais({ selectedUnit: externalUnit, canViewRevenu
                         }}
                       />
                       <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                        {[
-                          { fill: "hsl(140,60%,45%)" },
-                          { fill: "hsl(0,70%,55%)" },
-                          { fill: "hsl(40,90%,55%)" },
-                          { fill: "hsl(220,10%,60%)" },
-                        ].map((entry, idx) => (
-                          <Cell key={idx} fill={entry.fill} />
+                        {["hsl(140,60%,45%)", "hsl(0,70%,55%)", "hsl(40,90%,55%)", "hsl(220,10%,60%)"].map((fill, idx) => (
+                          <Cell key={idx} fill={fill} />
                         ))}
                       </Bar>
                     </BarChart>
@@ -345,11 +392,11 @@ export function RelatoriosComerciais({ selectedUnit: externalUnit, canViewRevenu
         {canViewRevenue && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Vendas por Período</CardTitle>
+            <CardTitle className="text-base">Vendas do período</CardTitle>
           </CardHeader>
           <CardContent>
             {data.salesCount === 0 ? (
-              <EmptyState message="Nenhuma venda com data de fechamento no período." />
+              <EmptyState message="Nenhuma festa fechada no período." />
             ) : (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-3">
@@ -366,6 +413,11 @@ export function RelatoriosComerciais({ selectedUnit: externalUnit, canViewRevenu
                     <p className="text-2xl font-bold text-amber-600">{formatBRL(data.ticketMedio)}</p>
                   </div>
                 </div>
+                {data.salesCount > data.salesWithValue && (
+                  <p className="text-xs text-muted-foreground">
+                    {data.salesCount - data.salesWithValue === 1 ? "1 festa está" : `${data.salesCount - data.salesWithValue} festas estão`} sem valor cadastrado e não entram no faturamento.
+                  </p>
+                )}
               </div>
             )}
           </CardContent>
@@ -378,7 +430,7 @@ export function RelatoriosComerciais({ selectedUnit: externalUnit, canViewRevenu
 
 // --- Sub-components ---
 
-function SummaryCard({ icon, label, value, highlight, hint }: { icon: React.ReactNode; label: string; value: string; highlight?: boolean; hint?: string }) {
+function SummaryCard({ icon, label, value, highlight, hint, hintColor = "text-violet-600" }: { icon: React.ReactNode; label: string; value: string; highlight?: boolean; hint?: string; hintColor?: string }) {
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-3 sm:p-4">
@@ -389,7 +441,7 @@ function SummaryCard({ icon, label, value, highlight, hint }: { icon: React.Reac
         </div>
         <p className={`text-lg sm:text-xl font-bold ${highlight ? "text-green-600" : "text-foreground"}`}>{value}</p>
         <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight">{label}</p>
-        {hint && <p className="text-[10px] text-violet-600 font-medium leading-tight mt-1">{hint}</p>}
+        {hint && <p className={`text-[10px] ${hintColor} font-medium leading-tight mt-1`}>{hint}</p>}
       </CardContent>
     </Card>
   );
