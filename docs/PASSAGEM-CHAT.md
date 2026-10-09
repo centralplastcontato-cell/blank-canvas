@@ -140,3 +140,52 @@ Ainda com o dono:
 **Achados para depois (não urgentes):**
 - 7 funções não estão no `config.toml` e por isso publicam com `verify_jwt = true`: `campaign-mark-conversation`, `data-backup`, `pre-reservation-expiry`, `resolve-numeric-names-daily`, `resume-bot-qualification`, `start-bot-qualification`, `wapi-reinforce-webhooks`. Funciona porque os crons mandam a chave pública.
 - Tabelas inchadas: `notifications` tem 411 MB para 58 mil linhas e `lead_history` tem 106 MB para 17 mil linhas. Um `VACUUM FULL` de madrugada recupera o espaço; é opcional e só com o dono.
+
+## 7. Campanhas (reforma em 4 partes, 09/10/2026)
+
+O dono aprovou as 4 partes. Todas foram publicadas e os SQLs foram rodados por ele e conferidos no banco.
+
+**Regras de envio (decisão do dono, valem para todos os buffets):**
+- Até **30 mensagens por dia** por empresa, somando todas as campanhas.
+- Só de **segunda a sábado, das 9h às 19h** (horário de Brasília).
+- Uma a cada 14 a 26 minutos, espalhadas ao longo do dia.
+
+**Como funciona hoje:**
+- **Envio pelo servidor:**
+  - "Começar envio" grava a campanha com `status = sending`, `server_send = true`, o número (`send_instance_id`) e o modo (`send_mode`). A tela pode ser fechada.
+  - O cron `campaign-dispatch-every-2min` (`*/2 12-21 * * 1-6`, UTC, espera de 60 s) chama a função `campaign-dispatch`.
+  - Essa função não exige chave porque é idempotente: cada empresa manda no máximo 1 mensagem por chamada, e só quando `campaign_dispatch_state.next_send_at` chegou.
+- **`campaign_dispatch_claim` (SQL, só a chave de serviço chama):**
+  - separa a próxima pessoa com `FOR UPDATE SKIP LOCKED`;
+  - pula telefone inválido, quem pediu para sair e telefone repetido na campanha;
+  - conta o limite do dia e conclui a campanha quando não sobra ninguém;
+  - quem ficou "enviando" por mais de 30 min vira erro "Envio não confirmado" e nunca é reenviado.
+- **Quando algo dá errado:**
+  - quarentena depois de reconectar: espera e tenta a mesma pessoa;
+  - WhatsApp desconectado: tenta de novo em 30 min, com o aviso em `campaigns.last_error`;
+  - 3 erros seguidos: pausa as campanhas da empresa.
+- **Público:**
+  - carrega todos os leads (em páginas);
+  - esconde por padrão: fechado, perdido, transferido, fornecedor, trabalhe_conosco, outros e quem recebeu campanha nos últimos 15 dias;
+  - sempre esconde quem pediu para sair e telefones repetidos (pelos 8 últimos dígitos).
+- **Pediram para sair:**
+  - o gatilho `trg_campaign_optout` em `wapi_messages` grava em `campaign_optouts` quando o cliente manda só "sair", "parar", "não quero mais" e parecidos;
+  - só grava: não responde nada e não mexe no robô nem no follow-up;
+  - a equipe vê e tira nomes da lista no botão "Pediram para sair".
+- **Resultado:** `campaign_results(company_id)` conta quem respondeu em até 3 dias e quem fechou festa em até 45 dias, pelo telefone.
+- **Arte "Com Foto":** não usa mais IA. A foto do buffet abre direto no editor de texto, já com o logo na posição escolhida. Antes a IA ignorava a foto e o logo nunca era colocado.
+
+**Para conferir no banco (db-read):**
+- `campaign_dispatch_state`: próxima mensagem de cada empresa.
+- `campaigns.last_error`: por que o envio parou.
+- `net._http_response`: respostas da função. `{"ok":true,"results":[...]}` é o normal.
+
+**Números em 09/10 (antes da reforma):**
+- Castelo: ~860 mensagens, ~85 respostas, 0 festas.
+- Mega Magic: ~350 mensagens, ~40 respostas, 0 festas.
+- Planeta: ~115 mensagens, 12 respostas, 4 festas.
+- ~27 pessoas receberam a mesma campanha 2 vezes; já corrigido.
+
+**Para a rodada final da limpeza (com OK do dono):**
+- `src/contexts/CampaignSenderContext.tsx`: o envio antigo pelo navegador. Ninguém inicia envio por ele. Tirar o provider do `App.tsx` e o uso em `Campanhas.tsx`.
+- `campaign-image`: o modo `photo` não é mais chamado pela tela, que só usa `theme_only`.

@@ -258,6 +258,14 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
       toast.error("Selecione uma foto base primeiro");
       return;
     }
+    // Com foto: a foto do buffet é a base e a pessoa põe texto e logo no editor.
+    // (Antes ia para a IA, que ignorava a foto e inventava outra imagem.)
+    if (!isThemeMode && selectedPhoto) {
+      setPendingArtUrl(selectedPhoto);
+      setArtDialogOpen(false);
+      setTextEditorOpen(true);
+      return;
+    }
     if (isThemeMode && !themeText.trim() && !draft.campaignType) {
       toast.error("Selecione ou descreva um tema");
       return;
@@ -271,9 +279,9 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
           logo_url: includeLogo && currentCompany?.logo_url ? currentCompany.logo_url : null,
           company_id: currentCompanyId,
           position: logoPosition,
-          campaign_theme: isThemeMode ? (themeText.trim() || draft.campaignType || draft.name || null) : (draft.campaignType || draft.name || null),
+          campaign_theme: themeText.trim() || draft.campaignType || draft.name || null,
           context: draft.description || null,
-          generation_mode: isThemeMode ? "theme_only" : "photo",
+          generation_mode: "theme_only",
         },
       });
       if (error) throw error;
@@ -298,7 +306,8 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
 
   const handleTextEditorSave = async (finalUrl: string) => {
     setDraft((prev) => ({ ...prev, imageUrl: finalUrl }));
-    const source = finalUrl === pendingArtUrl ? "ai_compose" : "ai_compose_text";
+    const fromPhoto = pendingArtUrl !== null && buffetPhotos.includes(pendingArtUrl);
+    const source = fromPhoto ? "photo_text" : finalUrl === pendingArtUrl ? "ai_compose" : "ai_compose_text";
     await saveImageToGallery(finalUrl, source);
     setPendingArtUrl(null);
     toast.success("Arte salva com sucesso! 🎨");
@@ -771,17 +780,24 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
                     Criando arte profissional...
                     <span className="tabular-nums text-xs opacity-80">({composeElapsed}s)</span>
                   </span>
+                ) : artMode === "photo" ? (
+                  <>
+                    <Type className="w-4 h-4" />
+                    Montar arte com esta foto
+                  </>
                 ) : (
                   <>
                     <Wand2 className="w-4 h-4" />
-                    Gerar Arte Profissional
+                    Gerar Arte com IA
                   </>
                 )}
               </Button>
 
-              {artMode === "photo" && !selectedPhoto && (
+              {artMode === "photo" && (
                 <p className="text-[11px] text-muted-foreground text-center">
-                  Selecione uma foto do buffet para a IA criar uma arte promocional profissional
+                  {selectedPhoto
+                    ? "A sua foto vira a base da arte: no próximo passo você coloca o texto e o logo por cima."
+                    : "Escolha uma foto do buffet. Ela vira a base da arte, e você coloca o texto e o logo por cima."}
                 </p>
               )}
               {artMode === "theme" && !themeText.trim() && (
@@ -818,6 +834,7 @@ export function CampaignContextStep({ draft, setDraft, companyName }: Props) {
             onSave={handleTextEditorSave}
             companyId={currentCompanyId || ""}
             campaignType={draft.campaignType}
+            initialLogoPosition={includeLogo && currentCompany?.logo_url ? logoPosition : null}
           />
         )}
       </div>

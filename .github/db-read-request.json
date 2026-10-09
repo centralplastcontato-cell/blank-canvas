@@ -1,1 +1,1 @@
-{"sql": "SELECT jobname, schedule, active,\n       left(regexp_replace(regexp_replace(command, '[A-Za-z0-9_\\-\\.]{40,}', '<oculto>', 'g'), '\\s+', ' ', 'g'), 260) AS comando\nFROM cron.job ORDER BY jobname"}
+{"sql": "SELECT jobid, jobname, schedule, active, command LIKE '%timeout_milliseconds := 60000%' AS espera_60s,\n       (SELECT count(*) FROM cron.job WHERE jobname = 'campaign-dispatch-every-2min') AS quantos\nFROM cron.job WHERE jobname = 'campaign-dispatch-every-2min'"}
