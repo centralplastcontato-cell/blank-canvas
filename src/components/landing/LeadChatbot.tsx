@@ -17,6 +17,8 @@ interface Message {
   options?: string[];
   /** Opções que aparecem mas não dá para escolher (dias que já passaram) */
   disabledOptions?: string[];
+  /** Calendário: o mês mostrado (o recesso é conferido na hora de desenhar) */
+  monthOption?: string;
   isInput?: boolean;
 }
 
@@ -88,15 +90,31 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
   const messagesEndRef = useRef<HTMLDivElement>(null);
   // Recesso do buffet (Configurar IA): esses dias ficam bloqueados no calendário
   const [closedPeriods, setClosedPeriods] = useState<ClosedPeriod[]>([]);
+  // Busca já ao carregar a página (antes de abrir o chat) e tenta de novo se
+  // falhar — sem isso, uma leitura que falhou deixava o calendário sem o recesso
   useEffect(() => {
-    if (!isOpen) return;
     const id = companyId || campaignConfig.companyId;
     if (!id) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).rpc("public_closed_periods", { p_company_id: id })
-      .then(({ data }: { data: unknown }) => setClosedPeriods(parseClosedPeriods(data)))
-      .catch(() => undefined);
-  }, [isOpen, companyId]);
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const load = (attempt: number) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any).rpc("public_closed_periods", { p_company_id: id })
+        .then(({ data, error }: { data: unknown; error: unknown }) => {
+          if (cancelled) return;
+          if (error) throw error;
+          setClosedPeriods(parseClosedPeriods(data));
+        })
+        .catch(() => {
+          if (!cancelled && attempt < 3) timer = setTimeout(() => load(attempt + 1), 2000 * attempt);
+        });
+    };
+    load(1);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [companyId]);
 
   // Build dynamic interest context: prop > venue choice
   const venueInterestText = venueChoice
@@ -132,7 +150,8 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     const padding = Array.from({ length: firstWeekdayOf(month) }, () => "");
     const days = Array.from({ length: daysInMonth }, (_, i) => `${i + 1}`);
     const calendarGrid = [...padding, ...days];
-    const pastDays = days.filter((d) => isPastDay(month, Number(d)) || isClosedLeadDay(month, Number(d), closedPeriods));
+    // Recesso fica de fora daqui: é conferido ao desenhar, com o recesso mais recente
+    const pastDays = days.filter((d) => isPastDay(month, Number(d)));
 
     setMessages((prev) => [
       ...prev,
@@ -142,6 +161,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         content: `Para qual dia de ${monthOptionLabel(month)} você gostaria de agendar?`,
         options: calendarGrid,
         disabledOptions: pastDays,
+        monthOption: month,
       },
     ]);
   };
@@ -786,7 +806,10 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
                             if (message.id === "day-of-month" && option === "") {
                               return <div key={`empty-${idx}`} className="w-9 h-9" />;
                             }
-                            if (message.disabledOptions?.includes(option)) {
+                            if (
+                              message.disabledOptions?.includes(option) ||
+                              (message.id === "day-of-month" && message.monthOption && isClosedLeadDay(message.monthOption, Number(option), closedPeriods))
+                            ) {
                               return (
                                 <div key={`past-${idx}`} aria-disabled="true" className="w-9 h-9 rounded-lg text-sm flex items-center justify-center text-muted-foreground/40 line-through">
                                   {option}
