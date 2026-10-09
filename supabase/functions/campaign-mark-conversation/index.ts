@@ -5,27 +5,13 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { checkCompanyAccess } from '../_shared/company-access.ts';
+import { markConversationForCampaign } from '../_shared/campaign-mark.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
-
-function normalizePhone(p: string): string {
-  return (p || '').replace(/\D/g, '');
-}
-
-function phoneVariants(p: string): string[] {
-  const n = normalizePhone(p);
-  const variants = new Set<string>();
-  if (n) {
-    variants.add(n);
-    variants.add(n.replace(/^55/, ''));
-    if (!n.startsWith('55')) variants.add(`55${n}`);
-  }
-  return [...variants].filter(Boolean);
-}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -84,23 +70,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Find the conversation by remote_jid (try common formats)
-    const variants = phoneVariants(phone);
-    const possibleJids = variants.flatMap((v) => [
-      `${v}@s.whatsapp.net`,
-      `${v}@c.us`,
-    ]);
+    const result = await markConversationForCampaign(supabase, {
+      campaignId: campaign_id,
+      phone,
+      instanceRowId: instance.id,
+      leadName: lead_name,
+      soft: isSoft,
+    });
 
-    const { data: conv } = await supabase
-      .from('wapi_conversations')
-      .select('id, bot_data, lead_id')
-      .eq('instance_id', instance.id)
-      .in('remote_jid', possibleJids)
-      .order('last_message_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (!conv) {
+    if (!result.marked) {
       console.log(`[campaign-mark-conversation] No conversation found yet for phone ${phone}, will be marked on next webhook event`);
       return new Response(
         JSON.stringify({ success: true, marked: false, reason: 'conversation_not_found' }),
@@ -108,31 +86,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    const existingBotData = (conv.bot_data as Record<string, unknown>) || {};
-    const newBotData = {
-      ...existingBotData,
-      campaign_pending_reply: campaign_id,
-      campaign_lead_name: lead_name || null,
-      campaign_marked_at: new Date().toISOString(),
-      campaign_soft: isSoft,
-    };
-
-    // Soft mode: apenas marca para detecção da resposta, sem desligar o bot.
-    const updatePayload: Record<string, unknown> = { bot_data: newBotData };
-    if (!isSoft) {
-      updatePayload.bot_enabled = false;
-      updatePayload.bot_step = 'human_takeover';
-    }
-
-    await supabase
-      .from('wapi_conversations')
-      .update(updatePayload)
-      .eq('id', conv.id);
-
-    console.log(`[campaign-mark-conversation] Marked conv ${conv.id} for campaign ${campaign_id}`);
+    console.log(`[campaign-mark-conversation] Marked conv ${result.conversationId} for campaign ${campaign_id}`);
 
     return new Response(
-      JSON.stringify({ success: true, marked: true, conversation_id: conv.id }),
+      JSON.stringify({ success: true, marked: true, conversation_id: result.conversationId }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err: any) {

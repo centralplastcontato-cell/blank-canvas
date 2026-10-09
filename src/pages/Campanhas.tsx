@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Megaphone, Plus, CheckCircle2, XCircle, Clock, Loader2, Users, Menu, ImageIcon, Trash2, Play, RotateCcw, Eye, Pencil } from "lucide-react";
+import { Megaphone, Plus, CheckCircle2, XCircle, Clock, Loader2, Users, Menu, ImageIcon, Trash2, Play, RotateCcw, Eye, Pencil, Pause, AlertTriangle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
@@ -35,7 +35,8 @@ import { GuiaCampanhasDialog } from "@/components/guias/GuiaCampanhasDialog";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 import { useCampaignSender } from "@/contexts/CampaignSenderContext";
-import { campaignState, reactivatedStatus } from "@/lib/campaignState";
+import { campaignState, nextSendLabel, reactivatedStatus } from "@/lib/campaignState";
+import { useQuery } from "@tanstack/react-query";
 import { useCampaignResults, percentOf } from "@/hooks/useCampaignResults";
 
 interface Campaign {
@@ -53,6 +54,10 @@ interface Campaign {
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
+  /** na fila do servidor (sai sozinha) */
+  server_send?: boolean | null;
+  /** por que o envio parou (ex.: WhatsApp desconectado) */
+  last_error?: string | null;
 }
 
 export default function Campanhas() {
@@ -69,6 +74,21 @@ export default function Campanhas() {
   const { isAdmin, canManageUsers } = useUserRole(user?.id);
   const sender = useCampaignSender();
   const { data: results, refetch: refetchResults } = useCampaignResults(companyId || undefined);
+  // Quando sai a próxima mensagem desta empresa (ritmo do envio pelo servidor)
+  const { data: nextSendAt, refetch: refetchNextSend } = useQuery({
+    queryKey: ["campaign-next-send", companyId],
+    queryFn: async (): Promise<Date | null> => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data } = await (supabase as any)
+        .from("campaign_dispatch_state")
+        .select("next_send_at")
+        .eq("company_id", companyId)
+        .maybeSingle();
+      return data?.next_send_at ? new Date(data.next_send_at) : null;
+    },
+    enabled: !!companyId,
+    refetchInterval: 60_000,
+  });
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -102,6 +122,7 @@ export default function Campanhas() {
     setCampaigns((data as Campaign[]) || []);
     setLoading(false);
     refetchResults();
+    refetchNextSend();
   };
 
   const handleDeleteCampaign = async () => {
@@ -143,6 +164,17 @@ export default function Campanhas() {
       setSendCampaign(updated);
     }
     setResetting(false);
+  };
+
+  // Pausa o envio pelo servidor; quem falta continua esperando
+  const handlePause = async (campaign: Campaign) => {
+    const { error } = await supabase.from("campaigns").update({ status: "draft" }).eq("id", campaign.id);
+    if (error) {
+      toast.error("Erro ao pausar a campanha");
+    } else {
+      toast.success("Campanha pausada. Para continuar, clique em Continuar.");
+      loadCampaigns();
+    }
   };
 
   const handleToggleActive = async (campaign: Campaign, active: boolean) => {
@@ -291,6 +323,16 @@ export default function Campanhas() {
                             <p className="text-xs text-muted-foreground mt-1">
                               {format(new Date(campaign.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                             </p>
+                            {state.action === "pause" && nextSendAt && (
+                              <p className="text-xs text-primary mt-1 flex items-center gap-1">
+                                <Clock className="w-3 h-3" /> Sai sozinha · próxima mensagem {nextSendLabel(nextSendAt, new Date())}
+                              </p>
+                            )}
+                            {campaign.last_error && state.kind !== "completed" && (
+                              <p className="text-xs text-amber-700 dark:text-amber-400 mt-1 flex items-start gap-1">
+                                <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" /> {campaign.last_error}
+                              </p>
+                            )}
                           </div>
                           <div className="flex items-center justify-between gap-2 lg:gap-3 lg:shrink-0 flex-wrap">
                             <div className="flex items-center gap-3 text-sm">
@@ -343,19 +385,23 @@ export default function Campanhas() {
                               </div>
                               {state.action && (
                                 <Button
-                                  variant="default"
+                                  variant={state.action === "pause" ? "outline" : "default"}
                                   size="sm"
                                   className="h-8"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     if (state.action === "resume") {
                                       setCampaignToReset(campaign);
+                                    } else if (state.action === "pause") {
+                                      handlePause(campaign);
                                     } else {
                                       setSendCampaign(campaign);
                                     }
                                   }}
                                 >
-                                  {state.action === "resume" ? (
+                                  {state.action === "pause" ? (
+                                    <><Pause className="h-3.5 w-3.5 mr-1.5" /> Pausar</>
+                                  ) : state.action === "resume" ? (
                                     <><RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Retomar</>
                                   ) : state.action === "continue" ? (
                                     <><Play className="h-3.5 w-3.5 mr-1.5" /> Continuar</>
@@ -456,6 +502,7 @@ export default function Campanhas() {
             onOpenChange={(open) => { if (!open) setDetailCampaign(null); }}
             companyId={companyId || ""}
             onStartSend={(c) => { setDetailCampaign(null); setSendCampaign(c); }}
+            onPause={(c) => { setDetailCampaign(null); handlePause(c as Campaign); }}
             onResend={(c) => { setSendCampaign(c); }}
             onEditAudience={(c) => { setDetailCampaign(null); setEditingAudienceCampaign(c); }}
             onRefresh={loadCampaigns}
