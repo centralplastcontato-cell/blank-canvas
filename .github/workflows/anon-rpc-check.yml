@@ -1,0 +1,27 @@
+name: Conferir RPC público (anon)
+
+# Chama uma função pública do banco como o site chama (chave pública do app).
+# Só leitura; temporário para diagnóstico.
+
+on:
+  push:
+    branches: ["claude/**"]
+    paths: [".github/anon-rpc-request.json"]
+
+jobs:
+  check:
+    name: Conferir
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Conferir
+        run: |
+          KEY=$(grep -o 'SUPABASE_PUBLISHABLE_KEY = "[^"]*"' src/integrations/supabase/client.ts | cut -d'"' -f2)
+          URL=$(grep -o 'SUPABASE_URL = "[^"]*"' src/integrations/supabase/client.ts | cut -d'"' -f2)
+          FN=$(jq -r .fn .github/anon-rpc-request.json)
+          ARGS=$(jq -c .args .github/anon-rpc-request.json)
+          for ORIGIN in https://www.castelodadiversao.com.br https://www.castelodadiversao.online; do
+            echo "== origin $ORIGIN"
+            curl -sS -D - -o out.json -X POST "$URL/rest/v1/rpc/$FN" -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d "$ARGS" | grep -iE '^(HTTP|access-control-allow-origin|content-type)'
+            cat out.json; echo
+          done
