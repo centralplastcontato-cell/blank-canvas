@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { format, startOfQuarter, endOfQuarter, addQuarters, startOfYear, endOfYear, subQuarters, startOfMonth } from "date-fns";
+import { format } from "date-fns";
+import { getPeriodPresets } from "@/lib/periodPresets";
 import { ptBR } from "date-fns/locale";
 import { CalendarRange, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,24 +16,12 @@ interface PeriodFilterPopoverProps {
   onClear: () => void;
 }
 
-const now = new Date();
-
-function getPresets() {
-  const currentYear = now.getFullYear();
-  return [
-    { label: "Último trimestre", from: startOfQuarter(subQuarters(now, 1)), to: endOfQuarter(subQuarters(now, 1)) },
-    { label: "Próximo trimestre", from: startOfQuarter(addQuarters(now, 1)), to: endOfQuarter(addQuarters(now, 1)) },
-    { label: "Semestre atual", from: startOfMonth(now), to: endOfQuarter(addQuarters(startOfQuarter(now), 1)) },
-    { label: `Ano ${currentYear} inteiro`, from: startOfYear(now), to: endOfYear(now) },
-  ];
-}
-
 export function PeriodFilterPopover({ onConfirm, activePeriod, onClear }: PeriodFilterPopoverProps) {
   const [range, setRange] = useState<DateRange | undefined>(
     activePeriod ? { from: activePeriod.from, to: activePeriod.to } : undefined
   );
   const [open, setOpen] = useState(false);
-  const presets = getPresets();
+  const presets = getPeriodPresets();
   const isMobile = useIsMobile();
 
   const handleConfirm = () => {
