@@ -14,9 +14,11 @@ interface PeriodFilterPopoverProps {
   onConfirm: (range: { from: Date; to: Date }) => void;
   activePeriod: { from: Date; to: Date } | null;
   onClear: () => void;
+  /** "icon": só o botão com o ícone (no celular, ao lado da busca) */
+  variant?: "full" | "icon";
 }
 
-export function PeriodFilterPopover({ onConfirm, activePeriod, onClear }: PeriodFilterPopoverProps) {
+export function PeriodFilterPopover({ onConfirm, activePeriod, onClear, variant = "full" }: PeriodFilterPopoverProps) {
   const [range, setRange] = useState<DateRange | undefined>(
     activePeriod ? { from: activePeriod.from, to: activePeriod.to } : undefined
   );
@@ -39,10 +41,22 @@ export function PeriodFilterPopover({ onConfirm, activePeriod, onClear }: Period
     <div className="flex items-center gap-2 flex-wrap">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-            <CalendarRange className="h-3.5 w-3.5" />
-            Consultar período
-          </Button>
+          {variant === "icon" ? (
+            <button
+              type="button"
+              aria-label="Consultar período"
+              title="Consultar período"
+              className="relative h-11 w-11 shrink-0 rounded-2xl border border-border/40 bg-card shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <CalendarRange className="h-5 w-5" />
+              {activePeriod && <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />}
+            </button>
+          ) : (
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+              <CalendarRange className="h-3.5 w-3.5" />
+              Consultar período
+            </Button>
+          )}
         </PopoverTrigger>
         <PopoverContent 
           className={cn("p-0", isMobile ? "w-[calc(100vw-2rem)] max-w-sm" : "w-auto")} 
@@ -94,7 +108,7 @@ export function PeriodFilterPopover({ onConfirm, activePeriod, onClear }: Period
       </Popover>
 
       {/* Active period badge */}
-      {activePeriod && (
+      {variant === "full" && activePeriod && (
         <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-medium text-primary">
           <CalendarRange className="h-3 w-3" />
           {format(activePeriod.from, "dd/MM")} – {format(activePeriod.to, "dd/MM/yyyy")}
