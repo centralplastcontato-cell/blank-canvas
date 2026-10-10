@@ -3277,6 +3277,32 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
   // Emoji reaction handler
   const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
+  // Menu da mensagem (reagir, responder, copiar…): abre pela setinha, por
+  // clique com o botão direito ou segurando o dedo na mensagem, como no WhatsApp
+  const [messageMenuId, setMessageMenuId] = useState<string | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelLongPress = () => {
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = null;
+  };
+  const messagePressHandlers = (msgId: string) => ({
+    onTouchStart: () => {
+      cancelLongPress();
+      longPressTimerRef.current = setTimeout(() => {
+        longPressTimerRef.current = null;
+        try { navigator.vibrate?.(15); } catch { /* sem vibração */ }
+        setMessageMenuId(msgId);
+      }, 450);
+    },
+    onTouchMove: cancelLongPress,
+    onTouchEnd: cancelLongPress,
+    onTouchCancel: cancelLongPress,
+    onContextMenu: (e: React.MouseEvent) => {
+      e.preventDefault();
+      setMessageMenuId(msgId);
+    },
+  });
   
   const handleReaction = async (msg: Message, emoji: string) => {
     if (!selectedInstance || !msg.message_id) return;
@@ -5901,8 +5927,11 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                             >
                               <div className={cn("relative w-full min-w-0 overflow-hidden", msg.from_me ? "flex flex-row-reverse items-start gap-1" : "flex items-start gap-1")}>
                                  <div
+                                   {...(editingMessageId !== msg.id ? messagePressHandlers(msg.id) : {})}
+                                   style={{ WebkitTouchCallout: 'none' }}
                                    className={cn(
-                                     "rounded-2xl text-sm",
+                                     // No celular, segurar abre o menu (sem selecionar o texto); "Copiar" fica no menu
+                                     "rounded-2xl text-sm [@media(hover:none)]:select-none",
                                       (msg.message_type === 'image' || msg.message_type === 'video' || msg.message_type === 'sticker')
                                         ? "max-w-[60%] sm:max-w-[45%] bg-transparent p-0 overflow-hidden shadow-none"
                                        : cn(
@@ -6137,7 +6166,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                 </div>
                                 {/* Context menu for all messages */}
                                 {editingMessageId !== msg.id && (
-                                  <DropdownMenu>
+                                  <DropdownMenu open={messageMenuId === msg.id} onOpenChange={(open) => setMessageMenuId(open ? msg.id : null)}>
                                     <DropdownMenuTrigger asChild>
                                       <Button
                                         variant="ghost"
