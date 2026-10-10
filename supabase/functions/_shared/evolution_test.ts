@@ -190,3 +190,23 @@ Deno.test("download da Evolution: data URL vira bytes + mimetype", () => {
   assertEquals(new TextDecoder().decode(p.bytes), "OggS");
   assertEquals(parseDataUrl("T2dnUw=="), null);
 });
+
+Deno.test("reação do contato e remoção (formato real de 09/10)", () => {
+  const base = structuredClone(clientImage) as any;
+  base.data.Message = { reactionMessage: { key: { ID: "3EB0A4B9CB37CA4FAE1672", fromMe: false, remoteJID: "67848252715201@lid" }, text: "❤️" } };
+  const n = normalizeEvolutionPayload(base)!;
+  assertEquals(n.data.message, { conversation: "[Reação] ❤️" });
+  assertEquals(n.data.referenceMessageId, "3EB0A4B9CB37CA4FAE1672");
+  base.data.Message = { reactionMessage: { key: { ID: "3EB0A4B9CB37CA4FAE1672" }, senderTimestampMS: 1 } };
+  assertEquals(normalizeEvolutionPayload(base)!.data.message, {});
+});
+
+Deno.test("resposta citando: stanzaID da Evolution vira stanzaId", () => {
+  const p = structuredClone(clientImage) as any;
+  p.data.Message = { extendedTextMessage: { text: "Teste F", contextInfo: { stanzaID: "3EB0A4B9CB37CA4FAE1672", participant: "67848252715201@lid" } } };
+  const n = normalizeEvolutionPayload(p)!;
+  assertEquals(n.data.message.extendedTextMessage.contextInfo.stanzaId, "3EB0A4B9CB37CA4FAE1672");
+  assertEquals(n.data.message.extendedTextMessage.text, "Teste F");
+  p.data.Message = { imageMessage: { URL: "https://mmg.whatsapp.net/x", contextInfo: { stanzaID: "3EB00D1DC0C2D64426C916" } } };
+  assertEquals(normalizeEvolutionPayload(p)!.data.message.imageMessage.contextInfo.stanzaId, "3EB00D1DC0C2D64426C916");
+});
