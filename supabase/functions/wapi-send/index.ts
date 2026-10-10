@@ -1976,7 +1976,14 @@ Deno.serve(async (req) => {
           payload_summary: { http_status: 200, success: true },
         });
 
-        return new Response(JSON.stringify({ success: true, messageId, conversationId: resolvedConvId, trackingId, providerAttempt: (sendResult as { attempt?: string }).attempt }), {
+        // Site (lpMode): devolve o WhatsApp que mandou a boas-vindas (pode ser outro
+        // número, se houve failover) — o botão do site abre este mesmo número
+        let fromPhone: string | null = null;
+        if (body.lpMode) {
+          const { data: fromInst } = await supabase.from('wapi_instances').select('phone_number').eq('instance_id', instance_id).maybeSingle();
+          fromPhone = fromInst?.phone_number ? String(fromInst.phone_number).replace(/\D/g, '') : null;
+        }
+        return new Response(JSON.stringify({ success: true, messageId, conversationId: resolvedConvId, trackingId, providerAttempt: (sendResult as { attempt?: string }).attempt, fromPhone }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
