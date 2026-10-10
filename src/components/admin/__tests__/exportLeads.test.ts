@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { exportLeadsToCSV } from "@/components/admin/exportLeads";
+import { csvCell, exportLeadsToCSV } from "@/components/admin/exportLeads";
 import type { Lead } from "@/types/crm";
 
 const mockLead: Lead = {
@@ -34,6 +34,7 @@ describe("exportLeadsToCSV", () => {
     });
 
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock");
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
     vi.spyOn(document.body, "appendChild").mockImplementation((el) => el);
     vi.spyOn(document.body, "removeChild").mockImplementation((el) => el);
     vi.spyOn(document, "createElement").mockReturnValue({
@@ -67,5 +68,32 @@ describe("exportLeadsToCSV", () => {
     expect(blobContent).toContain("João Silva");
     expect(blobContent).toContain("Unidade 1");
     expect(blobContent).toContain("Novo");
+  });
+
+  it("aspas no nome não quebram a planilha", () => {
+    exportLeadsToCSV({ leads: [{ ...mockLead, name: 'Ana "Festa"', observacoes: "linha 1\nlinha 2" }], responsaveis: [] });
+    expect(blobContent).toContain('"Ana ""Festa"""');
+    expect(blobContent).toContain('"linha 1 linha 2"');
+  });
+
+  it("mostra o nome da campanha", () => {
+    exportLeadsToCSV({ leads: [mockLead], responsaveis: [] });
+    expect(blobContent).toContain("Campanha Teste");
+  });
+});
+
+describe("csvCell", () => {
+  it("texto que parece fórmula ganha apóstrofo", () => {
+    expect(csvCell("=HYPERLINK(\"x\")")).toBe('"\'=HYPERLINK(""x"")"');
+    expect(csvCell("+55 11")).toBe('"\'+55 11"');
+    expect(csvCell("@maria")).toBe('"\'@maria"');
+    expect(csvCell("-")).toBe('"\'-"');
+  });
+
+  it("vazio e números", () => {
+    expect(csvCell(null)).toBe('""');
+    expect(csvCell(undefined)).toBe('""');
+    expect(csvCell(50)).toBe('"50"');
+    expect(csvCell("João")).toBe('"João"');
   });
 });

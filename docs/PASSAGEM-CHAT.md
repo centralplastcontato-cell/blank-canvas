@@ -357,3 +357,29 @@ O dono aprovou as 4 partes: 1 erros graves, 2 permissões e unidades, 3 aba Lead
   - antes, as automações (reativação, confirmação de visita) gravavam sem empresa e não apareciam no histórico, e o quadro de colunas nem conseguia gravar;
   - o robô de follow-up lê o histórico pelo lead, sem filtrar empresa, então nada muda no comportamento dele.
 - **Fica para depois:** travar a unidade também no banco (hoje só na tela).
+
+**Parte 3 (aba Leads), o que mudou:**
+- **Filtros numa regra só** (`src/lib/leadQuery.ts`), usada na lista, no quadro (CRM), nos números do topo e no Exportar:
+  - a busca aceita vírgula, parênteses e aspas, e telefone com máscara acha o número ("(11) 98765-4321");
+  - "Visitas agendadas" filtra no banco (antes só filtrava os 20 da página, e o total ficava errado);
+  - a busca espera parar de digitar (0,4 s);
+  - o filtro de campanhas e meses lê todos os leads (antes só os 1.000 primeiros, e no Castelo, com 4.042, sumiam campanhas). Os meses aparecem na ordem do calendário.
+- **Quadro (CRM)** (`src/lib/leadKanban.ts`):
+  - cada coluna busca os 50 mais recentes (Fechado busca 500), e o número no topo é o total real com os filtros. Antes eram só 20 leads espalhados pelas 11 colunas;
+  - nova coluna "Outros" (o Planeta tem 39 leads nela, que não apareciam);
+  - as setas andam dentro do funil e param em "Fechado" (antes a seta de Fechado levava para "Perdido"). As outras colunas andam só entre elas;
+  - soltar o cartão na mesma coluna não faz nada;
+  - a coluna "Realizada" segue com o histórico todo (sem o período da tela, como antes) e respeita os outros filtros. Festa cancelada não conta.
+- **Mudar situação** é a mesma regra na lista, no quadro e nos cartões do celular:
+  - grava o histórico com o nome da situação;
+  - "Perdido" desliga o robô da conversa (o quadro e o chat já faziam);
+  - "Fechado" abre o cadastro da festa.
+- **Números do topo:**
+  - usam os mesmos filtros da lista;
+  - se atualizam quando muda situação, quando um lead é excluído e quando chega ou muda lead (no máximo a cada 10 s);
+  - o cartão "Em Contato" virou "Visita", como a coluna.
+- **Exportar:**
+  - leva todos os leads do filtro, de 1.000 em 1.000, até 20.000 (antes só os 20 da página);
+  - mostra o nome da campanha;
+  - aspas e quebras de linha não quebram a planilha;
+  - texto começado por = + - @ ganha um ' na frente, para o Excel não rodar como fórmula.

@@ -10,6 +10,18 @@ interface ExportLeadsProps {
   canViewContact?: boolean;
 }
 
+/**
+ * Célula da planilha: entre aspas (aspas dobradas, sem quebra de linha). Texto que
+ * começa com = + - @ ganha um ' na frente para o Excel não rodar como fórmula
+ * (o nome do lead vem do cliente).
+ */
+export function csvCell(value: unknown): string {
+  let text = value === null || value === undefined ? "" : String(value);
+  text = text.replace(/\r?\n|\r/g, " ");
+  if (/^[=+\-@\t]/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
 export function exportLeadsToCSV({ leads, responsaveis, canViewContact = true }: ExportLeadsProps) {
   const getResponsavelName = (responsavelId: string | null) => {
     if (!responsavelId) return "";
@@ -37,21 +49,21 @@ export function exportLeadsToCSV({ leads, responsaveis, canViewContact = true }:
     lead.name,
     canViewContact ? lead.whatsapp : maskPhone(lead.whatsapp),
     lead.unit || "",
-    lead.campaign_id,
+    lead.campaign_name || lead.campaign_id,
     lead.month || "",
     lead.day_of_month || lead.day_preference || "",
     lead.guests || "",
     LEAD_STATUS_LABELS[lead.status],
     getResponsavelName(lead.responsavel_id),
     format(new Date(lead.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR }),
-    (lead.observacoes || "").replace(/\n/g, " ").replace(/"/g, '""'),
+    lead.observacoes || "",
   ]);
 
   // Build CSV content
   const csvContent = [
     headers.join(";"),
     ...rows.map((row) =>
-      row.map((cell) => `"${cell}"`).join(";")
+      row.map(csvCell).join(";")
     ),
   ].join("\n");
 
@@ -72,4 +84,5 @@ export function exportLeadsToCSV({ leads, responsaveis, canViewContact = true }:
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }

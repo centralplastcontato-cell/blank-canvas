@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Lead, LEAD_STATUS_LABELS, LEAD_STATUS_COLORS, LeadStatus } from "@/types/crm";
+import { UserWithRole } from "@/types/crm";
+import { KANBAN_FUNNEL, KANBAN_OTHERS, kanbanColumnCount, neighborStatus } from "@/lib/leadKanban";
 
 // Colunas do quadro: os status reais + a coluna virtual "realizada" (derivada por data)
 type KanbanColumn = LeadStatus | "realizada";
-import { UserWithRole } from "@/types/crm";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,8 @@ interface LeadsKanbanProps {
   canEditDescription?: boolean;
   canDelete?: boolean;
   canViewContact?: boolean;
+  /** Total de cada coluna com os filtros (inclui "realizada"); a tela carrega só os mais recentes */
+  columnTotals?: Record<string, number>;
 }
 
 export function LeadsKanban({
@@ -44,26 +47,12 @@ export function LeadsKanban({
   canEditDescription = false,
   canDelete = false,
   canViewContact = true,
+  columnTotals,
 }: LeadsKanbanProps) {
   // "realizada" é uma coluna VIRTUAL: não é um status salvo no banco.
   // Ela agrupa os leads "fechado" cuja festa vinculada já aconteceu (data passada).
   // O status guardado continua "fechado" — então relatórios de vendas não mudam.
-  const columns: KanbanColumn[] = [
-    "novo",
-    "em_contato",
-    "aguardando_resposta",
-    "orcamento_enviado",
-    "fechado",
-    "realizada",
-    "perdido",
-    "transferido",
-    "cliente_retorno",
-    "trabalhe_conosco",
-    "fornecedor",
-  ];
-
-  // Colunas que representam status reais (para as setas de mover o card)
-  const realColumns = columns.filter((c): c is LeadStatus => c !== "realizada");
+  const columns: KanbanColumn[] = [...KANBAN_FUNNEL, "realizada", ...KANBAN_OTHERS];
 
   const columnLabel = (c: KanbanColumn) =>
     c === "realizada" ? "Realizada" : LEAD_STATUS_LABELS[c];
@@ -111,26 +100,19 @@ export function LeadsKanban({
     // "realizada" é derivada da data — não é um status salvável, então ignoramos o drop.
     if (status === "realizada") return;
     const leadId = e.dataTransfer.getData("leadId");
-    if (leadId && canEdit) {
+    const lead = leads.find((l) => l.id === leadId) || realizadaLeads.find((l) => l.id === leadId);
+    // Soltar na mesma coluna não muda nada
+    if (leadId && canEdit && lead?.status !== status) {
       onStatusChange(leadId, status);
     }
   };
 
-  const getPreviousStatus = (currentStatus: LeadStatus): LeadStatus | null => {
-    const currentIndex = realColumns.indexOf(currentStatus);
-    if (currentIndex > 0) {
-      return realColumns[currentIndex - 1];
-    }
-    return null;
-  };
+  // Setas do cartão: andam dentro do funil (até "Fechado") ou entre as outras colunas
+  const getPreviousStatus = (currentStatus: LeadStatus) => neighborStatus(currentStatus, -1);
+  const getNextStatus = (currentStatus: LeadStatus) => neighborStatus(currentStatus, 1);
 
-  const getNextStatus = (currentStatus: LeadStatus): LeadStatus | null => {
-    const currentIndex = realColumns.indexOf(currentStatus);
-    if (currentIndex < realColumns.length - 1) {
-      return realColumns[currentIndex + 1];
-    }
-    return null;
-  };
+  // Número do topo: o total real com os filtros, não só os cartões carregados
+  const columnCount = (status: KanbanColumn, shown: number) => kanbanColumnCount(status, shown, columnTotals);
 
   const handleNameUpdate = async (leadId: string, newName: string) => {
     if (onNameUpdate) {
@@ -183,7 +165,7 @@ export function LeadsKanban({
               {columnLabel(currentMobileColumn)}
             </span>
             <Badge variant="secondary" className="text-xs shrink-0 bg-muted/80">
-              {mobileColumnLeads.length}
+              {columnCount(currentMobileColumn, mobileColumnLeads.length)}
             </Badge>
           </div>
           
@@ -260,6 +242,7 @@ export function LeadsKanban({
                       Mostrar mais ({mobileColumnLeads.length - realizadaLimit} restantes)
                     </Button>
                   )}
+                  <MoreNote shown={mobileColumnLeads.length} total={columnCount(currentMobileColumn, mobileColumnLeads.length)} />
                 </>
               )}
             </div>
@@ -292,7 +275,7 @@ export function LeadsKanban({
                     </span>
                   </div>
                   <Badge variant="secondary" className="text-xs font-medium bg-background/80 shadow-sm">
-                    {columnLeads.length}
+                    {columnCount(status, columnLeads.length)}
                   </Badge>
                 </div>
               </div>
@@ -337,6 +320,7 @@ export function LeadsKanban({
                           Mostrar mais ({columnLeads.length - realizadaLimit} restantes)
                         </Button>
                       )}
+                      <MoreNote shown={columnLeads.length} total={columnCount(status, columnLeads.length)} />
                     </>
                   )}
                 </div>
@@ -346,5 +330,15 @@ export function LeadsKanban({
         })}
       </div>
     </>
+  );
+}
+
+/** Coluna com mais leads do que os carregados: avisa e indica a lista */
+function MoreNote({ shown, total }: { shown: number; total: number }) {
+  if (total <= shown) return null;
+  return (
+    <p className="px-2 pt-1 pb-2 text-center text-[11px] leading-snug text-muted-foreground">
+      Mostrando os {shown} mais recentes de {total}. Para ver os outros, use os filtros ou a visão em lista.
+    </p>
   );
 }
