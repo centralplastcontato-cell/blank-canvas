@@ -27,12 +27,13 @@ export interface EvolutionResult {
   error?: string;
 }
 
-export async function evolutionRequest(token: string, path: string, method = "GET", body?: unknown): Promise<EvolutionResult> {
+export async function evolutionRequest(token: string, path: string, method = "GET", body?: unknown, timeoutMs = 90000): Promise<EvolutionResult> {
   try {
     const res = await fetch(`${evolutionBaseUrl()}${path}`, {
       method,
       headers: { "Content-Type": "application/json", apikey: token },
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     const text = await res.text();
     let data: unknown = text;
@@ -281,11 +282,29 @@ export function normalizeEvolutionPayload(body: Json): Json | null {
     return { event: "webhookDelivery", instanceId, data: { messageId: ids[0], ids, status } };
   }
 
-  // Queda da sessão: marca o número como desconectado. A volta é marcada pela
-  // primeira mensagem recebida (auto-recuperação) e pela checagem de status.
-  if (/^(Disconnected|LoggedOut|StreamReplaced|ConnectFailure|TemporaryBan)$/.test(event)) {
-    return { event: "disconnection", instanceId, data: { reason: event } };
-  }
+  // Eventos de conexão (Connected, Disconnected, LoggedOut…) não viram mensagem:
+  // o webhook trata com evolutionConnectionEvent e chama o monitor na hora.
+  return null; // ButtonClick (duplicado do Message), conexão, Presence…
+}
 
-  return null; // ButtonClick (duplicado do Message), Connected, Presence…
+// ─── Conexão ──────────────────────────────────────────────────────────────
+
+/**
+ * Evento CONNECTION da Evolution (whatsmeow) → o que ele indica. null = não é
+ * evento de conexão. O monitor confere o status real antes de agir/alertar.
+ */
+export function evolutionConnectionEvent(body: Json): { hint: "online" | "reconnecting" | "needs_qr"; event: string } | null {
+  const event = String(body?.event || "");
+  if (/^(Connected|PairSuccess|KeepAliveRestored)$/.test(event)) return { hint: "online", event };
+  if (/^(LoggedOut|ClientOutdated)$/.test(event)) return { hint: "needs_qr", event };
+  if (/^(Disconnected|StreamReplaced|ConnectFailure|TemporaryBan|KeepAliveTimeout|StreamError)$/.test(event)) return { hint: "reconnecting", event };
+  return null;
+}
+
+export function evolutionStatus(token: string): Promise<EvolutionResult> {
+  return evolutionRequest(token, "/instance/status", "GET", undefined, 15000);
+}
+
+export function evolutionReconnect(token: string): Promise<EvolutionResult> {
+  return evolutionRequest(token, "/instance/reconnect", "POST", undefined, 30000);
 }

@@ -1,5 +1,6 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
 import {
+  evolutionConnectionEvent,
   evolutionNumber,
   extractEvolutionMessageId,
   isEvolutionPayload,
@@ -150,9 +151,13 @@ Deno.test("reação vira [Reação] apontando para a mensagem; reação removida
   assertEquals(normalizeEvolutionPayload(p)!.data.message, {});
 });
 
-Deno.test("queda da sessão vira desconexão; outros eventos são ignorados", () => {
-  assertEquals(normalizeEvolutionPayload({ ...envelope, event: "LoggedOut", data: {} })!.event, "disconnection");
+Deno.test("eventos de conexão não viram mensagem; viram aviso para o monitor", () => {
+  assertEquals(normalizeEvolutionPayload({ ...envelope, event: "LoggedOut", data: {} }), null);
   assertEquals(normalizeEvolutionPayload({ ...envelope, event: "Connected", data: {} }), null);
+  assertEquals(evolutionConnectionEvent({ ...envelope, event: "LoggedOut", data: {} })?.hint, "needs_qr");
+  assertEquals(evolutionConnectionEvent({ ...envelope, event: "Disconnected", data: {} })?.hint, "reconnecting");
+  assertEquals(evolutionConnectionEvent({ ...envelope, event: "Connected", data: {} })?.hint, "online");
+  assertEquals(evolutionConnectionEvent({ ...envelope, event: "Message", data: {} }), null);
 });
 
 Deno.test("token: comparação exata e log sem o token", () => {

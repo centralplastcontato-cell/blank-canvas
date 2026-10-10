@@ -67,6 +67,8 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   const { allowedUnits, canViewAll, isLoading: isLoadingPermissions } = useUnitPermissions(userId);
   
   const [instances, setInstances] = useState<WapiInstance[]>([]);
+  // Evolution Go: estado real consultado agora (não o status guardado no banco)
+  const [evoLive, setEvoLive] = useState<Record<string, { state: string; checkedAt: number }>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -148,6 +150,10 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
           const wapiStatus = response.data?.status;
           const wapiPhone = response.data?.phoneNumber || response.data?.phone;
           const errorType = response.data?.errorType;
+          if (instance.provider === 'evolution') {
+            const state = typeof response.data?.evolutionState === 'string' ? response.data.evolutionState : (response.error ? 'unreachable' : 'unknown');
+            setEvoLive((prev) => ({ ...prev, [instance.id]: { state, checkedAt: Date.now() } }));
+          }
 
           // DEGRADED/TIMEOUT/SESSION_INCOMPLETE: keep previous status, don't update DB
           if (wapiStatus === 'degraded' || errorType === 'TIMEOUT_OR_GATEWAY' || errorType === 'SESSION_INCOMPLETE') {
@@ -259,6 +265,11 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
             provider: formData.provider,
             client_token: formData.provider === 'zapi' ? formData.clientToken : null,
             unit: formData.unit,
+            // Trocou de provedor ou de instância: a sessão antiga não vale para a
+            // nova — fica desconectado até ler o QR (nada de "Conectado" antigo)
+            ...(formData.provider !== (editingInstance.provider || 'wapi') || formData.instanceId !== editingInstance.instance_id
+              ? { status: 'disconnected', connected_at: null }
+              : {}),
           })
           .eq("id", editingInstance.id);
 
@@ -603,6 +614,9 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
 
       const wapiStatus = response.data?.status;
       const errorType = response.data?.errorType;
+      if (instance.provider === 'evolution' && typeof response.data?.evolutionState === 'string') {
+        setEvoLive((prev) => ({ ...prev, [instance.id]: { state: response.data.evolutionState, checkedAt: Date.now() } }));
+      }
 
       // DEGRADED or SESSION_INCOMPLETE: don't update DB, show specific warning
       if (wapiStatus === 'degraded' || errorType === 'TIMEOUT_OR_GATEWAY' || errorType === 'SESSION_INCOMPLETE') {
@@ -1125,10 +1139,13 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                             Z-API
                           </Badge>
                         ) : instance.provider === 'evolution' ? (
-                          <Badge className="bg-violet-600 hover:bg-violet-600 text-white border-0 text-[10px] px-2 py-0.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-white mr-1.5 inline-block" />
-                            Evolution Go
-                          </Badge>
+                          <>
+                            <Badge className="bg-violet-600 hover:bg-violet-600 text-white border-0 text-[10px] px-2 py-0.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-white mr-1.5 inline-block" />
+                              Evolution Go
+                            </Badge>
+                            <EvolutionLiveChip live={evoLive[instance.id]} />
+                          </>
                         ) : (
                           <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white border-0 text-[10px] px-2 py-0.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-white mr-1.5 inline-block" />
@@ -1268,10 +1285,13 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                                 Z-API
                               </Badge>
                             ) : instance.provider === 'evolution' ? (
-                              <Badge className="text-xs font-bold bg-violet-600 hover:bg-violet-600 text-white border-0 gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-white" />
-                                Evolution Go
-                              </Badge>
+                              <>
+                                <Badge className="text-xs font-bold bg-violet-600 hover:bg-violet-600 text-white border-0 gap-1.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                                  Evolution Go
+                                </Badge>
+                                <EvolutionLiveChip live={evoLive[instance.id]} />
+                              </>
                             ) : (
                               <Badge className="text-xs font-bold bg-emerald-600 hover:bg-emerald-600 text-white border-0 gap-1.5">
                                 <span className="w-1.5 h-1.5 rounded-full bg-white" />
@@ -1600,5 +1620,26 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// Estado real do número na Evolution Go, consultado ao abrir a tela
+const EVO_LIVE: Record<string, { label: string; className: string }> = {
+  online: { label: "Conectado de verdade", className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
+  reconnecting: { label: "Reconectando…", className: "bg-amber-500/15 text-amber-700 dark:text-amber-400" },
+  needs_qr: { label: "Precisa ler o QR Code", className: "bg-red-500/15 text-red-700 dark:text-red-400" },
+  unreachable: { label: "Evolution sem resposta", className: "bg-red-500/15 text-red-700 dark:text-red-400" },
+};
+
+function EvolutionLiveChip({ live }: { live?: { state: string; checkedAt: number } }) {
+  if (!live) {
+    return <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">Checando…</span>;
+  }
+  const info = EVO_LIVE[live.state] || { label: "Status desconhecido", className: "bg-muted text-muted-foreground" };
+  const at = new Date(live.checkedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  return (
+    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${info.className}`} title={`Consultado na Evolution Go às ${at}`}>
+      {info.label}
+    </span>
   );
 }

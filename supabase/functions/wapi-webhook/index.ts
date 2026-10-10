@@ -21,7 +21,7 @@ import { detectWhatsAppReturn } from "../_shared/lead-return.ts";
 import { isLiveReplyToBotQuestion } from "../_shared/reconnect-quarantine.ts";
 import { collectStatusMessageIds, isPlayedStatus, mapProviderMessageStatus, statusUpdateFilter } from "../_shared/message-status.ts";
 import { AI_CONFIRMATION_STYLE, fixedConfirmationTextChoice } from "../_shared/visit-confirm.ts";
-import { evolutionDownloadMedia, evolutionSendMedia, evolutionSendText, extractEvolutionMessageId, isEvolutionPayload, normalizeEvolutionPayload, redactEvolutionPayload, sameToken } from "../_shared/evolution.ts";
+import { evolutionConnectionEvent, evolutionDownloadMedia, evolutionSendMedia, evolutionSendText, extractEvolutionMessageId, isEvolutionPayload, normalizeEvolutionPayload, redactEvolutionPayload, sameToken } from "../_shared/evolution.ts";
 import { decryptWhatsAppMedia, encryptedMediaUrl, type WaMediaType } from "../_shared/whatsapp-media-crypto.ts";
 
 const corsHeaders = {
@@ -7114,13 +7114,26 @@ Deno.serve(async (req) => {
       rawWebhookEventId = await saveRawWebhookEvent(supabase, redactEvolutionPayload(body), req);
       const { data: evoInst } = await supabase
         .from('wapi_instances')
-        .select('instance_token, provider')
+        .select('id, instance_token, provider')
         .eq('instance_id', String(body.instanceId))
         .maybeSingle();
       if (!evoInst || evoInst.provider !== 'evolution' || !sameToken(evoToken, evoInst.instance_token)) {
         console.warn(`[Webhook] Evolution: token não confere para a instância ${body.instanceId} — rejeitado`);
         await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'ignored', processing_note: 'evolution_invalid_token' });
         return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      // Evento de conexão (caiu / voltou): o monitor confere o status real na
+      // hora, tenta reconectar e avisa o dono (sem repetir)
+      const connEvt = evolutionConnectionEvent(body);
+      if (connEvt) {
+        console.log(`[Webhook] Evolution: evento de conexão ${connEvt.event} (${connEvt.hint}) — chamando o monitor`);
+        waitUntil(fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/evolution-monitor`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
+          body: JSON.stringify({ instance_row_id: evoInst.id, reason: `webhook:${connEvt.event}` }),
+        }).then((r) => r.text()).catch((e) => console.error('[Webhook] monitor da Evolution falhou:', e)));
+        await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'completed', processing_note: `evolution_connection_${connEvt.event}` });
+        return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       const normalized = normalizeEvolutionPayload(body);
       if (!normalized) {
