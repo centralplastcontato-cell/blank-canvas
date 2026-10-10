@@ -134,7 +134,7 @@ import {
   Users, ArrowRightLeft, Trash2, Eraser,
   CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
   Pencil, Copy, ChevronDown, ChevronUp, Download, Pin, PinOff, Reply,
-  CheckSquare, MoreVertical, DollarSign, Bot, PlayCircle, Info
+  CheckSquare, MoreVertical, MoreHorizontal, DollarSign, Bot, PlayCircle, Info
 } from "lucide-react";
 import JSZip from "jszip";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
@@ -442,6 +442,8 @@ interface WhatsAppChatProps {
   onInstancesLoaded?: (instances: { id: string; unit: string | null; status: string | null }[]) => void;
   onLeadClosedMobile?: (lead: Lead) => void | Promise<void>;
   onUnreadCountChange?: () => void;
+  /** false enquanto a Central mostra a aba Leads (o chat fica carregado por trás) */
+  isVisible?: boolean;
 }
 
 const isLeadCompatibleWithInstance = (lead: Lead, instanceUnit: string | null | undefined) => {
@@ -529,7 +531,7 @@ import { useDraftMessages } from "@/hooks/useDraftMessages";
 import { configureWapiWebhooks } from "@/lib/wapi-webhook-config";
 import { useInstancePermissions } from "@/hooks/useInstancePermissions";
 
-export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded, onLeadClosedMobile, onUnreadCountChange }: WhatsAppChatProps) {
+export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded, onLeadClosedMobile, onUnreadCountChange, isVisible = true }: WhatsAppChatProps) {
   const { currentCompany } = useCompany();
   const { canViewAllInstances, allowedInstanceIds, isLoading: isLoadingInstancePerms } = useInstancePermissions(userId);
   const [instances, setInstances] = useState<WapiInstance[]>([]);
@@ -1141,11 +1143,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const connectedSameUnit = selectedUnitInstances.filter((instance) => instance.is_active !== false && isConnectedStatus(instance.status));
     return pickBestInstance(connectedSameUnit) || (selectedInstance.is_active !== false && isConnectedStatus(selectedInstance.status) ? selectedInstance : null);
   }, [selectedInstance, selectedUnitInstances, pickBestInstance]);
-  const selectedUnitInstanceIds = useMemo(() => {
-    if (!selectedInstance) return [];
+  // Números (instâncias) da unidade aberta. A lista só muda quando mudam os números,
+  // não quando muda o status de um deles: antes cada conferência de conexão apagava
+  // e recarregava todas as conversas.
+  const selectedUnitInstanceIdsKey = useMemo(() => {
+    if (!selectedInstance) return "";
     const ids = selectedUnitInstances.map((instance) => instance.id);
-    return ids.length > 0 ? ids : [selectedInstance.id];
-  }, [selectedInstance, selectedUnitInstances]);
+    return (ids.length > 0 ? ids : [selectedInstance.id]).join(",");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- de propósito pelo id: o status do número não importa aqui
+  }, [selectedInstance?.id, selectedUnitInstances]);
+  const selectedUnitInstanceIds = useMemo(
+    () => (selectedUnitInstanceIdsKey ? selectedUnitInstanceIdsKey.split(",") : []),
+    [selectedUnitInstanceIdsKey],
+  );
   const webhookConfiguredInstanceIdsRef = useRef<Set<string>>(new Set());
   const canUseSelectedInstanceForSending = !!selectedSendInstance;
 
@@ -1227,6 +1237,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     setUnreadNewMessagesCount(0);
     setIsAtBottom(true);
   }, []);
+
+  // Voltou da aba Leads para a aba Chat: o navegador pode perder a rolagem da conversa
+  // enquanto ela fica escondida; volta para onde estava (ou para a última mensagem)
+  useEffect(() => {
+    const id = activeConversationIdRef.current;
+    if (!isVisible || !id) return;
+    requestAnimationFrame(() => {
+      if (activeConversationIdRef.current !== id || restoreConversationScroll(id)) return;
+      if (isNarrowLayout) scrollToBottomMobile(false);
+      else scrollToBottomDesktop(false);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só quando a aba muda
+  }, [isVisible]);
 
   useEffect(() => {
     fetchTemplates();
@@ -1559,21 +1582,31 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   useEffect(() => () => {
     if (markReadTimerRef.current) clearTimeout(markReadTimerRef.current);
   }, []);
-  // Voltou para a aba do navegador com a conversa aberta: o que chegou nesse tempo
-  // passa a contar como lido
+  // A conversa aberta só conta como lida com o chat na tela: aba do navegador visível
+  // e a Central na aba Chat (na aba Leads o chat continua carregado, mas escondido)
+  const isVisibleRef = useRef(isVisible);
+  isVisibleRef.current = isVisible;
+  const chatOnScreen = () => document.visibilityState === 'visible' && isVisibleRef.current;
+  // Voltou para a aba do navegador (ou para a aba Chat) com a conversa aberta: o que
+  // chegou nesse tempo passa a contar como lido
   const selectedUnreadRef = useRef(0);
   selectedUnreadRef.current = selectedConversation?.unread_count || 0;
+  const markOpenConversationReadRef = useRef(() => {});
+  markOpenConversationReadRef.current = () => {
+    const id = selectedConversationRef.current;
+    if (!chatOnScreen() || !id || selectedUnreadRef.current <= 0) return;
+    setConversations(prev => prev.map(c => (c.id === id ? { ...c, unread_count: 0 } : c)));
+    setSelectedConversation(prev => (prev && prev.id === id ? { ...prev, unread_count: 0 } : prev));
+    scheduleMarkReadRef.current(id);
+  };
   useEffect(() => {
-    const onVisible = () => {
-      const id = selectedConversationRef.current;
-      if (document.visibilityState !== 'visible' || !id || selectedUnreadRef.current <= 0) return;
-      setConversations(prev => prev.map(c => (c.id === id ? { ...c, unread_count: 0 } : c)));
-      setSelectedConversation(prev => (prev && prev.id === id ? { ...prev, unread_count: 0 } : prev));
-      scheduleMarkReadRef.current(id);
-    };
+    const onVisible = () => markOpenConversationReadRef.current();
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
+  useEffect(() => {
+    if (isVisible) markOpenConversationReadRef.current();
+  }, [isVisible]);
   const messagesRef = useRef<Message[]>([]);
   messagesRef.current = messages;
   // Keep activeConversationIdRef in sync (used by async guards)
@@ -1705,7 +1738,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
               if (
                 newData.unread_count > (oldData.unread_count || 0) && 
                 !newData.last_message_from_me &&
-                newData.id !== selectedConversationRef.current
+                (newData.id !== selectedConversationRef.current || !isVisibleRef.current)
               ) {
                 notifyRef.current({
                   title: newData.contact_name || newData.contact_phone,
@@ -1724,7 +1757,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
               if (
                 updatedConv.id === selectedConversationRef.current &&
                 (updatedConv.unread_count || 0) > 0 &&
-                document.visibilityState === 'visible'
+                chatOnScreen()
               ) {
                 updatedConv.unread_count = 0;
                 scheduleMarkReadRef.current(updatedConv.id);
@@ -1804,7 +1837,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         supabase.removeChannel(conversationsChannel);
       };
     }
-  }, [selectedInstance, selectedUnitInstanceIds, initialPhone, initialPhoneProcessed]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recarrega ao trocar de número, não quando muda o status dele
+  }, [selectedInstance?.id, selectedUnitInstanceIds, initialPhone, initialPhoneProcessed]);
 
   // Track if at bottom using ref for realtime callback access
   const isAtBottomRef = useRef(true);
@@ -4988,8 +5022,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                     closedLeadCount={leadStatusConversationIds.fechado.size}
                     orcamentoEnviadoCount={leadStatusConversationIds.orcamento_enviado.size}
                     visitasCount={leadStatusConversationIds.em_contato.size}
-                    collapsible={true}
-                    defaultOpen={false}
+                    // Celular: os filtros já aparecem ao abrir "Busca e Filtros" (antes eram dois toques)
+                    collapsible={false}
                     filterOrder={filterOrder}
                     onFilterOrderChange={saveFilterOrder}
                     monthFilter={monthFilter}
@@ -4999,16 +5033,20 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
               </CollapsibleContent>
               <button
                 onClick={() => setIsSearchBarCollapsed(!isSearchBarCollapsed)}
-                className="w-full flex items-center justify-center gap-2 py-1 border-b border-border/60 text-xs text-muted-foreground hover:text-foreground transition-colors bg-card/80"
+                className="w-full flex items-center justify-center gap-2 py-2.5 border-b border-border/60 text-sm text-muted-foreground hover:text-foreground transition-colors bg-card/80"
               >
                 {isSearchBarCollapsed ? (
                   <>
-                    <Search className="w-3 h-3" />
+                    <Search className="w-4 h-4" />
                     <span className="font-medium">Busca e Filtros</span>
-                    <ChevronDown className="w-3.5 h-3.5" />
+                    {/* Fechado, mostra que tem filtro ligado */}
+                    {(filter !== 'all' || monthFilter !== 'all' || !!searchQuery) && (
+                      <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-primary/15 text-primary font-semibold leading-none">filtro ativo</span>
+                    )}
+                    <ChevronDown className="w-4 h-4" />
                   </>
                 ) : (
-                  <ChevronUp className="w-3.5 h-3.5" />
+                  <ChevronUp className="w-4 h-4" />
                 )}
               </button>
             </Collapsible>
@@ -5303,6 +5341,40 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                   <Star className="w-3 h-3 text-muted-foreground" />
                                 )}
                               </button>
+                              {/* Tablet (toque): as ações acima só aparecem com o mouse; aqui ficam num menu */}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="hidden [@media(hover:none)]:inline-flex p-1.5 -my-1 hover:bg-muted rounded"
+                                    title="Ações da conversa"
+                                  >
+                                    <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-52" onClick={(e) => e.stopPropagation()}>
+                                  <DropdownMenuItem onClick={() => toggleConversationClosed(conv)}>
+                                    <X className="w-4 h-4 mr-2" />
+                                    {conv.is_closed ? "Reabrir conversa" : "Encerrar conversa"}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => toggleScheduledVisit(conv)}>
+                                    <CalendarCheck className="w-4 h-4 mr-2" />
+                                    {conv.has_scheduled_visit ? "Desmarcar visita" : "Marcar visita agendada"}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => toggleFreelancer(conv)}>
+                                    <Briefcase className="w-4 h-4 mr-2" />
+                                    {conv.is_freelancer ? "Desmarcar freelancer" : "Marcar como freelancer"}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => toggleEquipe(conv)}>
+                                    <Users className="w-4 h-4 mr-2" />
+                                    {conv.is_equipe ? "Desmarcar equipe" : "Marcar como equipe"}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => toggleFavorite(conv)}>
+                                    {conv.is_favorite ? <StarOff className="w-4 h-4 mr-2" /> : <Star className="w-4 h-4 mr-2" />}
+                                    {conv.is_favorite ? "Tirar dos favoritos" : "Favoritar"}
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                               <ConversationStatusActions
                                 conversation={conv}
                                 linkedLead={conversationLeadsMap[conv.id] || null}
@@ -6178,7 +6250,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                       <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                                        // Tela de toque (tablet) não tem "passar o mouse": a setinha fica sempre à vista
+                                        className="h-6 w-6 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-60 transition-opacity shrink-0"
                                       >
                                         <ChevronDown className="w-3 h-3" />
                                       </Button>
@@ -6576,7 +6649,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 shrink-0"
+                      className="h-9 w-9 shrink-0"
                       onClick={() => {
                         clearLastActiveConversation();
                         setSelectedConversation(null);
@@ -6622,8 +6695,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                           </button>
                         )}
                       </p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        {selectedConversation.contact_phone}
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 min-w-0">
+                        <span className="truncate">{selectedConversation.contact_phone}</span>
                         {instances.length > 1 && instanceUnitMap[selectedConversation.instance_id] && (
                           <span className="text-[9px] px-1 py-0.5 rounded bg-muted font-medium leading-none">
                             {instanceUnitMap[selectedConversation.instance_id]}
@@ -6632,7 +6705,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         <ChevronDown className={cn("w-3 h-3 transition-transform", !isChatHeaderCollapsed && "rotate-180")} />
                       </p>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center shrink-0">
                       <LeadInfoPopover
                         linkedLead={linkedLead}
                         selectedConversation={selectedConversation}
@@ -6671,7 +6744,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-9 w-9"
                           onClick={() => setShowFinancialSheet(true)}
                           title="Financeiro do evento"
                         >
@@ -6681,7 +6754,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
+                        className="h-9 w-9"
                         onClick={() => toggleConversationClosed(selectedConversation)}
                         title={selectedConversation.is_closed ? "Reabrir conversa" : "Encerrar conversa"}
                       >
@@ -6695,7 +6768,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 relative"
+                        className="h-9 w-9 relative"
                         onClick={() => setShowAutomationTimeline(true)}
                         title="Automações enviadas"
                       >
@@ -6709,7 +6782,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
+                        className="h-9 w-9"
                         onClick={() => setShowContactInfoSheet(true)}
                         title="Dados do contato"
                       >
@@ -6722,7 +6795,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 shrink-0"
+                      className="h-9 w-9 shrink-0"
                       disabled={!linkedLead}
                       onClick={async () => {
                         if (!linkedLead) return;
@@ -6777,7 +6850,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 shrink-0"
+                      className="h-9 w-9 shrink-0"
                       onClick={() => toggleScheduledVisit(selectedConversation)}
                       title={selectedConversation.has_scheduled_visit ? "Desmarcar visita" : "Marcar visita agendada"}
                     >
@@ -6789,7 +6862,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 shrink-0"
+                      className="h-9 w-9 shrink-0"
                       onClick={() => toggleFreelancer(selectedConversation)}
                       title={selectedConversation.is_freelancer ? "Desmarcar como Freelancer" : "Marcar como Freelancer"}
                     >
@@ -6801,7 +6874,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 shrink-0"
+                      className="h-9 w-9 shrink-0"
                       onClick={() => toggleEquipe(selectedConversation)}
                       title={selectedConversation.is_equipe ? "Desmarcar como Equipe" : "Marcar como Equipe"}
                     >
@@ -6813,7 +6886,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 shrink-0"
+                      className="h-9 w-9 shrink-0"
                       onClick={() => toggleFavorite(selectedConversation)}
                     >
                       {selectedConversation.is_favorite ? (
@@ -6825,7 +6898,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                     <Button
                       variant="ghost"
                       size="icon"
-                      className={cn("h-7 w-7 shrink-0", isSelectMode && "bg-primary/10 text-primary")}
+                      className={cn("h-9 w-9 shrink-0", isSelectMode && "bg-primary/10 text-primary")}
                       onClick={() => { setIsSelectMode(prev => !prev); setSelectedMediaIds(new Set()); }}
                       title="Selecionar imagens"
                     >
@@ -6834,7 +6907,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 shrink-0"
+                      className="h-9 w-9 shrink-0"
                       onClick={openMessageSearch}
                       title="Buscar nas mensagens"
                     >
@@ -6865,13 +6938,13 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         {currentSearchIndex + 1}/{messageSearchResults.length}
                       </span>
                     )}
-                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => navigateSearchResult('prev')} disabled={messageSearchResults.length === 0}>
+                    <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigateSearchResult('prev')} disabled={messageSearchResults.length === 0}>
                       <ChevronUp className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => navigateSearchResult('next')} disabled={messageSearchResults.length === 0}>
+                    <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigateSearchResult('next')} disabled={messageSearchResults.length === 0}>
                       <ChevronDown className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={closeMessageSearch}>
+                    <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={closeMessageSearch}>
                       <X className="w-4 h-4" />
                     </Button>
                   </div>
@@ -7146,8 +7219,11 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         >
                           <div className={cn("relative w-full max-w-full min-w-0", msg.from_me ? "flex flex-row-reverse items-start gap-1" : "flex items-start gap-1")}>
                             <div
+                              {...(editingMessageId !== msg.id ? messagePressHandlers(msg.id) : {})}
+                              style={messageTouchStyle}
                               className={cn(
-                                "max-w-[85%] min-w-0 rounded-lg text-sm shadow-sm",
+                                // Segurar o dedo abre o menu, como no layout do tablet
+                                "max-w-[85%] min-w-0 rounded-lg text-sm shadow-sm [@media(hover:none)]:select-none",
                                 msg.from_me
                                   ? "bg-primary text-primary-foreground"
                                   : "bg-card border",
@@ -7369,12 +7445,13 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                             </div>
                             {/* Context menu for all messages - mobile */}
                             {editingMessageId !== msg.id && (
-                              <DropdownMenu>
+                              <DropdownMenu open={messageMenuId === msg.id} onOpenChange={(open) => setMessageMenuId(open ? msg.id : null)}>
                                 <DropdownMenuTrigger asChild>
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity shrink-0"
+                                    // Tela de toque não tem "passar o mouse": a setinha fica sempre à vista
+                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 active:opacity-100 [@media(hover:none)]:opacity-60 transition-opacity shrink-0"
                                   >
                                     <ChevronDown className="w-3 h-3" />
                                   </Button>
@@ -7555,7 +7632,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         <p className="text-xs font-medium text-primary">{replyingTo.from_me ? 'Você' : (selectedConversation?.contact_name || 'Contato')}</p>
                         <p className="text-xs text-muted-foreground truncate">{replyingTo.content || `[${replyingTo.message_type}]`}</p>
                       </div>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setReplyingTo(null)}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setReplyingTo(null)}>
                         <X className="w-3 h-3" />
                       </Button>
                     </div>

@@ -351,7 +351,7 @@ export function KanbanCard({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-5 w-5 flex-shrink-0 opacity-0 group-hover:opacity-100 hover:opacity-100"
+                    className="h-5 w-5 flex-shrink-0 opacity-0 group-hover:opacity-100 hover:opacity-100 [@media(hover:none)]:opacity-60"
                     onClick={handleStartEditName}
                     title="Editar nome"
                   >
@@ -444,7 +444,7 @@ export function KanbanCard({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover:opacity-100 hover:opacity-100 bg-card/90 hover:bg-card shadow-sm"
+                      className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover:opacity-100 hover:opacity-100 [@media(hover:none)]:opacity-60 bg-card/90 hover:bg-card shadow-sm"
                       onClick={handleStartEditDescription}
                       title="Editar observação"
                     >

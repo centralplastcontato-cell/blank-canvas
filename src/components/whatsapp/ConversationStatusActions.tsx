@@ -231,7 +231,8 @@ export function ConversationStatusActions({
         <button
           onClick={(e) => e.stopPropagation()}
           className={cn(
-            "opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded",
+            // Tela de toque não tem "passar o mouse": fica sempre à vista
+            "opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity p-1 hover:bg-muted rounded",
             className
           )}
           title="Alterar status do lead"

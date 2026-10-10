@@ -209,7 +209,7 @@ function MediaMessageImpl({
               <Button
                 size="icon"
                 variant="secondary"
-                className="absolute top-1.5 right-1.5 h-7 w-7 opacity-0 group-hover/img:opacity-100 transition-opacity shadow-md"
+                className="absolute top-1.5 right-1.5 h-7 w-7 opacity-0 group-hover/img:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity shadow-md"
                 title="Salvar imagem"
                 onClick={async (e) => {
                   e.stopPropagation();

@@ -383,3 +383,17 @@ O dono aprovou as 4 partes: 1 erros graves, 2 permissões e unidades, 3 aba Lead
   - mostra o nome da campanha;
   - aspas e quebras de linha não quebram a planilha;
   - texto começado por = + - @ ganha um ' na frente, para o Excel não rodar como fórmula.
+
+**Parte 4 (velocidade e celular), o que mudou:**
+- **O chat não recarrega à toa:**
+  - trocar entre Chat e Leads mantém o chat carregado (`forceMount`). Antes, cada troca buscava todas as conversas de novo (no Castelo, umas 5.000);
+  - a conferência de conexão do número não apaga mais a lista. O chat só recarrega quando muda o número escolhido (`selectedUnitInstanceIds` pelos ids, não pelo status);
+  - na aba Leads o chat fica escondido e **não marca como lida** a conversa aberta (`isVisible`). Ao voltar para Chat, conta como lida e a conversa volta para onde estava.
+- **Toque (celular e tablet):**
+  - segurar o dedo na mensagem abre o menu também no celular (o #239/#240 tinha ligado só no layout de tablet);
+  - a setinha do menu da mensagem, o "⋮" de situação do lead, o "salvar imagem" e os lápis do quadro ficam à vista em tela de toque (`[@media(hover:none)]`);
+  - no tablet, um menu "⋯" em cada conversa da lista reúne encerrar, visita, freelancer, equipe e favorito (antes só apareciam com o mouse). No computador nada muda.
+- **Celular:**
+  - "Busca e Filtros" mostra os filtros num toque só (antes eram dois), com a barra maior e o aviso "filtro ativo" quando ela está fechada;
+  - os botões do topo da conversa passaram de 28–32 px para 36 px;
+  - o telefone no topo não passa mais por baixo dos ícones.
