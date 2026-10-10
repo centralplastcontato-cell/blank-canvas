@@ -36,6 +36,7 @@ import { CalendarDays, Plus, Loader2, ShieldAlert, Menu, Clock, AlertTriangle, L
 import { ReportDialog } from "@/components/reports/ReportDialog";
 import { generateAgendaPDF, generateAgendaXLSX, generateFichaFestasPDF, generateFichaFestasXLSX } from "@/lib/generateAgendaPDF";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format, startOfMonth, endOfMonth, differenceInDays } from "date-fns";
 import { AgendaTarefasTab } from "@/components/agenda/AgendaTarefasTab";
 import { AgendaTudoTab } from "@/components/agenda/AgendaTudoTab";
@@ -1531,41 +1532,32 @@ export default function Agenda() {
           {/* Tab: Festas (original content) */}
           {centralTab === "festas" && (<>
 
-          <PullToRefresh onRefresh={async () => { await fetchEvents(); }} className="flex-1 p-3 md:p-6 lg:p-8 overflow-x-hidden overflow-y-auto">
+          <PullToRefresh onRefresh={async () => { await fetchEvents(); }} className="flex-1 p-3 pb-28 md:p-6 lg:p-8 overflow-x-hidden overflow-y-auto">
             <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
               {/* Celular: sub-abas, botões, unidade e busca rolam junto com a página
                   (antes ficavam presos no topo e tomavam quase metade da tela) */}
               <div className="md:hidden space-y-2.5">
+                {/* Sub-abas discretas (cinza claro, a escolhida em branco): ficam visivelmente
+                    "dentro" de Festas, sem competir com as abas principais */}
                 <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas" | "pre-reservas")}>
-                  <TabsList className="inline-flex gap-1 p-1 rounded-2xl bg-muted/50 border border-border/40 shadow-sm h-auto w-full">
-                    <TabsTrigger value="agendadas" className="flex-1 gap-1.5 text-xs font-semibold rounded-xl px-3 py-2 transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 data-[state=active]:scale-[1.02] data-[state=inactive]:bg-muted data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/80">
-                      <CalendarDays className="h-3.5 w-3.5" />
+                  <TabsList className="grid w-full grid-cols-3 gap-1 p-1 rounded-full bg-muted h-auto">
+                    <TabsTrigger value="agendadas" className="flex-1 min-w-0 gap-1 h-9 px-1 text-xs font-semibold rounded-full text-muted-foreground transition-colors data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm">
                       Agendadas
                     </TabsTrigger>
-                    <TabsTrigger value="fechadas" className="flex-1 gap-1.5 text-xs font-semibold rounded-xl px-3 py-2 transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 data-[state=active]:scale-[1.02] data-[state=inactive]:bg-muted data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/80">
-                      <Handshake className="h-3.5 w-3.5" />
+                    <TabsTrigger value="fechadas" className="flex-1 min-w-0 gap-1 h-9 px-1 text-xs font-semibold rounded-full text-muted-foreground transition-colors data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm">
                       Fechadas
                       {closedStats.count > 0 && (
-                        <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{closedStats.count}</Badge>
+                        <span className="rounded-full bg-primary/10 text-primary px-1.5 text-[10px] font-bold">{closedStats.count}</span>
                       )}
                     </TabsTrigger>
-                    <TabsTrigger value="pre-reservas" className="flex-1 gap-1.5 text-xs font-semibold rounded-xl px-3 py-2 transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 data-[state=active]:scale-[1.02] data-[state=inactive]:bg-muted data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/80">
-                      <CalendarClock className="h-3.5 w-3.5" />
+                    <TabsTrigger value="pre-reservas" className="flex-1 min-w-0 gap-1 h-9 px-1 text-xs font-semibold rounded-full text-muted-foreground transition-colors data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm">
                       Pré-reservas
                       {allPreReservations.filter(pr => pr.status === "ativa").length > 0 && (
-                        <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{allPreReservations.filter(pr => pr.status === "ativa").length}</Badge>
+                        <span className="rounded-full bg-pink-500/15 text-pink-700 px-1.5 text-[10px] font-bold">{allPreReservations.filter(pr => pr.status === "ativa").length}</span>
                       )}
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button size="sm" className="h-11 rounded-full gap-2 font-semibold shadow-sm" onClick={() => { setEditingEvent(null); setFormOpen(true); }}>
-                    <Plus className="h-4 w-4" /> Nova Festa
-                  </Button>
-                  <Button size="sm" variant="outline" className="h-11 rounded-full gap-2 font-semibold shadow-sm border-pink-300 text-pink-600 hover:bg-pink-50" onClick={() => { setEditingPreRes(null); setPreResFormOpen(true); }}>
-                    <CalendarClock className="h-4 w-4" /> Pré-reserva
-                  </Button>
-                </div>
           {/* Mobile unit filter — hidden when units are sales channels only */}
           {!isSalesChannelOnly && (() => {
             const visibleUnits = canViewAll ? physicalUnits : physicalUnits.filter(u => unitAccess[u.name]);
@@ -1583,9 +1575,9 @@ export default function Agenda() {
             );
           })()}
 
-          {/* Search bar - mobile */}
-          <div>
-            <div className="relative group">
+          {/* Search bar - mobile (com o período no ícone ao lado) */}
+          <div className="flex items-center gap-2">
+            <div className="relative group flex-1 min-w-0">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 blur-sm" />
               <div className="relative flex items-center bg-card border border-border/40 rounded-2xl shadow-sm group-focus-within:shadow-md group-focus-within:border-primary/30 transition-all duration-300">
                 <Search className="ml-3 h-4 w-4 text-muted-foreground/60 group-focus-within:text-primary transition-colors duration-300 shrink-0" />
@@ -1602,6 +1594,7 @@ export default function Agenda() {
                 )}
               </div>
             </div>
+            <PeriodFilterPopover variant="icon" onConfirm={handlePeriodConfirm} activePeriod={periodRange} onClear={handlePeriodClear} />
           </div>
 
               </div>
@@ -1846,11 +1839,21 @@ export default function Agenda() {
 
               {/* Period filter + Summary */}
               <div className="space-y-4">
-                <PeriodFilterPopover
-                  onConfirm={handlePeriodConfirm}
-                  activePeriod={periodRange}
-                  onClear={handlePeriodClear}
-                />
+                <div className="hidden md:block">
+                  <PeriodFilterPopover
+                    onConfirm={handlePeriodConfirm}
+                    activePeriod={periodRange}
+                    onClear={handlePeriodClear}
+                  />
+                </div>
+                {periodRange && (
+                  <div className="md:hidden inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-3 py-1.5 text-xs font-medium text-primary">
+                    Período: {format(periodRange.from, "dd/MM")} – {format(periodRange.to, "dd/MM/yyyy")}
+                    <button onClick={handlePeriodClear} className="ml-1 rounded-full p-0.5 hover:bg-primary/20" aria-label="Limpar período">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
                 <MonthSummaryCards
                   events={periodRange ? periodFilteredEvents : filteredEvents}
                   month={month}
@@ -2439,6 +2442,30 @@ export default function Agenda() {
               )}
             </div>
           </PullToRefresh>
+
+          {/* Celular: botão + flutuante para criar festa ou pré-reserva. Fica acima da
+              barra de endereço do Safari (que flutua sobre o fim da tela no iPhone) */}
+          <div className="md:hidden fixed right-4 bottom-[5.5rem] z-30">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Criar festa ou pré-reserva"
+                  className="h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center active:scale-95 transition-transform"
+                >
+                  <Plus className="h-7 w-7" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="top" align="end" sideOffset={10} className="w-52 rounded-2xl p-1.5">
+                <DropdownMenuItem className="rounded-xl gap-2.5 py-2.5 text-sm font-medium" onClick={() => { setEditingEvent(null); setFormOpen(true); }}>
+                  <CalendarDays className="h-4 w-4 text-primary" /> Nova festa
+                </DropdownMenuItem>
+                <DropdownMenuItem className="rounded-xl gap-2.5 py-2.5 text-sm font-medium" onClick={() => { setEditingPreRes(null); setPreResFormOpen(true); }}>
+                  <CalendarClock className="h-4 w-4 text-pink-600" /> Pré-reserva
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
           </>)}
         </div>
