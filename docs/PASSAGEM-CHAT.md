@@ -232,6 +232,21 @@ O dono aprovou: parte 1 (financeiro e erros graves), parte 2 (números certos), 
 - **Período:** as vendas do mês e as do período ficam separadas. Trocar o mês ou a unidade não estraga mais o período, e limpar volta para o mês.
 - **Atalhos de período:** "Semestre atual" vai de janeiro a junho ou de julho a dezembro (`src/lib/periodPresets.ts`).
 
+**Parte 3 ("o que falta resolver"):**
+- **Festas → "O que falta resolver"** (`UpcomingIssuesCard`, regras em `src/lib/agendaIssues.ts`):
+  - olha as próximas festas dos 60 dias seguintes;
+  - mostra parcela vencida (o recebido não cobre), ainda pendente, sem valor (permuta não conta), sem horário e sem unidade;
+  - contrato assinado ficou de fora, porque quase ninguém marca a assinatura no sistema;
+  - tocar abre a festa;
+  - a lista confere de novo ao fechar a festa.
+- **Visitas → "Visitas sem resultado"** (`PendingVisitOutcomesCard`):
+  - visitas que já passaram, sem atendimento;
+  - botões Veio, Não veio, Remarcou (abre a visita com a remarcação) e Cancelou.
+- **Aviso "a visita aconteceu?" da Central:**
+  - não pergunta mais de atendimento;
+  - "Remarcou" abre a visita certa (`/agenda?tab=visitas&visita=<id>`).
+- **Aba Visitas:** recarregar não troca mais a tela por "carregando", então a visita aberta não fecha sozinha.
+
 **Números em 09/10:**
 - 404 festas passadas ainda como confirmado/pendente (ninguém marca "realizada").
 - 233 visitas passadas sem resultado.
