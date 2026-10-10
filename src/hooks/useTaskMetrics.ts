@@ -10,7 +10,7 @@ export interface TaskMetrics {
   rankingByAssignee: { name: string; count: number }[];
 }
 
-export function useTaskMetrics(tasks: CompanyTask[]): TaskMetrics {
+export function useTaskMetrics(tasks: CompanyTask[], names?: Map<string, string>): TaskMetrics {
   return useMemo(() => {
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -64,10 +64,11 @@ export function useTaskMetrics(tasks: CompanyTask[]): TaskMetrics {
       weeklyData.push({ week: label, count });
     }
 
-    // Ranking by assignee
+    // Ranking por responsável (pelo nome; tarefa sem responsável não entra)
     const assigneeCounts: Record<string, number> = {};
     completed.forEach((t) => {
-      const key = t.assigned_to || "Sem responsável";
+      if (!t.assigned_to) return;
+      const key = names?.get(t.assigned_to) || "Sem nome";
       assigneeCounts[key] = (assigneeCounts[key] || 0) + 1;
     });
     const rankingByAssignee = Object.entries(assigneeCounts)
@@ -83,5 +84,5 @@ export function useTaskMetrics(tasks: CompanyTask[]): TaskMetrics {
       weeklyData,
       rankingByAssignee,
     };
-  }, [tasks]);
+  }, [tasks, names]);
 }

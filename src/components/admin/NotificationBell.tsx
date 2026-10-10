@@ -264,6 +264,9 @@ export function NotificationBell() {
         setIsOpen(false);
         navigate(`/atendimento?lead=${notification.data.lead_id}`);
       }
+    } else if (notification.type === "tarefa_vencendo" || notification.type === "tarefa_atribuida") {
+      setIsOpen(false);
+      navigate("/agenda?tab=tarefas");
     } else if (notification.data && typeof notification.data === "object" && "lead_id" in notification.data) {
       setIsOpen(false);
       navigate(`/atendimento?lead=${notification.data.lead_id}`);

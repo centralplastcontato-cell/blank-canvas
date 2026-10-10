@@ -8,11 +8,13 @@ import { useTaskMetrics } from "@/hooks/useTaskMetrics";
 
 interface Props {
   tasks: CompanyTask[];
+  /** nome de cada pessoa (para o ranking por responsável) */
+  names?: Map<string, string>;
 }
 
-export function TaskProductivityDashboard({ tasks }: Props) {
+export function TaskProductivityDashboard({ tasks, names }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const metrics = useTaskMetrics(tasks);
+  const metrics = useTaskMetrics(tasks, names);
 
   const formatTime = (hours: number | null) => {
     if (hours === null) return "—";

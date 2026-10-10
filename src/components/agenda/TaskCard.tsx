@@ -2,7 +2,7 @@ import { format, parseISO, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, Clock, Repeat, Link2 } from "lucide-react";
+import { Pencil, Trash2, Clock, Repeat, Link2, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TASK_CATEGORIES, TASK_PRIORITIES, TASK_STATUSES, RECURRENCE_OPTIONS, type CompanyTask, type TaskStatus } from "@/hooks/useTasks";
 import {
@@ -19,9 +19,11 @@ interface TaskCardProps {
   onEdit: (task: CompanyTask) => void;
   onDelete: (id: string) => void;
   onStatusChange?: (id: string, status: TaskStatus) => void;
+  /** nome do responsável */
+  assigneeName?: string;
 }
 
-export function TaskCard({ task, onToggle, onEdit, onDelete, onStatusChange }: TaskCardProps) {
+export function TaskCard({ task, onToggle, onEdit, onDelete, onStatusChange, assigneeName }: TaskCardProps) {
   const cat = TASK_CATEGORIES.find((c) => c.value === task.category);
   const pri = TASK_PRIORITIES.find((p) => p.value === task.priority);
   const currentStatus = TASK_STATUSES.find((s) => s.value === task.status) || TASK_STATUSES[0];
@@ -91,6 +93,12 @@ export function TaskCard({ task, onToggle, onEdit, onDelete, onStatusChange }: T
             <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal border border-primary/30 text-primary bg-primary/5">
               <Link2 className="h-2.5 w-2.5 mr-0.5" />
               Vinculada
+            </Badge>
+          )}
+          {assigneeName && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-medium border-sky-200 bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300 dark:border-sky-800/50">
+              <User className="h-2.5 w-2.5 mr-0.5" />
+              {assigneeName}
             </Badge>
           )}
           {pri && (

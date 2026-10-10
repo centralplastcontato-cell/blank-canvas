@@ -3,11 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { Clock, Pencil, Trash2, Repeat, Link2, Calendar, FileText, AlertTriangle, CheckCircle2, PartyPopper, MessageSquare } from "lucide-react";
+import { Clock, Pencil, Trash2, Repeat, Link2, Calendar, FileText, AlertTriangle, CheckCircle2, PartyPopper, MessageSquare, User } from "lucide-react";
 import { format, parseISO, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { TASK_CATEGORIES, TASK_PRIORITIES, TASK_STATUSES, RECURRENCE_OPTIONS, WEEKDAYS, type CompanyTask, type TaskStatus } from "@/hooks/useTasks";
+import { TASK_CATEGORIES, TASK_PRIORITIES, TASK_STATUSES, type CompanyTask, type TaskStatus } from "@/hooks/useTasks";
+import { describeRecurrence, isSeries } from "@/lib/taskOccurrences";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,9 +20,11 @@ interface TaskDetailSheetProps {
   onEdit: (task: CompanyTask) => void;
   onDelete: (id: string) => void;
   onStatusChange: (id: string, status: TaskStatus) => void;
+  /** nome do responsável */
+  assigneeName?: string;
 }
 
-export function TaskDetailSheet({ open, onOpenChange, task, onEdit, onDelete, onStatusChange }: TaskDetailSheetProps) {
+export function TaskDetailSheet({ open, onOpenChange, task, onEdit, onDelete, onStatusChange, assigneeName }: TaskDetailSheetProps) {
   const [linkedEvent, setLinkedEvent] = useState<{ id: string; title: string; event_date: string; start_time?: string } | null>(null);
   const [observacoes, setObservacoes] = useState("");
   const [savingObs, setSavingObs] = useState(false);
@@ -29,10 +32,21 @@ export function TaskDetailSheet({ open, onOpenChange, task, onEdit, onDelete, on
 
   const taskAny = task as any;
 
+  // Observações: lê do banco ao abrir (a lista pode estar com o texto antigo e
+  // escrever por cima apagaria o que foi salvo antes)
   useEffect(() => {
-    if (open && task) {
-      setObservacoes((taskAny?.observacoes as string) || "");
-    }
+    if (!open || !task) return;
+    setObservacoes((taskAny?.observacoes as string) || "");
+    let cancelled = false;
+    supabase
+      .from("company_tasks")
+      .select("observacoes")
+      .eq("id", task.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled && data) setObservacoes(data.observacoes || "");
+      });
+    return () => { cancelled = true; };
   }, [open, task?.id]);
 
   useEffect(() => {
@@ -66,24 +80,10 @@ export function TaskDetailSheet({ open, onOpenChange, task, onEdit, onDelete, on
   const cat = TASK_CATEGORIES.find((c) => c.value === task.category);
   const pri = TASK_PRIORITIES.find((p) => p.value === task.priority);
   const currentStatus = TASK_STATUSES.find((s) => s.value === task.status) || TASK_STATUSES[0];
-  const recurrence = taskAny?.is_recurring ? RECURRENCE_OPTIONS.find(r => r.value === taskAny.recurrence_type) : null;
+  const recurrence = isSeries(task);
 
   const isOverdue = task.due_date && !task.completed && isPast(parseISO(task.due_date)) && !isToday(parseISO(task.due_date));
   const isDueToday = task.due_date && isToday(parseISO(task.due_date));
-
-  const recurrenceLabel = () => {
-    if (!recurrence) return "";
-    const interval = (taskAny.recurrence_interval || 1) > 1 ? `a cada ${taskAny.recurrence_interval} ` : "";
-    switch (taskAny.recurrence_type) {
-      case "diaria": return `Repete ${interval}dia${(taskAny.recurrence_interval || 1) > 1 ? "s" : ""}`;
-      case "semanal": {
-        const days = (taskAny.recurrence_days || []).map((d: number) => WEEKDAYS.find(w => w.value === d)?.label).filter(Boolean).join(", ");
-        return `Repete ${interval}semana${(taskAny.recurrence_interval || 1) > 1 ? "s" : ""}${days ? ` (${days})` : ""}`;
-      }
-      case "mensal": return `Repete ${interval}mês${(taskAny.recurrence_interval || 1) > 1 ? "es" : ""}`;
-      default: return "Recorrente";
-    }
-  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -126,6 +126,16 @@ export function TaskDetailSheet({ open, onOpenChange, task, onEdit, onDelete, on
               <Badge variant="outline" className={cn("text-xs px-2 py-0.5 border", pri.color)}>
                 {pri.label}
               </Badge>
+            </div>
+          )}
+
+          {/* Responsável */}
+          {assigneeName && (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground w-20 shrink-0">Responsável</span>
+              <span className="flex items-center gap-1.5 text-sm font-medium">
+                <User className="h-4 w-4 text-sky-600" /> {assigneeName}
+              </span>
             </div>
           )}
 
@@ -202,7 +212,7 @@ export function TaskDetailSheet({ open, onOpenChange, task, onEdit, onDelete, on
                 <span className="text-sm font-semibold text-primary">Tarefa Recorrente</span>
               </div>
               <p className="text-xs text-muted-foreground mt-1 pl-6">
-                {recurrenceLabel()}
+                {describeRecurrence(task)}
                 {taskAny.recurrence_end_date && ` · Até ${format(parseISO(taskAny.recurrence_end_date), "dd/MM/yyyy")}`}
               </p>
             </div>
