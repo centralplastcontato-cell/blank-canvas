@@ -16,6 +16,7 @@ import { useUnreadCountRealtime, useLeadsRealtime } from "@/hooks/useRealtimeOpt
 import { Lead, LeadStatus, UserWithRole, Profile, AppRole, LeadFilters, LEAD_STATUS_LABELS } from "@/types/crm";
 import { applyLeadFilters, filterDay, leadScopeIsEmpty, leadSelect } from "@/lib/leadQuery";
 import { KANBAN_STATUSES } from "@/lib/leadKanban";
+import { cn } from "@/lib/utils";
 import { mergeLeadUpdate, summarizeLegacyReturns, withReturnInfo } from "@/lib/leadReturns";
 import { LeadsTable } from "@/components/admin/LeadsTable";
 import { LeadsFilters } from "@/components/admin/LeadsFilters";
@@ -124,6 +125,8 @@ export default function CentralAtendimento() {
 
   const { units } = useCompanyUnits(currentCompany?.id);
   const [activeTab, setActiveTab] = useState<"chat" | "leads">("chat");
+  // Celular: com uma conversa aberta, o topo do app e as abas somem (mais espaço para as mensagens)
+  const [phoneConversationOpen, setPhoneConversationOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadPerInstance, setUnreadPerInstance] = useState<Record<string, number>>({});
   const [newLeadsCount, setNewLeadsCount] = useState(0);
@@ -1009,6 +1012,8 @@ export default function CentralAtendimento() {
     return (
       <div className="h-dvh flex flex-col overflow-hidden bg-background">
         <Helmet><title>Atendimento</title></Helmet>
+        {/* Topo do app e avisos: somem com uma conversa aberta (voltam ao sair dela) */}
+        <div className={phoneConversationOpen && activeTab === "chat" ? "hidden" : "contents"}>
         {/* Mobile Header */}
         <header className="bg-card border-b border-border shrink-0 z-10">
           <div className="px-3 py-3">
@@ -1135,29 +1140,31 @@ export default function CentralAtendimento() {
         {modules.onboarding_checklist && (isAdmin || role === 'gestor') && (
           <OnboardingBanner />
         )}
+        </div>
 
         <main className="flex-1 flex flex-col overflow-hidden min-h-0">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "chat" | "leads")} className="flex-1 flex flex-col overflow-hidden min-h-0">
             {/* Always-visible row: Chat/Leads tabs + unit selector */}
-            <div className="mx-3 mt-1.5 grid grid-cols-[auto,minmax(0,1fr)] items-center gap-2 min-w-0">
+            <div className={cn("mx-3 mt-1.5 grid grid-cols-[auto,minmax(0,1fr)] items-center gap-2 min-w-0", phoneConversationOpen && activeTab === "chat" && "hidden")}>
               <TabsList className="w-auto flex-shrink-0">
-                <TabsTrigger value="chat" className="flex items-center gap-1.5 text-xs relative">
+                {/* O número fica ao lado do nome (antes ficava por cima e cobria "Chat"/"Leads") */}
+                <TabsTrigger value="chat" className="flex items-center gap-1 text-xs px-2.5">
                   <MessageSquare className="w-4 h-4" />
                   Chat
                   {unreadCount > 0 && (
                     <AnimatedBadge 
                       value={unreadCount > 99 ? "99+" : unreadCount}
-                      className="absolute -top-1.5 -right-1.5 h-5 min-w-5 px-1 text-[10px] flex items-center justify-center rounded-full bg-primary text-primary-foreground"
+                      className="h-5 min-w-5 px-1 text-[10px] flex items-center justify-center rounded-full bg-primary text-primary-foreground"
                     />
                   )}
                 </TabsTrigger>
-                <TabsTrigger value="leads" className="flex items-center gap-1.5 text-xs relative">
+                <TabsTrigger value="leads" className="flex items-center gap-1 text-xs px-2.5">
                   <LayoutList className="w-4 h-4" />
                   Leads
                   {newLeadsCount > 0 && (
                     <AnimatedBadge 
                       value={newLeadsCount > 99 ? "99+" : newLeadsCount}
-                      className="absolute -top-1.5 -right-1.5 h-5 min-w-5 px-1 text-[10px] flex items-center justify-center rounded-full bg-primary text-primary-foreground"
+                      className="h-5 min-w-5 px-1 text-[10px] flex items-center justify-center rounded-full bg-primary text-primary-foreground"
                     />
                   )}
                 </TabsTrigger>
@@ -1269,6 +1276,7 @@ export default function CentralAtendimento() {
                   onLeadClosedMobile={handleLeadClosed}
                   onUnreadCountChange={fetchUnreadCount}
                   isVisible={activeTab === "chat"}
+                  onConversationOpenChange={setPhoneConversationOpen}
                   onInstancesLoaded={(instances) => {
                     setChatInstances(instances);
                     if (!selectedChatUnit && instances.length > 0) {

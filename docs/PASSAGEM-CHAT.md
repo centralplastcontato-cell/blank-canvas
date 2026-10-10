@@ -397,3 +397,21 @@ O dono aprovou as 4 partes: 1 erros graves, 2 permissões e unidades, 3 aba Lead
   - "Busca e Filtros" mostra os filtros num toque só (antes eram dois), com a barra maior e o aviso "filtro ativo" quando ela está fechada;
   - os botões do topo da conversa passaram de 28–32 px para 36 px;
   - o telefone no topo não passa mais por baixo dos ícones.
+
+**Visual no celular (pedido do dono, 10/10, a partir das fotos do iPhone):**
+- **Conversa aberta usa a tela toda:**
+  - o topo do app, os avisos e as abas Chat/Leads somem enquanto a conversa está aberta e voltam ao sair dela (`onConversationOpenChange` → `phoneConversationOpen`);
+  - o topo da conversa virou uma linha só: as ações da antiga 2ª linha (orçamento, visita, freelancer, equipe, favorito, buscar, selecionar imagens) estão no "⋮", com nome;
+  - o que está marcado aparece como ícone na barra de Status;
+  - tocar no nome abre "Dados do contato".
+- **Campo de digitar:**
+  - escreve "Mensagem";
+  - enquanto se digita, somem modelos e materiais e o botão vira "enviar" (sem texto, é o microfone);
+  - a caixa cresce com o texto.
+- **Ficha do lead (botão "i"):** no celular abre de baixo para cima (Sheet) e fecha sozinha ao abrir visita, transferir, excluir, grupo ou festa. No computador continua a caixinha.
+- **Dados do contato:** fica um X só para fechar.
+- **Telefone:** aparece como "(15) 99113-1863" no topo da conversa, em "Dados do contato", na ficha e na lista (`formatPhoneBR` em `src/lib/mask-utils.ts`).
+- **Lista:**
+  - a etiqueta da unidade só aparece quando a conversa é de outra unidade;
+  - o "99+" fica ao lado de "Chat"/"Leads", sem cobrir a palavra;
+  - no celular a setinha das mensagens fica invisível (segurar o dedo abre o menu).

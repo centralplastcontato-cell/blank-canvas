@@ -9,6 +9,19 @@ export function maskPhone(phone: string): string {
 }
 
 /**
+ * Telefone do Brasil para mostrar na tela: 5515991131863 ou 15991131863 → (15) 99113-1863.
+ * Fixo/antigo com 8 dígitos → (15) 3213-1863. Outros (exterior, grupo) ficam como vieram.
+ */
+export function formatPhoneBR(phone: string | null | undefined): string {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  const local = digits.startsWith('55') && (digits.length === 12 || digits.length === 13) ? digits.slice(2) : digits;
+  if (local.length === 11) return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
+  if (local.length === 10) return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
+  return phone;
+}
+
+/**
  * Formats a CPF string with mask: 000.000.000-00
  */
 export function formatCPF(value: string): string {

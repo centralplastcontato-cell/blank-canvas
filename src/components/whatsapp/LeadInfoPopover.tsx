@@ -9,6 +9,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,7 +27,7 @@ import {
   Sparkles, UserCheck,
 } from "lucide-react";
 import { eventRowToFormData, saveEvent } from "@/lib/eventSave";
-import { maskPhone } from "@/lib/mask-utils";
+import { formatPhoneBR, maskPhone } from "@/lib/mask-utils";
 import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
@@ -238,9 +239,9 @@ export function LeadInfoPopover({
   isCreatingLead,
   userId,
   currentUserName,
-  onShowTransferDialog,
-  onShowDeleteDialog,
-  onShowShareToGroupDialog,
+  onShowTransferDialog: onShowTransferDialogProp,
+  onShowDeleteDialog: onShowDeleteDialogProp,
+  onShowShareToGroupDialog: onShowShareToGroupDialogProp,
   onCreateAndClassifyLead,
   onToggleConversationBot,
   onReactivateBot,
@@ -249,10 +250,19 @@ export function LeadInfoPopover({
   onToggleFavorite,
   onLeadNameChange,
   onLeadObsChange,
-  onShowVisitDialog,
+  onShowVisitDialog: onShowVisitDialogProp,
   mobile = false,
   visitRefreshKey = 0,
 }: LeadInfoPopoverProps) {
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  // Celular: ao abrir outra janela (visita, transferir, excluir, grupo, festa) a ficha fecha,
+  // como a caixinha do computador
+  const onShowTransferDialog = () => { setMobileSheetOpen(false); onShowTransferDialogProp(); };
+  const onShowDeleteDialog = () => { setMobileSheetOpen(false); onShowDeleteDialogProp(); };
+  const onShowShareToGroupDialog = () => { setMobileSheetOpen(false); onShowShareToGroupDialogProp(); };
+  const onShowVisitDialog = onShowVisitDialogProp
+    ? (type?: "visita" | "atendimento") => { setMobileSheetOpen(false); onShowVisitDialogProp(type); }
+    : undefined;
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
   const [isSavingName, setIsSavingName] = useState(false);
@@ -281,6 +291,7 @@ export function LeadInfoPopover({
 
   const handleEventFormOpenChange = (nextOpen: boolean) => {
     setEventFormOpen(nextOpen);
+    if (nextOpen) setMobileSheetOpen(false);
     if (!eventOpenStorageKey) return;
 
     try {
@@ -583,10 +594,9 @@ export function LeadInfoPopover({
 
 
 
-  return (
-    <>
-    <Popover>
-      <PopoverTrigger asChild>
+  // Conteúdo da ficha: no celular abre de baixo para cima, ocupando a tela
+  // (antes era uma caixa estreita por cima do chat, cortada embaixo)
+  const triggerButton = (
         <Button
           variant="ghost"
           size="icon"
@@ -598,19 +608,9 @@ export function LeadInfoPopover({
             isGroup ? "text-muted-foreground" : (linkedLead ? "text-primary" : "text-destructive")
           )} />
         </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="end"
-        collisionPadding={12}
-        className={cn(
-          "p-0 rounded-2xl shadow-2xl shadow-black/10 border-border/30 overflow-hidden backdrop-blur-sm",
-          // max-h usa o espaço real disponível na tela a partir de onde o card
-          // abre (var do Radix); só vh deixava o card estourar o rodapé no iPad
-          mobile
-            ? "w-[310px] max-h-[min(70vh,var(--radix-popover-content-available-height))] overflow-y-auto"
-            : "w-[360px] max-h-[min(80vh,var(--radix-popover-content-available-height))] overflow-y-auto"
-        )}
-      >
+  );
+  const panel = (
+    <>
         {isGroup ? (
           /* ── GROUP VIEW ── */
           <div className="p-4 space-y-4">
@@ -717,7 +717,7 @@ export function LeadInfoPopover({
                         </Button>)}
                       </div>
                       <div className="flex items-center gap-1">
-                        <p className="text-[11px] text-muted-foreground/70 font-medium">{canViewContact ? linkedLead.whatsapp : maskPhone(linkedLead.whatsapp)}</p>
+                        <p className="text-[11px] text-muted-foreground/70 font-medium">{canViewContact ? formatPhoneBR(linkedLead.whatsapp) : maskPhone(linkedLead.whatsapp)}</p>
                         {canEditLead && (<Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 rounded-md opacity-60 hover:opacity-100" onClick={openEditPhone} title="Editar telefone">
                           <Pencil className="w-2.5 h-2.5" />
                         </Button>)}
@@ -1236,8 +1236,43 @@ export function LeadInfoPopover({
             </div>
           </div>
         )}
+    </>
+  );
+
+  return (
+    <>
+    {mobile ? (
+      <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
+        <SheetTrigger asChild>
+          {triggerButton}
+        </SheetTrigger>
+        <SheetContent side="bottom" className="p-0 rounded-t-2xl max-h-[92dvh] overflow-y-auto">
+          <SheetTitle className="sr-only">Ficha do lead</SheetTitle>
+          <div className="flex justify-center pt-3 pb-5">
+            <span className="h-1.5 w-12 rounded-full bg-muted-foreground/25" />
+          </div>
+          {panel}
+        </SheetContent>
+      </Sheet>
+    ) : (
+    <Popover>
+      <PopoverTrigger asChild>
+        {triggerButton}
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        collisionPadding={12}
+        className={cn(
+          "p-0 rounded-2xl shadow-2xl shadow-black/10 border-border/30 overflow-hidden backdrop-blur-sm",
+          // max-h usa o espaço real disponível na tela a partir de onde o card
+          // abre (var do Radix); só vh deixava o card estourar o rodapé no iPad
+          "w-[360px] max-h-[min(80vh,var(--radix-popover-content-available-height))] overflow-y-auto"
+        )}
+      >
+        {panel}
       </PopoverContent>
     </Popover>
+    )}
 
     {/* Event Form Dialog */}
     {linkedLead && (
