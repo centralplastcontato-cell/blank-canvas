@@ -141,8 +141,7 @@ import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { LinkPreviewCard, extractFirstUrl } from "@/components/whatsapp/LinkPreviewCard";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
-import { usePermissions } from "@/hooks/usePermissions";
-import { useUserRole } from "@/hooks/useUserRole";
+import { useLeadPermissions } from "@/hooks/useLeadPermissions";
 import { useMessagesRealtime } from "@/hooks/useMessagesRealtime";
 import { useWhatsAppConnection, ConnectableInstance } from "@/hooks/useWhatsAppConnection";
 import { ConnectionDialog } from "@/components/whatsapp/ConnectionDialog";
@@ -1120,20 +1119,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     error: recordingError,
   } = useAudioRecorder({ maxDuration: 120 });
 
-  // Permissions hook - check all WhatsApp granular permissions
-  const { hasPermission: hasUserPermission } = usePermissions(userId);
-  const { isAdmin } = useUserRole(userId);
+  // Permissões (regras em src/lib/leadPermissions.ts): nada fica liberado enquanto carregam
+  const leadPerms = useLeadPermissions(userId);
   const financialPerms = useFinancialPermissions(userId);
   const consentHookChat = useFinancialConsent();
-  const canTransferLeads = isAdmin || hasUserPermission('leads.transfer');
-  const canDeleteFromChat = isAdmin || hasUserPermission('leads.delete.from_chat');
-  const canSendMessages = isAdmin || hasUserPermission('whatsapp.send');
-  const canSendMaterials = isAdmin || hasUserPermission('whatsapp.materials');
-  const canSendAudio = isAdmin || hasUserPermission('whatsapp.audio');
-  const canCloseConversations = isAdmin || hasUserPermission('whatsapp.close');
-  const canFavoriteConversations = isAdmin || hasUserPermission('whatsapp.favorite');
-  const canToggleBot = isAdmin || hasUserPermission('whatsapp.bot.toggle');
-  const canShareToGroup = isAdmin || hasUserPermission('whatsapp.share.group');
+  const canTransferLeads = leadPerms.canTransferLeads;
+  const canDeleteFromChat = leadPerms.canDeleteFromChat;
+  const canSendMessages = leadPerms.allow('whatsapp.send');
+  const canSendMaterials = leadPerms.allow('whatsapp.materials');
+  const canSendAudio = leadPerms.allow('whatsapp.audio');
+  const canCloseConversations = leadPerms.allow('whatsapp.close');
+  const canFavoriteConversations = leadPerms.allow('whatsapp.favorite');
+  const canToggleBot = leadPerms.allow('whatsapp.bot.toggle');
+  const canShareToGroup = leadPerms.allow('whatsapp.share.group');
   const selectedUnitInstances = useMemo(() => {
     if (!selectedInstance) return [];
     return instances.filter((instance) => instance.unit === selectedInstance.unit);
@@ -3159,6 +3157,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Send contact (vCard) handler
   const handleSendContact = async () => {
     if (!contactName.trim() || !contactPhone.trim() || !selectedConversation || !selectedInstance) return;
+    if (!canSendMessages) {
+      toast({ title: "Sem permissão", description: "Você não tem permissão para enviar mensagens.", variant: "destructive" });
+      return;
+    }
     if (!selectedSendInstance) {
       toast({ title: "Unidade desconectada", description: "Não há uma conexão ativa liberada para envio nesta unidade.", variant: "destructive" });
       return;
@@ -3943,6 +3945,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
   const sendMedia = async () => {
     if (!mediaPreview || !selectedConversation || !selectedInstance || isUploading) return;
+    if (!canSendMessages) {
+      toast({ title: "Sem permissão", description: "Você não tem permissão para enviar mensagens.", variant: "destructive" });
+      return;
+    }
 
     if (!canUseSelectedInstanceForSending) {
       toast({ title: "Envio indisponível", description: "A unidade está desconectada.", variant: "destructive" });
@@ -5378,6 +5384,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         selectedInstance={selectedInstance}
                         canTransferLeads={canTransferLeads}
                         canDeleteFromChat={canDeleteFromChat}
+                        canEditLead={leadPerms.canEditLeads}
+                        canViewContact={leadPerms.canViewContact}
                         isCreatingLead={isCreatingLead}
                         userId={userId}
                         currentUserName={currentUserName}
@@ -6434,6 +6442,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                               variant="ghost" 
                               size="icon"
                               className="shrink-0 h-9 w-9"
+                              disabled={!canSendMessages}
                             >
                               <Paperclip className="w-4 h-4" />
                             </Button>
@@ -6594,6 +6603,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         selectedInstance={selectedInstance}
                         canTransferLeads={canTransferLeads}
                         canDeleteFromChat={canDeleteFromChat}
+                        canEditLead={leadPerms.canEditLeads}
+                        canViewContact={leadPerms.canViewContact}
                         isCreatingLead={isCreatingLead}
                         userId={userId}
                         currentUserName={currentUserName}
@@ -7549,7 +7560,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                   >
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button type="button" variant="ghost" size="icon" className="shrink-0 h-9 w-9">
+                        <Button type="button" variant="ghost" size="icon" className="shrink-0 h-9 w-9" disabled={!canSendMessages}>
                           <Paperclip className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -8103,8 +8114,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
         responsaveis={responsaveis as any}
         currentUserId={userId}
         currentUserName={currentUserName}
-        canEdit={true}
-        canViewContact={true}
+        canEdit={leadPerms.canEditLeads}
+        canViewContact={leadPerms.canViewContact}
       />
       {/* Financial Sheet */}
       {leadEventId && currentCompany && (

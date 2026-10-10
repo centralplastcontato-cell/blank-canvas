@@ -9,7 +9,7 @@ import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { User, Session } from "@supabase/supabase-js";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
-import { usePermissions } from "@/hooks/usePermissions";
+import { useLeadPermissions } from "@/hooks/useLeadPermissions";
 import { useLeadNotifications } from "@/hooks/useLeadNotifications";
 import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
 import { useUnreadCountRealtime, useLeadsRealtime } from "@/hooks/useRealtimeOptimized";
@@ -51,6 +51,7 @@ import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDia
 import { saveEvent } from "@/lib/eventSave";
 import { deleteLeads } from "@/lib/leadDelete";
 import { AWAITING_READ_OR_FILTER } from "@/lib/conversationUnread";
+import { visitUnitAccess } from "@/lib/unitAccess";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 
 export default function CentralAtendimento() {
@@ -166,20 +167,27 @@ export default function CentralAtendimento() {
     setInitialDraft(null);
   };
 
-  const { role, isLoading: isLoadingRole, isAdmin, canEdit, canManageUsers } = useUserRole(user?.id);
+  const { role, isLoading: isLoadingRole, isAdmin, canManageUsers } = useUserRole(user?.id);
   const { allowedUnits, canViewAll, isLoading: isLoadingUnitPerms } = useUnitPermissions(user?.id, currentCompany?.id);
-  const { hasPermission } = usePermissions(user?.id);
-  const canEditName = isAdmin || hasPermission('leads.edit.name');
-  const canEditDescription = isAdmin || hasPermission('leads.edit.description');
-  
-  const canExportLeads = isAdmin || hasPermission('leads.export');
-  const canDeleteLeads = isAdmin || hasPermission('leads.delete');
-  const canAssignLeads = isAdmin || hasPermission('leads.assign');
-  const canEditLeads = isAdmin || canEdit || hasPermission('leads.edit');
-  const canViewContact = isAdmin || hasPermission('leads.contact.view');
+  // Permissões de lead (regras em src/lib/leadPermissions.ts): nada fica liberado
+  // enquanto carregam, e o papel "Visualização" não edita
+  const { canEditName, canEditDescription, canExportLeads, canDeleteLeads, canEditLeads, canViewContact } = useLeadPermissions(user?.id);
   
   // Sound notification for new leads (filtrado pela empresa atual)
-  useLeadNotifications(currentCompany?.id);
+  // Unidade de lead que a pessoa pode ver (mesma regra da lista: quem é restrito não vê
+  // lead sem unidade). Vale para o som, o número de novos, o lead que chega na hora e o link.
+  const leadUnitVisible = useCallback((unit: string | null | undefined) => {
+    if (canViewAll || allowedUnits.includes('all')) return true;
+    if (!unit) return false;
+    return unit === "As duas" || allowedUnits.includes(unit);
+  }, [canViewAll, allowedUnits]);
+
+  useLeadNotifications(currentCompany?.id, (lead) => leadUnitVisible(lead.unit));
+  // Visitas: mesma regra da aba Visitas (visita sem unidade continua aparecendo)
+  const canSeeVisitUnit = useMemo(
+    () => visitUnitAccess(canViewAll, allowedUnits, isLoadingUnitPerms),
+    [canViewAll, allowedUnits, isLoadingUnitPerms],
+  );
   
   // Chat notifications toggle
   const { notificationsEnabled, toggleNotifications } = useChatNotificationToggle();
@@ -652,48 +660,74 @@ export default function CentralAtendimento() {
     fetchMetrics();
   }, [role, canViewAll, allowedUnits, isLoadingUnitPerms, refreshKey, filters, currentCompany?.id]);
 
+  // Link "?lead=<id>": abre a ficha do lead (mesmo se a lista do dia estiver vazia),
+  // só da empresa atual e de unidade que a pessoa acessa
   useEffect(() => {
     const leadId = searchParams.get('lead');
-    if (leadId && leads.length > 0 && !isLoadingLeads) {
-      const lead = leads.find(l => l.id === leadId);
-      if (lead) {
-        setSelectedLead(lead);
-        setIsDetailOpen(true);
-        setActiveTab("leads");
-        // Clear the URL parameter after opening
-        searchParams.delete('lead');
-        setSearchParams(searchParams, { replace: true });
-      } else {
-        // Lead not in current view - fetch it directly
-        supabase
-          .from('campaign_leads')
-          .select('*')
-          .eq('id', leadId)
-          .single()
-          .then(({ data }) => {
-            if (data) {
-              setSelectedLead(data as Lead);
-              setIsDetailOpen(true);
-              setActiveTab("leads");
-            }
-            // Clear the URL parameter
-            searchParams.delete('lead');
-            setSearchParams(searchParams, { replace: true });
-          });
+    if (!leadId || isLoadingLeads || isLoadingUnitPerms || !currentCompany?.id) return;
+    const clearParam = () => {
+      searchParams.delete('lead');
+      setSearchParams(searchParams, { replace: true });
+    };
+    const open = (lead: Lead) => {
+      if (!leadUnitVisible(lead.unit)) {
+        toast({ title: "Lead de outra unidade", description: "Você não tem acesso à unidade deste lead.", variant: "destructive" });
+        return;
       }
+      setSelectedLead(lead);
+      setIsDetailOpen(true);
+      setActiveTab("leads");
+    };
+    const inList = leads.find(l => l.id === leadId);
+    if (inList) {
+      open(inList);
+      clearParam();
+      return;
     }
-  }, [leads, isLoadingLeads, searchParams, setSearchParams]);
+    supabase
+      .from('campaign_leads')
+      .select('*')
+      .eq('id', leadId)
+      .eq('company_id', currentCompany.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) open(data as Lead);
+        clearParam();
+      });
+  }, [leads, isLoadingLeads, isLoadingUnitPerms, currentCompany?.id, leadUnitVisible, searchParams, setSearchParams]);
 
   // Optimized: Fetch unread count with debounced realtime
   const fetchUnreadCount = useCallback(async () => {
-    if (!currentCompany?.id) return;
+    if (!currentCompany?.id || isLoadingUnitPerms) return;
+    // Só os números (instâncias) das unidades da pessoa, como no chat
+    let instanceIds: string[] | null = null;
+    if (!canViewAll && !allowedUnits.includes('all')) {
+      if (allowedUnits.length === 0) {
+        setUnreadCount(0);
+        setUnreadPerInstance({});
+        return;
+      }
+      const { data: insts } = await supabase
+        .from("wapi_instances")
+        .select("id")
+        .eq("company_id", currentCompany.id)
+        .in("unit", allowedUnits);
+      instanceIds = (insts || []).map((i) => i.id);
+      if (instanceIds.length === 0) {
+        setUnreadCount(0);
+        setUnreadPerInstance({});
+        return;
+      }
+    }
     // Só conversas esperando a equipe (o cliente mandou a última mensagem)
-    const { data } = await supabase
+    let query = supabase
       .from("wapi_conversations")
       .select("unread_count, instance_id")
       .eq("company_id", currentCompany.id)
       .gt("unread_count", 0)
       .or(AWAITING_READ_OR_FILTER);
+    if (instanceIds) query = query.in("instance_id", instanceIds);
+    const { data } = await query;
     
     if (data) {
       const total = data.reduce((sum, conv) => sum + (conv.unread_count || 0), 0);
@@ -707,7 +741,7 @@ export default function CentralAtendimento() {
       });
       setUnreadPerInstance(perInst);
     }
-  }, [currentCompany?.id]);
+  }, [currentCompany?.id, isLoadingUnitPerms, canViewAll, allowedUnits]);
 
   useEffect(() => {
     fetchUnreadCount();
@@ -718,13 +752,20 @@ export default function CentralAtendimento() {
 
   // Optimized: Fetch new leads count
   const fetchNewLeadsCount = useCallback(async () => {
-    const { count } = await supabase
+    if (!currentCompany?.id || isLoadingUnitPerms) return;
+    // Só da empresa atual e das unidades da pessoa (antes contava tudo que ela via no banco)
+    let query = supabase
       .from("campaign_leads")
       .select("id", { count: "exact", head: true }) // Only count, don't fetch data
+      .eq("company_id", currentCompany.id)
       .eq("status", "novo");
-    
+    if (!canViewAll && !allowedUnits.includes('all')) {
+      if (allowedUnits.length === 0) { setNewLeadsCount(0); return; }
+      query = query.in("unit", [...allowedUnits, "As duas"]);
+    }
+    const { count } = await query;
     setNewLeadsCount(count || 0);
-  }, []);
+  }, [currentCompany?.id, isLoadingUnitPerms, canViewAll, allowedUnits]);
 
   useEffect(() => {
     fetchNewLeadsCount();
@@ -733,14 +774,15 @@ export default function CentralAtendimento() {
   // Use optimized realtime hook for leads with debounced callbacks
   const handleLeadInsert = useCallback((payload: unknown) => {
     const newLead = payload as Lead;
-    console.log('Novo lead recebido em tempo real:', newLead);
     fetchNewLeadsCount();
+    // Lead de outra unidade não entra na lista de quem não acessa essa unidade
+    if (!leadUnitVisible(newLead.unit)) return;
     setLeads((prev) => {
       if (prev.some(l => l.id === newLead.id)) return prev;
       return [newLead, ...prev];
     });
     setTotalCount((prev) => prev + 1);
-  }, [fetchNewLeadsCount]);
+  }, [fetchNewLeadsCount, leadUnitVisible]);
 
   const handleLeadUpdate = useCallback((payload: unknown) => {
     const updatedLead = payload as Lead;
@@ -997,6 +1039,7 @@ export default function CentralAtendimento() {
 
         {/* Client Alert Banner - Mobile */}
         <ClientAlertBanner 
+          canViewContact={canViewContact}
           userId={user.id} 
           onOpenConversation={(conversationId, phone) => {
             setInitialPhone(phone);
@@ -1006,6 +1049,7 @@ export default function CentralAtendimento() {
 
         {/* Visit Alert Banner - Mobile */}
         <VisitAlertBanner 
+          canViewContact={canViewContact}
           userId={user.id} 
           onOpenConversation={(conversationId, phone) => {
             setInitialPhone(phone);
@@ -1014,10 +1058,11 @@ export default function CentralAtendimento() {
         />
 
         {/* A visita aconteceu? - Mobile */}
-        <VisitOutcomeBanner />
+        <VisitOutcomeBanner canSeeUnit={canSeeVisitUnit} />
 
         {/* Questions Alert Banner - Mobile */}
         <QuestionsAlertBanner 
+          canViewContact={canViewContact}
           userId={user.id} 
           onOpenConversation={(conversationId, phone) => {
             setInitialPhone(phone);
@@ -1218,7 +1263,7 @@ export default function CentralAtendimento() {
                       try {
                         const lead = findLead(leadId);
                         if (!lead) return;
-                        await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de status", old_value: lead.status, new_value: newStatus });
+                        await supabase.from("lead_history").insert({ lead_id: leadId, company_id: currentCompany?.id, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de status", old_value: lead.status, new_value: newStatus });
                         const { error } = await supabase.from("campaign_leads").update({ status: newStatus }).eq("id", leadId);
                         if (error) throw error;
                         if (newStatus === "perdido") {
@@ -1237,7 +1282,7 @@ export default function CentralAtendimento() {
                     onNameUpdate={async (leadId, newName) => {
                       const lead = findLead(leadId);
                       if (!lead) return;
-                      await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de nome", old_value: lead.name, new_value: newName });
+                      await supabase.from("lead_history").insert({ lead_id: leadId, company_id: currentCompany?.id, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de nome", old_value: lead.name, new_value: newName });
                       const { error } = await supabase.from("campaign_leads").update({ name: newName }).eq("id", leadId);
                       if (error) throw error;
                       await supabase.from("wapi_conversations").update({ contact_name: newName }).eq("lead_id", leadId);
@@ -1247,7 +1292,7 @@ export default function CentralAtendimento() {
                     onDescriptionUpdate={async (leadId, newDescription) => {
                       const lead = findLead(leadId);
                       if (!lead) return;
-                      await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de observações", old_value: lead.observacoes || "", new_value: newDescription });
+                      await supabase.from("lead_history").insert({ lead_id: leadId, company_id: currentCompany?.id, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de observações", old_value: lead.observacoes || "", new_value: newDescription });
                       const { error } = await supabase.from("campaign_leads").update({ observacoes: newDescription }).eq("id", leadId);
                       if (error) throw error;
                       setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, observacoes: newDescription } : l));
@@ -1506,6 +1551,7 @@ export default function CentralAtendimento() {
 
           {/* Client Alert Banner - Desktop */}
           <ClientAlertBanner 
+          canViewContact={canViewContact}
             userId={user.id} 
             onOpenConversation={(conversationId, phone) => {
               setInitialPhone(phone);
@@ -1515,6 +1561,7 @@ export default function CentralAtendimento() {
 
           {/* Visit Alert Banner - Desktop */}
           <VisitAlertBanner 
+          canViewContact={canViewContact}
             userId={user.id} 
             onOpenConversation={(conversationId, phone) => {
               setInitialPhone(phone);
@@ -1523,10 +1570,11 @@ export default function CentralAtendimento() {
           />
 
           {/* A visita aconteceu? - Desktop */}
-          <VisitOutcomeBanner />
+          <VisitOutcomeBanner canSeeUnit={canSeeVisitUnit} />
 
           {/* Questions Alert Banner - Desktop */}
           <QuestionsAlertBanner 
+          canViewContact={canViewContact}
             userId={user.id} 
             onOpenConversation={(conversationId, phone) => {
               setInitialPhone(phone);
@@ -1649,7 +1697,7 @@ export default function CentralAtendimento() {
                       try {
                         const lead = findLead(leadId);
                         if (!lead) return;
-                        await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de status", old_value: lead.status, new_value: newStatus });
+                        await supabase.from("lead_history").insert({ lead_id: leadId, company_id: currentCompany?.id, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de status", old_value: lead.status, new_value: newStatus });
                         const { error } = await supabase.from("campaign_leads").update({ status: newStatus }).eq("id", leadId);
                         if (error) throw error;
                         if (newStatus === "perdido") {
@@ -1668,7 +1716,7 @@ export default function CentralAtendimento() {
                     onNameUpdate={async (leadId, newName) => {
                       const lead = findLead(leadId);
                       if (!lead) return;
-                      await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de nome", old_value: lead.name, new_value: newName });
+                      await supabase.from("lead_history").insert({ lead_id: leadId, company_id: currentCompany?.id, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de nome", old_value: lead.name, new_value: newName });
                       const { error } = await supabase.from("campaign_leads").update({ name: newName }).eq("id", leadId);
                       if (error) throw error;
                       await supabase.from("wapi_conversations").update({ contact_name: newName }).eq("lead_id", leadId);
@@ -1678,7 +1726,7 @@ export default function CentralAtendimento() {
                     onDescriptionUpdate={async (leadId, newDescription) => {
                       const lead = findLead(leadId);
                       if (!lead) return;
-                      await supabase.from("lead_history").insert({ lead_id: leadId, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de observações", old_value: lead.observacoes || "", new_value: newDescription });
+                      await supabase.from("lead_history").insert({ lead_id: leadId, company_id: currentCompany?.id, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de observações", old_value: lead.observacoes || "", new_value: newDescription });
                       const { error } = await supabase.from("campaign_leads").update({ observacoes: newDescription }).eq("id", leadId);
                       if (error) throw error;
                       setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, observacoes: newDescription } : l));

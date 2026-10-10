@@ -26,6 +26,7 @@ import {
   Sparkles, UserCheck,
 } from "lucide-react";
 import { eventRowToFormData, saveEvent } from "@/lib/eventSave";
+import { maskPhone } from "@/lib/mask-utils";
 import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
@@ -74,6 +75,10 @@ interface LeadInfoPopoverProps {
   selectedInstance: WapiInstance | null;
   canTransferLeads: boolean;
   canDeleteFromChat: boolean;
+  /** pode editar nome, telefone e observações (permissão de editar lead) */
+  canEditLead?: boolean;
+  /** pode ver o telefone inteiro */
+  canViewContact?: boolean;
   isCreatingLead: boolean;
   userId: string;
   currentUserName: string;
@@ -228,6 +233,8 @@ export function LeadInfoPopover({
   selectedInstance,
   canTransferLeads,
   canDeleteFromChat,
+  canEditLead = true,
+  canViewContact = true,
   isCreatingLead,
   userId,
   currentUserName,
@@ -355,6 +362,7 @@ export function LeadInfoPopover({
     } else {
       setEditedName(selectedConversation.contact_name || "");
     }
+    if (!canEditLead) return;
     setIsEditingName(true);
   };
 
@@ -499,6 +507,7 @@ export function LeadInfoPopover({
   };
 
   const openEditPhone = () => {
+    if (!canEditLead) return;
     const current = linkedLead?.whatsapp || selectedConversation.contact_phone || "";
     setEditedPhone(current);
     setEditPhoneOpen(true);
@@ -633,9 +642,9 @@ export function LeadInfoPopover({
                       <h4 className="font-semibold text-sm truncate">
                         {selectedConversation.contact_name || "Grupo"}
                       </h4>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 rounded-md" onClick={startEditingName} title="Renomear grupo">
+                      {canEditLead && (<Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 rounded-md" onClick={startEditingName} title="Renomear grupo">
                         <Pencil className="w-3 h-3 text-muted-foreground hover:text-foreground" />
-                      </Button>
+                      </Button>)}
                     </div>
                     <span className="text-[11px] text-muted-foreground truncate block">
                       {selectedConversation.contact_phone}
@@ -703,15 +712,15 @@ export function LeadInfoPopover({
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <h4 className="font-bold text-[15px] truncate tracking-tight">{linkedLead.name}</h4>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 rounded-md opacity-60 hover:opacity-100" onClick={startEditingName} title="Editar nome">
+                        {canEditLead && (<Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 rounded-md opacity-60 hover:opacity-100" onClick={startEditingName} title="Editar nome">
                           <Pencil className="w-3 h-3" />
-                        </Button>
+                        </Button>)}
                       </div>
                       <div className="flex items-center gap-1">
-                        <p className="text-[11px] text-muted-foreground/70 font-medium">{linkedLead.whatsapp}</p>
-                        <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 rounded-md opacity-60 hover:opacity-100" onClick={openEditPhone} title="Editar telefone">
+                        <p className="text-[11px] text-muted-foreground/70 font-medium">{canViewContact ? linkedLead.whatsapp : maskPhone(linkedLead.whatsapp)}</p>
+                        {canEditLead && (<Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 rounded-md opacity-60 hover:opacity-100" onClick={openEditPhone} title="Editar telefone">
                           <Pencil className="w-2.5 h-2.5" />
-                        </Button>
+                        </Button>)}
                       </div>
                       <div className="flex flex-wrap items-center gap-1 empty:hidden mt-1">
                         <LeadOriginBadge origem={linkedLead.origem} />
@@ -803,7 +812,7 @@ export function LeadInfoPopover({
                       </div>
                       <h5 className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground/60">Observações</h5>
                     </div>
-                    {!isEditingObs && (
+                    {!isEditingObs && canEditLead && (
                       <Button
                         variant="ghost"
                         size="icon"
@@ -863,7 +872,7 @@ export function LeadInfoPopover({
                         "text-xs leading-relaxed line-clamp-3 cursor-pointer rounded-lg px-2.5 py-2 hover:bg-background/60 transition-colors",
                         linkedLead.observacoes ? "text-muted-foreground" : "text-muted-foreground/40 italic"
                       )}
-                      onClick={() => { setEditedObs(linkedLead.observacoes || ""); setIsEditingObs(true); }}
+                      onClick={() => { if (!canEditLead) return; setEditedObs(linkedLead.observacoes || ""); setIsEditingObs(true); }}
                     >
                       {linkedLead.observacoes || "Adicione observações sobre este lead..."}
                     </p>
@@ -1110,11 +1119,11 @@ export function LeadInfoPopover({
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1">
                     <div className="flex-1 min-w-0">
-                      <InfoRow icon={MessageSquare}>{selectedConversation.contact_phone}</InfoRow>
+                      <InfoRow icon={MessageSquare}>{canViewContact ? selectedConversation.contact_phone : maskPhone(selectedConversation.contact_phone)}</InfoRow>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 rounded-md" onClick={openEditPhone} title="Editar telefone">
+                    {canEditLead && (<Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 rounded-md" onClick={openEditPhone} title="Editar telefone">
                       <Pencil className="w-2.5 h-2.5 text-muted-foreground hover:text-foreground" />
-                    </Button>
+                    </Button>)}
                   </div>
                   {selectedConversation.contact_name && (
                     <div className="flex items-center gap-1">
@@ -1143,9 +1152,9 @@ export function LeadInfoPopover({
                             </div>
                             <span className="truncate">{selectedConversation.contact_name}</span>
                           </div>
-                          <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 rounded-md" onClick={startEditingName} title="Editar nome">
+                          {canEditLead && (<Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 rounded-md" onClick={startEditingName} title="Editar nome">
                             <Pencil className="w-2.5 h-2.5 text-muted-foreground hover:text-foreground" />
-                          </Button>
+                          </Button>)}
                         </div>
                       )}
                     </div>

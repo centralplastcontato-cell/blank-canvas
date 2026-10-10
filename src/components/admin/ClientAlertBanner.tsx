@@ -6,6 +6,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { useNotificationSounds } from "@/hooks/useNotificationSounds";
 import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
+import { maskPhone } from "@/lib/mask-utils";
 
 interface ClientNotificationData {
   conversation_id: string;
@@ -27,9 +28,11 @@ interface ClientNotification {
 interface ClientAlertBannerProps {
   userId: string;
   onOpenConversation: (conversationId: string, phone: string) => void;
+  /** pode ver o telefone inteiro (senão aparece com ****) */
+  canViewContact?: boolean;
 }
 
-export function ClientAlertBanner({ userId, onOpenConversation }: ClientAlertBannerProps) {
+export function ClientAlertBanner({ userId, onOpenConversation, canViewContact = true }: ClientAlertBannerProps) {
   const [alerts, setAlerts] = useState<ClientNotification[]>([]);
   const { playClientSound } = useNotificationSounds();
   const { notificationsEnabled } = useChatNotificationToggle();
@@ -170,7 +173,7 @@ export function ClientAlertBanner({ userId, onOpenConversation }: ClientAlertBan
             </p>
             <p className="text-sm text-amber-100 truncate">
               <span className="font-bold text-white">
-                {latestAlert.data.contact_name || latestAlert.data.contact_phone}
+                {latestAlert.data.contact_name || (canViewContact ? latestAlert.data.contact_phone : maskPhone(latestAlert.data.contact_phone || ""))}
               </span>
               {isMultiCompany && latestAlert.data.unit && (
                 <span className="text-yellow-100 font-semibold ml-1">

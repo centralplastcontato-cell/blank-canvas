@@ -336,3 +336,24 @@ O dono aprovou as 4 partes: 1 erros graves, 2 permissões e unidades, 3 aba Lead
   - conta só quando o cliente mandou a última mensagem, ou quando a IA passou para a equipe (99);
   - vale para a lista, o filtro, o número da Central e o menu;
   - a conversa aberta na tela não acumula não lidas.
+
+**Parte 2, o que mudou:**
+- **Permissões de lead numa regra só** (`src/lib/leadPermissions.ts` + `useLeadPermissions`), usada na Central e no chat:
+  - sem registro de permissão continua liberado (regra de sempre);
+  - enquanto as permissões carregam, nada fica liberado (antes ficava tudo);
+  - o papel "Visualização" não edita nem exclui.
+- **Chat:**
+  - a ficha do lead aberta pelo chat respeita "editar" e "ver contato" (antes era sempre liberada);
+  - o card do lead esconde o lápis de nome, telefone e observações sem permissão, e mostra o telefone com **** sem "ver contato";
+  - anexo e contato exigem "enviar mensagem", como o texto.
+- **Unidades:**
+  - número de leads novos (agora só da empresa atual), não lidas (só dos números das unidades da pessoa), som de lead novo e lead que chega na hora respeitam a unidade;
+  - o link `?lead=` abre mesmo com a lista vazia, só da empresa atual e com aviso se o lead for de outra unidade;
+  - o aviso "A visita aconteceu?" só pergunta das unidades da pessoa;
+  - os avisos de cliente, visita e dúvidas mostram o telefone com **** sem "ver contato".
+- **Histórico** (SQL `20261010140000_historico_lead_empresa.sql`, testado no Postgres local):
+  - gatilho preenche a empresa do lead quando o registro chega sem ela; os 1.485 antigos recebem a empresa;
+  - a regra de apagar fica só da própria empresa;
+  - antes, as automações (reativação, confirmação de visita) gravavam sem empresa e não apareciam no histórico, e o quadro de colunas nem conseguia gravar;
+  - o robô de follow-up lê o histórico pelo lead, sem filtrar empresa, então nada muda no comportamento dele.
+- **Fica para depois:** travar a unidade também no banco (hoje só na tela).

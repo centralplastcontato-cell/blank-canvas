@@ -49,7 +49,12 @@ function snooze(visitId: string) {
  * o resultado da visita (realizada / não compareceu) — é o que alimenta o
  * comparecimento da Inteligência.
  */
-export function VisitOutcomeBanner() {
+interface VisitOutcomeBannerProps {
+  /** unidades que a pessoa acessa (só pergunta das visitas delas) */
+  canSeeUnit?: (unit: string | null) => boolean;
+}
+
+export function VisitOutcomeBanner({ canSeeUnit }: VisitOutcomeBannerProps = {}) {
   const navigate = useNavigate();
   const { currentCompany } = useCompany();
   const companyId = currentCompany?.id;
@@ -60,7 +65,7 @@ export function VisitOutcomeBanner() {
     if (!companyId) return;
     const { data: visits } = await supabase
       .from("lead_visits")
-      .select("id, lead_id, data_visita, horario_visita")
+      .select("id, lead_id, data_visita, horario_visita, unit")
       .eq("company_id", companyId)
       .in("status_visita", [...PENDING_VISIT_STATUSES])
       // Atendimento (entrega/retirada) não é visita: não pergunta se "veio"
@@ -73,7 +78,10 @@ export function VisitOutcomeBanner() {
 
     const snoozed = readSnoozed();
     const due = (visits || []).filter(
-      (v) => isVisitOutcomeDue(v.data_visita, v.horario_visita) && !(snoozed[v.id] && Date.now() - snoozed[v.id] < SNOOZE_MS),
+      (v) =>
+        (!canSeeUnit || canSeeUnit(v.unit)) &&
+        isVisitOutcomeDue(v.data_visita, v.horario_visita) &&
+        !(snoozed[v.id] && Date.now() - snoozed[v.id] < SNOOZE_MS),
     );
     if (due.length === 0) {
       setPending([]);
@@ -83,7 +91,7 @@ export function VisitOutcomeBanner() {
     const { data: leads } = await supabase.from("campaign_leads").select("id, name").in("id", leadIds);
     const names = new Map((leads || []).map((l) => [l.id, l.name]));
     setPending(due.map((v) => ({ ...v, lead_name: names.get(v.lead_id) || "Cliente" })));
-  }, [companyId]);
+  }, [companyId, canSeeUnit]);
 
   useEffect(() => {
     load();
