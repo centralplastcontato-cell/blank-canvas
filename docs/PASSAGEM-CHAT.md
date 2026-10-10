@@ -419,3 +419,5 @@ O dono aprovou as 4 partes: 1 erros graves, 2 permissões e unidades, 3 aba Lead
   - fundo branco como a caixinha do computador (com o cinza do app tudo ficava apagado);
   - topo com o título "Ficha do lead" e o X, sem o tracinho de arrastar;
   - lead salvo com o telefone no lugar do nome mostra o nome do WhatsApp (`pickPersonName`), na ficha e em "Dados do contato".
+- **"Dados do contato"** com fundo branco (botões visíveis) e realce das linhas só com mouse (no iPhone ficava grudado na linha tocada).
+- **Unidade do topo certa:** o chat reabre a última conversa (às vezes de outra unidade) e agora avisa a Central (`onActiveUnitChange`), então o topo marca a unidade aberta de verdade. Antes o topo marcava VENDAS 1 com a lista da VENDAS 3. Se a unidade do topo já é a aberta, o chat não troca de número nem fecha a conversa.

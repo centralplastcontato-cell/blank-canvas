@@ -224,7 +224,8 @@ export function ContactInfoSheet({
   return (
     <>
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:max-w-md p-0 overflow-hidden">
+      {/* Fundo branco (com o cinza do app os botões quase não apareciam) */}
+      <SheetContent className="w-full sm:max-w-md p-0 overflow-hidden bg-popover">
         <ScrollArea className="h-full">
           {/* Header (o X para fechar é o da própria janela, no canto) */}
           <div className="flex items-center gap-3 px-5 py-4 pr-12 border-b border-border/40">
@@ -494,7 +495,8 @@ export function ContactInfoSheet({
 
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-3 py-2 px-3 rounded-xl hover:bg-muted/30 transition-colors">
+    // Realce só com mouse: no iPhone ele ficava "grudado" na linha tocada
+    <div className="flex items-center gap-3 py-2 px-3 rounded-xl [@media(hover:hover)]:hover:bg-muted/30 transition-colors">
       <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">{icon}</div>
       <div className="min-w-0 flex-1">
         <p className="text-xs text-muted-foreground">{label}</p>
