@@ -58,5 +58,5 @@ export function originWelcomeIntro(origem: string | null | undefined, empresa: s
  */
 export function directWhatsAppMessage(origem: string | null | undefined, companyName: string): string | null {
   const label = originLabel(origem);
-  return label ? `Olá! 👋 Vim pelo ${label} do ${companyName} 🎉` : null;
+  return label ? `Olá! Vim pelo ${label} do ${companyName}` : null;
 }

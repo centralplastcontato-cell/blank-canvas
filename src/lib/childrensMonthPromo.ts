@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { whatsappLink } from "./whatsappLink";
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -13,9 +14,7 @@ export const CHILDRENS_MONTH_SLUG = "castelo-mes-das-criancas-2026";
 // Brasil não tem horário de verão desde 2019: -03:00 fixo
 export const CHILDRENS_MONTH_DEADLINE = new Date("2026-10-17T23:59:59-03:00");
 
-export const CASTELO_WHATSAPP_PROMO_URL =
-  "https://wa.me/5515974034646?text=" +
-  encodeURIComponent("Olá! Vim pelo site e quero saber da promoção Mês das Crianças");
+export const CASTELO_WHATSAPP_PROMO_URL = whatsappLink("5515974034646", "Olá! Vim pelo site e quero saber da promoção Mês das Crianças");
 
 export function isWithinPromoWindow(now: number = Date.now()): boolean {
   return now <= CHILDRENS_MONTH_DEADLINE.getTime();

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { whatsappLink } from "@/lib/whatsappLink";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { Helmet } from "react-helmet-async";
 import { useParams } from "react-router-dom";
@@ -224,10 +225,7 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
 
   const openChat = () => {
     if (directWhatsApp) {
-      const text = encodeURIComponent(
-        `Olá! 👋 Vim pelo site do ${data.company_name} e gostaria de saber mais 🎉`
-      );
-      window.open(`https://wa.me/${directWhatsApp}?text=${text}`, "_blank", "noopener,noreferrer");
+      window.open(whatsappLink(directWhatsApp, `Olá! Vim pelo site do ${data.company_name} e gostaria de saber mais!`), "_blank", "noopener,noreferrer");
       return;
     }
     setIsChatOpen(true);

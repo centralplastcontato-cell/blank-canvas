@@ -1,4 +1,5 @@
 import logoCastelo from "@/assets/logo-castelo.png";
+import { whatsappLink } from "@/lib/whatsappLink";
 import { Instagram, Facebook, MessageCircle, MapPin, Building2, Clock, Phone } from "lucide-react";
 import { Link } from "react-router-dom";
 import { directWhatsAppMessage } from "@/lib/landingOrigin";
@@ -10,9 +11,7 @@ interface FooterProps {
 export function Footer({ origem }: FooterProps = {}) {
   // Sem origem (visita normal), o link continua abrindo o WhatsApp em branco, como sempre
   const message = directWhatsAppMessage(origem, "Castelo da Diversão");
-  const whatsappHref = message
-    ? `https://wa.me/5515974034646?text=${encodeURIComponent(message)}`
-    : "https://wa.me/5515974034646";
+  const whatsappHref = whatsappLink("5515974034646", message);
 
   return (
     <footer className="bg-[hsl(260_30%_15%)] text-white py-12">
