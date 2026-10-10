@@ -58,7 +58,7 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
       borderColor: "border-amber-500/20",
     },
     {
-      title: "Em Contato",
+      title: "Visita",
       value: metrics.em_contato,
       icon: TrendingUp,
       gradient: "from-orange-500/20 via-orange-500/10 to-transparent",

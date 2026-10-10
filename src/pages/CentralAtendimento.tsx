@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { showLogoutToast } from "@/lib/logoutToast";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { Helmet } from "react-helmet-async";
@@ -13,7 +13,9 @@ import { useLeadPermissions } from "@/hooks/useLeadPermissions";
 import { useLeadNotifications } from "@/hooks/useLeadNotifications";
 import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
 import { useUnreadCountRealtime, useLeadsRealtime } from "@/hooks/useRealtimeOptimized";
-import { Lead, LeadStatus, UserWithRole, Profile, AppRole, LeadFilters } from "@/types/crm";
+import { Lead, LeadStatus, UserWithRole, Profile, AppRole, LeadFilters, LEAD_STATUS_LABELS } from "@/types/crm";
+import { applyLeadFilters, filterDay, leadScopeIsEmpty, leadSelect } from "@/lib/leadQuery";
+import { KANBAN_STATUSES } from "@/lib/leadKanban";
 import { mergeLeadUpdate, summarizeLegacyReturns, withReturnInfo } from "@/lib/leadReturns";
 import { LeadsTable } from "@/components/admin/LeadsTable";
 import { LeadsFilters } from "@/components/admin/LeadsFilters";
@@ -43,7 +45,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/s
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
-import { LayoutList, Columns, Menu, Bell, BellOff, MessageSquare, BarChart3, Filter, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Building2, Brain } from "lucide-react";
+import { LayoutList, Columns, Menu, Bell, BellOff, MessageSquare, BarChart3, Filter, ChevronDown, ChevronUp, Building2, Brain } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
@@ -53,6 +55,21 @@ import { deleteLeads } from "@/lib/leadDelete";
 import { AWAITING_READ_OR_FILTER } from "@/lib/conversationUnread";
 import { visitUnitAccess } from "@/lib/unitAccess";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
+
+// Quadro (CRM): quantos leads cada coluna mostra (os mais recentes); o número no topo
+// é o total real. "Fechado" busca mais porque quem já teve a festa vai para "Realizada".
+const KANBAN_COLUMN_LIMIT = 50;
+const KANBAN_FECHADO_LIMIT = 500;
+const REALIZADA_LIMIT = 200;
+// Exportar: todos os leads do filtro, de 1000 em 1000 (limite do banco por consulta)
+const EXPORT_PAGE = 1000;
+const EXPORT_MAX = 20000;
+const FOLLOW_UP_ACTIONS = [
+  "Follow-up automático enviado",
+  "Follow-up #2 automático enviado",
+  "Follow-up #3 automático enviado",
+  "Follow-up #4 automático enviado",
+];
 
 export default function CentralAtendimento() {
   const navigate = useNavigate();
@@ -88,6 +105,12 @@ export default function CentralAtendimento() {
   const [isLoadingLeads, setIsLoadingLeads] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  // Quadro (CRM): total real de cada coluna e da coluna "Realizada"
+  const [kanbanTotals, setKanbanTotals] = useState<Record<string, number>>({});
+  const [realizadaTotal, setRealizadaTotal] = useState(0);
+  const kanbanColumnTotals = useMemo(() => ({ ...kanbanTotals, realizada: realizadaTotal }), [kanbanTotals, realizadaTotal]);
+  // Muda quando algo altera os números do topo (situação, exclusão, lead novo)
+  const [metricsVersion, setMetricsVersion] = useState(0);
   const pageSize = 20;
   const [leadMetrics, setLeadMetrics] = useState<LeadMetrics>({ total: 0, today: 0, returned_today: 0, novo: 0, em_contato: 0, fechado: 0, perdido: 0 });
   const [responsaveis, setResponsaveis] = useState<UserWithRole[]>([]);
@@ -307,294 +330,224 @@ export default function CentralAtendimento() {
     setCurrentPage(1);
   }, [filters]);
 
-  // Fetch leads
+  // Informações extras dos leads mostrados: visita marcada, follow-ups, retornos antigos
+  // e data da festa. Em blocos de 100 (o quadro do CRM pode ter centenas de leads).
+  const enrichLeads = useCallback(async (leadsData: Lead[]): Promise<Lead[]> => {
+    const ids = leadsData.map((l) => l.id);
+    const scheduled = new Set<string>();
+    const followUps: Record<string, Set<string>> = {};
+    const returnRows: { lead_id: string; created_at: string }[] = [];
+    const partyDateByLead = new Map<string, string>();
+    for (let i = 0; i < ids.length; i += 100) {
+      const chunk = ids.slice(i, i + 100);
+      const [convResult, historyResult, eventsResult] = await Promise.all([
+        supabase.from("wapi_conversations").select("lead_id").in("lead_id", chunk).eq("has_scheduled_visit", true),
+        supabase
+          .from("lead_history")
+          .select("lead_id, action, created_at")
+          .in("lead_id", chunk)
+          .in("action", [...FOLLOW_UP_ACTIONS, "Lead retornou pela Landing Page"])
+          .limit(5000),
+        supabase
+          .from("company_events")
+          .select("lead_id, event_date")
+          .in("lead_id", chunk)
+          .neq("status", "cancelado")
+          .not("event_date", "is", null),
+      ]);
+      (convResult.data || []).forEach((c) => c.lead_id && scheduled.add(c.lead_id));
+      (historyResult.data || []).forEach((h) => {
+        if (h.action === "Lead retornou pela Landing Page") returnRows.push({ lead_id: h.lead_id, created_at: h.created_at });
+        else (followUps[h.action] ||= new Set()).add(h.lead_id);
+      });
+      // Data da festa mais recente (separa "Fechado" de "Realizada")
+      (eventsResult.data || []).forEach((e) => {
+        if (!e.lead_id || !e.event_date) return;
+        const current = partyDateByLead.get(e.lead_id);
+        if (!current || e.event_date > current) partyDateByLead.set(e.lead_id, e.event_date);
+      });
+    }
+    const legacyReturns = summarizeLegacyReturns(returnRows);
+    const has = (action: string, id: string) => !!followUps[action]?.has(id);
+    return leadsData.map((lead) => ({
+      ...withReturnInfo(lead, legacyReturns),
+      has_scheduled_visit: scheduled.has(lead.id),
+      has_follow_up: has(FOLLOW_UP_ACTIONS[0], lead.id),
+      has_follow_up_2: has(FOLLOW_UP_ACTIONS[1], lead.id),
+      has_follow_up_3: has(FOLLOW_UP_ACTIONS[2], lead.id),
+      has_follow_up_4: has(FOLLOW_UP_ACTIONS[3], lead.id),
+      party_date: partyDateByLead.get(lead.id) || null,
+    }));
+  }, []);
+
+  // Fetch leads. Lista: 20 por página. Quadro (CRM): os mais recentes de CADA coluna,
+  // com o total real de cada uma (antes eram só 20 leads espalhados nas 11 colunas).
+  // Filtros em src/lib/leadQuery.ts; só a busca mais recente vale.
+  const leadsFetchSeq = useRef(0);
   useEffect(() => {
     const fetchLeads = async () => {
       if (!role || isLoadingUnitPerms || !currentCompany?.id) return;
-
+      const seq = ++leadsFetchSeq.current;
+      const stale = () => seq !== leadsFetchSeq.current;
       setIsLoadingLeads(true);
 
-      const from = (currentPage - 1) * pageSize;
-      const to = from + pageSize - 1;
-
-      let query = supabase
-        .from("campaign_leads")
-        .select("*", { count: "exact" })
-        .eq("company_id", currentCompany.id)
-        // Entrada mais recente (chegada ou retorno): quem voltou sobe sem perder a data de chegada
-        .order("last_entry_at", { ascending: false });
-
-      query = query.range(from, to);
-
-      // Apply unit permission filter (before user-selected filters)
-      if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes('all')) {
-        const unitsFilter = [...allowedUnits, "As duas"];
-        query = query.in("unit", unitsFilter);
-      } else if (!canViewAll && allowedUnits.length === 0) {
-        // No unit permission granted - return empty
+      const scope = { canViewAll, allowedUnits, filters };
+      if (leadScopeIsEmpty(scope)) {
         setLeads([]);
         setTotalCount(0);
+        setKanbanTotals({});
         setIsLoadingLeads(false);
         return;
       }
+      const base = () =>
+        supabase
+          .from("campaign_leads")
+          .select(leadSelect("*", filters), { count: "exact" })
+          .eq("company_id", currentCompany.id);
 
-      // Apply user-selected filters
-      if (filters.unit && filters.unit !== "all") {
-        query = query.eq("unit", filters.unit);
-      }
+      let rows: Lead[] = [];
+      let total = 0;
+      const totals: Record<string, number> = {};
 
-      if (filters.campaign && filters.campaign !== "all") {
-        query = query.eq("campaign_id", filters.campaign);
-      }
-
-      if (filters.status && filters.status !== "all") {
-        query = query.eq("status", filters.status as LeadStatus);
-      }
-
-      if (filters.responsavel && filters.responsavel !== "all") {
-        if (filters.responsavel === "unassigned") {
-          query = query.is("responsavel_id", null);
-        } else {
-          query = query.eq("responsavel_id", filters.responsavel);
-        }
-      }
-
-      if (filters.month && filters.month !== "all") {
-        query = query.eq("month", filters.month);
-      }
-
-      // Período pela entrada mais recente: "Hoje" mostra quem chegou e quem voltou hoje
-      if (filters.startDate) {
-        query = query.gte("last_entry_at", filters.startDate.toISOString());
-      }
-
-      if (filters.endDate) {
-        const endOfDay = new Date(filters.endDate);
-        endOfDay.setHours(23, 59, 59, 999);
-        query = query.lte("last_entry_at", endOfDay.toISOString());
-      }
-
-      if (filters.search) {
-        query = query.or(
-          `name.ilike.%${filters.search}%,whatsapp.ilike.%${filters.search}%`
+      if (viewMode === "kanban") {
+        const statuses = filters.status && filters.status !== "all"
+          ? KANBAN_STATUSES.filter((st) => st === filters.status)
+          : KANBAN_STATUSES;
+        const results = await Promise.all(
+          statuses.map((st) =>
+            applyLeadFilters(base(), scope, { ignoreStatus: true })
+              .eq("status", st)
+              // Entrada mais recente (chegada ou retorno) primeiro
+              .order("last_entry_at", { ascending: false })
+              .limit(st === "fechado" ? KANBAN_FECHADO_LIMIT : KANBAN_COLUMN_LIMIT),
+          ),
         );
-      }
-
-      const { data, count, error } = await query;
-
-      if (error) {
-        console.error("Erro ao buscar leads:", error);
+        if (stale()) return;
+        results.forEach((r, i) => {
+          if (r.error) console.error("Erro ao buscar leads do quadro:", r.error);
+          totals[statuses[i]] = r.count || 0;
+          rows.push(...((r.data || []) as unknown as Lead[]));
+        });
+        total = Object.values(totals).reduce((a, b) => a + b, 0);
       } else {
-        const leadsData = (data || []) as Lead[];
-        
-        // Fetch has_scheduled_visit from wapi_conversations and has_follow_up from lead_history
-        if (leadsData.length > 0) {
-          const leadIds = leadsData.map(l => l.id);
-          
-          // Parallel fetch for visit, follow-up 1 and follow-up 2 data
-          const [convResult, historyResult, historyResult2, historyResult3, historyResult4, returnResult, eventsResult] = await Promise.all([
-            supabase
-              .from("wapi_conversations")
-              .select("lead_id, has_scheduled_visit")
-              .in("lead_id", leadIds)
-              .eq("has_scheduled_visit", true),
-            supabase
-              .from("lead_history")
-              .select("lead_id")
-              .in("lead_id", leadIds)
-              .eq("action", "Follow-up automático enviado"),
-            supabase
-              .from("lead_history")
-              .select("lead_id")
-              .in("lead_id", leadIds)
-              .eq("action", "Follow-up #2 automático enviado"),
-            supabase
-              .from("lead_history")
-              .select("lead_id")
-              .in("lead_id", leadIds)
-              .eq("action", "Follow-up #3 automático enviado"),
-            supabase
-              .from("lead_history")
-              .select("lead_id")
-              .in("lead_id", leadIds)
-              .eq("action", "Follow-up #4 automático enviado"),
-            supabase
-              .from("lead_history")
-              .select("lead_id, created_at")
-              .in("lead_id", leadIds)
-              .eq("action", "Lead retornou pela Landing Page"),
-            supabase
-              .from("company_events")
-              .select("lead_id, event_date")
-              .in("lead_id", leadIds)
-              .not("event_date", "is", null)
-          ]);
-          
-          const scheduledVisitLeadIds = new Set((convResult.data || []).map(c => c.lead_id));
-          const followUpLeadIds = new Set((historyResult.data || []).map(h => h.lead_id));
-          const followUp2LeadIds = new Set((historyResult2.data || []).map(h => h.lead_id));
-          const followUp3LeadIds = new Set((historyResult3.data || []).map(h => h.lead_id));
-          const followUp4LeadIds = new Set((historyResult4.data || []).map(h => h.lead_id));
-          const legacyReturns = summarizeLegacyReturns(returnResult.data || []);
-
-          // Data da festa vinculada (mais recente) por lead — usada para separar
-          // festas "Fechadas" (ainda vão acontecer) de "Realizadas" (já passaram).
-          const partyDateByLead = new Map<string, string>();
-          (eventsResult.data || []).forEach((e: { lead_id: string | null; event_date: string | null }) => {
-            if (!e.lead_id || !e.event_date) return;
-            const current = partyDateByLead.get(e.lead_id);
-            if (!current || e.event_date > current) partyDateByLead.set(e.lead_id, e.event_date);
-          });
-
-          let leadsWithExtraInfo = leadsData.map(lead => ({
-            ...withReturnInfo(lead, legacyReturns),
-            has_scheduled_visit: scheduledVisitLeadIds.has(lead.id),
-            has_follow_up: followUpLeadIds.has(lead.id),
-            has_follow_up_2: followUp2LeadIds.has(lead.id),
-            has_follow_up_3: followUp3LeadIds.has(lead.id),
-            has_follow_up_4: followUp4LeadIds.has(lead.id),
-            party_date: partyDateByLead.get(lead.id) || null
-          }));
-          
-          // Apply scheduled visit filter if enabled
-          if (filters.hasScheduledVisit) {
-            leadsWithExtraInfo = leadsWithExtraInfo.filter(lead => lead.has_scheduled_visit);
-          }
-          
-          setLeads(leadsWithExtraInfo);
-          setTotalCount(filters.hasScheduledVisit ? leadsWithExtraInfo.length : (count || 0));
-        } else {
-          setLeads(leadsData);
-          setTotalCount(count || 0);
+        const from = (currentPage - 1) * pageSize;
+        const { data, count, error } = await applyLeadFilters(base(), scope)
+          // Entrada mais recente (chegada ou retorno): quem voltou sobe sem perder a data de chegada
+          .order("last_entry_at", { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (stale()) return;
+        if (error) {
+          console.error("Erro ao buscar leads:", error);
+          toast({ title: "Não consegui carregar os leads", description: "Tente de novo em instantes.", variant: "destructive" });
+          setIsLoadingLeads(false);
+          return;
         }
+        rows = (data || []) as unknown as Lead[];
+        total = count || 0;
       }
 
+      const enriched = rows.length > 0 ? await enrichLeads(rows) : rows;
+      if (stale()) return;
+      // Coluna "Fechado" conta só quem ainda não teve a festa (os outros estão em "Realizada")
+      if (totals.fechado !== undefined) {
+        const todayStr = filterDay(new Date());
+        const done = enriched.filter((l) => l.status === "fechado" && !!l.party_date && l.party_date < todayStr).length;
+        totals.fechado = Math.max(0, totals.fechado - done);
+      }
+      setLeads(enriched);
+      setTotalCount(total);
+      setKanbanTotals(totals);
       setIsLoadingLeads(false);
     };
 
     fetchLeads();
-  }, [filters, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms, currentPage, viewMode, currentCompany?.id]);
+  }, [filters, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms, currentPage, viewMode, currentCompany?.id, enrichLeads]);
 
-  // Coluna "Realizada" (CRM): carrega TODOS os leads fechados cuja festa vinculada
-  // ja aconteceu, independente da paginacao de 20 — porque festas realizadas costumam
-  // ser de leads antigos, que nao entram na pagina atual.
+  // Coluna "Realizada" (CRM): leads fechados cuja festa mais recente já passou
+  // (festa cancelada não conta). Mostra o histórico todo (sem o período da tela, como
+  // antes: são leads antigos), com os outros filtros.
+  const realizadaFetchSeq = useRef(0);
   useEffect(() => {
     const fetchRealizadas = async () => {
-      if (viewMode !== "kanban" || !role || isLoadingUnitPerms || !currentCompany?.id) {
+      const seq = ++realizadaFetchSeq.current;
+      const scope = { canViewAll, allowedUnits, filters };
+      if (viewMode !== "kanban" || !role || isLoadingUnitPerms || !currentCompany?.id || leadScopeIsEmpty(scope)
+        || (filters.status && filters.status !== "all" && filters.status !== "fechado")) {
         setRealizadaLeads([]);
+        setRealizadaTotal(0);
         return;
       }
-      if (!canViewAll && allowedUnits.length === 0) {
+      const todayStr = filterDay(new Date());
+      const { data, count, error } = await applyLeadFilters(
+        supabase
+          .from("campaign_leads")
+          .select(leadSelect("*, passada:company_events!inner(event_date, status), festas:company_events(event_date, status)", filters), { count: "exact" })
+          .eq("company_id", currentCompany.id)
+          .eq("status", "fechado")
+          .lt("passada.event_date", todayStr)
+          .neq("passada.status", "cancelado"),
+        scope,
+        { ignoreStatus: true, ignorePeriod: true },
+      )
+        .order("last_entry_at", { ascending: false })
+        .limit(REALIZADA_LIMIT);
+      if (seq !== realizadaFetchSeq.current) return;
+      if (error) {
+        console.error("Erro ao buscar realizadas:", error);
         setRealizadaLeads([]);
+        setRealizadaTotal(0);
         return;
       }
-
-      const now = new Date();
-      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-
-      // 1) Começa pelos leads FECHADOS (conjunto pequeno) — evita listas gigantes de IDs
-      //    que estouram o limite da consulta.
-      let lq = supabase
-        .from("campaign_leads")
-        .select("*")
-        .eq("company_id", currentCompany.id)
-        .eq("status", "fechado")
-        .limit(2000);
-
-      if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes("all")) {
-        lq = lq.in("unit", [...allowedUnits, "As duas"]);
-      }
-
-      const { data: fechados, error: lErr } = await lq;
-      if (lErr || !fechados || fechados.length === 0) {
-        setRealizadaLeads([]);
-        return;
-      }
-
-      const fechadoIds = (fechados as Lead[]).map((l) => l.id);
-
-      // 2) Festas (eventos) vinculadas SÓ a esses leads fechados.
-      const { data: eventsData, error: evErr } = await supabase
-        .from("company_events")
-        .select("lead_id, event_date")
-        .in("lead_id", fechadoIds)
-        .not("event_date", "is", null);
-
-      if (evErr) {
-        setRealizadaLeads([]);
-        return;
-      }
-
-      // Data mais recente da festa por lead.
-      const maxDateByLead = new Map<string, string>();
-      for (const e of (eventsData || []) as { lead_id: string | null; event_date: string | null }[]) {
-        if (!e.lead_id || !e.event_date) continue;
-        const cur = maxDateByLead.get(e.lead_id);
-        if (!cur || e.event_date > cur) maxDateByLead.set(e.lead_id, e.event_date);
-      }
-
-      // 3) Fechados cuja festa mais recente JÁ passou = realizadas.
-      const withDate = (fechados as Lead[])
-        .filter((lead) => {
-          const d = maxDateByLead.get(lead.id);
-          return !!d && d < todayStr;
+      type Row = Lead & { festas?: { event_date: string | null; status: string | null }[] };
+      const withDate = ((data || []) as unknown as Row[])
+        .map(({ festas, ...lead }) => {
+          const dates = (festas || []).filter((f) => f.status !== "cancelado" && f.event_date).map((f) => f.event_date as string);
+          const party = dates.sort().pop() || null;
+          return { ...(lead as Lead), party_date: party };
         })
-        .map((lead) => ({ ...lead, party_date: maxDateByLead.get(lead.id) || null }))
-        // Festas mais recentes primeiro.
+        // Cliente com outra festa marcada para frente fica em "Fechado"
+        .filter((lead) => !!lead.party_date && lead.party_date < todayStr)
+        // Festas mais recentes primeiro
         .sort((a, b) => (b.party_date || "").localeCompare(a.party_date || ""));
       setRealizadaLeads(withDate);
+      // O total do banco inclui quem tem outra festa para frente; desconta os que vieram
+      // (exato quando vieram todos)
+      const fetched = (data || []).length;
+      setRealizadaTotal(Math.max(withDate.length, (count || 0) - (fetched - withDate.length)));
     };
 
     fetchRealizadas();
-  }, [viewMode, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms, currentCompany?.id]);
+  }, [viewMode, refreshKey, role, canViewAll, allowedUnits, isLoadingUnitPerms, currentCompany?.id, filters]);
 
-  // Fetch server-side metrics (respects active filters including unit)
+  // Números do topo: os mesmos filtros da lista (src/lib/leadQuery.ts), inclusive busca e
+  // "Visitas agendadas". Total/hoje/retornaram seguem a situação escolhida; os cartões de
+  // cada situação contam a sua. Recalcula quando muda situação, lead entra ou sai.
+  const metricsFetchSeq = useRef(0);
   useEffect(() => {
     const fetchMetrics = async () => {
       if (!role || isLoadingUnitPerms || !currentCompany?.id) return;
+      const seq = ++metricsFetchSeq.current;
+      const scope = { canViewAll, allowedUnits, filters };
+      if (leadScopeIsEmpty(scope)) {
+        setLeadMetrics({ total: 0, today: 0, returned_today: 0, novo: 0, em_contato: 0, fechado: 0, perdido: 0 });
+        return;
+      }
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayISO = today.toISOString();
 
       // since: conta só quem chegou (created_at) ou voltou (last_return_at) a partir da data
-      const buildQuery = (statusFilter?: string, since?: { column: "created_at" | "last_return_at"; iso: string }) => {
-        let q = supabase.from("campaign_leads").select("id", { count: "exact", head: true }).eq("company_id", currentCompany.id);
-        // Apply unit permission filter
-        if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes('all')) {
-          const unitsFilter = [...allowedUnits, "As duas"];
-          q = q.in("unit", unitsFilter);
-        }
-        // Apply user-selected unit filter
-        if (filters.unit && filters.unit !== "all") {
-          q = q.eq("unit", filters.unit);
-        }
-        // Apply other active filters
-        if (filters.campaign && filters.campaign !== "all") {
-          q = q.eq("campaign_id", filters.campaign);
-        }
-        if (filters.responsavel && filters.responsavel !== "all") {
-          if (filters.responsavel === "unassigned") {
-            q = q.is("responsavel_id", null);
-          } else {
-            q = q.eq("responsavel_id", filters.responsavel);
-          }
-        }
-        if (filters.month && filters.month !== "all") {
-          q = q.eq("month", filters.month);
-        }
-        if (filters.startDate) {
-          q = q.gte("last_entry_at", filters.startDate.toISOString());
-        }
-        if (filters.endDate) {
-          const endOfDay = new Date(filters.endDate);
-          endOfDay.setHours(23, 59, 59, 999);
-          q = q.lte("last_entry_at", endOfDay.toISOString());
-        }
-        if (filters.search) {
-          q = q.or(`name.ilike.%${filters.search}%,whatsapp.ilike.%${filters.search}%`);
-        }
-        if (statusFilter) q = q.eq("status", statusFilter as LeadStatus);
+      const buildQuery = (statusFilter?: LeadStatus, since?: { column: "created_at" | "last_return_at"; iso: string }) => {
+        let q = applyLeadFilters(
+          supabase
+            .from("campaign_leads")
+            .select(leadSelect("id", filters), { count: "exact", head: true })
+            .eq("company_id", currentCompany.id),
+          scope,
+          { ignoreStatus: !!statusFilter },
+        );
+        if (statusFilter) q = q.eq("status", statusFilter);
         if (since) q = q.gte(since.column, since.iso);
         return q;
       };
@@ -610,9 +563,8 @@ export default function CentralAtendimento() {
           .not("data_fechamento_venda", "is", null);
 
         // Permissões de unidade
-        if (!canViewAll && allowedUnits.length > 0 && !allowedUnits.includes('all')) {
-          const unitsFilter = [...allowedUnits, "As duas"];
-          q = q.in("unit", unitsFilter);
+        if (!canViewAll && !allowedUnits.includes('all')) {
+          q = q.in("unit", [...allowedUnits, "As duas"]);
         }
         if (filters.unit && filters.unit !== "all") {
           q = q.eq("unit", filters.unit);
@@ -624,15 +576,9 @@ export default function CentralAtendimento() {
             q = q.eq("vendedor_responsavel_id", filters.responsavel);
           }
         }
-        // Período: usa data_fechamento_venda (não created_at)
-        if (filters.startDate) {
-          const startDateOnly = filters.startDate.toISOString().slice(0, 10);
-          q = q.gte("data_fechamento_venda", startDateOnly);
-        }
-        if (filters.endDate) {
-          const endDateOnly = filters.endDate.toISOString().slice(0, 10);
-          q = q.lte("data_fechamento_venda", endDateOnly);
-        }
+        // Período: usa data_fechamento_venda (não created_at), no dia local
+        if (filters.startDate) q = q.gte("data_fechamento_venda", filterDay(filters.startDate));
+        if (filters.endDate) q = q.lte("data_fechamento_venda", filterDay(filters.endDate));
         return q;
       };
 
@@ -645,6 +591,7 @@ export default function CentralAtendimento() {
         buildFechadosQuery(),
         buildQuery("perdido"),
       ]);
+      if (seq !== metricsFetchSeq.current) return;
 
       setLeadMetrics({
         total: totalRes.count || 0,
@@ -658,7 +605,7 @@ export default function CentralAtendimento() {
     };
 
     fetchMetrics();
-  }, [role, canViewAll, allowedUnits, isLoadingUnitPerms, refreshKey, filters, currentCompany?.id]);
+  }, [role, canViewAll, allowedUnits, isLoadingUnitPerms, refreshKey, filters, currentCompany?.id, metricsVersion]);
 
   // Link "?lead=<id>": abre a ficha do lead (mesmo se a lista do dia estiver vazia),
   // só da empresa atual e de unidade que a pessoa acessa
@@ -771,10 +718,23 @@ export default function CentralAtendimento() {
     fetchNewLeadsCount();
   }, [fetchNewLeadsCount]);
 
+  // Lead novo, alterado ou apagado por outra pessoa ou pelo robô: refaz os números do
+  // topo, no máximo uma vez a cada 10s (não consulta a cada mensagem)
+  const metricsTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const refreshMetricsSoon = useCallback(() => {
+    if (metricsTimerRef.current) return;
+    metricsTimerRef.current = setTimeout(() => {
+      metricsTimerRef.current = undefined;
+      setMetricsVersion((v) => v + 1);
+    }, 10000);
+  }, []);
+  useEffect(() => () => clearTimeout(metricsTimerRef.current), []);
+
   // Use optimized realtime hook for leads with debounced callbacks
   const handleLeadInsert = useCallback((payload: unknown) => {
     const newLead = payload as Lead;
     fetchNewLeadsCount();
+    refreshMetricsSoon();
     // Lead de outra unidade não entra na lista de quem não acessa essa unidade
     if (!leadUnitVisible(newLead.unit)) return;
     setLeads((prev) => {
@@ -782,20 +742,22 @@ export default function CentralAtendimento() {
       return [newLead, ...prev];
     });
     setTotalCount((prev) => prev + 1);
-  }, [fetchNewLeadsCount, leadUnitVisible]);
+  }, [fetchNewLeadsCount, leadUnitVisible, refreshMetricsSoon]);
 
   const handleLeadUpdate = useCallback((payload: unknown) => {
     const updatedLead = payload as Lead;
     fetchNewLeadsCount();
+    refreshMetricsSoon();
     setLeads((prev) => mergeLeadUpdate(prev, updatedLead));
-  }, [fetchNewLeadsCount]);
+  }, [fetchNewLeadsCount, refreshMetricsSoon]);
 
   const handleLeadDelete = useCallback((payload: unknown) => {
     const deletedLead = payload as { id: string };
     fetchNewLeadsCount();
+    refreshMetricsSoon();
     setLeads((prev) => prev.filter((lead) => lead.id !== deletedLead.id));
     setTotalCount((prev) => Math.max(0, prev - 1));
-  }, [fetchNewLeadsCount]);
+  }, [fetchNewLeadsCount, refreshMetricsSoon]);
 
   useLeadsRealtime(handleLeadInsert, handleLeadUpdate, handleLeadDelete, { debounceMs: 300 }, currentCompany?.id);
 
@@ -818,6 +780,65 @@ export default function CentralAtendimento() {
   // carregada à parte), para que arrastar/editar funcione mesmo em leads antigos.
   const findLead = (leadId: string): Lead | undefined =>
     leads.find((l) => l.id === leadId) || realizadaLeads.find((l) => l.id === leadId);
+
+  // Mudar a situação do lead: a mesma regra na lista, no quadro (CRM) e nos cartões
+  // do celular. "Perdido" desliga o robô da conversa (como já fazia no quadro e no
+  // chat) e "Fechado" abre o cadastro da festa. Soltar na mesma coluna não faz nada.
+  const changeLeadStatus = async (leadId: string, newStatus: LeadStatus) => {
+    const lead = findLead(leadId);
+    if (!lead || !user || lead.status === newStatus) return;
+    const { error } = await supabase.from("campaign_leads").update({ status: newStatus }).eq("id", leadId);
+    if (error) {
+      console.error("Error updating status:", error);
+      toast({ title: "Erro ao atualizar status", description: "Tente novamente.", variant: "destructive" });
+      return;
+    }
+    await supabase.from("lead_history").insert({
+      lead_id: leadId,
+      company_id: currentCompany?.id,
+      user_id: user.id,
+      user_name: currentUserProfile?.full_name || user.email,
+      action: "Alteração de status",
+      old_value: LEAD_STATUS_LABELS[lead.status],
+      new_value: LEAD_STATUS_LABELS[newStatus],
+    });
+    if (newStatus === "perdido") {
+      await supabase.from("wapi_conversations").update({ bot_enabled: false, bot_step: 'human_takeover' }).eq("lead_id", leadId);
+    }
+    handleStatusChange(leadId, newStatus);
+    // Números do topo das colunas do quadro (quem estava em "Realizada" sai de lá)
+    const wasRealizada = realizadaLeads.some((l) => l.id === leadId);
+    if (wasRealizada) setRealizadaTotal((t) => Math.max(0, t - 1));
+    setKanbanTotals((prev) => {
+      if (prev[newStatus] === undefined) return prev;
+      const next = { ...prev, [newStatus]: prev[newStatus] + 1 };
+      if (!wasRealizada && prev[lead.status] !== undefined) next[lead.status] = Math.max(0, prev[lead.status] - 1);
+      return next;
+    });
+    setMetricsVersion((v) => v + 1);
+    if (newStatus === "fechado") handleLeadClosed({ ...lead, status: "fechado" });
+  };
+
+  const updateLeadName = async (leadId: string, newName: string) => {
+    const lead = findLead(leadId);
+    if (!lead || !user) return;
+    await supabase.from("lead_history").insert({ lead_id: leadId, company_id: currentCompany?.id, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de nome", old_value: lead.name, new_value: newName });
+    const { error } = await supabase.from("campaign_leads").update({ name: newName }).eq("id", leadId);
+    if (error) throw error;
+    await supabase.from("wapi_conversations").update({ contact_name: newName }).eq("lead_id", leadId);
+    setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, name: newName } : l));
+    toast({ title: "Nome atualizado", description: `O nome foi alterado para "${newName}".` });
+  };
+
+  const updateLeadDescription = async (leadId: string, newDescription: string) => {
+    const lead = findLead(leadId);
+    if (!lead || !user) return;
+    await supabase.from("lead_history").insert({ lead_id: leadId, company_id: currentCompany?.id, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de observações", old_value: lead.observacoes || "", new_value: newDescription });
+    const { error } = await supabase.from("campaign_leads").update({ observacoes: newDescription }).eq("id", leadId);
+    if (error) throw error;
+    setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, observacoes: newDescription } : l));
+    toast({ title: "Observação atualizada", description: "A observação foi salva com sucesso." });
+  };
 
   const handleStatusChange = (leadId: string, newStatus: LeadStatus) => {
     setLeads((prev) =>
@@ -882,12 +903,50 @@ export default function CentralAtendimento() {
     return id || undefined;
   };
 
-  const handleExport = () => {
-    exportLeadsToCSV({ leads, responsaveis, canViewContact });
-    toast({
-      title: "Exportação concluída",
-      description: `${leads.length} leads exportados para CSV.`,
-    });
+  // Exporta TODOS os leads do filtro (antes saíam só os 20 da página)
+  const exportingRef = useRef(false);
+  const handleExport = async () => {
+    if (!currentCompany?.id || exportingRef.current) return;
+    const scope = { canViewAll, allowedUnits, filters };
+    if (leadScopeIsEmpty(scope)) {
+      toast({ title: "Nada para exportar", description: "Nenhum lead com esses filtros." });
+      return;
+    }
+    exportingRef.current = true;
+    const preparing = toast({ title: "Preparando a planilha...", description: "Buscando os leads do filtro." });
+    try {
+      const all: Lead[] = [];
+      for (let from = 0; from < EXPORT_MAX; from += EXPORT_PAGE) {
+        const { data, error } = await applyLeadFilters(
+          supabase.from("campaign_leads").select(leadSelect("*", filters)).eq("company_id", currentCompany.id),
+          scope,
+        )
+          .order("last_entry_at", { ascending: false })
+          .order("id")
+          .range(from, from + EXPORT_PAGE - 1);
+        if (error) throw error;
+        all.push(...((data || []) as unknown as Lead[]));
+        if (!data || data.length < EXPORT_PAGE) break;
+      }
+      preparing.dismiss();
+      if (all.length === 0) {
+        toast({ title: "Nada para exportar", description: "Nenhum lead com esses filtros." });
+        return;
+      }
+      exportLeadsToCSV({ leads: all, responsaveis, canViewContact });
+      toast({
+        title: "Exportação concluída",
+        description: all.length >= EXPORT_MAX
+          ? `Os ${all.length} leads mais recentes foram exportados (limite da planilha). Use os filtros para pegar os outros.`
+          : `${all.length} leads exportados para CSV.`,
+      });
+    } catch (error) {
+      console.error("Erro ao exportar leads:", error);
+      preparing.dismiss();
+      toast({ title: "Não consegui exportar", description: "Tente de novo em instantes.", variant: "destructive" });
+    } finally {
+      exportingRef.current = false;
+    }
   };
 
   const handleDeleteLead = async (leadId: string) => {
@@ -898,7 +957,9 @@ export default function CentralAtendimento() {
       return;
     }
     setLeads((prev) => prev.filter((l) => l.id !== leadId));
+    setRealizadaLeads((prev) => prev.filter((l) => l.id !== leadId));
     setTotalCount((c) => Math.max(0, c - 1));
+    setMetricsVersion((v) => v + 1);
     toast({
       title: "Lead excluído",
       description: "O lead foi removido permanentemente.",
@@ -1242,12 +1303,10 @@ export default function CentralAtendimento() {
                     totalCount={totalCount}
                     responsaveis={responsaveis}
                     onLeadClick={handleLeadClick}
-                    onStatusChange={handleStatusChange}
+                    onStatusChange={changeLeadStatus}
                     onRefresh={handleRefresh}
                     canEdit={canEditLeads}
                     isAdmin={isAdmin}
-                    currentUserId={user.id}
-                    currentUserName={currentUserProfile?.full_name || user.email || ""}
                     currentPage={currentPage}
                     pageSize={pageSize}
                     onPageChange={setCurrentPage}
@@ -1259,45 +1318,10 @@ export default function CentralAtendimento() {
                     realizadaLeads={realizadaLeads}
                     responsaveis={responsaveis}
                     onLeadClick={handleLeadClick}
-                    onStatusChange={async (leadId, newStatus) => {
-                      try {
-                        const lead = findLead(leadId);
-                        if (!lead) return;
-                        await supabase.from("lead_history").insert({ lead_id: leadId, company_id: currentCompany?.id, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de status", old_value: lead.status, new_value: newStatus });
-                        const { error } = await supabase.from("campaign_leads").update({ status: newStatus }).eq("id", leadId);
-                        if (error) throw error;
-                        if (newStatus === "perdido") {
-                          await supabase.from("wapi_conversations").update({ bot_enabled: false, bot_step: 'human_takeover' }).eq("lead_id", leadId);
-                        }
-                        handleStatusChange(leadId, newStatus);
-                        if (newStatus === "fechado") {
-                          const closedLead = findLead(leadId);
-                          if (closedLead) handleLeadClosed({ ...closedLead, status: "fechado" });
-                        }
-                      } catch (error) {
-                        console.error("Error updating status:", error);
-                        toast({ title: "Erro ao atualizar status", description: "Tente novamente.", variant: "destructive" });
-                      }
-                    }}
-                    onNameUpdate={async (leadId, newName) => {
-                      const lead = findLead(leadId);
-                      if (!lead) return;
-                      await supabase.from("lead_history").insert({ lead_id: leadId, company_id: currentCompany?.id, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de nome", old_value: lead.name, new_value: newName });
-                      const { error } = await supabase.from("campaign_leads").update({ name: newName }).eq("id", leadId);
-                      if (error) throw error;
-                      await supabase.from("wapi_conversations").update({ contact_name: newName }).eq("lead_id", leadId);
-                      setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, name: newName } : l));
-                      toast({ title: "Nome atualizado", description: `O nome foi alterado para "${newName}".` });
-                    }}
-                    onDescriptionUpdate={async (leadId, newDescription) => {
-                      const lead = findLead(leadId);
-                      if (!lead) return;
-                      await supabase.from("lead_history").insert({ lead_id: leadId, company_id: currentCompany?.id, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de observações", old_value: lead.observacoes || "", new_value: newDescription });
-                      const { error } = await supabase.from("campaign_leads").update({ observacoes: newDescription }).eq("id", leadId);
-                      if (error) throw error;
-                      setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, observacoes: newDescription } : l));
-                      toast({ title: "Observação atualizada", description: "A observação foi salva com sucesso." });
-                    }}
+                    onStatusChange={changeLeadStatus}
+                    onNameUpdate={updateLeadName}
+                    onDescriptionUpdate={updateLeadDescription}
+                    columnTotals={kanbanColumnTotals}
                     canEdit={canEditLeads}
                     canEditName={canEditName}
                     canEditDescription={canEditDescription}
@@ -1305,24 +1329,6 @@ export default function CentralAtendimento() {
                     onDelete={canDeleteLeads ? handleDeleteLead : undefined}
                     canViewContact={canViewContact}
                   />
-                )}
-
-                {/* Pagination controls for Kanban */}
-                {viewMode === "kanban" && totalCount > pageSize && (
-                  <div className="flex items-center justify-between pt-3 px-1">
-                    <p className="text-sm text-muted-foreground">
-                      Página {currentPage} de {Math.ceil(totalCount / pageSize)}
-                      {" · "}{totalCount} leads
-                    </p>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1}>
-                        <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => p + 1)} disabled={currentPage >= Math.ceil(totalCount / pageSize)}>
-                        Próximo <ChevronRight className="h-4 w-4 ml-1" />
-                      </Button>
-                    </div>
-                  </div>
                 )}
               </PullToRefresh>
             </TabsContent>
@@ -1676,12 +1682,10 @@ export default function CentralAtendimento() {
                     totalCount={totalCount}
                     responsaveis={responsaveis}
                     onLeadClick={handleLeadClick}
-                    onStatusChange={handleStatusChange}
+                    onStatusChange={changeLeadStatus}
                     onRefresh={handleRefresh}
                     canEdit={canEditLeads}
                     isAdmin={isAdmin}
-                    currentUserId={user.id}
-                    currentUserName={currentUserProfile?.full_name || user.email || ""}
                     currentPage={currentPage}
                     pageSize={pageSize}
                     onPageChange={setCurrentPage}
@@ -1693,45 +1697,10 @@ export default function CentralAtendimento() {
                     realizadaLeads={realizadaLeads}
                     responsaveis={responsaveis}
                     onLeadClick={handleLeadClick}
-                    onStatusChange={async (leadId, newStatus) => {
-                      try {
-                        const lead = findLead(leadId);
-                        if (!lead) return;
-                        await supabase.from("lead_history").insert({ lead_id: leadId, company_id: currentCompany?.id, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de status", old_value: lead.status, new_value: newStatus });
-                        const { error } = await supabase.from("campaign_leads").update({ status: newStatus }).eq("id", leadId);
-                        if (error) throw error;
-                        if (newStatus === "perdido") {
-                          await supabase.from("wapi_conversations").update({ bot_enabled: false, bot_step: 'human_takeover' }).eq("lead_id", leadId);
-                        }
-                        handleStatusChange(leadId, newStatus);
-                        if (newStatus === "fechado") {
-                          const closedLead = findLead(leadId);
-                          if (closedLead) handleLeadClosed({ ...closedLead, status: "fechado" });
-                        }
-                      } catch (error) {
-                        console.error("Error updating status:", error);
-                        toast({ title: "Erro ao atualizar status", description: "Tente novamente.", variant: "destructive" });
-                      }
-                    }}
-                    onNameUpdate={async (leadId, newName) => {
-                      const lead = findLead(leadId);
-                      if (!lead) return;
-                      await supabase.from("lead_history").insert({ lead_id: leadId, company_id: currentCompany?.id, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de nome", old_value: lead.name, new_value: newName });
-                      const { error } = await supabase.from("campaign_leads").update({ name: newName }).eq("id", leadId);
-                      if (error) throw error;
-                      await supabase.from("wapi_conversations").update({ contact_name: newName }).eq("lead_id", leadId);
-                      setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, name: newName } : l));
-                      toast({ title: "Nome atualizado", description: `O nome foi alterado para "${newName}".` });
-                    }}
-                    onDescriptionUpdate={async (leadId, newDescription) => {
-                      const lead = findLead(leadId);
-                      if (!lead) return;
-                      await supabase.from("lead_history").insert({ lead_id: leadId, company_id: currentCompany?.id, user_id: user.id, user_name: currentUserProfile?.full_name || user.email, action: "Alteração de observações", old_value: lead.observacoes || "", new_value: newDescription });
-                      const { error } = await supabase.from("campaign_leads").update({ observacoes: newDescription }).eq("id", leadId);
-                      if (error) throw error;
-                      setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, observacoes: newDescription } : l));
-                      toast({ title: "Observação atualizada", description: "A observação foi salva com sucesso." });
-                    }}
+                    onStatusChange={changeLeadStatus}
+                    onNameUpdate={updateLeadName}
+                    onDescriptionUpdate={updateLeadDescription}
+                    columnTotals={kanbanColumnTotals}
                     canEdit={canEditLeads}
                     canEditName={canEditName}
                     canEditDescription={canEditDescription}
@@ -1739,24 +1708,6 @@ export default function CentralAtendimento() {
                     onDelete={canDeleteLeads ? handleDeleteLead : undefined}
                     canViewContact={canViewContact}
                   />
-                )}
-
-                {/* Pagination controls for Kanban */}
-                {viewMode === "kanban" && totalCount > pageSize && (
-                  <div className="flex items-center justify-between pt-3 px-1">
-                    <p className="text-sm text-muted-foreground">
-                      Página {currentPage} de {Math.ceil(totalCount / pageSize)}
-                      {" · "}{totalCount} leads
-                    </p>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1}>
-                        <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => p + 1)} disabled={currentPage >= Math.ceil(totalCount / pageSize)}>
-                        Próximo <ChevronRight className="h-4 w-4 ml-1" />
-                      </Button>
-                    </div>
-                  </div>
                 )}
                 </div>
               </TabsContent>

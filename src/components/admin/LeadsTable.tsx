@@ -5,7 +5,6 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { deleteLeads } from "@/lib/leadDelete";
-import { insertWithCompany } from "@/lib/supabase-helpers";
 import {
   Pagination,
   PaginationContent,
@@ -74,12 +73,11 @@ interface LeadsTableProps {
   totalCount: number;
   responsaveis: UserWithRole[];
   onLeadClick: (lead: Lead) => void;
-  onStatusChange: (leadId: string, newStatus: LeadStatus) => void;
+  /** Salva a nova situação (a mesma regra do quadro: histórico, robô, festa) */
+  onStatusChange: (leadId: string, newStatus: LeadStatus) => Promise<void>;
   onRefresh: () => void;
   canEdit: boolean;
   isAdmin: boolean;
-  currentUserId: string;
-  currentUserName: string;
   currentPage: number;
   pageSize: number;
   onPageChange: (page: number) => void;
@@ -96,8 +94,6 @@ export function LeadsTable({
   onRefresh,
   canEdit,
   isAdmin,
-  currentUserId,
-  currentUserName,
   currentPage,
   pageSize,
   onPageChange,
@@ -163,22 +159,6 @@ export function LeadsTable({
     setSelectedIds(newSet);
   };
 
-  const addHistoryEntry = async (
-    leadId: string,
-    action: string,
-    oldValue: string | null,
-    newValue: string | null
-  ) => {
-    await insertWithCompany("lead_history", {
-      lead_id: leadId,
-      user_id: currentUserId,
-      user_name: currentUserName,
-      action,
-      old_value: oldValue,
-      new_value: newValue,
-    });
-  };
-
   const handleDeleteSingle = async (id: string) => {
     setIsDeleting(true);
     // Confere se o banco apagou de verdade (sem permissão ele não apaga nem dá erro)
@@ -227,32 +207,7 @@ export function LeadsTable({
     setIsDeleting(false);
   };
 
-  const handleStatusChangeInline = async (lead: Lead, newStatus: LeadStatus) => {
-    try {
-      await addHistoryEntry(
-        lead.id,
-        "Alteração de status",
-        LEAD_STATUS_LABELS[lead.status],
-        LEAD_STATUS_LABELS[newStatus]
-      );
-
-      const { error } = await supabase
-        .from("campaign_leads")
-        .update({ status: newStatus })
-        .eq("id", lead.id);
-
-      if (error) throw error;
-
-      onStatusChange(lead.id, newStatus);
-    } catch (error) {
-      console.error("Error updating status:", error);
-      toast({
-        title: "Erro ao atualizar status",
-        description: "Tente novamente.",
-        variant: "destructive",
-      });
-    }
-  };
+  const handleStatusChangeInline = (lead: Lead, newStatus: LeadStatus) => onStatusChange(lead.id, newStatus);
 
   if (isLoading) {
     return (

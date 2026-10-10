@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarIcon, Search, X, Download, CalendarCheck, Sun } from "lucide-react";
@@ -30,6 +30,14 @@ interface LeadsFiltersProps {
   onExport?: () => void;
 }
 
+const MONTH_NAMES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const monthIndex = (m: string) => {
+  const i = MONTH_NAMES.findIndex((n) => m.trim().toLowerCase().startsWith(n));
+  return i === -1 ? 99 : i;
+};
+/** Meses do filtro na ordem do calendário (o que não for nome de mês vai para o fim) */
+const byCalendarMonth = (a: string, b: string) => monthIndex(a) - monthIndex(b) || a.localeCompare(b, "pt-BR");
+
 export function LeadsFilters({
   filters,
   onFiltersChange,
@@ -41,27 +49,37 @@ export function LeadsFilters({
   const { currentCompanyId } = useCompany();
   const { unitNames } = useCompanyUnits(currentCompanyId || undefined);
 
+  // Campanhas e meses para os filtros: lê todos os leads de 1000 em 1000 (antes só os
+  // 1000 primeiros, e campanhas do fim da lista sumiam no buffet com mais leads)
   useEffect(() => {
+    let cancelled = false;
     const fetchFiltersData = async () => {
       if (!currentCompanyId) return;
-
-      const { data } = await supabase
-        .from("campaign_leads")
-        .select("campaign_id, month")
-        .eq("company_id", currentCompanyId)
-        .order("campaign_id");
-
-      if (data) {
-        const uniqueCampaigns = [...new Set(data.map((d) => d.campaign_id))];
-        const uniqueMonths = [
-          ...new Set(data.map((d) => d.month).filter(Boolean)),
-        ] as string[];
-        setCampaigns(uniqueCampaigns);
-        setMonths(uniqueMonths);
+      const campaignSet = new Set<string>();
+      const monthSet = new Set<string>();
+      for (let from = 0; from < 50000; from += 1000) {
+        const { data, error } = await supabase
+          .from("campaign_leads")
+          .select("campaign_id, month")
+          .eq("company_id", currentCompanyId)
+          .order("id")
+          .range(from, from + 999);
+        if (cancelled || error || !data) break;
+        data.forEach((d) => {
+          if (d.campaign_id) campaignSet.add(d.campaign_id);
+          if (d.month) monthSet.add(d.month);
+        });
+        if (data.length < 1000) break;
       }
+      if (cancelled) return;
+      setCampaigns([...campaignSet].sort());
+      setMonths([...monthSet].sort(byCalendarMonth));
     };
 
     fetchFiltersData();
+    return () => {
+      cancelled = true;
+    };
   }, [currentCompanyId]);
 
   const clearFilters = () => {
@@ -90,6 +108,19 @@ export function LeadsFilters({
     filters.hasScheduledVisit;
 
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
+
+  // Busca: espera parar de digitar (antes buscava a cada letra)
+  const [searchText, setSearchText] = useState(filters.search);
+  const filtersRef = useRef(filters);
+  filtersRef.current = filters;
+  useEffect(() => {
+    setSearchText(filters.search);
+  }, [filters.search]);
+  useEffect(() => {
+    if (searchText === filtersRef.current.search) return;
+    const timer = setTimeout(() => onFiltersChange({ ...filtersRef.current, search: searchText }), 400);
+    return () => clearTimeout(timer);
+  }, [searchText, onFiltersChange]);
 
   const isToday = (() => {
     if (!filters.startDate || !filters.endDate) return false;
@@ -122,10 +153,8 @@ export function LeadsFilters({
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar por nome, telefone..."
-                value={filters.search}
-                onChange={(e) =>
-                  onFiltersChange({ ...filters, search: e.target.value })
-                }
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
                 className="pl-10 text-sm bg-background/50 border-border/60 focus:border-primary/50 focus:ring-primary/20"
               />
             </div>
