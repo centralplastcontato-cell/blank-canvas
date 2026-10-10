@@ -27,7 +27,7 @@ import {
   Sparkles, UserCheck,
 } from "lucide-react";
 import { eventRowToFormData, saveEvent } from "@/lib/eventSave";
-import { formatPhoneBR, maskPhone } from "@/lib/mask-utils";
+import { formatPhoneBR, maskPhone, pickPersonName } from "@/lib/mask-utils";
 import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
@@ -711,7 +711,11 @@ export function LeadInfoPopover({
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <h4 className="font-bold text-[15px] truncate tracking-tight">{linkedLead.name}</h4>
+                        {/* Lead salvo com o telefone no nome: mostra o nome do WhatsApp */}
+                        <h4 className="font-bold text-[15px] truncate tracking-tight">
+                          {pickPersonName(linkedLead.name, selectedConversation.contact_name)
+                            || (canViewContact ? formatPhoneBR(linkedLead.name) : maskPhone(linkedLead.name))}
+                        </h4>
                         {canEditLead && (<Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 rounded-md opacity-60 hover:opacity-100" onClick={startEditingName} title="Editar nome">
                           <Pencil className="w-3 h-3" />
                         </Button>)}
@@ -1246,10 +1250,10 @@ export function LeadInfoPopover({
         <SheetTrigger asChild>
           {triggerButton}
         </SheetTrigger>
-        <SheetContent side="bottom" className="p-0 rounded-t-2xl max-h-[92dvh] overflow-y-auto">
-          <SheetTitle className="sr-only">Ficha do lead</SheetTitle>
-          <div className="flex justify-center pt-3 pb-5">
-            <span className="h-1.5 w-12 rounded-full bg-muted-foreground/25" />
+        {/* Fundo branco como a caixinha do computador (o cinza do app deixava tudo apagado) */}
+        <SheetContent side="bottom" className="p-0 bg-popover rounded-t-2xl max-h-[92dvh] overflow-y-auto">
+          <div className="flex items-center h-12 px-5 pr-12 border-b border-border/40">
+            <SheetTitle className="text-sm font-semibold">Ficha do lead</SheetTitle>
           </div>
           {panel}
         </SheetContent>

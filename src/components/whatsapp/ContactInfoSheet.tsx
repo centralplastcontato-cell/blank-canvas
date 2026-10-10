@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { formatPhoneBR } from "@/lib/mask-utils";
+import { formatPhoneBR, pickPersonName } from "@/lib/mask-utils";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -90,7 +90,8 @@ export function ContactInfoSheet({
 }: ContactInfoSheetProps) {
   const { toast } = useToast();
   const { currentCompany } = useCompany();
-  const displayName = linkedLead?.name || contactName || contactPhone;
+  // Lead salvo com o telefone no nome: mostra o nome do WhatsApp
+  const displayName = pickPersonName(linkedLead?.name, contactName) || formatPhoneBR(contactPhone) || contactPhone;
   const statusLabel = linkedLead
     ? (LEAD_STATUS_LABELS as Record<string, string>)[linkedLead.status] || linkedLead.status
     : null;

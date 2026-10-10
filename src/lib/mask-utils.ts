@@ -22,6 +22,14 @@ export function formatPhoneBR(phone: string | null | undefined): string {
 }
 
 /**
+ * Primeiro nome "de verdade" (com letras). Lead salvo só com o telefone no lugar do
+ * nome (ex.: "11997581043") não conta; aí vale o nome do WhatsApp.
+ */
+export function pickPersonName(...names: (string | null | undefined)[]): string | null {
+  return names.find((n) => !!n && /\p{L}/u.test(n)) ?? null;
+}
+
+/**
  * Formats a CPF string with mask: 000.000.000-00
  */
 export function formatCPF(value: string): string {
