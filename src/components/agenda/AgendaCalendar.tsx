@@ -91,7 +91,7 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
         nav_button_next: "absolute right-0",
         table: "w-full border-collapse",
         head_row: "flex",
-        head_cell: "text-muted-foreground/40 flex-1 font-semibold text-[0.6rem] lg:text-[0.65rem] text-center uppercase tracking-[0.2em] pb-3",
+        head_cell: "text-muted-foreground/70 flex-1 font-semibold text-[11px] lg:text-xs text-center uppercase tracking-wider pb-3",
         row: "flex w-full",
         cell: "flex-1 text-center text-sm p-[2px] lg:p-1 relative focus-within:relative focus-within:z-20",
         day: cn(
@@ -151,7 +151,7 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
                 <div className="flex items-center gap-[3px] lg:gap-1 justify-center">
                   {/* Pre-reservation pink dots */}
                   {hasPreRes && (
-                    <span className="h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full bg-pink-400 shadow-[0_0_4px_rgba(244,114,182,0.4)]" />
+                    <span className="h-[6px] w-[6px] lg:h-[7px] lg:w-[7px] rounded-full bg-pink-400 shadow-[0_0_4px_rgba(244,114,182,0.4)]" />
                   )}
                   {/* Show up to 4 type/status dots */}
                   {dayEvents.slice(0, 4).map((ev) => {
@@ -162,7 +162,7 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
                       <span
                         key={ev.id}
                         className={cn(
-                          "h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full transition-all duration-200",
+                          "h-[6px] w-[6px] lg:h-[7px] lg:w-[7px] rounded-full transition-all duration-200",
                           dotClass
                         )}
                       />
@@ -170,7 +170,7 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
                   })}
                   {/* Counter for 5+ events */}
                   {eventCount > 4 && (
-                    <span className="text-[7px] lg:text-[8px] font-bold text-muted-foreground/60 leading-none ml-0.5">
+                    <span className="text-[9px] lg:text-[10px] font-bold text-muted-foreground leading-none ml-0.5">
                       +{eventCount - 4}
                     </span>
                   )}
@@ -179,13 +179,13 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
 
               {/* Checklist pending indicator */}
               {hasPending && (
-                <span className="text-[6px] lg:text-[7px] text-amber-500/70 leading-none">📋</span>
+                <span className="text-[9px] lg:text-[10px] leading-none">📋</span>
               )}
 
               {/* Payment status badge */}
               {hasPaymentIssue && (
                 <span className={cn(
-                  "text-[6px] lg:text-[7px] font-bold leading-none",
+                  "text-[9px] lg:text-[10px] font-bold leading-none",
                   dayLate > 0 ? "text-red-500" : "text-amber-500"
                 )}>
                   💰{dayLate > 0 ? dayLate : dayPayPending}
@@ -194,7 +194,7 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
 
               {/* Event count badge for days with many events */}
               {eventCount >= 2 && (
-                <span className="absolute -top-0.5 -right-0.5 lg:top-0 lg:right-0 h-4 w-4 lg:h-[18px] lg:w-[18px] rounded-full bg-gradient-to-br from-primary to-primary/80 text-primary-foreground text-[7px] lg:text-[8px] font-bold flex items-center justify-center leading-none shadow-[0_2px_8px_rgba(0,0,0,0.15)]">
+                <span className="absolute -top-0.5 -right-0.5 lg:top-0 lg:right-0 h-[18px] w-[18px] lg:h-5 lg:w-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center leading-none shadow-sm">
                   {eventCount}
                 </span>
               )}

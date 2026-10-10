@@ -20,7 +20,7 @@ const RESCHED_TIME_OPTIONS = Array.from({ length: 28 }, (_, i) => {
   const m = (i + 16) % 2 === 0 ? "00" : "30";
   return `${h}:${m}`;
 });
-import { Loader2, Clock, MapPin, ChevronLeft, ChevronRight, Phone, MessageSquare, Check, RefreshCw, X, Plus, User as UserIcon, AlertTriangle, Trash2, PartyPopper, Package, Sparkles } from "lucide-react";
+import { Loader2, Clock, MapPin, ChevronLeft, ChevronRight, Phone, MessageSquare, Check, RefreshCw, X, Plus, User as UserIcon, AlertTriangle, Trash2, PartyPopper, Package, Sparkles, TrendingUp } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -376,10 +376,10 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
   const canceladas = filteredVisits.filter(v => v.status_visita === "cancelada").length;
 
   const summaryCards = [
-    { label: "Visitas Comerciais", value: visitasComerciais.length, icon: MapPin, color: "text-primary", bg: "bg-primary/10", border: "border-l-primary", tint: "bg-primary/[0.02]" },
-    { label: "Atendimentos", value: atendimentos.length, icon: Phone, color: "text-violet-600", bg: "bg-violet-500/10", border: "border-l-violet-500", tint: "bg-violet-500/[0.02]" },
-    { label: "Agendadas", value: agendadas, icon: Clock, color: "text-blue-600", bg: "bg-blue-500/10", border: "border-l-blue-500", tint: "bg-blue-500/[0.02]" },
-    { label: "Realizadas", value: realizadas, icon: Check, color: "text-green-700", bg: "bg-green-600/10", border: "border-l-green-700", tint: "bg-green-700/[0.02]" },
+    { label: "Visitas Comerciais", value: visitasComerciais.length, icon: MapPin, color: "text-primary", bg: "bg-primary/10" },
+    { label: "Atendimentos", value: atendimentos.length, icon: Phone, color: "text-violet-600", bg: "bg-violet-500/10" },
+    { label: "Agendadas", value: agendadas, icon: Clock, color: "text-blue-600", bg: "bg-blue-500/10" },
+    { label: "Realizadas", value: realizadas, icon: Check, color: "text-green-700", bg: "bg-green-600/10" },
   ];
 
   const getDaysInMonthCount = (d: Date) => new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
@@ -418,7 +418,8 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
 
       {/* Filters + CTA row */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="flex items-center gap-2 w-full">
+        {/* No celular os filtros ficam 2 por linha (antes 4 espremidos numa linha só) */}
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full">
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className={cn(
               "h-9 flex-1 min-w-0 text-xs rounded-xl border-border/50 bg-card shadow-sm transition-all duration-200",
@@ -453,7 +454,7 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
               <SelectValue placeholder="Responsável" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="all">Todos responsáveis</SelectItem>
               {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -471,60 +472,56 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button size="sm" className="h-10 px-5 rounded-xl gap-2 font-semibold shadow-sm" onClick={() => { setCreateType("visita"); setCreateOpen(true); }}>
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto shrink-0">
+          <Button size="sm" className="h-10 px-5 rounded-full gap-2 font-semibold shadow-sm" onClick={() => { setCreateType("visita"); setCreateOpen(true); }}>
             <Plus className="h-4 w-4" /> Nova Visita
           </Button>
-          <Button size="sm" variant="outline" className="h-10 px-5 rounded-xl gap-2 font-semibold shadow-sm border-violet-300 text-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950/30" onClick={() => { setCreateType("atendimento"); setCreateOpen(true); }}>
+          <Button size="sm" variant="outline" className="h-10 px-5 rounded-full gap-2 font-semibold shadow-sm border-violet-300 text-violet-700 hover:bg-violet-50 dark:hover:bg-violet-950/30" onClick={() => { setCreateType("atendimento"); setCreateOpen(true); }}>
             <Package className="h-4 w-4" /> Atendimento
           </Button>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="space-y-4 animate-fade-up">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+      <div className="space-y-3 animate-fade-up">
+        {/* Mesmo visual dos números da aba Festas */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-3">
           {summaryCards.map((c) => (
-            <div
-              key={c.label}
-              className={`group relative rounded-2xl border border-border/40 border-l-[3px] ${c.border} ${c.tint} backdrop-blur-sm shadow-[0_4px_24px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-200 ease-out cursor-default overflow-hidden`}
-            >
-              <div className="p-4 md:p-5 flex items-start gap-3">
-                <div className={`p-2.5 rounded-xl ${c.bg} shrink-0 transition-transform duration-200 group-hover:scale-105`}>
-                  <c.icon className={`h-5 w-5 ${c.color}`} />
-                </div>
-                <div className="min-w-0 flex flex-col">
-                  <p className="text-2xl md:text-3xl font-extrabold tracking-tight leading-none">{c.value}</p>
-                  <p className="text-[10px] md:text-[11px] text-muted-foreground/80 font-medium uppercase tracking-widest mt-1">{c.label}</p>
-                </div>
+            <div key={c.label} className="rounded-2xl border border-border/50 bg-card p-3 shadow-sm flex items-center gap-3 min-w-0">
+              <div className={cn("h-10 w-10 rounded-full flex items-center justify-center shrink-0", c.bg)}>
+                <c.icon className={cn("h-5 w-5", c.color)} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xl md:text-2xl font-extrabold tracking-tight leading-none">{c.value}</p>
+                <p className="text-xs font-medium text-muted-foreground mt-1 truncate">{c.label}</p>
               </div>
             </div>
           ))}
         </div>
 
         {/* Occupancy Bar */}
-        <div className="rounded-2xl border border-border/30 bg-card shadow-[0_2px_12px_rgba(0,0,0,0.03)] p-4 md:p-5">
+        <div className="rounded-2xl border border-border/50 bg-card shadow-sm p-3 md:p-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-primary/10">
-                <RefreshCw className="h-4 w-4 text-primary" />
+              <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <TrendingUp className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs font-medium text-muted-foreground/80 uppercase tracking-wider">Ocupação do Mês</p>
+                <p className="text-xs font-semibold text-muted-foreground">Ocupação do mês</p>
                 <div className="flex items-baseline gap-2 mt-0.5">
                   <span className="text-2xl font-extrabold tracking-tight">{occupancyRate}%</span>
                   <span className="text-xs text-muted-foreground/60">{uniqueDaysWithVisit} dias com visita · {freeDays} dias livres</span>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground/70">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground/70">
               <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" /><span>{realizadas} realiz.</span></div>
               <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-blue-500" /><span>{agendadas} agend.</span></div>
               <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-400" /><span>{naoComp + canceladas} canc./falta</span></div>
             </div>
           </div>
-          <div className="mt-3 h-2 rounded-full bg-muted/50 overflow-hidden">
-            <div className="h-full rounded-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-500 ease-out" style={{ width: `${occupancyRate}%` }} />
+          <div className="mt-3 h-2 rounded-full bg-muted overflow-hidden">
+            <div className="h-full rounded-full bg-primary transition-all duration-500 ease-out" style={{ width: `${occupancyRate}%` }} />
           </div>
         </div>
       </div>

@@ -136,9 +136,9 @@ export function AgendaTarefasTab({ userId }: AgendaTarefasTabProps) {
       <TaskProductivityDashboard tasks={tasks} />
 
       {/* Filters + add */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
         <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="w-[140px] h-9 text-xs">
+          <SelectTrigger className="sm:w-[160px] h-9 text-xs rounded-xl bg-card">
             <SelectValue placeholder="Categoria" />
           </SelectTrigger>
           <SelectContent>
@@ -149,19 +149,19 @@ export function AgendaTarefasTab({ userId }: AgendaTarefasTabProps) {
           </SelectContent>
         </Select>
         <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
-          <SelectTrigger className="w-[140px] h-9 text-xs">
+          <SelectTrigger className="sm:w-[160px] h-9 text-xs rounded-xl bg-card">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todas</SelectItem>
+            <SelectItem value="all">Todos status</SelectItem>
             <SelectItem value="pending">⏳ Pendentes</SelectItem>
             <SelectItem value="in_progress">🔄 Em andamento</SelectItem>
             <SelectItem value="completed">✅ Concluídas</SelectItem>
             <SelectItem value="overdue">⚠️ Atrasadas</SelectItem>
           </SelectContent>
         </Select>
-        <div className="flex-1" />
-        <Button size="sm" onClick={() => { setEditingTask(null); setFormOpen(true); }}>
+        <div className="hidden sm:block flex-1" />
+        <Button size="sm" className="col-span-2 h-10 rounded-full sm:h-9" onClick={() => { setEditingTask(null); setFormOpen(true); }}>
           <Plus className="h-4 w-4 mr-1" /> Nova Tarefa
         </Button>
       </div>

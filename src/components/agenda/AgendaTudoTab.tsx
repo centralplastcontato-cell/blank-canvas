@@ -305,7 +305,7 @@ export function AgendaTudoTab({ userId, showRevenue = false, onEditEvent, onDele
               <CardContent className="p-4">
                 <h3 className="font-semibold text-sm mb-3">
                   {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
-                  <Badge variant="secondary" className="ml-2 text-[10px]">{selectedDayItems.length} itens</Badge>
+                  <Badge variant="secondary" className="ml-2 text-[10px]">{selectedDayItems.length} {selectedDayItems.length === 1 ? "item" : "itens"}</Badge>
                 </h3>
                 {selectedDayItems.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nenhum compromisso neste dia.</p>
