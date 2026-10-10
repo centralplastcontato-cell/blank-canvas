@@ -1256,7 +1256,8 @@ export default function CentralAtendimento() {
               </Collapsible>
             )}
 
-            <TabsContent value="chat" className="flex-1 overflow-hidden min-h-0 mt-0 p-0">
+            {/* forceMount: o chat fica carregado ao ir para Leads e voltar (antes recarregava tudo) */}
+            <TabsContent value="chat" forceMount className="flex-1 overflow-hidden min-h-0 mt-0 p-0 data-[state=inactive]:hidden">
               {!isLoadingUnitPerms && (
                 <WhatsAppChat 
                   userId={user.id} 
@@ -1267,6 +1268,7 @@ export default function CentralAtendimento() {
                   externalSelectedUnit={selectedChatUnit}
                   onLeadClosedMobile={handleLeadClosed}
                   onUnreadCountChange={fetchUnreadCount}
+                  isVisible={activeTab === "chat"}
                   onInstancesLoaded={(instances) => {
                     setChatInstances(instances);
                     if (!selectedChatUnit && instances.length > 0) {
@@ -1597,7 +1599,8 @@ export default function CentralAtendimento() {
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "chat" | "leads")} className="h-full relative">
               {/* TabsList removed - buttons are now in the header */}
 
-              <TabsContent value="chat" className="absolute inset-0 mt-0 overflow-hidden data-[state=inactive]:hidden">
+              {/* forceMount: o chat fica carregado ao ir para Leads e voltar (antes recarregava tudo) */}
+              <TabsContent value="chat" forceMount className="absolute inset-0 mt-0 overflow-hidden data-[state=inactive]:hidden">
                 <div className="h-full">
                   {!isLoadingUnitPerms && (
                     <WhatsAppChat 
@@ -1609,6 +1612,7 @@ export default function CentralAtendimento() {
                       externalSelectedUnit={selectedChatUnit}
                       onLeadClosedMobile={handleLeadClosed}
                       onUnreadCountChange={fetchUnreadCount}
+                      isVisible={activeTab === "chat"}
                       onInstancesLoaded={(instances) => {
                         setChatInstances(instances);
                         if (!selectedChatUnit && instances.length > 0) {
