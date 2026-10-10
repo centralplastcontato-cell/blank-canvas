@@ -28,6 +28,7 @@ import { AgendaListView } from "@/components/agenda/AgendaListView";
 import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
 import { EventDetailSheet } from "@/components/agenda/EventDetailSheet";
 import { MonthSummaryCards } from "@/components/agenda/MonthSummaryCards";
+import { UpcomingIssuesCard } from "@/components/agenda/UpcomingIssuesCard";
 import { PeriodFilterPopover } from "@/components/agenda/PeriodFilterPopover";
 import { PreReservationFormDialog, type PreReservation } from "@/components/agenda/PreReservationFormDialog";
 import { PreReservationDetailSheet } from "@/components/agenda/PreReservationDetailSheet";
@@ -692,6 +693,19 @@ export default function Agenda() {
     return filtered;
   }, [events, selectedUnit, canViewAll, allowedUnits, shouldRestrictEventUnits, paymentFilter, paymentStatus]);
 
+  // Mesma regra de unidade das festas do mês, para uma festa só
+  const matchesUnitFilter = useCallback((e: { unit: string | null }) => {
+    const unit = (e.unit || "").toLowerCase().trim();
+    if (!canViewAll && shouldRestrictEventUnits) {
+      const permitted = allowedUnits.filter(u => u !== "As duas").map(u => u.toLowerCase().trim());
+      if (!unit || !permitted.includes(unit)) return false;
+    }
+    if (selectedUnit !== "all" && unit !== selectedUnit.toLowerCase().trim()) return false;
+    return true;
+  }, [canViewAll, shouldRestrictEventUnits, allowedUnits, selectedUnit]);
+  // A empresa tem unidades de festa (canais "Vendas" não contam)
+  const hasPartyUnits = physicalUnits.some((u) => !u.name.toLowerCase().includes("vendas"));
+
   // Filtered period events (same unit logic, case-insensitive)
   const periodFilteredEvents = useMemo(() => {
     let filtered = periodEvents;
@@ -867,6 +881,7 @@ export default function Agenda() {
 
       toast({ title: "Festa criada!" });
       await syncPaymentDetails(newEvent.id, currentCompany.id, data.payment_details);
+      setEventsVersion((v) => v + 1);
       fetchEvents();
       return newEvent.id;
     }
@@ -1824,6 +1839,15 @@ export default function Agenda() {
                   closed={closedStats}
                   units={occupancyUnits}
                 />
+                {contentMode === "agendadas" && !periodRange && currentCompany?.id && (
+                  <UpcomingIssuesCard
+                    companyId={currentCompany.id}
+                    filterEvent={matchesUnitFilter}
+                    hasUnits={hasPartyUnits}
+                    reloadKey={eventsVersion}
+                    onOpenEvent={(ev) => { setDetailEvent(ev as unknown as CompanyEvent); setDetailOpen(true); }}
+                  />
+                )}
               </div>
 
               {/* Main content: either Agendadas or Fechadas */}
@@ -2410,7 +2434,11 @@ export default function Agenda() {
 
       <EventDetailSheet
         open={detailOpen}
-        onOpenChange={setDetailOpen}
+        onOpenChange={(open) => {
+          setDetailOpen(open);
+          // Ao fechar, a lista "O que falta resolver" confere de novo (ex.: parcela recebida)
+          if (!open) setEventsVersion((v) => v + 1);
+        }}
         event={detailEvent}
         onEdit={(ev) => handleEdit(ev as CompanyEvent)}
         onDelete={(id) => setDeleteConfirmId(id)}

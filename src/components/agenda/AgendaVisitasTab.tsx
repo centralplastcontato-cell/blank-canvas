@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { format, isSameDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DayPicker } from "react-day-picker";
@@ -29,6 +29,7 @@ import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { VisitFormDialog } from "@/components/visitas/VisitFormDialog";
 import { SendVisitConfirmationDialog } from "@/components/visitas/SendVisitConfirmationDialog";
 import { logActivity } from "@/lib/activityLog";
+import { PendingVisitOutcomesCard } from "./PendingVisitOutcomesCard";
 
 const VISIT_STATUSES = [
   { value: "agendada", label: "Agendada", color: "bg-blue-500/15 text-blue-700 border-blue-300", dot: "bg-blue-500" },
@@ -95,8 +96,46 @@ interface AgendaVisitasTabProps {
   userId: string;
 }
 
+const VISIT_COLUMNS = "id, lead_id, company_id, data_visita, horario_visita, status_visita, observacoes, responsavel_user_id, created_by, created_at, unit, package_interest, guest_count, party_date_interest, payment_preference, interest_level, restrictions, client_questions, seller_notes, lead_channel, visit_type, event_id, items_description";
+
+/** Junta nome/telefone do lead e o título da festa (atendimento) às visitas */
+async function enrichVisits(data: Visit[]): Promise<Visit[]> {
+  if (data.length === 0) return [];
+  const leadIds = [...new Set(data.map((v) => v.lead_id))];
+  const { data: leads } = await supabase
+    .from("campaign_leads")
+    .select("id, name, whatsapp, month, guests")
+    .in("id", leadIds);
+  const leadMap = new Map((leads || []).map((l) => [l.id, l]));
+
+  const eventIds = [...new Set(data.map((v) => v.event_id).filter((id): id is string => !!id))];
+  const eventMap = new Map<string, string>();
+  if (eventIds.length > 0) {
+    const { data: events } = await supabase.from("company_events").select("id, title").in("id", eventIds);
+    for (const e of events || []) eventMap.set(e.id, e.title);
+  }
+
+  return data.map((v) => {
+    const lead = leadMap.get(v.lead_id);
+    return {
+      ...v,
+      lead_name: lead?.name || "Lead desconhecido",
+      lead_phone: lead?.whatsapp || "",
+      lead_guests: lead?.guests || null,
+      lead_month: lead?.month || null,
+      event_title: v.event_id ? eventMap.get(v.event_id) || null : null,
+    };
+  });
+}
+
 export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Só a primeira carga mostra a tela de "carregando" (depois a aba fica na tela
+  // e a visita aberta não fecha sozinha)
+  const hasLoaded = useRef(false);
+  // Muda a cada recarga das visitas (a lista "sem resultado" confere de novo)
+  const [visitsVersion, setVisitsVersion] = useState(0);
   const { currentCompany } = useCompany();
   const [visits, setVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,7 +173,7 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
 
     const { data, error } = await (supabase as any)
       .from("lead_visits")
-      .select("id, lead_id, company_id, data_visita, horario_visita, status_visita, observacoes, responsavel_user_id, created_by, created_at, unit, package_interest, guest_count, party_date_interest, payment_preference, interest_level, restrictions, client_questions, seller_notes, lead_channel, visit_type, event_id, items_description")
+      .select(VISIT_COLUMNS)
       .eq("company_id", companyId)
       .gte("data_visita", startDate)
       .lte("data_visita", endDate)
@@ -143,39 +182,11 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
 
     if (error) { console.error(error); setLoading(false); return; }
 
-    if (data && data.length > 0) {
-      const leadIds = [...new Set(data.map((v: any) => v.lead_id))];
-      const { data: leads } = await supabase
-        .from("campaign_leads")
-        .select("id, name, whatsapp, month, guests")
-        .in("id", leadIds as string[]);
-
-      const leadMap = new Map((leads || []).map((l: any) => [l.id, l]));
-      const eventIds = [...new Set(data.filter((v: any) => v.event_id).map((v: any) => v.event_id))];
-      let eventMap = new Map<string, string>();
-      if (eventIds.length > 0) {
-        const { data: events } = await (supabase as any)
-          .from("company_events")
-          .select("id, title")
-          .in("id", eventIds);
-        eventMap = new Map((events || []).map((e: any) => [e.id, e.title]));
-      }
-
-      const mappedVisits = data.map((v: any) => ({
-        ...v,
-        lead_name: leadMap.get(v.lead_id)?.name || "Lead desconhecido",
-        lead_phone: leadMap.get(v.lead_id)?.whatsapp || "",
-        lead_guests: leadMap.get(v.lead_id)?.guests || null,
-        lead_month: leadMap.get(v.lead_id)?.month || null,
-        event_title: v.event_id ? eventMap.get(v.event_id) || null : null,
-      }));
-
-      setVisits(mappedVisits);
-      setDetailVisit((current) => current ? mappedVisits.find((visit: Visit) => visit.id === current.id) || current : current);
-    } else {
-      setVisits([]);
-      setDetailVisit((current) => current ? null : current);
-    }
+    const mappedVisits = await enrichVisits((data || []) as Visit[]);
+    setVisits(mappedVisits);
+    setDetailVisit((current) => current ? mappedVisits.find((visit: Visit) => visit.id === current.id) || current : current);
+    hasLoaded.current = true;
+    setVisitsVersion((v) => v + 1);
     setLoading(false);
   };
 
@@ -183,6 +194,32 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
     const companyId = currentCompany?.id || getCurrentCompanyId();
     if (companyId && userId) fetchVisits();
   }, [currentCompany?.id, userId, calendarMonth]);
+
+  // Abre uma visita de qualquer mês (com a remarcação aberta quando pedida)
+  const openVisitById = async (visitId: string, reschedule: boolean) => {
+    const { data } = await supabase.from("lead_visits").select(VISIT_COLUMNS).eq("id", visitId).maybeSingle();
+    if (!data) {
+      toast({ title: "Visita não encontrada", variant: "destructive" });
+      return;
+    }
+    const [visit] = await enrichVisits([data as unknown as Visit]);
+    setDetailVisit(visit);
+    if (reschedule) {
+      setReschedDate(visit.data_visita);
+      setReschedTime(visit.horario_visita || "");
+      setReschedForId(visit.id);
+    }
+  };
+
+  // Link "?visita=<id>" (ex.: botão "Remarcou" do aviso da Central): abre a visita para remarcar
+  useEffect(() => {
+    const visitId = searchParams.get("visita");
+    if (!visitId || !currentCompany?.id) return;
+    openVisitById(visitId, true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("visita");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, currentCompany?.id]);
 
   const filteredVisits = useMemo(() => {
     return visits.filter(v => {
@@ -307,7 +344,7 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
     }
   };
 
-  if (loading) {
+  if (loading && !hasLoaded.current) {
     return (
       <div className="flex justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -353,6 +390,15 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
 
   return (
     <div className="space-y-6">
+      {currentCompany?.id && (
+        <PendingVisitOutcomesCard
+          companyId={currentCompany.id}
+          onOpenVisit={openVisitById}
+          onChanged={fetchVisits}
+          reloadKey={visitsVersion}
+        />
+      )}
+
       {/* Alert */}
       {unconfirmedSoon.length > 0 && (
         <div className="rounded-2xl border border-amber-300/50 bg-gradient-to-r from-amber-50/80 to-amber-50/30 dark:from-amber-950/30 dark:to-transparent p-4 flex items-start gap-3">

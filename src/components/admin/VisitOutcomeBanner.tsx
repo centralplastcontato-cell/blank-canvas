@@ -63,6 +63,8 @@ export function VisitOutcomeBanner() {
       .select("id, lead_id, data_visita, horario_visita")
       .eq("company_id", companyId)
       .in("status_visita", [...PENDING_VISIT_STATUSES])
+      // Atendimento (entrega/retirada) não é visita: não pergunta se "veio"
+      .neq("visit_type", "atendimento")
       .gte("data_visita", brtDateDaysAgo(VISIT_OUTCOME_LOOKBACK_DAYS))
       .lte("data_visita", brtNow().date)
       .order("data_visita", { ascending: false })
@@ -122,7 +124,7 @@ export function VisitOutcomeBanner() {
       saving={saving}
       onCame={() => answer("realizada")}
       onNoShow={() => answer("nao_compareceu")}
-      onRescheduled={() => navigate("/agenda?tab=visitas")}
+      onRescheduled={() => navigate(`/agenda?tab=visitas&visita=${visit.id}`)}
       onLater={later}
     />
   );
