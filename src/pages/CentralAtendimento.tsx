@@ -48,6 +48,9 @@ import { toast } from "@/hooks/use-toast";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
+import { saveEvent } from "@/lib/eventSave";
+import { deleteLeads } from "@/lib/leadDelete";
+import { AWAITING_READ_OR_FILTER } from "@/lib/conversationUnread";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 
 export default function CentralAtendimento() {
@@ -684,10 +687,13 @@ export default function CentralAtendimento() {
   // Optimized: Fetch unread count with debounced realtime
   const fetchUnreadCount = useCallback(async () => {
     if (!currentCompany?.id) return;
+    // Só conversas esperando a equipe (o cliente mandou a última mensagem)
     const { data } = await supabase
       .from("wapi_conversations")
       .select("unread_count, instance_id")
-      .eq("company_id", currentCompany.id);
+      .eq("company_id", currentCompany.id)
+      .gt("unread_count", 0)
+      .or(AWAITING_READ_OR_FILTER);
     
     if (data) {
       const total = data.reduce((sum, conv) => sum + (conv.unread_count || 0), 0);
@@ -827,39 +833,11 @@ export default function CentralAtendimento() {
     }, 300);
   };
 
+  // Mesma regra da Agenda: todos os campos e as parcelas (src/lib/eventSave.ts)
   const handleFestaSubmit = async (data: EventFormData): Promise<string | void> => {
     if (!currentCompany?.id || !user?.id) return;
-    const payload: any = {
-      company_id: currentCompany.id,
-      title: data.title,
-      event_date: data.event_date,
-      start_time: data.start_time || null,
-      end_time: data.end_time || null,
-      event_type: data.event_type || null,
-      guest_count: data.guest_count,
-      unit: data.unit || null,
-      status: data.status,
-      package_name: data.package_name || null,
-      total_value: data.total_value,
-      notes: data.notes || null,
-      created_by: user.id,
-      lead_id: data.lead_id || null,
-      data_fechamento_venda: data.data_fechamento_venda || null,
-      vendedor_responsavel_id: data.vendedor_responsavel_id || null,
-      payment_method: data.payment_method || null,
-      payment_details: data.payment_details || null,
-    };
-    console.log('[Lead:Fechado->NovaFesta] creating event', payload);
-    if (data.id) {
-      const { error } = await supabase.from("company_events").update(payload).eq("id", data.id);
-      if (error) { toast({ title: "Erro ao salvar festa", description: error.message, variant: "destructive" }); throw error; }
-      toast({ title: "Festa atualizada!" });
-    } else {
-      const { data: newEvent, error } = await supabase.from("company_events").insert(payload).select("id").single();
-      if (error) { toast({ title: "Erro ao criar festa", description: error.message, variant: "destructive" }); throw error; }
-      toast({ title: "Festa criada com sucesso!" });
-      return newEvent.id;
-    }
+    const id = await saveEvent(data, { companyId: currentCompany.id, userId: user.id });
+    return id || undefined;
   };
 
   const handleExport = () => {
@@ -871,29 +849,18 @@ export default function CentralAtendimento() {
   };
 
   const handleDeleteLead = async (leadId: string) => {
-    try {
-      // First delete related history records
-      await supabase.from("lead_history").delete().eq("lead_id", leadId);
-      
-      // Then delete the lead
-      const { error } = await supabase.from("campaign_leads").delete().eq("id", leadId);
-      if (error) throw error;
-      
-      // Update local state
-      setLeads((prev) => prev.filter((l) => l.id !== leadId));
-      
-      toast({
-        title: "Lead excluído",
-        description: "O lead foi removido permanentemente.",
-      });
-    } catch (error) {
-      console.error("Error deleting lead:", error);
-      toast({
-        title: "Erro ao excluir lead",
-        description: "Não foi possível excluir o lead. Tente novamente.",
-        variant: "destructive",
-      });
+    // O histórico sai junto (cascata) e confere se o banco apagou de verdade
+    const result = await deleteLeads([leadId]);
+    if (!result.ok) {
+      toast({ title: "Lead não foi excluído", description: result.message, variant: "destructive" });
+      return;
     }
+    setLeads((prev) => prev.filter((l) => l.id !== leadId));
+    setTotalCount((c) => Math.max(0, c - 1));
+    toast({
+      title: "Lead excluído",
+      description: "O lead foi removido permanentemente.",
+    });
   };
 
   const { isLoading: isCompanyLoading } = useCompany();

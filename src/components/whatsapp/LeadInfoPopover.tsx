@@ -25,6 +25,7 @@ import {
   ArrowRightLeft, Bot, Loader2, Pencil, Check, X, Trash2, UsersRound, Star, RotateCcw, PartyPopper, Package, AlertTriangle,
   Sparkles, UserCheck,
 } from "lucide-react";
+import { eventRowToFormData, saveEvent } from "@/lib/eventSave";
 import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
@@ -296,35 +297,9 @@ export function LeadInfoPopover({
         .eq("lead_id", linkedLead.id)
         .order("event_date", { ascending: false })
         .then(({ data }) => {
-          const mapped: EventFormData[] = (data || []).map((ev) => ({
-            id: ev.id,
-            title: ev.title,
-            event_date: ev.event_date,
-            start_time: ev.start_time || "",
-            end_time: ev.end_time || "",
-            event_type: ev.event_type || "aniversario",
-            guest_count: ev.guest_count,
-            unit: ev.unit || "",
-            status: ev.status,
-            package_name: ev.package_name || "",
-            total_value: ev.total_value,
-            notes: ev.notes || "",
-            lead_id: ev.lead_id || null,
-            data_fechamento_venda: ev.data_fechamento_venda || null,
-            vendedor_responsavel_id: ev.vendedor_responsavel_id || null,
-            child_name: ev.child_name || null,
-            child_age: ev.child_age || null,
-            child_birthdate: ev.child_birthdate || null,
-            birthday_children: (ev.birthday_children as any) || null,
-            parent_names: ev.parent_names || null,
-            gifts: ev.gifts || null,
-            extra_guest_value: ev.extra_guest_value || null,
-            payment_method: ev.payment_method || null,
-            payment_details: ev.payment_details as any || null,
-            event_optionals: (ev.event_optionals as any) || null,
-            is_permuta: ev.is_permuta ?? false,
-            internal_notes: ev.internal_notes || null,
-          }));
+          // Todos os dados da festa (pagamento, criança, opcionais) e o valor do pacote
+          // como a Agenda calcula: editar daqui não apaga nem soma opcionais em dobro
+          const mapped: EventFormData[] = (data || []).map((ev) => eventRowToFormData(ev));
           setLinkedEvents(mapped);
           setHasLinkedEvent(mapped.length > 0);
           setLinkedEventData(mapped[0] || null);
@@ -1266,95 +1241,16 @@ export function LeadInfoPopover({
         onSubmit={async (data) => {
           const user = (await supabase.auth.getUser()).data.user;
           if (!user || !currentCompany) return;
-          // Normalize birthday_children like Agenda.tsx does
-          const filteredChildren = (data.birthday_children || []).filter((c: any) => c.name || c.age || c.birthdate);
-          const normalizedChildName = filteredChildren[0]?.name || data.child_name || null;
-          const normalizedChildAge = filteredChildren[0]?.age || data.child_age || null;
-          const normalizedChildBirthdate = filteredChildren[0]?.birthdate || data.child_birthdate || null;
-          const normalizedOptionals = (data.event_optionals || []).filter((o: any) => o.name || (o.value != null && o.value > 0));
-
-          if (linkedEventData?.id) {
-            const updatePayload: Record<string, any> = {
-                title: data.title,
-                event_date: data.event_date,
-                start_time: data.start_time || null,
-                end_time: data.end_time || null,
-                event_type: data.event_type,
-                guest_count: data.guest_count,
-                unit: data.unit || null,
-                status: data.status,
-                package_name: data.package_name || null,
-                total_value: data.total_value,
-                notes: data.notes || null,
-                child_name: normalizedChildName,
-                child_age: normalizedChildAge,
-                child_birthdate: normalizedChildBirthdate,
-                birthday_children: filteredChildren.length > 0 ? filteredChildren : null,
-                parent_names: data.parent_names || null,
-                gifts: data.gifts || null,
-                extra_guest_value: data.extra_guest_value || null,
-                payment_method: data.payment_method || null,
-                payment_details: data.payment_details || null,
-                data_fechamento_venda: data.data_fechamento_venda || null,
-                vendedor_responsavel_id: data.vendedor_responsavel_id || null,
-                event_optionals: normalizedOptionals,
-                is_permuta: data.is_permuta ?? false,
-                internal_notes: data.internal_notes || null,
-              };
-            const { error } = await (supabase as any)
-              .from("company_events")
-              .update(updatePayload)
-              .eq("id", linkedEventData.id);
-            if (error) { toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" }); return; }
-            toast({ title: "Festa atualizada!" });
-            // Refresh linkedEventData with saved values
-            setLinkedEventData(prev => prev ? { ...prev, ...data, id: prev.id } : prev);
-          } else {
-            const insertPayload: Record<string, any> = {
-                company_id: currentCompany.id,
-                created_by: user.id,
-                title: data.title,
-                event_date: data.event_date,
-                start_time: data.start_time || null,
-                end_time: data.end_time || null,
-                event_type: data.event_type,
-                guest_count: data.guest_count,
-                unit: data.unit || null,
-                status: data.status,
-                package_name: data.package_name || null,
-                total_value: data.total_value,
-                notes: data.notes || null,
-                lead_id: linkedLead.id,
-                child_name: normalizedChildName,
-                child_age: normalizedChildAge,
-                child_birthdate: normalizedChildBirthdate,
-                birthday_children: filteredChildren.length > 0 ? filteredChildren : null,
-                parent_names: data.parent_names || null,
-                gifts: data.gifts || null,
-                extra_guest_value: data.extra_guest_value || null,
-                payment_method: data.payment_method || null,
-                payment_details: data.payment_details || null,
-                data_fechamento_venda: data.data_fechamento_venda || null,
-                vendedor_responsavel_id: data.vendedor_responsavel_id || null,
-                event_optionals: normalizedOptionals,
-                is_permuta: data.is_permuta ?? false,
-                internal_notes: data.internal_notes || null,
-              };
-            const { data: newEvent, error } = await (supabase as any)
-              .from("company_events")
-              .insert(insertPayload)
-              .select("id")
-              .single();
-            if (error) { toast({ title: "Erro ao criar", description: error.message, variant: "destructive" }); return; }
-            toast({ title: "Festa criada!" });
-            setHasLinkedEvent(true);
-            // Update linkedEventData with the new ID so EventFormDialog can link contractor data
-            if (newEvent) {
-              setLinkedEventData(prev => prev ? { ...prev, ...data, id: newEvent.id } : prev);
-              return newEvent.id;
-            }
-          }
-          handleEventFormOpenChange(false);
+          // Mesma regra da Agenda: todos os campos e as parcelas (src/lib/eventSave.ts)
+          const savedId = await saveEvent(
+            { ...data, id: data.id || linkedEventData?.id },
+            { companyId: currentCompany.id, userId: user.id, leadId: linkedLead.id },
+          );
+          if (!savedId) return;
+          setHasLinkedEvent(true);
+          setLinkedEventData(prev => prev ? { ...prev, ...data, id: savedId } : prev);
+          if (data.id || linkedEventData?.id) handleEventFormOpenChange(false);
+          return savedId;
         }}
       />
     )}
