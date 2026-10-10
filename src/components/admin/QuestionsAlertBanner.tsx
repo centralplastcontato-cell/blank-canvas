@@ -9,6 +9,7 @@ import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
 import { LEAD_STATUS_LABELS } from "@/types/crm";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { maskPhone } from "@/lib/mask-utils";
 
 interface QuestionsNotificationData {
   conversation_id: string;
@@ -37,9 +38,11 @@ interface LeadDetails {
 interface QuestionsAlertBannerProps {
   userId: string;
   onOpenConversation: (conversationId: string, phone: string) => void;
+  /** pode ver o telefone inteiro (senão aparece com ****) */
+  canViewContact?: boolean;
 }
 
-export function QuestionsAlertBanner({ userId, onOpenConversation }: QuestionsAlertBannerProps) {
+export function QuestionsAlertBanner({ userId, onOpenConversation, canViewContact = true }: QuestionsAlertBannerProps) {
   const [alerts, setAlerts] = useState<QuestionsNotification[]>([]);
   const [expanded, setExpanded] = useState(false);
   const [leadDetails, setLeadDetails] = useState<LeadDetails | null>(null);
@@ -229,7 +232,7 @@ export function QuestionsAlertBanner({ userId, onOpenConversation }: QuestionsAl
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-white truncate">
-              💬❓ <span className="font-extrabold">{latestAlert.data.contact_name || latestAlert.data.contact_phone}</span>
+              💬❓ <span className="font-extrabold">{latestAlert.data.contact_name || (canViewContact ? latestAlert.data.contact_phone : maskPhone(latestAlert.data.contact_phone || ""))}</span>
               {remainingCount > 0 && (
                 <span className="ml-1 font-medium text-emerald-100 text-xs">
                   +{remainingCount}
@@ -278,7 +281,7 @@ export function QuestionsAlertBanner({ userId, onOpenConversation }: QuestionsAl
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-emerald-100">
                   <span className="flex items-center gap-1">
                     <Phone className="w-3 h-3" />
-                    {leadDetails.whatsapp}
+                    {canViewContact ? leadDetails.whatsapp : maskPhone(leadDetails.whatsapp || "")}
                   </span>
                   {statusLabel && (
                     <span className="flex items-center gap-1">

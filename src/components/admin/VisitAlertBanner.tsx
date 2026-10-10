@@ -6,6 +6,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { useNotificationSounds } from "@/hooks/useNotificationSounds";
 import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
+import { maskPhone } from "@/lib/mask-utils";
 
 interface VisitNotificationData {
   conversation_id: string;
@@ -32,9 +33,11 @@ const isAiVisit = (data: unknown) =>
 interface VisitAlertBannerProps {
   userId: string;
   onOpenConversation: (conversationId: string, phone: string) => void;
+  /** pode ver o telefone inteiro (senão aparece com ****) */
+  canViewContact?: boolean;
 }
 
-export function VisitAlertBanner({ userId, onOpenConversation }: VisitAlertBannerProps) {
+export function VisitAlertBanner({ userId, onOpenConversation, canViewContact = true }: VisitAlertBannerProps) {
   const [alerts, setAlerts] = useState<VisitNotification[]>([]);
   const { playVisitSound } = useNotificationSounds();
   const { notificationsEnabled } = useChatNotificationToggle();
@@ -174,7 +177,7 @@ export function VisitAlertBanner({ userId, onOpenConversation }: VisitAlertBanne
             </p>
             <p className="text-sm text-blue-100 truncate">
               <span className="font-bold text-white">
-                {latestAlert.data.contact_name || latestAlert.data.contact_phone}
+                {latestAlert.data.contact_name || (canViewContact ? latestAlert.data.contact_phone : maskPhone(latestAlert.data.contact_phone || ""))}
               </span>
               {isMultiCompany && latestAlert.data.unit && (
                 <span className="text-yellow-200 font-semibold ml-1">
