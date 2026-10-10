@@ -1506,7 +1506,7 @@ export default function Agenda() {
 
           {/* Tab: Visitas */}
           {centralTab === "visitas" && (
-            <div className="flex-1 p-3 md:p-6 lg:p-8 overflow-y-auto">
+            <div className="flex-1 p-3 pb-28 md:p-6 lg:p-8 overflow-y-auto">
               <div className="max-w-7xl mx-auto space-y-6">
                 <div className="hidden md:block">
                   <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">

@@ -261,3 +261,17 @@ O dono aprovou: parte 1 (financeiro e erros graves), parte 2 (números certos), 
 - 233 visitas passadas sem resultado.
 - 82 festas sem unidade, 42 sem valor, 33 sem horário.
 - Pré-reservas: 15 no total, nenhuma virou festa.
+
+**Aba Visitas (10/10, mesma linha da aba Festas):**
+- **Topo:**
+  - "Todas | Visitas | Atendimentos" como sub-abas discretas;
+  - situação, unidade e responsável num botão "Filtros", com a contagem dos filtros ativos;
+  - no celular, Nova visita e Atendimento ficam no botão + flutuante.
+- **Números** (`src/lib/visitKpis.ts`): Visitas no mês, A acontecer, Vieram e Não vieram, mais o "Comparecimento do mês", que entrou no lugar da ocupação (vieram ÷ visitas com resultado).
+- **Calendário:** mesmos tamanhos do de Festas; tocar na data rola até as visitas do dia; trocar de mês não pisca.
+- **Correções:**
+  - o filtro "Responsável" só mostra quem é da empresa (via `user_companies`);
+  - a aba respeita a unidade permitida, e visita sem unidade continua aparecendo;
+  - visita marcada pela ficha do lead leva a unidade do lead;
+  - o aviso "sem confirmação" busca hoje e amanhã à parte e inclui as remarcadas;
+  - cancelar visita pede confirmação.
