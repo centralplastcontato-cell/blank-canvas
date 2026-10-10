@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatPhoneBR, maskPhone } from "@/lib/mask-utils";
+import { formatPhoneBR, maskPhone, pickPersonName } from "@/lib/mask-utils";
 
 describe("maskPhone", () => {
   it("masks 11-digit mobile number", () => {
@@ -47,5 +47,18 @@ describe("formatPhoneBR", () => {
     expect(formatPhoneBR("120363025343298765")).toBe("120363025343298765");
     expect(formatPhoneBR("")).toBe("");
     expect(formatPhoneBR(null)).toBe("");
+  });
+});
+
+describe("pickPersonName", () => {
+  it("pula nome que é só telefone", () => {
+    expect(pickPersonName("11997581043", "Priscila")).toBe("Priscila");
+    expect(pickPersonName("Ana Paula", "Aninha")).toBe("Ana Paula");
+    expect(pickPersonName("José", null)).toBe("José");
+  });
+
+  it("sem nome com letras: null", () => {
+    expect(pickPersonName("11997581043", "+55 11 99758")).toBeNull();
+    expect(pickPersonName(null, undefined, "")).toBeNull();
   });
 });

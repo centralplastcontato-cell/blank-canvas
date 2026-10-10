@@ -415,3 +415,7 @@ O dono aprovou as 4 partes: 1 erros graves, 2 permissões e unidades, 3 aba Lead
   - a etiqueta da unidade só aparece quando a conversa é de outra unidade;
   - o "99+" fica ao lado de "Chat"/"Leads", sem cobrir a palavra;
   - no celular a setinha das mensagens fica invisível (segurar o dedo abre o menu).
+- **Ajuste da ficha (dono não gostou da 1ª versão):**
+  - fundo branco como a caixinha do computador (com o cinza do app tudo ficava apagado);
+  - topo com o título "Ficha do lead" e o X, sem o tracinho de arrastar;
+  - lead salvo com o telefone no lugar do nome mostra o nome do WhatsApp (`pickPersonName`), na ficha e em "Dados do contato".
