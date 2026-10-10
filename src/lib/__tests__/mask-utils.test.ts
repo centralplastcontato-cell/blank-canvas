@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { maskPhone } from "@/lib/mask-utils";
+import { formatPhoneBR, maskPhone } from "@/lib/mask-utils";
 
 describe("maskPhone", () => {
   it("masks 11-digit mobile number", () => {
@@ -28,5 +28,24 @@ describe("maskPhone", () => {
 
   it("strips dashes and spaces", () => {
     expect(maskPhone("11 9998-7766")).toBe("1199****7766");
+  });
+});
+
+describe("formatPhoneBR", () => {
+  it("celular com e sem 55", () => {
+    expect(formatPhoneBR("5515991131863")).toBe("(15) 99113-1863");
+    expect(formatPhoneBR("15991131863")).toBe("(15) 99113-1863");
+  });
+
+  it("número de 8 dígitos (fixo ou antigo)", () => {
+    expect(formatPhoneBR("551532131863")).toBe("(15) 3213-1863");
+    expect(formatPhoneBR("1532131863")).toBe("(15) 3213-1863");
+  });
+
+  it("exterior, grupo e vazio ficam como vieram", () => {
+    expect(formatPhoneBR("4915112345678")).toBe("4915112345678");
+    expect(formatPhoneBR("120363025343298765")).toBe("120363025343298765");
+    expect(formatPhoneBR("")).toBe("");
+    expect(formatPhoneBR(null)).toBe("");
   });
 });

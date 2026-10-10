@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { formatPhoneBR } from "@/lib/mask-utils";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
 import {
-  X, Calendar, MapPin, Users, Tag,
+  Calendar, MapPin, Users, Tag,
   User, Clock, ExternalLink, Image as ImageIcon,
   FileText, Link2, Play, Send, Loader2, ClipboardList
 } from "lucide-react";
@@ -224,12 +225,9 @@ export function ContactInfoSheet({
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent className="w-full sm:max-w-md p-0 overflow-hidden">
         <ScrollArea className="h-full">
-          {/* Header */}
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-border/40">
-            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onClose}>
-              <X className="w-5 h-5" />
-            </Button>
-            <span className="font-semibold text-base">Dados do contato</span>
+          {/* Header (o X para fechar é o da própria janela, no canto) */}
+          <div className="flex items-center gap-3 px-5 py-4 pr-12 border-b border-border/40">
+            <SheetTitle className="font-semibold text-base">Dados do contato</SheetTitle>
           </div>
 
           <div className="flex flex-col items-center pt-5 pb-4 px-6 bg-gradient-to-b from-muted/30 to-transparent">
@@ -244,7 +242,7 @@ export function ContactInfoSheet({
               </AvatarFallback>
             </Avatar>
             <h2 className="mt-3 text-lg font-bold text-foreground text-center">{displayName}</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">{contactPhone}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{formatPhoneBR(contactPhone)}</p>
             {statusLabel && (
               <Badge className={`mt-2 ${statusColor} text-white border-0 px-3 py-0.5 text-xs`}>
                 {statusLabel}
