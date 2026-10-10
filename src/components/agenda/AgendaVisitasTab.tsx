@@ -538,6 +538,8 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
             onMonthChange={setCalendarMonth}
             locale={ptBR}
             showOutsideDays
+            // Sempre 6 semanas: mesma altura em todos os meses
+            fixedWeeks
             className="p-2 lg:p-5"
             classNames={{
               months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
