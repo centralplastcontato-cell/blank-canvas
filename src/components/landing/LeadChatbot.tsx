@@ -85,6 +85,8 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
   const [inputType, setInputType] = useState<"name" | "whatsapp" | "external_location" | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // WhatsApp do número que recebeu este lead (o botão "fale diretamente" abre ele)
+  const [leadWhatsapp, setLeadWhatsapp] = useState<string | null>(null);
   const [showEmojis, setShowEmojis] = useState(false);
   const [redirectAccepted, setRedirectAccepted] = useState<boolean | null>(null);
   const [venueChoice, setVenueChoice] = useState<VenueOption | null>(null);
@@ -509,7 +511,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
           ? applyTemplate(lpBotConfig.whatsapp_welcome_template)
           : defaultNormalMsg;
 
-      const { error } = await supabase.functions.invoke('wapi-send', {
+      const { data: sendData, error } = await supabase.functions.invoke('wapi-send', {
         body: {
           action: 'send-text',
           phone: phoneWithCountry,
@@ -534,6 +536,8 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
         console.error('Erro ao enviar mensagem automática:', error);
       } else {
         console.log(`Mensagem automática enviada para ${phoneWithCountry} via ${normalizedUnit}`);
+        // Número que de fato mandou a boas-vindas (pode ter trocado no failover)
+        if (typeof sendData?.fromPhone === 'string' && sendData.fromPhone) setLeadWhatsapp(sendData.fromPhone);
       }
     } catch (err) {
       console.error('Erro ao enviar mensagem via W-API:', err);
@@ -629,6 +633,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
           const { data: responseData, error } = await supabase.functions.invoke('submit-lead', { body });
           if (error) throw error;
           const resolvedUnit = responseData?.resolved_unit || unit;
+          if (typeof responseData?.unit_whatsapp === 'string' && responseData.unit_whatsapp) setLeadWhatsapp(responseData.unit_whatsapp);
           console.log(`Lead criado para ${resolvedUnit}${isRedirected ? ' (transferido)' : ''}`);
           return resolvedUnit;
         };
@@ -692,6 +697,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
   };
 
   const resetChat = () => {
+    setLeadWhatsapp(null);
     setMessages([]);
     setCurrentStep(0);
     setLeadData({});
@@ -715,6 +721,11 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
   // Build WhatsApp message for final buttons.
   // Esta mensagem e enviada PELO CLIENTE (pre-preenchida no wa.me), por isso
   // fica na voz dele — sem trechos na voz do buffet.
+  // Mesmo número que recebeu o lead, para a conversa não se dividir em dois
+  const leadWhatsappWithCountry = leadWhatsapp
+    ? (leadWhatsapp.length <= 11 ? `55${leadWhatsapp}` : leadWhatsapp)
+    : null;
+
   const buildWhatsAppMessage = () => {
     const via = originLabel(origem) ?? 'site';
     // Sem emojis: em alguns celulares eles chegavam como "�"
@@ -967,7 +978,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
                 {isDynamic && companyWhatsApp ? (
                   // Dynamic mode: single WhatsApp button
                   <a
-                    href={whatsappLink(`55${companyWhatsApp.replace(/\D/g, '')}`, buildWhatsAppMessage())}
+                    href={whatsappLink(leadWhatsappWithCountry || `55${companyWhatsApp.replace(/\D/g, '')}`, buildWhatsAppMessage())}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="group flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full transition-all duration-300 text-sm font-medium hover:scale-105"
@@ -978,7 +989,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
                 ) : !isDynamic ? (
                   // Default Castelo mode: Trujillo only
                   <a
-                    href={whatsappLink("5515974034646", buildWhatsAppMessage())}
+                    href={whatsappLink(leadWhatsappWithCountry || "5515974034646", buildWhatsAppMessage())}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="group flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full transition-all duration-300 text-sm font-medium hover:scale-105"

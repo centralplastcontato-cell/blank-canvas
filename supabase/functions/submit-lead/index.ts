@@ -487,8 +487,25 @@ Deno.serve(async (req) => {
       console.error('Error searching for conversation to link:', linkErr);
     }
 
+    // WhatsApp do número que recebeu o lead: o botão "fale diretamente conosco"
+    // do site abre ESTE número (não um fixo), para a conversa não se dividir
+    let unitWhatsapp: string | null = null;
+    if (resolvedUnit) {
+      try {
+        const { data: unitInsts } = await supabase.from('wapi_instances')
+          .select('phone_number, status')
+          .eq('company_id', company_id)
+          .ilike('unit', resolvedUnit)
+          .eq('is_active', true)
+          .not('phone_number', 'is', null);
+        const pick = ((unitInsts || []) as Array<{ phone_number: string | null; status: string | null }>)
+          .sort((a, b) => (a.status === 'connected' ? 0 : 1) - (b.status === 'connected' ? 0 : 1))[0];
+        unitWhatsapp = pick?.phone_number ? String(pick.phone_number).replace(/\D/g, '') : null;
+      } catch (_e) { /* sem número: o site usa o padrão */ }
+    }
+
     return new Response(
-      JSON.stringify({ success: true, resolved_unit: resolvedUnit }),
+      JSON.stringify({ success: true, resolved_unit: resolvedUnit, unit_whatsapp: unitWhatsapp }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err) {
