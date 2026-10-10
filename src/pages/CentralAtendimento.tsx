@@ -1277,6 +1277,7 @@ export default function CentralAtendimento() {
                   onUnreadCountChange={fetchUnreadCount}
                   isVisible={activeTab === "chat"}
                   onConversationOpenChange={setPhoneConversationOpen}
+                  onActiveUnitChange={handleSetSelectedChatUnit}
                   onInstancesLoaded={(instances) => {
                     setChatInstances(instances);
                     if (!selectedChatUnit && instances.length > 0) {
@@ -1621,6 +1622,7 @@ export default function CentralAtendimento() {
                       onLeadClosedMobile={handleLeadClosed}
                       onUnreadCountChange={fetchUnreadCount}
                       isVisible={activeTab === "chat"}
+                      onActiveUnitChange={handleSetSelectedChatUnit}
                       onInstancesLoaded={(instances) => {
                         setChatInstances(instances);
                         if (!selectedChatUnit && instances.length > 0) {

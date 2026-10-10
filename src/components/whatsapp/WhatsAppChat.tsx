@@ -446,6 +446,8 @@ interface WhatsAppChatProps {
   isVisible?: boolean;
   /** Celular: avisa quando uma conversa está aberta (a Central esconde o topo do app) */
   onConversationOpenChange?: (open: boolean) => void;
+  /** Avisa a unidade que está aberta de verdade (o chat pode reabrir a última conversa de outra unidade) */
+  onActiveUnitChange?: (unit: string) => void;
 }
 
 const isLeadCompatibleWithInstance = (lead: Lead, instanceUnit: string | null | undefined) => {
@@ -534,7 +536,7 @@ import { configureWapiWebhooks } from "@/lib/wapi-webhook-config";
 import { useInstancePermissions } from "@/hooks/useInstancePermissions";
 import { formatPhoneBR } from "@/lib/mask-utils";
 
-export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded, onLeadClosedMobile, onUnreadCountChange, isVisible = true, onConversationOpenChange }: WhatsAppChatProps) {
+export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded, onLeadClosedMobile, onUnreadCountChange, isVisible = true, onConversationOpenChange, onActiveUnitChange }: WhatsAppChatProps) {
   const { currentCompany } = useCompany();
   const { canViewAllInstances, allowedInstanceIds, isLoading: isLoadingInstancePerms } = useInstancePermissions(userId);
   const [instances, setInstances] = useState<WapiInstance[]>([]);
@@ -702,6 +704,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const didExternalUnitChange = previousExternalSelectedUnit !== externalSelectedUnit;
     previousExternalSelectedUnitRef.current = externalSelectedUnit;
 
+    // O topo só passou a mostrar a unidade que já está aberta: nada a trocar
+    if (selectedInstance?.unit === externalSelectedUnit) return;
+
     const storedConversation = readLastActiveConversation();
     // On remount/focus return, restore the last open chat before honoring
     // a possibly stale header unit selection. Only a real unit change should
@@ -718,7 +723,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       setMessages([]);
       setConversations([]);
     }
-  }, [externalSelectedUnit, instances, selectedInstance?.id, selectedConversation, initialPhone, pickBestInstance, clearLastActiveConversation, readLastActiveConversation]);
+  }, [externalSelectedUnit, instances, selectedInstance?.id, selectedInstance?.unit, selectedConversation, initialPhone, pickBestInstance, clearLastActiveConversation, readLastActiveConversation]);
 
   const [hasUserScrolledToTop, setHasUserScrolledToTop] = useState(false); // Track if user manually scrolled to top
   const [isAtBottom, setIsAtBottom] = useState(true); // Track if scroll is at bottom (for scroll-to-bottom button visibility)
@@ -1582,6 +1587,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     onConversationOpenChangeRef.current?.(conversationOpenOnPhone);
   }, [conversationOpenOnPhone]);
   useEffect(() => () => onConversationOpenChangeRef.current?.(false), []);
+
+  // O topo da Central mostra a unidade aberta de verdade. Antes, ao reabrir a última
+  // conversa (de outra unidade), o topo continuava marcando a unidade antiga.
+  const onActiveUnitChangeRef = useRef(onActiveUnitChange);
+  onActiveUnitChangeRef.current = onActiveUnitChange;
+  useEffect(() => {
+    if (selectedInstance?.unit) onActiveUnitChangeRef.current?.(selectedInstance.unit);
+  }, [selectedInstance?.unit]);
 
   // Zera as não lidas da conversa aberta quando chega mensagem nova (com uma pausa
   // curta para juntar várias mensagens seguidas num só aviso ao banco)
