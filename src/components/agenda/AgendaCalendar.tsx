@@ -76,6 +76,8 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
       onMonthChange={onMonthChange}
       locale={ptBR}
       showOutsideDays
+      // Sempre 6 semanas: o calendário tem a mesma altura em todos os meses
+      fixedWeeks
       className="p-3 lg:p-6"
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",

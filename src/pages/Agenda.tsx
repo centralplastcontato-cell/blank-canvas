@@ -459,15 +459,21 @@ export default function Agenda() {
   }, [currentCompany?.id, canViewAll, allowedUnits, shouldRestrictEventUnits]);
 
   const initialLoadDone = useRef(false);
+  // Só a busca mais recente vale (trocar de mês rápido não deixa uma resposta antiga por cima)
+  const fetchSeq = useRef(0);
   const fetchEvents = useCallback(async () => {
     if (!currentCompany?.id || permUnitLoading) return;
-    // Always show loading on month change (not only first load) for clearer feedback
+    const seq = ++fetchSeq.current;
+    // A tela de "carregando" só aparece na primeira vez; depois o calendário fica na tela
     setLoading(true);
     const start = format(startOfMonth(month), "yyyy-MM-dd");
     const end = format(endOfMonth(month), "yyyy-MM-dd");
+    const companyId = currentCompany.id;
 
-    // Phase 1: month-scoped queries in parallel (small payloads)
-    const [eventsRes, closedResult, preResRes] = await Promise.all([
+    // Tudo do mês de uma vez: festas, vendas fechadas, pré-reservas, checklist e parcelas
+    // (com os recebimentos parciais), filtrando checklist e parcelas pela data da festa.
+    // Antes eram 3 rodadas, uma depois da outra.
+    const [eventsRes, closedResult, preResRes, checklistJoin, paymentsJoin] = await Promise.all([
       supabase
         .from("company_events")
         .select("*")
@@ -480,51 +486,61 @@ export default function Agenda() {
       (supabase as any)
         .from("pre_reservations")
         .select("*")
-        .eq("company_id", currentCompany.id)
+        .eq("company_id", companyId)
         .gte("event_date", start)
         .lte("event_date", end)
         .in("status", ["ativa", "convertida"]),
+      supabase
+        .from("event_checklist_items")
+        .select("event_id, is_completed, company_events!inner(event_date)")
+        .eq("company_id", companyId)
+        .gte("company_events.event_date", start)
+        .lte("company_events.event_date", end),
+      supabase
+        .from("event_payments")
+        .select("id, event_id, status, due_date, amount, gross_amount, event_payment_entries(amount, gross_amount), company_events!inner(event_date)")
+        .eq("company_id", companyId)
+        .gte("company_events.event_date", start)
+        .lte("company_events.event_date", end),
     ]);
+    if (seq !== fetchSeq.current) return;
 
     const eventsList = ((eventsRes.data || []) as CompanyEvent[]);
     const eventIds = eventsList.map(e => e.id);
 
+    // Se a busca junta falhar, faz do jeito antigo (pelos ids das festas do mês)
+    let checklistRes: any = checklistJoin;
+    let paymentsRes: any = paymentsJoin;
+    let entriesByPayment: Record<string, number> = {};
+    if ((checklistJoin.error || paymentsJoin.error) && eventIds.length > 0) {
+      [checklistRes, paymentsRes] = await Promise.all([
+        supabase.from("event_checklist_items").select("event_id, is_completed").eq("company_id", companyId).in("event_id", eventIds),
+        supabase.from("event_payments").select("id, event_id, status, due_date, amount, gross_amount").eq("company_id", companyId).in("event_id", eventIds),
+      ]);
+      const paymentIds = (paymentsRes.data || []).map((p: any) => p.id);
+      if (paymentIds.length > 0) {
+        const { data: entriesData } = await supabase
+          .from("event_payment_entries")
+          .select("payment_id, amount, gross_amount")
+          .in("payment_id", paymentIds);
+        (entriesData || []).forEach((e: any) => {
+          entriesByPayment[e.payment_id] = (entriesByPayment[e.payment_id] || 0) + Number(e.gross_amount ?? e.amount ?? 0);
+        });
+      }
+      if (seq !== fetchSeq.current) return;
+    } else {
+      // Recebimentos parciais vêm junto com cada parcela
+      (paymentsRes.data || []).forEach((p: any) => {
+        for (const e of p.event_payment_entries || []) {
+          // Use gross_amount when available (what client actually paid), fallback to net amount
+          entriesByPayment[p.id] = (entriesByPayment[p.id] || 0) + Number(e.gross_amount ?? e.amount ?? 0);
+        }
+      });
+    }
+
     if (!eventsRes.error && eventsRes.data) setEvents(eventsList);
     if (!preResRes.error && preResRes.data) setPreReservations(preResRes.data as PreReservation[]);
     setMonthClosedEvents(closedResult?.events || []);
-
-    // Phase 2: scoped to current month's event ids only (was previously full-company)
-    let checklistRes: any = { data: [] };
-    let paymentsRes: any = { data: [] };
-    if (eventIds.length > 0) {
-      [checklistRes, paymentsRes] = await Promise.all([
-        supabase
-          .from("event_checklist_items")
-          .select("event_id, is_completed")
-          .eq("company_id", currentCompany.id)
-          .in("event_id", eventIds),
-        supabase
-          .from("event_payments")
-          .select("id, event_id, status, due_date, amount, gross_amount")
-          .eq("company_id", currentCompany.id)
-          .in("event_id", eventIds),
-      ]);
-    }
-
-    // Fetch partial entries (entradas parciais) for all parcelas in scope
-    const paymentIds = (paymentsRes.data || []).map((p: any) => p.id);
-    let entriesByPayment: Record<string, number> = {};
-    if (paymentIds.length > 0) {
-      const { data: entriesData } = await (supabase as any)
-        .from("event_payment_entries")
-        .select("payment_id, amount, gross_amount")
-        .in("payment_id", paymentIds);
-      (entriesData || []).forEach((e: any) => {
-        // Use gross_amount when available (what client actually paid), fallback to net amount
-        const grossValue = Number(e.gross_amount ?? e.amount ?? 0);
-        entriesByPayment[e.payment_id] = (entriesByPayment[e.payment_id] || 0) + grossValue;
-      });
-    }
 
     // Build checklist progress map
     const progressMap: Record<string, { total: number; completed: number }> = {};
@@ -2157,19 +2173,23 @@ export default function Agenda() {
                 <Card className="relative bg-card border-border/20 shadow-[0_8px_40px_rgba(0,0,0,0.06)] rounded-2xl overflow-hidden">
                   <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_0%,hsl(var(--primary)/0.03),transparent)] pointer-events-none" />
                   <CardContent className="relative p-2 md:p-4 lg:p-5">
-                    {loading ? (
+                    {loading && !initialLoadDone.current ? (
                       <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
                     ) : (
-                      <AgendaCalendar
-                        events={filteredEvents}
-                        month={month}
-                        onMonthChange={setMonth}
-                        onDayClick={handleDayClick}
-                        selectedDate={selectedDate}
-                        checklistProgress={checklistProgress}
-                        preReservations={filteredPreReservations}
-                        paymentStatus={paymentStatus}
-                      />
+                      // Trocando de mês: o calendário fica na tela (um pouco apagado) enquanto carrega
+                      <div className={cn("relative transition-opacity", loading && "opacity-60")}>
+                        {loading && <Loader2 className="absolute right-3 bottom-3 z-10 h-4 w-4 animate-spin text-muted-foreground" />}
+                        <AgendaCalendar
+                          events={filteredEvents}
+                          month={month}
+                          onMonthChange={setMonth}
+                          onDayClick={handleDayClick}
+                          selectedDate={selectedDate}
+                          checklistProgress={checklistProgress}
+                          preReservations={filteredPreReservations}
+                          paymentStatus={paymentStatus}
+                        />
+                      </div>
                     )}
                   </CardContent>
                 </Card>
@@ -2401,7 +2421,7 @@ export default function Agenda() {
               ) : (
                 <Card className="bg-card border-border/30 shadow-[0_4px_24px_rgba(0,0,0,0.04)] rounded-2xl">
                   <CardContent className="p-4">
-                    {loading ? (
+                    {loading && !initialLoadDone.current ? (
                       <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
                     ) : (
                       <AgendaListView
