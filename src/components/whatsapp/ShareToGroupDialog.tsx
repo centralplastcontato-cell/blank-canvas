@@ -146,16 +146,24 @@ export function ShareToGroupDialog({
     setIsSending(true);
 
     try {
+      // Mesmo envio de texto do chat: o grupo vai no campo "phone" (o @g.us)
+      // e a mensagem fica registrada na conversa do grupo. Antes faltava a ação
+      // e o envio sempre falhava.
       const { data, error } = await supabase.functions.invoke('wapi-send', {
         body: {
+          action: 'send-text',
           instanceId: instance.instance_id,
-          remoteJid: selectedGroup.remote_jid,
+          phone: selectedGroup.remote_jid,
+          conversationId: selectedGroup.id,
           message: customMessage.trim(),
         },
       });
 
       if (error) throw error;
 
+      if (data?.skipped) {
+        throw new Error('O número de WhatsApp está em pausa. Tente de novo mais tarde.');
+      }
       if (!data?.success) {
         throw new Error(data?.error || 'Falha ao enviar mensagem');
       }

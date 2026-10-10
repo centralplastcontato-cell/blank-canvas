@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+import { deleteLeads } from "@/lib/leadDelete";
 import { insertWithCompany } from "@/lib/supabase-helpers";
 import {
   Pagination,
@@ -180,15 +181,13 @@ export function LeadsTable({
 
   const handleDeleteSingle = async (id: string) => {
     setIsDeleting(true);
-    const { error } = await supabase
-      .from("campaign_leads")
-      .delete()
-      .eq("id", id);
+    // Confere se o banco apagou de verdade (sem permissão ele não apaga nem dá erro)
+    const result = await deleteLeads([id]);
 
-    if (error) {
+    if (!result.ok) {
       toast({
-        title: "Erro ao excluir",
-        description: "Não foi possível excluir o lead.",
+        title: "Lead não foi excluído",
+        description: result.message,
         variant: "destructive",
       });
     } else {
@@ -205,21 +204,22 @@ export function LeadsTable({
     if (selectedIds.size === 0) return;
 
     setIsDeleting(true);
-    const { error } = await supabase
-      .from("campaign_leads")
-      .delete()
-      .in("id", Array.from(selectedIds));
+    const result = await deleteLeads(Array.from(selectedIds));
 
-    if (error) {
+    if (!result.ok) {
       toast({
-        title: "Erro ao excluir",
-        description: "Não foi possível excluir os leads selecionados.",
+        title: result.deleted > 0 ? "Alguns leads não foram excluídos" : "Leads não foram excluídos",
+        description: result.message,
         variant: "destructive",
       });
+      if (result.deleted > 0) {
+        setSelectedIds(new Set());
+        onRefresh();
+      }
     } else {
       toast({
         title: "Leads excluídos",
-        description: `${selectedIds.size} lead(s) removido(s) com sucesso.`,
+        description: `${result.deleted} lead(s) removido(s) com sucesso.`,
       });
       setSelectedIds(new Set());
       onRefresh();

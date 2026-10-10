@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/contexts/CompanyContext';
 import { useAttentionList } from '@/hooks/useAttentionList';
 import { brtNow } from '@/lib/visitOutcome';
+import { AWAITING_READ_OR_FILTER } from '@/lib/conversationUnread';
 
 export interface MenuBadges {
   /** mensagens não lidas na Central de Atendimento */
@@ -24,7 +25,8 @@ export function useMenuBadges(enabled: boolean, withAttention: boolean): MenuBad
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const db = supabase as any;
       const [unreadRes, visitsRes] = await Promise.all([
-        db.from('wapi_conversations').select('unread_count').eq('company_id', companyId).gt('unread_count', 0).limit(1000),
+        // Só conversas esperando a equipe (o cliente mandou a última mensagem)
+        db.from('wapi_conversations').select('unread_count').eq('company_id', companyId).gt('unread_count', 0).or(AWAITING_READ_OR_FILTER).limit(1000),
         db
           .from('lead_visits')
           .select('id', { count: 'exact', head: true })

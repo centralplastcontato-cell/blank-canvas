@@ -302,3 +302,37 @@ O dono aprovou: parte 1 (financeiro e erros graves), parte 2 (números certos), 
   - "Editar" da tarefa funciona e excluir pede confirmação;
   - trocar de mês não pisca, e no celular tocar na data rola até a lista (vale também tocar de novo no dia já escolhido, em todas as abas).
 - **Rodada final da limpeza:** `src/components/agenda/VisitDetailSheet.tsx` ficou sem uso.
+
+## 9. Central de Atendimento (reforma em 4 partes, a partir de 10/10/2026)
+
+O dono aprovou as 4 partes: 1 erros graves, 2 permissões e unidades, 3 aba Leads, 4 velocidade e celular. Robô, IA, follow-up e inatividade **não mudam** (Mega e Planeta intocáveis).
+
+**Uso em 10/10:**
+- Conversas ativas no mês: Castelo 992, Mega 353, Planeta 282 (Aventura não usa o chat).
+- Mensagens na semana: Castelo 4.351, Planeta 1.481, Mega 1.348.
+- Responsável do lead quase ninguém usa (Castelo 3.755 de 4.042 sem; os outros 100% sem).
+- Mudança de status é quase toda automática (robô).
+- "Não lidas": Planeta 1.131 (801 com a última mensagem da equipe), Mega 504 (399).
+
+**Parte 1, o que mudou:**
+- **Salvar festa** fica em `src/lib/eventSave.ts`, com a mesma regra para Agenda, Central, ficha do lead e card do lead no chat:
+  - `buildEventPayload`, `eventRowToFormData`, `syncEventPayments` (parcelas, movida da Agenda sem mudar a regra) e `saveEvent`;
+  - antes, fora da Agenda a festa saía sem criança, pais, opcionais e parcelas. Nos últimos 90 dias, Mega teve 12 de 25 festas sem parcelas e Planeta 19 de 36;
+  - editar pelo card do chat somava os opcionais em dobro no valor.
+- **Excluir lead** (`src/lib/leadDelete.ts`):
+  - confere quantos o banco apagou, porque só dono/admin pode e para os outros o banco não apaga nem dá erro;
+  - o histórico sai em cascata (não se apaga antes);
+  - pelo chat, o lead é excluído antes da conversa; sem permissão, nada é apagado.
+- **Chat:**
+  - "Arquivo de Áudio" agora envia (`send-audio`);
+  - imagem, vídeo e documento recusados ou em pausa não aparecem como "enviado";
+  - o reenvio automático só acontece em falha de rede (antes podia mandar duas vezes);
+  - "Compartilhar no grupo" manda `action: send-text` com o grupo em `phone`;
+  - abrir conversa com número novo seleciona a conversa criada;
+  - trocar de conversa no meio de uma ação não traz a anterior de volta nem mostra o lead errado;
+  - "Hoje/Ontem" usa o dia local;
+  - o histórico do lead criado pelo "Novo contato" grava nas colunas certas, e a troca de status pelo topo grava `company_id`.
+- **Não lidas** (`src/lib/conversationUnread.ts`):
+  - conta só quando o cliente mandou a última mensagem, ou quando a IA passou para a equipe (99);
+  - vale para a lista, o filtro, o número da Central e o menu;
+  - a conversa aberta na tela não acumula não lidas.

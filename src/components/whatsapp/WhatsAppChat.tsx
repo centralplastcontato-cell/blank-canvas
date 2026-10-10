@@ -3,7 +3,16 @@ import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { formatMessageContent } from "@/lib/format-message";
 import { LEAD_STATUS_COLORS, type LeadStatus } from "@/types/crm";
 import { supabase } from "@/integrations/supabase/client";
+import { deleteLeads } from "@/lib/leadDelete";
+import { isAwaitingRead } from "@/lib/conversationUnread";
 import { SilentInstanceBanner } from "@/components/whatsapp/SilentInstanceBanner";
+
+// Resposta do envio de mídia: "skipped" = número em pausa; success false = o WhatsApp recusou
+function assertMediaSent(response: { data?: unknown }) {
+  const data = response.data as { success?: boolean; skipped?: boolean; error?: string } | null | undefined;
+  if (data?.skipped) throw new Error('O número de WhatsApp está em pausa. Tente de novo mais tarde.');
+  if (data && data.success === false) throw new Error(data.error || 'O WhatsApp não aceitou o arquivo.');
+}
 
 // Helper: retry automático para chamadas à Edge Function wapi-send
 async function invokeWithRetry(
@@ -16,6 +25,13 @@ async function invokeWithRetry(
     const response = await supabase.functions.invoke("wapi-send", { body });
 
     if (!response.error) {
+      return response;
+    }
+
+    // A função respondeu com erro (pode já ter entregue ao WhatsApp): não repete,
+    // senão o cliente recebe a mensagem duas vezes. Repete só falha de rede.
+    const errName = (response.error as { name?: string }).name || '';
+    if (errName !== 'FunctionsFetchError' && errName !== 'FunctionsRelayError') {
       return response;
     }
 
@@ -1435,34 +1451,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         }
       }
 
-      // Delete the lead if found
+      // Exclui o lead primeiro: o histórico sai junto e a conversa fica sem lead (o banco
+      // faz os dois). Sem permissão o banco não apaga: aí para aqui, sem apagar a conversa
+      // nem o histórico (antes o histórico sumia e o lead continuava).
       if (leadToDelete) {
-        // First unlink the conversation from the lead (to avoid FK constraint)
-        await supabase
-          .from('wapi_conversations')
-          .update({ lead_id: null })
-          .eq('id', selectedConversation.id);
-
-        // Delete lead history (to avoid foreign key constraint)
-        const { error: historyError } = await supabase
-          .from('lead_history')
-          .delete()
-          .eq('lead_id', leadToDelete.id);
-        
-        if (historyError) {
-          console.error("[Delete] Error deleting lead history:", historyError);
-        }
-        
-        // Delete the lead
-        const { error: leadError } = await supabase
-          .from('campaign_leads')
-          .delete()
-          .eq('id', leadToDelete.id);
-        
-        if (leadError) {
-          console.error("[Delete] Error deleting lead:", leadError);
-          throw new Error(`Erro ao excluir lead: ${leadError.message}`);
-        }
+        const result = await deleteLeads([leadToDelete.id]);
+        if (!result.ok) throw new Error(result.message || "Não foi possível excluir o lead.");
       }
       
       // Use SECURITY DEFINER RPC with extended timeout (60s) to delete cascade
@@ -1548,6 +1542,40 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Ref to track selected conversation ID inside realtime callbacks without re-triggering the effect
   const selectedConversationRef = useRef<string | null>(null);
   selectedConversationRef.current = selectedConversation?.id ?? null;
+
+  // Zera as não lidas da conversa aberta quando chega mensagem nova (com uma pausa
+  // curta para juntar várias mensagens seguidas num só aviso ao banco)
+  const markReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleMarkReadRef = useRef<(convId: string) => void>(() => {});
+  scheduleMarkReadRef.current = (convId: string) => {
+    if (markReadTimerRef.current) clearTimeout(markReadTimerRef.current);
+    markReadTimerRef.current = setTimeout(() => {
+      if (selectedConversationRef.current !== convId) return;
+      supabase
+        .from('wapi_conversations')
+        .update({ unread_count: 0 })
+        .eq('id', convId)
+        .then(() => onUnreadCountChange?.());
+    }, 800);
+  };
+  useEffect(() => () => {
+    if (markReadTimerRef.current) clearTimeout(markReadTimerRef.current);
+  }, []);
+  // Voltou para a aba do navegador com a conversa aberta: o que chegou nesse tempo
+  // passa a contar como lido
+  const selectedUnreadRef = useRef(0);
+  selectedUnreadRef.current = selectedConversation?.unread_count || 0;
+  useEffect(() => {
+    const onVisible = () => {
+      const id = selectedConversationRef.current;
+      if (document.visibilityState !== 'visible' || !id || selectedUnreadRef.current <= 0) return;
+      setConversations(prev => prev.map(c => (c.id === id ? { ...c, unread_count: 0 } : c)));
+      setSelectedConversation(prev => (prev && prev.id === id ? { ...prev, unread_count: 0 } : prev));
+      scheduleMarkReadRef.current(id);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
   const messagesRef = useRef<Message[]>([]);
   messagesRef.current = messages;
   // Keep activeConversationIdRef in sync (used by async guards)
@@ -1691,7 +1719,18 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             
             // Update conversation locally for instant feedback
             if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
-              const updatedConv = payload.new as Conversation;
+              const updatedConv = { ...(payload.new as Conversation) };
+
+              // Conversa aberta na tela: a mensagem nova já está sendo vista. Antes o
+              // contador crescia com a conversa aberta e só zerava ao sair e voltar.
+              if (
+                updatedConv.id === selectedConversationRef.current &&
+                (updatedConv.unread_count || 0) > 0 &&
+                document.visibilityState === 'visible'
+              ) {
+                updatedConv.unread_count = 0;
+                scheduleMarkReadRef.current(updatedConv.id);
+              }
               
               // Force immediate state update with all fields
               setConversations(prev => {
@@ -2562,8 +2601,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       .limit(1)
       .single();
 
-    // Create the conversation
-    const { data: newConv, error } = await insertWithCompany('wapi_conversations', {
+    // Create the conversation (e devolve a conversa criada: antes não devolvia, e a
+    // conversa nova nunca era aberta na tela)
+    const { data: newConv, error } = await insertSingleWithCompany('wapi_conversations', {
       instance_id: selectedInstance.id,
       remote_jid: remoteJid,
       contact_phone: phoneWithCountry,
@@ -2573,21 +2613,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       unread_count: 0,
       is_favorite: false,
       is_closed: false,
-    }) as { data: any; error: any };
-    
-    // Fetch the created conversation
-    let createdConv = null;
-    if (!error) {
-      const { data } = await supabase
-        .from('wapi_conversations')
-        .select('*')
-        .eq('instance_id', selectedInstance.id)
-        .eq('contact_phone', phoneWithCountry)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-      createdConv = data;
-    }
+    }) as { data: Conversation | null; error: { message?: string } | null };
 
     if (error) {
       console.error("Error creating conversation:", error);
@@ -2601,9 +2627,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
     if (newConv) {
       // Add to conversations list
-      setConversations(prev => [newConv as Conversation, ...prev]);
+      setConversations(prev => [newConv, ...prev.filter(c => c.id !== newConv.id)]);
       // Select the new conversation
-      setSelectedConversation(newConv as Conversation);
+      setSelectedConversation(newConv);
       
       toast({
         title: "Conversa iniciada",
@@ -2794,6 +2820,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   }, [selectedConversation?.id, messages.length, hasMoreMessages, readConversationScroll, restoreConversationScroll, getConversationScrollStorageKey]);
 
   const fetchLinkedLead = async (leadId: string | null, conversation?: Conversation | null) => {
+    // Trocou de conversa enquanto buscava: não mostra o lead da anterior
+    const isStillOpen = () => !conversation || activeConversationIdRef.current === conversation.id;
     if (leadId) {
       // Lead already linked, just fetch it
       const { data } = await supabase
@@ -2803,12 +2831,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         .single();
 
       if (data) {
-        setLinkedLead(data as Lead);
+        if (isStillOpen()) setLinkedLead(data as Lead);
         if (conversation) {
           setConversationLeadsMap(prev => ({ ...prev, [conversation.id]: data as Lead }));
         }
       } else {
-        setLinkedLead(null);
+        if (isStillOpen()) setLinkedLead(null);
         if (conversation) {
           setConversationLeadsMap(prev => ({ ...prev, [conversation.id]: null }));
         }
@@ -2841,13 +2869,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
           .eq('id', conversation.id);
 
         if (!error) {
-          setLinkedLead(matchingLead as Lead);
+          if (isStillOpen()) setLinkedLead(matchingLead as Lead);
           setConversationLeadsMap(prev => ({ ...prev, [conversation.id]: matchingLead as Lead }));
           // Update local state
           setConversations(prev => 
             prev.map(c => c.id === conversation.id ? { ...c, lead_id: matchingLead.id } : c)
           );
-          setSelectedConversation({ ...conversation, lead_id: matchingLead.id });
+          // Só mexe na conversa aberta se ainda for ela (senão trazia a anterior de volta)
+          setSelectedConversation(prev => (prev && prev.id === conversation.id ? { ...prev, lead_id: matchingLead.id } : prev));
           
           toast({
             title: "Lead vinculado automaticamente",
@@ -2858,7 +2887,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       }
     }
 
-    setLinkedLead(null);
+    if (isStillOpen()) setLinkedLead(null);
     if (conversation) {
       setConversationLeadsMap(prev => ({ ...prev, [conversation.id]: null }));
     }
@@ -2948,19 +2977,20 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         if (error) console.error('Error saving lead history:', error);
       });
 
-      // Update local state
-      setLinkedLead(leadToLink as Lead);
-      setConversationLeadsMap(prev => ({ ...prev, [selectedConversation.id]: leadToLink as Lead }));
+      // Update local state (a conversa aberta só se ainda for a mesma)
+      const classifiedConvId = selectedConversation.id;
+      if (activeConversationIdRef.current === classifiedConvId) setLinkedLead(leadToLink as Lead);
+      setConversationLeadsMap(prev => ({ ...prev, [classifiedConvId]: leadToLink as Lead }));
       setConversations(prev =>
-        prev.map(c => c.id === selectedConversation.id ? { ...c, lead_id: leadToLink.id } : c)
+        prev.map(c => c.id === classifiedConvId ? { ...c, lead_id: leadToLink.id } : c)
       );
-      setSelectedConversation({ ...selectedConversation, lead_id: leadToLink.id });
+      setSelectedConversation(prev => (prev && prev.id === classifiedConvId ? { ...prev, lead_id: leadToLink.id } : prev));
 
       // Sync has_scheduled_visit when creating/classifying as em_contato
       if (status === 'em_contato') {
         await supabase.from('wapi_conversations').update({ has_scheduled_visit: true }).eq('id', selectedConversation.id);
         setConversations(prev => prev.map(c => c.id === selectedConversation.id ? { ...c, has_scheduled_visit: true } : c));
-        setSelectedConversation(prev => prev ? { ...prev, has_scheduled_visit: true } : prev);
+        setSelectedConversation(prev => (prev && prev.id === classifiedConvId ? { ...prev, has_scheduled_visit: true } : prev));
       }
 
       if (triggerFestaOnClose && status === 'fechado') {
@@ -3380,8 +3410,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     return format(date, "EEE., d 'de' MMM.", { locale: ptBR });
   };
 
+  // Dia no horário local (o mesmo do rótulo "Hoje/Ontem"). Antes usava o dia em UTC,
+  // e mensagens depois das 21h caíam no separador do dia seguinte.
   const getDateKey = (timestamp: string) => {
-    return new Date(timestamp).toISOString().slice(0, 10);
+    return format(new Date(timestamp), "yyyy-MM-dd");
   };
 
   const formatConversationDate = (timestamp: string | null) => {
@@ -3469,9 +3501,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       prev.map(c => c.id === conv.id ? { ...c, bot_enabled: newValue } : c)
     );
 
-    if (selectedConversation?.id === conv.id) {
-      setSelectedConversation({ ...selectedConversation, bot_enabled: newValue });
-    }
+    // Só mexe na conversa aberta se ainda for ela (trocar no meio não traz a anterior de volta)
+    setSelectedConversation(prev => (prev && prev.id === conv.id ? { ...prev, bot_enabled: newValue } : prev));
 
     toast({
       title: newValue ? "Bot ativado" : "Bot desativado",
@@ -3932,8 +3963,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       message_id: null,
       from_me: true,
       message_type: type === 'document' ? 'document' : type,
-      content: captionToSend || (type === 'image' ? '[Imagem]' : type === 'video' ? '[Vídeo]' : `[Documento] ${file.name}`),
-      media_url: preview || null, // Use preview URL for immediate display
+      content: captionToSend || (type === 'image' ? '[Imagem]' : type === 'video' ? '[Vídeo]' : type === 'audio' ? '[Áudio]' : `[Documento] ${file.name}`),
+      // Prévia própria do balão (a da janela de envio é apagada logo abaixo)
+      media_url: preview ? URL.createObjectURL(file) : null,
       status: 'pending',
       timestamp: new Date().toISOString(),
     };
@@ -4000,6 +4032,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         if (response.error) {
           throw new Error(response.error.message);
         }
+        // O WhatsApp não aceitou ou o número está em pausa: não é "enviado"
+        assertMediaSent(response);
         
         // Update optimistic message with final URL
         if (activeConversationIdRef.current === convId) {
@@ -4040,6 +4074,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         if (response.error) {
           throw new Error(response.error.message);
         }
+        // O WhatsApp não aceitou ou o número está em pausa: não é "enviado"
+        assertMediaSent(response);
         
         // Update optimistic message with final URL
         if (activeConversationIdRef.current === convId) {
@@ -4082,6 +4118,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         if (response.error) {
           throw new Error(response.error.message);
         }
+        // O WhatsApp não aceitou ou o número está em pausa: não é "enviado"
+        assertMediaSent(response);
         
         // Update optimistic message with final URL
         if (activeConversationIdRef.current === convId) {
@@ -4089,6 +4127,40 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
             m.id === optimisticId ? { ...m, status: 'sent', media_url: mediaUrl } : m
           ));
         }
+      } else if (type === 'audio') {
+        // Arquivo de áudio: sobe e manda como áudio (o servidor converte para o WhatsApp)
+        const { error: uploadError } = await supabase.storage
+          .from('whatsapp-media')
+          .upload(fileName, file, { contentType: file.type || 'audio/mpeg' });
+        if (uploadError) {
+          throw new Error(uploadError.message);
+        }
+        const { data: signedData, error: signedError } = await supabase.storage
+          .from('whatsapp-media')
+          .createSignedUrl(fileName, 31536000); // 1 year expiry
+        if (signedError || !signedData?.signedUrl) {
+          throw new Error('Falha ao gerar URL do áudio');
+        }
+        const mediaUrl = signedData.signedUrl;
+        const response = await invokeWithRetry({
+            action: 'send-audio',
+            phone: getConversationPhone(selectedConversation),
+            conversationId: selectedConversation.id,
+            instanceId: selectedSendInstance!.instance_id,
+            mediaUrl,
+            mimeType: file.type || 'audio/mpeg',
+        });
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+        assertMediaSent(response);
+        if (activeConversationIdRef.current === convId) {
+          setMessages(prev => prev.map(m =>
+            m.id === optimisticId ? { ...m, status: 'sent', media_url: mediaUrl } : m
+          ));
+        }
+      } else {
+        throw new Error('Tipo de arquivo não suportado.');
       }
 
       toast({
@@ -4234,7 +4306,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
       }
       
       // Apply filter
-      if (filter === 'unread') return conv.unread_count > 0;
+      if (filter === 'unread') return isAwaitingRead(conv);
       if (filter === 'closed') return conv.is_closed;
       if (filter === 'fechados') return leadStatusConversationIds.fechado.has(conv.id);
       if (filter === 'oe') return leadStatusConversationIds.orcamento_enviado.has(conv.id);
@@ -4278,9 +4350,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
       prev.map(c => c.id === conv.id ? { ...c, is_closed: newValue } : c)
     );
 
-    if (selectedConversation?.id === conv.id) {
-      setSelectedConversation({ ...selectedConversation, is_closed: newValue });
-    }
+    // Só mexe na conversa aberta se ainda for ela (trocar no meio não traz a anterior de volta)
+    setSelectedConversation(prev => (prev && prev.id === conv.id ? { ...prev, is_closed: newValue } : prev));
 
     toast({
       title: newValue ? "Conversa encerrada" : "Conversa reaberta",
@@ -4400,9 +4471,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
       prev.map(c => c.id === conv.id ? { ...c, has_scheduled_visit: newValue } : c)
     );
 
-    if (selectedConversation?.id === conv.id) {
-      setSelectedConversation({ ...selectedConversation, has_scheduled_visit: newValue });
-    }
+    // Só mexe na conversa aberta se ainda for ela (trocar no meio não traz a anterior de volta)
+    setSelectedConversation(prev => (prev && prev.id === conv.id ? { ...prev, has_scheduled_visit: newValue } : prev));
 
     toast({
       title: newValue ? "Visita agendada" : "Visita desmarcada",
@@ -4424,9 +4494,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
       prev.map(c => c.id === conv.id ? { ...c, is_freelancer: newValue } : c)
     );
 
-    if (selectedConversation?.id === conv.id) {
-      setSelectedConversation({ ...selectedConversation, is_freelancer: newValue });
-    }
+    // Só mexe na conversa aberta se ainda for ela (trocar no meio não traz a anterior de volta)
+    setSelectedConversation(prev => (prev && prev.id === conv.id ? { ...prev, is_freelancer: newValue } : prev));
 
     toast({
       title: newValue ? "Marcado como Freelancer" : "Desmarcado como Freelancer",
@@ -4448,9 +4517,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
       prev.map(c => c.id === conv.id ? { ...c, is_equipe: newValue } : c)
     );
 
-    if (selectedConversation?.id === conv.id) {
-      setSelectedConversation({ ...selectedConversation, is_equipe: newValue });
-    }
+    // Só mexe na conversa aberta se ainda for ela (trocar no meio não traz a anterior de volta)
+    setSelectedConversation(prev => (prev && prev.id === conv.id ? { ...prev, is_equipe: newValue } : prev));
 
     toast({
       title: newValue ? "Marcado como Equipe" : "Desmarcado como Equipe",
@@ -4582,11 +4650,13 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
 
       // Log in lead_history
       if (leadId) {
+        // Colunas certas do histórico (antes usava colunas que não existem e não gravava)
         await insertWithCompany('lead_history', {
           lead_id: leadId,
           action: 'Lead criado manualmente',
-          details: `Contato ${newContactName.trim()} (${phone}) criado manualmente via chat`,
-          performed_by: userId,
+          new_value: `Contato ${newContactName.trim()} (${phone}) criado manualmente via chat`,
+          user_id: userId,
+          user_name: currentUserName || null,
         });
       }
 
@@ -4920,7 +4990,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                     className={cn(
                       "w-full px-3 py-2.5 flex items-center gap-2.5 hover:bg-primary/5 transition-all text-left border-b border-border/40 group",
                       selectedConversation?.id === conv.id && "bg-primary/10 border-l-2 border-l-primary",
-                      conv.unread_count > 0 && "bg-gradient-to-r from-primary/10 to-transparent",
+                      isAwaitingRead(conv) && "bg-gradient-to-r from-primary/10 to-transparent",
                       hasCampaignReply(conv) && "bg-gradient-to-r from-orange-100 to-transparent dark:from-orange-950/40"
                     )}
                   >
@@ -4933,7 +5003,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         />
                         <AvatarFallback className={cn(
                           "text-primary text-sm font-semibold bg-gradient-to-br",
-                          conv.unread_count > 0 ? "from-primary/30 to-primary/10" : "from-primary/15 to-primary/5"
+                          isAwaitingRead(conv) ? "from-primary/30 to-primary/10" : "from-primary/15 to-primary/5"
                         )}>
                           {getConversationDisplayName(conv, conversationLeadsMap).charAt(0).toUpperCase()}
                         </AvatarFallback>
@@ -4956,7 +5026,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                       <div className="flex items-center gap-1 min-w-0 overflow-hidden">
                         <p className={cn(
                           "truncate text-sm",
-                          conv.unread_count > 0 ? "font-bold" : "font-medium"
+                          isAwaitingRead(conv) ? "font-bold" : "font-medium"
                         )}>
                           {getConversationDisplayName(conv, conversationLeadsMap)}
                         </p>
@@ -4983,7 +5053,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                       {/* Row 2, Col 1: Preview */}
                       <span className={cn(
                         "text-xs truncate block mt-0.5",
-                        conv.unread_count > 0 ? "text-foreground font-medium" : "text-muted-foreground"
+                        isAwaitingRead(conv) ? "text-foreground font-medium" : "text-muted-foreground"
                       )}>
                         {conv.last_message_from_me && (
                           <CheckCheck className="w-3 h-3 shrink-0 text-primary inline mr-1 align-text-bottom" />
@@ -4992,7 +5062,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                       </span>
                       {/* Row 2, Col 2: Badge */}
                       <div className="flex justify-end items-center mt-0.5">
-                        {conv.unread_count > 0 && (
+                        {isAwaitingRead(conv) && (
                           <AnimatedBadge 
                             value={conv.unread_count > 99 ? "99+" : conv.unread_count}
                             className="h-5 min-w-6 px-1.5 flex items-center justify-center text-[11px] font-bold rounded-full bg-primary text-primary-foreground"
@@ -5072,7 +5142,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                     className={cn(
                       "w-full px-4 py-3 flex items-center gap-3 hover:bg-muted/60 transition-all duration-200 text-left border-b border-border/30 group",
                       selectedConversation?.id === conv.id && "bg-primary/8 border-l-[3px] border-l-primary",
-                      conv.unread_count > 0 && "bg-primary/5",
+                      isAwaitingRead(conv) && "bg-primary/5",
                       hasCampaignReply(conv) && "bg-gradient-to-r from-orange-100 to-transparent dark:from-orange-950/40 border-l-[3px] border-l-orange-500"
                     )}
                       >
@@ -5085,7 +5155,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                           />
                           <AvatarFallback className={cn(
                             "text-primary text-sm font-semibold bg-gradient-to-br",
-                            conv.unread_count > 0 ? "from-primary/30 to-primary/10" : "from-primary/15 to-primary/5"
+                            isAwaitingRead(conv) ? "from-primary/30 to-primary/10" : "from-primary/15 to-primary/5"
                           )}>
                             {getConversationDisplayName(conv, conversationLeadsMap).charAt(0).toUpperCase()}
                           </AvatarFallback>
@@ -5108,7 +5178,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                             <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
                               <p className={cn(
                                 "truncate text-sm",
-                                conv.unread_count > 0 ? "font-bold" : "font-medium"
+                                isAwaitingRead(conv) ? "font-bold" : "font-medium"
                               )}>
                                 {getConversationDisplayName(conv, conversationLeadsMap)}
                               </p>
@@ -5208,18 +5278,18 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                           </div>
                           <div className={cn(
                             "grid mt-0.5 items-center gap-2",
-                            conv.unread_count > 0 ? "grid-cols-[minmax(0,1fr)_auto]" : "grid-cols-1"
+                            isAwaitingRead(conv) ? "grid-cols-[minmax(0,1fr)_auto]" : "grid-cols-1"
                           )}>
                             <span className={cn(
                               "text-xs truncate block",
-                              conv.unread_count > 0 ? "text-foreground font-medium" : "text-muted-foreground"
+                              isAwaitingRead(conv) ? "text-foreground font-medium" : "text-muted-foreground"
                             )}>
                               {conv.last_message_from_me && (
                                 <CheckCheck className="w-3 h-3 shrink-0 text-primary inline mr-1 align-text-bottom" />
                               )}
                               {friendlyLastMessage(conv.last_message_content, conv.last_message_from_me) || conv.contact_phone}
                             </span>
-                            {conv.unread_count > 0 && (
+                            {isAwaitingRead(conv) && (
                               <AnimatedBadge 
                                 value={conv.unread_count > 99 ? "99+" : conv.unread_count}
                                className="h-5 min-w-6 px-1.5 flex items-center justify-center text-[11px] font-bold rounded-full bg-primary text-primary-foreground"
@@ -5379,7 +5449,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                           });
                           
                           // Update local state
-                          setLinkedLead(prev => prev ? { ...prev, status: newStatus as any } : null);
+                          setLinkedLead(prev => (prev && prev.id === linkedLead.id ? { ...prev, status: newStatus as any } : prev));
                           
                           toast({
                             title: isCurrentlyOE ? "Orçamento desmarcado" : "Orçamento marcado",
@@ -5627,6 +5697,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                   
                                   await supabase.from('lead_history').insert({
                                     lead_id: linkedLead.id,
+                                    company_id: getCurrentCompanyId(),
                                     action: 'status_change',
                                     old_value: statusLabels[oldStatus] || oldStatus,
                                     new_value: statusLabels[newStatus] || newStatus,
@@ -5634,7 +5705,8 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                   });
                                   
                                   const updatedLead = { ...linkedLead, status: statusOption.value };
-                                  setLinkedLead(updatedLead);
+                                  // Só troca o lead da tela se ainda for o mesmo (trocou de conversa no meio)
+                                  setLinkedLead(prev => (prev && prev.id === updatedLead.id ? updatedLead : prev));
                                   // Sync conversationLeadsMap so sidebar badge updates simultaneously
                                   if (selectedConversation) {
                                     setConversationLeadsMap(prev => ({ ...prev, [selectedConversation.id]: updatedLead }));
@@ -5646,7 +5718,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                     if (selectedConversation) {
                                       await supabase.from('wapi_conversations').update({ has_scheduled_visit: shouldHaveVisit }).eq('id', selectedConversation.id);
                                       setConversations(prev => prev.map(c => c.id === selectedConversation.id ? { ...c, has_scheduled_visit: shouldHaveVisit } : c));
-                                      setSelectedConversation({ ...selectedConversation, has_scheduled_visit: shouldHaveVisit });
+                                      setSelectedConversation(prev => (prev && prev.id === selectedConversation.id ? { ...prev, has_scheduled_visit: shouldHaveVisit } : prev));
                                     }
                                   }
 
@@ -6641,7 +6713,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                           new_value: statusLabels[newStatus],
                         });
                         
-                        setLinkedLead(prev => prev ? { ...prev, status: newStatus as any } : null);
+                        setLinkedLead(prev => (prev && prev.id === linkedLead.id ? { ...prev, status: newStatus as any } : prev));
                         
                         toast({
                           title: isCurrentlyOE ? "Orçamento desmarcado" : "Orçamento marcado",
@@ -6853,6 +6925,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                 
                                 await supabase.from('lead_history').insert({
                                   lead_id: linkedLead.id,
+                                  company_id: getCurrentCompanyId(),
                                   action: 'status_change',
                                   old_value: statusLabels[oldStatus] || oldStatus,
                                   new_value: statusLabels[newStatus] || newStatus,
@@ -6860,7 +6933,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                 });
 
                                 const updatedLead = { ...linkedLead, status: statusOption.value };
-                                setLinkedLead(updatedLead);
+                                setLinkedLead(prev => (prev && prev.id === updatedLead.id ? updatedLead : prev));
                                 // Sync conversationLeadsMap so sidebar badge updates simultaneously
                                 if (selectedConversation) {
                                   setConversationLeadsMap(prev => ({ ...prev, [selectedConversation.id]: updatedLead }));
@@ -6873,7 +6946,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                   if (selectedConversation) {
                                     await supabase.from('wapi_conversations').update({ has_scheduled_visit: shouldHaveVisit }).eq('id', selectedConversation.id);
                                     setConversations(prev => prev.map(c => c.id === selectedConversation.id ? { ...c, has_scheduled_visit: shouldHaveVisit } : c));
-                                    setSelectedConversation({ ...selectedConversation, has_scheduled_visit: shouldHaveVisit });
+                                    setSelectedConversation(prev => (prev && prev.id === selectedConversation.id ? { ...prev, has_scheduled_visit: shouldHaveVisit } : prev));
                                   }
                                 }
 

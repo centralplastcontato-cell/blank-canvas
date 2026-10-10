@@ -46,6 +46,7 @@ import { LeadVisitHistory } from "./LeadVisitHistory";
 import { LeadDuplicateHubBanner } from "./LeadDuplicateHubBanner";
 import { LeadUtmDetail } from "./LeadUtm";
 import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
+import { eventRowToFormData, saveEvent } from "@/lib/eventSave";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { PartyPopper } from "lucide-react";
@@ -125,23 +126,8 @@ export function LeadDetailSheet({
         .eq("lead_id", lead.id)
         .order("event_date", { ascending: false })
         .then(({ data }) => {
-          const events = (data || []).map((ev: any) => ({
-            id: ev.id,
-            title: ev.title,
-            event_date: ev.event_date,
-            start_time: ev.start_time || "",
-            end_time: ev.end_time || "",
-            event_type: ev.event_type || "aniversario",
-            guest_count: ev.guest_count,
-            unit: ev.unit || "",
-            status: ev.status,
-            package_name: ev.package_name || "",
-            total_value: ev.total_value,
-            notes: ev.notes || "",
-            lead_id: ev.lead_id || null,
-            data_fechamento_venda: ev.data_fechamento_venda || null,
-            vendedor_responsavel_id: ev.vendedor_responsavel_id || null,
-          }));
+          // Todos os dados da festa (pagamento, criança, opcionais): editar não apaga nada
+          const events = (data || []).map((ev) => eventRowToFormData(ev));
           setLinkedEvents(events);
           setHasLinkedEvent(events.length > 0);
           setLinkedEventData(events[0] || null);
@@ -576,37 +562,11 @@ export function LeadDetailSheet({
       initialData={linkedEventData}
       units={units.filter(u => u.slug !== "trabalhe-conosco")}
       onSubmit={async (data) => {
-        if (!currentCompany?.id) return;
-        const payload: any = {
-          company_id: currentCompany.id,
-          title: data.title,
-          event_date: data.event_date,
-          start_time: data.start_time || null,
-          end_time: data.end_time || null,
-          event_type: data.event_type || null,
-          guest_count: data.guest_count,
-          unit: data.unit || null,
-          status: data.status,
-          package_name: data.package_name || null,
-          total_value: data.total_value,
-          notes: data.notes || null,
-          created_by: currentUserId,
-          lead_id: data.lead_id || lead?.id || null,
-          data_fechamento_venda: data.data_fechamento_venda || null,
-          vendedor_responsavel_id: data.vendedor_responsavel_id || null,
-          payment_method: data.payment_method || null,
-        };
-
-        if (data.id) {
-          const { error } = await supabase.from("company_events").update(payload).eq("id", data.id);
-          if (error) { toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" }); return; }
-          toast({ title: "Festa atualizada!" });
-        } else {
-          const { error } = await supabase.from("company_events").insert(payload);
-          if (error) { toast({ title: "Erro ao criar", description: error.message, variant: "destructive" }); return; }
-          toast({ title: "Festa criada!" });
-          setHasLinkedEvent(true);
-        }
+        if (!currentCompany?.id || !currentUserId) return;
+        // Mesma regra da Agenda: todos os campos e as parcelas (src/lib/eventSave.ts)
+        const savedId = await saveEvent(data, { companyId: currentCompany.id, userId: currentUserId, leadId: lead?.id });
+        if (!savedId) return;
+        if (!data.id) setHasLinkedEvent(true);
         setEventFormOpen(false);
         // Refresh linked events list
         if (lead) {
@@ -615,19 +575,12 @@ export function LeadDetailSheet({
             .select("*")
             .eq("lead_id", lead.id)
             .order("event_date", { ascending: false });
-          const events = (refreshed || []).map((ev: any) => ({
-            id: ev.id, title: ev.title, event_date: ev.event_date,
-            start_time: ev.start_time || "", end_time: ev.end_time || "",
-            event_type: ev.event_type || "aniversario", guest_count: ev.guest_count,
-            unit: ev.unit || "", status: ev.status, package_name: ev.package_name || "",
-            total_value: ev.total_value, notes: ev.notes || "", lead_id: ev.lead_id || null,
-            data_fechamento_venda: ev.data_fechamento_venda || null,
-            vendedor_responsavel_id: ev.vendedor_responsavel_id || null,
-          })) as EventFormData[];
+          const events = (refreshed || []).map((ev) => eventRowToFormData(ev));
           setLinkedEvents(events);
           setHasLinkedEvent(events.length > 0);
         }
         onUpdate();
+        return savedId;
       }}
     />
     </>

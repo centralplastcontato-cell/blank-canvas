@@ -32,10 +32,12 @@ import {
 } from "@dnd-kit/sortable";
 import { DraggableFilterButton, FILTER_CONFIGS } from "./DraggableFilterButton";
 import { aiConversationState } from "@/lib/aiConversation";
+import { isAwaitingRead } from "@/lib/conversationUnread";
 
 interface Conversation {
   id: string;
   unread_count: number;
+  last_message_from_me?: boolean | null;
   is_favorite: boolean;
   is_closed: boolean;
   has_scheduled_visit: boolean;
@@ -113,7 +115,7 @@ export function ConversationFilters({
 
   // Calculate counts
   const counts = useMemo(() => ({
-    unread: conversations.filter(c => c.unread_count > 0).length,
+    unread: conversations.filter(c => isAwaitingRead(c)).length,
     closed: conversations.filter(c => c.is_closed).length,
     visitas: visitasCount,
     freelancer: conversations.filter(c => c.is_freelancer).length,
