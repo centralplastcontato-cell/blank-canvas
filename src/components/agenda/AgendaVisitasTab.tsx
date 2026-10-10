@@ -20,7 +20,7 @@ const RESCHED_TIME_OPTIONS = Array.from({ length: 28 }, (_, i) => {
   const m = (i + 16) % 2 === 0 ? "00" : "30";
   return `${h}:${m}`;
 });
-import { Loader2, Clock, MapPin, ChevronLeft, ChevronRight, Phone, MessageSquare, Check, RefreshCw, X, Plus, User as UserIcon, AlertTriangle, Trash2, PartyPopper, Package, Sparkles, TrendingUp } from "lucide-react";
+import { Loader2, Clock, MapPin, ChevronLeft, ChevronRight, Phone, MessageSquare, Check, RefreshCw, X, Plus, User as UserIcon, AlertTriangle, Trash2, PartyPopper, Package, Sparkles, TrendingUp, SlidersHorizontal, CalendarCheck, CalendarClock, UserX } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -30,6 +30,11 @@ import { VisitFormDialog } from "@/components/visitas/VisitFormDialog";
 import { SendVisitConfirmationDialog } from "@/components/visitas/SendVisitConfirmationDialog";
 import { logActivity } from "@/lib/activityLog";
 import { PendingVisitOutcomesCard } from "./PendingVisitOutcomesCard";
+import { useUnitPermissions } from "@/hooks/useUnitPermissions";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { visitSummary } from "@/lib/visitKpis";
 
 const VISIT_STATUSES = [
   { value: "agendada", label: "Agendada", color: "bg-blue-500/15 text-blue-700 border-blue-300", dot: "bg-blue-500" },
@@ -157,15 +162,37 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
 
   const { units } = useCompanyUnits(currentCompany?.id);
 
+  // Responsáveis: só quem faz parte desta empresa (antes vinham pessoas de outras empresas)
   useEffect(() => {
     if (!currentCompany?.id) return;
-    supabase.from("profiles").select("user_id, full_name")
-      .then(({ data }) => { if (data) setProfiles(data); });
+    let cancelled = false;
+    (async () => {
+      const { data: members } = await supabase.from("user_companies").select("user_id").eq("company_id", currentCompany.id);
+      const ids = (members || []).map((m) => m.user_id);
+      if (ids.length === 0) { if (!cancelled) setProfiles([]); return; }
+      const { data } = await supabase.from("profiles").select("user_id, full_name").in("user_id", ids);
+      if (!cancelled && data) setProfiles(data);
+    })();
+    return () => { cancelled = true; };
   }, [currentCompany?.id]);
 
+  // Unidades que a pessoa pode ver (mesma regra da aba Festas). Visita sem unidade
+  // continua aparecendo, para não sumir nada que ninguém sabe de quem é.
+  const { canViewAll, allowedUnits, isLoading: unitPermLoading } = useUnitPermissions(userId, currentCompany?.id);
+  const permittedUnits = useMemo(
+    () => allowedUnits.filter((u) => u !== "As duas" && u !== "all" && !u.toLowerCase().includes("vendas")).map((u) => u.toLowerCase().trim()),
+    [allowedUnits],
+  );
+  const restrictUnits = !canViewAll && !unitPermLoading && permittedUnits.length > 0;
+  const canSeeUnit = (unit: string | null | undefined) =>
+    !restrictUnits || !unit || permittedUnits.includes(unit.toLowerCase().trim());
+
+  const fetchSeq = useRef(0);
   const fetchVisits = async () => {
     const companyId = getCurrentCompanyId();
     if (!companyId) return;
+    // Só a busca mais recente vale (trocar de mês rápido não deixa resposta antiga por cima)
+    const seq = ++fetchSeq.current;
 
     setLoading(true);
     const startDate = format(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1), "yyyy-MM-dd");
@@ -180,9 +207,11 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
       .order("data_visita", { ascending: true })
       .order("horario_visita", { ascending: true });
 
+    if (seq !== fetchSeq.current) return;
     if (error) { console.error(error); setLoading(false); return; }
 
     const mappedVisits = await enrichVisits((data || []) as Visit[]);
+    if (seq !== fetchSeq.current) return;
     setVisits(mappedVisits);
     setDetailVisit((current) => current ? mappedVisits.find((visit: Visit) => visit.id === current.id) || current : current);
     hasLoaded.current = true;
@@ -194,6 +223,46 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
     const companyId = currentCompany?.id || getCurrentCompanyId();
     if (companyId && userId) fetchVisits();
   }, [currentCompany?.id, userId, calendarMonth]);
+
+  // Visitas de hoje e amanhã ainda sem confirmação. Busca à parte: no último dia do mês
+  // as de amanhã estão no mês seguinte. Remarcada também precisa confirmar a data nova.
+  const [unconfirmedSoon, setUnconfirmedSoon] = useState<{ id: string; lead_name: string; data_visita: string; unit: string | null }[]>([]);
+  useEffect(() => {
+    if (!currentCompany?.id) return;
+    let cancelled = false;
+    (async () => {
+      const today = format(new Date(), "yyyy-MM-dd");
+      const tomorrowDate = new Date();
+      tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+      const tomorrow = format(tomorrowDate, "yyyy-MM-dd");
+      const { data } = await supabase
+        .from("lead_visits")
+        .select("id, lead_id, data_visita, unit")
+        .eq("company_id", currentCompany.id)
+        .in("status_visita", ["agendada", "remarcada"])
+        .neq("visit_type", "atendimento")
+        .gte("data_visita", today)
+        .lte("data_visita", tomorrow);
+      const rows = data || [];
+      const leadIds = [...new Set(rows.map((r) => r.lead_id))];
+      const names = new Map<string, string>();
+      if (leadIds.length > 0) {
+        const { data: leads } = await supabase.from("campaign_leads").select("id, name").in("id", leadIds);
+        for (const l of leads || []) names.set(l.id, l.name);
+      }
+      if (!cancelled) setUnconfirmedSoon(rows.map((r) => ({ id: r.id, data_visita: r.data_visita, unit: r.unit, lead_name: names.get(r.lead_id) || "Cliente" })));
+    })();
+    return () => { cancelled = true; };
+  }, [currentCompany?.id, visitsVersion]);
+
+  // No celular as visitas do dia ficam embaixo do calendário: ao tocar numa data, rola até elas
+  const dayPanelRef = useRef<HTMLDivElement>(null);
+  const handleDayClick = (date: Date) => {
+    setSelectedDate(date);
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      setTimeout(() => dayPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    }
+  };
 
   // Abre uma visita de qualquer mês (com a remarcação aberta quando pedida)
   const openVisitById = async (visitId: string, reschedule: boolean) => {
@@ -223,13 +292,15 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
 
   const filteredVisits = useMemo(() => {
     return visits.filter(v => {
+      if (!canSeeUnit(v.unit)) return false;
       if (filterStatus !== "all" && v.status_visita !== filterStatus) return false;
       if (filterResponsavel !== "all" && v.responsavel_user_id !== filterResponsavel) return false;
       if (filterUnit !== "all" && v.unit !== filterUnit) return false;
       if (filterType !== "all" && (v.visit_type || "visita") !== filterType) return false;
       return true;
     });
-  }, [visits, filterStatus, filterResponsavel, filterUnit, filterType]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- canSeeUnit depende só destes
+  }, [visits, filterStatus, filterResponsavel, filterUnit, filterType, restrictUnits, permittedUnits]);
 
   const selectedDayVisits = useMemo(() => {
     const dateStr = format(selectedDate, "yyyy-MM-dd");
@@ -352,13 +423,8 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
     );
   }
 
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = format(tomorrow, "yyyy-MM-dd");
   const todayStr = format(new Date(), "yyyy-MM-dd");
-  const unconfirmedSoon = visits.filter(
-    v => (v.data_visita === tomorrowStr || v.data_visita === todayStr) && v.status_visita === "agendada"
-  );
+  const visibleUnconfirmed = unconfirmedSoon.filter((v) => canSeeUnit(v.unit));
 
   const selectedDayLabel = format(selectedDate, "dd 'de' MMMM", { locale: ptBR });
   const isToday = isSameDay(selectedDate, new Date());
@@ -367,26 +433,10 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
   const detailResponsavel = detailVisit ? profiles.find(p => p.user_id === detailVisit.responsavel_user_id) : null;
   const isDetailEntrega = detailVisit && (detailVisit.visit_type || "visita") === "atendimento";
 
-  // Summary card data
-  const visitasComerciais = filteredVisits.filter(v => (v.visit_type || "visita") !== "atendimento");
-  const atendimentos = filteredVisits.filter(v => (v.visit_type || "visita") === "atendimento");
-  const agendadas = filteredVisits.filter(v => v.status_visita === "agendada").length;
-  const realizadas = filteredVisits.filter(v => v.status_visita === "realizada").length;
-  const naoComp = filteredVisits.filter(v => v.status_visita === "nao_compareceu").length;
-  const canceladas = filteredVisits.filter(v => v.status_visita === "cancelada").length;
-
-  const summaryCards = [
-    { label: "Visitas Comerciais", value: visitasComerciais.length, icon: MapPin, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Atendimentos", value: atendimentos.length, icon: Phone, color: "text-violet-600", bg: "bg-violet-500/10" },
-    { label: "Agendadas", value: agendadas, icon: Clock, color: "text-blue-600", bg: "bg-blue-500/10" },
-    { label: "Realizadas", value: realizadas, icon: Check, color: "text-green-700", bg: "bg-green-600/10" },
-  ];
-
-  const getDaysInMonthCount = (d: Date) => new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-  const totalDays = getDaysInMonthCount(calendarMonth);
-  const uniqueDaysWithVisit = new Set(filteredVisits.filter(v => v.status_visita !== "cancelada").map(v => v.data_visita)).size;
-  const freeDays = totalDays - uniqueDaysWithVisit;
-  const occupancyRate = totalDays > 0 ? Math.round((uniqueDaysWithVisit / totalDays) * 100) : 0;
+  // Números do mês (src/lib/visitKpis.ts)
+  const kpi = visitSummary(filteredVisits);
+  const activeFilterCount = [filterStatus, filterUnit, filterResponsavel].filter((f) => f !== "all").length;
+  const unitOptions = units.filter((u) => canSeeUnit(u.name));
 
   return (
     <div className="space-y-6">
@@ -396,83 +446,128 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
           onOpenVisit={openVisitById}
           onChanged={fetchVisits}
           reloadKey={visitsVersion}
+          canSeeUnit={canSeeUnit}
         />
       )}
 
+      {/* Celular: botão + flutuante (igual ao da aba Festas) para Nova visita ou Atendimento */}
+      <div className="md:hidden fixed right-4 bottom-[5.5rem] z-30">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label="Marcar visita ou atendimento"
+              className="h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center active:scale-95 transition-transform"
+            >
+              <Plus className="h-7 w-7" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="top" align="end" sideOffset={10} className="w-52 rounded-2xl p-1.5">
+            <DropdownMenuItem className="rounded-xl gap-2.5 py-2.5 text-sm font-medium" onClick={() => { setCreateType("visita"); setCreateOpen(true); }}>
+              <MapPin className="h-4 w-4 text-primary" /> Nova visita
+            </DropdownMenuItem>
+            <DropdownMenuItem className="rounded-xl gap-2.5 py-2.5 text-sm font-medium" onClick={() => { setCreateType("atendimento"); setCreateOpen(true); }}>
+              <Package className="h-4 w-4 text-violet-600" /> Atendimento
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
       {/* Alert */}
-      {unconfirmedSoon.length > 0 && (
+      {visibleUnconfirmed.length > 0 && (
         <div className="rounded-2xl border border-amber-300/50 bg-gradient-to-r from-amber-50/80 to-amber-50/30 dark:from-amber-950/30 dark:to-transparent p-4 flex items-start gap-3">
           <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/40 shrink-0">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
           </div>
           <div>
             <p className="text-sm font-bold text-amber-800 dark:text-amber-300">
-              {unconfirmedSoon.length} visita{unconfirmedSoon.length > 1 ? "s" : ""} sem confirmação
+              {visibleUnconfirmed.length} visita{visibleUnconfirmed.length > 1 ? "s" : ""} sem confirmação
             </p>
             <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mt-0.5">
-              {unconfirmedSoon.map(v => v.lead_name).join(", ")} — {unconfirmedSoon.some(v => v.data_visita === todayStr) ? "hoje" : "amanhã"}
+              {visibleUnconfirmed.slice(0, 3).map(v => v.lead_name).join(", ")}
+              {visibleUnconfirmed.length > 3 ? ` e mais ${visibleUnconfirmed.length - 3}` : ""} — {(() => {
+                const hasToday = visibleUnconfirmed.some(v => v.data_visita === todayStr);
+                const hasTomorrow = visibleUnconfirmed.some(v => v.data_visita !== todayStr);
+                return hasToday && hasTomorrow ? "hoje e amanhã" : hasToday ? "hoje" : "amanhã";
+              })()}
             </p>
           </div>
         </div>
       )}
 
-      {/* Filters + CTA row */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-        {/* No celular os filtros ficam 2 por linha (antes 4 espremidos numa linha só) */}
-        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full">
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className={cn(
-              "h-9 flex-1 min-w-0 text-xs rounded-xl border-border/50 bg-card shadow-sm transition-all duration-200",
-              filterStatus !== "all" && "border-primary/40 bg-primary/5 text-primary font-semibold ring-1 ring-primary/20"
-            )}>
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos status</SelectItem>
-              {VISIT_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          {units.length > 1 && (
-            <Select value={filterUnit} onValueChange={setFilterUnit}>
-              <SelectTrigger className={cn(
-                "h-9 flex-1 min-w-0 text-xs rounded-xl border-border/50 bg-card shadow-sm transition-all duration-200",
-                filterUnit !== "all" && "border-primary/40 bg-primary/5 text-primary font-semibold ring-1 ring-primary/20"
-              )}>
-                <SelectValue placeholder="Unidade" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas unidades</SelectItem>
-                {units.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          )}
-          <Select value={filterResponsavel} onValueChange={setFilterResponsavel}>
-            <SelectTrigger className={cn(
-              "h-9 flex-1 min-w-0 text-xs rounded-xl border-border/50 bg-card shadow-sm transition-all duration-200",
-              filterResponsavel !== "all" && "border-primary/40 bg-primary/5 text-primary font-semibold ring-1 ring-primary/20"
-            )}>
-              <SelectValue placeholder="Responsável" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos responsáveis</SelectItem>
-              {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className={cn(
-              "h-9 flex-1 min-w-0 text-xs rounded-xl border-border/50 bg-card shadow-sm transition-all duration-200",
-              filterType !== "all" && "border-violet-400 bg-violet-500/5 text-violet-700 font-semibold ring-1 ring-violet-300"
-            )}>
-              <SelectValue placeholder="Tipo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos tipos</SelectItem>
-              <SelectItem value="visita">Visitas</SelectItem>
-              <SelectItem value="atendimento">Atendimento</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto shrink-0">
+      {/* Topo igual ao da aba Festas: tipo como sub-abas discretas, os outros filtros num
+          botão "Filtros" e, no celular, criar pelo botão + flutuante */}
+      <div className="flex items-center gap-2">
+        <Tabs value={filterType} onValueChange={setFilterType} className="flex-1 min-w-0 sm:flex-none sm:w-[360px]">
+          <TabsList className="grid w-full grid-cols-3 gap-1 p-1 rounded-full bg-muted h-auto">
+            <TabsTrigger value="all" className="flex-1 min-w-0 h-9 px-2 text-xs font-semibold rounded-full text-muted-foreground transition-colors data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm">Todas</TabsTrigger>
+            <TabsTrigger value="visita" className="flex-1 min-w-0 h-9 px-2 text-xs font-semibold rounded-full text-muted-foreground transition-colors data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm">Visitas</TabsTrigger>
+            <TabsTrigger value="atendimento" className="flex-1 min-w-0 h-9 px-2 text-xs font-semibold rounded-full text-muted-foreground transition-colors data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm">Atendimentos</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className={cn(
+                "relative h-11 shrink-0 rounded-2xl border bg-card shadow-sm px-3 flex items-center gap-1.5 text-sm font-medium transition-colors",
+                activeFilterCount > 0 ? "border-primary/40 text-primary" : "border-border/40 text-muted-foreground hover:text-foreground",
+              )}
+              aria-label="Filtros"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              <span className="hidden sm:inline">Filtros</span>
+              {activeFilterCount > 0 && (
+                <span className="h-5 min-w-5 px-1 rounded-full bg-primary text-primary-foreground text-[11px] font-bold flex items-center justify-center">{activeFilterCount}</span>
+              )}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-72 rounded-2xl p-4 space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Situação</Label>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="h-10 w-full text-sm rounded-xl"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  {VISIT_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {unitOptions.length > 1 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Unidade</Label>
+                <Select value={filterUnit} onValueChange={setFilterUnit}>
+                  <SelectTrigger className="h-10 w-full text-sm rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as unidades</SelectItem>
+                    {unitOptions.map(u => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Responsável</Label>
+              <Select value={filterResponsavel} onValueChange={setFilterResponsavel}>
+                <SelectTrigger className="h-10 w-full text-sm rounded-xl"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {profiles.map(p => <SelectItem key={p.user_id} value={p.user_id}>{p.full_name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {activeFilterCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full rounded-full"
+                onClick={() => { setFilterStatus("all"); setFilterUnit("all"); setFilterResponsavel("all"); }}
+              >
+                Limpar filtros
+              </Button>
+            )}
+          </PopoverContent>
+        </Popover>
+        <div className="hidden md:flex items-center gap-2 ml-auto shrink-0">
           <Button size="sm" className="h-10 px-5 rounded-full gap-2 font-semibold shadow-sm" onClick={() => { setCreateType("visita"); setCreateOpen(true); }}>
             <Plus className="h-4 w-4" /> Nova Visita
           </Button>
@@ -482,58 +577,64 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Números do mês: mesmo visual da aba Festas */}
       <div className="space-y-3 animate-fade-up">
-        {/* Mesmo visual dos números da aba Festas */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-3">
-          {summaryCards.map((c) => (
+          {[
+            { label: "Visitas no mês", value: kpi.visitas, hint: kpi.atendimentos > 0 ? `+${kpi.atendimentos} atendimento${kpi.atendimentos > 1 ? "s" : ""}` : undefined, icon: MapPin, tone: "bg-primary/10 text-primary" },
+            { label: "A acontecer", value: kpi.aAcontecer, hint: "marcadas daqui pra frente", icon: CalendarClock, tone: "bg-sky-500/15 text-sky-600" },
+            { label: "Vieram", value: kpi.vieram, hint: "visita realizada", icon: CalendarCheck, tone: "bg-emerald-500/15 text-emerald-600" },
+            { label: "Não vieram", value: kpi.naoVieram, hint: kpi.canceladas > 0 ? `+${kpi.canceladas} cancelada${kpi.canceladas > 1 ? "s" : ""}` : undefined, icon: UserX, tone: "bg-red-500/10 text-red-600" },
+          ].map((c) => (
             <div key={c.label} className="rounded-2xl border border-border/50 bg-card p-3 shadow-sm flex items-center gap-3 min-w-0">
-              <div className={cn("h-10 w-10 rounded-full flex items-center justify-center shrink-0", c.bg)}>
-                <c.icon className={cn("h-5 w-5", c.color)} />
+              <div className={cn("h-10 w-10 rounded-full flex items-center justify-center shrink-0", c.tone)}>
+                <c.icon className="h-5 w-5" />
               </div>
               <div className="min-w-0">
                 <p className="text-xl md:text-2xl font-extrabold tracking-tight leading-none">{c.value}</p>
                 <p className="text-xs font-medium text-muted-foreground mt-1 truncate">{c.label}</p>
+                {c.hint && <p className="text-[11px] text-muted-foreground/70 truncate">{c.hint}</p>}
               </div>
             </div>
           ))}
         </div>
 
-        {/* Occupancy Bar */}
+        {/* Comparecimento: de quem já tem resultado, quantos vieram */}
         <div className="rounded-2xl border border-border/50 bg-card shadow-sm p-3 md:p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <TrendingUp className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground">Ocupação do mês</p>
-                <div className="flex items-baseline gap-2 mt-0.5">
-                  <span className="text-2xl font-extrabold tracking-tight">{occupancyRate}%</span>
-                  <span className="text-xs text-muted-foreground/60">{uniqueDaysWithVisit} dias com visita · {freeDays} dias livres</span>
-                </div>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <TrendingUp className="h-5 w-5" />
             </div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground/70">
-              <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" /><span>{realizadas} realiz.</span></div>
-              <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-blue-500" /><span>{agendadas} agend.</span></div>
-              <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-400" /><span>{naoComp + canceladas} canc./falta</span></div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-muted-foreground">Comparecimento do mês</p>
+              <p className="flex items-baseline gap-2 flex-wrap">
+                <span className="text-xl font-extrabold tracking-tight">{kpi.comparecimento === null ? "–" : `${kpi.comparecimento}%`}</span>
+                <span className="text-xs text-muted-foreground">
+                  {kpi.comResultado > 0 ? `vieram ${kpi.vieram} de ${kpi.comResultado} com resultado` : "nenhuma visita com resultado ainda"}
+                </span>
+              </p>
             </div>
           </div>
           <div className="mt-3 h-2 rounded-full bg-muted overflow-hidden">
-            <div className="h-full rounded-full bg-primary transition-all duration-500 ease-out" style={{ width: `${occupancyRate}%` }} />
+            <div className="h-full rounded-full bg-emerald-500 transition-all duration-500 ease-out" style={{ width: `${kpi.comparecimento ?? 0}%` }} />
           </div>
+          {kpi.semResultado > 0 && (
+            <p className="mt-2 text-[11px] font-medium text-amber-700 dark:text-amber-400">
+              {kpi.semResultado} visita{kpi.semResultado > 1 ? "s" : ""} do mês sem resultado — marque em "Visitas sem resultado"
+            </p>
+          )}
         </div>
       </div>
 
       {/* Calendar + Day panel layout */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-        {/* Calendar */}
-        <div className="rounded-2xl border border-border/40 bg-card shadow-sm overflow-hidden">
+        {/* Calendar (trocando de mês fica na tela, um pouco apagado, até carregar) */}
+        <div className={cn("relative rounded-2xl border border-border/40 bg-card shadow-sm overflow-hidden transition-opacity", loading && "opacity-60")}>
+          {loading && <Loader2 className="absolute right-3 bottom-3 z-10 h-4 w-4 animate-spin text-muted-foreground" />}
           <DayPicker
             mode="single"
             selected={selectedDate}
-            onSelect={(date) => date && setSelectedDate(date)}
+            onSelect={(date) => date && handleDayClick(date)}
             month={calendarMonth}
             onMonthChange={setCalendarMonth}
             locale={ptBR}
@@ -555,12 +656,12 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
               nav_button_next: "absolute right-1",
               table: "w-full border-collapse",
               head_row: "flex",
-              head_cell: "text-muted-foreground/50 flex-1 font-medium text-[0.65rem] lg:text-[0.7rem] text-center uppercase tracking-[0.15em] pb-2",
+              head_cell: "text-muted-foreground/70 flex-1 font-semibold text-[11px] lg:text-xs text-center uppercase tracking-wider pb-2",
               row: "flex w-full",
               cell: "flex-1 text-center text-sm p-0.5 lg:p-[3px] relative focus-within:relative focus-within:z-20",
               day: cn(
                 buttonVariants({ variant: "ghost" }),
-                "h-12 lg:h-[4.5rem] w-full p-0 font-normal aria-selected:opacity-100 relative rounded-xl",
+                "h-14 lg:h-[5rem] w-full p-0 font-normal aria-selected:opacity-100 relative rounded-2xl",
                 "hover:bg-primary/[0.06] transition-all duration-150 cursor-pointer"
               ),
               day_range_end: "day-range-end",
@@ -596,7 +697,7 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
                           <span
                             key={v.id}
                             className={cn(
-                              "h-[5px] w-[5px] lg:h-[6px] lg:w-[6px] rounded-full",
+                              "h-[6px] w-[6px] lg:h-[7px] lg:w-[7px] rounded-full",
                               (v.visit_type || "visita") === "atendimento"
                                 ? "bg-violet-500"
                                 : (VISIT_STATUS_DOT[v.status_visita] || "bg-muted-foreground/40")
@@ -604,14 +705,14 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
                           />
                         ))}
                         {count > 3 && (
-                          <span className="text-[7px] lg:text-[8px] font-bold text-muted-foreground/70 leading-none ml-0.5">
+                          <span className="text-[9px] lg:text-[10px] font-bold text-muted-foreground leading-none ml-0.5">
                             +{count - 3}
                           </span>
                         )}
                       </div>
                     )}
                     {count >= 2 && (
-                      <span className="absolute top-0 right-0 lg:top-0.5 lg:right-0.5 h-3.5 w-3.5 lg:h-4 lg:w-4 rounded-full bg-primary/90 text-primary-foreground text-[7px] lg:text-[8px] font-bold flex items-center justify-center leading-none">
+                      <span className="absolute -top-0.5 -right-0.5 lg:top-0 lg:right-0 h-[18px] w-[18px] lg:h-5 lg:w-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center leading-none shadow-sm">
                         {count}
                       </span>
                     )}
@@ -623,7 +724,7 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
         </div>
 
         {/* Day detail panel */}
-        <div className="rounded-2xl border border-border/40 bg-card shadow-sm p-5">
+        <div ref={dayPanelRef} className="scroll-mt-3 rounded-2xl border border-border/40 bg-card shadow-sm p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-base font-bold text-foreground">
@@ -646,7 +747,7 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
                 <MapPin className="h-6 w-6 text-muted-foreground/40" />
               </div>
               <p className="text-sm font-medium text-muted-foreground">Nenhum agendamento neste dia</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">Clique em "Nova Visita" ou "Atendimento"</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Para marcar, use o botão + (ou "Nova Visita")</p>
             </div>
           ) : (
             <div className="space-y-2.5">
@@ -836,7 +937,25 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
                         setReschedForId(detailVisit.id);
                       }}
                     ><RefreshCw className="h-3.5 w-3.5" /> Remarcar</Button>
-                    <Button variant="outline" size="sm" className="text-xs gap-1.5 text-destructive hover:text-destructive" onClick={() => updateVisitStatus(detailVisit.id, "cancelada")}><X className="h-3.5 w-3.5" /> Cancelar</Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="text-xs gap-1.5 text-destructive hover:text-destructive"><X className="h-3.5 w-3.5" /> Cancelar</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Cancelar {isDetailEntrega ? "este atendimento" : "esta visita"}?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {detailVisit.lead_name} vai ficar como cancelada. Dá para voltar o status depois, se precisar.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Voltar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => updateVisitStatus(detailVisit.id, "cancelada")} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Sim, cancelar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                     {!isDetailEntrega && detailVisit.lead_phone && (
                       <Button
                         variant="outline"

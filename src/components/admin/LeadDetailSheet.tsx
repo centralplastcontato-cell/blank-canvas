@@ -519,7 +519,7 @@ export function LeadDetailSheet({
           <Separator />
 
           {/* Visit History */}
-          <LeadVisitHistory leadId={lead.id} currentUserId={currentUserId} />
+          <LeadVisitHistory leadId={lead.id} currentUserId={currentUserId} leadUnit={lead.unit} />
 
           <Separator />
 

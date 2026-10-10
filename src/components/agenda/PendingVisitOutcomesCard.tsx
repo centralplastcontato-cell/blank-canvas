@@ -23,6 +23,8 @@ interface Props {
   onChanged: () => void;
   /** muda quando a aba recarrega as visitas */
   reloadKey: number;
+  /** unidades que a pessoa pode ver (mesma regra da aba) */
+  canSeeUnit?: (unit: string | null) => boolean;
 }
 
 const MAX_VISITS = 300;
@@ -30,7 +32,7 @@ const PREVIEW_ROWS = 5;
 
 // Visitas que já passaram e ainda não têm resultado. Marcar aqui alimenta o
 // comparecimento da Inteligência. Atendimento (entrega/retirada) não entra.
-export function PendingVisitOutcomesCard({ companyId, onOpenVisit, onChanged, reloadKey }: Props) {
+export function PendingVisitOutcomesCard({ companyId, onOpenVisit, onChanged, reloadKey, canSeeUnit }: Props) {
   const [pending, setPending] = useState<PendingVisit[]>([]);
   const [open, setOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
@@ -74,9 +76,10 @@ export function PendingVisitOutcomesCard({ companyId, onOpenVisit, onChanged, re
     onChanged();
   };
 
-  if (pending.length === 0) return null;
-  const visible = showAll ? pending : pending.slice(0, PREVIEW_ROWS);
-  const total = pending.length >= MAX_VISITS ? `${MAX_VISITS}+` : String(pending.length);
+  const mine = canSeeUnit ? pending.filter((v) => canSeeUnit(v.unit)) : pending;
+  if (mine.length === 0) return null;
+  const visible = showAll ? mine : mine.slice(0, PREVIEW_ROWS);
+  const total = pending.length >= MAX_VISITS ? `${mine.length}+` : String(mine.length);
 
   return (
     <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.04] shadow-sm">
@@ -123,7 +126,7 @@ export function PendingVisitOutcomesCard({ companyId, onOpenVisit, onChanged, re
               </div>
             </div>
           ))}
-          {pending.length > PREVIEW_ROWS && (
+          {mine.length > PREVIEW_ROWS && (
             <button
               type="button"
               onClick={() => setShowAll((v) => !v)}

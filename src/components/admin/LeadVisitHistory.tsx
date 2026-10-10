@@ -41,9 +41,11 @@ const TIME_OPTIONS = Array.from({ length: 28 }, (_, i) => {
 interface LeadVisitHistoryProps {
   leadId: string;
   currentUserId: string;
+  /** unidade do lead: a visita marcada aqui fica nela */
+  leadUnit?: string | null;
 }
 
-export function LeadVisitHistory({ leadId, currentUserId }: LeadVisitHistoryProps) {
+export function LeadVisitHistory({ leadId, currentUserId, leadUnit }: LeadVisitHistoryProps) {
   const [visits, setVisits] = useState<LeadVisit[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -84,6 +86,8 @@ export function LeadVisitHistory({ leadId, currentUserId }: LeadVisitHistoryProp
       company_id: getCurrentCompanyId(),
       data_visita: format(visitDate, "yyyy-MM-dd"),
       horario_visita: visitTime || null,
+      // Mesma regra do botão de visita do chat: a unidade do lead (antes ficava sem unidade)
+      unit: leadUnit || null,
       status_visita: visitStatus,
       observacoes: visitNotes || null,
       created_by: currentUserId,
