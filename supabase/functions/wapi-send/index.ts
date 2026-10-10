@@ -1,7 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { mediaAckMetadata } from "../_shared/media-ack.ts";
-import { EVOLUTION_WEBHOOK_EVENTS, evolutionDownloadMedia, evolutionRequest, evolutionStatus, evolutionSendMedia, evolutionSendText, extractEvolutionMessageId } from "../_shared/evolution.ts";
+import { EVOLUTION_WEBHOOK_EVENTS, evolutionDownloadMedia, evolutionReact, evolutionRequest, evolutionStatus, type EvolutionQuoted, evolutionSendMedia, evolutionSendText, extractEvolutionMessageId } from "../_shared/evolution.ts";
 import { decryptWhatsAppMedia, encryptedMediaUrl, type WaMediaType } from "../_shared/whatsapp-media-crypto.ts";
 import { classifyEvolutionStatus } from "../_shared/evolution-health.ts";
 import { aiTakesSiteLead, buildAiSiteWelcome, cleanSiteLead, type SiteLeadInfo, siteLeadBotData } from "../_shared/ai-site-lead.ts";
@@ -672,8 +672,8 @@ function logZapiMediaResponse(action: string, phone: string, data: unknown): voi
 type DirectProvider = 'zapi' | 'evolution';
 type DirectMediaKind = 'image' | 'audio' | 'video' | 'document';
 
-function directSendText(provider: DirectProvider, instanceId: string, token: string, clientToken: string | null, phone: string, message: string, quotedProviderMessageId?: string | null, delayTyping?: number): Promise<{ ok: boolean; data?: unknown; error?: string }> {
-  if (provider === 'evolution') return evolutionSendText(token, phone, message);
+function directSendText(provider: DirectProvider, instanceId: string, token: string, clientToken: string | null, phone: string, message: string, quotedProviderMessageId?: string | null, delayTyping?: number, evoQuoted?: EvolutionQuoted | null): Promise<{ ok: boolean; data?: unknown; error?: string }> {
+  if (provider === 'evolution') return evolutionSendText(token, phone, message, evoQuoted);
   return zapiSendText(instanceId, token, clientToken, phone, message, quotedProviderMessageId, delayTyping);
 }
 
@@ -752,6 +752,28 @@ async function persistEvolutionFailure(
   });
   if (insErr) console.error('[Evolution] não foi possível guardar a falha para reenvio:', insErr.message);
   else console.log(`[Evolution] envio falhou (${messageType}) — guardado para reenviar quando o número voltar`);
+}
+
+/**
+ * Evolution: a citação precisa do id e de quem escreveu a mensagem citada
+ * (nós = telefone do número; cliente = telefone da conversa). Em grupo, sem
+ * saber o autor, vai sem citação.
+ */
+async function evolutionQuotedFor(supabase: any, instanceExternalId: string, conversationId: string | null | undefined, quotedId: string): Promise<EvolutionQuoted | null> {
+  let q = supabase.from('wapi_messages').select('from_me, conversation_id').eq('message_id', quotedId);
+  if (conversationId) q = q.eq('conversation_id', conversationId);
+  const { data: rows } = await q.limit(1);
+  const row = (rows as Array<{ from_me: boolean; conversation_id: string }> | null)?.[0];
+  if (!row) return null;
+  if (row.from_me) {
+    const { data: inst } = await supabase.from('wapi_instances').select('phone_number').eq('instance_id', instanceExternalId).maybeSingle();
+    const own = String(inst?.phone_number || '').replace(/\D/g, '');
+    return own ? { messageId: quotedId, participant: `${own}@s.whatsapp.net` } : null;
+  }
+  const { data: conv } = await supabase.from('wapi_conversations').select('remote_jid').eq('id', row.conversation_id).maybeSingle();
+  const jid = String(conv?.remote_jid || '');
+  if (!jid || jid.endsWith('@g.us')) return null;
+  return { messageId: quotedId, participant: jid.includes('@') ? jid : `${jid.replace(/\D/g, '')}@s.whatsapp.net` };
 }
 
 function evolutionWebhookUrl(): string {
@@ -1380,7 +1402,7 @@ Deno.serve(async (req) => {
 
     // Evolution Go: só o que já foi testado no servidor. O resto responde claro
     // em vez de cair na W-API com o token da Evolution.
-    const EVOLUTION_ACTIONS = ['send-text', 'send-image', 'send-audio', 'send-video', 'send-document', 'get-status', 'get-qr', 'configure-webhooks', 'download-media'];
+    const EVOLUTION_ACTIONS = ['send-text', 'send-image', 'send-audio', 'send-video', 'send-document', 'get-status', 'get-qr', 'configure-webhooks', 'download-media', 'send-reaction'];
     if (isEvolution && !EVOLUTION_ACTIONS.includes(action)) {
       console.warn(`wapi-send: ${action} ainda não disponível para Evolution Go (instance ${instance_id})`);
       return new Response(JSON.stringify({ success: false, error: 'Esta ação ainda não está disponível para números da Evolution Go.', errorType: 'UNSUPPORTED_PROVIDER', provider }), {
@@ -1739,8 +1761,12 @@ Deno.serve(async (req) => {
           }
         }
         if (!sendResult) {
+          // Evolution: a citação precisa saber quem escreveu a mensagem citada
+          const evoQuoted = isEvolution && quotedProviderMessageId
+            ? await evolutionQuotedFor(supabase, instance_id, conversationId, quotedProviderMessageId)
+            : null;
           sendResult = directProvider
-            ? await directSendText(directProvider, instance_id, instance_token, client_token, phone, message, quotedProviderMessageId, Number(body.delayTyping) || undefined)
+            ? await directSendText(directProvider, instance_id, instance_token, client_token, phone, message, quotedProviderMessageId, Number(body.delayTyping) || undefined, evoQuoted)
             : await sendTextWithFallback(instance_id, instance_token, phone, message, quotedProviderMessageId);
         }
 
@@ -3918,6 +3944,50 @@ Deno.serve(async (req) => {
         }
 
         console.log(`send-reaction: msgId=${reactionMsgId}, emoji=${emoji}, phone=${phone}, instance=${instance_id}`);
+
+        // Evolution Go: POST /message/react {number, reaction, id, fromMe}
+        if (isEvolution) {
+          const { data: reactConv } = conversationId
+            ? await supabase.from('wapi_conversations').select('remote_jid, contact_phone, company_id').eq('id', conversationId).maybeSingle()
+            : { data: null };
+          const jid = String(reactConv?.remote_jid || phone || '');
+          const target = jid.endsWith('@g.us') ? jid : String(reactConv?.contact_phone || phone || jid).replace(/@.*$/, '').replace(/\D/g, '');
+          let targetQ = supabase.from('wapi_messages').select('id, from_me').eq('message_id', reactionMsgId);
+          if (conversationId) targetQ = targetQ.eq('conversation_id', conversationId);
+          const { data: targetRows } = await targetQ.limit(1);
+          const targetMsg = (targetRows as Array<{ id: string; from_me: boolean }> | null)?.[0] || null;
+          if (!target) {
+            return new Response(JSON.stringify({ success: false, error: 'Conversa sem telefone para reagir' }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          const res = await evolutionReact(instance_token, target, reactionMsgId, targetMsg?.from_me === true, emoji);
+          console.log(`send-reaction (Evolution) => ok=${res.ok}${res.error ? ` erro=${res.error}` : ''}`);
+          if (!res.ok) {
+            return new Response(JSON.stringify({ success: false, error: res.error || 'Não foi possível reagir agora' }), {
+              status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          const sentId = extractEvolutionMessageId(res.data);
+          if (conversationId && reactConv) {
+            const { error: insErr } = await supabase.from('wapi_messages').upsert({
+              conversation_id: conversationId,
+              message_id: sentId || `reaction_${Date.now()}`,
+              from_me: true,
+              message_type: 'text',
+              content: `[Reação] ${emoji}`,
+              status: 'sent',
+              timestamp: new Date().toISOString(),
+              company_id: reactConv.company_id,
+              quoted_message_id: targetMsg?.id || null,
+              metadata: { source: 'reaction', provider: 'evolution' },
+            }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
+            if (insErr) console.error('send-reaction: falha ao gravar a reação:', insErr.message);
+          }
+          return new Response(JSON.stringify({ success: true, messageId: sentId }), {
+            status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
 
         // Z-API: endpoint próprio (antes só havia o da W-API e a reação falhava
         // com "não disponível neste plano" nos números da Z-API)

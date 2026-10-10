@@ -76,8 +76,24 @@ export function extractEvolutionMessageId(payload: unknown): string | null {
   return visit(payload, 0);
 }
 
-export function evolutionSendText(token: string, to: string, text: string): Promise<EvolutionResult> {
-  return evolutionRequest(token, "/send/text", "POST", { number: evolutionNumber(to), text });
+/** Mensagem citada: id + quem escreveu (JID). A Evolution monta a citação pelo id. */
+export interface EvolutionQuoted {
+  messageId: string;
+  participant: string;
+}
+
+export function evolutionSendText(token: string, to: string, text: string, quoted?: EvolutionQuoted | null): Promise<EvolutionResult> {
+  return evolutionRequest(token, "/send/text", "POST", { number: evolutionNumber(to), text, ...(quoted ? { quoted } : {}) });
+}
+
+/**
+ * Reage a uma mensagem. fromMe = a mensagem reagida foi enviada por nós.
+ * Remover reação: emoji vazio vira "remove" (a API recusa vazio).
+ */
+export function evolutionReact(token: string, to: string, messageId: string, fromMe: boolean, emoji: string, participant?: string | null): Promise<EvolutionResult> {
+  const body: Json = { number: evolutionNumber(to), reaction: emoji && emoji.trim() ? emoji : "remove", id: messageId, fromMe };
+  if (participant) body.participant = participant;
+  return evolutionRequest(token, "/message/react", "POST", body);
 }
 
 export type EvolutionMediaType = "image" | "video" | "audio" | "document";
@@ -112,13 +128,14 @@ export async function evolutionSendMedia(
   to: string,
   type: EvolutionMediaType,
   url: string,
-  opts: { caption?: string; filename?: string } = {},
+  opts: { caption?: string; filename?: string; quoted?: EvolutionQuoted | null } = {},
 ): Promise<EvolutionResult> {
   const problem = await checkMediaUrl(url);
   if (problem) return { ok: false, error: `Mídia não enviada: ${problem}` };
   const body: Json = { number: evolutionNumber(to), type, url };
   if (opts.caption) body.caption = opts.caption;
   if (opts.filename) body.filename = opts.filename;
+  if (opts.quoted) body.quoted = opts.quoted;
   const res = await evolutionRequest(token, "/send/media", "POST", body);
   // 500 de conversão (ffmpeg) não se resolve tentando de novo
   if (!res.ok && /conversion|Invalid data/i.test(res.error || "")) {
@@ -192,10 +209,20 @@ function normalizeMediaFields(m: Json): Json {
   return out;
 }
 
+// Resposta citando: a Evolution manda contextInfo.stanzaID; o resto do sistema lê stanzaId
+function normalizeContextInfo(m: Json): Json {
+  const ctx = m.contextInfo as Json | undefined;
+  if (!ctx || typeof ctx !== "object" || ctx.stanzaId !== undefined || ctx.stanzaID === undefined) return m;
+  return { ...m, contextInfo: { ...ctx, stanzaId: ctx.stanzaID } };
+}
+
 function normalizeMessageContent(message: Json): Json {
   const out: Json = { ...message };
   for (const k of MEDIA_KEYS) {
     if (out[k] && typeof out[k] === "object") out[k] = normalizeMediaFields(out[k]);
+  }
+  for (const k of [...MEDIA_KEYS, "extendedTextMessage"]) {
+    if (out[k] && typeof out[k] === "object") out[k] = normalizeContextInfo(out[k]);
   }
   const btn = out.buttonsResponseMessage as Json | undefined;
   if (btn && typeof btn === "object") {
