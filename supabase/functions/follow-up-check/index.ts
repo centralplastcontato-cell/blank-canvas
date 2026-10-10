@@ -3916,6 +3916,7 @@ async function processInstanceHealthCheck(
     .from("wapi_instances")
     .select("id, instance_id, instance_token, company_id, unit, status, last_health_check, auto_recovery_attempts, last_restart_attempt")
     .eq("is_active", true) // número desativado não deve ser reconectado/reiniciado sozinho
+    .neq("provider", "evolution") // Evolution Go tem monitor próprio (evolution-monitor)
     .in("status", ["connected", "degraded", "disconnected"]);
 
   if (instError || !instances || instances.length === 0) {

@@ -148,6 +148,10 @@ function HubWhatsAppContent({ userId }: { userId: string }) {
         company_id: editData.companyId,
         provider: editData.provider,
         client_token: editData.provider === "zapi" ? editData.clientToken : null,
+        // Trocou de provedor ou de instância: fica desconectado até ler o QR
+        ...(editData.provider !== (editTarget.provider || "wapi") || editData.instanceId !== editTarget.instance_id
+          ? { status: "disconnected", connected_at: null }
+          : {}),
       }).eq("id", editTarget.id);
       if (error) throw error;
       toast({ title: "Instância atualizada", description: `"${editData.unit}" foi atualizada com sucesso.` });

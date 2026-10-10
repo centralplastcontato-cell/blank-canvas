@@ -1,8 +1,9 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { mediaAckMetadata } from "../_shared/media-ack.ts";
-import { EVOLUTION_WEBHOOK_EVENTS, evolutionDownloadMedia, evolutionRequest, evolutionSendMedia, evolutionSendText, extractEvolutionMessageId } from "../_shared/evolution.ts";
+import { EVOLUTION_WEBHOOK_EVENTS, evolutionDownloadMedia, evolutionRequest, evolutionStatus, evolutionSendMedia, evolutionSendText, extractEvolutionMessageId } from "../_shared/evolution.ts";
 import { decryptWhatsAppMedia, encryptedMediaUrl, type WaMediaType } from "../_shared/whatsapp-media-crypto.ts";
+import { classifyEvolutionStatus } from "../_shared/evolution-health.ts";
 import { aiTakesSiteLead, buildAiSiteWelcome, cleanSiteLead, type SiteLeadInfo, siteLeadBotData } from "../_shared/ai-site-lead.ts";
 
 const corsHeaders = {
@@ -718,6 +719,39 @@ async function base64ToSignedUrl(supabase: any, companyId: string | null, base64
     console.error('[Evolution] upload da mídia falhou:', e);
     return null;
   }
+}
+
+/**
+ * Evolution: envio automático (IA, follow-up, confirmação…) que falhou fica
+ * gravado como "erro" com o que é preciso para reenviar. Quando o número volta,
+ * o evolution-monitor reenvia (últimas 2h, no máximo 20, uma vez só). Link de
+ * mídia bloqueado não entra: reenviar não resolve.
+ */
+async function persistEvolutionFailure(
+  supabase: any,
+  conversationId: string | null | undefined,
+  companyId: string | null,
+  messageType: string,
+  content: string,
+  resend: Record<string, unknown>,
+  source: string,
+  error: string | undefined,
+): Promise<void> {
+  if (!conversationId || /^Mídia não enviada/.test(String(error || ''))) return;
+  const { error: insErr } = await supabase.from('wapi_messages').insert({
+    conversation_id: conversationId,
+    message_id: `failed_evo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    from_me: true,
+    message_type: messageType,
+    content,
+    ...(typeof resend.mediaUrl === 'string' ? { media_url: resend.mediaUrl } : {}),
+    status: 'error',
+    timestamp: new Date().toISOString(),
+    company_id: companyId,
+    metadata: { source, provider: 'evolution', resend, failed_reason: String(error || '').slice(0, 300), failed_at: new Date().toISOString() },
+  });
+  if (insErr) console.error('[Evolution] não foi possível guardar a falha para reenvio:', insErr.message);
+  else console.log(`[Evolution] envio falhou (${messageType}) — guardado para reenviar quando o número voltar`);
 }
 
 function evolutionWebhookUrl(): string {
@@ -1483,6 +1517,9 @@ Deno.serve(async (req) => {
     // são protegidos pelo sistema de fila pós-reconexão.
     const queueableSources = new Set(['follow-up', 'followup', 'reactivation', 'visit-confirmation', 'campaign']);
     const isAutomatedCall = body.automation === true || (typeof body.source === 'string' && automationSources.has(body.source));
+    // Evolution: envio automático que falhar fica guardado para reenviar quando o número voltar
+    const queueEvolutionFailure = isEvolution && (isAutomatedCall || body.messageSource === 'ai_agent');
+    const failureSource = body.messageSource === 'ai_agent' ? 'ai_agent' : (typeof body.source === 'string' && body.source ? body.source : 'platform');
     const isQueueableAutomation = typeof body.source === 'string' && queueableSources.has(body.source);
 
     // Fail-closed: the post-reconnect queue/drip path is disabled. Nothing from
@@ -1802,6 +1839,9 @@ Deno.serve(async (req) => {
 
         if (!sendResult.ok) {
           console.error('send-text failed:', sendResult.error);
+          if (queueEvolutionFailure && isEvolution) {
+            await persistEvolutionFailure(supabase, conversationId, companyId, 'text', message, { action: 'send-text', message }, failureSource, sendResult.error);
+          }
           // 🔭 trace: send_provider_failed
           fireTrace(supabase, {
             tracking_id: trackingId,
@@ -1957,6 +1997,9 @@ Deno.serve(async (req) => {
           }
           const zapiRes = await directSendMedia(directProvider, instance_id, instance_token, client_token, phone, 'image', imageSource, { caption });
           if (!zapiRes.ok) {
+            if (queueEvolutionFailure && /^https?:\/\//.test(imageSource)) {
+              await persistEvolutionFailure(supabase, conversationId, companyId, 'image', caption || '[Imagem]', { action: 'send-image', mediaUrl: imageSource, caption: caption || '' }, failureSource, zapiRes.error);
+            }
             return new Response(JSON.stringify({ error: zapiRes.error }), {
               status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
@@ -2082,6 +2125,9 @@ Deno.serve(async (req) => {
           }
           const zapiRes = await directSendMedia(directProvider, instance_id, instance_token, client_token, phone, 'audio', audioSource);
           if (!zapiRes.ok) {
+            if (queueEvolutionFailure && /^https?:\/\//.test(audioSource)) {
+              await persistEvolutionFailure(supabase, conversationId, companyId, 'audio', '🎤 Áudio', { action: 'send-audio', mediaUrl: audioSource }, failureSource, zapiRes.error);
+            }
             return new Response(JSON.stringify({ error: zapiRes.error }), {
               status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
@@ -2242,6 +2288,9 @@ Deno.serve(async (req) => {
         const { fileName, mediaUrl: docUrl } = body;
         if (directProvider && docUrl) {
           const zapiRes = await directSendMedia(directProvider, instance_id, instance_token, client_token, phone, 'document', docUrl, { fileName: fileName || 'document' });
+          if (!zapiRes.ok && queueEvolutionFailure) {
+            await persistEvolutionFailure(supabase, conversationId, companyId, 'document', `📄 ${fileName || 'Documento'}`, { action: 'send-document', mediaUrl: docUrl, fileName: fileName || 'document' }, failureSource, zapiRes.error);
+          }
           if (!zapiRes.ok) return new Response(JSON.stringify({ error: zapiRes.error }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
           const messageId = directMessageId(directProvider, zapiRes.data);
           logZapiMediaResponse('send-document', phone, zapiRes.data);
@@ -2306,6 +2355,9 @@ Deno.serve(async (req) => {
         const { mediaUrl: videoUrl, caption } = body;
         if (directProvider && videoUrl) {
           const zapiRes = await directSendMedia(directProvider, instance_id, instance_token, client_token, phone, 'video', videoUrl, { caption });
+          if (!zapiRes.ok && queueEvolutionFailure) {
+            await persistEvolutionFailure(supabase, conversationId, companyId, 'video', caption || '🎥 Vídeo', { action: 'send-video', mediaUrl: videoUrl, caption: caption || '' }, failureSource, zapiRes.error);
+          }
           if (!zapiRes.ok) return new Response(JSON.stringify({ error: zapiRes.error }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
           const messageId = directMessageId(directProvider, zapiRes.data);
           logZapiMediaResponse('send-video', phone, zapiRes.data);
@@ -2453,16 +2505,24 @@ Deno.serve(async (req) => {
 
       case 'get-status': {
         // Evolution Go: GET /instance/status → { data: { Connected, LoggedIn, Name } }
+        // Devolve também o estado exato (online / reconectando / precisa de QR /
+        // sem resposta) e o que o monitor sabe (desde quando, última checagem)
         if (isEvolution) {
-          const { data: instRecord } = await supabase.from('wapi_instances').select('phone_number').eq('instance_id', instance_id).maybeSingle();
-          const evoRes = await evolutionRequest(instance_token, '/instance/status');
-          if (!evoRes.ok) {
-            return new Response(JSON.stringify({ status: 'degraded', connected: false, error: evoRes.error, errorType: 'TIMEOUT_OR_GATEWAY', provider }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          const { data: instRecord } = await supabase.from('wapi_instances').select('id, phone_number').eq('instance_id', instance_id).maybeSingle();
+          const evoRes = await evolutionStatus(instance_token);
+          const evolutionState = classifyEvolutionStatus(evoRes);
+          let monitor: Record<string, unknown> | null = null;
+          if (instRecord?.id) {
+            const { data: h } = await supabase.from('provider_health').select('state, state_since, last_check_at, reconnect_attempts, alerted_state').eq('key', `instance:${instRecord.id}`).maybeSingle();
+            monitor = h || null;
+          }
+          if (evolutionState === 'unreachable') {
+            return new Response(JSON.stringify({ status: 'degraded', connected: false, error: evoRes.error || 'Evolution Go sem resposta', errorType: 'TIMEOUT_OR_GATEWAY', provider, evolutionState, monitor }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
           }
           const d = (((evoRes.data as Record<string, unknown>)?.data ?? evoRes.data) || {}) as Record<string, unknown>;
-          const connected = d.Connected === true && d.LoggedIn === true;
+          const connected = evolutionState === 'online';
           const phoneNumber = extractConnectedPhone(d) || instRecord?.phone_number || null;
-          return new Response(JSON.stringify({ status: connected ? 'connected' : 'disconnected', connected, phoneNumber, provider }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          return new Response(JSON.stringify({ status: connected ? 'connected' : 'disconnected', connected, phoneNumber, provider, evolutionState, monitor }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         // Z-API status check
         if (isZapi) {
