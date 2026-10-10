@@ -31,6 +31,8 @@ import { SendVisitConfirmationDialog } from "@/components/visitas/SendVisitConfi
 import { logActivity } from "@/lib/activityLog";
 import { PendingVisitOutcomesCard } from "./PendingVisitOutcomesCard";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
+import { useCompanyPeople } from "@/hooks/useCompanyPeople";
+import { visitUnitAccess } from "@/lib/unitAccess";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -158,34 +160,16 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
   const [createOpen, setCreateOpen] = useState(false);
   const [createType, setCreateType] = useState<"visita" | "atendimento">("visita");
   const [confirmationOpen, setConfirmationOpen] = useState(false);
-  const [profiles, setProfiles] = useState<{ user_id: string; full_name: string }[]>([]);
 
   const { units } = useCompanyUnits(currentCompany?.id);
 
   // Responsáveis: só quem faz parte desta empresa (antes vinham pessoas de outras empresas)
-  useEffect(() => {
-    if (!currentCompany?.id) return;
-    let cancelled = false;
-    (async () => {
-      const { data: members } = await supabase.from("user_companies").select("user_id").eq("company_id", currentCompany.id);
-      const ids = (members || []).map((m) => m.user_id);
-      if (ids.length === 0) { if (!cancelled) setProfiles([]); return; }
-      const { data } = await supabase.from("profiles").select("user_id, full_name").in("user_id", ids);
-      if (!cancelled && data) setProfiles(data);
-    })();
-    return () => { cancelled = true; };
-  }, [currentCompany?.id]);
+  const profiles = useCompanyPeople(currentCompany?.id);
 
   // Unidades que a pessoa pode ver (mesma regra da aba Festas). Visita sem unidade
   // continua aparecendo, para não sumir nada que ninguém sabe de quem é.
   const { canViewAll, allowedUnits, isLoading: unitPermLoading } = useUnitPermissions(userId, currentCompany?.id);
-  const permittedUnits = useMemo(
-    () => allowedUnits.filter((u) => u !== "As duas" && u !== "all" && !u.toLowerCase().includes("vendas")).map((u) => u.toLowerCase().trim()),
-    [allowedUnits],
-  );
-  const restrictUnits = !canViewAll && !unitPermLoading && permittedUnits.length > 0;
-  const canSeeUnit = (unit: string | null | undefined) =>
-    !restrictUnits || !unit || permittedUnits.includes(unit.toLowerCase().trim());
+  const canSeeUnit = useMemo(() => visitUnitAccess(canViewAll, allowedUnits, unitPermLoading), [canViewAll, allowedUnits, unitPermLoading]);
 
   const fetchSeq = useRef(0);
   const fetchVisits = async () => {
@@ -280,13 +264,15 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
     }
   };
 
-  // Link "?visita=<id>" (ex.: botão "Remarcou" do aviso da Central): abre a visita para remarcar
+  // Link "?visita=<id>" abre a visita (vindo da aba Geral); com "&remarcar=1" já abre a remarcação
+  // (botão "Remarcou" do aviso da Central)
   useEffect(() => {
     const visitId = searchParams.get("visita");
     if (!visitId || !currentCompany?.id) return;
-    openVisitById(visitId, true);
+    openVisitById(visitId, searchParams.get("remarcar") === "1");
     const next = new URLSearchParams(searchParams);
     next.delete("visita");
+    next.delete("remarcar");
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams, currentCompany?.id]);
 
@@ -299,8 +285,7 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
       if (filterType !== "all" && (v.visit_type || "visita") !== filterType) return false;
       return true;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- canSeeUnit depende só destes
-  }, [visits, filterStatus, filterResponsavel, filterUnit, filterType, restrictUnits, permittedUnits]);
+  }, [visits, filterStatus, filterResponsavel, filterUnit, filterType, canSeeUnit]);
 
   const selectedDayVisits = useMemo(() => {
     const dateStr = format(selectedDate, "yyyy-MM-dd");
@@ -634,7 +619,8 @@ export function AgendaVisitasTab({ userId }: AgendaVisitasTabProps) {
           <DayPicker
             mode="single"
             selected={selectedDate}
-            onSelect={(date) => date && handleDayClick(date)}
+            // Tocar de novo no dia já escolhido também vale (no celular rola até a lista do dia)
+            onSelect={(_, day) => handleDayClick(day)}
             month={calendarMonth}
             onMonthChange={setCalendarMonth}
             locale={ptBR}

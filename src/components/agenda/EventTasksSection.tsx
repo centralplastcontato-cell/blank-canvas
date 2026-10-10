@@ -61,6 +61,7 @@ export function EventTasksSection({ eventId, userId, companyId }: EventTasksSect
       due_date: data.due_date || null,
       due_time: data.due_time || null,
       created_by: userId,
+      assigned_to: data.assigned_to || null,
       status: "pendente",
       event_id: eventId,
       is_recurring: false,

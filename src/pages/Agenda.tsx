@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { pendingPlanParcelas, isAdjustmentRow } from "@/lib/parcelasSync";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
@@ -47,6 +47,7 @@ import { toast } from "@/hooks/use-toast";
 import { packageValueFromTotal, samePaymentPlan } from "@/lib/eventPaymentPlan";
 import { CLEARABLE_EVENT_CHILDREN, blockingTable } from "@/lib/eventDelete";
 import { closedSummary, netEventValue } from "@/lib/agendaKpis";
+import { visitUnitAccess } from "@/lib/unitAccess";
 
 
 /** Festa fechada no mês/período, com nome e telefone do lead */
@@ -187,6 +188,12 @@ export default function Agenda() {
     if (tab === "visitas" || tab === "tarefas" || tab === "tudo") return tab;
     return "festas";
   });
+  // Link com "?tab=" já dentro da Agenda (aviso de tarefa no sino, visita aberta pela aba Geral)
+  const location = useLocation();
+  useEffect(() => {
+    const tab = new URLSearchParams(location.search).get("tab");
+    if (tab === "festas" || tab === "visitas" || tab === "tarefas" || tab === "tudo") setCentralTab(tab);
+  }, [location.search]);
 
   const [events, setEvents] = useState<CompanyEvent[]>([]);
   const [checklistProgress, setChecklistProgress] = useState<Record<string, { total: number; completed: number }>>({});
@@ -710,16 +717,26 @@ export default function Agenda() {
     return filtered;
   }, [events, selectedUnit, canViewAll, allowedUnits, shouldRestrictEventUnits, paymentFilter, paymentStatus]);
 
+  // Só a permissão de unidade da pessoa (a aba Geral usa esta, sem a unidade escolhida em Festas)
+  const canSeeEventUnit = useCallback((e: { unit: string | null }) => {
+    if (canViewAll || !shouldRestrictEventUnits) return true;
+    const unit = (e.unit || "").toLowerCase().trim();
+    const permitted = allowedUnits.filter(u => u !== "As duas").map(u => u.toLowerCase().trim());
+    return !!unit && permitted.includes(unit);
+  }, [canViewAll, shouldRestrictEventUnits, allowedUnits]);
+  // Visitas: mesma regra da aba Visitas (visita sem unidade continua aparecendo)
+  const canSeeVisitUnit = useMemo(
+    () => visitUnitAccess(canViewAll, allowedUnits, permUnitLoading),
+    [canViewAll, allowedUnits, permUnitLoading],
+  );
+
   // Mesma regra de unidade das festas do mês, para uma festa só
   const matchesUnitFilter = useCallback((e: { unit: string | null }) => {
+    if (!canSeeEventUnit(e)) return false;
     const unit = (e.unit || "").toLowerCase().trim();
-    if (!canViewAll && shouldRestrictEventUnits) {
-      const permitted = allowedUnits.filter(u => u !== "As duas").map(u => u.toLowerCase().trim());
-      if (!unit || !permitted.includes(unit)) return false;
-    }
     if (selectedUnit !== "all" && unit !== selectedUnit.toLowerCase().trim()) return false;
     return true;
-  }, [canViewAll, shouldRestrictEventUnits, allowedUnits, selectedUnit]);
+  }, [canSeeEventUnit, selectedUnit]);
   // A empresa tem unidades de festa (canais "Vendas" não contam)
   const hasPartyUnits = physicalUnits.some((u) => !u.name.toLowerCase().includes("vendas"));
 
@@ -1499,6 +1516,9 @@ export default function Agenda() {
                   onEditEvent={(ev) => handleEdit(ev as CompanyEvent)}
                   onDeleteEvent={(id) => setDeleteConfirmId(id)}
                   eventsVersion={eventsVersion}
+                  canSeeEvent={canSeeEventUnit}
+                  canSeeVisitUnit={canSeeVisitUnit}
+                  onOpenVisit={(id) => navigate(`/agenda?tab=visitas&visita=${id}`)}
                 />
               </div>
             </div>

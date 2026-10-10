@@ -124,7 +124,7 @@ export function VisitOutcomeBanner() {
       saving={saving}
       onCame={() => answer("realizada")}
       onNoShow={() => answer("nao_compareceu")}
-      onRescheduled={() => navigate(`/agenda?tab=visitas&visita=${visit.id}`)}
+      onRescheduled={() => navigate(`/agenda?tab=visitas&visita=${visit.id}&remarcar=1`)}
       onLater={later}
     />
   );

@@ -14,6 +14,9 @@ import { cn } from "@/lib/utils";
 import { TASK_CATEGORIES, TASK_PRIORITIES, RECURRENCE_OPTIONS, WEEKDAYS, type TaskFormData, type CompanyTask, type RecurrenceType } from "@/hooks/useTasks";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
+import { useCompanyPeople } from "@/hooks/useCompanyPeople";
+
+const NO_ONE = "__ninguem__";
 
 interface TaskFormDialogProps {
   open: boolean;
@@ -34,10 +37,14 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData, pres
   const [dueTime, setDueTime] = useState("");
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>("semanal");
-  const [recurrenceInterval, setRecurrenceInterval] = useState(1);
   const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]);
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
   const [eventId, setEventId] = useState<string | null>(null);
+  const [assignedTo, setAssignedTo] = useState<string>(NO_ONE);
+  const people = useCompanyPeople(currentCompany?.id);
+  // Repetição criada pelo robô é uma vez só (a regra de repetir fica na tarefa original);
+  // tarefa criada dentro da festa também não repete
+  const canRepeat = !initialData?.parent_task_id && !presetEventId;
   const [events, setEvents] = useState<Array<{ id: string; title: string; event_date: string; child_name?: string; parent_names?: string; lead_phone?: string }>>([]);
   const [eventPopoverOpen, setEventPopoverOpen] = useState(false);
 
@@ -71,13 +78,12 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData, pres
         setPriority(initialData.priority);
         setDueDate(initialData.due_date || "");
         setDueTime(initialData.due_time || "");
-        const taskAny = initialData as any;
-        setIsRecurring(taskAny.is_recurring || false);
-        setRecurrenceType(taskAny.recurrence_type || "semanal");
-        setRecurrenceInterval(taskAny.recurrence_interval || 1);
-        setRecurrenceDays(taskAny.recurrence_days || []);
-        setRecurrenceEndDate(taskAny.recurrence_end_date || "");
-        setEventId(taskAny.event_id || null);
+        setIsRecurring(!!initialData.is_recurring);
+        setRecurrenceType((initialData.recurrence_type as RecurrenceType) || "semanal");
+        setRecurrenceDays(initialData.recurrence_days || []);
+        setRecurrenceEndDate(initialData.recurrence_end_date || "");
+        setEventId(initialData.event_id || null);
+        setAssignedTo(initialData.assigned_to || NO_ONE);
       } else {
         setTitle("");
         setDescription("");
@@ -87,10 +93,10 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData, pres
         setDueTime("");
         setIsRecurring(false);
         setRecurrenceType("semanal");
-        setRecurrenceInterval(1);
         setRecurrenceDays([]);
         setRecurrenceEndDate("");
         setEventId(presetEventId || null);
+        setAssignedTo(NO_ONE);
       }
     }
   }, [open, initialData, presetEventId]);
@@ -101,8 +107,13 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData, pres
     );
   };
 
+  const repeats = isRecurring && canRepeat;
+  // Para repetir: precisa da 1ª data (o mês repete nesse dia) e, na semanal, dos dias
+  const missingStart = repeats && !dueDate;
+  const missingDays = repeats && recurrenceType === "semanal" && recurrenceDays.length === 0;
+
   const handleSubmit = () => {
-    if (!title.trim()) return;
+    if (!title.trim() || missingStart || missingDays) return;
     onSubmit({
       title: title.trim(),
       description: description.trim() || undefined,
@@ -110,27 +121,29 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData, pres
       priority,
       due_date: dueDate || undefined,
       due_time: dueTime || undefined,
-      is_recurring: isRecurring,
-      recurrence_type: isRecurring ? recurrenceType : null,
-      recurrence_interval: isRecurring ? recurrenceInterval : 1,
-      recurrence_days: isRecurring && recurrenceType === "semanal" ? recurrenceDays : null,
-      recurrence_end_date: isRecurring && recurrenceEndDate ? recurrenceEndDate : null,
+      assigned_to: assignedTo === NO_ONE ? null : assignedTo,
+      is_recurring: repeats,
+      recurrence_type: repeats ? recurrenceType : null,
+      // "A cada 2 semanas/meses" nunca funcionou no robô: sempre 1
+      recurrence_interval: 1,
+      recurrence_days: repeats && recurrenceType === "semanal" ? recurrenceDays : null,
+      recurrence_end_date: repeats && recurrenceEndDate ? recurrenceEndDate : null,
       event_id: eventId || null,
-      lead_id: presetLeadId || null,
+      // Editando, não apaga o lead já ligado à tarefa
+      lead_id: presetLeadId || undefined,
     });
     onOpenChange(false);
   };
 
   const recurrenceLabel = () => {
-    if (!isRecurring) return "";
-    const interval = recurrenceInterval > 1 ? `a cada ${recurrenceInterval} ` : "";
+    if (!repeats) return "";
     switch (recurrenceType) {
-      case "diaria": return `Repete ${interval}dia${recurrenceInterval > 1 ? "s" : ""}`;
+      case "diaria": return "Repete todo dia";
       case "semanal": {
         const days = recurrenceDays.map(d => WEEKDAYS.find(w => w.value === d)?.label).filter(Boolean).join(", ");
-        return `Repete ${interval}semana${recurrenceInterval > 1 ? "s" : ""}${days ? ` (${days})` : ""}`;
+        return days ? `Repete toda semana (${days})` : "Escolha os dias da semana";
       }
-      case "mensal": return `Repete ${interval}mês${recurrenceInterval > 1 ? "es" : ""}`;
+      case "mensal": return dueDate ? `Repete todo mês, no dia ${Number(dueDate.slice(8, 10))}` : "Repete todo mês, no dia da 1ª vez";
       default: return "Recorrente";
     }
   };
@@ -184,13 +197,28 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData, pres
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="min-w-0">
-              <Label>Data limite</Label>
+              <Label>{repeats ? "1ª vez em *" : "Data limite"}</Label>
               <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full h-10 text-sm [&::-webkit-date-and-time-value]:text-left" />
             </div>
             <div className="min-w-0">
               <Label>Horário</Label>
               <Input type="time" value={dueTime} onChange={(e) => setDueTime(e.target.value)} className="w-full h-10 text-sm [&::-webkit-date-and-time-value]:text-left" />
             </div>
+          </div>
+
+          <div>
+            <Label>Responsável</Label>
+            <Select value={assignedTo} onValueChange={setAssignedTo}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_ONE}>Ninguém</SelectItem>
+                {people.map((p) => (
+                  <SelectItem key={p.user_id} value={p.user_id}>{p.full_name || "Sem nome"}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Event Link Section */}
@@ -253,7 +281,8 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData, pres
             </div>
           )}
 
-          {/* Recurrence Section */}
+          {/* Recurrence Section (não aparece numa repetição criada pelo robô nem na tarefa da festa) */}
+          {canRepeat && (
           <div className={cn(
             "rounded-xl border-2 p-4 space-y-3 transition-all",
             isRecurring 
@@ -275,33 +304,20 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData, pres
 
             {isRecurring && (
               <div className="space-y-3 pt-1">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="min-w-0">
-                    <Label className="text-xs">Frequência</Label>
-                    <Select value={recurrenceType} onValueChange={(v) => setRecurrenceType(v as RecurrenceType)}>
-                      <SelectTrigger className="w-full h-9 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {RECURRENCE_OPTIONS.map((r) => (
-                          <SelectItem key={r.value} value={r.value} className="text-xs">
-                            {r.icon} {r.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="min-w-0">
-                    <Label className="text-xs">A cada X {recurrenceType === "diaria" ? "dias" : recurrenceType === "semanal" ? "semanas" : "meses"}</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={30}
-                      value={recurrenceInterval}
-                      onChange={(e) => setRecurrenceInterval(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="h-9 text-xs"
-                    />
-                  </div>
+                <div className="min-w-0">
+                  <Label className="text-xs">Frequência</Label>
+                  <Select value={recurrenceType} onValueChange={(v) => setRecurrenceType(v as RecurrenceType)}>
+                    <SelectTrigger className="w-full h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {RECURRENCE_OPTIONS.map((r) => (
+                        <SelectItem key={r.value} value={r.value} className="text-xs">
+                          {r.icon} {r.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {recurrenceType === "semanal" && (
@@ -344,13 +360,16 @@ export function TaskFormDialog({ open, onOpenChange, onSubmit, initialData, pres
                     {recurrenceEndDate && ` até ${new Date(recurrenceEndDate + 'T12:00:00').toLocaleDateString('pt-BR')}`}
                   </p>
                 </div>
+                {missingStart && <p className="text-[11px] font-medium text-red-600">Escolha a data da 1ª vez (lá em cima).</p>}
+                {missingDays && <p className="text-[11px] font-medium text-red-600">Escolha pelo menos um dia da semana.</p>}
               </div>
             )}
           </div>
+          )}
         </div>
         <DialogFooter className="flex-col gap-2 sm:flex-row">
-          <Button onClick={handleSubmit} disabled={!title.trim()} className="w-full sm:w-auto">
-            {initialData ? "Salvar" : isRecurring ? "Criar Recorrente" : "Criar"}
+          <Button onClick={handleSubmit} disabled={!title.trim() || missingStart || missingDays} className="w-full sm:w-auto">
+            {initialData ? "Salvar" : repeats ? "Criar Recorrente" : "Criar"}
           </Button>
           <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">Cancelar</Button>
         </DialogFooter>

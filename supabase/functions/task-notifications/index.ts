@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { taskReminders } from "../_shared/task-reminders.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,7 +26,7 @@ Deno.serve(async (req) => {
     // Find tasks due tomorrow that are not completed
     const { data: dueTasks, error: fetchError } = await supabase
       .from("company_tasks")
-      .select("id, company_id, title, due_date, assigned_to")
+      .select("id, company_id, title, due_date, assigned_to, created_by, is_recurring, parent_task_id")
       .eq("due_date", tomorrowStr)
       .neq("status", "concluida");
 
@@ -33,40 +34,39 @@ Deno.serve(async (req) => {
 
     let notificationsCreated = 0;
 
-    for (const task of dueTasks || []) {
-      // Get company members
-      const { data: members } = await supabase
+    // Só para o responsável (ou quem criou), e só se a pessoa ainda é da empresa
+    for (const { task, userId } of taskReminders(dueTasks || [])) {
+      const { data: member } = await supabase
         .from("user_companies")
         .select("user_id")
-        .eq("company_id", task.company_id);
+        .eq("company_id", task.company_id)
+        .eq("user_id", userId)
+        .limit(1);
+      if (!member || member.length === 0) continue;
 
-      if (!members || members.length === 0) continue;
+      // Dedup: check if notification already exists for this task + user + date
+      const { data: existing } = await supabase
+        .from("notifications")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("type", "tarefa_vencendo")
+        .eq("company_id", task.company_id)
+        .gte("created_at", todayStr + "T00:00:00Z")
+        .contains("data", { task_id: task.id })
+        .limit(1);
 
-      for (const member of members) {
-        // Dedup: check if notification already exists for this task + user + date
-        const { data: existing } = await supabase
-          .from("notifications")
-          .select("id")
-          .eq("user_id", member.user_id)
-          .eq("type", "tarefa_vencendo")
-          .eq("company_id", task.company_id)
-          .gte("created_at", todayStr + "T00:00:00Z")
-          .contains("data", { task_id: task.id })
-          .limit(1);
+      if (existing && existing.length > 0) continue;
 
-        if (existing && existing.length > 0) continue;
+      await supabase.from("notifications").insert({
+        user_id: userId,
+        company_id: task.company_id,
+        type: "tarefa_vencendo",
+        title: "⏰ Tarefa vence amanhã",
+        message: task.title,
+        data: { task_id: task.id, task_title: task.title, due_date: task.due_date },
+      });
 
-        await supabase.from("notifications").insert({
-          user_id: member.user_id,
-          company_id: task.company_id,
-          type: "tarefa_vencendo",
-          title: "⏰ Tarefa vence amanhã",
-          message: task.title,
-          data: { task_id: task.id, task_title: task.title, due_date: task.due_date },
-        });
-
-        notificationsCreated++;
-      }
+      notificationsCreated++;
     }
 
     return new Response(

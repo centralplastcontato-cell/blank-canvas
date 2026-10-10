@@ -71,7 +71,8 @@ export function AgendaCalendar({ events, month, onMonthChange, onDayClick, selec
     <DayPicker
       mode="single"
       selected={selectedDate ?? undefined}
-      onSelect={(date) => date && onDayClick(date)}
+      // Tocar de novo no dia já escolhido também vale (no celular rola até a lista do dia)
+      onSelect={(_, day) => onDayClick(day)}
       month={month}
       onMonthChange={onMonthChange}
       locale={ptBR}

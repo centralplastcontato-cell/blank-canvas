@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "@/hooks/use-toast";
@@ -22,6 +23,15 @@ export interface CompanyTask {
   created_at: string;
   updated_at: string;
   status: TaskStatus;
+  is_recurring?: boolean | null;
+  parent_task_id?: string | null;
+  recurrence_type?: string | null;
+  recurrence_interval?: number | null;
+  recurrence_days?: number[] | null;
+  recurrence_end_date?: string | null;
+  event_id?: string | null;
+  lead_id?: string | null;
+  observacoes?: string | null;
 }
 
 export type RecurrenceType = "diaria" | "semanal" | "mensal" | "personalizada";
@@ -90,10 +100,13 @@ export function useTasks() {
   const { currentCompany } = useCompany();
   const [tasks, setTasks] = useState<CompanyTask[]>([]);
   const [loading, setLoading] = useState(true);
+  // Carregando só na 1ª vez (de cada empresa): depois de mudar a situação ou excluir,
+  // a lista fica na tela e só atualiza (antes sumia e voltava a cada clique)
+  const loadedCompany = useRef<string | null>(null);
 
   const fetchTasks = useCallback(async () => {
     if (!currentCompany?.id) return;
-    setLoading(true);
+    if (loadedCompany.current !== currentCompany.id) setLoading(true);
     const { data, error } = await supabase
       .from("company_tasks")
       .select("*")
@@ -107,6 +120,7 @@ export function useTasks() {
       toast({ title: "Erro ao carregar tarefas", variant: "destructive" });
     } else {
       setTasks((data || []).map(d => ({ ...d, status: (d as any).status || (d.completed ? 'concluida' : 'pendente') })) as CompanyTask[]);
+      loadedCompany.current = currentCompany.id;
     }
     setLoading(false);
   }, [currentCompany?.id]);
@@ -192,5 +206,27 @@ export function useTasks() {
     }
   };
 
-  return { tasks, loading, fetchTasks, createTask, updateTask, toggleComplete, updateStatus, deleteTask };
+  // Parar de repetir: a série termina hoje e as próximas que o robô já criou
+  // (e ninguém começou) saem da lista. As de hoje e as passadas ficam.
+  const stopRecurring = async (series: CompanyTask) => {
+    const today = format(new Date(), "yyyy-MM-dd");
+    const { error } = await supabase.from("company_tasks").update({ recurrence_end_date: today }).eq("id", series.id);
+    if (error) {
+      toast({ title: "Não consegui parar a repetição", description: error.message, variant: "destructive" });
+      return;
+    }
+    const { error: delError } = await supabase
+      .from("company_tasks")
+      .delete()
+      .eq("parent_task_id", series.id)
+      .eq("status", "pendente")
+      .gt("due_date", today);
+    toast(delError
+      ? { title: "A tarefa parou de se repetir", description: "Mas a próxima já criada continua na lista. Exclua por ela." }
+      : { title: "A tarefa parou de se repetir" });
+    if (currentCompany?.id) logActivity({ companyId: currentCompany.id, action: 'update', module: 'agenda', entityType: 'task', entityId: series.id, entityName: series.title, details: { recurrence_end_date: today } });
+    fetchTasks();
+  };
+
+  return { tasks, loading, fetchTasks, createTask, updateTask, toggleComplete, updateStatus, deleteTask, stopRecurring };
 }

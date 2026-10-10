@@ -275,3 +275,30 @@ O dono aprovou: parte 1 (financeiro e erros graves), parte 2 (números certos), 
   - visita marcada pela ficha do lead leva a unidade do lead;
   - o aviso "sem confirmação" busca hoje e amanhã à parte e inclui as remarcadas;
   - cancelar visita pede confirmação.
+
+**Abas Tarefas e Geral (10/10):**
+- **Uso real:** Tarefas quase não é usada.
+  - Planeta: 5 tarefas mensais, paradas desde junho (17 atrasadas acumuladas pelo robô).
+  - Mega: 4 tarefas; Castelo: 2, todas de maio. Aventura: nenhuma.
+- **Tarefas que se repetem** (`src/lib/taskOccurrences.ts`, com testes):
+  - a tarefa "modelo" (`is_recurring`, sem `parent_task_id`) é a 1ª vez;
+  - o cron `generate-recurring-tasks-daily` (6h UTC) cria cada repetição 7 dias antes, com `parent_task_id`;
+  - o modelo some da lista quando já existe a repetição do mesmo dia;
+  - card "Tarefas que se repetem" com **Parar de repetir**: põe `recurrence_end_date` = hoje e apaga as próximas repetições pendentes (data depois de hoje);
+  - "a cada 2 semanas/meses" nunca funcionou no robô: o campo saiu e vai sempre 1; semanal exige os dias, e repetir exige a data da 1ª vez;
+  - tarefa criada dentro da festa e repetição criada pelo robô não mostram a opção de repetir.
+- **Responsável:**
+  - campo no formulário (pessoas da empresa, `useCompanyPeople`), nome no cartão e no detalhe, filtro "Pessoas / Minhas tarefas / Sem responsável";
+  - o ranking do painel de produtividade usa o nome (antes mostrava "Sem responsável").
+- **Avisos:**
+  - "⏰ Tarefa vence amanhã" (`task-notifications`, cron 8h UTC) vai só para o responsável ou, sem ele, para quem criou (`_shared/task-reminders.ts`). Antes ia para a empresa toda: 114 avisos, 6 abertos;
+  - "📋 Tarefa atribuída a você": o gatilho comparava texto com uuid e dava erro ao trocar o responsável. O SQL `20261010130000_tarefas_responsavel.sql` corrige e passa a avisar também na criação. **O dono roda esse SQL antes de publicar a tela;**
+  - tocar no aviso de tarefa no sino abre a aba Tarefas.
+- **Geral:**
+  - números no estilo de Festas e Visitas (canceladas fora da conta);
+  - tarefas sem duplicata, e as próximas repetições aparecem como "Prevista";
+  - respeita a unidade da pessoa: festas com a regra de Festas, visitas com a de Visitas (`src/lib/unitAccess.ts`);
+  - cada item mostra a situação; tocar na visita abre a aba Visitas (`?tab=visitas&visita=<id>`; `&remarcar=1` já abre a remarcação);
+  - "Editar" da tarefa funciona e excluir pede confirmação;
+  - trocar de mês não pisca, e no celular tocar na data rola até a lista (vale também tocar de novo no dia já escolhido, em todas as abas).
+- **Rodada final da limpeza:** `src/components/agenda/VisitDetailSheet.tsx` ficou sem uso.
