@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from "react";
+import { checkBrWhatsapp } from "@/lib/brWhatsapp";
+import { whatsappLink } from "@/lib/whatsappLink";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Send, Loader2, MessageCircle, MapPin, Smile } from "lucide-react";
 import { campaignConfig } from "@/config/campaignConfig";
@@ -474,7 +476,8 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
     try {
       const normalizedUnit = unit === "Trujilo" ? "Trujillo" : unit;
       const cleanPhone = phone.replace(/\D/g, '');
-      const phoneWithCountry = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+      // 11 dígitos = DDD + celular (o DDD 55 do RS não pode ser confundido com o código do país)
+      const phoneWithCountry = cleanPhone.length === 11 ? `55${cleanPhone}` : cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
 
       const redirectText = (redirectInfo?.customMessage && redirectInfo.customMessage.trim())
         || `Nossa capacidade máxima é de ${redirectInfo?.limit || 0} convidados.`;
@@ -576,7 +579,21 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
       setInputValue("");
       setInputType("whatsapp");
     } else if (inputType === "whatsapp") {
-      const whatsappValue = inputValue;
+      // Confere o número antes de salvar: com um dígito a menos a boas-vindas
+      // automática ia para um número que não existe
+      const phoneCheck = checkBrWhatsapp(inputValue);
+      if (!phoneCheck.ok) {
+        setMessages((prev) => [...prev, {
+          id: `bot-${Date.now()}`,
+          type: "bot",
+          content: (phoneCheck as { reason: string }).reason === "short"
+            ? "Hmm, parece que faltou um número 🤔 O WhatsApp precisa do *DDD + 9 dígitos*, ex.: (11) 99999-9999. Pode conferir e mandar de novo?"
+            : "Hmm, esse número não parece um celular com WhatsApp 🤔 Manda o *DDD + 9 dígitos*, ex.: (11) 99999-9999.",
+        }]);
+        setInputValue("");
+        return;
+      }
+      const whatsappValue = (phoneCheck as { digits: string }).digits;
       setInputValue("");
       setInputType(null);
       setIsSaving(true);
@@ -700,7 +717,8 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
   // fica na voz dele — sem trechos na voz do buffet.
   const buildWhatsAppMessage = () => {
     const via = originLabel(origem) ?? 'site';
-    return `Olá! 👋🏼✨\n\nVim pelo ${via} do *${displayName}* e gostaria de saber mais!\n\n📋 *Meus dados:*\n👤 Nome: ${leadData.name || ''}\n🗓️ Data: ${formatLeadDate(leadData.month, leadData.dayOfMonth)}\n👥 Convidados: ${leadData.guests || ''}`;
+    // Sem emojis: em alguns celulares eles chegavam como "�"
+    return `Olá! Vim pelo ${via} do *${displayName}* e gostaria de saber mais!\n\n*Meus dados:*\nNome: ${leadData.name || ''}\nData: ${formatLeadDate(leadData.month, leadData.dayOfMonth)}\nConvidados: ${leadData.guests || ''}`;
   };
 
   return (
@@ -949,7 +967,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
                 {isDynamic && companyWhatsApp ? (
                   // Dynamic mode: single WhatsApp button
                   <a
-                    href={`https://wa.me/55${companyWhatsApp.replace(/\D/g, '')}?text=${encodeURIComponent(buildWhatsAppMessage())}`}
+                    href={whatsappLink(`55${companyWhatsApp.replace(/\D/g, '')}`, buildWhatsAppMessage())}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="group flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full transition-all duration-300 text-sm font-medium hover:scale-105"
@@ -960,7 +978,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
                 ) : !isDynamic ? (
                   // Default Castelo mode: Trujillo only
                   <a
-                    href={`https://wa.me/5515974034646?text=${encodeURIComponent(buildWhatsAppMessage())}`}
+                    href={whatsappLink("5515974034646", buildWhatsAppMessage())}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="group flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full transition-all duration-300 text-sm font-medium hover:scale-105"

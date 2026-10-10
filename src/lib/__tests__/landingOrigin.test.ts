@@ -50,7 +50,7 @@ describe("messages by origin", () => {
 
   it("builds the direct WhatsApp message the bot recognizes", () => {
     const msg = directWhatsAppMessage("mesa", "Castelo da Diversão");
-    expect(msg).toBe("Olá! 👋 Vim pelo QR Code da mesa do Castelo da Diversão 🎉");
+    expect(msg).toBe("Olá! Vim pelo QR Code da mesa do Castelo da Diversão");
     expect(msg!.toLowerCase()).toContain("qr code da mesa");
   });
 

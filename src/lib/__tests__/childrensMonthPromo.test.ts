@@ -15,7 +15,7 @@ describe("Mês das Crianças — prazo em horário de Brasília", () => {
 
   it("link do WhatsApp com a mensagem pronta", () => {
     expect(CASTELO_WHATSAPP_PROMO_URL).toBe(
-      "https://wa.me/5515974034646?text=Ol%C3%A1!%20Vim%20pelo%20site%20e%20quero%20saber%20da%20promo%C3%A7%C3%A3o%20M%C3%AAs%20das%20Crian%C3%A7as",
+      "https://api.whatsapp.com/send?phone=5515974034646&text=Ol%C3%A1!%20Vim%20pelo%20site%20e%20quero%20saber%20da%20promo%C3%A7%C3%A3o%20M%C3%AAs%20das%20Crian%C3%A7as",
     );
   });
 });
