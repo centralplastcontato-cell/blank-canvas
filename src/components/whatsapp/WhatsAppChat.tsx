@@ -3281,6 +3281,12 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Menu da mensagem (reagir, responder, copiar…): abre pela setinha, por
   // clique com o botão direito ou segurando o dedo na mensagem, como no WhatsApp
   const [messageMenuId, setMessageMenuId] = useState<string | null>(null);
+  // Tela de toque (celular/iPad): segurar não pode selecionar o texto. O Safari
+  // do iPhone ignora a regra só em CSS — vai também direto no estilo da mensagem
+  const isTouchUi = useMemo(() => typeof window !== 'undefined' && !!window.matchMedia?.('(hover: none)').matches, []);
+  const messageTouchStyle: React.CSSProperties = isTouchUi
+    ? { WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }
+    : { WebkitTouchCallout: 'none' };
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelLongPress = () => {
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
@@ -3291,9 +3297,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       cancelLongPress();
       longPressTimerRef.current = setTimeout(() => {
         longPressTimerRef.current = null;
+        try { window.getSelection()?.removeAllRanges(); } catch { /* nada selecionado */ }
         try { navigator.vibrate?.(15); } catch { /* sem vibração */ }
         setMessageMenuId(msgId);
-      }, 450);
+      }, 400);
     },
     onTouchMove: cancelLongPress,
     onTouchEnd: cancelLongPress,
@@ -5928,7 +5935,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                               <div className={cn("relative w-full min-w-0 overflow-hidden", msg.from_me ? "flex flex-row-reverse items-start gap-1" : "flex items-start gap-1")}>
                                  <div
                                    {...(editingMessageId !== msg.id ? messagePressHandlers(msg.id) : {})}
-                                   style={{ WebkitTouchCallout: 'none' }}
+                                   style={messageTouchStyle}
                                    className={cn(
                                      // No celular, segurar abre o menu (sem selecionar o texto); "Copiar" fica no menu
                                      "rounded-2xl text-sm [@media(hover:none)]:select-none",
