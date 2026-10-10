@@ -247,6 +247,15 @@ O dono aprovou: parte 1 (financeiro e erros graves), parte 2 (números certos), 
   - "Remarcou" abre a visita certa (`/agenda?tab=visitas&visita=<id>`).
 - **Aba Visitas:** recarregar não troca mais a tela por "carregando", então a visita aberta não fecha sozinha.
 
+**Parte 4 (visual no celular):**
+- **Topo fixo:** ficou só com o menu e as 4 abas, que cabem inteiras na largura. Sub-abas, botões, unidade e busca rolam com a página.
+- **Calendário:** ao tocar numa data, a tela rola até as festas do dia; os textos dentro do dia foram aumentados.
+- **Botões:**
+  - os de contrato no detalhe da festa ficaram maiores;
+  - o rodapé do formulário de festa fica numa linha só, sem corte.
+- **Tarefas:** editar e excluir sempre à vista (no toque não existe "passar o mouse").
+- **Visitas:** filtros 2 por linha; os números têm o mesmo visual dos da aba Festas.
+
 **Números em 09/10:**
 - 404 festas passadas ainda como confirmado/pendente (ninguém marca "realizada").
 - 233 visitas passadas sem resultado.

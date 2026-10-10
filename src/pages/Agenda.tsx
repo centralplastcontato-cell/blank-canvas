@@ -1300,6 +1300,15 @@ export default function Agenda() {
     fetchEvents();
   };
 
+  // No celular as festas do dia ficam embaixo do calendário: ao tocar numa data, rola até elas
+  const dayPanelRef = useRef<HTMLDivElement>(null);
+  const handleDayClick = (date: Date) => {
+    setSelectedDate(date);
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      setTimeout(() => dayPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    }
+  };
+
   const handleEdit = (ev: CompanyEvent) => {
     setEditingEvent(mapEventToFormData(ev));
     setDetailOpen(false);
@@ -1339,7 +1348,7 @@ export default function Agenda() {
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Mobile Header */}
           <header className="bg-card border-b border-border shrink-0 z-10 md:hidden">
-            <div className="px-3 py-3">
+            <div className="px-3 pt-2.5 pb-2.5">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <MobileMenu
@@ -1368,68 +1377,29 @@ export default function Agenda() {
                   )}
                 </div>
               </div>
-              {/* Central Tab Bar - mobile inside header */}
-              <div className="pt-2 flex justify-center">
-                <div className="overflow-x-auto scrollbar-none">
-                  <div className="inline-flex gap-1 p-1 rounded-2xl bg-muted/50 border border-border/40 shadow-sm">
-                    {[
-                      { value: "festas", label: "Festas", icon: CalendarDays },
-                      { value: "visitas", label: "Visitas", icon: MapPin },
-                      { value: "tarefas", label: "Tarefas", icon: ListChecks },
-                      { value: "tudo", label: "Geral", icon: List },
-                    ].map((tab) => (
-                      <button
-                        key={tab.value}
-                        onClick={() => setCentralTab(tab.value as any)}
-                        className={cn(
-                          "inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-xl transition-all duration-200 shrink-0 whitespace-nowrap",
-                          centralTab === tab.value
-                            ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30 scale-[1.02]"
-                            : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                        )}
-                      >
-                        <tab.icon className="h-4 w-4" />
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+              {/* Abas no celular: as 4 cabem na largura (antes "Geral" ficava cortada) */}
+              <div className="mt-2 grid grid-cols-4 gap-1 p-1 rounded-full bg-muted/60">
+                {[
+                  { value: "festas", label: "Festas", icon: CalendarDays },
+                  { value: "visitas", label: "Visitas", icon: MapPin },
+                  { value: "tarefas", label: "Tarefas", icon: ListChecks },
+                  { value: "tudo", label: "Geral", icon: List },
+                ].map((tab) => (
+                  <button
+                    key={tab.value}
+                    onClick={() => setCentralTab(tab.value as any)}
+                    className={cn(
+                      "inline-flex items-center justify-center gap-1.5 h-9 px-1 text-xs font-semibold rounded-full transition-colors min-w-0",
+                      centralTab === tab.value
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <tab.icon className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{tab.label}</span>
+                  </button>
+                ))}
               </div>
-              {/* Mobile content mode toggle - inside header */}
-              {centralTab === "festas" && (
-              <div className="pt-2">
-                <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas" | "pre-reservas")}>
-                  <TabsList className="inline-flex gap-1 p-1 rounded-2xl bg-muted/50 border border-border/40 shadow-sm h-auto w-full">
-                    <TabsTrigger value="agendadas" className="flex-1 gap-1.5 text-xs font-semibold rounded-xl px-3 py-2 transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 data-[state=active]:scale-[1.02] data-[state=inactive]:bg-muted data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/80">
-                      <CalendarDays className="h-3.5 w-3.5" />
-                      Agendadas
-                    </TabsTrigger>
-                    <TabsTrigger value="fechadas" className="flex-1 gap-1.5 text-xs font-semibold rounded-xl px-3 py-2 transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 data-[state=active]:scale-[1.02] data-[state=inactive]:bg-muted data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/80">
-                      <Handshake className="h-3.5 w-3.5" />
-                      Fechadas
-                      {closedStats.count > 0 && (
-                        <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{closedStats.count}</Badge>
-                      )}
-                    </TabsTrigger>
-                    <TabsTrigger value="pre-reservas" className="flex-1 gap-1.5 text-xs font-semibold rounded-xl px-3 py-2 transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 data-[state=active]:scale-[1.02] data-[state=inactive]:bg-muted data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/80">
-                      <CalendarClock className="h-3.5 w-3.5" />
-                      Pré-reservas
-                      {allPreReservations.filter(pr => pr.status === "ativa").length > 0 && (
-                        <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{allPreReservations.filter(pr => pr.status === "ativa").length}</Badge>
-                      )}
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-                <div className="flex items-center gap-2 pt-2">
-                  <Button size="sm" className="h-10 px-5 rounded-xl gap-2 font-semibold shadow-sm" onClick={() => { setEditingEvent(null); setFormOpen(true); }}>
-                    <Plus className="h-4 w-4" /> Nova Festa
-                  </Button>
-                  <Button size="sm" variant="outline" className="h-10 px-5 rounded-xl gap-2 font-semibold shadow-sm border-pink-300 text-pink-600 hover:bg-pink-50" onClick={() => { setEditingPreRes(null); setPreResFormOpen(true); }}>
-                    <CalendarClock className="h-4 w-4" /> Pré-reserva
-                  </Button>
-                </div>
-              </div>
-              )}
             </div>
           </header>
 
@@ -1545,12 +1515,47 @@ export default function Agenda() {
           {/* Tab: Festas (original content) */}
           {centralTab === "festas" && (<>
 
+          <PullToRefresh onRefresh={async () => { await fetchEvents(); }} className="flex-1 p-3 md:p-6 lg:p-8 overflow-x-hidden overflow-y-auto">
+            <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
+              {/* Celular: sub-abas, botões, unidade e busca rolam junto com a página
+                  (antes ficavam presos no topo e tomavam quase metade da tela) */}
+              <div className="md:hidden space-y-2.5">
+                <Tabs value={contentMode} onValueChange={(v) => setContentMode(v as "agendadas" | "fechadas" | "pre-reservas")}>
+                  <TabsList className="inline-flex gap-1 p-1 rounded-2xl bg-muted/50 border border-border/40 shadow-sm h-auto w-full">
+                    <TabsTrigger value="agendadas" className="flex-1 gap-1.5 text-xs font-semibold rounded-xl px-3 py-2 transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 data-[state=active]:scale-[1.02] data-[state=inactive]:bg-muted data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/80">
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      Agendadas
+                    </TabsTrigger>
+                    <TabsTrigger value="fechadas" className="flex-1 gap-1.5 text-xs font-semibold rounded-xl px-3 py-2 transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 data-[state=active]:scale-[1.02] data-[state=inactive]:bg-muted data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/80">
+                      <Handshake className="h-3.5 w-3.5" />
+                      Fechadas
+                      {closedStats.count > 0 && (
+                        <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{closedStats.count}</Badge>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="pre-reservas" className="flex-1 gap-1.5 text-xs font-semibold rounded-xl px-3 py-2 transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/30 data-[state=active]:scale-[1.02] data-[state=inactive]:bg-muted data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-muted/80">
+                      <CalendarClock className="h-3.5 w-3.5" />
+                      Pré-reservas
+                      {allPreReservations.filter(pr => pr.status === "ativa").length > 0 && (
+                        <Badge variant="secondary" className="ml-0.5 text-[10px] px-1.5 py-0">{allPreReservations.filter(pr => pr.status === "ativa").length}</Badge>
+                      )}
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button size="sm" className="h-11 rounded-full gap-2 font-semibold shadow-sm" onClick={() => { setEditingEvent(null); setFormOpen(true); }}>
+                    <Plus className="h-4 w-4" /> Nova Festa
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-11 rounded-full gap-2 font-semibold shadow-sm border-pink-300 text-pink-600 hover:bg-pink-50" onClick={() => { setEditingPreRes(null); setPreResFormOpen(true); }}>
+                    <CalendarClock className="h-4 w-4" /> Pré-reserva
+                  </Button>
+                </div>
           {/* Mobile unit filter — hidden when units are sales channels only */}
           {!isSalesChannelOnly && (() => {
             const visibleUnits = canViewAll ? physicalUnits : physicalUnits.filter(u => unitAccess[u.name]);
             if (visibleUnits.length <= 1) return null;
             return (
-              <div className="md:hidden px-3 pt-3">
+              <div>
                 <Select value={selectedUnit} onValueChange={setSelectedUnit}>
                   <SelectTrigger className="w-full"><MapPin className="h-4 w-4 mr-2 text-muted-foreground" /><SelectValue placeholder="Todas as unidades" /></SelectTrigger>
                   <SelectContent>
@@ -1563,7 +1568,7 @@ export default function Agenda() {
           })()}
 
           {/* Search bar - mobile */}
-          <div className="md:hidden px-3 pt-2">
+          <div>
             <div className="relative group">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 blur-sm" />
               <div className="relative flex items-center bg-card border border-border/40 rounded-2xl shadow-sm group-focus-within:shadow-md group-focus-within:border-primary/30 transition-all duration-300">
@@ -1583,8 +1588,8 @@ export default function Agenda() {
             </div>
           </div>
 
-          <PullToRefresh onRefresh={async () => { await fetchEvents(); }} className="flex-1 p-3 md:p-6 lg:p-8 overflow-x-hidden overflow-y-auto">
-            <div className="max-w-7xl mx-auto space-y-6">
+              </div>
+
               {/* Desktop header */}
               <div className="hidden md:block">
                 <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
@@ -2159,7 +2164,7 @@ export default function Agenda() {
                         events={filteredEvents}
                         month={month}
                         onMonthChange={setMonth}
-                        onDayClick={setSelectedDate}
+                        onDayClick={handleDayClick}
                         selectedDate={selectedDate}
                         checklistProgress={checklistProgress}
                         preReservations={filteredPreReservations}
@@ -2169,7 +2174,7 @@ export default function Agenda() {
                   </CardContent>
                 </Card>
 
-                <Card className="relative bg-gradient-to-b from-card to-muted/10 border-border/20 shadow-[0_8px_40px_rgba(0,0,0,0.06)] rounded-2xl overflow-hidden">
+                <Card ref={dayPanelRef} className="relative scroll-mt-3 bg-gradient-to-b from-card to-muted/10 border-border/20 shadow-[0_8px_40px_rgba(0,0,0,0.06)] rounded-2xl overflow-hidden">
                   <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_100%,hsl(var(--primary)/0.02),transparent)] pointer-events-none" />
                   <CardContent className="relative p-5 md:p-6">
                     <h3 className="font-bold text-sm tracking-tight text-foreground mb-0.5">

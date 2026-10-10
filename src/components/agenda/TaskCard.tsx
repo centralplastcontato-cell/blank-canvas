@@ -42,7 +42,8 @@ export function TaskCard({ task, onToggle, onEdit, onDelete, onStatusChange }: T
   return (
     <div
       className={cn(
-        "flex items-start gap-3 p-3 rounded-xl border transition-all duration-200 group",
+        // No celular: título em cima, situação embaixo e os botões sempre à vista (no toque não existe "passar o mouse")
+        "relative flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-3 p-3 rounded-xl border transition-all duration-200 group",
         task.status === "concluida"
           ? "bg-muted/30 border-border/20 opacity-60"
           : task.status === "em_andamento"
@@ -54,7 +55,7 @@ export function TaskCard({ task, onToggle, onEdit, onDelete, onStatusChange }: T
     >
       <Select value={task.status} onValueChange={handleStatusChange}>
         <SelectTrigger className={cn(
-          "h-7 w-auto min-w-[130px] text-[10px] font-medium border shrink-0 mt-0.5",
+          "h-8 w-fit min-w-[130px] text-xs font-medium border shrink-0 order-2 sm:order-1 sm:mt-0.5",
           currentStatus.color
         )}>
           <SelectValue />
@@ -67,7 +68,7 @@ export function TaskCard({ task, onToggle, onEdit, onDelete, onStatusChange }: T
           ))}
         </SelectContent>
       </Select>
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 order-1 sm:order-2 pr-[4.5rem] sm:pr-0">
         <p className={cn("text-sm font-medium leading-tight", task.status === "concluida" && "line-through text-muted-foreground")}>
           {task.title}
         </p>
@@ -111,12 +112,12 @@ export function TaskCard({ task, onToggle, onEdit, onDelete, onStatusChange }: T
           )}
         </div>
       </div>
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(task)}>
-          <Pencil className="h-3.5 w-3.5" />
+      <div className="absolute top-2 right-2 sm:static sm:order-3 flex items-center gap-1 shrink-0">
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => onEdit(task)} aria-label="Editar tarefa">
+          <Pencil className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => onDelete(task.id)}>
-          <Trash2 className="h-3.5 w-3.5" />
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => onDelete(task.id)} aria-label="Excluir tarefa">
+          <Trash2 className="h-4 w-4" />
         </Button>
       </div>
     </div>

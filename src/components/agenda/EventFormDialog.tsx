@@ -1558,8 +1558,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       <Tabs defaultValue="evento" className="flex h-full min-w-0 flex-col overflow-hidden">
         <DialogHeader className="border-b-0 bg-muted/30 px-4 pt-6 pb-0 sm:px-7 sm:pt-7">
           <DialogTitle className="text-lg font-bold tracking-tight">{isEdit ? "Editar Festa" : "Nova Festa"}</DialogTitle>
-          <p className="text-[13px] text-muted-foreground mt-1 mb-3">Preencha os dados do evento e contratação</p>
-          <TabsList className="grid w-full min-w-0 grid-cols-2">
+          <p className="hidden sm:block text-[13px] text-muted-foreground mt-1">Preencha os dados do evento e contratação</p>
+          <TabsList className="mt-3 grid w-full min-w-0 grid-cols-2">
             <TabsTrigger value="evento" className="min-w-0">Evento</TabsTrigger>
             <TabsTrigger value="complementar" className="min-w-0">Complementar</TabsTrigger>
           </TabsList>
@@ -3193,22 +3193,23 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           </div>
         </TabsContent>
 
-        {/* Fixed footer */}
-        <div className="flex flex-col-reverse gap-2 border-t border-border/40 bg-muted/20 px-4 py-4 sm:flex-row sm:justify-end sm:gap-3 sm:px-7">
-          <Button type="button" variant="ghost" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>Cancelar</Button>
+        {/* Fixed footer — no celular os botões ficam numa linha só (empilhados, passavam do
+            espaço reservado e o de baixo ficava cortado) */}
+        <div className="flex flex-row items-center gap-2 border-t border-border/40 bg-muted/20 px-3 py-3 sm:justify-end sm:gap-3 sm:px-7 sm:py-4">
+          <Button type="button" variant="ghost" className="shrink-0 px-3 sm:w-auto sm:px-4" onClick={() => onOpenChange(false)}>Cancelar</Button>
           {!isEdit && (
             <Button
               type="button"
               variant="outline"
               disabled={saving || !!conflictEvent}
-              className="w-full rounded-lg sm:w-auto sm:px-6"
+              className="flex-1 rounded-lg sm:flex-none sm:w-auto sm:px-6"
               onClick={(e) => handleSubmit(e as any, true)}
             >
               {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Salvar
             </Button>
           )}
-          <Button type="submit" form="event-form" disabled={saving || !!conflictEvent} className="w-full rounded-lg shadow-sm sm:w-auto sm:px-8">
+          <Button type="submit" form="event-form" disabled={saving || !!conflictEvent} className="flex-1 rounded-lg shadow-sm sm:flex-none sm:w-auto sm:px-8">
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
             {isEdit ? "Salvar" : "Criar e Fechar"}
           </Button>
