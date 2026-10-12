@@ -39,7 +39,7 @@ import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
 import { buildCandidateLink, candidateName, inviteCode, shortCandidateLink, withCandidateLink } from "../_shared/ai-candidate.ts";
 import { findPromotion, promoMentions, promoNote } from "../_shared/promo.ts";
 import { closedPeriodAt, closedPeriodsNote, formatClosedPeriod, isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
-import { asksPartnership, clientAffirms, closingAfterMaterials, confirmsPartyInterest, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
+import { asksPartnership, clientAffirms, clientAskedPrice, closingAfterMaterials, confirmsPartyInterest, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 import { askedForName, nameFromAnswer } from "../_shared/name-answer.ts";
 import { falseMaterialClaims, hasMaterialClaim, hasSubstance, refersToMaterial, stripFalseMaterialClaims } from "../_shared/material-claims.ts";
@@ -631,7 +631,7 @@ ${ctx.packagesText
 `}
 REGRAS INEGOCIÁVEIS:
 1. VALORES: informe somente os valores da tabela oficial, obtidos com a ferramenta consultar_valor_pacote — nunca de cabeça, nunca estimativa, nunca arredondado, nunca somando outros itens. Para consultar você precisa da quantidade de convidados E do dia da festa (a data ou, pelo menos, o dia da semana): se faltar algum, pergunte ANTES de falar qualquer valor. Desconto, condição à vista, parcelamento, brinde, entrada diferente ou qualquer negociação: NUNCA ofereça nem prometa — diga que as condições de pagamento e o fechamento são com a equipe. Se a ferramenta não trouxer valor, envie o PDF de pacotes (enviar_materiais, tipo "pacotes").
-   VALOR SÓ PARA QUEM PEDE: passe valores só quando o cliente perguntar (preço, valor, quanto fica/custa, orçamento, "e o investimento?"). Por iniciativa própria, não passe valores nem ofereça passar ("quer que eu te passe os valores?") — mesmo que as informações do buffet digam "informe o valor". Quem não perguntou já tem o PDF de pacotes; conduza pela data, pelo espaço e pela visita.
+   VALOR SÓ PARA QUEM PERGUNTA O PREÇO: passe valores só quando o cliente perguntar o preço (preço, valor, quanto fica/custa, "e o investimento?"). Pedir "orçamento" ou escolher a opção de orçamento NÃO é perguntar o preço: ele recebe fotos, vídeo e o PDF dos pacotes, e você conduz para a data e a visita, sem escrever valores. Por iniciativa própria, não passe valores nem ofereça passar ("quer que eu te passe os valores?") — mesmo que as informações do buffet digam "informe o valor". Quem não perguntou já tem o PDF de pacotes; conduza pela data, pelo espaço e pela visita.
    Se o cliente pediu o valor e você já sabe a quantidade e o dia (ou a data), chame consultar_valor_pacote JÁ e dê o valor NESTA resposta — nunca pergunte "quer que eu te passe o valor?". Com data e horário, a ferramenta confere a agenda: se estiver ocupado, avise e ofereça o horário livre mais próximo.
 2. NUNCA prometa nada: disponibilidade de data, brindes, itens inclusos, exceções. Quem confirma detalhes é a equipe.
 3. NUNCA invente informações. Se não souber responder, use a ferramenta transferir_para_atendente.
@@ -2398,6 +2398,10 @@ export async function maybeHandleWithAiAgent(
             toolResult = await toolEnviarMateriais(supabase, instance, conv, phone, contactName, String(args.tipo || ''), args.reenviar === true);
           } else if (call.name === 'consultar_datas_livres') {
             toolResult = await toolConsultarDatas(supabase, instance, settings, args);
+          } else if (call.name === 'consultar_valor_pacote' && !clientAskedPrice(chatMessages)) {
+            // Valor aberto só para quem perguntou o preço (pedir "orçamento" não conta)
+            toolResult = 'NÃO PASSE VALORES: o cliente ainda não perguntou o preço (pedir "orçamento" não é perguntar o preço). Não escreva nenhum valor em R$ nem ofereça passar. Os pacotes estão no PDF; responda o que ele disse e conduza para a data e a visita.';
+            console.log(`[AI Agent] Consulta de valor recusada — cliente não perguntou o preço (conv ${conv.id})`);
           } else if (call.name === 'consultar_valor_pacote') {
             toolResult = await toolConsultarValor(supabase, instance, settings, conv, phone, contactName, args);
           } else if (call.name === 'transferir_para_atendente') {
