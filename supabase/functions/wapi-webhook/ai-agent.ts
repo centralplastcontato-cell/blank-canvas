@@ -886,6 +886,19 @@ async function ensureLead(
   return null;
 }
 
+// Feriado (nacional, SP/Sorocaba ou cadastrado pela empresa) não tem visita:
+// caso Lya, 09/10 — a IA marcou visita na segunda 12/10 (Aparecida) e a
+// equipe teve que desmarcar
+async function loadLocalHolidays(supabase: any, companyId: string): Promise<string[]> {
+  const { data: company } = await supabase.from('companies').select('settings').eq('id', companyId).maybeSingle();
+  return localHolidaysFrom((company?.settings || null) as any);
+}
+
+function isHolidayDate(ymd: string, localHolidays: string[]): boolean {
+  const [y, m, d] = ymd.split('-').map(Number);
+  return !!y && !!m && !!d && isHolidayYmd(y, m, d, localHolidays);
+}
+
 async function toolAgendarVisita(
   supabase: any,
   instance: AgentInstance,
@@ -915,15 +928,17 @@ async function toolAgendarVisita(
   // horários livres mais próximos para a IA oferecer.
   const visitHours = parseVisitHours(settings.visit_hours);
   const booked = await loadBookedSlots(supabase, instance, conv.lead_id);
-  // Recesso: sem visitas nesses dias
+  // Recesso e feriados: sem visitas nesses dias
   const closed = parseClosedPeriods(settings.closed_periods);
+  const holidays = await loadLocalHolidays(supabase, instance.company_id);
   const available = listAvailableSlots(visitHours, Date.now(), booked, { days: 21, minLeadMinutes: 60, max: 1000 })
-    .filter((sl) => !isClosedDay(sl.date, closed));
+    .filter((sl) => !isClosedDay(sl.date, closed) && !isHolidayDate(sl.date, holidays));
   const requested: Slot = { date: dataVisita, time: horario };
   const isAvailable = available.some((sl) => slotKey(sl) === slotKey(requested));
   if (!isAvailable) {
     const recess = closedPeriodAt(dataVisita, closed);
     const why = recess ? `cai no recesso do buffet (fechado ${formatClosedPeriod(recess, ymdBR(Date.now()))})`
+      : isHolidayDate(dataVisita, holidays) ? 'é feriado (o buffet não recebe visitas)'
       : !isSlotInHours(visitHours, dataVisita, horario)
       ? 'está fora das janelas de visita'
       : booked.has(slotKey(requested)) ? 'já está ocupado' : 'já passou ou está muito em cima da hora';
@@ -2199,9 +2214,10 @@ export async function maybeHandleWithAiAgent(
     const nowMs = Date.now();
     const booked = await loadBookedSlots(supabase, instance);
     const closedPeriods = parseClosedPeriods(settings.closed_periods);
-    // Recesso: sem visitas nesses dias (14 dias à frente + o tamanho do recesso)
+    const visitHolidays = await loadLocalHolidays(supabase, instance.company_id);
+    // Recesso e feriados: sem visitas nesses dias (14 dias à frente + o tamanho do recesso)
     const available = listAvailableSlots(parseVisitHours(settings.visit_hours), nowMs, booked, { days: 28, minLeadMinutes: 120, max: 120 })
-      .filter((sl) => !isClosedDay(sl.date, closedPeriods))
+      .filter((sl) => !isClosedDay(sl.date, closedPeriods) && !isHolidayDate(sl.date, visitHolidays))
       .slice(0, 60);
     // Mês e convidados já conhecidos sem os materiais terem saído (lead do
     // site chega com os dados do formulário e a IA não precisa registrar):

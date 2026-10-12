@@ -18,6 +18,7 @@ import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { DEFAULT_AI_MODEL } from "../_shared/ai-models.ts";
 import { listAvailableSlots, normalizeTime, parseVisitHours, slotKey, teamHoursText, visitSlotsByDay } from "../_shared/business-hours.ts";
 import { GENERAL_SCENARIOS } from "./scenarios.ts";
+import { isHolidayYmd, localHolidaysFrom } from "../_shared/package-pricing.ts";
 import { auditConversation, type RealMessage, realTranscript } from "./audit.ts";
 import { closedPeriodsNote, isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
 import { AI_ACTOR, AI_ACTOR_HEADER } from "../wapi-webhook/ai-db-guard.ts";
@@ -220,9 +221,10 @@ async function finalizeIfDone(runId: string): Promise<void> {
 // O que a IA sabe do buffet (informações da configuração + o que cada pacote
 // inclui) — o avaliador usa para conferir se ela inventou algo
 async function loadKnowledge(companyId: string): Promise<string> {
-  const [{ data: settings }, { data: packages }] = await Promise.all([
+  const [{ data: settings }, { data: packages }, { data: company }] = await Promise.all([
     admin.from("ai_agent_settings").select("*").eq("company_id", companyId).maybeSingle(),
     admin.from("company_packages").select("*").eq("company_id", companyId).eq("is_active", true).order("sort_order"),
+    admin.from("companies").select("settings").eq("id", companyId).maybeSingle(),
   ]);
   const pk = ((packages || []) as any[])
     .filter((p) => p.ai_quote !== false)
@@ -239,8 +241,14 @@ async function loadKnowledge(companyId: string): Promise<string> {
     if (t) booked.add(slotKey({ date: String(v.data_visita).slice(0, 10), time: t }));
   }
   const closed = parseClosedPeriods(settings?.closed_periods);
+  // Feriado não tem visita (mesma regra da IA)
+  const holidays = localHolidaysFrom(((company as any)?.settings || null) as any);
+  const isHolidayDate = (ymd: string) => {
+    const [y, m, d] = ymd.split("-").map(Number);
+    return !!y && !!m && !!d && isHolidayYmd(y, m, d, holidays);
+  };
   const freeVisits = visitSlotsByDay(listAvailableSlots(parseVisitHours(settings?.visit_hours || null), Date.now(), booked, { days: 28, minLeadMinutes: 120, max: 120 })
-    .filter((sl) => !isClosedDay(sl.date, closed)), 7, 12)
+    .filter((sl) => !isClosedDay(sl.date, closed) && !isHolidayDate(sl.date)), 7, 12)
     .map((d) => `${d.date}: ${d.times.join(", ")}`).join("; ");
   return [
     settings?.extra_instructions || "",
