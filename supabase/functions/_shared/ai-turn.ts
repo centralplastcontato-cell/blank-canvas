@@ -134,8 +134,17 @@ export function smallestPackageGuests(materials: Array<{ type?: string; guest_co
   return counts.length > 0 ? Math.min(...counts) : null;
 }
 
+// Pergunta de PREÇO de verdade. "Orçamento" sozinho (ou a opção "Orçamento
+// para uma festa" do menu) não conta: recebe fotos, vídeo e PDF, e a IA
+// conduz para data e visita — o dono não quer valor aberto para quem não perguntou
+const PRICE_ASK = /(pre[cç]o|valor|quanto (fica|custa|sai|é|e|ficaria|seria|cobra|vai ficar|d[aá])|investimento|tabela de pre|\bcusto\b)/i;
+
+/** O cliente perguntou o preço em algum momento da conversa? */
+export function clientAskedPrice(turns: Turn[]): boolean {
+  return turns.some((t) => t.role === "user" && PRICE_ASK.test(t.content));
+}
+
 // O cliente pediu o valor e ainda não recebeu nenhum "R$" depois disso?
-const PRICE_ASK = /(pre[cç]o|valor|quanto (fica|custa|sai|é|e)|or[cç]amento|investimento)/i;
 export function priceRequestPending(turns: Turn[]): boolean {
   let asked = false;
   for (const t of turns) {

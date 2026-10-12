@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { clientAffirms, closingAfterMaterials, confirmsPartyInterest, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, priceRequestPending, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, teamRepliedAfter } from "./ai-turn.ts";
+import { clientAffirms, clientAskedPrice, closingAfterMaterials, confirmsPartyInterest, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, priceRequestPending, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, teamRepliedAfter } from "./ai-turn.ts";
 
 Deno.test("pickLatestIncoming: a última mensagem do cliente responde por todas", () => {
   assertEquals(pickLatestIncoming([
@@ -247,4 +247,16 @@ Deno.test("teamRepliedAfter: reação (emoji) da equipe não conta como resposta
   assertEquals(teamRepliedAfter([
     { from_me: true, timestamp: "2026-10-09T12:00:00Z", metadata: { source: "reaction" } },
   ], "2026-10-09T11:00:00Z"), false);
+});
+
+Deno.test("clientAskedPrice: só pergunta de preço conta, \"orçamento\" sozinho não", () => {
+  const u = (content: string) => [{ role: "assistant" as const, content: "Oi!" }, { role: "user" as const, content }];
+  assertEquals(clientAskedPrice(u("Quero saber o valor pra 50 e 80 pessoas")), true);
+  assertEquals(clientAskedPrice(u("Qual opções e valores pacotes 50 pessoas?")), true);
+  assertEquals(clientAskedPrice(u("quanto fica pra 60?")), true);
+  assertEquals(clientAskedPrice(u("qual o preço?")), true);
+  assertEquals(clientAskedPrice(u("Orçamento para a festa")), false);
+  assertEquals(clientAskedPrice(u("Queria fazer um orçamento")), false);
+  assertEquals(clientAskedPrice(u("1")), false);
+  assertEquals(clientAskedPrice(u("Eu amei")), false);
 });
