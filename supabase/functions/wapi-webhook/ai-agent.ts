@@ -41,6 +41,7 @@ import { findPromotion, promoMentions, promoNote } from "../_shared/promo.ts";
 import { closedPeriodAt, closedPeriodsNote, formatClosedPeriod, isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
 import { asksPartnership, clientAffirms, closingAfterMaterials, confirmsPartyInterest, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
+import { askedForName, nameFromAnswer } from "../_shared/name-answer.ts";
 import { falseMaterialClaims, hasMaterialClaim, hasSubstance, refersToMaterial, stripFalseMaterialClaims } from "../_shared/material-claims.ts";
 import { enforceHouseRules, houseRuleNote, houseRuleViolatingSentences, houseRuleViolations, parseHouseRules, topicsAsked, TOPIC_ASK } from "../_shared/house-rules.ts";
 
@@ -844,6 +845,14 @@ async function toolConfirmarVisita(supabase: any, instance: AgentInstance, conv:
   return `OK: visita de ${visitText(visit.data_visita, visit.horario_visita)} confirmada. Responda curto e carinhoso que está tudo certo e que estamos esperando — sem perguntar mais nada sobre a visita.`;
 }
 
+// O nome que o cliente disse vale mais que o nome do perfil do WhatsApp
+// (que pode ser apelido, frase ou o nome salvo na agenda do celular)
+async function saveCustomerName(supabase: any, conv: AgentConv, nome: string): Promise<void> {
+  const { error } = await supabase.from('wapi_conversations').update({ contact_name: nome }).eq('id', conv.id);
+  if (error) console.error('[AI Agent] Erro ao salvar nome na conversa:', error.message);
+  if (conv.lead_id) await supabase.from('campaign_leads').update({ name: nome }).eq('id', conv.lead_id);
+}
+
 async function ensureLead(
   supabase: any,
   instance: AgentInstance,
@@ -870,7 +879,7 @@ async function ensureLead(
     return existing.id;
   }
   const { data: newLead } = await supabase.from('campaign_leads').insert({
-    name: nomeCliente || contactName || clean,
+    name: nomeCliente || (firstNameOrEmpty((conv.bot_data as Json | null)?.nome as string) ? String((conv.bot_data as Json).nome) : '') || contactName || clean,
     whatsapp: clean.startsWith('55') ? clean : `55${clean}`,
     unit: instance.unit,
     campaign_id: 'ai-agent',
@@ -1229,6 +1238,7 @@ async function toolRegistrarDados(
 
   const bd = (conv.bot_data || {}) as Json;
   const leadId = await ensureLead(supabase, instance, conv, phone, contactName, patch.nome as string | undefined);
+  if (patch.nome) await saveCustomerName(supabase, conv, patch.nome as string);
   if (leadId && (patch.mes || patch.convidados)) {
     const leadPatch: Json = {};
     if (patch.mes) leadPatch.month = patch.mes;
@@ -2198,6 +2208,18 @@ export async function maybeHandleWithAiAgent(
     // Garante que a última mensagem do cliente está presente
     if (chatMessages.length === 0 || chatMessages[chatMessages.length - 1].role !== 'user') {
       chatMessages.push({ role: 'user', content: media ? mediaHistoryText(media.type, content, null) : content });
+    }
+    // Perguntou o nome e o cliente respondeu só o nome: salva já (a IA às vezes
+    // chama pelo nome sem registrar e a conversa fica com o nome do WhatsApp)
+    if (!firstNameOrEmpty((conv.bot_data as Json | null)?.nome as string)) {
+      const lastOurs = ordered.map((m) => m.from_me).lastIndexOf(true);
+      const answer = lastOurs >= 0 ? ordered.slice(lastOurs + 1).find((m) => !m.from_me && m.message_type === 'text') : null;
+      const nome = answer && askedForName(ordered[lastOurs].content) ? nameFromAnswer(answer.content) : null;
+      if (nome) {
+        console.log(`[AI Agent] Nome respondido pelo cliente: "${nome}" (conv ${conv.id})`);
+        await mergeBotData(supabase, conv, { nome });
+        await saveCustomerName(supabase, conv, nome);
+      }
     }
     const isFirstReply = !chatMessages.some((m) => m.role === 'assistant' && !m.content.startsWith('🧪'));
     conv.__firstReply = isFirstReply;
