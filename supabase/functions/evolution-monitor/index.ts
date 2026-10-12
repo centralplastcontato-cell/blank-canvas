@@ -30,6 +30,7 @@ type Json = Record<string, any>;
 const OWNER_ALERT_PHONE = "5515981121710";
 const CASTELO_COMPANY_ID = "a0000000-0000-0000-0000-000000000001";
 const SERVER_KEY = "evolution:server";
+const SETTLE_MS = 30_000;
 const ZAPI_BASE_URL = "https://api.z-api.io/instances";
 const WAPI_BASE_URL = "https://api.w-api.app/v1";
 
@@ -225,7 +226,20 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
   const health = await loadHealth(supabase, [SERVER_KEY, ...list.map((i) => instKey(i.id))]);
 
   // 1) Status de todos (em paralelo)
-  const results = await Promise.all(list.map(async (inst) => ({ inst, res: await evolutionStatus(inst.instance_token) })));
+  // A conexão do WhatsApp oscila e volta sozinha em poucos segundos
+  // (Disconnected → Connected em 2–5 s, 12/10 15:00 e 17:03): nesse meio-tempo
+  // o status chega a dizer "sem sessão". Quem não está online é checado de
+  // novo depois de SETTLE_MS antes de qualquer decisão — só a queda que fica conta.
+  const results = await Promise.all(list.map(async (inst) => {
+    let res = await evolutionStatus(inst.instance_token);
+    const first = classifyEvolutionStatus(res);
+    if (first === "needs_qr" || first === "reconnecting") {
+      await new Promise((ok) => setTimeout(ok, SETTLE_MS));
+      res = await evolutionStatus(inst.instance_token);
+      console.log(`[evolution-monitor] ${inst.unit}: ${first} → ${classifyEvolutionStatus(res)} após ${SETTLE_MS / 1000}s`);
+    }
+    return { inst, res };
+  }));
   // Servidor fora: nenhum número respondeu e a celebrei-go também não
   const allUnreachable = results.every((r) => !r.res.ok && (!r.res.status || r.res.status >= 500));
   let serverDown = false;
