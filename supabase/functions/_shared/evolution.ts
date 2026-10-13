@@ -50,6 +50,19 @@ export async function evolutionRequest(token: string, path: string, method = "GE
   }
 }
 
+/**
+ * Checagem "de verdade" (detecta servidor travado): pergunta ao WhatsApp, em
+ * tempo real, se um número existe — sem enviar nada. Em 12/10 o servidor travou
+ * e o /instance/status seguiu dizendo LoggedIn=true; esta consulta falha ou
+ * demora. Atenção: com falha interna a Evolution responde 200 com data null.
+ */
+export const ALIVE_TIMEOUT_MS = 15000;
+export async function evolutionCheckAlive(token: string, number: string): Promise<EvolutionResult & { ms: number }> {
+  const t0 = Date.now();
+  const res = await evolutionRequest(token, "/user/check", "POST", { number: [evolutionNumber(number)], formatJid: true }, ALIVE_TIMEOUT_MS);
+  return { ...res, ms: Date.now() - t0 };
+}
+
 /** Número de destino: só dígitos; grupo vai com o JID inteiro (…@g.us) */
 export function evolutionNumber(raw: string): string {
   const v = String(raw || "").trim();

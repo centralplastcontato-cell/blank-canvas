@@ -30,6 +30,16 @@ export function classifyEvolutionStatus(res: { ok: boolean; data?: unknown }): E
   return "reconnecting";
 }
 
+/** Resposta do /user/check saudável: 200, 1 usuário, IsInWhatsapp=true, em menos de 15 s */
+export function aliveCheckHealthy(res: { ok: boolean; status?: number; data?: unknown; ms?: number }, timeoutMs = 15000): boolean {
+  if (!res.ok || (res.status !== undefined && res.status !== 200)) return false;
+  if (typeof res.ms === "number" && res.ms >= timeoutMs) return false;
+  const inner = (res.data as Json | null)?.data as Json | null;
+  const users = inner?.Users ?? inner?.users;
+  const u = Array.isArray(users) && users.length === 1 ? users[0] as Json : null;
+  return !!u && (u.IsInWhatsapp ?? u.IsInWhatsApp ?? u.isInWhatsapp ?? u.exists) === true;
+}
+
 export interface HealthRow {
   state: string;
   bad_checks: number;

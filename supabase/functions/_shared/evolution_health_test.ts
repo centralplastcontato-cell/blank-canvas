@@ -1,5 +1,6 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
 import {
+  aliveCheckHealthy,
   classifyEvolutionStatus,
   decideInstanceHealth,
   decideServerHealth,
@@ -106,4 +107,16 @@ Deno.test("lembrete de hora em hora enquanto não resolve", () => {
   assertEquals(reminderDue(null, true, now), false);
   const t = reminderText("instance", "needs_qr", "VENDAS 1", "2026-10-13T10:10:00Z", now);
   assertEquals(t.includes("VENDAS 1") && t.includes("1h50") && t.includes("QR"), true);
+});
+
+Deno.test("checagem /user/check: só vale 200 + 1 usuário + IsInWhatsapp + rápido", () => {
+  const ok = { message: "success", data: { Users: [{ Query: "5515991336278", IsInWhatsapp: true, JID: "5515991336278@s.whatsapp.net" }] } };
+  assertEquals(aliveCheckHealthy({ ok: true, status: 200, data: ok, ms: 800 }), true);
+  // falha interna: 200 com data null
+  assertEquals(aliveCheckHealthy({ ok: true, status: 200, data: { message: "success", data: null }, ms: 800 }), false);
+  assertEquals(aliveCheckHealthy({ ok: true, status: 200, data: { data: { Users: [] } }, ms: 800 }), false);
+  assertEquals(aliveCheckHealthy({ ok: true, status: 200, data: { data: { Users: [{ IsInWhatsapp: false }] } }, ms: 800 }), false);
+  assertEquals(aliveCheckHealthy({ ok: true, status: 200, data: ok, ms: 15000 }), false);
+  assertEquals(aliveCheckHealthy({ ok: false, status: 401, data: null, ms: 100 }), false);
+  assertEquals(aliveCheckHealthy({ ok: false, ms: 15001 }), false);
 });
