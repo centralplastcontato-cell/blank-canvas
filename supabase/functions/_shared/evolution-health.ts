@@ -82,9 +82,14 @@ export function decideInstanceHealth(prev: HealthRow | null, observed: EvoState,
   }
   const bad = (wasDown ? prev!.bad_checks : 0) + 1;
   let attempts = wasDown ? prev!.reconnect_attempts : 0;
-  const reconnect = observed === "reconnecting" && attempts < MAX_RECONNECT_ATTEMPTS;
+  // Reconectar só com a queda confirmada (2 checagens, 5+ min): logo depois de
+  // um "Disconnected" a Evolution já está reconectando sozinha e um reconnect
+  // nosso abre uma 2ª conexão ("StreamReplaced", VENDAS 1 13/10 18:47)
+  const reconnect = observed === "reconnecting" && bad >= CONFIRM_CHECKS && attempts < MAX_RECONNECT_ATTEMPTS;
   if (reconnect) attempts += 1;
-  const confirmed = observed === "needs_qr" || bad >= CONFIRM_CHECKS;
+  // Sem a re-checagem em 30 s (ela mesma podia abrir a 2ª conexão), "precisa
+  // de QR" também precisa de 2 checagens seguidas para virar alerta
+  const confirmed = bad >= CONFIRM_CHECKS;
   // Servidor fora: o alerta do servidor cobre todos os números. Um aviso de
   // queda por vez: o status da Evolution alterna entre "sem sessão" e "sem
   // resposta" a cada checagem (13/10, VENDAS 1) — o próximo aviso é o "voltou"
@@ -109,7 +114,7 @@ export function decideServerHealth(prev: HealthRow | null, down: boolean, opts: 
 
 /** Número com queda confirmada (conta para o "provável travamento") */
 export function isConfirmedDown(d: { state: EvoState; bad_checks: number }): boolean {
-  return d.state !== "online" && (d.state === "needs_qr" || d.bad_checks >= CONFIRM_CHECKS);
+  return d.state !== "online" && d.bad_checks >= CONFIRM_CHECKS;
 }
 
 export const SUSPECT_MIN_DOWN = 2;

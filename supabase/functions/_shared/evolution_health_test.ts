@@ -25,12 +25,12 @@ Deno.test("status da Evolution vira estado", () => {
   assertEquals(classifyEvolutionStatus({ ok: false }), "unreachable");
 });
 
-Deno.test("caiu com sessão: reconecta já, só alerta se continuar na checagem seguinte", () => {
+Deno.test("caiu com sessão: espera a Evolution reconectar sozinha; reconecta e alerta só na 2ª checagem", () => {
   const first = decideInstanceHealth(row("online"), "reconnecting");
-  assertEquals([first.reconnect, first.alert, first.reconnect_attempts, first.bad_checks], [true, null, 1, 1]);
-  // Uma tentativa só (com o servidor travado reconectar não resolve)
-  const second = decideInstanceHealth(row("reconnecting", 1, 1), "reconnecting");
-  assertEquals([second.reconnect, second.alert, second.reconnect_attempts], [false, "down", 1]);
+  assertEquals([first.reconnect, first.alert, first.reconnect_attempts, first.bad_checks], [false, null, 0, 1]);
+  // Uma tentativa só, com a queda confirmada (5+ min)
+  const second = decideInstanceHealth(row("reconnecting", 1, 0), "reconnecting");
+  assertEquals([second.reconnect, second.alert, second.reconnect_attempts], [true, "down", 1]);
   const third = decideInstanceHealth(row("reconnecting", 2, 1, "reconnecting"), "reconnecting");
   assertEquals([third.reconnect, third.alert], [false, null]);
 });
@@ -40,11 +40,13 @@ Deno.test("queda rápida que a reconexão resolve: nenhum alerta", () => {
   assertEquals([back.alert, back.recovered, back.reconnect_attempts], [null, true, 0]);
 });
 
-Deno.test("precisa de QR: alerta na hora e não tenta reconectar", () => {
-  const d = decideInstanceHealth(row("online"), "needs_qr");
-  assertEquals([d.reconnect, d.alert], [false, "down"]);
+Deno.test("precisa de QR: alerta na 2ª checagem e nunca tenta reconectar", () => {
+  const first = decideInstanceHealth(row("online"), "needs_qr");
+  assertEquals([first.reconnect, first.alert], [false, null]);
+  const second = decideInstanceHealth(row("needs_qr", 1), "needs_qr");
+  assertEquals([second.reconnect, second.alert], [false, "down"]);
   // já avisou a queda: trocar de "reconectando"/"sem resposta" para "precisa de QR" (e vice-versa) não repete
-  assertEquals(decideInstanceHealth(row("reconnecting", 3, 3, "reconnecting"), "needs_qr").alert, null);
+  assertEquals(decideInstanceHealth(row("reconnecting", 3, 1, "reconnecting"), "needs_qr").alert, null);
   assertEquals(decideInstanceHealth(row("needs_qr", 3, 0, "needs_qr"), "unreachable").alert, null);
   assertEquals(decideInstanceHealth(row("unreachable", 4, 0, "needs_qr"), "needs_qr").alert, null);
   assertEquals(decideInstanceHealth(row("needs_qr", 5, 0, "needs_qr"), "needs_qr").alert, null);
@@ -93,7 +95,8 @@ Deno.test("provável travamento: alerta já, com a instrução do Coolify", () =
   assertEquals(decideServerHealth(null, true).alert, null);
   const t = serverAlertText("down", "2026-10-12T02:45:00Z", ["VENDAS 1", "celebrei-go"], { suspect: true });
   assertEquals(t.includes("provável travamento") && t.includes("Coolify") && t.includes("VENDAS 1, celebrei-go"), true);
-  assertEquals(isConfirmedDown({ state: "needs_qr", bad_checks: 1 }), true);
+  assertEquals(isConfirmedDown({ state: "needs_qr", bad_checks: 1 }), false);
+  assertEquals(isConfirmedDown({ state: "needs_qr", bad_checks: 2 }), true);
   assertEquals(isConfirmedDown({ state: "unreachable", bad_checks: 1 }), false);
   assertEquals(isConfirmedDown({ state: "unreachable", bad_checks: 2 }), true);
   assertEquals(isConfirmedDown({ state: "online", bad_checks: 0 }), false);

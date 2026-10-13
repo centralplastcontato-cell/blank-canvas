@@ -9,6 +9,7 @@
 // - Depois que volta, reenvia (com limite) o que falhou durante a queda
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { ALIVE_TIMEOUT_MS, evolutionCheckAlive, evolutionReconnect, evolutionSendMedia, evolutionSendText, evolutionStatus, extractEvolutionMessageId } from "../_shared/evolution.ts";
+import { claimEvolutionLock, recentConnectionEvent, releaseEvolutionLock } from "../_shared/evolution-guard.ts";
 import {
   aliveCheckHealthy,
   classifyEvolutionStatus,
@@ -36,7 +37,7 @@ type Json = Record<string, any>;
 const OWNER_ALERT_PHONE = "5515981121710";
 const CASTELO_COMPANY_ID = "a0000000-0000-0000-0000-000000000001";
 const SERVER_KEY = "evolution:server";
-const SETTLE_MS = 30_000;
+const LOCK_HOLD_MS = 90_000;
 const ZAPI_BASE_URL = "https://api.z-api.io/instances";
 const WAPI_BASE_URL = "https://api.w-api.app/v1";
 
@@ -286,41 +287,53 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
 
   // 1) Status de todos (em paralelo)
   // A conexão do WhatsApp oscila e volta sozinha em poucos segundos
-  // (Disconnected → Connected em 2–5 s, 12/10 15:00 e 17:03): nesse meio-tempo
-  // o status chega a dizer "sem sessão". Quem não está online é checado de
-  // novo depois de SETTLE_MS antes de qualquer decisão — só a queda que fica conta.
-  // Junto com o status, a checagem "de verdade" (/user/check): o status diz se
-  // o número está logado; o /user/check pega o servidor travado (12/10 23h45 o
-  // status seguiu "logado" com tudo parado)
-  // Deslogado já avisado: checa a cada 30 min (consultar reabre o ciclo de QR).
-  // Evento de que voltou ("Connected" ao ler o QR) checa sempre; os demais
-  // eventos de um deslogado (Disconnected, ConnectFailure...) respeitam os 30 min
+  // (Disconnected → Connected em 2–5 s): uma checagem só não confirma queda —
+  // são precisas 2 seguidas (5+ min).
+  // Deslogado já avisado: checa a cada 30 min (consultar reabre o ciclo de QR)
   const nowMs0 = Date.now();
-  const cameBack = /^webhook:(Connected|PairSuccess|KeepAliveRestored)$/.test(reason);
-  const throttled = cameBack ? [] : list.filter((i) => skipLoggedOutCheck(health[instKey(i.id)] || null, nowMs0));
+  const throttled = list.filter((i) => skipLoggedOutCheck(health[instKey(i.id)] || null, nowMs0));
   const toCheck = list.filter((i) => !throttled.includes(i));
   if (throttled.length) console.log(`[evolution-monitor] Deslogado(s), próxima checagem em até 30 min: ${throttled.map((i) => i.unit).join(", ")}`);
-  const results = await Promise.all(toCheck.map(async (inst) => {
-    const [first0, alive] = await Promise.all([evolutionStatus(inst.instance_token), evolutionCheckAlive(inst.instance_token, aliveNumber(inst.phone_number))]);
-    let res = first0;
-    const first = classifyEvolutionStatus(res);
-    if (first === "needs_qr" || first === "reconnecting") {
-      await new Promise((ok) => setTimeout(ok, SETTLE_MS));
-      res = await evolutionStatus(inst.instance_token);
-      console.log(`[evolution-monitor] ${inst.unit}: ${first} → ${classifyEvolutionStatus(res)} após ${SETTLE_MS / 1000}s`);
+  // Junto com o status, a checagem "de verdade" (/user/check): o status diz se
+  // o número está logado; o /user/check pega o servidor travado (12/10 23h45 o
+  // status seguiu "logado" com tudo parado).
+  // Proteções (VENDAS 1, 13/10 18:47 — uma chamada nossa durante a reconexão
+  // automática abriu uma 2ª conexão e derrubou a sessão):
+  //  - evento de conexão do número nos últimos 2 min → não chama nada agora
+  //  - uma chamada por vez por número (trava)
+  //  - /user/check só com o status "logado"; nada de re-checar em seguida
+  const quiet: Inst[] = [];
+  const checked = await Promise.all(toCheck.map(async (inst) => {
+    const evt = await recentConnectionEvent(supabase, inst.instance_id);
+    if (evt) {
+      console.log(`[evolution-monitor] ${inst.unit}: evento ${evt.event} às ${evt.at} — sem chamadas por 2 min (a Evolution reconecta sozinha)`);
+      quiet.push(inst);
+      return null;
     }
-    const aliveOk = aliveCheckHealthy(alive, ALIVE_TIMEOUT_MS);
-    if (!aliveOk) console.log(`[evolution-monitor] ${inst.unit}: /user/check falhou (http ${alive.status ?? "-"}, ${alive.ms} ms): ${rawSnippet(alive.data ?? alive.error)}`);
+    if (!await claimEvolutionLock(supabase, inst.id, LOCK_HOLD_MS)) {
+      console.log(`[evolution-monitor] ${inst.unit}: outra checagem em andamento — pulando`);
+      quiet.push(inst);
+      return null;
+    }
+    const res = await evolutionStatus(inst.instance_token);
+    const statusOnline = classifyEvolutionStatus(res) === "online";
+    const alive = statusOnline
+      ? await evolutionCheckAlive(inst.instance_token, aliveNumber(inst.phone_number))
+      : { ok: false, ms: 0, status: undefined, data: null, error: "status não está online" };
+    const aliveOk = statusOnline && aliveCheckHealthy(alive, ALIVE_TIMEOUT_MS);
+    if (statusOnline && !aliveOk) console.log(`[evolution-monitor] ${inst.unit}: /user/check falhou (http ${alive.status ?? "-"}, ${alive.ms} ms): ${rawSnippet(alive.data ?? alive.error)}`);
     return { inst, res, alive, aliveOk };
   }));
+  const results = checked.filter((r): r is NonNullable<typeof r> => r !== null);
   // Servidor fora: nenhum número respondeu e a celebrei-go também não
   const alertToken = Deno.env.get("EVOLUTION_ALERT_TOKEN");
   const allUnreachable = results.length > 0 && results.every((r) => !r.res.ok && (!r.res.status || r.res.status >= 500));
   let serverDown = false;
   let celebreiDown = false;
   if (!onlyInstanceId && alertToken) {
-    const [probe, probeAlive] = await Promise.all([evolutionStatus(alertToken), evolutionCheckAlive(alertToken, OWNER_ALERT_PHONE)]);
-    celebreiDown = classifyEvolutionStatus(probe) !== "online" || !aliveCheckHealthy(probeAlive, ALIVE_TIMEOUT_MS);
+    const probe = await evolutionStatus(alertToken);
+    const probeOnline = classifyEvolutionStatus(probe) === "online";
+    celebreiDown = !probeOnline || !aliveCheckHealthy(await evolutionCheckAlive(alertToken, OWNER_ALERT_PHONE), ALIVE_TIMEOUT_MS);
     serverDown = allUnreachable && !probe.ok;
   } else if (allUnreachable && !onlyInstanceId) {
     serverDown = true;
@@ -355,11 +368,7 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
       const rc = await evolutionReconnect(inst.instance_token);
       reconnectResult = rc.ok ? "ok" : String(rc.error || "erro");
       console.log(`[evolution-monitor] ${inst.unit}: reconnect #${d.reconnect_attempts} → ${reconnectResult}`);
-      if (rc.ok) {
-        await new Promise((ok) => setTimeout(ok, 5000));
-        const after = classifyEvolutionStatus(await evolutionStatus(inst.instance_token));
-        if (after === "online") observed = "online";
-      }
+      // Sem consultar de novo logo em seguida: a próxima checagem (5 min) confere
     }
     const final = observed === "online" && d.state !== "online" ? decideInstanceHealth(prev, "online") : d;
     const finalSince = final.state === d.state ? stateSince : nowIso;
@@ -454,6 +463,8 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
       await bumpReminder(supabase, key);
     }
   }
+  for (const r of results) await releaseEvolutionLock(supabase, r.inst.id);
+
   // Deslogados sem checagem nesta rodada: só o lembrete de hora em hora
   for (const inst of throttled) {
     const key = instKey(inst.id);
@@ -463,7 +474,7 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
       await bumpReminder(supabase, key);
     }
   }
-  return { checked: toCheck.length, throttled: throttled.map((i) => i.unit), serverDown, suspect: !onlyInstanceId && serverIncident, celebreiDown, reason, summary };
+  return { checked: results.length, quiet: quiet.map((i) => i.unit), throttled: throttled.map((i) => i.unit), serverDown, suspect: !onlyInstanceId && serverIncident, celebreiDown, reason, summary };
 }
 
 Deno.serve(async (req) => {
