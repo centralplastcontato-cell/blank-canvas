@@ -37,8 +37,10 @@ Deno.test("queda rápida que a reconexão resolve: nenhum alerta", () => {
 Deno.test("precisa de QR: alerta na hora e não tenta reconectar", () => {
   const d = decideInstanceHealth(row("online"), "needs_qr");
   assertEquals([d.reconnect, d.alert], [false, "down"]);
-  // de "reconectando" (já avisado) para "precisa de QR": avisa de novo (é outra situação)
-  assertEquals(decideInstanceHealth(row("reconnecting", 3, 3, "reconnecting"), "needs_qr").alert, "down");
+  // já avisou a queda: trocar de "reconectando"/"sem resposta" para "precisa de QR" (e vice-versa) não repete
+  assertEquals(decideInstanceHealth(row("reconnecting", 3, 3, "reconnecting"), "needs_qr").alert, null);
+  assertEquals(decideInstanceHealth(row("needs_qr", 3, 0, "needs_qr"), "unreachable").alert, null);
+  assertEquals(decideInstanceHealth(row("unreachable", 4, 0, "needs_qr"), "needs_qr").alert, null);
   assertEquals(decideInstanceHealth(row("needs_qr", 5, 0, "needs_qr"), "needs_qr").alert, null);
 });
 
