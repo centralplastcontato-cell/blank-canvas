@@ -16,7 +16,9 @@ type Json = Record<string, any>;
 
 export type EvoState = "online" | "reconnecting" | "needs_qr" | "unreachable";
 
-export const MAX_RECONNECT_ATTEMPTS = 3;
+// Uma tentativa só: com o servidor travado o /instance/reconnect não resolve
+// ("no active session found") — a saída é reiniciar o evolution-go no Coolify
+export const MAX_RECONNECT_ATTEMPTS = 1;
 export const CONFIRM_CHECKS = 2;
 export const RESEND_WINDOW_MS = 2 * 60 * 60 * 1000;
 export const RESEND_LIMIT = 20;
@@ -38,6 +40,16 @@ export function aliveCheckHealthy(res: { ok: boolean; status?: number; data?: un
   const users = inner?.Users ?? inner?.users;
   const u = Array.isArray(users) && users.length === 1 ? users[0] as Json : null;
   return !!u && (u.IsInWhatsapp ?? u.IsInWhatsApp ?? u.isInWhatsapp ?? u.exists) === true;
+}
+
+// Número deslogado já avisado: consultar o status (ou o /user/check) faz a
+// Evolution reabrir o ciclo de QR (um QR novo a cada ~2 min). Até alguém
+// reconectar, ele é checado só a cada 30 min (o evento "Connected" do webhook
+// dispara a checagem na hora quando reconectam).
+export const LOGGED_OUT_CHECK_EVERY_MS = 30 * 60 * 1000;
+export function skipLoggedOutCheck(row: { state?: string | null; alerted_state?: string | null; last_check_at?: string | null } | null, nowMs: number): boolean {
+  if (!row || row.state !== "needs_qr" || !row.alerted_state || row.alerted_state === "online" || !row.last_check_at) return false;
+  return nowMs - Date.parse(row.last_check_at) < LOGGED_OUT_CHECK_EVERY_MS;
 }
 
 export interface HealthRow {
@@ -132,7 +144,7 @@ export function instanceAlertText(kind: "down" | "up", state: EvoState, unit: st
     return `🔴 *Celebrei — número desconectado (precisa ler o QR)*\n\n${who} perdeu a sessão do WhatsApp desde ${fmt(since)}. Nada entra nem sai por ele.\n\n👉 Na plataforma: Configurações → Conexão → ${unit} → Conectar, e leia o QR Code no celular do número (WhatsApp → Aparelhos conectados → Conectar um aparelho).`;
   }
   if (state === "reconnecting") {
-    return `🔴 *Celebrei — número caiu*\n\n${who} está sem conexão desde ${fmt(since)}. Tentei reconectar sozinho ${MAX_RECONNECT_ATTEMPTS}x e ainda não voltou.\n\n👉 Confira se o celular do número está ligado e com internet. Se continuar, reconecte pelo QR em Configurações → Conexão.`;
+    return `🔴 *Celebrei — número caiu*\n\n${who} está sem conexão desde ${fmt(since)}. Tentei reconectar sozinho e não voltou.\n\n👉 Confira se o celular do número está ligado e com internet. Se continuar, reconecte pelo QR em Configurações → Conexão.`;
   }
   return `⚠️ *Celebrei — número sem resposta*\n\n${who}: a Evolution Go não está respondendo sobre este número desde ${fmt(since)}.`;
 }

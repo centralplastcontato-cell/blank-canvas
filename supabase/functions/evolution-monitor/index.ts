@@ -24,6 +24,7 @@ import {
   reminderText,
   RESEND_WINDOW_MS,
   serverAlertText,
+  skipLoggedOutCheck,
   SUSPECT_MIN_DOWN,
 } from "../_shared/evolution-health.ts";
 
@@ -291,7 +292,15 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
   // Junto com o status, a checagem "de verdade" (/user/check): o status diz se
   // o número está logado; o /user/check pega o servidor travado (12/10 23h45 o
   // status seguiu "logado" com tudo parado)
-  const results = await Promise.all(list.map(async (inst) => {
+  // Deslogado já avisado: checa a cada 30 min (consultar reabre o ciclo de QR).
+  // Evento de que voltou ("Connected" ao ler o QR) checa sempre; os demais
+  // eventos de um deslogado (Disconnected, ConnectFailure...) respeitam os 30 min
+  const nowMs0 = Date.now();
+  const cameBack = /^webhook:(Connected|PairSuccess|KeepAliveRestored)$/.test(reason);
+  const throttled = cameBack ? [] : list.filter((i) => skipLoggedOutCheck(health[instKey(i.id)] || null, nowMs0));
+  const toCheck = list.filter((i) => !throttled.includes(i));
+  if (throttled.length) console.log(`[evolution-monitor] Deslogado(s), próxima checagem em até 30 min: ${throttled.map((i) => i.unit).join(", ")}`);
+  const results = await Promise.all(toCheck.map(async (inst) => {
     const [first0, alive] = await Promise.all([evolutionStatus(inst.instance_token), evolutionCheckAlive(inst.instance_token, aliveNumber(inst.phone_number))]);
     let res = first0;
     const first = classifyEvolutionStatus(res);
@@ -306,7 +315,7 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
   }));
   // Servidor fora: nenhum número respondeu e a celebrei-go também não
   const alertToken = Deno.env.get("EVOLUTION_ALERT_TOKEN");
-  const allUnreachable = results.every((r) => !r.res.ok && (!r.res.status || r.res.status >= 500));
+  const allUnreachable = results.length > 0 && results.every((r) => !r.res.ok && (!r.res.status || r.res.status >= 500));
   let serverDown = false;
   let celebreiDown = false;
   if (!onlyInstanceId && alertToken) {
@@ -445,7 +454,16 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
       await bumpReminder(supabase, key);
     }
   }
-  return { checked: list.length, serverDown, suspect: !onlyInstanceId && serverIncident, celebreiDown, reason, summary };
+  // Deslogados sem checagem nesta rodada: só o lembrete de hora em hora
+  for (const inst of throttled) {
+    const key = instKey(inst.id);
+    const row = health[key] || null;
+    if (!serverIncident && reminderDue(row, true, Date.now()) && await claimReminder(supabase, key, row!.alerted_at)) {
+      await alertOwner(supabase, reminderText("instance", "needs_qr", inst.unit || inst.instance_id, row!.state_since, Date.now()), serverDown);
+      await bumpReminder(supabase, key);
+    }
+  }
+  return { checked: toCheck.length, throttled: throttled.map((i) => i.unit), serverDown, suspect: !onlyInstanceId && serverIncident, celebreiDown, reason, summary };
 }
 
 Deno.serve(async (req) => {

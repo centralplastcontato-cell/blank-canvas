@@ -11,6 +11,7 @@ import {
   reminderDue,
   reminderText,
   serverAlertText,
+  skipLoggedOutCheck,
 } from "./evolution-health.ts";
 
 const row = (state: string, bad = 0, attempts = 0, alerted: string | null = null): HealthRow =>
@@ -27,11 +28,11 @@ Deno.test("status da Evolution vira estado", () => {
 Deno.test("caiu com sessão: reconecta já, só alerta se continuar na checagem seguinte", () => {
   const first = decideInstanceHealth(row("online"), "reconnecting");
   assertEquals([first.reconnect, first.alert, first.reconnect_attempts, first.bad_checks], [true, null, 1, 1]);
+  // Uma tentativa só (com o servidor travado reconectar não resolve)
   const second = decideInstanceHealth(row("reconnecting", 1, 1), "reconnecting");
-  assertEquals([second.reconnect, second.alert, second.reconnect_attempts], [true, "down", 2]);
-  // Já avisado: não repete; tentativas param em 3
-  const fourth = decideInstanceHealth(row("reconnecting", 3, 3, "reconnecting"), "reconnecting");
-  assertEquals([fourth.reconnect, fourth.alert], [false, null]);
+  assertEquals([second.reconnect, second.alert, second.reconnect_attempts], [false, "down", 1]);
+  const third = decideInstanceHealth(row("reconnecting", 2, 1, "reconnecting"), "reconnecting");
+  assertEquals([third.reconnect, third.alert], [false, null]);
 });
 
 Deno.test("queda rápida que a reconexão resolve: nenhum alerta", () => {
@@ -119,4 +120,15 @@ Deno.test("checagem /user/check: só vale 200 + 1 usuário + IsInWhatsapp + ráp
   assertEquals(aliveCheckHealthy({ ok: true, status: 200, data: ok, ms: 15000 }), false);
   assertEquals(aliveCheckHealthy({ ok: false, status: 401, data: null, ms: 100 }), false);
   assertEquals(aliveCheckHealthy({ ok: false, ms: 15001 }), false);
+});
+
+Deno.test("deslogado já avisado: checa só a cada 30 min (não deixa o QR girando)", () => {
+  const now = Date.parse("2026-10-13T12:00:00Z");
+  const r = (state: string, alerted: string | null, last: string) => ({ state, alerted_state: alerted, last_check_at: last });
+  assertEquals(skipLoggedOutCheck(r("needs_qr", "needs_qr", "2026-10-13T11:45:00Z"), now), true);
+  assertEquals(skipLoggedOutCheck(r("needs_qr", "needs_qr", "2026-10-13T11:29:00Z"), now), false);
+  // ainda não avisado: checa normal (precisa confirmar e avisar)
+  assertEquals(skipLoggedOutCheck(r("needs_qr", null, "2026-10-13T11:58:00Z"), now), false);
+  assertEquals(skipLoggedOutCheck(r("unreachable", "unreachable", "2026-10-13T11:58:00Z"), now), false);
+  assertEquals(skipLoggedOutCheck(null, now), false);
 });
