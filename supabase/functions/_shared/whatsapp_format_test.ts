@@ -115,3 +115,18 @@ Deno.test("spaceHighlightList: itens do 'Só aqui você vai encontrar' com linha
   // Bloco no fim da mensagem
   assertEquals(spaceHighlightList("Só aqui você vai encontrar 🥳\n🏆 a\n⭐ b"), "Só aqui você vai encontrar 🥳\n\n🏆 a\n\n⭐ b");
 });
+
+Deno.test("data de amanhã depois de palavra com acento: não come a última letra", async () => {
+  const { markTodayTomorrow, fixWeekdays } = await import("./whatsapp-format.ts");
+  const today = "2026-10-13";
+  // caso Ana Beatriz, 13/10: saiu "Temos como sugestãamanhã (quarta-feira, 14 de outubro)"
+  assertEquals(
+    markTodayTomorrow("Temos como sugestão quarta-feira, 14 de outubro, às 19h ou quinta-feira, 15 de outubro, às 10h 😊", today),
+    "Temos como sugestão amanhã (quarta-feira, 14 de outubro), às 19h ou quinta-feira, 15 de outubro, às 10h 😊",
+  );
+  // artigo de verdade continua funcionando
+  assertEquals(markTodayTomorrow("Pode ser a quarta, 14 de outubro?", today), "Pode ser amanhã (quarta, 14 de outubro)?");
+  // corrigir o dia da semana também não mexe na palavra de antes
+  assertEquals(fixWeekdays("Opção sexta, 17 de outubro", today), "Opção sábado, 17 de outubro");
+  assertEquals(fixWeekdays("Tenho a sexta-feira, 17 de outubro", today), "Tenho o sábado, 17 de outubro");
+});
