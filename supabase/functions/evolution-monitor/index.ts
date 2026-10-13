@@ -213,6 +213,17 @@ async function countStuckSent(supabase: SB, inst: Inst, sinceIso: string): Promi
 
 // ─── Rodada ───────────────────────────────────────────────────────────────
 
+// Tráfego real vale mais que o status: em 13/10 o /instance/status da
+// Evolution disse "sem sessão" e depois 401 enquanto o VENDAS 2 recebia e
+// enviava normalmente. Mensagem/confirmação chegando = número conectado.
+const ACTIVITY_WINDOW_MS = 10 * 60 * 1000;
+async function hasRecentTraffic(supabase: SB, inst: Inst): Promise<boolean> {
+  const since = new Date(Date.now() - ACTIVITY_WINDOW_MS).toISOString();
+  const { data } = await supabase.from("wapi_webhook_raw_events").select("id")
+    .eq("instance_id", inst.instance_id).in("event_type", ["Message", "Receipt"]).gte("received_at", since).limit(1);
+  return (data || []).length > 0;
+}
+
 async function run(supabase: SB, onlyInstanceId: string | null, reason: string): Promise<Json> {
   let q = supabase.from("wapi_instances")
     .select("id, instance_id, instance_token, unit, company_id, status")
@@ -271,6 +282,10 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
     const prevRow = health[key] || null;
     const prev = prevRow as HealthRow | null;
     let observed = classifyEvolutionStatus(res);
+    if (observed !== "online" && !serverDown && await hasRecentTraffic(supabase, inst)) {
+      console.log(`[evolution-monitor] ${inst.unit}: status diz ${observed} (http ${res.status ?? "-"}), mas há tráfego nos últimos ${ACTIVITY_WINDOW_MS / 60000} min — conectado`);
+      observed = "online";
+    }
     const d = decideInstanceHealth(prev, observed, { serverDown });
     const stateSince = prevRow && prevRow.state === d.state ? prevRow.state_since : nowIso;
     const downSince = d.state === "online" ? (prevRow && prevRow.state !== "online" ? prevRow.state_since : null) : stateSince;
