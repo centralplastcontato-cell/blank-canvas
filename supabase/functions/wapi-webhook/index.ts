@@ -7172,16 +7172,13 @@ Deno.serve(async (req) => {
         await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'ignored', processing_note: 'evolution_invalid_token' });
         return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
-      // Evento de conexão (caiu / voltou): o monitor confere o status real na
-      // hora, tenta reconectar e avisa o dono (sem repetir)
+      // Evento de conexão (caiu / voltou): fica registrado (o monitor lê) e
+      // ninguém chama a Evolution por 2 min. Depois de um "Disconnected" ela
+      // reconecta sozinha em ~3 s; uma checagem nossa nesse meio-tempo abriu
+      // uma 2ª conexão e derrubou a sessão do VENDAS 1 (13/10 18:47)
       const connEvt = evolutionConnectionEvent(body);
       if (connEvt) {
-        console.log(`[Webhook] Evolution: evento de conexão ${connEvt.event} (${connEvt.hint}) — chamando o monitor`);
-        waitUntil(fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/evolution-monitor`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
-          body: JSON.stringify({ instance_row_id: evoInst.id, reason: `webhook:${connEvt.event}` }),
-        }).then((r) => r.text()).catch((e) => console.error('[Webhook] monitor da Evolution falhou:', e)));
+        console.log(`[Webhook] Evolution: evento de conexão ${connEvt.event} (${connEvt.hint}) — registrado; o monitor confere depois de 2 min`);
         await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'completed', processing_note: `evolution_connection_${connEvt.event}` });
         return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }

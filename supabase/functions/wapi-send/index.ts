@@ -5,6 +5,7 @@ import { EVOLUTION_WEBHOOK_EVENTS, evolutionDownloadMedia, evolutionReact, evolu
 import { decryptWhatsAppMedia, encryptedMediaUrl, type WaMediaType } from "../_shared/whatsapp-media-crypto.ts";
 import { classifyEvolutionStatus } from "../_shared/evolution-health.ts";
 import { isContactBlocked } from "../_shared/contact-block.ts";
+import { claimEvolutionLock, recentConnectionEvent, releaseEvolutionLock } from "../_shared/evolution-guard.ts";
 import { aiTakesSiteLead, buildAiSiteWelcome, cleanSiteLead, type SiteLeadInfo, siteLeadBotData } from "../_shared/ai-site-lead.ts";
 
 const corsHeaders = {
@@ -2566,13 +2567,27 @@ Deno.serve(async (req) => {
         // sem resposta) e o que o monitor sabe (desde quando, última checagem)
         if (isEvolution) {
           const { data: instRecord } = await supabase.from('wapi_instances').select('id, phone_number').eq('instance_id', instance_id).maybeSingle();
-          const evoRes = await evolutionStatus(instance_token);
-          const evolutionState = classifyEvolutionStatus(evoRes);
           let monitor: Record<string, unknown> | null = null;
           if (instRecord?.id) {
             const { data: h } = await supabase.from('provider_health').select('state, state_since, last_check_at, reconnect_attempts, alerted_state').eq('key', `instance:${instRecord.id}`).maybeSingle();
             monitor = h || null;
           }
+          // Sem chamar a Evolution logo depois de um evento de conexão (ela está
+          // reconectando sozinha; uma consulta abre uma 2ª conexão — VENDAS 1,
+          // 13/10 18:47) nem enquanto o monitor checa o número: responde com o
+          // que o evento/monitor já sabem
+          const recentEvt = await recentConnectionEvent(supabase, instance_id);
+          const gotLock = !recentEvt && instRecord?.id ? await claimEvolutionLock(supabase, instRecord.id, 20000) : !recentEvt;
+          if (!gotLock) {
+            // "Disconnected" recente: a Evolution volta sozinha em segundos — vale o último estado do monitor
+            const known = recentEvt && recentEvt.hint !== 'reconnecting' ? recentEvt.hint : String(monitor?.state || 'online');
+            const knownConnected = known === 'online';
+            console.log(`[wapi-send] get-status Evolution sem consultar (${recentEvt ? `evento ${recentEvt.event} recente` : 'monitor checando'}): ${known}`);
+            return new Response(JSON.stringify({ status: knownConnected ? 'connected' : (known === 'reconnecting' ? 'degraded' : 'disconnected'), connected: knownConnected, phoneNumber: instRecord?.phone_number || null, provider, evolutionState: known, monitor, cached: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
+          const evoRes = await evolutionStatus(instance_token);
+          if (instRecord?.id) await releaseEvolutionLock(supabase, instRecord.id);
+          const evolutionState = classifyEvolutionStatus(evoRes);
           if (evolutionState === 'unreachable') {
             return new Response(JSON.stringify({ status: 'degraded', connected: false, error: evoRes.error || 'Evolution Go sem resposta', errorType: 'TIMEOUT_OR_GATEWAY', provider, evolutionState, monitor }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
           }
