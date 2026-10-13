@@ -5,7 +5,11 @@ import {
   decideServerHealth,
   type HealthRow,
   instanceAlertText,
+  isConfirmedDown,
   pickResendable,
+  reminderDue,
+  reminderText,
+  serverAlertText,
 } from "./evolution-health.ts";
 
 const row = (state: string, bad = 0, attempts = 0, alerted: string | null = null): HealthRow =>
@@ -80,4 +84,26 @@ Deno.test("reenvio: só o que falhou nas últimas 2h, sem nada mais novo na conv
   ];
   const picked = pickResendable(rows, { c4: "2026-10-09T22:50:00Z" }, now).map((r) => r.id);
   assertEquals(picked, ["a", "b"]);
+});
+
+Deno.test("provável travamento: alerta já, com a instrução do Coolify", () => {
+  assertEquals(decideServerHealth(null, true, { confirmNow: true }).alert, "down");
+  assertEquals(decideServerHealth(null, true).alert, null);
+  const t = serverAlertText("down", "2026-10-12T02:45:00Z", ["VENDAS 1", "celebrei-go"], { suspect: true });
+  assertEquals(t.includes("provável travamento") && t.includes("Coolify") && t.includes("VENDAS 1, celebrei-go"), true);
+  assertEquals(isConfirmedDown({ state: "needs_qr", bad_checks: 1 }), true);
+  assertEquals(isConfirmedDown({ state: "unreachable", bad_checks: 1 }), false);
+  assertEquals(isConfirmedDown({ state: "unreachable", bad_checks: 2 }), true);
+  assertEquals(isConfirmedDown({ state: "online", bad_checks: 0 }), false);
+});
+
+Deno.test("lembrete de hora em hora enquanto não resolve", () => {
+  const now = Date.parse("2026-10-13T12:00:00Z");
+  assertEquals(reminderDue({ alerted_state: "needs_qr", alerted_at: "2026-10-13T10:59:00Z" }, true, now), true);
+  assertEquals(reminderDue({ alerted_state: "needs_qr", alerted_at: "2026-10-13T11:30:00Z" }, true, now), false);
+  assertEquals(reminderDue({ alerted_state: "needs_qr", alerted_at: "2026-10-13T10:00:00Z" }, false, now), false);
+  assertEquals(reminderDue({ alerted_state: "online", alerted_at: "2026-10-13T10:00:00Z" }, true, now), false);
+  assertEquals(reminderDue(null, true, now), false);
+  const t = reminderText("instance", "needs_qr", "VENDAS 1", "2026-10-13T10:10:00Z", now);
+  assertEquals(t.includes("VENDAS 1") && t.includes("1h50") && t.includes("QR"), true);
 });

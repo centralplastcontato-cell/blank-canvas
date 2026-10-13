@@ -17,9 +17,13 @@ import {
   type FailedRow,
   type HealthRow,
   instanceAlertText,
+  isConfirmedDown,
   pickResendable,
+  reminderDue,
+  reminderText,
   RESEND_WINDOW_MS,
   serverAlertText,
+  SUSPECT_MIN_DOWN,
 } from "../_shared/evolution-health.ts";
 
 // deno-lint-ignore no-explicit-any
@@ -69,6 +73,32 @@ async function claimAlert(supabase: SB, key: string, prevAlerted: string | null,
   q = prevAlerted === null ? q.is("alerted_state", null) : q.eq("alerted_state", prevAlerted);
   const { data } = await q.select("key");
   return Array.isArray(data) && data.length > 0;
+}
+
+/** Lembrete: só um processo envia (compare-and-set no horário do último aviso) */
+async function claimReminder(supabase: SB, key: string, prevAlertedAt: string): Promise<boolean> {
+  const { data } = await supabase.from("provider_health").update({ alerted_at: new Date().toISOString() })
+    .eq("key", key).eq("alerted_at", prevAlertedAt).select("key");
+  return Array.isArray(data) && data.length > 0;
+}
+
+// ─── Histórico de quedas (provider_incidents) ─────────────────────────────
+
+async function openIncident(supabase: SB, key: string, instanceId: string | null, unit: string, cause: string, since: string): Promise<void> {
+  const { data: open } = await supabase.from("provider_incidents").select("id").eq("key", key).is("ended_at", null).limit(1);
+  if (open && open.length) return;
+  const { error } = await supabase.from("provider_incidents").insert({ key, instance_id: instanceId, unit, cause, started_at: since });
+  if (error) console.error(`[evolution-monitor] Falha ao abrir incidente ${key}:`, error.message);
+}
+
+async function closeIncident(supabase: SB, key: string): Promise<void> {
+  const { error } = await supabase.from("provider_incidents").update({ ended_at: new Date().toISOString() }).eq("key", key).is("ended_at", null);
+  if (error) console.error(`[evolution-monitor] Falha ao fechar incidente ${key}:`, error.message);
+}
+
+async function bumpReminder(supabase: SB, key: string): Promise<void> {
+  const { data: open } = await supabase.from("provider_incidents").select("id, reminders").eq("key", key).is("ended_at", null).limit(1);
+  if (open && open[0]) await supabase.from("provider_incidents").update({ reminders: (Number(open[0].reminders) || 0) + 1 }).eq("id", open[0].id);
 }
 
 // ─── Envio do alerta ──────────────────────────────────────────────────────
@@ -252,30 +282,24 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
     return { inst, res };
   }));
   // Servidor fora: nenhum número respondeu e a celebrei-go também não
+  const alertToken = Deno.env.get("EVOLUTION_ALERT_TOKEN");
   const allUnreachable = results.every((r) => !r.res.ok && (!r.res.status || r.res.status >= 500));
   let serverDown = false;
-  if (allUnreachable && !onlyInstanceId) {
-    const alertToken = Deno.env.get("EVOLUTION_ALERT_TOKEN");
-    const probe = alertToken ? await evolutionStatus(alertToken) : { ok: false };
-    serverDown = !probe.ok;
+  let celebreiDown = false;
+  if (!onlyInstanceId && alertToken) {
+    const probe = await evolutionStatus(alertToken);
+    celebreiDown = classifyEvolutionStatus(probe) !== "online";
+    serverDown = allUnreachable && !probe.ok;
+  } else if (allUnreachable && !onlyInstanceId) {
+    serverDown = true;
   }
+  const serverRow = (health[SERVER_KEY] || null) as Json | null;
+  const serverIncidentOpen = serverRow?.alerted_state === "down";
 
-  // 2) Servidor (só na rodada completa)
-  if (!onlyInstanceId) {
-    const prev = (health[SERVER_KEY] || null) as HealthRow | null;
-    const d = decideServerHealth(prev, serverDown);
-    const since = d.state === "down" ? (prev?.state === "down" ? health[SERVER_KEY].state_since : nowIso) : (prev?.state === "online" ? health[SERVER_KEY]?.state_since : nowIso);
-    await saveHealth(supabase, SERVER_KEY, null, { state: d.state, state_since: since, bad_checks: d.bad_checks, last_check_at: nowIso });
-    if (d.alert && await claimAlert(supabase, SERVER_KEY, prev?.alerted_state ?? null, d.alert === "down" ? "down" : "online")) {
-      const units = list.map((i) => i.unit || i.instance_id);
-      await alertOwner(supabase, serverAlertText(d.alert, d.alert === "down" ? since : (health[SERVER_KEY]?.state_since ?? null), units), true);
-      if (d.alert === "down") {
-        for (const inst of list) await notifyCompany(supabase, inst, "🚨 Servidor da Evolution Go fora do ar", `${inst.unit || "WhatsApp"} está sem conexão: o servidor da Evolution não responde.`, "server_down");
-      }
-    }
-  }
-
-  // 3) Cada número
+  // 2) Cada número: estado, reconexão, status na plataforma. Os avisos saem
+  // depois, quando já se sabe se é queda de um número ou do servidor
+  type Pending = { inst: Inst; key: string; prev: HealthRow | null; final: ReturnType<typeof decideInstanceHealth>; stateSince: string; downSince: string | null; resent: number };
+  const pending: Pending[] = [];
   const summary: Json[] = [];
   for (const { inst, res } of results) {
     const key = instKey(inst.id);
@@ -287,7 +311,9 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
       observed = "online";
     }
     const d = decideInstanceHealth(prev, observed, { serverDown });
-    const stateSince = prevRow && prevRow.state === d.state ? prevRow.state_since : nowIso;
+    // "Fora desde": troca entre estados de queda (sem sessão ↔ sem resposta) não reinicia a contagem
+    const stillDown = !!prevRow && prevRow.state !== "online" && prevRow.state !== "unknown" && d.state !== "online";
+    const stateSince = prevRow && (prevRow.state === d.state || stillDown) ? prevRow.state_since : nowIso;
     const downSince = d.state === "online" ? (prevRow && prevRow.state !== "online" ? prevRow.state_since : null) : stateSince;
 
     let reconnectResult: string | null = null;
@@ -324,22 +350,74 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
     let resent = 0;
     if (final.state === "online") resent = await resendFailed(supabase, inst);
 
+    pending.push({ inst, key, prev, final, stateSince: finalSince, downSince, resent });
+    summary.push({ unit: inst.unit, state: final.state, alert: final.alert, reconnect: reconnectResult, resent });
+  }
+
+  // 3) Servidor (só na rodada completa): fora do ar, ou provável travamento
+  // quando 2+ números (contando a celebrei-go) caem juntos
+  const confirmedDown = pending.filter((p) => isConfirmedDown(p.final));
+  const suspect = !serverDown && confirmedDown.length + (celebreiDown ? 1 : 0) >= SUSPECT_MIN_DOWN && confirmedDown.length >= 1;
+  let serverIncident = serverIncidentOpen;
+  if (!onlyInstanceId) {
+    const prev = serverRow as HealthRow | null;
+    const d = decideServerHealth(prev, serverDown || suspect, { confirmNow: suspect });
+    const earliestDown = confirmedDown.map((p) => p.stateSince).sort()[0] || nowIso;
+    const since = d.state === "down" ? (prev?.state === "down" ? serverRow!.state_since : (suspect ? earliestDown : nowIso)) : (prev?.state === "online" ? serverRow?.state_since : nowIso);
+    const downUnits = [...confirmedDown.map((p) => p.inst.unit || p.inst.instance_id), ...(celebreiDown ? ["celebrei-go"] : [])];
+    const units = serverDown ? list.map((i) => i.unit || i.instance_id) : downUnits;
+    await saveHealth(supabase, SERVER_KEY, null, {
+      state: d.state, state_since: since, bad_checks: d.bad_checks, last_check_at: nowIso,
+      detail: { suspect, server_down: serverDown, celebrei_down: celebreiDown, down_units: downUnits },
+    });
+    if (d.alert && await claimAlert(supabase, SERVER_KEY, prev?.alerted_state ?? null, d.alert === "down" ? "down" : "online")) {
+      const lastUnits = ((serverRow?.detail as Json | null)?.down_units as string[] | undefined) || units;
+      await alertOwner(supabase, serverAlertText(d.alert, d.alert === "down" ? since : (serverRow?.state_since ?? null), d.alert === "down" ? units : lastUnits, { suspect: d.alert === "down" && suspect }), true);
+      if (d.alert === "down") {
+        await openIncident(supabase, SERVER_KEY, null, units.join(", "), suspect ? "travamento" : "servidor_fora", since);
+        for (const inst of list) await notifyCompany(supabase, inst, "🚨 Evolution Go com problema", `${inst.unit || "WhatsApp"} pode estar sem conexão: ${suspect ? "provável travamento do servidor da Evolution" : "o servidor da Evolution não responde"}.`, "server_down");
+      } else {
+        await closeIncident(supabase, SERVER_KEY);
+      }
+    }
+    serverIncident = d.state === "down" && (serverIncidentOpen || d.alert === "down");
+    // Lembrete de hora em hora enquanto o servidor não normaliza
+    if (d.state === "down" && !d.alert && reminderDue(serverRow, true, Date.now()) && await claimReminder(supabase, SERVER_KEY, serverRow!.alerted_at)) {
+      await alertOwner(supabase, reminderText("server", "down", units.join(", "), serverRow!.state_since, Date.now()), true);
+      await bumpReminder(supabase, SERVER_KEY);
+    }
+  }
+
+  // 4) Avisos de cada número. Com o servidor em incidente, o aviso do servidor
+  // cobre a queda (sem um aviso por número)
+  for (const p of pending) {
+    const { inst, key, prev, final } = p;
+    if (final.alert === "down" && serverIncident) continue;
     if (final.alert && await claimAlert(supabase, key, prev?.alerted_state ?? null, final.alert === "down" ? final.state : "online")) {
-      const stuck = final.alert === "up" && downSince ? await countStuckSent(supabase, inst, downSince) : 0;
-      const text = instanceAlertText(final.alert, final.state, inst.unit || inst.instance_id, final.alert === "up" ? downSince : stateSince, { stuck, resent });
+      const stuck = final.alert === "up" && p.downSince ? await countStuckSent(supabase, inst, p.downSince) : 0;
+      const text = instanceAlertText(final.alert, final.state, inst.unit || inst.instance_id, final.alert === "up" ? p.downSince : p.stateSince, { stuck, resent: p.resent });
       await alertOwner(supabase, text, serverDown);
       if (final.alert === "down") {
+        await openIncident(supabase, key, inst.id, inst.unit || inst.instance_id, final.state, p.stateSince);
         await notifyCompany(supabase, inst,
           final.state === "needs_qr" ? "⚠️ WhatsApp desconectado — ler o QR" : "⚠️ WhatsApp sem conexão",
           final.state === "needs_qr"
             ? `${inst.unit || "WhatsApp"} perdeu a sessão. Reconecte lendo o QR Code em Configurações → Conexão.`
             : `${inst.unit || "WhatsApp"} está sem conexão e a reconexão automática não resolveu.`,
           final.state);
+      } else {
+        await closeIncident(supabase, key);
       }
+      continue;
     }
-    summary.push({ unit: inst.unit, state: final.state, alert: final.alert, reconnect: reconnectResult, resent });
+    // Lembrete de hora em hora (só na rodada do cron; o do servidor cobre se ele estiver em incidente)
+    const row = health[key] || null;
+    if (!onlyInstanceId && !serverIncident && final.state !== "online" && reminderDue(row, true, Date.now()) && await claimReminder(supabase, key, row!.alerted_at)) {
+      await alertOwner(supabase, reminderText("instance", final.state, inst.unit || inst.instance_id, row!.state_since, Date.now()), serverDown);
+      await bumpReminder(supabase, key);
+    }
   }
-  return { checked: list.length, serverDown, reason, summary };
+  return { checked: list.length, serverDown, suspect: !onlyInstanceId && serverIncident, celebreiDown, reason, summary };
 }
 
 Deno.serve(async (req) => {
