@@ -71,12 +71,38 @@ export function decideInstanceHealth(prev: HealthRow | null, observed: EvoState,
   return { state: observed, bad_checks: bad, reconnect_attempts: attempts, reconnect, alert, recovered: false };
 }
 
-export function decideServerHealth(prev: HealthRow | null, down: boolean): { state: "online" | "down"; bad_checks: number; alert: "down" | "up" | null } {
+/**
+ * Servidor: "down" quando nada responde, ou travamento provável (2+ números da
+ * Evolution caídos juntos — 12/10 23h45 o servidor travou e derrubou VENDAS 1 e
+ * celebrei-go). confirmNow: a queda dos números já foi confirmada, alerta já.
+ */
+export function decideServerHealth(prev: HealthRow | null, down: boolean, opts: { confirmNow?: boolean } = {}): { state: "online" | "down"; bad_checks: number; alert: "down" | "up" | null } {
   if (!down) {
     return { state: "online", bad_checks: 0, alert: prev?.alerted_state === "down" ? "up" : null };
   }
   const bad = (prev?.state === "down" ? prev.bad_checks : 0) + 1;
-  return { state: "down", bad_checks: bad, alert: bad >= CONFIRM_CHECKS && prev?.alerted_state !== "down" ? "down" : null };
+  const confirmed = opts.confirmNow || bad >= CONFIRM_CHECKS;
+  return { state: "down", bad_checks: bad, alert: confirmed && prev?.alerted_state !== "down" ? "down" : null };
+}
+
+/** Número com queda confirmada (conta para o "provável travamento") */
+export function isConfirmedDown(d: { state: EvoState; bad_checks: number }): boolean {
+  return d.state !== "online" && (d.state === "needs_qr" || d.bad_checks >= CONFIRM_CHECKS);
+}
+
+export const SUSPECT_MIN_DOWN = 2;
+export const REMINDER_EVERY_MS = 60 * 60 * 1000;
+
+/** Lembrete: já avisou a queda, continua fora e o último aviso tem 60+ min */
+export function reminderDue(row: { alerted_state?: string | null; alerted_at?: string | null } | null, stillDown: boolean, nowMs: number): boolean {
+  if (!row || !stillDown || !row.alerted_state || row.alerted_state === "online" || !row.alerted_at) return false;
+  return nowMs - Date.parse(row.alerted_at) >= REMINDER_EVERY_MS;
+}
+
+function elapsed(since: string | null | undefined, nowMs: number): string {
+  if (!since) return "";
+  const min = Math.max(1, Math.round((nowMs - Date.parse(since)) / 60000));
+  return min < 60 ? `${min} min` : `${Math.floor(min / 60)}h${String(min % 60).padStart(2, "0")}`;
 }
 
 const fmt = (iso: string | null | undefined) =>
@@ -101,11 +127,28 @@ export function instanceAlertText(kind: "down" | "up", state: EvoState, unit: st
   return `⚠️ *Celebrei — número sem resposta*\n\n${who}: a Evolution Go não está respondendo sobre este número desde ${fmt(since)}.`;
 }
 
-export function serverAlertText(kind: "down" | "up", since: string | null, units: string[]): string {
+export const COOLIFY_HINT = "👉 Reinicie o serviço *evolution-go* no Coolify.";
+
+export function serverAlertText(kind: "down" | "up", since: string | null, units: string[], opts: { suspect?: boolean } = {}): string {
   const list = units.length ? units.join(", ") : "os números da Evolution";
-  return kind === "down"
-    ? `🚨 *Celebrei — servidor da Evolution Go fora do ar*\n\nDesde ${fmt(since)} o servidor da Evolution não responde. Afeta: ${list}. Nada entra nem sai por esses números.\n\n👉 Verifique o servidor (evolution-go.hubcelebrei.com.br).`
-    : `🟢 *Celebrei — servidor da Evolution Go voltou*\n\nO servidor voltou a responder (fora desde ${fmt(since)}). Afeta: ${list}.`;
+  if (kind === "up") {
+    return `🟢 *Celebrei — Evolution Go normalizada*\n\nOs números voltaram a funcionar (fora desde ${fmt(since)}). Afeta: ${list}.`;
+  }
+  return opts.suspect
+    ? `🚨 *Celebrei — provável travamento da Evolution Go*\n\n${list} caíram ao mesmo tempo (desde ${fmt(since)}). Quando vários números caem juntos, normalmente é o servidor da Evolution que travou.\n\n${COOLIFY_HINT}`
+    : `🚨 *Celebrei — servidor da Evolution Go fora do ar*\n\nDesde ${fmt(since)} o servidor da Evolution não responde. Afeta: ${list}. Nada entra nem sai por esses números.\n\n${COOLIFY_HINT}`;
+}
+
+/** Lembrete de hora em hora enquanto não resolve */
+export function reminderText(what: "server" | "instance", state: string, unit: string, since: string | null, nowMs: number): string {
+  const tempo = elapsed(since, nowMs);
+  if (what === "server") {
+    return `⏰ *Lembrete — Evolution Go continua com problema*\n\n${unit} seguem fora desde ${fmt(since)}${tempo ? ` (há ${tempo})` : ""}.\n\n${COOLIFY_HINT}`;
+  }
+  const how = state === "needs_qr"
+    ? `👉 Configurações → Conexão → ${unit} → Conectar e ler o QR Code no celular do número.`
+    : `👉 Confira o celular do número (ligado e com internet). Se vários números estiverem fora, reinicie o serviço *evolution-go* no Coolify.`;
+  return `⏰ *Lembrete — ${unit} continua fora*\n\n*${unit}* (Evolution Go) está fora desde ${fmt(since)}${tempo ? ` (há ${tempo})` : ""}.\n\n${how}`;
 }
 
 // ─── Reenvio do que falhou durante a queda ─────────────────────────────────
