@@ -9,7 +9,7 @@
 //
 // Alertas: "caiu" quando a queda se confirma (2 checagens seguidas, ou na hora
 // se precisa de QR); "voltou" só se antes saiu o "caiu". Nada se repete enquanto
-// o estado não muda — o último estado avisado fica em provider_health.alerted_state.
+// o número não volta — o último estado avisado fica em provider_health.alerted_state.
 
 // deno-lint-ignore no-explicit-any
 type Json = Record<string, any>;
@@ -63,8 +63,11 @@ export function decideInstanceHealth(prev: HealthRow | null, observed: EvoState,
   const reconnect = observed === "reconnecting" && attempts < MAX_RECONNECT_ATTEMPTS;
   if (reconnect) attempts += 1;
   const confirmed = observed === "needs_qr" || bad >= CONFIRM_CHECKS;
-  // Servidor fora: o alerta do servidor cobre todos os números
-  const alert = !opts.serverDown && confirmed && prev?.alerted_state !== observed ? "down" : null;
+  // Servidor fora: o alerta do servidor cobre todos os números. Um aviso de
+  // queda por vez: o status da Evolution alterna entre "sem sessão" e "sem
+  // resposta" a cada checagem (13/10, VENDAS 1) — o próximo aviso é o "voltou"
+  const alreadyWarned = !!prev?.alerted_state && prev.alerted_state !== "online";
+  const alert = !opts.serverDown && confirmed && !alreadyWarned ? "down" : null;
   return { state: observed, bad_checks: bad, reconnect_attempts: attempts, reconnect, alert, recovered: false };
 }
 
