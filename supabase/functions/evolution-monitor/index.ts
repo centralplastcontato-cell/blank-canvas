@@ -8,8 +8,9 @@
 //   estiver fora, sai por um número do Castelo que não é da Evolution (Z-API primeiro)
 // - Depois que volta, reenvia (com limite) o que falhou durante a queda
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { evolutionReconnect, evolutionSendMedia, evolutionSendText, evolutionStatus, extractEvolutionMessageId } from "../_shared/evolution.ts";
+import { ALIVE_TIMEOUT_MS, evolutionCheckAlive, evolutionReconnect, evolutionSendMedia, evolutionSendText, evolutionStatus, extractEvolutionMessageId } from "../_shared/evolution.ts";
 import {
+  aliveCheckHealthy,
   classifyEvolutionStatus,
   decideInstanceHealth,
   decideServerHealth,
@@ -45,6 +46,7 @@ interface Inst {
   unit: string | null;
   company_id: string;
   status: string | null;
+  phone_number: string | null;
 }
 
 const corsHeaders = {
@@ -53,6 +55,21 @@ const corsHeaders = {
 };
 
 const instKey = (id: string) => `instance:${id}`;
+
+/** Número consultado no /user/check: o do próprio número (sempre existe) ou o do dono */
+function aliveNumber(phone: string | null): string {
+  const d = String(phone || "").replace(/\D/g, "");
+  return d.length >= 12 ? d : OWNER_ALERT_PHONE;
+}
+
+/** Resposta crua (curta) para conferir o formato */
+function rawSnippet(v: unknown): string {
+  try {
+    return (typeof v === "string" ? v : JSON.stringify(v ?? null)).slice(0, 400);
+  } catch {
+    return String(v).slice(0, 400);
+  }
+}
 
 async function loadHealth(supabase: SB, keys: string[]): Promise<Record<string, Json>> {
   const { data } = await supabase.from("provider_health").select("*").in("key", keys);
@@ -256,7 +273,7 @@ async function hasRecentTraffic(supabase: SB, inst: Inst): Promise<boolean> {
 
 async function run(supabase: SB, onlyInstanceId: string | null, reason: string): Promise<Json> {
   let q = supabase.from("wapi_instances")
-    .select("id, instance_id, instance_token, unit, company_id, status")
+    .select("id, instance_id, instance_token, unit, company_id, status, phone_number")
     .eq("provider", "evolution").eq("is_active", true);
   if (onlyInstanceId) q = q.eq("id", onlyInstanceId);
   const { data: instances } = await q;
@@ -271,15 +288,21 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
   // (Disconnected → Connected em 2–5 s, 12/10 15:00 e 17:03): nesse meio-tempo
   // o status chega a dizer "sem sessão". Quem não está online é checado de
   // novo depois de SETTLE_MS antes de qualquer decisão — só a queda que fica conta.
+  // Junto com o status, a checagem "de verdade" (/user/check): o status diz se
+  // o número está logado; o /user/check pega o servidor travado (12/10 23h45 o
+  // status seguiu "logado" com tudo parado)
   const results = await Promise.all(list.map(async (inst) => {
-    let res = await evolutionStatus(inst.instance_token);
+    const [first0, alive] = await Promise.all([evolutionStatus(inst.instance_token), evolutionCheckAlive(inst.instance_token, aliveNumber(inst.phone_number))]);
+    let res = first0;
     const first = classifyEvolutionStatus(res);
     if (first === "needs_qr" || first === "reconnecting") {
       await new Promise((ok) => setTimeout(ok, SETTLE_MS));
       res = await evolutionStatus(inst.instance_token);
       console.log(`[evolution-monitor] ${inst.unit}: ${first} → ${classifyEvolutionStatus(res)} após ${SETTLE_MS / 1000}s`);
     }
-    return { inst, res };
+    const aliveOk = aliveCheckHealthy(alive, ALIVE_TIMEOUT_MS);
+    if (!aliveOk) console.log(`[evolution-monitor] ${inst.unit}: /user/check falhou (http ${alive.status ?? "-"}, ${alive.ms} ms): ${rawSnippet(alive.data ?? alive.error)}`);
+    return { inst, res, alive, aliveOk };
   }));
   // Servidor fora: nenhum número respondeu e a celebrei-go também não
   const alertToken = Deno.env.get("EVOLUTION_ALERT_TOKEN");
@@ -287,8 +310,8 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
   let serverDown = false;
   let celebreiDown = false;
   if (!onlyInstanceId && alertToken) {
-    const probe = await evolutionStatus(alertToken);
-    celebreiDown = classifyEvolutionStatus(probe) !== "online";
+    const [probe, probeAlive] = await Promise.all([evolutionStatus(alertToken), evolutionCheckAlive(alertToken, OWNER_ALERT_PHONE)]);
+    celebreiDown = classifyEvolutionStatus(probe) !== "online" || !aliveCheckHealthy(probeAlive, ALIVE_TIMEOUT_MS);
     serverDown = allUnreachable && !probe.ok;
   } else if (allUnreachable && !onlyInstanceId) {
     serverDown = true;
@@ -301,11 +324,13 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
   type Pending = { inst: Inst; key: string; prev: HealthRow | null; final: ReturnType<typeof decideInstanceHealth>; stateSince: string; downSince: string | null; resent: number };
   const pending: Pending[] = [];
   const summary: Json[] = [];
-  for (const { inst, res } of results) {
+  for (const { inst, res, alive, aliveOk } of results) {
     const key = instKey(inst.id);
     const prevRow = health[key] || null;
     const prev = prevRow as HealthRow | null;
     let observed = classifyEvolutionStatus(res);
+    // Status diz "logado", mas o WhatsApp não responde pela Evolution: travado
+    if (observed === "online" && !aliveOk) observed = "unreachable";
     if (observed !== "online" && !serverDown && await hasRecentTraffic(supabase, inst)) {
       console.log(`[evolution-monitor] ${inst.unit}: status diz ${observed} (http ${res.status ?? "-"}), mas há tráfego nos últimos ${ACTIVITY_WINDOW_MS / 60000} min — conectado`);
       observed = "online";
@@ -336,7 +361,10 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
       bad_checks: final.bad_checks,
       reconnect_attempts: final.state === "online" ? 0 : d.reconnect_attempts,
       last_check_at: nowIso,
-      detail: { reason, reconnect: reconnectResult, http_status: res.status ?? null, error: res.ok ? null : String(res.error || "").slice(0, 200) },
+      detail: {
+        reason, reconnect: reconnectResult, http_status: res.status ?? null, error: res.ok ? null : String(res.error || "").slice(0, 200),
+        alive: { ok: aliveOk, ms: alive.ms, http: alive.status ?? null, raw: rawSnippet(alive.data ?? alive.error) },
+      },
     });
 
     // Status na plataforma (a hora da conexão só muda quando volta de verdade)
