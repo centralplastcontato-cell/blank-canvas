@@ -20,6 +20,7 @@ import { type AiTarget, journeyCovers, type JourneyScope } from "../_shared/ai-j
 export { type AiTarget, journeyCovers, type JourneyScope, journeyScopes, loadAiJourneyTargets } from "../_shared/ai-journey-scope.ts";
 import { mergeConsecutiveTurns } from "../_shared/ai-turn.ts";
 import { resolveUnitNotificationTargets } from "../_shared/notification-targets.ts";
+import { loadBlockedContacts } from "../_shared/contact-block.ts";
 
 // deno-lint-ignore no-explicit-any
 type Db = any;
@@ -295,6 +296,8 @@ export async function runAiJourney(
   const startedMs = Date.now();
   const openaiKey = Deno.env.get("OPENAI_API_KEY") || null;
   const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY") || null;
+  // "Não enviar mais nada": a jornada nem escreve o follow-up para esse número
+  const isBlocked = await loadBlockedContacts(supabase);
 
   for (const { settings, instance, companyName } of targets) {
     const cfg = normalizeFollowUpConfig(settings.followup_config);
@@ -326,6 +329,10 @@ export async function runAiJourney(
     for (const conv of (convs || []) as Json[]) {
       if (sent >= MAX_SENDS_PER_RUN || Date.now() - startedMs > budgetMs) break;
       try {
+        if (isBlocked(instance.company_id, conv.remote_jid)) {
+          if (conv.ai_journey_next_at) await setJourneyNext(supabase, conv.id, null);
+          continue;
+        }
         if (!journeyCovers(scope, conv.remote_jid)) {
           // Fora da jornada (ex.: modo de teste): marcador velho não fica entupindo a busca
           if (conv.ai_journey_next_at) await setJourneyNext(supabase, conv.id, null);

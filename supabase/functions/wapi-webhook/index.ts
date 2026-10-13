@@ -23,6 +23,7 @@ import { collectStatusMessageIds, isPlayedStatus, mapProviderMessageStatus, stat
 import { AI_CONFIRMATION_STYLE, fixedConfirmationTextChoice } from "../_shared/visit-confirm.ts";
 import { evolutionConnectionEvent, evolutionDownloadMedia, evolutionSendMedia, evolutionSendText, extractEvolutionMessageId, isEvolutionPayload, normalizeEvolutionPayload, redactEvolutionPayload, sameToken } from "../_shared/evolution.ts";
 import { decryptWhatsAppMedia, encryptedMediaUrl, type WaMediaType } from "../_shared/whatsapp-media-crypto.ts";
+import { isContactBlocked, asksToStopMessages } from "../_shared/contact-block.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -928,6 +929,38 @@ function matchFlowOptionByReply<T extends { label?: string | null; value?: strin
 // Helper: get notification targets scoped to a specific company
 // Uses an atomic SECURITY DEFINER RPC to ensure unit-specific permissions
 // (e.g. leads.unit.vendas-4) are correctly matched alongside leads.unit.all and admin role.
+// Cliente pediu para parar de receber mensagens: sininho para a equipe da
+// unidade (um por conversa por dia). Não bloqueia sozinho — quem decide é a
+// equipe, no menu ⋮ da conversa → "Não enviar mais nada"
+async function notifyStopRequest(
+  supabase: SupabaseClient,
+  instance: { unit: string | null; company_id: string },
+  conv: { id: string; contact_name?: string | null },
+  content: string,
+  phone: string,
+  contactName: string | null,
+): Promise<void> {
+  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const { data: recent } = await supabase.from('notifications').select('id')
+    .eq('type', 'contact_stop_request').eq('company_id', instance.company_id)
+    .contains('data', { conversation_id: conv.id }).gte('created_at', since).limit(1);
+  if (recent && recent.length) return;
+  const unitLower = (instance.unit || '').toLowerCase().trim().replace(/\s+/g, '-');
+  const targets = await getCompanyNotificationTargets(supabase, instance.company_id, `leads.unit.${unitLower}`);
+  if (!targets.length) return;
+  const name = conv.contact_name || contactName || phone;
+  await supabase.from('notifications').insert(targets.map((userId) => ({
+    user_id: userId,
+    company_id: instance.company_id,
+    type: 'contact_stop_request',
+    title: '🚫 Cliente pediu para não receber mais mensagens',
+    message: `${name}: "${content.trim().slice(0, 80)}". Se for o caso, ligue "Não enviar mais nada" no menu ⋮ da conversa.`,
+    data: { conversation_id: conv.id, contact_name: name, contact_phone: phone, unit: instance.unit || null },
+    read: false,
+  })));
+  console.log(`[StopRequest] Equipe avisada: ${name} pediu para não receber mais mensagens (conv ${conv.id})`);
+}
+
 async function getCompanyNotificationTargets(
   supabase: SupabaseClient,
   companyId: string,
@@ -6365,6 +6398,23 @@ async function processWebhookEvent(body: JsonRecord) {
       if (existingConversationReconnectQuarantine) {
         console.log(`[Webhook] Existing conversation message saved during reconnect quarantine; all automation skipped (conv=${conv.id})`);
         break;
+      }
+
+      // 🚫 "Não enviar mais nada" ligado: a mensagem fica salva, mas nada
+      // automático responde (bot, IA, reativação, confirmação de visita)
+      if (!fromMe && !isGrp && await isContactBlocked(supabase, instance.company_id, conv.remote_jid)) {
+        console.log(`[Webhook] Contato bloqueado ("Não enviar mais nada") — mensagem salva, automação ignorada (conv=${conv.id})`);
+        break;
+      }
+
+      // Pediu para parar de receber ("sair da lista", "não quero mais receber"):
+      // avisa a equipe, que decide se liga o "Não enviar mais nada" (um aviso por dia)
+      if (!fromMe && !isGrp && type === 'text' && content && asksToStopMessages(content)) {
+        try {
+          await notifyStopRequest(supabase, instance, conv, content, phone, cName as string | null);
+        } catch (err) {
+          console.error('[StopRequest] Falha ao avisar a equipe:', err);
+        }
       }
 
       // Fase 7.1: Check for visit confirmation response BEFORE reactivation/bot

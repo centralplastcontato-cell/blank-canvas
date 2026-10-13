@@ -134,7 +134,7 @@ import {
   Users, ArrowRightLeft, Trash2, Eraser,
   CalendarCheck, Briefcase, FileCheck, ArrowDown, Video,
   Pencil, Copy, ChevronDown, ChevronUp, Download, Pin, PinOff, Reply,
-  CheckSquare, MoreVertical, MoreHorizontal, DollarSign, Bot, PlayCircle, Info
+  CheckSquare, MoreVertical, MoreHorizontal, DollarSign, Bot, PlayCircle, Info, BellOff, BellRing
 } from "lucide-react";
 import JSZip from "jszip";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
@@ -4531,6 +4531,45 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
     }
   };
 
+  // "Não enviar mais nada": número na lista de bloqueio da empresa
+  // (campaign_optouts). Nada automático sai para ele; a equipe ainda escreve à mão.
+  const [contactBlocked, setContactBlocked] = useState(false);
+  const [contactBlockSaving, setContactBlockSaving] = useState(false);
+  const blockCompanyId = currentCompany?.id || getCurrentCompanyId();
+  const blockDigits = (selectedConversation?.remote_jid || '').split('@')[0].replace(/\D/g, '');
+  const blockTail = selectedConversation?.remote_jid?.endsWith('@g.us') || blockDigits.length < 8 ? '' : blockDigits.slice(-8);
+  useEffect(() => {
+    setContactBlocked(false);
+    if (!blockCompanyId || !blockTail) return;
+    let cancelled = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('campaign_optouts').select('id').eq('company_id', blockCompanyId).eq('phone_tail', blockTail).limit(1)
+      .then(({ data }: { data: unknown[] | null }) => { if (!cancelled) setContactBlocked((data || []).length > 0); });
+    return () => { cancelled = true; };
+  }, [blockCompanyId, blockTail]);
+
+  const toggleContactBlock = async () => {
+    if (!selectedConversation || !blockCompanyId || !blockTail || contactBlockSaving) return;
+    const name = selectedConversation.contact_name || selectedConversation.contact_phone;
+    if (!contactBlocked && !window.confirm(`Não enviar mais nada para ${name}?\n\nNenhuma mensagem automática vai sair para este número (follow-ups, IA, bot, campanhas, confirmações). A equipe ainda pode escrever à mão.`)) return;
+    setContactBlockSaving(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const table = (supabase as any).from('campaign_optouts');
+    const { error } = contactBlocked
+      ? await table.delete().eq('company_id', blockCompanyId).eq('phone_tail', blockTail)
+      : await table.insert({ company_id: blockCompanyId, phone: blockDigits, phone_tail: blockTail, source: 'manual' });
+    setContactBlockSaving(false);
+    if (error && !String(error.message || '').includes('duplicate')) {
+      toast({ title: 'Não foi possível salvar', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setContactBlocked(!contactBlocked);
+    toast({
+      title: contactBlocked ? 'Mensagens automáticas liberadas' : 'Não enviar mais nada: ligado',
+      description: contactBlocked ? `${name} volta a receber mensagens automáticas.` : `Nada automático sai para ${name}.`,
+    });
+  };
+
   const handleResumeQualification = async () => {
     if (!selectedConversation) return;
     setStartQualLoading(true);
@@ -5778,6 +5817,16 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                             <Bot className="w-4 h-4 mr-2 text-primary" />
                             Retomar bot do passo atual
                           </DropdownMenuItem>
+                          {blockTail && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => void toggleContactBlock()} disabled={contactBlockSaving}>
+                                {contactBlocked
+                                  ? <><BellRing className="w-4 h-4 mr-2 text-primary" />Voltar a enviar mensagens automáticas</>
+                                  : <><BellOff className="w-4 h-4 mr-2 text-destructive" />Não enviar mais nada</>}
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -5814,6 +5863,14 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                       </Button>
                     </div>
       )}
+
+                  {contactBlocked && (
+                    <div className="px-3 py-1.5 border-b border-destructive/20 bg-destructive/10 text-destructive text-xs font-medium flex items-center gap-2 shrink-0">
+                      <BellOff className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">Não recebe mensagens automáticas</span>
+                      <button type="button" className="ml-auto underline shrink-0" onClick={() => void toggleContactBlock()} disabled={contactBlockSaving}>Liberar</button>
+                    </div>
+                  )}
 
                   {/* Lead Classification Panel - Always visible */}
                   <div className="border-b border-border/40 bg-muted/30 px-3 py-2 shrink-0 overflow-hidden">

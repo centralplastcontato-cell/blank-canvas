@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { biaReminderConversationIds } from "../_shared/ai-journey-scope.ts";
 import { evolutionSendText, extractEvolutionMessageId } from "../_shared/evolution.ts";
+import { loadBlockedContacts } from "../_shared/contact-block.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -130,6 +131,8 @@ Deno.serve(async (req) => {
 
     // ── GUARD 3: Global execution cap (across all companies) ──
     const HARD_EXECUTION_CAP = 100; // absolute safety net
+    // "Não enviar mais nada": esses números nunca recebem reativação
+    const isBlocked = await loadBlockedContacts(supabase);
 
     for (const settings of allSettings as ReactivationSettings[]) {
       // ── GUARD 3 check: stop processing if global cap reached ──
@@ -304,6 +307,10 @@ Deno.serve(async (req) => {
         let companySentThisCycle = 0;
 
         for (const lead of filteredLeads) {
+          if (isBlocked(settings.company_id, lead.whatsapp)) {
+            totalSkipped++;
+            continue;
+          }
           // ── GUARD 3: Execution cap check ──
           if (totalSent >= maxPerExecution || totalSent >= HARD_EXECUTION_CAP) break;
           // ── GUARD 1: Remaining daily check ──
