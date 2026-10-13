@@ -72,6 +72,11 @@ export function formatSlotRange(start: string, end: string): string {
 }
 
 const WEEKDAY_RE = "(domingo|segunda|terça|terca|quarta|quinta|sexta|sábado|sabado)(-feira)?";
+// O \b do JavaScript não conhece acento: em "sugestão quarta" o "o" final
+// virava o artigo "o" e sumia ("sugestãamanhã", 13/10). Artigo e dia da
+// semana só valem como palavra inteira
+const NOT_AFTER_LETTER = "(?<![\\p{L}\\p{N}])";
+const ARTICLE_RE = `${NOT_AFTER_LETTER}[aoAO]\\s+`;
 const MONTH_INDEX: Record<string, number> = Object.fromEntries(MONTHS.map((m, i) => [m, i]));
 
 /**
@@ -81,7 +86,7 @@ const MONTH_INDEX: Record<string, number> = Object.fromEntries(MONTHS.map((m, i)
  */
 export function fixWeekdays(text: string, todayYmd: string): string {
   const [ty, tm, td] = todayYmd.split("-").map(Number);
-  const re = new RegExp(`(\\b[aoAO]\\s+)?\\b${WEEKDAY_RE}(,?\\s+(?:dia\\s+)?)(\\d{1,2})\\s+de\\s+(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)(\\s+de\\s+(\\d{4}))?`, "gi");
+  const re = new RegExp(`(${ARTICLE_RE})?${NOT_AFTER_LETTER}${WEEKDAY_RE}(,?\\s+(?:dia\\s+)?)(\\d{1,2})\\s+de\\s+(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)(\\s+de\\s+(\\d{4}))?`, "giu");
   return text.replace(re, (whole, article: string | undefined, wd: string, feira: string | undefined, sep: string, dayStr: string, monthStr: string, yearPart: string | undefined, yearStr: string | undefined) => {
     const month = MONTH_INDEX[monthStr.toLowerCase().replace("marco", "março")];
     const day = Number(dayStr);
@@ -115,7 +120,7 @@ export function fixWeekdays(text: string, todayYmd: string): string {
 export function markTodayTomorrow(text: string, todayYmd: string): string {
   const [ty, tm, td] = todayYmd.split("-").map(Number);
   const tomorrow = new Date(Date.UTC(ty, tm - 1, td + 1, 12)).toISOString().slice(0, 10);
-  const re = new RegExp(`(\\b(?:n?[aoAO])\\s+)?\\b${WEEKDAY_RE}(,?\\s+(?:dia\\s+)?)(\\d{1,2})\\s+de\\s+(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)`, "gi");
+  const re = new RegExp(`(${NOT_AFTER_LETTER}n?[aoAO]\\s+)?${NOT_AFTER_LETTER}${WEEKDAY_RE}(,?\\s+(?:dia\\s+)?)(\\d{1,2})\\s+de\\s+(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)`, "giu");
   const done = new Set<string>();
   return text.replace(re, (whole: string, _article: string | undefined, wd: string, feira: string | undefined, sep: string, dayStr: string, monthStr: string, offset: number) => {
     const month = MONTH_INDEX[monthStr.toLowerCase().replace("marco", "março")];
