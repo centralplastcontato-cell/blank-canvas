@@ -13,6 +13,7 @@ import { decideDeliveryStall, type OutgoingRow, STALL_LOOKBACK_MS } from "../_sh
 import { isAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { evolutionSendMedia, evolutionSendText, extractEvolutionMessageId } from "../_shared/evolution.ts";
 import { type AiTarget, journeyOwnsConversation, type JourneyScope, journeyScopes, loadAiJourneyTargets, runAiJourney } from "./ai-journey.ts";
+import { loadBlockedContacts } from "../_shared/contact-block.ts";
 
 type SupabaseAdmin = any;
 
@@ -385,6 +386,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+    isBlockedContact = await loadBlockedContacts(supabase);
 
     console.log("[follow-up-check] Starting follow-up check...");
 
@@ -1652,6 +1654,10 @@ const ZAPI_BASE_URL = 'https://api.z-api.io/instances';
 
 type Provider = 'wapi' | 'zapi' | 'evolution';
 
+// "Não enviar mais nada": recarregado a cada rodada; nenhum envio daqui sai
+// para um número bloqueado (follow-ups, lembretes, retomada do bot, materiais)
+let isBlockedContact: (companyId: string | null | undefined, phoneOrJid: string | null | undefined) => boolean = () => false;
+
 interface InstanceInfo {
   instance_id: string;
   instance_token: string;
@@ -1673,6 +1679,10 @@ async function providerSendText(
   extraBody?: Record<string, unknown>,
 ): Promise<{ ok: boolean; messageId: string | null; error?: string }> {
   const provider = (inst.provider || 'wapi') as Provider;
+  if (isBlockedContact(inst.company_id, phone)) {
+    console.log(`[follow-up-check] 🚫 Contato bloqueado ("Não enviar mais nada") — envio ignorado`);
+    return { ok: false, messageId: null, error: 'contact_blocked' };
+  }
   try {
     if (provider === 'evolution') {
       const r = await evolutionSendText(inst.instance_token, phone, message);
@@ -1715,6 +1725,10 @@ async function providerSendImage(
   caption?: string,
 ): Promise<{ ok: boolean; messageId: string | null }> {
   const provider = (inst.provider || 'wapi') as Provider;
+  if (isBlockedContact(inst.company_id, phone)) {
+    console.log(`[follow-up-check] 🚫 Contato bloqueado ("Não enviar mais nada") — envio ignorado`);
+    return { ok: false, messageId: null };
+  }
   try {
     if (provider === 'evolution') {
       const r = await evolutionSendMedia(inst.instance_token, phone, 'image', image, { caption });
@@ -1747,6 +1761,10 @@ async function providerSendVideo(
   caption?: string,
 ): Promise<{ ok: boolean; messageId: string | null }> {
   const provider = (inst.provider || 'wapi') as Provider;
+  if (isBlockedContact(inst.company_id, phone)) {
+    console.log(`[follow-up-check] 🚫 Contato bloqueado ("Não enviar mais nada") — envio ignorado`);
+    return { ok: false, messageId: null };
+  }
   try {
     if (provider === 'evolution') {
       const r = await evolutionSendMedia(inst.instance_token, phone, 'video', video, { caption });
@@ -1779,6 +1797,10 @@ async function providerSendDocument(
   fileName: string,
 ): Promise<{ ok: boolean; messageId: string | null }> {
   const provider = (inst.provider || 'wapi') as Provider;
+  if (isBlockedContact(inst.company_id, phone)) {
+    console.log(`[follow-up-check] 🚫 Contato bloqueado ("Não enviar mais nada") — envio ignorado`);
+    return { ok: false, messageId: null };
+  }
   const ext = document.split('.').pop()?.split('?')[0] || 'pdf';
   try {
     if (provider === 'evolution') {

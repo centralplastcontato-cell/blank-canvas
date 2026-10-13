@@ -4,6 +4,7 @@ import { mediaAckMetadata } from "../_shared/media-ack.ts";
 import { EVOLUTION_WEBHOOK_EVENTS, evolutionDownloadMedia, evolutionReact, evolutionRequest, evolutionStatus, type EvolutionQuoted, evolutionSendMedia, evolutionSendText, extractEvolutionMessageId } from "../_shared/evolution.ts";
 import { decryptWhatsAppMedia, encryptedMediaUrl, type WaMediaType } from "../_shared/whatsapp-media-crypto.ts";
 import { classifyEvolutionStatus } from "../_shared/evolution-health.ts";
+import { isContactBlocked } from "../_shared/contact-block.ts";
 import { aiTakesSiteLead, buildAiSiteWelcome, cleanSiteLead, type SiteLeadInfo, siteLeadBotData } from "../_shared/ai-site-lead.ts";
 
 const corsHeaders = {
@@ -1543,6 +1544,29 @@ Deno.serve(async (req) => {
     const queueEvolutionFailure = isEvolution && (isAutomatedCall || body.messageSource === 'ai_agent');
     const failureSource = body.messageSource === 'ai_agent' ? 'ai_agent' : (typeof body.source === 'string' && body.source ? body.source : 'platform');
     const isQueueableAutomation = typeof body.source === 'string' && queueableSources.has(body.source);
+
+    // 🚫 "Não enviar mais nada" ligado para este número: nada automático sai
+    // (bot, IA, follow-up, reativação, campanha, confirmação de visita).
+    // Envio manual da equipe passa normalmente.
+    if ((isAutomatedCall || body.messageSource === 'ai_agent') && action !== 'send-reaction') {
+      let blockCompany = companyId;
+      if (!blockCompany) {
+        const { data: bInst } = await supabase.from('wapi_instances').select('company_id').eq('instance_id', instance_id).maybeSingle();
+        blockCompany = bInst?.company_id || null;
+      }
+      let blockPhone: string | null = phone || null;
+      if (!blockPhone && conversationId) {
+        const { data: bConv } = await supabase.from('wapi_conversations').select('remote_jid').eq('id', conversationId).maybeSingle();
+        blockPhone = bConv?.remote_jid || null;
+      }
+      if (await isContactBlocked(supabase, blockCompany, blockPhone)) {
+        console.warn(`[wapi-send] 🚫 Contato bloqueado ("Não enviar mais nada") — envio automático ignorado (action=${action}, source=${body.source ?? body.messageSource ?? 'automation'})`);
+        return new Response(JSON.stringify({ ok: true, skipped: true, reason: 'contact_blocked' }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
 
     // Fail-closed: the post-reconnect queue/drip path is disabled. Nothing from
     // the queue is allowed to bypass quarantine as a "manual" send anymore.
