@@ -180,10 +180,35 @@ export async function aiTakesSiteLead(
   }
   const { data: leads } = await supabase.from("campaign_leads").select("status, created_at")
     .eq("company_id", instance.company_id).in("whatsapp", variants).limit(10);
+  // Conversas desse contato em qualquer número da empresa: quem já atendeu?
+  const { data: companyConvs } = await supabase.from("wapi_conversations")
+    .select("bot_step, bot_data")
+    .eq("company_id", instance.company_id)
+    .in("remote_jid", variants.map((v) => `${v}@s.whatsapp.net`))
+    .limit(10);
+  const servedOnlyByAi = aiOnlyHistory((companyConvs || []) as any[]);
   for (const l of (leads || []) as any[]) {
-    if (Date.parse(l.created_at) < activatedAt || !["novo", "em_contato"].includes(l.status)) return no("lead antigo ou já trabalhado");
+    if (Date.parse(l.created_at) < activatedAt) return no("lead de antes da IA");
+    if (!siteLeadStatusOk(l.status, servedOnlyByAi)) return no("lead já trabalhado pela equipe");
   }
-  return { take: true, companyName, reason: "cliente novo", ...intro };
+  return { take: true, companyName, reason: servedOnlyByAi ? "cliente atendido antes só pela IA" : "cliente novo", ...intro };
+}
+
+/**
+ * O contato só falou com a IA (alguma conversa com ela e nenhuma com a equipe)?
+ * Caso Raissa (14/10): atendida pela IA no VENDAS 3 em 10/10, fez outro pedido
+ * pelo site e recebeu o menu antigo porque o lead já estava "orçamento enviado".
+ */
+export function aiOnlyHistory(convs: Array<{ bot_step?: string | null; bot_data?: Record<string, unknown> | null }>): boolean {
+  if (convs.some((c) => c.bot_step === "human_takeover" || c.bot_data?.ai_agent === "off")) return false;
+  return convs.some((c) => c.bot_data?.ai_agent === "on" || c.bot_step === "ai_agent");
+}
+
+/** Lead existente que a IA pode atender de novo pelo site */
+export function siteLeadStatusOk(status: string, servedOnlyByAi: boolean): boolean {
+  if (["novo", "em_contato"].includes(status)) return true;
+  // Orçamento que a própria IA mandou: o cliente voltou, a IA continua
+  return servedOnlyByAi && status === "orcamento_enviado";
 }
 
 /** Arte de apresentação: só link https */
