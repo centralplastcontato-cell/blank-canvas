@@ -6,7 +6,7 @@
 // "Sobre o buffet", "Perguntas que todo cliente faz" e "Regras" usam as
 // mesmas chaves e opções das abas (src/lib/aiBuffetFields.ts).
 
-import { BUFFET_FIELDS } from "./aiBuffetFields";
+import { BUFFET_FIELDS, parseBuffetInfo } from "./aiBuffetFields";
 
 export type QuestionType = "text" | "select" | "multi" | "textarea";
 
@@ -178,3 +178,23 @@ export function cleanAnswers(answers: QuestionnaireAnswers): QuestionnaireAnswer
 
 // Por enquanto a aba aparece só para o Castelo (para revisar antes de liberar)
 export const QUESTIONNAIRE_COMPANY_IDS = ["a0000000-0000-0000-0000-000000000001"];
+
+/**
+ * Respostas que já vêm do cadastro da IA (abas do Configurar IA): os fatos do
+ * buffet aparecem preenchidos no questionário. Só entram opções válidas.
+ */
+export function prefillFromSettings(st: {
+  extra_instructions?: string | null;
+  assistant_name?: string | null;
+  visit_hours?: string | null;
+  team_hours?: string | null;
+  party_slots?: string | null;
+} | null | undefined): QuestionnaireAnswers {
+  if (!st) return {};
+  const raw: QuestionnaireAnswers = { ...parseBuffetInfo(st.extra_instructions || null) };
+  if (st.assistant_name) raw.assistente = st.assistant_name;
+  if (st.visit_hours) raw.horarios_visita = st.visit_hours;
+  if (st.team_hours) raw.horario_equipe = st.team_hours;
+  if (st.party_slots) raw.horarios_festa = st.party_slots;
+  return cleanAnswers(raw);
+}

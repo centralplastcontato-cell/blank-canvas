@@ -27,7 +27,7 @@ import { AiSimulatorDialog } from "./AiSimulatorDialog";
 import { FollowUpImageUploader } from "./FollowUpImageUploader";
 import { AiQuestionnaireTab } from "./AiQuestionnaireTab";
 import { QUESTIONNAIRE_COMPANY_IDS } from "@/lib/aiQuestionnaire";
-import { BUFFET_FIELDS } from "@/lib/aiBuffetFields";
+import { BUFFET_FIELDS, parseBuffetInfo, serializeBuffetInfo } from "@/lib/aiBuffetFields";
 import { DEFAULT_TEAM_HOURS, parseVisitHours, serializeTeamHours, serializeVisitHours } from "@/lib/businessHours";
 import {
   DEFAULT_STEP_GOALS,
@@ -143,37 +143,8 @@ const FIELD_GROUPS = [
   { id: "followup", label: "Follow-up" },
 ];
 
-export function serializeBuffetInfo(values: Record<string, string>): string | null {
-  const parts = BUFFET_FIELDS
-    .filter((f) => (values[f.key] || "").trim())
-    .map((f) => `${f.label}: ${values[f.key].trim()}`);
-  return parts.length > 0 ? parts.join("\n") : null;
-}
-
-export function parseBuffetInfo(text: string | null): Record<string, string> {
-  const values: Record<string, string> = {};
-  if (!text) return values;
-  let currentKey: string | null = null;
-  const unmatched: string[] = [];
-  for (const line of text.split("\n")) {
-    const field = BUFFET_FIELDS.find((f) => line.startsWith(`${f.label}:`));
-    if (field) {
-      currentKey = field.key;
-      values[field.key] = line.slice(field.label.length + 1).trim();
-    } else if (currentKey) {
-      values[currentKey] = `${values[currentKey]}\n${line}`;
-    } else {
-      unmatched.push(line);
-    }
-  }
-  // Texto antigo sem rótulos (ou linhas soltas) cai em "Outras informações"
-  const leftover = unmatched.join("\n").trim();
-  if (leftover) {
-    values["outros"] = [leftover, values["outros"] || ""].filter(Boolean).join("\n");
-  }
-  Object.keys(values).forEach((k) => { values[k] = values[k].trim(); });
-  return values;
-}
+// serializeBuffetInfo/parseBuffetInfo: ver src/lib/aiBuffetFields.ts
+export { parseBuffetInfo, serializeBuffetInfo };
 
 function ModelOption({ id }: { id: string }) {
   const m = getAiModel(id);

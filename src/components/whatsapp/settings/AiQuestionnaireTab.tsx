@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
   cleanAnswers,
+  prefillFromSettings,
   isAnswered,
   QUESTIONNAIRE,
   questionnaireProgress,
@@ -48,14 +49,18 @@ export function AiQuestionnaireTab({ companyId }: { companyId: string }) {
     let cancelled = false;
     setLoading(true);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from("ai_questionnaires").select("answers, status, submitted_at, updated_at").eq("company_id", companyId).maybeSingle()
-      .then(({ data, error }: { data: Row | null; error: { message: string } | null }) => {
-        if (cancelled) return;
-        if (error) setUnavailable(true);
-        setRow(data);
-        setAnswers((data?.answers as QuestionnaireAnswers) || {});
-        setLoading(false);
-      });
+    const db = supabase as any;
+    Promise.all([
+      db.from("ai_questionnaires").select("answers, status, submitted_at, updated_at").eq("company_id", companyId).maybeSingle(),
+      // O que já está cadastrado na IA aparece preenchido (só onde não há resposta salva)
+      db.from("ai_agent_settings").select("extra_instructions, assistant_name, visit_hours, team_hours, party_slots").eq("company_id", companyId).limit(1).maybeSingle(),
+    ]).then(([q, st]: Array<{ data: any; error: { message: string } | null }>) => {
+      if (cancelled) return;
+      if (q.error) setUnavailable(true);
+      setRow(q.data);
+      setAnswers({ ...prefillFromSettings(st.data), ...((q.data?.answers as QuestionnaireAnswers) || {}) });
+      setLoading(false);
+    });
     return () => { cancelled = true; };
   }, [companyId]);
 
