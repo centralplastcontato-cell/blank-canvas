@@ -48,7 +48,11 @@ export function aliveCheckHealthy(res: { ok: boolean; status?: number; data?: un
 // dispara a checagem na hora quando reconectam).
 export const LOGGED_OUT_CHECK_EVERY_MS = 30 * 60 * 1000;
 export function skipLoggedOutCheck(row: { state?: string | null; alerted_state?: string | null; last_check_at?: string | null } | null, nowMs: number): boolean {
-  if (!row || row.state !== "needs_qr" || !row.alerted_state || row.alerted_state === "online" || !row.last_check_at) return false;
+  // Número fora e já avisado (sem sessão, sem resposta ou reconectando): cada
+  // consulta pode reiniciar o cliente na Evolution e gastar conexões do banco
+  // dela (14/10) — só a cada 30 min; a volta é vista pelo tráfego no meio-tempo
+  if (!row || !row.state || row.state === "online" || row.state === "unknown") return false;
+  if (!row.alerted_state || row.alerted_state === "online" || !row.last_check_at) return false;
   return nowMs - Date.parse(row.last_check_at) < LOGGED_OUT_CHECK_EVERY_MS;
 }
 
@@ -63,39 +67,71 @@ export interface HealthDecision {
   state: EvoState;
   bad_checks: number;
   reconnect_attempts: number;
-  reconnect: boolean;
+  /** Recuperação a tentar agora: reconnect (sessão existe) ou connect (sessão parada) */
+  recover: "reconnect" | "connect" | null;
   alert: "down" | "up" | null;
   recovered: boolean;
 }
 
-export function decideInstanceHealth(prev: HealthRow | null, observed: EvoState, opts: { serverDown?: boolean } = {}): HealthDecision {
+// Cada reinício do cliente na Evolution abre um pool novo de conexões com o
+// banco dela e não fecha o anterior (14/10: 42 reinícios no VENDAS 1 e 31 no
+// VENDAS 2 esgotaram o Postgres → "too many clients" → 401 em tudo). Por isso:
+// uma recuperação por queda e no máximo 3 por número por dia.
+export const MAX_RECOVERIES_PER_DAY = 3;
+const DAY_MS = 24 * 3600 * 1000;
+
+export function recoveriesInLastDay(log: unknown, nowMs: number): string[] {
+  return (Array.isArray(log) ? log : []).filter((t): t is string => typeof t === "string" && nowMs - Date.parse(t) < DAY_MS);
+}
+
+/**
+ * Banco da Evolution esgotado: 401 para um token que já funcionava ou erro com
+ * "too many clients". Não adianta reconectar (só piora): reiniciar o serviço.
+ */
+export function looksLikeDbExhausted(res: { ok: boolean; status?: number; error?: string; data?: unknown }, tokenWorkedBefore: boolean): boolean {
+  if (res.ok) return false;
+  let body = String(res.error || "");
+  try {
+    body += " " + JSON.stringify(res.data ?? "");
+  } catch { /* ignora */ }
+  if (/too many clients/i.test(body)) return true;
+  return res.status === 401 && tokenWorkedBefore;
+}
+
+export function decideInstanceHealth(
+  prev: HealthRow | null,
+  observed: EvoState,
+  opts: { serverDown?: boolean; dbExhausted?: boolean; recoveriesToday?: number } = {},
+): HealthDecision {
   const wasDown = !!prev && prev.state !== "online" && prev.state !== "unknown";
   if (observed === "online") {
     return {
       state: "online",
       bad_checks: 0,
       reconnect_attempts: 0,
-      reconnect: false,
+      recover: null,
       alert: prev?.alerted_state && prev.alerted_state !== "online" ? "up" : null,
       recovered: wasDown,
     };
   }
   const bad = (wasDown ? prev!.bad_checks : 0) + 1;
   let attempts = wasDown ? prev!.reconnect_attempts : 0;
-  // Reconectar só com a queda confirmada (2 checagens, 5+ min): logo depois de
-  // um "Disconnected" a Evolution já está reconectando sozinha e um reconnect
-  // nosso abre uma 2ª conexão ("StreamReplaced", VENDAS 1 13/10 18:47)
-  const reconnect = observed === "reconnecting" && bad >= CONFIRM_CHECKS && attempts < MAX_RECONNECT_ATTEMPTS;
-  if (reconnect) attempts += 1;
-  // Sem a re-checagem em 30 s (ela mesma podia abrir a 2ª conexão), "precisa
-  // de QR" também precisa de 2 checagens seguidas para virar alerta
+  // Só com a queda confirmada (2 checagens, 5+ min): logo depois de um
+  // "Disconnected" a Evolution já está reconectando sozinha e uma chamada nossa
+  // abre uma 2ª conexão ("StreamReplaced", VENDAS 1 13/10 18:47)
   const confirmed = bad >= CONFIRM_CHECKS;
-  // Servidor fora: o alerta do servidor cobre todos os números. Um aviso de
-  // queda por vez: o status da Evolution alterna entre "sem sessão" e "sem
-  // resposta" a cada checagem (13/10, VENDAS 1) — o próximo aviso é o "voltou"
+  const canRecover = confirmed && !opts.serverDown && !opts.dbExhausted &&
+    attempts < MAX_RECONNECT_ATTEMPTS && (opts.recoveriesToday ?? 0) < MAX_RECOVERIES_PER_DAY;
+  // Sessão existe e caiu a conexão → reconnect; cliente parado (ex.: depois de
+  // reiniciar o servidor) → connect, que volta logado sem QR se a sessão está salva
+  const recover = !canRecover ? null : observed === "reconnecting" ? "reconnect" : observed === "needs_qr" ? "connect" : null;
+  if (recover) attempts += 1;
+  // Servidor/banco fora: o aviso do servidor cobre. Um aviso de queda por vez.
+  // Com uma recuperação tentando agora, o aviso espera a próxima checagem
+  // (só pede QR se o connect não resolver)
   const alreadyWarned = !!prev?.alerted_state && prev.alerted_state !== "online";
-  const alert = !opts.serverDown && confirmed && !alreadyWarned ? "down" : null;
-  return { state: observed, bad_checks: bad, reconnect_attempts: attempts, reconnect, alert, recovered: false };
+  const alert = !opts.serverDown && !opts.dbExhausted && confirmed && !alreadyWarned && !recover ? "down" : null;
+  return { state: observed, bad_checks: bad, reconnect_attempts: attempts, recover, alert, recovered: false };
 }
 
 /**
@@ -156,8 +192,11 @@ export function instanceAlertText(kind: "down" | "up", state: EvoState, unit: st
 
 export const COOLIFY_HINT = "👉 Reinicie o serviço *evolution-go* no Coolify.";
 
-export function serverAlertText(kind: "down" | "up", since: string | null, units: string[], opts: { suspect?: boolean } = {}): string {
+export function serverAlertText(kind: "down" | "up", since: string | null, units: string[], opts: { suspect?: boolean; dbExhausted?: boolean } = {}): string {
   const list = units.length ? units.join(", ") : "os números da Evolution";
+  if (kind === "down" && opts.dbExhausted) {
+    return `🚨 *Celebrei — Evolution Go com banco esgotado*\n\nDesde ${fmt(since)} a Evolution está recusando os números por falta de conexão com o banco dela ("too many clients"). Afeta: ${list}. Não adianta reconectar nem ler QR.\n\n${COOLIFY_HINT}`;
+  }
   if (kind === "up") {
     return `🟢 *Celebrei — Evolution Go normalizada*\n\nOs números voltaram a funcionar (fora desde ${fmt(since)}). Afeta: ${list}.`;
   }
