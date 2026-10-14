@@ -2288,7 +2288,11 @@ async function processStuckSentMessages({
         .gte("timestamp", tooOld)
         .limit(5000);
       const activeConversationCount = new Set((sentRows || []).map((r: any) => r.conversation_id)).size;
-      const decision = decideStuckAlert({ conversationCount: g.convs.size, activeConversationCount, lastWebhookEventAt, now: nowMs });
+      // Evolution: o monitor checa status + /user/check a cada 5 min; se ele
+      // confirmou o número online há pouco, falta de aviso é só falta de mensagem
+      const { data: health } = await supabase.from("provider_health").select("state, last_check_at").eq("key", `instance:${instId}`).maybeSingle();
+      const providerConfirmedOnline = health?.state === "online" && !!health.last_check_at && nowMs - Date.parse(health.last_check_at) < 15 * 60 * 1000;
+      const decision = decideStuckAlert({ conversationCount: g.convs.size, activeConversationCount, lastWebhookEventAt, now: nowMs, providerConfirmedOnline });
 
       if (!decision.notify) {
         // Só um ou dois clientes sem o segundo tique: normalmente é o celular do
@@ -2348,7 +2352,7 @@ async function processStuckSentMessages({
         ? `⚠️ ${unitLabel}: mensagens podem não estar chegando`
         : `⚠️ ${unitLabel}: mensagens sem confirmação de entrega`;
       const message = decision.webhookSilent
-        ? `O WhatsApp do ${unitLabel} parou de mandar avisos para a plataforma. Mensagens de clientes podem não aparecer aqui e ${countLabel} enviada(s) (${contacts}) seguem sem confirmação. ${webhookReconfigured ? "Já religamos a conexão automaticamente — se em alguns minutos continuar igual, reconecte o número pelo QR Code." : "Reconecte o número pelo QR Code."}`
+        ? `Atenção: o WhatsApp do ${unitLabel} não manda avisos para a plataforma há mais de 2h e ${countLabel} enviada(s) (${contacts}) seguem sem confirmação. ${webhookReconfigured ? "Já religamos a conexão automaticamente. " : ""}${SAFE_CHECK_HINT}`
         : `${countLabel} para ${g.convs.size} contatos (${contacts}) sem confirmação de entrega há mais de ${minutesStuck} min. Pode ser instabilidade na conexão do número — vale conferir e reenviar.`;
 
       // Número mudo: avisa também o dono da plataforma no WhatsApp (no máximo a cada 3h por número)
@@ -2688,6 +2692,10 @@ const OWNER_ALERT_PHONE = "5515981121710";
 const OWNER_ALERT_COOLDOWN_HOURS = 3;
 const CASTELO_COMPANY_ID = "a0000000-0000-0000-0000-000000000001";
 
+// Instrução segura para todo alerta de número: conferir antes de mexer.
+// Nunca "desconectar o aparelho" (destrói uma sessão que pode estar funcionando)
+const SAFE_CHECK_HINT = "Verifique no Hub se o número está Online e mande uma mensagem de teste. Só reconecte pelo QR se o Hub mostrar Desconectado.";
+
 type OwnerAlertKind = "silent" | "disconnected" | "degraded" | "not_delivering" | "media_not_delivering";
 
 /**
@@ -2757,8 +2765,8 @@ async function processDeliveryStallAlerts(supabase: SupabaseAdmin): Promise<void
       type: "delivery_stall",
       title: mediaOnly ? `⚠️ ${unitName}: fotos e PDFs não estão chegando` : `🚨 ${unitName} não está entregando mensagens`,
       message: mediaOnly
-        ? `Desde ${sinceLabel}, fotos, vídeos e PDFs enviados por este número não chegam aos clientes (${decision.stuck} parados). Reconecte o número.`
-        : `Desde ${sinceLabel}, nenhuma mensagem enviada por este número chegou aos clientes (${decision.stuck} paradas em ${decision.conversations} conversas). Reconecte o número.`,
+        ? `Desde ${sinceLabel}, fotos, vídeos e PDFs enviados por este número não chegam aos clientes (${decision.stuck} parados). ${SAFE_CHECK_HINT}`
+        : `Desde ${sinceLabel}, nenhuma mensagem enviada por este número chegou aos clientes (${decision.stuck} paradas em ${decision.conversations} conversas). ${SAFE_CHECK_HINT}`,
       data: {
         instance_id: inst.id,
         unit: unitName,
@@ -2813,7 +2821,8 @@ async function sendOwnerSilentInstanceAlert(
       ? new Date(lastWebhookEventAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
       : "algumas horas";
     const who = `${company?.name || "Buffet"} · *${inst.unit || "WhatsApp"}*`;
-    const reconnect = `👉 Reconecte: no celular do número, WhatsApp → Dispositivos conectados → Desconectar; depois leia o QR Code no Hub.`;
+    // Nunca mandar desconectar o aparelho: isso destrói uma sessão que pode estar funcionando
+    const reconnect = `👉 ${SAFE_CHECK_HINT}`;
     const text = kind === "not_delivering"
       ? `🚨 *Celebrei — número não está entregando*\n\n${who}: desde ${sinceLabel} nenhuma mensagem enviada pela plataforma chegou aos clientes. O número aparece conectado, mas as mensagens ficam só como "enviadas".\n\n${reconnect}`
       : kind === "media_not_delivering"
@@ -2822,7 +2831,7 @@ async function sendOwnerSilentInstanceAlert(
       ? `🔴 *Celebrei — número desconectado*\n\n${who} está desconectado do WhatsApp. Nada entra nem sai pela plataforma.\n\n${reconnect}`
       : kind === "degraded"
         ? `⚠️ *Celebrei — sessão incompleta*\n\n${who} está com a sessão do WhatsApp incompleta: as mensagens podem não ser entregues.\n\n${reconnect}`
-        : `⚠️ *Celebrei — número sem receber mensagens*\n\n${who} parou de receber mensagens na plataforma desde ${sinceLabel}.\n\nAs mensagens que a plataforma envia saem, mas as dos clientes não aparecem.\n\n${reconnect}`;
+        : `⚠️ *Celebrei — atenção: número sem avisos do WhatsApp*\n\n${who} não manda nenhum aviso para a plataforma desde ${sinceLabel}. Pode ser só falta de mensagens, mas vale conferir.\n\n${reconnect}`;
 
     const sent = await providerSendText(sender, OWNER_ALERT_PHONE, text);
     if (!sent.ok) {

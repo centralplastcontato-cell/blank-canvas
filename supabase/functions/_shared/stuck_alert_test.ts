@@ -46,3 +46,13 @@ Deno.test("formatContactList: resume nomes repetidos e longos", () => {
   assertEquals(formatContactList(["A", "B", "C", "D", "E"]), "A, B, C e mais 2");
   assertEquals(formatContactList(["", "  "]), "");
 });
+
+Deno.test("decideStuckAlert: sem mensagem de cliente não é queda (alarme falso VENDAS 2, 13/10 21:18)", () => {
+  // à noite: ninguém escreve — não conta como número mudo
+  const night = new Date("2026-10-14T00:18:00Z").getTime(); // 21:18 em SP
+  assertEquals(decideStuckAlert({ conversationCount: 1, activeConversationCount: 3, lastWebhookEventAt: new Date(night - 155 * 60000).toISOString(), now: night }).webhookSilent, false);
+  // monitor da Evolution confirmou online (status + /user/check): nunca é mudo
+  assertEquals(decideStuckAlert({ conversationCount: 1, activeConversationCount: 3, lastWebhookEventAt: minutesAgo(300), now: NOW, providerConfirmedOnline: true }).notify, false);
+  // de dia, 35 min sem aviso: ainda não (janela de 2h)
+  assertEquals(decideStuckAlert({ conversationCount: 1, activeConversationCount: 3, lastWebhookEventAt: minutesAgo(35), now: NOW }).webhookSilent, false);
+});
