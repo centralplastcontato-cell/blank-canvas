@@ -32,6 +32,10 @@ export const BUFFET_FIELDS: BuffetField[] = [
   { key: "fotografo", label: "Fotógrafo/filmagem", type: "select", options: ["O buffet oferece, incluso na festa", "O buffet indica um parceiro (pais contratam e pagam)", "É por conta da família, sem indicação", "Não oferecemos nem indicamos"], group: "perguntas" },
   { key: "animal", label: "Animal de estimação", type: "select", options: ["Pode levar", "Não pode"], group: "perguntas" },
   { key: "monitores", label: "Monitores acompanhando as crianças", type: "select", options: ["O tempo todo", "Só nos brinquedos", "Não temos"], group: "perguntas" },
+  // Degustação: a IA só informa; quem agenda é sempre a equipe (caso Amanda,
+  // 14/10 — cliente perguntou de degustação e pediu "hoje", a IA marcou visita)
+  { key: "degustacao", label: "Degustação do cardápio", type: "select", options: ["Não oferecemos degustação", "Oferecemos, agendada com a equipe, para quem tem interesse em fechar", "Oferecemos para todos, agendada com a equipe", "Só depois de fechar o contrato"], group: "perguntas", hint: "A IA nunca marca degustação: só informa como funciona, e quem agenda é a equipe." },
+  { key: "degustacao_como", label: "Como funciona a degustação", type: "textarea", placeholder: "Agendada com a equipe, às terças à tarde, para até 2 pessoas, depois da visita ao espaço...", group: "perguntas", hint: "Só se vocês oferecem. Deixe em branco se não oferecem." },
   { key: "regras", label: "Regras e o que não fazemos", type: "textarea", placeholder: "Não fazemos festas externas. Visitas somente com agendamento...", group: "regras", hint: "Limites claros evitam que a IA prometa o que vocês não fazem" },
   { key: "outros", label: "Outras informações", type: "textarea", placeholder: "Qualquer outra informação que a IA pode afirmar com segurança", group: "regras" },
 ];

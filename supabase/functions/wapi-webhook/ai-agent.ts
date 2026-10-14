@@ -39,7 +39,7 @@ import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
 import { buildCandidateLink, candidateName, inviteCode, shortCandidateLink, withCandidateLink } from "../_shared/ai-candidate.ts";
 import { findPromotion, promoMentions, promoNote } from "../_shared/promo.ts";
 import { closedPeriodAt, closedPeriodsNote, formatClosedPeriod, isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
-import { asksPartnership, clientAffirms, clientAskedPrice, closingAfterMaterials, confirmsPartyInterest, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
+import { asksPartnership, clientAffirms, clientAskedPrice, PRICE_ASK_WINDOW_MS, closingAfterMaterials, confirmsPartyInterest, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 import { askedForName, nameFromAnswer } from "../_shared/name-answer.ts";
 import { falseMaterialClaims, hasMaterialClaim, hasSubstance, refersToMaterial, stripFalseMaterialClaims } from "../_shared/material-claims.ts";
@@ -635,6 +635,7 @@ REGRAS INEGOCIÁVEIS:
    VALOR SÓ PARA QUEM PERGUNTA O PREÇO: passe valores só quando o cliente perguntar o preço (preço, valor, quanto fica/custa, "e o investimento?"). Pedir "orçamento" ou escolher a opção de orçamento NÃO é perguntar o preço: ele recebe fotos, vídeo e o PDF dos pacotes, e você conduz para a data e a visita, sem escrever valores. Por iniciativa própria, não passe valores nem ofereça passar ("quer que eu te passe os valores?") — mesmo que as informações do buffet digam "informe o valor". Quem não perguntou já tem o PDF de pacotes; conduza pela data, pelo espaço e pela visita.
    Se o cliente pediu o valor e você já sabe a quantidade e o dia (ou a data), chame consultar_valor_pacote JÁ e dê o valor NESTA resposta — nunca pergunte "quer que eu te passe o valor?". Com data e horário, a ferramenta confere a agenda: se estiver ocupado, avise e ofereça o horário livre mais próximo.
 2. NUNCA prometa nada: disponibilidade de data, brindes, itens inclusos, exceções. Quem confirma detalhes é a equipe.
+   DEGUSTAÇÃO: só diga se o buffet faz e como funciona o que estiver nas INFORMAÇÕES DO BUFFET; se não estiver, diga que a equipe confirma. Você NUNCA marca degustação nem diz dia ou horário para ela — quem agenda é a equipe. Se oferecer ou marcar VISITA logo depois de o cliente falar de degustação, deixe claro que é uma visita para conhecer o espaço, não a degustação.
 3. NUNCA invente informações. Se não souber responder, use a ferramenta transferir_para_atendente.
 4. Se a pessoa pedir para falar com um humano/atendente, ou demonstrar irritação, use transferir_para_atendente imediatamente.
 5. Não diga que você é uma IA a menos que perguntem diretamente; se perguntarem, admita com naturalidade.
@@ -2222,6 +2223,16 @@ export async function maybeHandleWithAiAgent(
         await saveCustomerName(supabase, conv, nome);
       }
     }
+    // Pergunta de preço só vale se for recente: cliente que volta depois de
+    // semanas segue a regra do zero (caso Amanda, 14/10 — "Qual valor?" de
+    // 09/09 fez a IA passar valores depois do "1 - Receber o orçamento")
+    const priceSinceMs = Date.now() - PRICE_ASK_WINDOW_MS;
+    const priceTurns: ChatTurn[] = ordered
+      .filter((m) => Date.parse(m.timestamp) >= priceSinceMs && (m.content || '').trim())
+      .map((m) => ({ role: m.from_me ? 'assistant' : 'user', content: m.content || '' }) as ChatTurn);
+    if (chatMessages.length && chatMessages[chatMessages.length - 1].role === 'user' && (!ordered.length || ordered[ordered.length - 1].from_me)) {
+      priceTurns.push(chatMessages[chatMessages.length - 1]);
+    }
     const isFirstReply = !chatMessages.some((m) => m.role === 'assistant' && !m.content.startsWith('🧪'));
     conv.__firstReply = isFirstReply;
     const { merged: mergedHistory, pendingUserMessages } = mergeConsecutiveTurns(chatMessages);
@@ -2292,7 +2303,7 @@ export async function maybeHandleWithAiAgent(
       clientAffirmed: clientAffirms(lastUserText),
       minPackageGuests: smallestPackageGuests(await loadSalesMaterials(supabase, instance)),
       packagesText: await loadPackagesText(supabase, instance),
-      pricePending: priceRequestPending(chatMessages),
+      pricePending: priceRequestPending(priceTurns),
       crossedMessage: crossedWithLastReply(((history || []) as Array<{ from_me: boolean; timestamp: string }>)),
       weekdayNote: (() => {
         const wrong = weekdayMismatches(lastUserText, new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10));
@@ -2399,7 +2410,7 @@ export async function maybeHandleWithAiAgent(
             toolResult = await toolEnviarMateriais(supabase, instance, conv, phone, contactName, String(args.tipo || ''), args.reenviar === true);
           } else if (call.name === 'consultar_datas_livres') {
             toolResult = await toolConsultarDatas(supabase, instance, settings, args);
-          } else if (call.name === 'consultar_valor_pacote' && !clientAskedPrice(chatMessages)) {
+          } else if (call.name === 'consultar_valor_pacote' && !clientAskedPrice(priceTurns)) {
             // Valor aberto só para quem perguntou o preço (pedir "orçamento" não conta)
             toolResult = 'NÃO PASSE VALORES: o cliente ainda não perguntou o preço (pedir "orçamento" não é perguntar o preço). Não escreva nenhum valor em R$ nem ofereça passar. Os pacotes estão no PDF; responda o que ele disse e conduza para a data e a visita.';
             console.log(`[AI Agent] Consulta de valor recusada — cliente não perguntou o preço (conv ${conv.id})`);
