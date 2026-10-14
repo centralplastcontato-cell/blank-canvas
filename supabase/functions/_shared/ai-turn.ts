@@ -139,7 +139,10 @@ export function smallestPackageGuests(materials: Array<{ type?: string; guest_co
 // conduz para data e visita — o dono não quer valor aberto para quem não perguntou
 const PRICE_ASK = /(pre[cç]o|valor|quanto (fica|custa|sai|é|e|ficaria|seria|cobra|vai ficar|d[aá])|investimento|tabela de pre|\bcusto\b)/i;
 
-/** O cliente perguntou o preço em algum momento da conversa? */
+/** Só vale pergunta de preço dos últimos 7 dias (cliente que volta depois de semanas começa do zero) */
+export const PRICE_ASK_WINDOW_MS = 7 * 24 * 3600 * 1000;
+
+/** O cliente perguntou o preço nas mensagens recebidas (o chamador passa só as recentes)? */
 export function clientAskedPrice(turns: Turn[]): boolean {
   return turns.some((t) => t.role === "user" && PRICE_ASK.test(t.content));
 }

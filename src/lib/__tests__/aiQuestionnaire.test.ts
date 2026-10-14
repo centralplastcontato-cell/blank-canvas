@@ -19,7 +19,9 @@ describe("questionário da IA", () => {
 
   it("sobre o buffet usa as mesmas chaves e opções das abas", () => {
     const rapidas = QUESTIONNAIRE.find((s) => s.id === "rapidas")!;
-    expect(rapidas.questions.length).toBe(10);
+    expect(rapidas.questions.length).toBe(12);
+    expect(rapidas.questions.find((q) => q.key === "degustacao")?.type).toBe("select");
+    expect(rapidas.questions.find((q) => q.key === "degustacao_como")?.optional).toBe(true);
     const bebida = rapidas.questions.find((q) => q.key === "bebida_alcoolica")!;
     expect(bebida.type).toBe("select");
     expect(bebida.options?.length).toBeGreaterThan(1);

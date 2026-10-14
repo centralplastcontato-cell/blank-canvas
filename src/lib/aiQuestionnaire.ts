@@ -64,7 +64,7 @@ export const QUESTIONNAIRE: QuestionSection[] = [
     id: "rapidas",
     title: "Perguntas que todo cliente faz",
     description: "Escolha a resposta certa para o seu buffet.",
-    questions: BUFFET_FIELDS.filter((f) => f.group === "perguntas").map((f) => fromField(f.key)),
+    questions: BUFFET_FIELDS.filter((f) => f.group === "perguntas").map((f) => fromField(f.key, f.key === "degustacao_como" ? { optional: true } : {})),
   },
   {
     id: "regras",
