@@ -25,6 +25,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { AiSimulatorDialog } from "./AiSimulatorDialog";
 import { FollowUpImageUploader } from "./FollowUpImageUploader";
+import { AiQuestionnaireTab, type ChecklistItem } from "./AiQuestionnaireTab";
+import { QUESTIONNAIRE_COMPANY_IDS } from "@/lib/aiQuestionnaire";
 import { DEFAULT_TEAM_HOURS, parseVisitHours, serializeTeamHours, serializeVisitHours } from "@/lib/businessHours";
 import {
   DEFAULT_STEP_GOALS,
@@ -597,6 +599,23 @@ export function AiAgentSection() {
     }
   };
 
+  // Aba "Questionário": por enquanto só para o Castelo (revisar antes de liberar)
+  const showQuestionnaire = !!currentCompany?.id && QUESTIONNAIRE_COMPANY_IDS.includes(currentCompany.id);
+  const configGroups = showQuestionnaire ? [...FIELD_GROUPS, { id: "questionario", label: "Questionário" }] : FIELD_GROUPS;
+  const filledIn = (group: string) => {
+    const fields = BUFFET_FIELDS.filter((f) => f.group === group);
+    const filled = fields.filter((f) => (infoValues[f.key] || "").trim()).length;
+    return { done: filled === fields.length, detail: `${filled} de ${fields.length}` };
+  };
+  const questionnaireChecklist: ChecklistItem[] = [
+    { label: "Nome da assistente (aba Básico)", done: !!introName.trim() },
+    { label: "Dias e horários de visita (aba Básico)", done: visitDays.length > 0 },
+    { label: "Endereço, duração e faixa etária (aba Básico)", ...filledIn("basico") },
+    { label: "Estrutura e diferenciais (aba Estrutura)", ...filledIn("estrutura") },
+    { label: "Perguntas rápidas (aba Rápidas)", ...filledIn("perguntas") },
+    { label: "Regras do buffet (aba Regras)", ...filledIn("regras") },
+  ];
+
   const clientUsage = summarizeAiUsage(usageRows.filter((r) => !r.is_test));
   const testUsage = summarizeAiUsage(usageRows.filter((r) => r.is_test));
   const clientTotalUsd = clientUsage.reduce((sum, u) => sum + u.totalUsd, 0);
@@ -666,7 +685,7 @@ export function AiAgentSection() {
           {/* Abinhas de navegação */}
           <div className="px-5 sm:px-6 pt-3 pb-1">
             <div className="grid grid-cols-6 sm:flex gap-1.5 bg-muted rounded-xl p-1">
-              {FIELD_GROUPS.map((g, gi) => {
+              {configGroups.map((g, gi) => {
                 const groupFields = BUFFET_FIELDS.filter((f) => f.group === g.id);
                 const filled = groupFields.filter((f) => (infoValues[f.key] || "").trim()).length;
                 const active = configTab === g.id;
@@ -675,7 +694,7 @@ export function AiAgentSection() {
                     key={g.id}
                     type="button"
                     onClick={() => setConfigTab(g.id)}
-                    className={`${gi < 3 ? "col-span-2" : "col-span-3"} sm:flex-auto flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-bold whitespace-nowrap transition-all ${active ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"}`}
+                    className={`${configGroups.length === 6 || gi < 3 ? "col-span-2" : "col-span-3"} sm:flex-auto flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-bold whitespace-nowrap transition-all ${active ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"}`}
                   >
                     {g.label}
                     {groupFields.length > 0 && (
@@ -1393,7 +1412,11 @@ export function AiAgentSection() {
               </div>
             )}
 
-            {configTab !== "basico" && configTab !== "followup" && (
+            {configTab === "questionario" && currentCompany?.id && (
+              <AiQuestionnaireTab companyId={currentCompany.id} checklist={questionnaireChecklist} />
+            )}
+
+            {configTab !== "basico" && configTab !== "followup" && configTab !== "questionario" && (
               <div className="space-y-4">
                 {BUFFET_FIELDS.filter((f) => f.group === configTab).map((f) => (
                   <div key={f.key} className="space-y-1.5">
@@ -1429,11 +1452,18 @@ export function AiAgentSection() {
           </div>
 
           <DialogFooter className="px-5 sm:px-6 py-3.5 border-t border-border/40 flex-col-reverse sm:flex-row gap-2">
-            <Button variant="ghost" onClick={() => setConfigOpen(false)} disabled={saving} className="w-full sm:w-auto">Cancelar</Button>
-            <Button onClick={saveConfig} disabled={saving || uploadsBusy > 0} className="w-full sm:w-auto">
-              {saving || uploadsBusy > 0 ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-              {uploadsBusy > 0 ? "Enviando imagem…" : "Salvar tudo"}
-            </Button>
+            {configTab === "questionario" ? (
+              // O questionário tem os próprios botões de salvar/enviar
+              <Button variant="ghost" onClick={() => setConfigOpen(false)} className="w-full sm:w-auto">Fechar</Button>
+            ) : (
+              <>
+                <Button variant="ghost" onClick={() => setConfigOpen(false)} disabled={saving} className="w-full sm:w-auto">Cancelar</Button>
+                <Button onClick={saveConfig} disabled={saving || uploadsBusy > 0} className="w-full sm:w-auto">
+                  {saving || uploadsBusy > 0 ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                  {uploadsBusy > 0 ? "Enviando imagem…" : "Salvar tudo"}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
