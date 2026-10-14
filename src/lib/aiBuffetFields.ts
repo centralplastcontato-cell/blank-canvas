@@ -40,3 +40,35 @@ export const BUFFET_FIELDS: BuffetField[] = [
   { key: "outros", label: "Outras informações", type: "textarea", placeholder: "Qualquer outra informação que a IA pode afirmar com segurança", group: "regras" },
 ];
 
+
+export function serializeBuffetInfo(values: Record<string, string>): string | null {
+  const parts = BUFFET_FIELDS
+    .filter((f) => (values[f.key] || "").trim())
+    .map((f) => `${f.label}: ${values[f.key].trim()}`);
+  return parts.length > 0 ? parts.join("\n") : null;
+}
+
+export function parseBuffetInfo(text: string | null): Record<string, string> {
+  const values: Record<string, string> = {};
+  if (!text) return values;
+  let currentKey: string | null = null;
+  const unmatched: string[] = [];
+  for (const line of text.split("\n")) {
+    const field = BUFFET_FIELDS.find((f) => line.startsWith(`${f.label}:`));
+    if (field) {
+      currentKey = field.key;
+      values[field.key] = line.slice(field.label.length + 1).trim();
+    } else if (currentKey) {
+      values[currentKey] = `${values[currentKey]}\n${line}`;
+    } else {
+      unmatched.push(line);
+    }
+  }
+  // Texto antigo sem rótulos (ou linhas soltas) cai em "Outras informações"
+  const leftover = unmatched.join("\n").trim();
+  if (leftover) {
+    values["outros"] = [leftover, values["outros"] || ""].filter(Boolean).join("\n");
+  }
+  Object.keys(values).forEach((k) => { values[k] = values[k].trim(); });
+  return values;
+}

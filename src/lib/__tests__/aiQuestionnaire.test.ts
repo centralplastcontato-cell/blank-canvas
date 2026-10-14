@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ALL_QUESTIONS, cleanAnswers, questionnaireProgress, QUESTIONNAIRE, sectionProgress } from "../aiQuestionnaire";
+import { ALL_QUESTIONS, cleanAnswers, prefillFromSettings, questionnaireProgress, QUESTIONNAIRE, sectionProgress } from "../aiQuestionnaire";
 
 describe("questionário da IA", () => {
   it("chaves únicas", () => {
@@ -37,5 +37,21 @@ describe("questionário da IA", () => {
       conversas: "   ",
       hack: "x",
     })).toEqual({ emojis: "Nenhum", proibido: "falar mal de concorrente", passar_equipe: ["Fornecedores e parcerias"] });
+  });
+
+  it("puxa os fatos já cadastrados na IA", () => {
+    const pre = prefillFromSettings({
+      extra_instructions: "Texto antigo solto\nEndereço: Av. General Osório, 1442\nEstacionamento: Vaga própria grátis\nBebida alcoólica: opção que não existe",
+      assistant_name: "Ana Castelo",
+      visit_hours: "Segunda a sexta, das 10:00 às 17:00",
+      team_hours: null,
+    });
+    expect(pre.assistente).toBe("Ana Castelo");
+    expect(pre.endereco).toBe("Av. General Osório, 1442");
+    expect(pre.estacionamento).toBe("Vaga própria grátis");
+    expect(pre.bebida_alcoolica).toBeUndefined();
+    expect(pre.horarios_visita).toBe("Segunda a sexta, das 10:00 às 17:00");
+    expect(pre.outros).toBe("Texto antigo solto");
+    expect(prefillFromSettings(null)).toEqual({});
   });
 });
