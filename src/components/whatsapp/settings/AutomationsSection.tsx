@@ -22,6 +22,8 @@ import { toast } from "@/hooks/use-toast";
 
 import { ReactivationSection } from "./ReactivationSection";
 import { AiAgentSection } from "./AiAgentSection";
+import { AiQuestionnaireCard } from "./AiQuestionnaireTab";
+import { QUESTIONNAIRE_COMPANY_IDS } from "@/lib/aiQuestionnaire";
 import { VisitConfirmationSection } from "./VisitConfirmationSection";
 
 import { PreReservationAutomationSection } from "./PreReservationAutomationSection";
@@ -906,6 +908,10 @@ export function AutomationsSection() {
 
               {/* IA Conversacional (beta) — só com o módulo ligado no Hub */}
               {modules.ia_conversacional && <AiAgentSection />}
+              {/* Sem a IA ainda: o buffet só responde o questionário (liberado por empresa) */}
+              {!modules.ia_conversacional && currentCompanyId && QUESTIONNAIRE_COMPANY_IDS.includes(currentCompanyId) && (
+                <AiQuestionnaireCard companyId={currentCompanyId} />
+              )}
 
               {/* Fluxo visual (Flow Builder) */}
               {modules.flow_builder && (

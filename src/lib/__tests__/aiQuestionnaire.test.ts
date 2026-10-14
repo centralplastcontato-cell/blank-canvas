@@ -11,9 +11,19 @@ describe("questionário da IA", () => {
     const empty = questionnaireProgress({});
     expect(empty.done).toBe(0);
     expect(empty.total).toBe(ALL_QUESTIONS.filter((q) => !q.optional).length);
-    const some = questionnaireProgress({ tom: "Simpático e equilibrado", passar_equipe: ["Fornecedores e parcerias"], outros: "x" });
+    const some = questionnaireProgress({ tom: "Simpático e equilibrado", passar_equipe: ["Fornecedores e parcerias"], mais_alguma: "x" });
     expect(some.done).toBe(2);
-    expect(sectionProgress(QUESTIONNAIRE[0], { tom: "Simpático e equilibrado", emojis: "  " })).toEqual({ done: 1, total: 4 });
+    const tom = QUESTIONNAIRE.find((s) => s.id === "tom")!;
+    expect(sectionProgress(tom, { tom: "Simpático e equilibrado", emojis: "  " })).toEqual({ done: 1, total: 4 });
+  });
+
+  it("sobre o buffet usa as mesmas chaves e opções das abas", () => {
+    const rapidas = QUESTIONNAIRE.find((s) => s.id === "rapidas")!;
+    expect(rapidas.questions.length).toBe(10);
+    const bebida = rapidas.questions.find((q) => q.key === "bebida_alcoolica")!;
+    expect(bebida.type).toBe("select");
+    expect(bebida.options?.length).toBeGreaterThan(1);
+    expect(ALL_QUESTIONS.find((q) => q.key === "outros")?.optional).toBe(true);
   });
 
   it("limpa respostas: tira opção inválida, vazio e chave desconhecida", () => {
