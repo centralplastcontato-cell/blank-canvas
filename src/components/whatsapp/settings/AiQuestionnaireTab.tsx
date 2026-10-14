@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Check, ClipboardList, Loader2, Save, Send } from "lucide-react";
+import { Check, ClipboardList, Loader2, Save, Send, Sparkles } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -30,11 +32,12 @@ interface Row {
 }
 
 /**
- * Aba "Questionário" do Configurar IA: o buffet responde como a IA deve agir.
- * Enquanto não enviar, a equipe Celebrei não liga a IA para ele. As respostas
- * ficam salvas à parte (ai_questionnaires) e não mudam a IA sozinhas.
+ * Questionário da IA — a única coisa que o buffet preenche (aba "Questionário"
+ * do Configurar IA, e o card próprio para quem ainda não tem a IA). Enquanto
+ * não enviar, a equipe Celebrei não liga a IA para ele. As respostas ficam
+ * salvas à parte (ai_questionnaires) e não mudam a IA sozinhas.
  */
-export function AiQuestionnaireTab({ companyId, checklist }: { companyId: string; checklist: ChecklistItem[] }) {
+export function AiQuestionnaireTab({ companyId }: { companyId: string }) {
   const [answers, setAnswers] = useState<QuestionnaireAnswers>({});
   const [row, setRow] = useState<Row | null>(null);
   const [loading, setLoading] = useState(true);
@@ -120,7 +123,7 @@ export function AiQuestionnaireTab({ companyId, checklist }: { companyId: string
         <p className="text-sm font-bold flex items-center gap-2"><ClipboardList className="w-4 h-4 text-violet-600" /> Antes de ligar a IA</p>
         <p className="text-[11px] text-muted-foreground leading-relaxed">
           Responda como a IA deve atender os clientes do seu buffet. Com essas respostas a equipe Celebrei prepara a IA no seu jeito.
-          <strong> Enquanto o questionário não for enviado, a IA não é ligada.</strong> Leva uns 15 minutos e dá para salvar e continuar depois.
+          <strong> Enquanto o questionário não for enviado, a IA não é ligada.</strong> Leva uns 20 minutos e dá para salvar e continuar depois.
         </p>
         <div className="flex items-center gap-2 pt-1">
           <div className="h-2 flex-1 rounded-full bg-border/70 overflow-hidden">
@@ -137,9 +140,9 @@ export function AiQuestionnaireTab({ companyId, checklist }: { companyId: string
 
       {/* O que já tem campo nas outras abas e nos cadastros */}
       <div className="rounded-xl border border-border bg-card p-3.5 space-y-2">
-        <p className="text-xs font-bold">Também precisa estar preenchido</p>
+        <p className="text-xs font-bold">Também precisa estar cadastrado na plataforma</p>
         <ul className="space-y-1.5">
-          {[...checklist, ...catalog].map((c) => (
+          {catalog.map((c) => (
             <li key={c.label} className="flex items-start gap-2 text-xs">
               <span className={`mt-0.5 w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${c.done ? "bg-green-500/15 text-green-700" : "bg-border/70 text-muted-foreground"}`}>
                 {c.done ? <Check className="w-3 h-3" /> : <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60" />}
@@ -152,13 +155,13 @@ export function AiQuestionnaireTab({ companyId, checklist }: { companyId: string
         </ul>
       </div>
 
-      {QUESTIONNAIRE.map((section) => {
+      {QUESTIONNAIRE.map((section, si) => {
         const sp = sectionProgress(section, answers);
         return (
           <div key={section.id} className="space-y-3">
             <div className="flex items-baseline justify-between gap-2 border-b border-border/40 pb-1.5">
               <div>
-                <p className="text-sm font-bold">{section.title}</p>
+                <p className="text-sm font-bold">{si + 1}. {section.title}</p>
                 <p className="text-[11px] text-muted-foreground">{section.description}</p>
               </div>
               <span className={`text-[10px] font-extrabold rounded-full px-1.5 py-0.5 shrink-0 ${sp.done === sp.total ? "bg-green-500/15 text-green-700" : "bg-border/70 text-muted-foreground"}`}>
@@ -199,6 +202,14 @@ export function AiQuestionnaireTab({ companyId, checklist }: { companyId: string
                     })}
                   </div>
                 )}
+                {q.type === "text" && (
+                  <Input
+                    value={typeof answers[q.key] === "string" ? (answers[q.key] as string) : ""}
+                    onChange={(e) => set(q.key, e.target.value)}
+                    placeholder={q.placeholder}
+                    className="h-10 text-base sm:text-sm bg-card border-border shadow-sm"
+                  />
+                )}
                 {q.type === "textarea" && (
                   <Textarea
                     value={typeof answers[q.key] === "string" ? (answers[q.key] as string) : ""}
@@ -225,5 +236,49 @@ export function AiQuestionnaireTab({ companyId, checklist }: { companyId: string
         </Button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Card na central de automações para o buffet que ainda não tem a IA: abre só
+ * o questionário (as configurações técnicas da IA ficam com a equipe Celebrei).
+ */
+export function AiQuestionnaireCard({ companyId }: { companyId: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <div className="relative rounded-2xl bg-card p-5 flex flex-col gap-3 border border-dashed border-violet-400/60 shadow-sm">
+        <div className="w-11 h-11 rounded-xl bg-violet-500/10 flex items-center justify-center">
+          <Sparkles className="w-6 h-6 text-violet-600" />
+        </div>
+        <div>
+          <h4 className="font-display font-medium text-base">IA Conversacional</h4>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
+            Atende seus leads no WhatsApp a qualquer hora, tira dúvidas e agenda visitas. Para ligar, responda o questionário — é com ele que preparamos a IA no jeito do seu buffet.
+          </p>
+        </div>
+        <div className="mt-auto pt-1">
+          <Button size="sm" onClick={() => setOpen(true)} className="gap-1.5">
+            <ClipboardList className="w-4 h-4" />
+            Responder questionário
+          </Button>
+        </div>
+      </div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-[580px] max-h-[92vh] flex flex-col p-0 gap-0 rounded-2xl">
+          <DialogHeader className="px-5 sm:px-6 pt-5 pb-3 border-b border-border/40">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5 text-violet-600" />
+              </div>
+              Questionário da IA
+            </DialogTitle>
+          </DialogHeader>
+          <div className="overflow-y-auto px-5 sm:px-6 py-4 flex-1">
+            <AiQuestionnaireTab companyId={companyId} />
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
