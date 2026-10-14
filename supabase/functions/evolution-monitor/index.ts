@@ -8,7 +8,7 @@
 //   estiver fora, sai por um número do Castelo que não é da Evolution (Z-API primeiro)
 // - Depois que volta, reenvia (com limite) o que falhou durante a queda
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { ALIVE_TIMEOUT_MS, evolutionCheckAlive, evolutionReconnect, evolutionSendMedia, evolutionSendText, evolutionStatus, extractEvolutionMessageId } from "../_shared/evolution.ts";
+import { ALIVE_TIMEOUT_MS, evolutionCheckAlive, evolutionConnect, evolutionReconnect, evolutionSendMedia, evolutionSendText, evolutionStatus, extractEvolutionMessageId } from "../_shared/evolution.ts";
 import { claimEvolutionLock, recentConnectionEvent, releaseEvolutionLock } from "../_shared/evolution-guard.ts";
 import {
   aliveCheckHealthy,
@@ -20,6 +20,8 @@ import {
   type HealthRow,
   instanceAlertText,
   isConfirmedDown,
+  looksLikeDbExhausted,
+  recoveriesInLastDay,
   pickResendable,
   reminderDue,
   reminderText,
@@ -291,9 +293,15 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
   // são precisas 2 seguidas (5+ min).
   // Deslogado já avisado: checa a cada 30 min (consultar reabre o ciclo de QR)
   const nowMs0 = Date.now();
-  const throttled = list.filter((i) => skipLoggedOutCheck(health[instKey(i.id)] || null, nowMs0));
-  const toCheck = list.filter((i) => !throttled.includes(i));
-  if (throttled.length) console.log(`[evolution-monitor] Deslogado(s), próxima checagem em até 30 min: ${throttled.map((i) => i.unit).join(", ")}`);
+  // Número fora e já avisado: sem chamar a Evolution (cada consulta pode
+  // reiniciar o cliente e gastar conexões do banco dela, 14/10) — só a cada
+  // 30 min. No meio-tempo, mensagem/confirmação chegando = voltou
+  const waiting = list.filter((i) => skipLoggedOutCheck(health[instKey(i.id)] || null, nowMs0));
+  const backByTraffic: Inst[] = [];
+  for (const i of waiting) if (await hasRecentTraffic(supabase, i)) backByTraffic.push(i);
+  const throttled = waiting.filter((i) => !backByTraffic.includes(i));
+  const toCheck = list.filter((i) => !waiting.includes(i));
+  if (throttled.length) console.log(`[evolution-monitor] Fora e já avisado(s), próxima consulta em até 30 min: ${throttled.map((i) => i.unit).join(", ")}`);
   // Junto com o status, a checagem "de verdade" (/user/check): o status diz se
   // o número está logado; o /user/check pega o servidor travado (12/10 23h45 o
   // status seguiu "logado" com tudo parado).
@@ -325,6 +333,23 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
     return { inst, res, alive, aliveOk };
   }));
   const results = checked.filter((r): r is NonNullable<typeof r> => r !== null);
+  // Voltou pelo tráfego (sem consultar a Evolution)
+  for (const inst of backByTraffic) {
+    console.log(`[evolution-monitor] ${inst.unit}: tráfego chegando de novo — conectado (sem consultar a Evolution)`);
+    results.push({
+      inst,
+      res: { ok: true, status: 200, data: { data: { Connected: true, LoggedIn: true } } },
+      alive: { ok: true, ms: 0, status: 200, data: null },
+      aliveOk: true,
+    });
+  }
+  // Banco da Evolution esgotado ("too many clients", ou 401 num token que já
+  // funcionava): reconectar só piora — aviso para reiniciar o serviço
+  const dbExhausted = results.some(({ inst, res, alive }) => {
+    const known = !!health[instKey(inst.id)] && health[instKey(inst.id)].state !== "unknown";
+    return looksLikeDbExhausted(res, known) || looksLikeDbExhausted(alive, known);
+  });
+  if (dbExhausted) console.warn("[evolution-monitor] 🚨 Banco da Evolution parece esgotado (401/too many clients) — sem reconexões");
   // Servidor fora: nenhum número respondeu e a celebrei-go também não
   const alertToken = Deno.env.get("EVOLUTION_ALERT_TOKEN");
   const allUnreachable = results.length > 0 && results.every((r) => !r.res.ok && (!r.res.status || r.res.status >= 500));
@@ -357,17 +382,22 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
       console.log(`[evolution-monitor] ${inst.unit}: status diz ${observed} (http ${res.status ?? "-"}), mas há tráfego nos últimos ${ACTIVITY_WINDOW_MS / 60000} min — conectado`);
       observed = "online";
     }
-    const d = decideInstanceHealth(prev, observed, { serverDown });
+    const recoveryLog = recoveriesInLastDay((prevRow?.detail as Json | null)?.recoveries, Date.now());
+    const d = decideInstanceHealth(prev, observed, { serverDown, dbExhausted, recoveriesToday: recoveryLog.length });
     // "Fora desde": troca entre estados de queda (sem sessão ↔ sem resposta) não reinicia a contagem
     const stillDown = !!prevRow && prevRow.state !== "online" && prevRow.state !== "unknown" && d.state !== "online";
     const stateSince = prevRow && (prevRow.state === d.state || stillDown) ? prevRow.state_since : nowIso;
     const downSince = d.state === "online" ? (prevRow && prevRow.state !== "online" ? prevRow.state_since : null) : stateSince;
 
     let reconnectResult: string | null = null;
-    if (d.reconnect) {
-      const rc = await evolutionReconnect(inst.instance_token);
-      reconnectResult = rc.ok ? "ok" : String(rc.error || "erro");
-      console.log(`[evolution-monitor] ${inst.unit}: reconnect #${d.reconnect_attempts} → ${reconnectResult}`);
+    if (d.recover) {
+      // Uma por queda, no máximo 3 por dia (cada uma abre conexões no banco da Evolution)
+      const rc = d.recover === "connect"
+        ? await evolutionConnect(inst.instance_token, `${Deno.env.get("SUPABASE_URL")}/functions/v1/wapi-webhook`)
+        : await evolutionReconnect(inst.instance_token);
+      reconnectResult = `${d.recover}: ${rc.ok ? "ok" : String(rc.error || "erro").slice(0, 120)}`;
+      recoveryLog.push(nowIso);
+      console.log(`[evolution-monitor] ${inst.unit}: ${reconnectResult} (${recoveryLog.length}/3 hoje)`);
       // Sem consultar de novo logo em seguida: a próxima checagem (5 min) confere
     }
     const final = observed === "online" && d.state !== "online" ? decideInstanceHealth(prev, "online") : d;
@@ -380,7 +410,8 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
       reconnect_attempts: final.state === "online" ? 0 : d.reconnect_attempts,
       last_check_at: nowIso,
       detail: {
-        reason, reconnect: reconnectResult, http_status: res.status ?? null, error: res.ok ? null : String(res.error || "").slice(0, 200),
+        reason, reconnect: reconnectResult, recoveries: recoveryLog, db_exhausted: dbExhausted || undefined,
+        http_status: res.status ?? null, error: res.ok ? null : String(res.error || "").slice(0, 200),
         alive: { ok: aliveOk, ms: alive.ms, http: alive.status ?? null, raw: rawSnippet(alive.data ?? alive.error) },
       },
     });
@@ -407,21 +438,21 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
   let serverIncident = serverIncidentOpen;
   if (!onlyInstanceId) {
     const prev = serverRow as HealthRow | null;
-    const d = decideServerHealth(prev, serverDown || suspect, { confirmNow: suspect });
+    const d = decideServerHealth(prev, serverDown || suspect || dbExhausted, { confirmNow: suspect && !dbExhausted });
     const earliestDown = confirmedDown.map((p) => p.stateSince).sort()[0] || nowIso;
     const since = d.state === "down" ? (prev?.state === "down" ? serverRow!.state_since : (suspect ? earliestDown : nowIso)) : (prev?.state === "online" ? serverRow?.state_since : nowIso);
     const downUnits = [...confirmedDown.map((p) => p.inst.unit || p.inst.instance_id), ...(celebreiDown ? ["celebrei-go"] : [])];
-    const units = serverDown ? list.map((i) => i.unit || i.instance_id) : downUnits;
+    const units = serverDown || dbExhausted ? list.map((i) => i.unit || i.instance_id) : downUnits;
     await saveHealth(supabase, SERVER_KEY, null, {
       state: d.state, state_since: since, bad_checks: d.bad_checks, last_check_at: nowIso,
-      detail: { suspect, server_down: serverDown, celebrei_down: celebreiDown, down_units: downUnits },
+      detail: { suspect, server_down: serverDown, db_exhausted: dbExhausted, celebrei_down: celebreiDown, down_units: downUnits },
     });
     if (d.alert && await claimAlert(supabase, SERVER_KEY, prev?.alerted_state ?? null, d.alert === "down" ? "down" : "online")) {
       const lastUnits = ((serverRow?.detail as Json | null)?.down_units as string[] | undefined) || units;
-      await alertOwner(supabase, serverAlertText(d.alert, d.alert === "down" ? since : (serverRow?.state_since ?? null), d.alert === "down" ? units : lastUnits, { suspect: d.alert === "down" && suspect }), true);
+      await alertOwner(supabase, serverAlertText(d.alert, d.alert === "down" ? since : (serverRow?.state_since ?? null), d.alert === "down" ? units : lastUnits, { suspect: d.alert === "down" && suspect, dbExhausted: d.alert === "down" && dbExhausted }), true);
       if (d.alert === "down") {
-        await openIncident(supabase, SERVER_KEY, null, units.join(", "), suspect ? "travamento" : "servidor_fora", since);
-        for (const inst of list) await notifyCompany(supabase, inst, "🚨 Evolution Go com problema", `${inst.unit || "WhatsApp"} pode estar sem conexão: ${suspect ? "provável travamento do servidor da Evolution" : "o servidor da Evolution não responde"}.`, "server_down");
+        await openIncident(supabase, SERVER_KEY, null, units.join(", "), dbExhausted ? "banco_esgotado" : suspect ? "travamento" : "servidor_fora", since);
+        for (const inst of list) await notifyCompany(supabase, inst, "🚨 Evolution Go com problema", `${inst.unit || "WhatsApp"} pode estar sem conexão: ${dbExhausted ? "o banco da Evolution está sem conexões livres" : suspect ? "provável travamento do servidor da Evolution" : "o servidor da Evolution não responde"}.`, "server_down");
       } else {
         await closeIncident(supabase, SERVER_KEY);
       }

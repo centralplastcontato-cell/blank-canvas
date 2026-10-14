@@ -345,6 +345,15 @@ export function evolutionStatus(token: string): Promise<EvolutionResult> {
   return evolutionRequest(token, "/instance/status", "GET", undefined, 15000);
 }
 
+/**
+ * Religa o cliente de uma instância parada (ex.: depois de reiniciar o servidor
+ * da Evolution, as que estavam desconectadas não voltam sozinhas). Com a sessão
+ * salva, volta logada sem QR. Mesmo webhook e eventos da conexão pela tela.
+ */
+export function evolutionConnect(token: string, webhookUrl: string): Promise<EvolutionResult> {
+  return evolutionRequest(token, "/instance/connect", "POST", { webhookUrl, subscribe: EVOLUTION_WEBHOOK_EVENTS }, 30000);
+}
+
 export function evolutionReconnect(token: string): Promise<EvolutionResult> {
   return evolutionRequest(token, "/instance/reconnect", "POST", undefined, 30000);
 }

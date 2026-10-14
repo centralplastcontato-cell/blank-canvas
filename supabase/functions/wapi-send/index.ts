@@ -3,7 +3,7 @@ import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { mediaAckMetadata } from "../_shared/media-ack.ts";
 import { EVOLUTION_WEBHOOK_EVENTS, evolutionDownloadMedia, evolutionReact, evolutionRequest, evolutionStatus, type EvolutionQuoted, evolutionSendMedia, evolutionSendText, extractEvolutionMessageId } from "../_shared/evolution.ts";
 import { decryptWhatsAppMedia, encryptedMediaUrl, type WaMediaType } from "../_shared/whatsapp-media-crypto.ts";
-import { classifyEvolutionStatus } from "../_shared/evolution-health.ts";
+import { classifyEvolutionStatus, skipLoggedOutCheck } from "../_shared/evolution-health.ts";
 import { isContactBlocked } from "../_shared/contact-block.ts";
 import { claimEvolutionLock, recentConnectionEvent, releaseEvolutionLock } from "../_shared/evolution-guard.ts";
 import { aiTakesSiteLead, buildAiSiteWelcome, cleanSiteLead, type SiteLeadInfo, siteLeadBotData } from "../_shared/ai-site-lead.ts";
@@ -2577,12 +2577,15 @@ Deno.serve(async (req) => {
           // 13/10 18:47) nem enquanto o monitor checa o número: responde com o
           // que o evento/monitor já sabem
           const recentEvt = await recentConnectionEvent(supabase, instance_id);
-          const gotLock = !recentEvt && instRecord?.id ? await claimEvolutionLock(supabase, instRecord.id, 20000) : !recentEvt;
+          // Número fora e já avisado: só o monitor consulta, a cada 30 min (cada
+          // consulta pode reiniciar o cliente e gastar conexões do banco da Evolution)
+          const downAndWarned = !recentEvt && skipLoggedOutCheck(monitor as { state?: string; alerted_state?: string; last_check_at?: string } | null, Date.now());
+          const gotLock = !recentEvt && !downAndWarned && instRecord?.id ? await claimEvolutionLock(supabase, instRecord.id, 20000) : (!recentEvt && !downAndWarned);
           if (!gotLock) {
             // "Disconnected" recente: a Evolution volta sozinha em segundos — vale o último estado do monitor
             const known = recentEvt && recentEvt.hint !== 'reconnecting' ? recentEvt.hint : String(monitor?.state || 'online');
             const knownConnected = known === 'online';
-            console.log(`[wapi-send] get-status Evolution sem consultar (${recentEvt ? `evento ${recentEvt.event} recente` : 'monitor checando'}): ${known}`);
+            console.log(`[wapi-send] get-status Evolution sem consultar (${recentEvt ? `evento ${recentEvt.event} recente` : downAndWarned ? 'fora e já avisado — monitor consulta a cada 30 min' : 'monitor checando'}): ${known}`);
             return new Response(JSON.stringify({ status: knownConnected ? 'connected' : (known === 'reconnecting' ? 'degraded' : 'disconnected'), connected: knownConnected, phoneNumber: instRecord?.phone_number || null, provider, evolutionState: known, monitor, cached: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
           }
           const evoRes = await evolutionStatus(instance_token);
