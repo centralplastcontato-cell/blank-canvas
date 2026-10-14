@@ -146,10 +146,10 @@ export function instanceAlertText(kind: "down" | "up", state: EvoState, unit: st
     return lines.join("\n");
   }
   if (state === "needs_qr") {
-    return `🔴 *Celebrei — número desconectado (precisa ler o QR)*\n\n${who} perdeu a sessão do WhatsApp desde ${fmt(since)}. Nada entra nem sai por ele.\n\n👉 Na plataforma: Configurações → Conexão → ${unit} → Conectar, e leia o QR Code no celular do número (WhatsApp → Aparelhos conectados → Conectar um aparelho).`;
+    return `🔴 *Celebrei — número desconectado (precisa ler o QR)*\n\n${who} perdeu a sessão do WhatsApp desde ${fmt(since)}. Nada entra nem sai por ele.\n\n👉 Confira no Hub (Configurações → Conexão) se o ${unit} aparece Desconectado. Se sim: Conectar e leia o QR Code no celular do número (WhatsApp → Aparelhos conectados → Conectar um aparelho). Se estiver Online, mande uma mensagem de teste antes de mexer.`;
   }
   if (state === "reconnecting") {
-    return `🔴 *Celebrei — número caiu*\n\n${who} está sem conexão desde ${fmt(since)}. Tentei reconectar sozinho e não voltou.\n\n👉 Confira se o celular do número está ligado e com internet. Se continuar, reconecte pelo QR em Configurações → Conexão.`;
+    return `🔴 *Celebrei — número caiu*\n\n${who} está sem conexão desde ${fmt(since)}. Tentei reconectar sozinho e não voltou.\n\n👉 Confira se o celular do número está ligado e com internet. Verifique no Hub se o número está Online e mande uma mensagem de teste. Só reconecte pelo QR se o Hub mostrar Desconectado.`;
   }
   return `⚠️ *Celebrei — número sem resposta*\n\n${who}: a Evolution Go não está respondendo sobre este número desde ${fmt(since)}.`;
 }

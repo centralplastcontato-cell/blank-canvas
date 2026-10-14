@@ -3,10 +3,11 @@ import { AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Faixa vermelha no topo da Central de Atendimento quando um número parou de
- * receber mensagens (alerta "mensagens podem não estar chegando" do
- * follow-up-check). Fica até alguém clicar em "Já reconectei" — o aviso no
- * sininho sozinho passava horas sem ninguém ver.
+ * Faixa de atenção no topo da Central de Atendimento quando um número ficou
+ * mais de 2h, em horário comercial, sem nenhum aviso do WhatsApp (alerta
+ * "mensagens podem não estar chegando" do follow-up-check). Fica até alguém
+ * clicar em "Já conferi". Nunca manda desconectar o aparelho: isso destruiria
+ * uma sessão que pode estar funcionando (alarme falso VENDAS 2, 13/10 21:18).
  */
 
 interface SilentAlert {
@@ -85,21 +86,21 @@ export function SilentInstanceBanner() {
         <div
           key={alert.unit}
           role="alert"
-          className="rounded-xl bg-red-600 text-white px-4 py-3 text-sm shadow-md flex items-center justify-between gap-3 flex-wrap"
+          className="rounded-xl bg-amber-500 text-white px-4 py-3 text-sm shadow-md flex items-center justify-between gap-3 flex-wrap"
         >
           <span className="flex items-start gap-2 min-w-0">
             <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <span>
-              <strong>{alert.unit} não está recebendo mensagens desde {formatSince(alert.since)}.</strong>{" "}
-              As mensagens dos clientes não aparecem aqui. Reconecte: no celular do número, WhatsApp → Dispositivos
-              conectados → Desconectar; depois leia o QR Code no Hub.
+              <strong>Atenção: {alert.unit} sem avisos do WhatsApp desde {formatSince(alert.since)}.</strong>{" "}
+              Pode ser só falta de mensagens. Verifique no Hub se o número está Online e mande uma mensagem de teste.
+              Só reconecte pelo QR se o Hub mostrar Desconectado.
             </span>
           </span>
           <button
             onClick={() => dismiss(alert)}
-            className="flex-shrink-0 rounded-full bg-white text-red-700 px-4 py-1.5 text-xs font-bold hover:bg-red-50"
+            className="flex-shrink-0 rounded-full bg-white text-amber-700 px-4 py-1.5 text-xs font-bold hover:bg-amber-50"
           >
-            Já reconectei
+            Já conferi
           </button>
         </div>
       ))}
