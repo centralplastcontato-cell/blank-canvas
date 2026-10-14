@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { buildAiSiteWelcome, cleanIntroImage, cleanSiteLead, parseSiteMonth, siteLeadBotData, siteLeadYmd } from "./ai-site-lead.ts";
+import { aiOnlyHistory, buildAiSiteWelcome, cleanIntroImage, cleanSiteLead, parseSiteMonth, siteLeadBotData, siteLeadStatusOk, siteLeadYmd } from "./ai-site-lead.ts";
 
 const today = "2026-10-07";
 
@@ -60,4 +60,20 @@ Deno.test("siteLeadBotData: o que a IA já fica sabendo", () => {
     ai_agent: "on", nome: "Victor", mes: "Setembro", convidados: "100 pessoas", data_festa: "2027-09-18",
   });
   assertEquals(siteLeadBotData({ name: "Victor", month: "Outubro/26", day: 1 }, today), { ai_agent: "on", nome: "Victor", mes: "Outubro" });
+});
+
+Deno.test("contato atendido antes só pela IA volta para a IA (caso Raissa, 14/10)", () => {
+  // atendida pela IA no VENDAS 3, lead "orçamento enviado"
+  const raissa = [{ bot_step: "ai_agent", bot_data: { ai_agent: "on" } }];
+  assertEquals(aiOnlyHistory(raissa), true);
+  assertEquals(siteLeadStatusOk("orcamento_enviado", aiOnlyHistory(raissa)), true);
+  // a equipe assumiu alguma conversa: menu de sempre
+  assertEquals(aiOnlyHistory([...raissa, { bot_step: "human_takeover", bot_data: { ai_agent: "on" } }]), false);
+  assertEquals(siteLeadStatusOk("orcamento_enviado", false), false);
+  // negociando/fechado/perdido continuam com a equipe
+  assertEquals(siteLeadStatusOk("aguardando_resposta", true), false);
+  assertEquals(siteLeadStatusOk("fechado", true), false);
+  // novo / em contato: sempre podem
+  assertEquals(siteLeadStatusOk("novo", false), true);
+  assertEquals(aiOnlyHistory([]), false);
 });
