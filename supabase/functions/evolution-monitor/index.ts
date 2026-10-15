@@ -210,16 +210,16 @@ async function notifyCompany(supabase: SB, inst: Inst, title: string, message: s
 
 // ─── Reenvio do que falhou durante a queda ─────────────────────────────────
 
-async function resendFailed(supabase: SB, inst: Inst): Promise<number> {
+async function resendFailed(supabase: SB, inst: Inst): Promise<{ resent: number; expired: number }> {
   const since = new Date(Date.now() - RESEND_WINDOW_MS).toISOString();
   const { data: convs } = await supabase.from("wapi_conversations").select("id, remote_jid").eq("instance_id", inst.id).gte("last_message_at", since);
   const convIds = ((convs || []) as Json[]).map((c) => c.id);
-  if (convIds.length === 0) return 0;
+  if (convIds.length === 0) return { resent: 0, expired: 0 };
   const jidByConv = Object.fromEntries(((convs || []) as Json[]).map((c) => [c.id, c.remote_jid]));
   const { data: failed } = await supabase.from("wapi_messages")
     .select("id, conversation_id, timestamp, status, metadata")
     .in("conversation_id", convIds).eq("from_me", true).eq("status", "error").gte("timestamp", since);
-  if (!failed || failed.length === 0) return 0;
+  if (!failed || failed.length === 0) return { resent: 0, expired: 0 };
   const { data: okOut } = await supabase.from("wapi_messages")
     .select("conversation_id, timestamp")
     .in("conversation_id", [...new Set((failed as FailedRow[]).map((f) => f.conversation_id))])
@@ -228,8 +228,25 @@ async function resendFailed(supabase: SB, inst: Inst): Promise<number> {
   for (const m of (okOut || []) as Json[]) {
     if (!newest[m.conversation_id] || Date.parse(m.timestamp) > Date.parse(newest[m.conversation_id])) newest[m.conversation_id] = m.timestamp;
   }
+  const { send, expired } = pickResendable(failed as FailedRow[], newest, Date.now());
+
+  // Vencidas: não saem mais (resposta de conversa > 15 min, agendado > 3 h).
+  // Ficam com o "não enviada" na conversa para a equipe ver.
+  for (const r of expired) {
+    await supabase.from("wapi_messages").update({
+      metadata: { ...(r.metadata || {}), resend_expired_at: new Date().toISOString() },
+    }).eq("id", r.id);
+  }
+  if (expired.length) console.log(`[evolution-monitor] ${inst.unit}: ${expired.length} mensagem(ns) da fila venceram — descartadas (não reenvia em massa)`);
+
+  // Intervalo entre mensagens igual ao dos envios normais (follow-up: 8–15 s)
+  const { data: pacing } = await supabase.from("wapi_bot_settings").select("follow_up_send_min_delay, follow_up_send_max_delay").eq("instance_id", inst.id).maybeSingle();
+  const minS = Math.max(5, Number(pacing?.follow_up_send_min_delay) || 8);
+  const maxS = Math.max(minS, Number(pacing?.follow_up_send_max_delay) || 15);
+
   let resent = 0;
-  for (const r of pickResendable(failed as FailedRow[], newest, Date.now())) {
+  for (const [i, r] of send.entries()) {
+    if (i > 0) await new Promise((ok) => setTimeout(ok, (minS + Math.random() * (maxS - minS)) * 1000));
     const rs = (r.metadata?.resend || {}) as Json;
     const to = String(jidByConv[r.conversation_id] || "");
     if (!to) continue;
@@ -241,6 +258,8 @@ async function resendFailed(supabase: SB, inst: Inst): Promise<number> {
         String(rs.mediaUrl || ""),
         { caption: rs.caption || undefined, filename: rs.fileName || undefined },
       );
+    // Segurada de novo (número caiu outra vez): continua na fila, sem marcar
+    if (res.held) break;
     const meta = { ...(r.metadata || {}), resent_at: new Date().toISOString(), resend_ok: res.ok, ...(res.ok ? {} : { resend_error: String(res.error || "").slice(0, 200) }) };
     const newId = res.ok ? extractEvolutionMessageId(res.data) : null;
     await supabase.from("wapi_messages").update({
@@ -248,10 +267,9 @@ async function resendFailed(supabase: SB, inst: Inst): Promise<number> {
       ...(res.ok ? { status: "sent", ...(newId ? { message_id: newId } : {}) } : {}),
     }).eq("id", r.id);
     if (res.ok) resent++;
-    await new Promise((ok) => setTimeout(ok, 1500));
   }
-  if (resent) console.log(`[evolution-monitor] ${inst.unit}: ${resent} mensagem(ns) reenviada(s) depois da queda`);
-  return resent;
+  if (resent) console.log(`[evolution-monitor] ${inst.unit}: ${resent} mensagem(ns) reenviada(s) depois da queda (uma a cada ${minS}–${maxS}s)`);
+  return { resent, expired: expired.length };
 }
 
 async function countStuckSent(supabase: SB, inst: Inst, sinceIso: string): Promise<number> {
@@ -375,7 +393,7 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
 
   // 2) Cada número: estado, reconexão, status na plataforma. Os avisos saem
   // depois, quando já se sabe se é queda de um número ou do servidor
-  type Pending = { inst: Inst; key: string; prev: HealthRow | null; final: ReturnType<typeof decideInstanceHealth>; stateSince: string; downSince: string | null; resent: number };
+  type Pending = { inst: Inst; key: string; prev: HealthRow | null; final: ReturnType<typeof decideInstanceHealth>; stateSince: string; downSince: string | null; resent: number; expired: number };
   const pending: Pending[] = [];
   const summary: Json[] = [];
   for (const { inst, res, alive, aliveOk } of results) {
@@ -432,9 +450,10 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
 
     // Voltou: reenvia o que falhou na queda
     let resent = 0;
-    if (final.state === "online") resent = await resendFailed(supabase, inst);
+    let expiredQueue = 0;
+    if (final.state === "online") ({ resent, expired: expiredQueue } = await resendFailed(supabase, inst));
 
-    pending.push({ inst, key, prev, final, stateSince: finalSince, downSince, resent });
+    pending.push({ inst, key, prev, final, stateSince: finalSince, downSince, resent, expired: expiredQueue });
     summary.push({ unit: inst.unit, state: final.state, alert: final.alert, reconnect: reconnectResult, resent });
   }
 
@@ -479,7 +498,7 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
     if (final.alert === "down" && serverIncident) continue;
     if (final.alert && await claimAlert(supabase, key, prev?.alerted_state ?? null, final.alert === "down" ? final.state : "online")) {
       const stuck = final.alert === "up" && p.downSince ? await countStuckSent(supabase, inst, p.downSince) : 0;
-      const text = instanceAlertText(final.alert, final.state, inst.unit || inst.instance_id, final.alert === "up" ? p.downSince : p.stateSince, { stuck, resent: p.resent });
+      const text = instanceAlertText(final.alert, final.state, inst.unit || inst.instance_id, final.alert === "up" ? p.downSince : p.stateSince, { stuck, resent: p.resent, expired: p.expired });
       await alertOwner(supabase, text, serverDown);
       if (final.alert === "down") {
         await openIncident(supabase, key, inst.id, inst.unit || inst.instance_id, final.state, p.stateSince);
