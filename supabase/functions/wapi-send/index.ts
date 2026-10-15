@@ -5,7 +5,7 @@ import { EVOLUTION_WEBHOOK_EVENTS, evolutionDownloadMedia, evolutionReact, evolu
 import { decryptWhatsAppMedia, encryptedMediaUrl, type WaMediaType } from "../_shared/whatsapp-media-crypto.ts";
 import { classifyEvolutionStatus, skipLoggedOutCheck } from "../_shared/evolution-health.ts";
 import { isContactBlocked } from "../_shared/contact-block.ts";
-import { claimEvolutionLock, recentConnectionEvent, releaseEvolutionLock } from "../_shared/evolution-guard.ts";
+import { claimEvolutionLock, PAUSED_INSTANCE_ROW_IDS, recentConnectionEvent, releaseEvolutionLock } from "../_shared/evolution-guard.ts";
 import { aiTakesSiteLead, buildAiSiteWelcome, cleanSiteLead, type SiteLeadInfo, siteLeadBotData } from "../_shared/ai-site-lead.ts";
 
 const corsHeaders = {
@@ -2576,6 +2576,11 @@ Deno.serve(async (req) => {
           // reconectando sozinha; uma consulta abre uma 2ª conexão — VENDAS 1,
           // 13/10 18:47) nem enquanto o monitor checa o número: responde com o
           // que o evento/monitor já sabem
+          // Número pausado (bloqueado pelo WhatsApp, 15/10): não consultar a Evolution
+          if (instRecord?.id && PAUSED_INSTANCE_ROW_IDS.has(instRecord.id)) {
+            console.log('[wapi-send] get-status Evolution: número pausado — sem consultar');
+            return new Response(JSON.stringify({ status: 'disconnected', connected: false, phoneNumber: instRecord?.phone_number || null, provider, evolutionState: 'paused', monitor, cached: true, paused: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
           const recentEvt = await recentConnectionEvent(supabase, instance_id);
           // Número fora e já avisado: só o monitor consulta, a cada 30 min (cada
           // consulta pode reiniciar o cliente e gastar conexões do banco da Evolution)

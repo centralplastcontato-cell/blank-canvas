@@ -11,6 +11,16 @@ type SB = any;
 
 export const EVENT_QUIET_MS = 2 * 60 * 1000;
 
+// ATÉ SEGUNDA ORDEM (15/10): números bloqueados pelo WhatsApp. Consultar uma
+// instância deslogada reinicia o ciclo de QR e cada ciclo vaza conexões no
+// banco da Evolution (esgotou de novo em 14/10 19:28 e derrubou o VENDAS 1).
+// Nada automático consulta a Evolution sobre eles (monitor nem tela de Conexão)
+// e os alertas saem só pela Z-API.
+export const PAUSED_INSTANCE_ROW_IDS = new Set<string>([
+  "3f39419e-e7f5-4c3b-8ebd-1703e6c7a0c7", // VENDAS 2 — bloqueado, em análise
+]);
+export const CELEBREI_GO_PAUSED = true; // 15 97400-0152 bloqueado: sem consultas e sem enviar alertas por ela
+
 export const CONNECTION_EVENTS = [
   "Connected", "PairSuccess", "KeepAliveRestored",
   "Disconnected", "StreamReplaced", "ConnectFailure", "KeepAliveTimeout", "StreamError", "TemporaryBan",
