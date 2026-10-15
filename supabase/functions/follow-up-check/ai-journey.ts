@@ -5,6 +5,7 @@
 // outras conversas (bot fixo, outros números, outros buffets) seguem os
 // follow-ups de sempre, sem mudança.
 
+import { claimSystemSendSlot, peekSystemSend } from "../_shared/system-send-pacing.ts";
 import { DEFAULT_AI_MODEL, estimateChatCostUsd, providerForModel } from "../_shared/ai-models.ts";
 import { type ChatTurn, createLlmSession } from "../wapi-webhook/ai-llm.ts";
 import { followupLabel, inSendWindowBR, type JourneyContext, type JourneyMessage, journeyOwns, nextJourneyAction, normalizeFollowUpConfig } from "../_shared/ai-followup.ts";
@@ -326,6 +327,13 @@ export async function runAiJourney(
     const seenConv = new Set<string>();
     const convs = [...(parked.data || []), ...(recent.data || [])].filter((c: Json) => !seenConv.has(c.id) && !!seenConv.add(c.id));
 
+    // Ritmo do sistema nos números da Evolution (60–180 s, teto do dia, 9h–20h):
+    // sem a vez, nem escreve a mensagem; depois de um envio, o próximo fica para outra rodada
+    const paced = { id: String(instance.id), provider: instance.provider as string | null, unit: instance.unit as string | null };
+    const pace = await peekSystemSend(supabase, paced);
+    let paceOk = pace.ok;
+    if (!pace.ok) console.log(`[ai-journey] ${instance.unit}: ritmo do sistema (${pace.reason}) — follow-ups ficam para depois`);
+
     for (const conv of (convs || []) as Json[]) {
       if (sent >= MAX_SENDS_PER_RUN || Date.now() - startedMs > budgetMs) break;
       try {
@@ -367,6 +375,7 @@ export async function runAiJourney(
           continue;
         }
         if (plan.action.kind !== "lost" && !inSendWindowBR(nowMs)) continue;
+        if (plan.action.kind !== "lost" && !paceOk) continue;
 
         // Só leads ainda em negociação (sem lead: só chega aqui o lembrete de inatividade)
         let lead: Json | null = null;
@@ -490,6 +499,13 @@ export async function runAiJourney(
           console.log(`[ai-journey] Conversa ${conv.id} mudou enquanto a mensagem era escrita — não enviada`);
           continue;
         }
+        const slot = await claimSystemSendSlot(supabase, paced);
+        if (!slot.ok) {
+          console.log(`[ai-journey] ${instance.unit}: ritmo do sistema (${slot.reason}) — conversa ${conv.id} fica para a próxima rodada`);
+          paceOk = false;
+          continue;
+        }
+        if (slot.paced) paceOk = false;
         const label = followupLabel(plan.action) as string;
         const sinceIso = new Date().toISOString();
         const messageId = await sendJourneyMessage(instance, conv, check.text, imageUrl);

@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { biaReminderConversationIds } from "../_shared/ai-journey-scope.ts";
+import { claimSystemSendSlot } from "../_shared/system-send-pacing.ts";
 import { evolutionSendText, extractEvolutionMessageId } from "../_shared/evolution.ts";
 import { loadBlockedContacts } from "../_shared/contact-block.ts";
 import { installEvolutionCallGuard } from "../_shared/evolution-guard.ts";
@@ -307,6 +308,8 @@ Deno.serve(async (req) => {
         if (!instances || instances.length === 0) continue;
 
         let companySentThisCycle = 0;
+        // Números da Evolution que já usaram a vez nesta rodada (ritmo do sistema: 60–180 s, teto do dia, 9h–20h)
+        const pacedOut = new Set<string>();
 
         for (const lead of filteredLeads) {
           if (isBlocked(settings.company_id, lead.whatsapp)) {
@@ -400,7 +403,7 @@ Deno.serve(async (req) => {
               }
 
               const instance = instances.find(i => i.id === conv.instance_id);
-              if (!instance) {
+              if (!instance || pacedOut.has(instance.id)) {
                 await supabase.from("lead_reactivation_history")
                   .delete().eq("lead_id", lead.id).eq("reactivation_stage", stage.stage).eq("status", "pending");
                 continue;
@@ -433,6 +436,16 @@ Deno.serve(async (req) => {
                 console.warn(`[reactivation-engine] ⏸ Skipping reactivation for ${phone} — conversation ${conv.id} paused (loop guard)`);
                 continue;
               }
+
+              const slot = await claimSystemSendSlot(supabase, instance);
+              if (!slot.ok) {
+                console.log(`[reactivation-engine] ⏱️ ${instance.unit}: ritmo do sistema (${slot.reason}) — fica para a próxima rodada`);
+                pacedOut.add(instance.id);
+                await supabase.from("lead_reactivation_history")
+                  .delete().eq("lead_id", lead.id).eq("reactivation_stage", stage.stage).eq("status", "pending");
+                break;
+              }
+              if (slot.paced) pacedOut.add(instance.id);
 
               // Evolution Go: envia pela Evolution (o resto segue pela W-API como antes)
               const sendResponse = instance.provider === "evolution"
@@ -511,7 +524,7 @@ Deno.serve(async (req) => {
                 companySentThisCycle++;
               }
 
-              await randomDelay(settings.safety_interval_min_seconds, settings.safety_interval_max_seconds);
+              if (!slot.paced) await randomDelay(settings.safety_interval_min_seconds, settings.safety_interval_max_seconds);
               break; // one stage per lead per cycle
             }
           } catch (leadErr) {

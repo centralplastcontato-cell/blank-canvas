@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { claimSystemSendSlot } from "../_shared/system-send-pacing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -100,12 +101,20 @@ Deno.serve(async (req) => {
         // Número da empresa: o da unidade da pré-reserva, senão o primeiro conectado
         const { data: instances } = await supabase
           .from("wapi_instances")
-          .select("instance_id, instance_token, unit")
+          .select("id, instance_id, instance_token, unit, provider")
           .eq("company_id", settings.company_id)
           .eq("status", "connected");
         const instance = (instances || []).find((i) => pr.unit && i.unit === pr.unit) || (instances || [])[0];
 
         if (!instance) continue;
+
+        // Ritmo do sistema nos números da Evolution (60–180 s, teto do dia, 9h–20h):
+        // sem a vez, o aviso fica para a próxima rodada
+        const slot = await claimSystemSendSlot(supabase, instance);
+        if (!slot.ok) {
+          console.log(`[pre-reservation-expiry] ⏱️ ${instance.unit}: ritmo do sistema (${slot.reason}) — pré-reserva ${pr.id} fica para a próxima rodada`);
+          continue;
+        }
 
         // Envia pelo wapi-send no mesmo formato das outras rotinas (antes faltavam a
         // ação e o token da instância e a mensagem nunca saía)

@@ -15,6 +15,7 @@ import { evolutionSendMedia, evolutionSendText, extractEvolutionMessageId } from
 import { type AiTarget, journeyOwnsConversation, type JourneyScope, journeyScopes, loadAiJourneyTargets, runAiJourney } from "./ai-journey.ts";
 import { loadBlockedContacts } from "../_shared/contact-block.ts";
 import { installEvolutionCallGuard } from "../_shared/evolution-guard.ts";
+import { claimSystemSendSlot } from "../_shared/system-send-pacing.ts";
 
 type SupabaseAdmin = any;
 
@@ -726,6 +727,12 @@ async function processNextStepReminder({
         continue;
       }
 
+      const slot = await claimSystemSendSlot(supabase, { id: settings.instance_id, provider: instance.provider });
+      if (!slot.ok) {
+        console.log(`[follow-up-check] ⏱️ Ritmo do sistema (${slot.reason}) — lembretes restantes ficam para a próxima rodada`);
+        break;
+      }
+
       const sendResult = await providerSendText(instance, phone, personalizedMessage);
 
       if (!sendResult.ok) {
@@ -764,6 +771,8 @@ async function processNextStepReminder({
         .eq("id", conv.id);
 
       successCount++;
+      // Número com ritmo do sistema: o próximo só sai depois de 60–180 s (próxima rodada)
+      if (slot.paced) break;
 
       // Safe delay between sends to avoid WhatsApp rate limiting (ramp-up overrides)
       const minDelay = rampUp ? rampUp.minDelay : (settings.follow_up_send_min_delay ?? 8);
@@ -1090,6 +1099,11 @@ async function processFollowUp({
         console.warn(`[follow-up-check] ⏸ Skipping follow-up to ${lead.name} — conversation paused (loop guard)`);
         continue;
       }
+      const slot = await claimSystemSendSlot(supabase, { id: settings.instance_id, provider: instance.provider });
+      if (!slot.ok) {
+        console.log(`[follow-up-check] ⏱️ Ritmo do sistema (${slot.reason}) — follow-ups #${followUpNumber} restantes ficam para a próxima rodada`);
+        break;
+      }
       const hasImage = !!(imageUrl && imageUrl.trim().length > 0);
       const sendResult = hasImage
         ? await providerSendImage(instance, fuPhone, imageUrl!, personalizedMessage).then(r => ({ ok: r.ok, messageId: r.messageId, error: r.ok ? undefined : 'send-image failed' }))
@@ -1187,6 +1201,8 @@ async function processFollowUp({
       }
 
       successCount++;
+      // Número com ritmo do sistema: o próximo só sai depois de 60–180 s (próxima rodada)
+      if (slot.paced) break;
 
       // Safe delay between sends to avoid WhatsApp rate limiting (ramp-up overrides)
       const minDelay = rampUp ? rampUp.minDelay : (settings.follow_up_send_min_delay ?? 8);
@@ -1380,6 +1396,12 @@ Podemos continuar de onde paramos?`;
         continue;
       }
 
+      const slot = await claimSystemSendSlot(supabase, { id: settings.instance_id, provider: instance.provider });
+      if (!slot.ok) {
+        console.log(`[follow-up-check] ⏱️ Ritmo do sistema (${slot.reason}) — lembretes de robô parado restantes ficam para a próxima rodada`);
+        break;
+      }
+
       const sendResult = await providerSendText(instance, phone, personalizedMessage);
 
       if (!sendResult.ok) {
@@ -1421,6 +1443,8 @@ Podemos continuar de onde paramos?`;
         .eq("id", conv.id);
 
       successCount++;
+      // Número com ritmo do sistema: o próximo só sai depois de 60–180 s (próxima rodada)
+      if (slot.paced) break;
 
       // Safe delay between sends to avoid WhatsApp rate limiting (ramp-up overrides)
       const minDelay = rampUp ? rampUp.minDelay : (settings.follow_up_send_min_delay ?? 8);
