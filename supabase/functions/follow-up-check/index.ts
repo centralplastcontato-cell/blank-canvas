@@ -14,6 +14,7 @@ import { isAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { evolutionSendMedia, evolutionSendText, extractEvolutionMessageId } from "../_shared/evolution.ts";
 import { type AiTarget, journeyOwnsConversation, type JourneyScope, journeyScopes, loadAiJourneyTargets, runAiJourney } from "./ai-journey.ts";
 import { loadBlockedContacts } from "../_shared/contact-block.ts";
+import { installEvolutionCallGuard } from "../_shared/evolution-guard.ts";
 
 type SupabaseAdmin = any;
 
@@ -387,6 +388,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
     isBlockedContact = await loadBlockedContacts(supabase);
+    installEvolutionCallGuard(supabase);
 
     console.log("[follow-up-check] Starting follow-up check...");
 

@@ -25,9 +25,38 @@ export interface EvolutionResult {
   status?: number;
   data?: unknown;
   error?: string;
+  /** Não chamou a Evolution: janela de 2 min após queda, trava ou número pausado */
+  held?: boolean;
+}
+
+// Trava de TODAS as chamadas à Evolution (envios, status, mídia, reação,
+// connect...). Cada função instala a sua no começo da requisição
+// (installEvolutionCallGuard em evolution-guard.ts). Devolve o motivo para
+// segurar a chamada, ou null para seguir.
+type CallGuard = (token: string, path: string) => Promise<string | null>;
+let callGuard: CallGuard | null = null;
+export function setEvolutionCallGuard(fn: CallGuard | null): void {
+  callGuard = fn;
+}
+
+export const HELD_PREFIX = "evolution_held:";
+export function isHeldError(error: string | undefined | null): boolean {
+  return String(error || "").startsWith(HELD_PREFIX);
 }
 
 export async function evolutionRequest(token: string, path: string, method = "GET", body?: unknown, timeoutMs = 90000): Promise<EvolutionResult> {
+  if (callGuard) {
+    let reason: string | null = null;
+    try {
+      reason = await callGuard(token, path);
+    } catch (e) {
+      console.warn("[evolution] trava indisponível, seguindo:", e instanceof Error ? e.message : e);
+    }
+    if (reason) {
+      console.warn(`[evolution] ${method} ${path} segurado: ${reason}`);
+      return { ok: false, held: true, error: `${HELD_PREFIX} ${reason}` };
+    }
+  }
   try {
     const res = await fetch(`${evolutionBaseUrl()}${path}`, {
       method,

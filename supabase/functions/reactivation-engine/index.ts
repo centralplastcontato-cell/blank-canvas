@@ -3,6 +3,7 @@ import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { biaReminderConversationIds } from "../_shared/ai-journey-scope.ts";
 import { evolutionSendText, extractEvolutionMessageId } from "../_shared/evolution.ts";
 import { loadBlockedContacts } from "../_shared/contact-block.ts";
+import { installEvolutionCallGuard } from "../_shared/evolution-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -108,6 +109,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+    installEvolutionCallGuard(supabase);
 
     console.log("[reactivation-engine] Starting reactivation check...");
 
