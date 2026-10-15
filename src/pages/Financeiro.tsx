@@ -29,11 +29,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { matchesExpenseSearch } from '@/lib/expenseSearch';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users, ChevronLeft, ChevronRight, ExternalLink, ArrowUpDown, CalendarRange, X, FileText, CheckCircle, RotateCcw, Clock, ArrowLeftRight, ClipboardCheck, Pencil } from 'lucide-react';
+import { Search, DollarSign, TrendingUp, AlertTriangle, CalendarDays, Loader2, Menu, Plus, Trash2, Wallet, Scale, Building, Zap, PartyPopper, List, Users, ChevronLeft, ChevronRight, ExternalLink, ArrowUpDown, CalendarRange, X, FileText, CheckCircle, RotateCcw, Clock, ArrowLeftRight, ClipboardCheck, Pencil } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, addMonths, startOfYear, endOfYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -116,6 +118,8 @@ export default function Financeiro() {
   const [pageRecebidos, setPageRecebidos] = useState(1);
   const [pageDespesas, setPageDespesas] = useState(1);
   const [despesasSortAsc, setDespesasSortAsc] = useState(true);
+  // Busca de despesas: nome, categoria, observação, data ou valor
+  const [despesasQuery, setDespesasQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [selectedEventData, setSelectedEventData] = useState<{ title: string; event_date: string; total_value: number; status: string } | null>(null);
@@ -742,6 +746,28 @@ export default function Financeiro() {
                       </div>
                     </div>
 
+                    {/* Busca: chegar direto na despesa (vale para a aba aberta) */}
+                    <div className="relative mt-2">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                      <Input
+                        value={despesasQuery}
+                        onChange={(ev) => { setDespesasQuery(ev.target.value); setPageDespesas(1); }}
+                        placeholder="Buscar despesa: nome, data (01/04, abril) ou valor"
+                        className="pl-9 pr-9 h-10 text-base sm:text-sm"
+                        inputMode="search"
+                      />
+                      {despesasQuery && (
+                        <button
+                          type="button"
+                          onClick={() => { setDespesasQuery(''); setPageDespesas(1); }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-muted-foreground hover:text-foreground"
+                          aria-label="Limpar busca"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+
                     {(['todos', 'fixa', 'variavel', 'festa', 'a_vencer', 'vencidas', 'baixadas'] as const).map(expType => {
                       const now = new Date();
                       const typeExpenses = dashboard.expenses
@@ -752,6 +778,7 @@ export default function Financeiro() {
                           if (expType === 'vencidas') return e.status === 'pendente' && new Date(e.expense_date + 'T23:59:59') < now;
                           return (e.expense_type || 'fixa') === expType;
                         })
+                        .filter(e => matchesExpenseSearch(e, despesasQuery, CATEGORY_LABELS[e.category]))
                         .sort((a, b) => despesasSortAsc
                           ? a.expense_date.localeCompare(b.expense_date)
                           : b.expense_date.localeCompare(a.expense_date)
@@ -786,7 +813,9 @@ export default function Financeiro() {
                           </div>
                           {typeExpenses.length === 0 ? (
                             <Card className="p-8">
-                              <p className="text-sm text-muted-foreground text-center">Nenhuma despesa cadastrada</p>
+                              <p className="text-sm text-muted-foreground text-center">
+                                {despesasQuery.trim() ? `Nenhuma despesa encontrada para "${despesasQuery.trim()}" nesta aba` : 'Nenhuma despesa cadastrada'}
+                              </p>
                             </Card>
                           ) : (() => {
                             const totalPagesDespesas = Math.ceil(typeExpenses.length / PAGE_SIZE);
