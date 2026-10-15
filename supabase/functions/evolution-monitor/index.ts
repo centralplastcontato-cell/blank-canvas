@@ -9,7 +9,7 @@
 // - Depois que volta, reenvia (com limite) o que falhou durante a queda
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { ALIVE_TIMEOUT_MS, evolutionCheckAlive, evolutionConnect, evolutionReconnect, evolutionSendMedia, evolutionSendText, evolutionStatus, extractEvolutionMessageId } from "../_shared/evolution.ts";
-import { claimEvolutionLock, recentConnectionEvent, releaseEvolutionLock } from "../_shared/evolution-guard.ts";
+import { CELEBREI_GO_PAUSED, claimEvolutionLock, PAUSED_INSTANCE_ROW_IDS, recentConnectionEvent, releaseEvolutionLock } from "../_shared/evolution-guard.ts";
 import {
   aliveCheckHealthy,
   classifyEvolutionStatus,
@@ -125,6 +125,8 @@ async function bumpReminder(supabase: SB, key: string): Promise<void> {
 // ─── Envio do alerta ──────────────────────────────────────────────────────
 
 async function sendViaCelebreiGo(text: string): Promise<boolean> {
+  // celebrei-go bloqueada (15/10): alertas só pela Z-API até segunda ordem
+  if (CELEBREI_GO_PAUSED) return false;
   const token = Deno.env.get("EVOLUTION_ALERT_TOKEN");
   if (!token) {
     console.warn("[evolution-monitor] EVOLUTION_ALERT_TOKEN não configurado — usando o plano B");
@@ -281,8 +283,11 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
     .eq("provider", "evolution").eq("is_active", true);
   if (onlyInstanceId) q = q.eq("id", onlyInstanceId);
   const { data: instances } = await q;
-  const list = (instances || []) as Inst[];
-  if (list.length === 0) return { checked: 0 };
+  // Números pausados (bloqueados pelo WhatsApp): fora do monitor até segunda ordem
+  const paused = ((instances || []) as Inst[]).filter((i) => PAUSED_INSTANCE_ROW_IDS.has(i.id));
+  if (paused.length) console.log(`[evolution-monitor] Pausado(s), sem consultar: ${paused.map((i) => i.unit).join(", ")}`);
+  const list = ((instances || []) as Inst[]).filter((i) => !PAUSED_INSTANCE_ROW_IDS.has(i.id));
+  if (list.length === 0) return { checked: 0, paused: paused.map((i) => i.unit) };
 
   const nowIso = new Date().toISOString();
   const health = await loadHealth(supabase, [SERVER_KEY, ...list.map((i) => instKey(i.id))]);
@@ -351,7 +356,8 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
   });
   if (dbExhausted) console.warn("[evolution-monitor] 🚨 Banco da Evolution parece esgotado (401/too many clients) — sem reconexões");
   // Servidor fora: nenhum número respondeu e a celebrei-go também não
-  const alertToken = Deno.env.get("EVOLUTION_ALERT_TOKEN");
+  // celebrei-go pausada: não consultar (cada consulta numa instância deslogada vaza conexões no banco da Evolution)
+  const alertToken = CELEBREI_GO_PAUSED ? undefined : Deno.env.get("EVOLUTION_ALERT_TOKEN");
   const allUnreachable = results.length > 0 && results.every((r) => !r.res.ok && (!r.res.status || r.res.status >= 500));
   let serverDown = false;
   let celebreiDown = false;
@@ -360,7 +366,8 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
     const probeOnline = classifyEvolutionStatus(probe) === "online";
     celebreiDown = !probeOnline || !aliveCheckHealthy(await evolutionCheckAlive(alertToken, OWNER_ALERT_PHONE), ALIVE_TIMEOUT_MS);
     serverDown = allUnreachable && !probe.ok;
-  } else if (allUnreachable && !onlyInstanceId) {
+  } else if (allUnreachable && !onlyInstanceId && results.length >= 2) {
+    // Sem a celebrei-go para confirmar: só com 2+ números sem resposta
     serverDown = true;
   }
   const serverRow = (health[SERVER_KEY] || null) as Json | null;
