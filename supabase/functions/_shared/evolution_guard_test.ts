@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { evolutionHoldReason } from "./evolution-guard.ts";
+import { evolutionHoldReason, PAUSED_INSTANCE_ROW_IDS } from "./evolution-guard.ts";
 import { evolutionRequest, isHeldError, setEvolutionCallGuard } from "./evolution.ts";
 
 // Banco de mentira: último evento do número e trava do monitor
@@ -35,8 +35,12 @@ Deno.test("monitor com a trava do número: segura; trava vencida: libera", async
   assertEquals(await evolutionHoldReason(fakeDb(null, ago(10)), inst, NOW), null);
 });
 
-Deno.test("número pausado: sempre segura", async () => {
-  assertEquals(await evolutionHoldReason(fakeDb(null, null), { id: "3f39419e-e7f5-4c3b-8ebd-1703e6c7a0c7", instance_id: "cb4a0b19" }, NOW), "número pausado");
+Deno.test("número pausado: sempre segura; VENDAS 2 já não está pausado", async () => {
+  const vendas2 = { id: "3f39419e-e7f5-4c3b-8ebd-1703e6c7a0c7", instance_id: "cb4a0b19" };
+  assertEquals(await evolutionHoldReason(fakeDb(null, null), vendas2, NOW), null);
+  PAUSED_INSTANCE_ROW_IDS.add("row-pausado");
+  assertEquals(await evolutionHoldReason(fakeDb(null, null), { id: "row-pausado", instance_id: "x" }, NOW), "número pausado");
+  PAUSED_INSTANCE_ROW_IDS.delete("row-pausado");
 });
 
 Deno.test("chamada segurada não vai para a Evolution e volta marcada", async () => {
