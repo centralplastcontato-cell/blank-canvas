@@ -1,11 +1,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { mediaAckMetadata } from "../_shared/media-ack.ts";
-import { EVOLUTION_WEBHOOK_EVENTS, evolutionDownloadMedia, evolutionReact, evolutionRequest, evolutionStatus, type EvolutionQuoted, evolutionSendMedia, evolutionSendText, extractEvolutionMessageId } from "../_shared/evolution.ts";
+import { EVOLUTION_WEBHOOK_EVENTS, isHeldError, evolutionDownloadMedia, evolutionReact, evolutionRequest, evolutionStatus, type EvolutionQuoted, evolutionSendMedia, evolutionSendText, extractEvolutionMessageId } from "../_shared/evolution.ts";
 import { decryptWhatsAppMedia, encryptedMediaUrl, type WaMediaType } from "../_shared/whatsapp-media-crypto.ts";
 import { classifyEvolutionStatus, skipLoggedOutCheck } from "../_shared/evolution-health.ts";
 import { isContactBlocked } from "../_shared/contact-block.ts";
-import { claimEvolutionLock, PAUSED_INSTANCE_ROW_IDS, recentConnectionEvent, releaseEvolutionLock } from "../_shared/evolution-guard.ts";
+import { claimEvolutionLock, installEvolutionCallGuard, PAUSED_INSTANCE_ROW_IDS, recentConnectionEvent, releaseEvolutionLock } from "../_shared/evolution-guard.ts";
 import { aiTakesSiteLead, buildAiSiteWelcome, cleanSiteLead, type SiteLeadInfo, siteLeadBotData } from "../_shared/ai-site-lead.ts";
 
 const corsHeaders = {
@@ -1383,6 +1383,8 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase: any = createClient(supabaseUrl, supabaseServiceKey);
+    // Nenhuma chamada à Evolution logo depois de uma queda do número (2 min), com trava ou número pausado
+    installEvolutionCallGuard(supabase);
 
     const body = await req.json();
     const { action, conversationId } = body;
@@ -1543,6 +1545,9 @@ Deno.serve(async (req) => {
     const isAutomatedCall = body.automation === true || (typeof body.source === 'string' && automationSources.has(body.source));
     // Evolution: envio automático que falhar fica guardado para reenviar quando o número voltar
     const queueEvolutionFailure = isEvolution && (isAutomatedCall || body.messageSource === 'ai_agent');
+    // Envio segurado pela trava (queda há < 2 min, monitor checando): vai para a
+    // fila de reenvio mesmo sendo manual — sai quando o número estiver ok
+    const queueEvo = (err: string | undefined) => queueEvolutionFailure || (isEvolution && isHeldError(err));
     const failureSource = body.messageSource === 'ai_agent' ? 'ai_agent' : (typeof body.source === 'string' && body.source ? body.source : 'platform');
     const isQueueableAutomation = typeof body.source === 'string' && queueableSources.has(body.source);
 
@@ -1890,7 +1895,7 @@ Deno.serve(async (req) => {
 
         if (!sendResult.ok) {
           console.error('send-text failed:', sendResult.error);
-          if (queueEvolutionFailure && isEvolution) {
+          if (queueEvo(sendResult.error) && isEvolution) {
             await persistEvolutionFailure(supabase, conversationId, companyId, 'text', message, { action: 'send-text', message }, failureSource, sendResult.error);
           }
           // 🔭 trace: send_provider_failed
@@ -2055,7 +2060,7 @@ Deno.serve(async (req) => {
           }
           const zapiRes = await directSendMedia(directProvider, instance_id, instance_token, client_token, phone, 'image', imageSource, { caption });
           if (!zapiRes.ok) {
-            if (queueEvolutionFailure && /^https?:\/\//.test(imageSource)) {
+            if (queueEvo(zapiRes.error) && /^https?:\/\//.test(imageSource)) {
               await persistEvolutionFailure(supabase, conversationId, companyId, 'image', caption || '[Imagem]', { action: 'send-image', mediaUrl: imageSource, caption: caption || '' }, failureSource, zapiRes.error);
             }
             return new Response(JSON.stringify({ error: zapiRes.error }), {
@@ -2183,7 +2188,7 @@ Deno.serve(async (req) => {
           }
           const zapiRes = await directSendMedia(directProvider, instance_id, instance_token, client_token, phone, 'audio', audioSource);
           if (!zapiRes.ok) {
-            if (queueEvolutionFailure && /^https?:\/\//.test(audioSource)) {
+            if (queueEvo(zapiRes.error) && /^https?:\/\//.test(audioSource)) {
               await persistEvolutionFailure(supabase, conversationId, companyId, 'audio', '🎤 Áudio', { action: 'send-audio', mediaUrl: audioSource }, failureSource, zapiRes.error);
             }
             return new Response(JSON.stringify({ error: zapiRes.error }), {
@@ -2346,7 +2351,7 @@ Deno.serve(async (req) => {
         const { fileName, mediaUrl: docUrl } = body;
         if (directProvider && docUrl) {
           const zapiRes = await directSendMedia(directProvider, instance_id, instance_token, client_token, phone, 'document', docUrl, { fileName: fileName || 'document' });
-          if (!zapiRes.ok && queueEvolutionFailure) {
+          if (!zapiRes.ok && queueEvo(zapiRes.error)) {
             await persistEvolutionFailure(supabase, conversationId, companyId, 'document', `📄 ${fileName || 'Documento'}`, { action: 'send-document', mediaUrl: docUrl, fileName: fileName || 'document' }, failureSource, zapiRes.error);
           }
           if (!zapiRes.ok) return new Response(JSON.stringify({ error: zapiRes.error }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -2413,7 +2418,7 @@ Deno.serve(async (req) => {
         const { mediaUrl: videoUrl, caption } = body;
         if (directProvider && videoUrl) {
           const zapiRes = await directSendMedia(directProvider, instance_id, instance_token, client_token, phone, 'video', videoUrl, { caption });
-          if (!zapiRes.ok && queueEvolutionFailure) {
+          if (!zapiRes.ok && queueEvo(zapiRes.error)) {
             await persistEvolutionFailure(supabase, conversationId, companyId, 'video', caption || '🎥 Vídeo', { action: 'send-video', mediaUrl: videoUrl, caption: caption || '' }, failureSource, zapiRes.error);
           }
           if (!zapiRes.ok) return new Response(JSON.stringify({ error: zapiRes.error }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

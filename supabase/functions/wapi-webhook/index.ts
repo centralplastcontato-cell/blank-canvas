@@ -24,6 +24,7 @@ import { AI_CONFIRMATION_STYLE, fixedConfirmationTextChoice } from "../_shared/v
 import { evolutionConnectionEvent, evolutionDownloadMedia, evolutionSendMedia, evolutionSendText, extractEvolutionMessageId, isEvolutionPayload, normalizeEvolutionPayload, redactEvolutionPayload, sameToken } from "../_shared/evolution.ts";
 import { decryptWhatsAppMedia, encryptedMediaUrl, type WaMediaType } from "../_shared/whatsapp-media-crypto.ts";
 import { isContactBlocked, asksToStopMessages } from "../_shared/contact-block.ts";
+import { installEvolutionCallGuard } from "../_shared/evolution-guard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -5315,6 +5316,7 @@ async function handleReactivationResponse(
 // Background processor - runs after response is sent
 async function processWebhookEvent(body: JsonRecord) {
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  installEvolutionCallGuard(supabase);
   const rawWebhookEventId = typeof body[RAW_WEBHOOK_EVENT_ID_FIELD] === 'string' ? body[RAW_WEBHOOK_EVENT_ID_FIELD] as string : null;
   delete body[RAW_WEBHOOK_EVENT_ID_FIELD];
   await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'processing' });
@@ -7146,6 +7148,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  installEvolutionCallGuard(supabase);
   let rawWebhookEventId: string | null = null;
 
   try {

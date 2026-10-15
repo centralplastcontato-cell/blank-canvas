@@ -9,7 +9,7 @@
 // - Depois que volta, reenvia (com limite) o que falhou durante a queda
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { ALIVE_TIMEOUT_MS, evolutionCheckAlive, evolutionConnect, evolutionReconnect, evolutionSendMedia, evolutionSendText, evolutionStatus, extractEvolutionMessageId } from "../_shared/evolution.ts";
-import { CELEBREI_GO_PAUSED, claimEvolutionLock, PAUSED_INSTANCE_ROW_IDS, recentConnectionEvent, releaseEvolutionLock } from "../_shared/evolution-guard.ts";
+import { CELEBREI_GO_PAUSED, claimEvolutionLock, installEvolutionCallGuard, PAUSED_INSTANCE_ROW_IDS, recentConnectionEvent, releaseEvolutionLock } from "../_shared/evolution-guard.ts";
 import {
   aliveCheckHealthy,
   classifyEvolutionStatus,
@@ -518,6 +518,7 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  installEvolutionCallGuard(supabase);
   try {
     const body = await req.json().catch(() => ({}));
     const onlyInstanceId = typeof body?.instance_row_id === "string" ? body.instance_row_id : null;

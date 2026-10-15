@@ -23,6 +23,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { AI_ACTOR, AI_ACTOR_HEADER, guardAiDb } from "../wapi-webhook/ai-db-guard.ts";
 import { evolutionSendText } from "../_shared/evolution.ts";
 import { estimateChatCostUsd, normalizeOpenAiUsage, openAiReasoningEffortWithTools, providerForModel } from "../_shared/ai-models.ts";
+import { installEvolutionCallGuard } from "../_shared/evolution-guard.ts";
 import {
   aggregateInsights,
   buildTranscript,
@@ -398,6 +399,7 @@ Deno.serve(async (req) => {
   const url = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const auth = createClient(url, serviceKey);
+  installEvolutionCallGuard(auth);
   const db = guardAiDb(createClient(url, serviceKey, { global: { headers: { [AI_ACTOR_HEADER]: AI_ACTOR } } }));
   const startedAt = Date.now();
 
