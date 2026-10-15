@@ -20,9 +20,12 @@ export const SYSTEM_SEND_END_HOUR_BR = 20;
 export const SYSTEM_DAILY_CAP_DEFAULT = 80; // VENDAS 1 e demais números da Evolution
 
 const VENDAS_2 = "3f39419e-e7f5-4c3b-8ebd-1703e6c7a0c7";
-/** Tetos especiais por número, com validade (depois volta ao padrão) */
+/** Tetos especiais por número, com validade (vale o primeiro ainda válido; depois volta ao padrão) */
 export const SYSTEM_DAILY_CAPS: Array<{ instanceRowId: string; cap: number; untilIso: string }> = [
-  { instanceRowId: VENDAS_2, cap: 40, untilIso: "2026-10-29T03:00:00Z" }, // saiu do bloqueio em 15/10: 40/dia até 28/10
+  // VENDAS 2 saiu do bloqueio em 15/10: envios do sistema pausados até 22/10 (inclusive),
+  // depois 40/dia até 28/10
+  { instanceRowId: VENDAS_2, cap: 0, untilIso: "2026-10-23T03:00:00Z" },
+  { instanceRowId: VENDAS_2, cap: 40, untilIso: "2026-10-29T03:00:00Z" },
 ];
 
 const BR_OFFSET_MS = 3 * 3600 * 1000; // Brasília, sem horário de verão
@@ -55,6 +58,7 @@ export type PacingDecision =
 /** Pode sair agora um envio do sistema por este número? (rand ∈ [0,1) sorteia o intervalo seguinte) */
 export function decideSystemSend(state: PacingState, cap: number, nowMs: number, rand: number): PacingDecision {
   if (!inSystemSendWindow(nowMs)) return { ok: false, reason: `fora do horário (${SYSTEM_SEND_START_HOUR_BR}h–${SYSTEM_SEND_END_HOUR_BR}h)` };
+  if (cap <= 0) return { ok: false, reason: "envios do sistema pausados neste número" };
   const day = brDayKey(nowMs);
   const count = state.day === day ? state.count : 0;
   if (count >= cap) return { ok: false, reason: `limite do dia (${cap})` };

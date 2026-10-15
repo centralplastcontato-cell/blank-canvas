@@ -40,8 +40,11 @@ Deno.test("ritmo do sistema: teto por dia, zera no dia seguinte", () => {
   assertEquals(brDayKey(Date.parse("2026-10-16T02:00:00Z")), "2026-10-15");
 });
 
-Deno.test("teto: VENDAS 2 com 40/dia por 2 semanas, depois 80; VENDAS 1 80", () => {
-  assertEquals(systemDailyCap(VENDAS_2, NOW), 40);
+Deno.test("teto: VENDAS 2 pausado até 22/10, 40/dia até 28/10, depois 80; VENDAS 1 80", () => {
+  assertEquals(systemDailyCap(VENDAS_2, NOW), 0);
+  assertEquals(systemDailyCap(VENDAS_2, Date.parse("2026-10-23T02:59:00Z")), 0); // 22/10 23:59
+  assertEquals(decideSystemSend(fresh, 0, NOW, 0), { ok: false, reason: "envios do sistema pausados neste número" });
+  assertEquals(systemDailyCap(VENDAS_2, Date.parse("2026-10-23T03:00:00Z")), 40); // 23/10 00:00
   assertEquals(systemDailyCap(VENDAS_2, Date.parse("2026-10-28T23:00:00Z")), 40);
   assertEquals(systemDailyCap(VENDAS_2, Date.parse("2026-10-29T03:00:00Z")), 80);
   assertEquals(systemDailyCap("vendas-1", NOW), 80);

@@ -18,9 +18,9 @@ export const EVENT_QUIET_MS = 2 * 60 * 1000;
 // banco da Evolution (esgotou de novo em 14/10 19:28 e derrubou o VENDAS 1).
 // Nada automático consulta a Evolution sobre eles (monitor nem tela de Conexão)
 // e os alertas saem só pela Z-API.
-export const PAUSED_INSTANCE_ROW_IDS = new Set<string>([
-  "3f39419e-e7f5-4c3b-8ebd-1703e6c7a0c7", // VENDAS 2 — bloqueado, em análise
-]);
+// VENDAS 2 saiu da pausa em 15/10 (liberado pelo WhatsApp): respostas e
+// monitor normais; os envios do sistema seguem pausados em system-send-pacing.ts.
+export const PAUSED_INSTANCE_ROW_IDS = new Set<string>([]);
 export const CELEBREI_GO_PAUSED = true; // 15 97400-0152 bloqueado: sem consultas e sem enviar alertas por ela
 
 export const CONNECTION_EVENTS = [
