@@ -22,10 +22,10 @@ export const SYSTEM_DAILY_CAP_DEFAULT = 80; // VENDAS 1 e demais números da Evo
 const VENDAS_2 = "3f39419e-e7f5-4c3b-8ebd-1703e6c7a0c7";
 /** Tetos especiais por número, com validade (vale o primeiro ainda válido; depois volta ao padrão) */
 export const SYSTEM_DAILY_CAPS: Array<{ instanceRowId: string; cap: number; untilIso: string }> = [
-  // VENDAS 2 saiu do bloqueio em 15/10: envios do sistema pausados até 22/10 (inclusive),
-  // depois 40/dia até 28/10
-  { instanceRowId: VENDAS_2, cap: 0, untilIso: "2026-10-23T03:00:00Z" },
-  { instanceRowId: VENDAS_2, cap: 40, untilIso: "2026-10-29T03:00:00Z" },
+  // VENDAS 2 saiu do bloqueio em 15/10: sobe aos poucos — 20/dia até 18/10,
+  // 40/dia até 22/10, depois o padrão
+  { instanceRowId: VENDAS_2, cap: 20, untilIso: "2026-10-19T03:00:00Z" },
+  { instanceRowId: VENDAS_2, cap: 40, untilIso: "2026-10-23T03:00:00Z" },
 ];
 
 const BR_OFFSET_MS = 3 * 3600 * 1000; // Brasília, sem horário de verão
