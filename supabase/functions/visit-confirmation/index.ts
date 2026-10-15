@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { claimSystemSendSlot } from "../_shared/system-send-pacing.ts";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { aiUnitFor } from "../_shared/ai-units.ts";
 import {
@@ -353,6 +354,14 @@ Deno.serve(async (req) => {
               ...(aiStyle ? { style: AI_CONFIRMATION_STYLE } : {}),
             };
 
+            // Ritmo do sistema nos números da Evolution (60–180 s, teto do dia, 9h–20h):
+            // sem a vez, a confirmação fica para a próxima rodada
+            const slot = await claimSystemSendSlot(supabase, instance);
+            if (!slot.ok) {
+              console.log(`[visit-confirmation] ⏱️ ${instance.unit}: ritmo do sistema (${slot.reason}) — ${messageType} da visita ${visit.id} fica para a próxima rodada`);
+              continue;
+            }
+
             const { data: sendData, error: sendErr } = await supabase.functions.invoke("wapi-send", {
               body: {
                 action: "send-text",
@@ -401,7 +410,7 @@ Deno.serve(async (req) => {
             }
 
             // Small delay between sends
-            await new Promise((r) => setTimeout(r, Math.random() * 3000 + 2000));
+            if (!slot.paced) await new Promise((r) => setTimeout(r, Math.random() * 3000 + 2000));
           } catch (visitErr) {
             console.error(`[visit-confirmation] Error processing visit ${visit.id}:`, visitErr);
             errors.push(`visit ${visit.id}: ${String(visitErr)}`);

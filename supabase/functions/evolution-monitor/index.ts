@@ -29,7 +29,9 @@ import {
   serverAlertText,
   skipLoggedOutCheck,
   SUSPECT_MIN_DOWN,
+  isScheduledResendSource,
 } from "../_shared/evolution-health.ts";
+import { claimSystemSendSlot } from "../_shared/system-send-pacing.ts";
 
 // deno-lint-ignore no-explicit-any
 type SB = any;
@@ -245,11 +247,24 @@ async function resendFailed(supabase: SB, inst: Inst): Promise<{ resent: number;
   const maxS = Math.max(minS, Number(pacing?.follow_up_send_max_delay) || 15);
 
   let resent = 0;
-  for (const [i, r] of send.entries()) {
-    if (i > 0) await new Promise((ok) => setTimeout(ok, (minS + Math.random() * (maxS - minS)) * 1000));
+  let tried = 0;
+  // Follow-up/campanha/confirmação na fila: segue o ritmo do sistema (60–180 s,
+  // teto do dia, 9h–20h) — no máximo um por rodada; o resto espera a próxima
+  let scheduledDone = false;
+  for (const r of send) {
     const rs = (r.metadata?.resend || {}) as Json;
     const to = String(jidByConv[r.conversation_id] || "");
     if (!to) continue;
+    if (isScheduledResendSource(r.metadata?.source)) {
+      if (scheduledDone) continue;
+      scheduledDone = true;
+      const slot = await claimSystemSendSlot(supabase, { id: inst.id, provider: "evolution", unit: inst.unit });
+      if (!slot.ok) {
+        console.log(`[evolution-monitor] ${inst.unit}: reenvio de envio do sistema adiado — ${slot.reason}`);
+        continue;
+      }
+    }
+    if (tried++ > 0) await new Promise((ok) => setTimeout(ok, (minS + Math.random() * (maxS - minS)) * 1000));
     const res = rs.action === "send-text"
       ? await evolutionSendText(inst.instance_token, to, String(rs.message || ""))
       : await evolutionSendMedia(
@@ -268,7 +283,7 @@ async function resendFailed(supabase: SB, inst: Inst): Promise<{ resent: number;
     }).eq("id", r.id);
     if (res.ok) resent++;
   }
-  if (resent) console.log(`[evolution-monitor] ${inst.unit}: ${resent} mensagem(ns) reenviada(s) depois da queda (uma a cada ${minS}–${maxS}s)`);
+  if (resent) console.log(`[evolution-monitor] ${inst.unit}: ${resent} mensagem(ns) reenviada(s) depois da queda (respostas uma a cada ${minS}–${maxS}s; envios do sistema no ritmo de 60–180 s)`);
   return { resent, expired: expired.length };
 }
 

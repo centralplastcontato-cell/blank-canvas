@@ -238,6 +238,11 @@ const SCHEDULED_SOURCES = new Set(["follow-up", "followup", "campaign", "reactiv
 /** Reenvios por número em cada rodada do monitor (com o intervalo dos envios normais entre eles) */
 export const RESEND_PER_RUN = 5;
 
+/** Envio que o sistema iniciou (follow-up, campanha…): no reenvio passa pelo ritmo do sistema */
+export function isScheduledResendSource(source: unknown): boolean {
+  return SCHEDULED_SOURCES.has(String(source || ""));
+}
+
 export function resendTtlMs(source: unknown): number {
   return SCHEDULED_SOURCES.has(String(source || "")) ? SCHEDULED_RESEND_TTL_MS : REPLY_RESEND_TTL_MS;
 }

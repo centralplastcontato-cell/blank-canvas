@@ -21,6 +21,7 @@ import {
   spreadStart,
 } from "../_shared/campaign-schedule.ts";
 import { markConversationForCampaign } from "../_shared/campaign-mark.ts";
+import { claimSystemSendSlot } from "../_shared/system-send-pacing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,6 +32,8 @@ const corsHeaders = {
 const LOCK_MINUTES = 10;
 /** Erros seguidos que pausam as campanhas da empresa (para não queimar a lista) */
 const MAX_CONSECUTIVE_ERRORS = 3;
+/** Número sem a vez no ritmo do sistema: tenta de novo depois disso */
+const PACING_RETRY_MINUTES = 5;
 /** WhatsApp desconectado: tenta de novo depois disso */
 const RETRY_DISCONNECTED_MINUTES = 30;
 
@@ -70,11 +73,11 @@ async function markError(db: any, recipientId: string, campaignId: string, messa
 async function resolveInstance(db: any, campaign: any, phone: string) {
   const { data } = await db
     .from("wapi_instances")
-    .select("id, instance_id, instance_token")
+    .select("id, instance_id, instance_token, unit, provider")
     .eq("company_id", campaign.company_id)
     .eq("status", "connected")
     .eq("is_active", true);
-  const connected = (data || []) as Array<{ id: string; instance_id: string; instance_token: string }>;
+  const connected = (data || []) as Array<{ id: string; instance_id: string; instance_token: string; unit: string | null; provider: string | null }>;
   if (connected.length === 0) return null;
 
   if (campaign.send_mode === "smart") {
@@ -137,6 +140,15 @@ async function handleClaim(db: any, url: string, serviceKey: string, claim: Clai
     await markError(db, recipientId, campaign.id, "Campanha sem mensagem");
     await setNext(db, company, now);
     return { company, outcome: "sem mensagem" };
+  }
+
+  // Ritmo do sistema nos números da Evolution (60–180 s, teto do dia por número, 9h–20h).
+  // Conta junto com follow-ups e confirmações do mesmo número.
+  const slot = await claimSystemSendSlot(db, instance);
+  if (!slot.ok) {
+    await backToPending(db, recipientId);
+    await setNext(db, company, minutesFrom(now, PACING_RETRY_MINUTES));
+    return { company, outcome: `ritmo do número (${slot.reason})` };
   }
 
   const base = {
