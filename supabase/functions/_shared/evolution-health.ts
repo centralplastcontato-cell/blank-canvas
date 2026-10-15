@@ -20,8 +20,7 @@ export type EvoState = "online" | "reconnecting" | "needs_qr" | "unreachable";
 // ("no active session found") — a saída é reiniciar o evolution-go no Coolify
 export const MAX_RECONNECT_ATTEMPTS = 1;
 export const CONFIRM_CHECKS = 2;
-export const RESEND_WINDOW_MS = 2 * 60 * 60 * 1000;
-export const RESEND_LIMIT = 20;
+export const RESEND_WINDOW_MS = 3 * 60 * 60 * 1000; // busca até o maior prazo de validade (envio agendado)
 
 export function classifyEvolutionStatus(res: { ok: boolean; data?: unknown }): EvoState {
   if (!res.ok) return "unreachable";
@@ -173,11 +172,12 @@ const fmt = (iso: string | null | undefined) =>
     ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
     : "agora há pouco";
 
-export function instanceAlertText(kind: "down" | "up", state: EvoState, unit: string, since: string | null, extra: { stuck?: number; resent?: number } = {}): string {
+export function instanceAlertText(kind: "down" | "up", state: EvoState, unit: string, since: string | null, extra: { stuck?: number; resent?: number; expired?: number } = {}): string {
   const who = `*${unit || "WhatsApp"}* (Evolution Go)`;
   if (kind === "up") {
     const lines = [`🟢 *Celebrei — número voltou*`, ``, `${who} está conectado de novo (fora desde ${fmt(since)}).`];
     if (extra.resent) lines.push(`🔁 ${extra.resent} mensagem(ns) que falharam na queda foram reenviadas.`);
+    if (extra.expired) lines.push(`🗑️ ${extra.expired} mensagem(ns) da queda não foram reenviadas por estarem antigas — confira na Central se alguém ficou sem resposta.`);
     if (extra.stuck) lines.push(`⚠️ ${extra.stuck} mensagem(ns) ficaram como "enviada" sem confirmação nesse período — vale conferir na Central.`);
     return lines.join("\n");
   }
@@ -227,20 +227,38 @@ export interface FailedRow {
   metadata: Json | null;
 }
 
+// Validade da fila de reenvio (15/10): número fora por muito tempo não pode
+// voltar disparando tudo de uma vez — parece disparo em massa e aumenta o risco
+// de bloqueio. Resposta de conversa (IA, bot, equipe) só vale por 15 min;
+// envio agendado (follow-up, campanha, reativação, confirmação) por 3 h — o
+// que vencer é descartado (a agenda normal do follow-up/IA segue por conta própria).
+export const REPLY_RESEND_TTL_MS = 15 * 60 * 1000;
+export const SCHEDULED_RESEND_TTL_MS = 3 * 60 * 60 * 1000;
+const SCHEDULED_SOURCES = new Set(["follow-up", "followup", "campaign", "reactivation", "visit-confirmation", "pre-reservation-expiry"]);
+/** Reenvios por número em cada rodada do monitor (com o intervalo dos envios normais entre eles) */
+export const RESEND_PER_RUN = 5;
+
+export function resendTtlMs(source: unknown): number {
+  return SCHEDULED_SOURCES.has(String(source || "")) ? SCHEDULED_RESEND_TTL_MS : REPLY_RESEND_TTL_MS;
+}
+
 /**
- * Mensagens que falharam por queda e podem ser reenviadas: das últimas 2h,
- * ainda não reenviadas, e só se nada nosso mais novo saiu na conversa (para não
- * chegar fora de ordem). No máximo RESEND_LIMIT, das mais antigas para as novas.
+ * Fila de reenvio do que não saiu na queda: separa o que ainda vale (no máximo
+ * RESEND_PER_RUN, das mais antigas para as novas) do que venceu. Só reenvia se
+ * nada nosso mais novo saiu na conversa (para não chegar fora de ordem).
  */
-export function pickResendable(rows: FailedRow[], newestOkOutgoingByConv: Record<string, string>, nowMs: number): FailedRow[] {
-  return rows
+export function pickResendable(rows: FailedRow[], newestOkOutgoingByConv: Record<string, string>, nowMs: number): { send: FailedRow[]; expired: FailedRow[] } {
+  const queued = rows
     .filter((r) => r.status === "error")
-    .filter((r) => r.metadata?.provider === "evolution" && r.metadata?.resend && !r.metadata?.resent_at)
-    .filter((r) => nowMs - Date.parse(r.timestamp) <= RESEND_WINDOW_MS)
+    .filter((r) => r.metadata?.provider === "evolution" && r.metadata?.resend && !r.metadata?.resent_at && !r.metadata?.resend_expired_at)
+    .sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
+  const expired = queued.filter((r) => nowMs - Date.parse(r.timestamp) > resendTtlMs(r.metadata?.source));
+  const send = queued
+    .filter((r) => !expired.includes(r))
     .filter((r) => {
       const newest = newestOkOutgoingByConv[r.conversation_id];
       return !newest || Date.parse(newest) <= Date.parse(r.timestamp);
     })
-    .sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp))
-    .slice(0, RESEND_LIMIT);
+    .slice(0, RESEND_PER_RUN);
+  return { send, expired };
 }

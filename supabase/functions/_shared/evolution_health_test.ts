@@ -8,6 +8,7 @@ import {
   instanceAlertText,
   isConfirmedDown,
   pickResendable,
+  RESEND_PER_RUN,
   looksLikeDbExhausted,
   recoveriesInLastDay,
   reminderDue,
@@ -102,20 +103,28 @@ Deno.test("texto do alerta", () => {
   assertEquals(up.includes("2 mensagem(ns)") && up.includes("1 mensagem(ns)"), true);
 });
 
-Deno.test("reenvio: só o que falhou nas últimas 2h, sem nada mais novo na conversa", () => {
+Deno.test("fila de reenvio: validade por tipo e limite por rodada", () => {
   const now = Date.parse("2026-10-09T23:00:00Z");
-  const evo = (extra: Record<string, unknown> = {}) => ({ provider: "evolution", resend: { action: "send-text", message: "oi" }, ...extra });
+  const evo = (source: string, extra: Record<string, unknown> = {}) => ({ provider: "evolution", source, resend: { action: "send-text", message: "oi" }, ...extra });
+  const at = (minAgo: number) => new Date(now - minAgo * 60000).toISOString();
   const rows = [
-    { id: "a", conversation_id: "c1", timestamp: "2026-10-09T22:30:00Z", status: "error", metadata: evo() },
-    { id: "b", conversation_id: "c1", timestamp: "2026-10-09T22:31:00Z", status: "error", metadata: evo() },
-    { id: "old", conversation_id: "c2", timestamp: "2026-10-09T20:00:00Z", status: "error", metadata: evo() },
-    { id: "done", conversation_id: "c3", timestamp: "2026-10-09T22:40:00Z", status: "error", metadata: evo({ resent_at: "x" }) },
-    { id: "later", conversation_id: "c4", timestamp: "2026-10-09T22:40:00Z", status: "error", metadata: evo() },
-    { id: "zapi", conversation_id: "c5", timestamp: "2026-10-09T22:40:00Z", status: "error", metadata: { provider: "zapi", resend: {} } },
-    { id: "sent", conversation_id: "c6", timestamp: "2026-10-09T22:40:00Z", status: "sent", metadata: evo() },
+    { id: "ia-ok", conversation_id: "c1", timestamp: at(10), status: "error", metadata: evo("ai_agent") },
+    { id: "ia-velha", conversation_id: "c2", timestamp: at(20), status: "error", metadata: evo("ai_agent") },
+    { id: "equipe-velha", conversation_id: "c3", timestamp: at(40), status: "error", metadata: evo("platform") },
+    { id: "fu-ok", conversation_id: "c4", timestamp: at(150), status: "error", metadata: evo("follow-up") },
+    { id: "camp-velha", conversation_id: "c5", timestamp: at(200), status: "error", metadata: evo("campaign") },
+    { id: "ja-foi", conversation_id: "c6", timestamp: at(5), status: "error", metadata: evo("ai_agent", { resent_at: "x" }) },
+    { id: "ja-vencida", conversation_id: "c7", timestamp: at(50), status: "error", metadata: evo("ai_agent", { resend_expired_at: "x" }) },
+    { id: "mais-nova-saiu", conversation_id: "c8", timestamp: at(5), status: "error", metadata: evo("ai_agent") },
+    { id: "zapi", conversation_id: "c9", timestamp: at(5), status: "error", metadata: { provider: "zapi", resend: {} } },
+    { id: "enviada", conversation_id: "c10", timestamp: at(5), status: "sent", metadata: evo("ai_agent") },
   ];
-  const picked = pickResendable(rows, { c4: "2026-10-09T22:50:00Z" }, now).map((r) => r.id);
-  assertEquals(picked, ["a", "b"]);
+  const r = pickResendable(rows, { c8: at(1) }, now);
+  assertEquals(r.send.map((x) => x.id), ["fu-ok", "ia-ok"]);
+  assertEquals(r.expired.map((x) => x.id).sort(), ["camp-velha", "equipe-velha", "ia-velha"]);
+  // no máximo 5 por rodada
+  const many = Array.from({ length: 8 }, (_, i) => ({ id: `m${i}`, conversation_id: `k${i}`, timestamp: at(8 - i), status: "error", metadata: evo("ai_agent") }));
+  assertEquals(pickResendable(many, {}, now).send.length, RESEND_PER_RUN);
 });
 
 Deno.test("provável travamento: alerta já, com a instrução do Coolify", () => {
