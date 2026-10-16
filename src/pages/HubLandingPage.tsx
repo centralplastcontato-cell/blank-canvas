@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Helmet } from "react-helmet-async";
 import HubHeader from "@/components/hub-landing/HubHeader";
 import HubHero from "@/components/hub-landing/HubHero";
+import HubBeforeAfter from "@/components/hub-landing/HubBeforeAfter";
 import HubHowItWorks from "@/components/hub-landing/HubHowItWorks";
 import HubDemoVideo from "@/components/hub-landing/HubDemoVideo";
 import HubFeatures from "@/components/hub-landing/HubFeatures";
@@ -19,16 +20,21 @@ export default function HubLandingPage() {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white font-inter text-[#0F1222] antialiased">
       <Helmet>
         <title>Celebrei | A melhor plataforma para buffets infantis</title>
         <meta name="description" content="Transforme leads em festas fechadas com CRM + WhatsApp automatizado. Plataforma completa para buffets infantis." />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&display=swap"
+        />
       </Helmet>
       <HubHeader onOpenWizard={() => setIsWizardOpen(true)} />
-      <HubHero onOpenWizard={() => setIsWizardOpen(true)}  />
+      <HubHero onOpenWizard={() => setIsWizardOpen(true)} />
+      <HubBeforeAfter />
       <HubHowItWorks />
-      <HubDemoVideo youtubeId={DEMO_YOUTUBE_ID || undefined} localVideoUrl={DEMO_YOUTUBE_ID ? undefined : DEMO_LOCAL_VIDEO} />
       <HubFeatures />
+      <HubDemoVideo youtubeId={DEMO_YOUTUBE_ID || undefined} localVideoUrl={DEMO_YOUTUBE_ID ? undefined : DEMO_LOCAL_VIDEO} />
       <HubStats onOpenWizard={() => setIsWizardOpen(true)} />
       <HubCTA onOpenWizard={() => setIsWizardOpen(true)} />
       <HubFooter />

@@ -16,6 +16,9 @@ export default {
       fontFamily: {
         display: ["Fredoka", "sans-serif"],
         body: ["Nunito", "sans-serif"],
+        // LP do Hub (/hub-landing): títulos e texto corrido
+        grotesque: ["Bricolage Grotesque", "Inter", "sans-serif"],
+        inter: ["Inter", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",

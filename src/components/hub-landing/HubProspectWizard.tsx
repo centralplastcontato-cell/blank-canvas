@@ -193,11 +193,13 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="bg-card rounded-3xl shadow-floating w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden"
+          className="bg-card rounded-3xl shadow-floating w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden font-inter"
+          // Cores da LP (rosa do logo) só dentro do formulário, sem mexer no tema do sistema
+          style={{ "--primary": "341 63% 51%", "--ring": "341 63% 51%", "--accent": "160 84% 39%" } as React.CSSProperties}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="bg-gradient-to-r from-primary to-primary/80 p-5 relative">
+          <div className="bg-[#0F1222] p-5 relative">
             <button
               onClick={handleClose}
               className="absolute top-4 right-4 w-8 h-8 bg-primary-foreground/20 rounded-full flex items-center justify-center hover:bg-primary-foreground/30 transition-colors"
@@ -206,7 +208,7 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
             </button>
             {!isComplete ? (
               <>
-                <h3 className="font-display text-lg font-bold text-primary-foreground">
+                <h3 className="font-grotesque text-lg font-bold text-primary-foreground">
                   Agendar uma conversa
                 </h3>
                 <p className="text-sm text-primary-foreground/80 mt-1">
@@ -238,7 +240,7 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="h-8 w-8 text-primary-foreground" />
                 <div>
-                  <h3 className="font-display text-lg font-bold text-primary-foreground">
+                  <h3 className="font-grotesque text-lg font-bold text-primary-foreground">
                     Recebemos seus dados!
                   </h3>
                   <p className="text-sm text-primary-foreground/80">
@@ -262,7 +264,7 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
                   <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mx-auto">
                     <CheckCircle2 className="h-8 w-8 text-accent" />
                   </div>
-                  <h4 className="text-xl font-display font-bold text-foreground">
+                  <h4 className="text-xl font-grotesque font-bold text-foreground">
                     Obrigado, {data.contact_name.split(" ")[0]}! 🎉
                   </h4>
                   <p className="text-muted-foreground leading-relaxed">
