@@ -7,9 +7,11 @@ import { SectionHeading } from "./LpSection";
 interface HubDemoVideoProps {
   youtubeId?: string;
   localVideoUrl?: string;
+  /** Capa do vídeo (no lugar do print do painel) */
+  posterUrl?: string;
 }
 
-export default function HubDemoVideo({ youtubeId, localVideoUrl }: HubDemoVideoProps) {
+export default function HubDemoVideo({ youtubeId, localVideoUrl, posterUrl }: HubDemoVideoProps) {
   const [playing, setPlaying] = useState(false);
   const hasVideo = !!(youtubeId || localVideoUrl);
 
@@ -19,7 +21,7 @@ export default function HubDemoVideo({ youtubeId, localVideoUrl }: HubDemoVideoP
         <SectionHeading
           eyebrow="Demonstração"
           title="Veja a plataforma em ação"
-          description="Em menos de 3 minutos você entende como automatizar seu atendimento e fechar mais festas."
+          description="Em um minuto e meio você entende como automatizar seu atendimento e fechar mais festas."
           className="mb-10 sm:mb-14"
         />
 
@@ -38,7 +40,7 @@ export default function HubDemoVideo({ youtubeId, localVideoUrl }: HubDemoVideoP
               <div className="w-3 h-3 rounded-full bg-[#28C840]" />
             </div>
             <div className="flex-1 max-w-xs mx-auto h-5 rounded-md bg-white flex items-center justify-center">
-              <span className="text-[10px] text-slate-400">app.celebrei.com.br/dashboard</span>
+              <span className="text-[10px] text-slate-400">hubcelebrei.com.br</span>
             </div>
           </div>
 
@@ -55,6 +57,7 @@ export default function HubDemoVideo({ youtubeId, localVideoUrl }: HubDemoVideoP
           ) : playing && localVideoUrl ? (
             <video
               src={localVideoUrl}
+              poster={posterUrl}
               className="w-full"
               autoPlay
               controls
@@ -67,11 +70,11 @@ export default function HubDemoVideo({ youtubeId, localVideoUrl }: HubDemoVideoP
               onClick={() => hasVideo && setPlaying(true)}
             >
               <img
-                src={mockupDashboard}
-                alt="Dashboard Celebrei"
+                src={posterUrl || mockupDashboard}
+                alt={posterUrl ? "Vídeo de apresentação do Celebrei" : "Dashboard Celebrei"}
                 className="absolute inset-0 w-full h-full object-cover object-top"
               />
-              <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
+              <div className={`absolute inset-0 ${posterUrl ? "bg-black/20" : "bg-black/50 backdrop-blur-[2px]"}`} />
 
               {/* subtle grid overlay */}
               <div
@@ -85,8 +88,8 @@ export default function HubDemoVideo({ youtubeId, localVideoUrl }: HubDemoVideoP
 
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
                 <motion.div
-                  whileHover={youtubeId ? { scale: 1.08 } : {}}
-                  whileTap={youtubeId ? { scale: 0.96 } : {}}
+                  whileHover={hasVideo ? { scale: 1.08 } : {}}
+                  whileTap={hasVideo ? { scale: 0.96 } : {}}
                   className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center shadow-[0_0_60px_rgba(0,0,0,0.5)] transition-all duration-300 ${hasVideo ? "bg-gradient-to-br from-[#FF8A3D] via-[#F0457A] to-[#8E3FD9] group-hover:scale-110" : "bg-white/10 border-2 border-white/20"}`}
                 >
                   <Play className="h-8 w-8 sm:h-10 sm:w-10 text-white ml-1" />

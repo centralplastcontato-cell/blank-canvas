@@ -13,8 +13,9 @@ import HubProspectWizard from "@/components/hub-landing/HubProspectWizard";
 
 // Para usar YouTube: cole o ID aqui (ex: "abc123" de youtube.com/watch?v=abc123)
 const DEMO_YOUTUBE_ID = "";
-// Vídeo local gerado com Remotion (substitua pelo YouTube quando disponível)
-const DEMO_LOCAL_VIDEO = "/videos/celebrei-demo.mp4";
+// Vídeo de apresentação (a história da Carla); troque pelo YouTube quando publicar lá
+const DEMO_LOCAL_VIDEO = "/videos/celebrei-carla.mp4";
+const DEMO_POSTER = "/videos/celebrei-carla-poster.jpg";
 
 export default function HubLandingPage() {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
@@ -34,7 +35,7 @@ export default function HubLandingPage() {
       <HubBeforeAfter />
       <HubHowItWorks />
       <HubFeatures />
-      <HubDemoVideo youtubeId={DEMO_YOUTUBE_ID || undefined} localVideoUrl={DEMO_YOUTUBE_ID ? undefined : DEMO_LOCAL_VIDEO} />
+      <HubDemoVideo youtubeId={DEMO_YOUTUBE_ID || undefined} localVideoUrl={DEMO_YOUTUBE_ID ? undefined : DEMO_LOCAL_VIDEO} posterUrl={DEMO_POSTER} />
       <HubStats onOpenWizard={() => setIsWizardOpen(true)} />
       <HubCTA onOpenWizard={() => setIsWizardOpen(true)} />
       <HubFooter />
