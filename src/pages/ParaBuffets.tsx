@@ -21,7 +21,7 @@ import { getKnownBuffetDomain } from "@/hooks/useDomainDetection";
  import { Button } from "@/components/ui/button";
  import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
  import { Badge } from "@/components/ui/badge";
- import logoPlataforma from "@/assets/logo-plataforma-buffets.png";
+ import CelebreiLogo from "@/components/hub-landing/CelebreiLogo";
  import { B2BChatbot } from "@/components/b2b/B2BChatbot";
  import { FloatingB2BCTA } from "@/components/b2b/FloatingB2BCTA";
  
@@ -74,33 +74,32 @@ export default function ParaBuffets() {
          <meta name="keywords" content="plataforma buffet, CRM buffet infantil, gestão buffet, WhatsApp business buffet, software buffet, sistema para buffet" />
          <meta name="robots" content="index, follow" />
          
-         <link rel="canonical" href="https://castelodadiversao.online/para-buffets" />
+         <link rel="canonical" href="https://hubcelebrei.com.br/para-buffets" />
          
          <meta property="og:type" content="website" />
-         <meta property="og:url" content="https://castelodadiversao.online/para-buffets" />
+         <meta property="og:url" content="https://hubcelebrei.com.br/para-buffets" />
          <meta property="og:title" content="Plataforma de Gestão para Buffets Infantis" />
          <meta property="og:description" content="Transforme visitantes em contratos fechados. WhatsApp integrado, CRM visual e landing pages profissionais. Feito por quem entende de buffet." />
-         <meta property="og:image" content="https://castelodadiversao.online/og-para-buffets.jpg" />
+         <meta property="og:image" content="https://hubcelebrei.com.br/og-para-buffets.jpg" />
          <meta property="og:image:width" content="1200" />
          <meta property="og:image:height" content="630" />
-         <meta property="og:image:alt" content="Plataforma de Gestão para Buffets - Dashboard, CRM e WhatsApp integrado" />
+         <meta property="og:image:alt" content="Celebrei: a plataforma que faz seu buffet fechar mais festas" />
          <meta property="og:locale" content="pt_BR" />
-         <meta property="og:site_name" content="Castelo da Diversão" />
+         <meta property="og:site_name" content="Celebrei" />
          
          <meta name="twitter:card" content="summary_large_image" />
-         <meta name="twitter:url" content="https://castelodadiversao.online/para-buffets" />
+         <meta name="twitter:url" content="https://hubcelebrei.com.br/para-buffets" />
          <meta name="twitter:title" content="Plataforma de Gestão para Buffets Infantis" />
          <meta name="twitter:description" content="Transforme visitantes em contratos fechados. WhatsApp integrado, CRM visual e landing pages profissionais." />
-         <meta name="twitter:image" content="https://castelodadiversao.online/og-para-buffets.jpg" />
+         <meta name="twitter:image" content="https://hubcelebrei.com.br/og-para-buffets.jpg" />
        </Helmet>
  
        {/* Header */}
        <header className="sticky top-0 z-50 bg-slate-900/90 backdrop-blur-lg border-b border-slate-700">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
            <div className="flex items-center justify-between h-16">
-             <Link to="/" className="flex items-center gap-3">
-             <img src={logoPlataforma} alt="Logo" className="h-10 w-10 object-contain" />
-               <span className="font-display font-bold text-lg text-white">Plataforma para Buffets</span>
+             <Link to="/" className="flex items-center" aria-label="Celebrei">
+               <CelebreiLogo tone="dark" markClassName="h-9 w-9" />
              </Link>
              <a href="#form" className="hidden sm:inline-flex">
                <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 border-0">Solicitar Demo</Button>
@@ -521,12 +520,9 @@ export default function ParaBuffets() {
        <footer className="py-12 bg-slate-950 text-white border-t border-slate-800">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-             <div className="flex items-center gap-3">
-             <img src={logoPlataforma} alt="Logo" className="h-10 w-10 object-contain" />
-               <span className="font-display font-bold">Plataforma para Buffets</span>
-             </div>
+             <CelebreiLogo tone="dark" markClassName="h-9 w-9" />
              <p className="text-sm text-slate-500">
-               © {new Date().getFullYear()} Todos os direitos reservados.
+               © {new Date().getFullYear()} Celebrei. Todos os direitos reservados.
              </p>
              <Link to="/" className="text-sm text-slate-500 hover:text-white transition-colors">
                Voltar ao site principal
