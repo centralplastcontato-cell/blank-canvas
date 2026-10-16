@@ -15,6 +15,18 @@
       ],
       "destination": "/api/og?path=/",
       "permanent": false
+    },
+    {
+      "source": "/para-buffets",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|WhatsApp|Twitterbot|LinkedInBot|Slackbot|Slack-ImgProxy|TelegramBot|Discordbot|Pinterest|redditbot|vkShare|Embedly|SkypeUriPreview|Applebot|W3C_Validator).*"
+        }
+      ],
+      "destination": "/api/og?path=/para-buffets",
+      "permanent": false
     }
   ],
   "rewrites": [

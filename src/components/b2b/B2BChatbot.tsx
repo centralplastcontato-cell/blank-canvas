@@ -3,7 +3,7 @@
  import { X, Send, Loader2, Building2 } from "lucide-react";
  import { supabase } from "@/integrations/supabase/client";
  import { toast } from "sonner";
- import logoPlataforma from "@/assets/logo-plataforma-buffets.png";
+ import { CelebreiMark } from "@/components/hub-landing/CelebreiLogo";
  
  interface Message {
    id: string;
@@ -79,7 +79,7 @@
            {
              id: "welcome",
              type: "bot",
-             content: "Olá! 👋 Que bom ter você aqui!\n\nSou o assistente da Plataforma para Buffets. Vou te fazer algumas perguntas rápidas para entender como podemos ajudar seu negócio.",
+             content: "Olá! 👋 Que bom ter você aqui!\n\nSou o assistente da Celebrei. Vou te fazer algumas perguntas rápidas para entender como podemos ajudar seu negócio.",
            },
          ]);
          setTimeout(() => {
@@ -321,13 +321,11 @@
            {/* Header */}
            <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 flex items-center justify-between">
              <div className="flex items-center gap-3">
-               <img
-                 src={logoPlataforma}
-                 alt="Plataforma para Buffets"
-                 className="h-10 w-10 object-contain rounded-lg bg-white/10 p-1"
-               />
+               <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white">
+                 <CelebreiMark className="h-8 w-8" />
+               </span>
                <div>
-                 <h3 className="font-display font-bold text-white">Plataforma para Buffets</h3>
+                 <h3 className="font-display font-bold text-white">Celebrei</h3>
                  <p className="text-sm text-white/80">Online agora</p>
                </div>
              </div>
