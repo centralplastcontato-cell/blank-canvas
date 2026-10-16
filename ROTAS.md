@@ -15,7 +15,6 @@
 |---|---|
 | [/](http://localhost:8080/) | LP do Castelo (localhost) ou LP do buffet (por domínio) |
 | [/auth](http://localhost:8080/auth) | Login / cadastro |
-| [/para-buffets](http://localhost:8080/para-buffets) | LP de venda do Celebrei para buffets |
 | [/promo](http://localhost:8080/promo) | Página promocional |
 | [/recrutamento-comercial](http://localhost:8080/recrutamento-comercial) | Formulário público de recrutamento comercial |
 | `/lp/:slug` | Landing page dinâmica por slug |
@@ -125,6 +124,7 @@
 | `/whatsapp` | `/atendimento` |
 | `/empresas` | `/hub/empresas` |
 | `/comercial-b2b` | `/hub/comercial-b2b` |
+| `/para-buffets` | `/` (LP do Hub; antiga LP de venda, desativada) |
 | `/perfil` | `/configuracoes?tab=perfil` |
 | `/users` | `/configuracoes?tab=usuarios` |
 | `/visitas` | `/agenda?tab=visitas` |

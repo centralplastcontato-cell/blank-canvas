@@ -10,6 +10,7 @@ import { LoadingScreen } from "@/components/ui/loading-screen";
 
 // Eager: root-level routing (tiny, always needed)
 import RootPage from "./pages/RootPage";
+import { isPreviewDomain } from "@/hooks/useDomainDetection";
 import NotFound from "./pages/NotFound";
 
 // Lazy-loaded pages with prefetch support
@@ -20,7 +21,6 @@ const lazyImports = {
   "/configuracoes": () => import("./pages/Configuracoes"),
   "/promo": () => import("./pages/PromoPage"),
   "/hub/comercial-b2b": () => import("./pages/ComercialB2B"),
-  "/para-buffets": () => import("./pages/ParaBuffets"),
   "/hub-login": () => import("./pages/HubLogin"),
   "/hub-landing": () => import("./pages/HubLandingPage"),
   "/hub": () => import("./pages/HubDashboard"),
@@ -75,7 +75,6 @@ const CentralAtendimento = lazy(lazyImports["/atendimento"]);
 const Configuracoes = lazy(lazyImports["/configuracoes"]);
 const PromoPage = lazy(lazyImports["/promo"]);
 const ComercialB2B = lazy(lazyImports["/hub/comercial-b2b"]);
-const ParaBuffets = lazy(lazyImports["/para-buffets"]);
 const HubLogin = lazy(lazyImports["/hub-login"]);
 const HubLandingPage = lazy(lazyImports["/hub-landing"]);
 const HubDashboard = lazy(lazyImports["/hub"]);
@@ -171,7 +170,8 @@ const App = () => (
               <Route path="/configuracoes" element={<Configuracoes />} />
               <Route path="/perfil" element={<Navigate to="/configuracoes?tab=perfil" replace />} />
               <Route path="/hub/comercial-b2b" element={<ComercialB2B />} />
-              <Route path="/para-buffets" element={<ParaBuffets />} />
+              {/* Antiga LP de venda: a LP do Hub é a única (fica na raiz de hubcelebrei.com.br) */}
+              <Route path="/para-buffets" element={<Navigate to={isPreviewDomain() ? "/hub-landing" : "/"} replace />} />
               <Route path="/dashboard" element={<Index />} />
               <Route path="/users" element={<Navigate to="/configuracoes?tab=usuarios" replace />} />
               <Route path="/promo" element={<PromoPage />} />

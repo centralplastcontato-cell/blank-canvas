@@ -906,7 +906,7 @@ Deixe o prospect falar. Anote objeções.
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => window.open('/para-buffets', '_blank')}
+                            onClick={() => window.open('/hub-landing', '_blank')}
                           >
                             Abrir em Nova Aba
                           </Button>
@@ -922,7 +922,7 @@ Deixe o prospect falar. Anote objeções.
                         }`}
                       >
                         <iframe
-                          src="/para-buffets"
+                          src="/hub-landing"
                           className="w-full h-full border-0"
                           title="Landing Page B2B"
                         />
