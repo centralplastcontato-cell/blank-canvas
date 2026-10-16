@@ -12,7 +12,7 @@ const NAV = [
   { id: "como-funciona", label: "Como funciona" },
   { id: "recursos", label: "Recursos" },
   { id: "demo", label: "Demonstração" },
-  { id: "resultados", label: "Resultados" },
+  { id: "por-que", label: "Por que a Celebrei" },
 ];
 
 export default function HubHeader({ onOpenWizard }: HubHeaderProps) {

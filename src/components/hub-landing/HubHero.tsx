@@ -1,22 +1,16 @@
 import { ArrowRight, Check } from "lucide-react";
 import { motion } from "framer-motion";
-import HubChatMock from "./HubChatMock";
+import { DemoPlayer } from "./HubDemoVideo";
 import { BTN_PRIMARY, BTN_SECONDARY, GRADIENT_TEXT, scrollToSection } from "./lp-theme";
 
 interface HubHeroProps {
   onOpenWizard: () => void;
+  video: { youtubeId?: string; localVideoUrl?: string; posterUrl?: string };
 }
 
 const TRUST = ["Sem compromisso", "Setup em 48h", "Suporte dedicado"];
 
-const HIGHLIGHTS = [
-  { value: "+40%", label: "de conversão em festas" },
-  { value: "24/7", label: "atendimento no WhatsApp" },
-  { value: "5 mil+", label: "leads gerenciados" },
-  { value: "48h", label: "para começar a usar" },
-];
-
-export default function HubHero({ onOpenWizard }: HubHeroProps) {
+export default function HubHero({ onOpenWizard, video }: HubHeroProps) {
   return (
     <section className="relative overflow-hidden bg-[#FFF9F3]">
       {/* Fundo: brilhos quentes + pontilhado */}
@@ -33,8 +27,8 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
         />
       </div>
 
-      <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-28 sm:px-6 sm:pb-20 sm:pt-36 lg:pt-40">
-        <div className="grid items-center gap-14 lg:grid-cols-[1.1fr_0.9fr] lg:gap-8">
+      <div className="relative mx-auto max-w-6xl px-4 pb-14 pt-24 sm:px-6 sm:pb-20 sm:pt-32 lg:pt-36">
+        <div className="grid items-center gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:gap-10">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
@@ -46,13 +40,13 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
               Feita dentro de um buffet infantil de verdade
             </span>
 
-            <h1 className="mt-6 font-grotesque text-[2.6rem] font-extrabold leading-[1.02] tracking-[-0.035em] text-[#0F1222] sm:text-6xl lg:text-[4.1rem]">
+            <h1 className="mt-6 font-grotesque text-[2.4rem] font-extrabold leading-[1.02] tracking-[-0.035em] text-[#0F1222] sm:text-6xl lg:text-[3.6rem]">
               Seu buffet perdendo festas por <span className={GRADIENT_TEXT}>demora no atendimento?</span>
             </h1>
 
             <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-slate-600 sm:text-xl lg:mx-0">
-              Enquanto a concorrência demora horas para responder, seus leads recebem os pacotes do seu buffet e um
-              convite para visitar o espaço em segundos. Automático, 24 horas por dia, no seu WhatsApp.
+              Enquanto a concorrência demora horas, seus leads recebem os pacotes do seu buffet e um convite para
+              visitar o espaço em segundos. Automático, 24 horas por dia, no seu WhatsApp.
             </p>
 
             <div className="mt-9 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center lg:justify-start">
@@ -60,7 +54,7 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
                 Agendar demonstração gratuita
                 <ArrowRight className="h-5 w-5" />
               </button>
-              <button type="button" onClick={() => scrollToSection("como-funciona")} className={BTN_SECONDARY}>
+              <button type="button" onClick={() => scrollToSection("como-funciona")} className={`${BTN_SECONDARY} hidden sm:inline-flex`}>
                 Ver como funciona
               </button>
             </div>
@@ -78,35 +72,18 @@ export default function HubHero({ onOpenWizard }: HubHeroProps) {
           </motion.div>
 
           <motion.div
+            id="demo"
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.9, delay: 0.25, ease: "easeOut" }}
-            className="relative"
+            className="relative scroll-mt-24"
           >
             <div className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#FFC93C]/40 via-[#F0457A]/25 to-[#8E3FD9]/25 blur-3xl" />
-            <HubChatMock />
+            <div className="relative">
+              <DemoPlayer {...video} />
+            </div>
           </motion.div>
         </div>
-
-        {/* Números */}
-        <motion.dl
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.5 }}
-          className="mt-16 grid grid-cols-2 gap-px overflow-hidden rounded-3xl border border-[#0F1222]/[0.06] bg-[#0F1222]/[0.06] shadow-[0_20px_50px_-30px_rgba(15,18,34,0.35)] sm:mt-20 lg:grid-cols-4"
-        >
-          {HIGHLIGHTS.map((item) => (
-            <div key={item.label} className="bg-white/90 px-5 py-6 text-center backdrop-blur sm:py-7">
-              <dt className="sr-only">{item.label}</dt>
-              <dd>
-                <span className={`inline-block font-grotesque text-3xl font-bold tracking-tight sm:text-4xl ${GRADIENT_TEXT}`}>
-                  {item.value}
-                </span>
-                <span className="mt-1 block text-sm text-slate-500">{item.label}</span>
-              </dd>
-            </div>
-          ))}
-        </motion.dl>
       </div>
     </section>
   );

@@ -1,17 +1,14 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Bot,
-  Brain,
   CalendarDays,
+  ChevronDown,
   ChevronRight,
-  ClipboardCheck,
   FileSignature,
   FileText,
-  Flame,
   KanbanSquare,
-  Megaphone,
   MessageCircle,
-  Send,
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,11 +16,14 @@ import { GRADIENT_TEXT } from "./lp-theme";
 import { SectionHeading } from "./LpSection";
 
 /**
- * Recursos principais da plataforma. A lista completa (59 funcionalidades para
+ * Recursos principais da plataforma (4 cartões; o resto fica na lista recolhida). A lista completa (59 funcionalidades para
  * o buffet, fora as do Portal Hub) está em src/lib/generateFeaturesPDF.ts.
  * Nomes e números nas mini-telas são ilustrativos.
  */
 const MORE = [
+  "IA que aponta quem vai fechar",
+  "Campanhas e reativação de leads",
+  "Painel da festa no celular",
   "Landing page do buffet com chatbot",
   "Várias unidades num só painel",
   "Editor visual de fluxos do bot",
@@ -50,8 +50,9 @@ const item = {
 };
 
 export default function HubFeatures() {
+  const [showAll, setShowAll] = useState(false);
   return (
-    <section id="recursos" className="relative scroll-mt-16 bg-white py-20 sm:py-28">
+    <section id="recursos" className="relative scroll-mt-16 bg-white py-14 sm:py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <SectionHeading
           eyebrow="Recursos"
@@ -60,21 +61,21 @@ export default function HubFeatures() {
               Tudo que seu buffet precisa, <span className={GRADIENT_TEXT}>num lugar só</span>
             </>
           }
-          description="Do primeiro contato no WhatsApp até a avaliação depois da festa. Sem planilha, sem caderno, sem lead esquecido."
+          description="Do primeiro contato no WhatsApp até a festa. Sem planilha, sem caderno, sem lead esquecido."
         />
 
+        {/* No celular os cartões passam de lado (carrossel); no computador, grade 2 × 2 */}
         <motion.div
           variants={container}
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, margin: "-60px" }}
-          className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-3"
+          className="-mx-4 mt-10 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-2 md:gap-5 md:overflow-visible md:px-0 md:pb-0 [&::-webkit-scrollbar]:hidden"
         >
           <Card
-            className="lg:col-span-2"
             icon={Bot}
             title="WhatsApp com atendimento automático"
-            description="O bot responde na hora, faz as perguntas certas, envia fotos, vídeos e PDFs do buffet e agenda a visita. Sua equipe assume a conversa quando quiser."
+            description="Responde na hora, faz as perguntas certas, envia fotos e pacotes do buffet e agenda a visita."
           >
             <FlowVisual />
           </Card>
@@ -82,17 +83,9 @@ export default function HubFeatures() {
           <Card
             icon={KanbanSquare}
             title="Funil de vendas visual"
-            description="Arraste os leads entre as etapas e veja o histórico completo de cada um."
+            description="Cada lead entra sozinho no funil, com o histórico completo da conversa."
           >
             <KanbanVisual />
-          </Card>
-
-          <Card
-            icon={Brain}
-            title="IA que aponta quem vai fechar"
-            description="Score de cada lead, resumo diário e alerta de negociações paradas."
-          >
-            <ScoreVisual />
           </Card>
 
           <Card
@@ -110,46 +103,32 @@ export default function HubFeatures() {
           >
             <ContractVisual />
           </Card>
-
-          <Card
-            icon={Megaphone}
-            title="Campanhas e reativação"
-            description="Reative leads de 1, 2 e 3 meses atrás e dispare campanhas segmentadas com texto escrito pela IA."
-          >
-            <CampaignVisual />
-          </Card>
-
-          <Card
-            className="lg:col-span-2"
-            icon={ClipboardCheck}
-            title="A operação da festa, no celular"
-            description="Painel ao vivo no dia do evento, lista de presença, equipe escalada, cardápio escolhido pelo cliente e avaliação depois da festa."
-          >
-            <OperationVisual />
-          </Card>
         </motion.div>
+        <p className="mt-3 text-center text-xs text-slate-400 md:hidden">Arraste para o lado para ver mais →</p>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-40px" }}
-          transition={{ duration: 0.6 }}
-          className="mt-10 rounded-3xl border border-dashed border-[#0F1222]/10 bg-[#FFF9F3] p-6 text-center sm:p-8"
-        >
-          <p className="font-grotesque text-lg font-bold text-[#0F1222]">
-            E mais de <span className={GRADIENT_TEXT}>50 funcionalidades</span> pensadas para buffet infantil
-          </p>
-          <ul className="mt-5 flex flex-wrap justify-center gap-2">
-            {MORE.map((label) => (
-              <li
-                key={label}
-                className="rounded-full border border-[#0F1222]/[0.07] bg-white px-3.5 py-1.5 text-sm text-slate-600"
-              >
-                {label}
-              </li>
-            ))}
-          </ul>
-        </motion.div>
+        <div className="mt-8 text-center">
+          <button
+            type="button"
+            onClick={() => setShowAll((v) => !v)}
+            aria-expanded={showAll}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#0F1222]/10 bg-[#FFF9F3] px-5 py-2.5 text-sm font-semibold text-[#0F1222] transition-colors hover:bg-[#FFF3EA]"
+          >
+            {showAll ? "Ver menos" : `Ver todas as funcionalidades (+${MORE.length})`}
+            <ChevronDown className={cn("h-4 w-4 transition-transform", showAll && "rotate-180")} />
+          </button>
+          {showAll && (
+            <ul className="mt-5 flex flex-wrap justify-center gap-2">
+              {MORE.map((label) => (
+                <li
+                  key={label}
+                  className="rounded-full border border-[#0F1222]/[0.07] bg-white px-3.5 py-1.5 text-sm text-slate-600"
+                >
+                  {label}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </section>
   );
@@ -168,7 +147,7 @@ function Card({ icon: Icon, title, description, className, children }: CardProps
     <motion.div
       variants={item}
       className={cn(
-        "group flex flex-col overflow-hidden rounded-3xl border border-[#0F1222]/[0.07] bg-[#FCFAF8] transition-shadow duration-300 hover:shadow-[0_24px_50px_-30px_rgba(15,18,34,0.35)]",
+        "group flex w-[85%] shrink-0 snap-center flex-col overflow-hidden rounded-3xl border border-[#0F1222]/[0.07] bg-[#FCFAF8] transition-shadow duration-300 hover:shadow-[0_24px_50px_-30px_rgba(15,18,34,0.35)] md:w-auto",
         className,
       )}
     >
@@ -250,33 +229,6 @@ function KanbanVisual() {
   );
 }
 
-function ScoreVisual() {
-  const leads = [
-    { name: "Mariana", score: 92, hot: true },
-    { name: "Carla", score: 74, hot: false },
-    { name: "Paulo", score: 41, hot: false },
-  ];
-  return (
-    <div className={cn(panel, "space-y-2.5")}>
-      {leads.map((l) => (
-        <div key={l.name} className="flex items-center gap-2.5">
-          <span className="w-16 text-[12px] font-medium text-slate-700">{l.name}</span>
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full rounded-full bg-gradient-to-r from-[#FFC93C] via-[#FF8A3D] to-[#F0457A]" style={{ width: `${l.score}%` }} />
-          </div>
-          <span className="flex w-10 items-center justify-end gap-0.5 text-[12px] font-semibold text-slate-700">
-            {l.hot && <Flame className="h-3 w-3 text-[#E2482F]" />}
-            {l.score}
-          </span>
-        </div>
-      ))}
-      <p className="flex items-center gap-1.5 border-t border-slate-100 pt-2.5 text-[11.5px] text-slate-500">
-        <Sparkles className="h-3 w-3 text-[#8E3FD9]" /> Paulo está há 5 dias sem resposta
-      </p>
-    </div>
-  );
-}
-
 function CalendarVisual() {
   const marks: Record<number, string> = { 3: "bg-[#F0457A]", 7: "bg-[#FFC93C]", 13: "bg-[#8E3FD9]", 14: "bg-[#F0457A]", 20: "bg-[#38BDF8]", 21: "bg-[#FFC93C]", 27: "bg-[#F0457A]", 28: "bg-[#8E3FD9]" };
   return (
@@ -327,56 +279,6 @@ function ContractVisual() {
           <span className="h-2 rounded-full bg-slate-100" />
         </div>
       </div>
-    </div>
-  );
-}
-
-function CampaignVisual() {
-  return (
-    <div className={cn(panel, "space-y-2.5")}>
-      <div className="flex flex-wrap gap-1.5">
-        {["Sem resposta há 1 mês", "Festas em dezembro"].map((tag) => (
-          <span key={tag} className="rounded-full bg-[#8E3FD9]/10 px-2 py-0.5 text-[10.5px] font-medium text-[#7B33C4]">
-            {tag}
-          </span>
-        ))}
-      </div>
-      <div className="rounded-xl rounded-tr-sm bg-[#D9FDD3] px-3 py-2 text-[12px] leading-snug text-[#111B21]">
-        Oi, Carla! Ainda dá tempo de garantir sua data em dezembro 🎉 Quer que eu reserve um horário de visita?
-      </div>
-      <div className="flex items-center justify-between text-[11px] text-slate-500">
-        <span className="flex items-center gap-1">
-          <Sparkles className="h-3 w-3 text-[#8E3FD9]" /> Texto sugerido pela IA
-        </span>
-        <span className="flex items-center gap-1 font-semibold text-[#D23468]">
-          <Send className="h-3 w-3" /> Enviar
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function OperationVisual() {
-  const items = [
-    { label: "Convidados presentes", value: "62 / 70", bar: 88 },
-    { label: "Equipe confirmada", value: "8 / 8", bar: 100 },
-    { label: "Cardápio escolhido", value: "Kids premium", bar: null },
-  ];
-  return (
-    <div className={cn(panel, "grid gap-3 sm:grid-cols-3")}>
-      {items.map((it) => (
-        <div key={it.label} className="rounded-xl bg-[#FCFAF8] p-3">
-          <p className="text-[11px] text-slate-500">{it.label}</p>
-          <p className="mt-1 font-grotesque text-lg font-bold text-[#0F1222]">{it.value}</p>
-          {it.bar !== null ? (
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full rounded-full bg-gradient-to-r from-[#FF8A3D] to-[#F0457A]" style={{ width: `${it.bar}%` }} />
-            </div>
-          ) : (
-            <p className="mt-1.5 text-[11px] font-medium text-[#0E9F6E]">Confirmado pelo cliente</p>
-          )}
-        </div>
-      ))}
     </div>
   );
 }
