@@ -6,9 +6,15 @@ interface HubCTAProps {
   onOpenWizard: () => void;
 }
 
+const WHY = [
+  "Atendimento automático no WhatsApp, de dia e de noite",
+  "Funil, agenda, contratos e financeiro num lugar só",
+  "Implantação guiada e suporte de quem vive o dia a dia de buffet",
+];
+
 export default function HubCTA({ onOpenWizard }: HubCTAProps) {
   return (
-    <section className="bg-white px-4 py-20 sm:px-6 sm:py-28">
+    <section id="por-que" className="scroll-mt-16 bg-white px-4 py-14 sm:px-6 sm:py-20">
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -35,8 +41,17 @@ export default function HubCTA({ onOpenWizard }: HubCTAProps) {
             Pronto para fechar mais festas?
           </h2>
           <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-white/85 sm:text-xl">
-            Junte-se aos buffets que já automatizaram o atendimento e estão fechando mais festas todo mês.
+            A Celebrei nasceu dentro de um buffet infantil de verdade. Cada recurso foi testado no dia a dia de quem
+            atende pais, agenda visitas e faz festa todo fim de semana.
           </p>
+          <ul className="mx-auto mt-7 grid max-w-2xl gap-2.5 text-left sm:text-center">
+            {WHY.map((item) => (
+              <li key={item} className="flex items-start gap-2 text-[15px] font-medium text-white sm:justify-center">
+                <Check className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={3} />
+                {item}
+              </li>
+            ))}
+          </ul>
           <button
             type="button"
             onClick={onOpenWizard}

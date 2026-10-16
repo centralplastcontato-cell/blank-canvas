@@ -9,7 +9,7 @@ const steps = [
     icon: MessageCircle,
     title: "Conecte seu WhatsApp",
     description:
-      "Em minutos seu número está integrado. O atendimento automático responde os leads, envia os materiais de venda e agenda visitas, sem você precisar fazer nada.",
+      "A gente integra o seu número e o atendimento automático começa a responder os leads.",
     iconBg: "from-[#FFC93C] to-[#FF8A3D]",
   },
   {
@@ -17,7 +17,7 @@ const steps = [
     icon: LayoutDashboard,
     title: "Organize tudo no funil",
     description:
-      "Cada lead entra no funil sozinho. Você acompanha a temperatura, o histórico da conversa e o próximo passo num quadro visual e simples.",
+      "Cada lead entra sozinho no funil, com o histórico e o próximo passo à vista.",
     iconBg: "from-[#FF8A3D] to-[#F0457A]",
   },
   {
@@ -25,14 +25,14 @@ const steps = [
     icon: PartyPopper,
     title: "Feche mais festas",
     description:
-      "Com follow-up automático e a IA apontando a hora certa de chamar, sua equipe foca em fechar, não em correr atrás de quem sumiu.",
+      "Follow-up automático e a IA apontando a hora de chamar: sua equipe só foca em fechar.",
     iconBg: "from-[#F0457A] to-[#8E3FD9]",
   },
 ];
 
 export default function HubHowItWorks() {
   return (
-    <section id="como-funciona" className="relative scroll-mt-16 bg-[#FFF9F3] py-20 sm:py-28">
+    <section id="como-funciona" className="relative scroll-mt-16 bg-[#FFF9F3] py-14 sm:py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <SectionHeading
           eyebrow="Como funciona"
@@ -44,7 +44,7 @@ export default function HubHowItWorks() {
           description="A gente configura com você. Em até 48 horas o seu buffet já está atendendo no automático."
         />
 
-        <div className="relative mt-16 grid gap-5 md:grid-cols-3 md:gap-6">
+        <div className="relative mt-10 grid gap-3 md:grid-cols-3 md:gap-6">
           <div className="pointer-events-none absolute left-[16%] right-[16%] top-[3.25rem] hidden h-px border-t-2 border-dashed border-[#0F1222]/10 md:block" />
 
           {steps.map((step, idx) => (
@@ -54,18 +54,20 @@ export default function HubHowItWorks() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-40px" }}
               transition={{ duration: 0.55, delay: idx * 0.12 }}
-              className="relative rounded-3xl border border-[#0F1222]/[0.06] bg-white p-7 shadow-[0_20px_50px_-35px_rgba(15,18,34,0.4)] sm:p-8"
+              className="relative flex gap-4 rounded-3xl border border-[#0F1222]/[0.06] bg-white p-5 shadow-[0_20px_50px_-35px_rgba(15,18,34,0.4)] sm:p-7 md:block"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex shrink-0 items-center justify-between">
                 <div
-                  className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${step.iconBg} shadow-[0_12px_24px_-10px_rgba(240,69,122,0.6)]`}
+                  className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${step.iconBg} shadow-[0_12px_24px_-10px_rgba(240,69,122,0.6)] md:h-14 md:w-14`}
                 >
-                  <step.icon className="h-7 w-7 text-white" />
+                  <step.icon className="h-6 w-6 text-white md:h-7 md:w-7" />
                 </div>
-                <span className="font-grotesque text-5xl font-bold tracking-tight text-[#0F1222]/[0.07]">{step.number}</span>
+                <span className="hidden font-grotesque text-5xl font-bold tracking-tight text-[#0F1222]/[0.07] md:inline">{step.number}</span>
               </div>
-              <h3 className="mt-6 font-grotesque text-2xl font-bold tracking-tight text-[#0F1222]">{step.title}</h3>
-              <p className="mt-3 text-base leading-relaxed text-slate-600">{step.description}</p>
+              <div>
+                <h3 className="font-grotesque text-lg font-bold tracking-tight text-[#0F1222] md:mt-6 md:text-2xl">{step.title}</h3>
+                <p className="mt-1 text-[15px] leading-relaxed text-slate-600 md:mt-3 md:text-base">{step.description}</p>
+              </div>
             </motion.div>
           ))}
         </div>
