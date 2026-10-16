@@ -1,37 +1,72 @@
-import { Button } from "@/components/ui/button";
-import logoCelebrei from "@/assets/logo-celebrei-1.png";
+import { useEffect, useState } from "react";
+import { ArrowRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+import CelebreiLogo from "./CelebreiLogo";
+import { scrollToSection } from "./lp-theme";
 
 interface HubHeaderProps {
   onOpenWizard?: () => void;
 }
 
+const NAV = [
+  { id: "como-funciona", label: "Como funciona" },
+  { id: "recursos", label: "Recursos" },
+  { id: "demo", label: "Demonstração" },
+  { id: "resultados", label: "Resultados" },
+];
+
 export default function HubHeader({ onOpenWizard }: HubHeaderProps) {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.06] bg-[hsl(225_35%_10%/0.85)] backdrop-blur-3xl">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-18 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <img src={logoCelebrei} alt="Celebrei" className="h-9 w-auto" />
-          <span className="font-display text-xl sm:text-xl font-bold text-white tracking-tight">
-            Celebrei
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onOpenWizard}
-            className="hidden sm:inline-flex text-white/60 hover:text-white hover:bg-white/10 text-sm"
-          >
-            Saiba mais
-          </Button>
-          <Button
-            onClick={onOpenWizard}
-            size="sm"
-            className="rounded-full font-semibold bg-white text-[hsl(225_35%_10%)] hover:bg-white/90 px-6 py-5 text-sm shadow-[0_0_20px_rgba(255,255,255,0.1)]"
-          >
-            Começar agora
-          </Button>
-        </div>
+    <header
+      className={cn(
+        "fixed inset-x-0 top-0 z-50 border-b transition-all duration-300",
+        scrolled ? "border-[#0F1222]/[0.06] bg-white/90 backdrop-blur-xl" : "border-transparent bg-transparent",
+      )}
+    >
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:h-[72px] sm:px-6">
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          aria-label="Celebrei, voltar ao início"
+          className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F0457A]"
+        >
+          <CelebreiLogo markClassName="h-8 w-8 sm:h-9 sm:w-9" />
+        </button>
+
+        <nav className="hidden items-center gap-8 lg:flex" aria-label="Seções da página">
+          {NAV.map((item) => (
+            <a
+              key={item.id}
+              href={`#${item.id}`}
+              onClick={(e) => {
+                e.preventDefault();
+                scrollToSection(item.id);
+              }}
+              className="text-[15px] font-medium text-slate-600 transition-colors hover:text-[#0F1222]"
+            >
+              {item.label}
+            </a>
+          ))}
+        </nav>
+
+        <button
+          type="button"
+          onClick={onOpenWizard}
+          className="inline-flex items-center gap-1.5 rounded-full bg-[#0F1222] px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-[#1B2036] sm:px-5"
+        >
+          <span className="sm:hidden">Agendar demo</span>
+          <span className="hidden sm:inline">Agendar demonstração</span>
+          <ArrowRight className="h-4 w-4" />
+        </button>
       </div>
     </header>
   );

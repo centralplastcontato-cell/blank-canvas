@@ -1,29 +1,25 @@
-import logoCelebrei from "@/assets/logo-celebrei-1.png";
 import { Instagram } from "lucide-react";
+import CelebreiLogo from "./CelebreiLogo";
 
 export default function HubFooter() {
   return (
-    <footer className="border-t border-border/40 py-10 bg-muted/30">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <img src={logoCelebrei} alt="Celebrei" className="h-7 w-auto opacity-60" />
-          <div>
-            <span className="font-display text-sm font-semibold text-muted-foreground block">Celebrei</span>
-            <span className="text-[10px] text-muted-foreground/60">Plataforma #1 para buffets infantis</span>
-          </div>
+    <footer className="border-t border-[#0F1222]/[0.06] bg-[#FFF9F3]">
+      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-4 py-10 sm:flex-row sm:px-6">
+        <div className="flex flex-col items-center gap-2 sm:items-start">
+          <CelebreiLogo markClassName="h-8 w-8" />
+          <p className="text-sm text-slate-500">A plataforma de vendas e gestão para buffets infantis</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col items-center gap-3 sm:items-end">
           <a
             href="https://www.instagram.com/celebrei.app"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-muted-foreground/60 hover:text-primary transition-colors"
+            className="inline-flex items-center gap-2 rounded-full border border-[#0F1222]/[0.08] bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-[#F0457A]/40 hover:text-[#D23468]"
           >
             <Instagram className="h-4 w-4" />
+            @celebrei.app
           </a>
-          <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Celebrei. Todos os direitos reservados.
-          </p>
+          <p className="text-xs text-slate-400">© {new Date().getFullYear()} Celebrei. Todos os direitos reservados.</p>
         </div>
       </div>
     </footer>

@@ -1,100 +1,94 @@
 import { motion } from "framer-motion";
-import { CheckCircle2, ArrowRight, TrendingUp, Clock, Target, Shield } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowRight, CheckCircle2, Clock, Heart, Target, TrendingUp } from "lucide-react";
+import { GRADIENT_TEXT } from "./lp-theme";
 
 const stats = [
   { value: "+40%", label: "mais conversões", icon: TrendingUp },
   { value: "24h", label: "atendimento ativo", icon: Clock },
   { value: "3x", label: "mais agilidade", icon: Target },
-  { value: "Zero", label: "leads perdidos", icon: Shield },
+  { value: "Zero", label: "leads esquecidos", icon: Heart },
 ];
 
 const benefits = [
-  "Atendimento 24h via WhatsApp automatizado",
+  "Atendimento 24h pelo WhatsApp, no automático",
   "Aumento médio de 40% na taxa de conversão",
-  "Materiais de venda enviados automaticamente",
+  "Materiais de venda enviados na hora certa",
   "Relatórios e métricas em tempo real",
-  "Onboarding guiado e suporte dedicado",
-  "Integração completa com suas campanhas",
+  "Implantação guiada e suporte dedicado",
+  "Integração completa com as suas campanhas",
 ];
 
 export default function HubStats({ onOpenWizard }: { onOpenWizard: () => void }) {
   return (
-    <section className="py-16 sm:py-24 relative overflow-hidden">
-      {/* Dark section */}
-      <div className="absolute inset-0 bg-[hsl(225_35%_10%)]" />
-      <div
-        className="absolute inset-0 opacity-[0.03]"
-        style={{
-          backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-          backgroundSize: "60px 60px",
-        }}
-      />
+    <section id="resultados" className="relative scroll-mt-16 overflow-hidden bg-[#0F1222] py-20 sm:py-28">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-40 top-0 h-[460px] w-[460px] rounded-full bg-[#FF8A3D]/15 blur-[120px]" />
+        <div className="absolute -right-40 bottom-0 h-[460px] w-[460px] rounded-full bg-[#8E3FD9]/20 blur-[120px]" />
+        <div
+          className="absolute inset-0 opacity-[0.05]"
+          style={{
+            backgroundImage: "radial-gradient(rgba(255,255,255,0.9) 1px, transparent 1px)",
+            backgroundSize: "26px 26px",
+          }}
+        />
+      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
-          {/* Stats grid */}
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="grid items-center gap-14 lg:grid-cols-2 lg:gap-16">
           <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
             transition={{ duration: 0.7 }}
           >
-            <div className="grid grid-cols-2 gap-4">
-              {stats.map((stat, i) => (
-                <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1, duration: 0.4 }}
-                  className="relative p-4 sm:p-6 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 text-center group hover:bg-white/8 transition-all duration-300"
-                >
-                  <stat.icon className="h-5 w-5 text-white/40 mx-auto mb-3 group-hover:text-secondary transition-colors" />
-                  <p className="font-display text-3xl sm:text-4xl font-bold text-white">{stat.value}</p>
-                  <p className="text-sm text-white/40 mt-1">{stat.label}</p>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* Benefits */}
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.7 }}
-          >
-            <p className="text-xs font-semibold text-secondary uppercase tracking-[0.2em] mb-4">Resultados</p>
-            <h2 className="font-display text-3xl sm:text-4xl font-bold text-white leading-tight">
-              Por que buffets escolhem a Celebrei?
+            <span className="inline-flex items-center rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-white/80">
+              Resultados
+            </span>
+            <h2 className="mt-5 text-balance font-grotesque text-[2.15rem] font-bold leading-[1.05] tracking-[-0.03em] text-white sm:text-5xl">
+              Por que buffets escolhem a <span className={GRADIENT_TEXT}>Celebrei?</span>
             </h2>
-            <p className="mt-4 text-white/50 text-lg leading-relaxed">
-              Nossos clientes convertem mais enquanto reduzem o esforço manual de atendimento.
+            <p className="mt-5 text-lg leading-relaxed text-white/60">
+              A Celebrei nasceu dentro de um buffet infantil. Cada recurso foi testado no dia a dia de quem atende pais,
+              agenda visitas e faz festa todo fim de semana.
             </p>
-            <div className="mt-8 space-y-4">
-              {benefits.map((benefit, i) => (
-                <motion.div
-                  key={benefit}
-                  initial={{ opacity: 0, x: 10 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.06 }}
-                  className="flex items-start gap-3"
-                >
-                  <CheckCircle2 className="h-5 w-5 text-accent mt-0.5 flex-shrink-0" />
-                  <span className="text-white/70 text-sm">{benefit}</span>
-                </motion.div>
+            <ul className="mt-8 grid gap-3.5 sm:grid-cols-2">
+              {benefits.map((benefit) => (
+                <li key={benefit} className="flex items-start gap-2.5 text-[15px] leading-snug text-white/80">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[#FF8A3D]" />
+                  {benefit}
+                </li>
               ))}
-            </div>
-            <Button
-              className="mt-10 rounded-full px-8 py-6 font-bold text-base bg-white text-[hsl(225_35%_10%)] hover:bg-white/90 transition-all hover:scale-[1.02] shadow-[0_20px_40px_-10px_rgba(255,255,255,0.15)]"
+            </ul>
+            <button
+              type="button"
               onClick={onOpenWizard}
+              className="mt-10 inline-flex items-center gap-2 rounded-full bg-white px-7 py-4 text-base font-semibold text-[#0F1222] shadow-[0_16px_40px_-14px_rgba(255,255,255,0.35)] transition-all hover:-translate-y-0.5 hover:bg-white/90"
             >
-              Agendar conversa
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
+              Quero ver funcionando
+              <ArrowRight className="h-5 w-5" />
+            </button>
           </motion.div>
+
+          <div className="grid grid-cols-2 gap-4">
+            {stats.map((stat, i) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1, duration: 0.45 }}
+                className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-sm sm:p-8"
+              >
+                <stat.icon className="h-5 w-5 text-white/40" />
+                <p className="mt-5">
+                  <span className={`inline-block font-grotesque text-4xl font-bold tracking-tight sm:text-5xl ${GRADIENT_TEXT}`}>
+                    {stat.value}
+                  </span>
+                </p>
+                <p className="mt-1.5 text-sm text-white/55">{stat.label}</p>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </div>
     </section>
