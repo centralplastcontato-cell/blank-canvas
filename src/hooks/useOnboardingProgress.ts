@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useCompany } from '@/contexts/CompanyContext';
 import { Json } from '@/integrations/supabase/types';
+import { signupStatus } from '@/lib/selfSetup';
 
 export interface OnboardingStep {
   id: string;
@@ -21,6 +22,28 @@ export function useOnboardingProgress() {
 
     const checkProgress = async () => {
       setIsLoading(true);
+
+      // Buffet que se cadastrou pelo site (só IA): guia próprio, sem o
+      // formulário de onboarding antigo, unidades e fluxo do robô
+      const signup = signupStatus(currentCompany?.settings);
+      if (signup) {
+        const [instRes, lpPub, matRes, teamRes] = await Promise.all([
+          supabase.from('wapi_instances').select('id', { count: 'exact', head: true }).eq('company_id', currentCompanyId).eq('status', 'connected'),
+          supabase.from('company_landing_pages').select('id', { count: 'exact', head: true }).eq('company_id', currentCompanyId).eq('is_published', true),
+          supabase.from('sales_materials').select('id', { count: 'exact', head: true }).eq('company_id', currentCompanyId).eq('is_active', true),
+          supabase.from('user_companies').select('id', { count: 'exact', head: true }).eq('company_id', currentCompanyId),
+        ]);
+        setSteps([
+          { id: 'cadastro', label: 'Concluir o cadastro', description: 'IA, datas ocupadas e site', completed: signup !== 'cadastro', route: '/setup' },
+          { id: 'whatsapp', label: 'WhatsApp conectado', description: 'A equipe Celebrei conecta o seu número; depois é só ler o QR Code', completed: (instRes.count ?? 0) > 0, route: '/configuracoes?secao=connection' },
+          { id: 'ia', label: 'IA atendendo', description: 'Liberada pela Celebrei depois da aprovação', completed: signup === 'aprovado' },
+          { id: 'site', label: 'Publicar o site do buffet', description: 'Os botões do site abrem o seu WhatsApp', completed: (lpPub.count ?? 0) > 0, route: '/configuracoes?secao=site' },
+          { id: 'materiais', label: 'Enviar fotos e PDF de pacotes', description: 'A IA manda esses materiais para os clientes', completed: (matRes.count ?? 0) > 0, route: '/configuracoes?secao=content' },
+          { id: 'team', label: 'Convidar a equipe', description: 'Quem vai atender os clientes que a IA passar', completed: (teamRes.count ?? 0) > 1, route: '/configuracoes?tab=usuarios' },
+        ]);
+        setIsLoading(false);
+        return;
+      }
 
       const settings = currentCompany?.settings as Record<string, Json | undefined> | null;
       const salesMaterials = settings?.sales_materials;
