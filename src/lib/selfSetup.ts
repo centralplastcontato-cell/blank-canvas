@@ -24,6 +24,13 @@ export interface SetupAnswers {
   team_days: number[];
   team_start: string;
   team_end: string;
+  /** Sábado em horário diferente dos dias de semana */
+  visit_sat_diff?: boolean;
+  visit_sat_start?: string;
+  visit_sat_end?: string;
+  team_sat_diff?: boolean;
+  team_sat_start?: string;
+  team_sat_end?: string;
   duracao: string;
   estrutura: string;
   diferenciais: string;
@@ -80,3 +87,6 @@ export function signupStatus(settings: unknown): SignupStatus | null {
   const s = (settings as { signup?: { status?: string } } | null)?.signup?.status;
   return s === "cadastro" || s === "aguardando_aprovacao" || s === "aprovado" ? s : null;
 }
+
+/** Índice do sábado em WEEKDAYS */
+export const SATURDAY = 5;
