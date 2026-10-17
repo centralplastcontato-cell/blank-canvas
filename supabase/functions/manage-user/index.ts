@@ -80,7 +80,30 @@ Deno.serve(async (req) => {
     }
 
     const body: ManageUserRequest = await req.json()
-    console.log('Request body:', body)
+    console.log('Request body:', { ...body, password: body.password ? '***' : undefined, new_password: body.new_password ? '***' : undefined })
+
+    // Gestor (dono de buffet) só mexe nos usuários das empresas que administra
+    // (e nas filhas delas) e nunca cria nem promove administrador da Celebrei.
+    // Antes, qualquer gestor podia trocar a senha de qualquer usuário — inclusive
+    // dos administradores — e criar usuário admin em qualquer empresa.
+    if (roleData.role !== 'admin') {
+      const deny = (msg: string) => new Response(JSON.stringify({ error: msg }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      if (body.role === 'admin') return deny('Só a Celebrei pode criar administradores.')
+      const { data: own } = await supabaseAdmin.from('user_companies').select('company_id').eq('user_id', requestingUser.id).in('role', ['owner', 'admin'])
+      const ownIds = (own || []).map((r: { company_id: string }) => r.company_id)
+      const { data: kids } = ownIds.length ? await supabaseAdmin.from('companies').select('id').in('parent_id', ownIds) : { data: [] }
+      const managed = new Set([...ownIds, ...(kids || []).map((k: { id: string }) => k.id)])
+      if (body.action === 'create') {
+        if (!body.company_id || !managed.has(body.company_id)) return deny('Você só pode criar usuários nas empresas que administra.')
+        if (body.company_role === 'owner') return deny('Só a Celebrei pode definir o dono da empresa.')
+      } else {
+        if (!body.user_id) return deny('Usuário não informado.')
+        const { data: targetIsAdmin } = await supabaseAdmin.rpc('is_admin', { _user_id: body.user_id })
+        if (targetIsAdmin === true) return deny('Esse usuário só pode ser alterado pela Celebrei.')
+        const { data: links } = await supabaseAdmin.from('user_companies').select('company_id').eq('user_id', body.user_id)
+        if (!(links || []).some((l: { company_id: string }) => managed.has(l.company_id))) return deny('Esse usuário não é de uma empresa que você administra.')
+      }
+    }
 
     if (body.action === 'create') {
       // Create new user
