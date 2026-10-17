@@ -58,14 +58,22 @@ function MobileStickyCTA({ onClick }: { onClick: () => void }) {
     <div
       className={`fixed inset-x-0 bottom-0 z-40 border-t border-[#0F1222]/[0.06] bg-white/95 p-3 backdrop-blur transition-transform duration-300 sm:hidden ${visible ? "translate-y-0" : "translate-y-full"}`}
     >
-      <button
-        type="button"
-        onClick={onClick}
-        className="flex w-full items-center justify-center gap-2 rounded-full bg-[#0F1222] py-3.5 text-base font-semibold text-white"
-      >
-        Agendar demonstração gratuita
-        <ArrowRight className="h-5 w-5" />
-      </button>
+      <div className="flex gap-2">
+        <a
+          href="/comecar"
+          className="flex flex-1 items-center justify-center rounded-full border-2 border-[#0F1222] py-3 text-[15px] font-semibold text-[#0F1222]"
+        >
+          Criar conta grátis
+        </a>
+        <button
+          type="button"
+          onClick={onClick}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#0F1222] py-3 text-[15px] font-semibold text-white"
+        >
+          Agendar demo
+          <ArrowRight className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }
