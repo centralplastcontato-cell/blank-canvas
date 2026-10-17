@@ -198,6 +198,16 @@ async function approve(supabase: SB, req: Request, body: Json): Promise<Response
     ...s,
     enabled_modules: { ...(s.enabled_modules || {}), ...SIGNUP_MODULES, ia_conversacional: true },
   }));
+  // Site: com o número conectado, o botão passa a fazer as perguntas (mês, convidados...)
+  // antes do WhatsApp, como nas outras páginas; o lead entra pelo número conectado
+  await supabase.from("lp_bot_settings").upsert({ company_id: companyId }, { onConflict: "company_id", ignoreDuplicates: true });
+  if (inst.status === "connected") {
+    const { data: lp } = await supabase.from("company_landing_pages").select("hero").eq("company_id", companyId).maybeSingle();
+    const hero = (lp?.hero || {}) as Json;
+    if (hero.site_builder === true && hero.cta_mode === "whatsapp") {
+      await supabase.from("company_landing_pages").update({ hero: { ...hero, cta_mode: "chatbot" } }).eq("company_id", companyId);
+    }
+  }
   const { error: aiErr } = await supabase.from("ai_agent_settings")
     .update({ enabled: true, unit: inst.unit, activated_at: new Date().toISOString() }).eq("company_id", companyId);
   if (aiErr) return json({ error: `Aprovado, mas não consegui ligar a IA (${aiErr.message}). Ligue em Configurar IA.` }, 500);
