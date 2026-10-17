@@ -5,6 +5,7 @@ import { Helmet } from "react-helmet-async";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { isHubDomain } from "@/hooks/useDomainDetection";
+import { hasHubAccess } from "@/lib/hubAccess";
 import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { User, Session } from "@supabase/supabase-js";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -77,11 +78,13 @@ export default function CentralAtendimento() {
   const { currentCompany } = useCompany();
   const modules = useCompanyModules();
 
-  // Guard: redirect to Hub dashboard if on Hub domain
+  // No domínio do Hub, só a equipe Celebrei vai para o painel do Hub; o dono
+  // de buffet (cadastro pelo site) usa a plataforma de atendimento aqui mesmo
   useEffect(() => {
-    if (isHubDomain()) {
-      navigate("/hub", { replace: true });
-    }
+    if (!isHubDomain()) return;
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user && (await hasHubAccess(session.user.id))) navigate("/hub", { replace: true });
+    });
   }, [navigate]);
   const [searchParams, setSearchParams] = useSearchParams();
   const [user, setUser] = useState<User | null>(null);

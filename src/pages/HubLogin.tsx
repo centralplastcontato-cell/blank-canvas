@@ -9,6 +9,7 @@ import { Loader2, Lock, Mail } from "lucide-react";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import logoCelebrei from "@/assets/logo-celebrei-2.png";
 import { z } from "zod";
+import { hasAnyCompany, hasHubAccess } from "@/lib/hubAccess";
 
 const emailSchema = z.string().email("Email inválido");
 const passwordSchema = z.string().min(6, "Senha deve ter pelo menos 6 caracteres");
@@ -20,34 +21,14 @@ export default function HubLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const checkHubAccess = async (userId: string): Promise<boolean> => {
-    const { data: isAdmin } = await supabase.rpc("is_admin", { _user_id: userId });
-    if (isAdmin === true) return true;
+  const checkHubAccess = hasHubAccess;
 
-    const { data: uc } = await supabase
-      .from("user_companies")
-      .select("company_id, role")
-      .eq("user_id", userId)
-      .in("role", ["owner", "admin"]);
-
-    if (uc && uc.length > 0) {
-      const { data: parents } = await supabase
-        .from("companies")
-        .select("id")
-        .in("id", uc.map((u) => u.company_id))
-        .is("parent_id", null);
-
-      if (parents && parents.length > 0) {
-        const { data: children } = await supabase
-          .from("companies")
-          .select("id")
-          .in("parent_id", parents.map((p) => p.id))
-          .limit(1);
-
-        if (children && children.length > 0) return true;
-      }
-    }
-    return false;
+  // Hubcelebrei.com.br também é a porta de entrada dos buffets: quem não é da
+  // Celebrei mas faz parte de um buffet vai para a plataforma de atendimento
+  const goToPlatform = async (userId: string): Promise<boolean> => {
+    if (!(await hasAnyCompany(userId))) return false;
+    navigate("/atendimento");
+    return true;
   };
 
   useEffect(() => {
@@ -56,6 +37,8 @@ export default function HubLogin() {
         const hasAccess = await checkHubAccess(session.user.id);
         if (hasAccess) {
           navigate("/hub");
+        } else if (await goToPlatform(session.user.id)) {
+          return;
         }
       }
       setIsCheckingAccess(false);
@@ -68,6 +51,7 @@ export default function HubLogin() {
           navigate("/hub");
           return;
         }
+        if (await goToPlatform(session.user.id)) return;
       }
       setIsCheckingAccess(false);
     });
@@ -95,6 +79,7 @@ export default function HubLogin() {
       if (error) throw error;
 
       const hasAccess = await checkHubAccess(data.user.id);
+      if (!hasAccess && (await goToPlatform(data.user.id))) return;
       if (!hasAccess) {
         await supabase.auth.signOut();
         toast({
@@ -135,7 +120,7 @@ export default function HubLogin() {
               <img src={logoCelebrei} alt="Celebrei" className="h-42 w-auto object-contain" />
             </div>
             <h1 className="font-display text-2xl font-bold text-foreground">Hub Celebrei</h1>
-            <p className="text-muted-foreground mt-2">Acesso ao painel de gestão</p>
+            <p className="text-muted-foreground mt-2">Entre na sua conta</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -179,6 +164,9 @@ export default function HubLogin() {
               {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Entrar no Hub"}
             </Button>
           </form>
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            Ainda não tem conta? <a href="/comecar" className="font-semibold text-primary hover:underline">Criar conta grátis</a>
+          </p>
         </div>
       </div>
     </div>
