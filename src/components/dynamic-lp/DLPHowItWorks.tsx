@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { motion } from "framer-motion";
 import * as LucideIcons from "lucide-react";
 import type { LPHowItWorks, LPTheme } from "@/types/landing-page";
@@ -112,7 +113,7 @@ export function DLPHowItWorks({ howItWorks, theme }: DLPHowItWorksProps) {
         {/* Desktop: horizontal cards with connector */}
         <div className="hidden md:block">
           <div
-            className={`flex items-stretch justify-center gap-6 lg:gap-10 ${
+            className={`flex items-stretch justify-center gap-3 lg:gap-4 ${
               howItWorks.steps.length === 2 ? "max-w-3xl mx-auto" : ""
             }`}
           >
@@ -120,13 +121,13 @@ export function DLPHowItWorks({ howItWorks, theme }: DLPHowItWorksProps) {
               const Icon = getIcon(step.icon);
               const isLast = i === howItWorks.steps.length - 1;
               return (
-                <div key={i} className="flex items-stretch flex-1 min-w-0">
+                <Fragment key={i}>
                   <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.12, duration: 0.5 }}
-                    className="flex-1 text-center relative rounded-2xl px-5 py-7 transition-all hover:-translate-y-1"
+                    className="flex-1 basis-0 min-w-0 text-center relative rounded-2xl px-5 py-7 transition-all hover:-translate-y-1"
                     style={{
                       background: `linear-gradient(180deg, ${theme.primary_color}08 0%, ${theme.background_color} 100%)`,
                       border: `1px solid ${theme.primary_color}15`,
@@ -174,7 +175,7 @@ export function DLPHowItWorks({ howItWorks, theme }: DLPHowItWorksProps) {
                     >
                       <div className="relative flex items-center">
                         <div
-                          className="h-0.5 w-10 lg:w-16 rounded-full"
+                          className="h-0.5 w-4 lg:w-6 rounded-full"
                           style={{
                             background: `linear-gradient(90deg, ${theme.primary_color}50, ${theme.secondary_color}50)`,
                           }}
@@ -189,7 +190,7 @@ export function DLPHowItWorks({ howItWorks, theme }: DLPHowItWorksProps) {
                           <LucideIcons.ArrowRight className="w-4 h-4 text-white" />
                         </div>
                         <div
-                          className="h-0.5 w-10 lg:w-16 rounded-full"
+                          className="h-0.5 w-4 lg:w-6 rounded-full"
                           style={{
                             background: `linear-gradient(90deg, ${theme.secondary_color}50, ${theme.primary_color}50)`,
                           }}
@@ -197,7 +198,7 @@ export function DLPHowItWorks({ howItWorks, theme }: DLPHowItWorksProps) {
                       </div>
                     </motion.div>
                   )}
-                </div>
+                </Fragment>
               );
             })}
           </div>

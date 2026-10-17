@@ -50,6 +50,48 @@ export async function recentConnectionEvent(supabase: SB, externalInstanceId: st
   return { event, at: data[0].received_at, hint: eventHint(event) };
 }
 
+// ─── Queda vista só pelos eventos (16/10, VENDAS 1 e VENDAS 2) ─────────────
+// Número deslogado fica num ciclo de QR que manda "LoggedOut" a cada ~2 min
+// (e, no VENDAS 1, "Disconnected"/"LoggedOut" a cada poucos segundos por 4 h).
+// Com isso a janela de 2 min sem chamadas nunca acabava: o monitor nunca
+// consultava o número e o alerta não saía. A queda agora é lida dos próprios
+// eventos, sem chamar a Evolution.
+
+/** Eventos que mostram o número vivo (conectou ou está trocando mensagens) */
+const ALIVE_EVENTS = [...ONLINE_EVENTS, "Message", "Receipt"];
+/** Quanto tempo caindo e voltando sem nenhum sinal de vida até avisar (sem "LoggedOut") */
+export const DOWN_STREAK_ALERT_MS = 10 * 60 * 1000;
+const STREAK_LOOKBACK_MS = 24 * 3600 * 1000;
+
+export interface DownStreak {
+  /** Primeiro evento de queda depois do último sinal de vida */
+  since: string;
+  /** Veio "LoggedOut"/"ClientOutdated" nessa sequência: a sessão acabou, só o QR resolve */
+  loggedOut: boolean;
+}
+
+/** Queda em andamento segundo os eventos (null = o último sinal foi de vida, ou não há queda) */
+export async function currentDownStreak(supabase: SB, externalInstanceId: string, nowMs = Date.now()): Promise<DownStreak | null> {
+  const lookback = new Date(nowMs - STREAK_LOOKBACK_MS).toISOString();
+  const { data: alive } = await supabase.from("wapi_webhook_raw_events").select("received_at")
+    .eq("instance_id", externalInstanceId).in("event_type", ALIVE_EVENTS).gte("received_at", lookback)
+    .order("received_at", { ascending: false }).limit(1);
+  const after = alive && alive[0] ? alive[0].received_at : lookback;
+  const { data: first } = await supabase.from("wapi_webhook_raw_events").select("received_at")
+    .eq("instance_id", externalInstanceId).in("event_type", DOWN_EVENTS).gt("received_at", after)
+    .order("received_at", { ascending: true }).limit(1);
+  if (!first || !first[0]) return null;
+  const { data: lo } = await supabase.from("wapi_webhook_raw_events").select("received_at")
+    .eq("instance_id", externalInstanceId).in("event_type", [...LOGGED_OUT_EVENTS]).gt("received_at", after).limit(1);
+  return { since: first[0].received_at, loggedOut: !!(lo && lo[0]) };
+}
+
+/** A queda pelos eventos já justifica o alerta? (sessão encerrada: na hora; caindo e voltando: depois de 10 min) */
+export function streakNeedsAlert(streak: DownStreak | null, nowMs: number): boolean {
+  if (!streak) return false;
+  return streak.loggedOut || nowMs - Date.parse(streak.since) >= DOWN_STREAK_ALERT_MS;
+}
+
 export function eventHint(event: string): RecentEvent["hint"] {
   if (ONLINE_EVENTS.has(event)) return "online";
   if (LOGGED_OUT_EVENTS.has(event)) return "needs_qr";

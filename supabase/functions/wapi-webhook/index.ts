@@ -7183,6 +7183,21 @@ Deno.serve(async (req) => {
       if (connEvt) {
         console.log(`[Webhook] Evolution: evento de conexão ${connEvt.event} (${connEvt.hint}) — registrado; o monitor confere depois de 2 min`);
         await markRawWebhookEvent(supabase, rawWebhookEventId, { processing_status: 'completed', processing_note: `evolution_connection_${connEvt.event}` });
+        // Sessão encerrada ("LoggedOut"): perda real, avisa já (16/10 o aviso
+        // esperava 2 checagens e nunca saiu). O monitor lê os eventos e não
+        // chama a Evolution; só dispara se ainda não avisou esse número.
+        if (connEvt.hint === 'needs_qr') {
+          const { data: health } = await supabase.from('provider_health').select('alerted_state').eq('key', `instance:${evoInst.id}`).maybeSingle();
+          if (health?.alerted_state !== 'needs_qr') {
+            const call = fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/evolution-monitor`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
+              body: JSON.stringify({ instance_row_id: evoInst.id, reason: `evento ${connEvt.event}` }),
+            }).then((r) => r.text()).catch((e) => console.error('[Webhook] Falha ao acionar o monitor:', e));
+            // @ts-ignore - EdgeRuntime existe nas Edge Functions
+            if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) EdgeRuntime.waitUntil(call); else await call;
+          }
+        }
         return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       const normalized = normalizeEvolutionPayload(body);
