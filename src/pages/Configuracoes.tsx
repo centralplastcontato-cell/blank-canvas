@@ -165,7 +165,7 @@ export default function Configuracoes() {
               </TabsTrigger>
               <TabsTrigger value="whatsapp" className="gap-2 rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground">
                 <MessageSquare className="h-4 w-4" />
-                WhatsApp
+                Empresa e WhatsApp
               </TabsTrigger>
               {showOperacoes && (
                 <TabsTrigger value="festa" className="gap-2 rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground">
@@ -264,7 +264,7 @@ export default function Configuracoes() {
                   </TabsTrigger>
                   <TabsTrigger value="whatsapp" className="gap-2 rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground">
                     <MessageSquare className="h-4 w-4" />
-                    WhatsApp
+                    Empresa e WhatsApp
                   </TabsTrigger>
                   {showOperacoes && (
                     <TabsTrigger value="festa" className="gap-2 rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground">
