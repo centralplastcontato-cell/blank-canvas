@@ -90,3 +90,40 @@ export function signupStatus(settings: unknown): SignupStatus | null {
 
 /** Índice do sábado em WEEKDAYS */
 export const SATURDAY = 5;
+
+/** Sugestões para tocar e ir adicionando nas perguntas abertas do cadastro */
+export const SETUP_SUGGESTIONS = {
+  estrutura: [
+    "Salão climatizado", "Brinquedão", "Cama elástica", "Piscina de bolinhas", "Escorregador", "Pula-pula",
+    "Área baby", "Fraldário", "Arena de games", "Espaço para os pais", "Área externa", "Estacionamento",
+    "Acessível para cadeirantes",
+  ],
+  diferenciais: [
+    "Monitores o tempo todo", "Cardápio completo", "Comida feita na hora", "Decoração inclusa",
+    "Uma festa por vez (espaço exclusivo)", "Estacionamento próprio", "Equipe experiente",
+    "Controle de entrada e segurança", "Atendimento personalizado", "Fácil de chegar",
+  ],
+  regras: [
+    "Visita só com hora marcada", "Não fazemos festa fora do buffet", "Crianças sempre com um adulto responsável",
+    "Proibido fumar no espaço", "Decoração do tema é por conta da família", "Sem bebida alcoólica para menores",
+  ],
+  proibido: [
+    "Dar desconto", "Garantir data sem contrato", "Prometer brinde", "Prometer item fora do pacote",
+    "Falar mal de concorrente", "Combinar forma de pagamento",
+  ],
+} as const;
+
+const norm = (s: string) => s.trim().toLowerCase();
+
+/** O item já está no texto? */
+export function hasTerm(text: string, term: string): boolean {
+  return text.split(/[,\n;]/).some((p) => norm(p) === norm(term));
+}
+
+/** Toca na sugestão: adiciona no fim do texto ("a, b, c") ou tira se já estiver */
+export function toggleTerm(text: string, term: string): string {
+  const parts = text.split(/[,\n;]/).map((p) => p.trim()).filter(Boolean);
+  const exists = parts.some((p) => norm(p) === norm(term));
+  const next = exists ? parts.filter((p) => norm(p) !== norm(term)) : [...parts, term];
+  return next.join(", ");
+}
