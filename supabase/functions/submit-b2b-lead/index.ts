@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { notifyCelebreiAdmins, sendOwnerAlert } from "../_shared/owner-alert.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -234,6 +235,25 @@ Deno.serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Avisa a Celebrei na hora (antes o pedido só ficava salvo no Hub)
+    const where = [city?.trim(), state?.trim()].filter(Boolean).join('/');
+    const digits = phone?.replace(/\D/g, '') || '';
+    await sendOwnerAlert(supabase, [
+      '📅 *Celebrei — pedido de demonstração*',
+      '',
+      `*${company_name.trim()}*${where ? ` (${where})` : ''}`,
+      `Contato: ${contact_name.trim()}${digits ? ` — WhatsApp ${digits}` : ''}`,
+      `E-mail: ${normalizedEmail}`,
+      ...(instagram?.trim() ? [`Instagram: ${instagram.trim()}`] : []),
+      ...(monthly_leads ? [`Leads por mês: ${monthly_leads}`] : []),
+      '',
+      digits ? `👉 Chame no WhatsApp: https://wa.me/${digits.length <= 11 ? '55' + digits : digits}` : '👉 Veja no Hub → Comercial B2B → Leads',
+    ].join('\n')).catch((e) => console.error('Aviso do pedido de demonstração falhou:', e));
+    await notifyCelebreiAdmins(supabase, {
+      type: 'b2b_lead', title: 'Pedido de demonstração',
+      message: `${company_name.trim()}${where ? ` (${where})` : ''} — ${contact_name.trim()}`,
+    }).catch(() => undefined);
 
     const sourceLabel = source === 'hub_landing' ? 'Hub Landing' : 'B2B';
     console.log(`${sourceLabel} Lead created successfully: ${company_name.trim()} - ${normalizedEmail}`);
