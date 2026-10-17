@@ -11,12 +11,15 @@ import { LoadingScreen } from "@/components/ui/loading-screen";
 // Eager: root-level routing (tiny, always needed)
 import RootPage from "./pages/RootPage";
 import { isPreviewDomain } from "@/hooks/useDomainDetection";
+import { SetupGate } from "@/components/SetupGate";
 import NotFound from "./pages/NotFound";
 
 // Lazy-loaded pages with prefetch support
 const lazyImports = {
   "/dashboard": () => import("./pages/Index"),
   "/auth": () => import("./pages/Auth"),
+  "/comecar": () => import("./pages/Comecar"),
+  "/setup": () => import("./pages/SetupBuffet"),
   "/atendimento": () => import("./pages/CentralAtendimento"),
   "/configuracoes": () => import("./pages/Configuracoes"),
   "/promo": () => import("./pages/PromoPage"),
@@ -71,6 +74,8 @@ export function prefetchRoute(path: string) {
 // Lazy-loaded pages
 const Index = lazy(lazyImports["/dashboard"]);
 const Auth = lazy(lazyImports["/auth"]);
+const Comecar = lazy(lazyImports["/comecar"]);
+const SetupBuffet = lazy(lazyImports["/setup"]);
 const CentralAtendimento = lazy(lazyImports["/atendimento"]);
 const Configuracoes = lazy(lazyImports["/configuracoes"]);
 const PromoPage = lazy(lazyImports["/promo"]);
@@ -161,11 +166,14 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <SetupGate />
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<RootPage />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/:slug" element={<Auth />} />
+              <Route path="/comecar" element={<Comecar />} />
+              <Route path="/setup" element={<SetupBuffet />} />
               <Route path="/atendimento" element={<CentralAtendimento />} />
               <Route path="/configuracoes" element={<Configuracoes />} />
               <Route path="/perfil" element={<Navigate to="/configuracoes?tab=perfil" replace />} />
