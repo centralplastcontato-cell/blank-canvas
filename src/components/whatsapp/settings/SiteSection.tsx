@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle2, ExternalLink, Globe, ImagePlus, Loader2, RefreshCw, Save, Sparkles, Star, Trash2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { resizeImageFile } from "@/lib/imageResize";
 import {
   buildSiteDraft,
   isSiteBuilderPage,
@@ -49,18 +50,6 @@ async function callSiteBuilder(body: Json): Promise<Json> {
   }
   if (data?.error) throw new Error(data.error);
   return data as Json;
-}
-
-/** Reduz a foto no navegador (lado maior 1600 px, JPEG) antes de enviar */
-async function resizePhoto(file: File): Promise<{ base64: string; type: string }> {
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
-  return { base64: dataUrl.split(",")[1], type: "image/jpeg" };
 }
 
 export function SiteSection() {
@@ -206,7 +195,7 @@ export function SiteSection() {
     const added: string[] = [];
     try {
       for (const f of list) {
-        const { base64, type } = await resizePhoto(f);
+        const { base64, type } = await resizeImageFile(f, 1600);
         const r = await callSiteBuilder({ action: "upload-photo", company_id: companyId, base64, content_type: type });
         added.push(r.url);
       }

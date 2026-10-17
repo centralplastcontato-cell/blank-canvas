@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { serializeBuffetInfo } from "@/lib/aiBuffetFields";
 import { serializeTeamHours, serializeVisitHours } from "@/lib/businessHours";
 import { buildSiteDraft, siteSubdomain } from "@/lib/siteBuilder";
+import { resizeImageFile } from "@/lib/imageResize";
 import {
   BUSY_NOTE, buildPartySlots, dayKey, monthsAhead, SETUP_SELECTS, type SetupAnswers, type Slot, WEEKDAYS,
 } from "@/lib/selfSetup";
@@ -274,12 +275,18 @@ export default function SetupBuffet() {
   // ── Uploads ─────────────────────────────────────────────────────────────
   const uploadLogo = async (file: File | undefined) => {
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { toast({ title: "A logo precisa ter até 2 MB", variant: "destructive" }); return; }
-    const ext = (file.name.split(".").pop() || "png").toLowerCase();
-    const path = `${companyId}/logo.${ext}`;
-    const { error } = await supabase.storage.from("company-logos").upload(path, file, { upsert: true });
-    if (error) { toast({ title: "Não consegui enviar a logo", description: error.message, variant: "destructive" }); return; }
-    setLogoUrl(supabase.storage.from("company-logos").getPublicUrl(path).data.publicUrl);
+    setSaving(true);
+    try {
+      // PNG para manter o fundo transparente da logo
+      const { base64, type } = await resizeImageFile(file, 600, "image/png");
+      const r = await invokeFn("site-builder", { action: "upload-photo", company_id: companyId, base64, content_type: type });
+      setLogoUrl(r.url);
+    } catch (e) {
+      toast({ title: "Não consegui enviar a logo", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    } finally {
+      setSaving(false);
+      if (logoRef.current) logoRef.current.value = "";
+    }
   };
 
   const uploadPhotos = async (files: FileList | null) => {
@@ -288,13 +295,8 @@ export default function SetupBuffet() {
     const added: string[] = [];
     try {
       for (const f of Array.from(files).filter((x) => x.type.startsWith("image/")).slice(0, 12 - photos.length)) {
-        const bmp = await createImageBitmap(f);
-        const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.round(bmp.width * scale);
-        canvas.height = Math.round(bmp.height * scale);
-        canvas.getContext("2d")!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
-        const r = await invokeFn("site-builder", { action: "upload-photo", company_id: companyId, base64: canvas.toDataURL("image/jpeg", 0.82).split(",")[1], content_type: "image/jpeg" });
+        const { base64, type } = await resizeImageFile(f, 1600);
+        const r = await invokeFn("site-builder", { action: "upload-photo", company_id: companyId, base64, content_type: type });
         added.push(r.url);
       }
     } catch (e) {
