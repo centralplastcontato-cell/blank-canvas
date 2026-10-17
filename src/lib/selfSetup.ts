@@ -95,21 +95,34 @@ export const SATURDAY = 5;
 export const SETUP_SUGGESTIONS = {
   estrutura: [
     "Salão climatizado", "Brinquedão", "Cama elástica", "Piscina de bolinhas", "Escorregador", "Pula-pula",
-    "Área baby", "Fraldário", "Arena de games", "Espaço para os pais", "Área externa", "Estacionamento",
-    "Acessível para cadeirantes",
+    "Tobogã", "Parede de escalada", "Casinha de bonecas", "Carrinhos / kart elétrico", "Futebol de sabão",
+    "Quadra / campo de futebol", "Piscina", "Arena de games", "Videogame / realidade virtual", "Fliperama",
+    "Mesa de pebolim / air hockey", "Cinema / telão", "Palco com karaokê", "Pista de dança com iluminação",
+    "Área baby", "Fraldário", "Espaço para os pais", "Área externa / jardim", "Parquinho",
+    "Cozinha própria", "Mesas e cadeiras para os convidados", "Som e iluminação", "Gerador de energia",
+    "Wi-Fi para os convidados", "Estacionamento", "Acessível para cadeirantes",
   ],
   diferenciais: [
-    "Monitores o tempo todo", "Cardápio completo", "Comida feita na hora", "Decoração inclusa",
-    "Uma festa por vez (espaço exclusivo)", "Estacionamento próprio", "Equipe experiente",
-    "Controle de entrada e segurança", "Atendimento personalizado", "Fácil de chegar",
+    "Monitores o tempo todo", "Cardápio completo", "Comida feita na hora", "Bolo e doces inclusos",
+    "Opções para alergia e restrições alimentares", "Bebidas à vontade", "Decoração inclusa",
+    "Vários temas de decoração", "Animação e recreação", "Personagens vivos", "Pintura de rosto",
+    "Fotos e vídeo da festa", "Lembrancinhas", "Convite digital", "Uma festa por vez (espaço exclusivo)",
+    "Festa no período da manhã, tarde ou noite", "Estacionamento próprio", "Equipe experiente",
+    "Controle de entrada e segurança", "Ambiente limpo e higienizado", "Atendimento personalizado",
+    "Parcelamento facilitado", "Fácil de chegar", "Ótimas avaliações dos clientes",
   ],
   regras: [
     "Visita só com hora marcada", "Não fazemos festa fora do buffet", "Crianças sempre com um adulto responsável",
     "Proibido fumar no espaço", "Decoração do tema é por conta da família", "Sem bebida alcoólica para menores",
+    "Horário de término respeitado", "Não é permitido entrar com animais", "Não é permitido levar comida de fora",
+    "Lista de convidados enviada antes da festa", "Uso de meia nos brinquedos", "Sem fogos ou velas faísca",
+    "Danos ao espaço são cobrados", "Reserva da data só com contrato e sinal",
   ],
   proibido: [
     "Dar desconto", "Garantir data sem contrato", "Prometer brinde", "Prometer item fora do pacote",
-    "Falar mal de concorrente", "Combinar forma de pagamento",
+    "Falar mal de concorrente", "Combinar forma de pagamento", "Passar valor que não está no pacote",
+    "Prometer horário diferente sem confirmar com a equipe", "Aceitar permuta ou parceria",
+    "Confirmar reserva", "Dar informação sobre outros clientes",
   ],
 } as const;
 
