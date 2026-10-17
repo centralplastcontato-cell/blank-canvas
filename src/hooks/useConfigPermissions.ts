@@ -9,7 +9,8 @@ interface ConfigPermissions {
   advanced: boolean;
 }
 
-export function useConfigPermissions(userId: string | undefined, isAdmin: boolean) {
+/** isOwner: dono da empresa tem tudo liberado, a não ser o que foi negado de propósito */
+export function useConfigPermissions(userId: string | undefined, isAdmin: boolean, isOwner = false) {
   const [permissions, setPermissions] = useState<ConfigPermissions>({
     connection: false,
     messages: false,
@@ -53,15 +54,18 @@ export function useConfigPermissions(userId: string | undefined, isAdmin: boolea
 
       if (data) {
         const perms: ConfigPermissions = {
-          connection: false,
-          messages: false,
-          notifications: false,
-          automations: false,
-          advanced: false,
+          connection: isOwner,
+          messages: isOwner,
+          notifications: isOwner,
+          automations: isOwner,
+          advanced: isOwner,
         };
 
         data.forEach((p) => {
-          if (p.granted) {
+          if (!p.granted) {
+            const key = p.permission.replace("config.whatsapp.", "") as keyof ConfigPermissions;
+            if (key in perms) perms[key] = false;
+          } else {
             switch (p.permission) {
               case "config.whatsapp.connection":
                 perms.connection = true;
@@ -89,7 +93,7 @@ export function useConfigPermissions(userId: string | undefined, isAdmin: boolea
     };
 
     fetchPermissions();
-  }, [userId, isAdmin]);
+  }, [userId, isAdmin, isOwner]);
 
   const hasAnyPermission = Object.values(permissions).some(Boolean);
 
