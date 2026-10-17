@@ -289,10 +289,11 @@ export default function DynamicLandingPage({ domain, slug: slugProp }: DynamicLa
         companyId={data.company_id}
         companyName={data.company_name}
         companyLogo={data.company_logo}
-        companyWhatsApp={data.company_whatsapp || undefined}
+        companyWhatsApp={(builderPage ? siteNumber : data.company_whatsapp) || undefined}
         lpBotConfig={data.lpBotConfig}
         unitOptions={data.unitNames}
         interestContext={interestContext}
+        siteBuilder={builderPage}
       />
     </div>
   );

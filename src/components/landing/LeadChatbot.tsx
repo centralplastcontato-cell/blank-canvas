@@ -72,10 +72,12 @@ interface LeadChatbotProps {
   interestContext?: string | null;
   /** Origem da visita (ex.: "mesa"). Só a LP do Castelo informa; nas demais fica vazio e nada muda. */
   origem?: string | null;
+  /** Site automático: sem número conectado, o fim da conversa leva ao WhatsApp do buffet (com os dados) */
+  siteBuilder?: boolean;
 }
 
 
-export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLogo, companyWhatsApp, lpBotConfig, unitOptions, interestContext, origem }: LeadChatbotProps) {
+export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLogo, companyWhatsApp, lpBotConfig, unitOptions, interestContext, origem, siteBuilder }: LeadChatbotProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   // UTMs do anúncio: lidas ao abrir a página (a URL pode mudar até o envio do lead)
   const [initialUtms] = useState(captureLandingUtms);
@@ -87,6 +89,8 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
   const [isSaving, setIsSaving] = useState(false);
   // WhatsApp do número que recebeu este lead (o botão "fale diretamente" abre ele)
   const [leadWhatsapp, setLeadWhatsapp] = useState<string | null>(null);
+  // Site automático sem número conectado: ninguém manda a boas-vindas, o cliente toca no botão
+  const [handOff, setHandOff] = useState(false);
   const [showEmojis, setShowEmojis] = useState(false);
   const [redirectAccepted, setRedirectAccepted] = useState<boolean | null>(null);
   const [venueChoice, setVenueChoice] = useState<VenueOption | null>(null);
@@ -611,6 +615,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
 
         const isRedirected = redirectAccepted === true;
 
+        let noWhatsAppSender = false;
         const submitLead = async (unit: string) => {
           const body: Record<string, any> = {
             name: leadData.name,
@@ -634,6 +639,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
           if (error) throw error;
           const resolvedUnit = responseData?.resolved_unit || unit;
           if (typeof responseData?.unit_whatsapp === 'string' && responseData.unit_whatsapp) setLeadWhatsapp(responseData.unit_whatsapp);
+          noWhatsAppSender = !!siteBuilder && responseData?.unit_connected !== true;
           console.log(`Lead criado para ${resolvedUnit}${isRedirected ? ' (transferido)' : ''}`);
           return resolvedUnit;
         };
@@ -649,7 +655,9 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
           customMessage: (lpBotConfig?.guest_limit_message && lpBotConfig.guest_limit_message.trim()) || null,
         } : undefined;
 
-        if (leadData.unit === "As duas") {
+        if (noWhatsAppSender) {
+          // Nada a enviar: o botão abaixo abre o WhatsApp do buffet já com os dados
+        } else if (leadData.unit === "As duas") {
           // Send to all units (dynamic or default)
           const allUnits = isDynamic && unitOptions?.length ? unitOptions : ["Trujillo"];
           Promise.all(
@@ -661,7 +669,9 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
             .catch(err => console.error("Erro ao enviar mensagem automática:", err));
         }
 
-        const completionMessage = isRedirected
+        const completionMessage = noWhatsAppSender
+          ? `Prontinho 🎉\n\nAnotei seus dados! Agora toque no botão verde abaixo para falar com o *${displayName}* no WhatsApp. A mensagem já vai com a data e os convidados. 📲`
+          : isRedirected
           ? ((lpBotConfig?.redirect_completion_message && lpBotConfig.redirect_completion_message.trim())
             ? lpBotConfig.redirect_completion_message
             : `Prontinho! 🎉\n\nSeus dados foram encaminhados para o ${lpBotConfig?.guest_limit_redirect_name || 'buffet parceiro'}. Eles entrarão em contato em breve!\n\nObrigado pelo interesse! 💜`)
@@ -678,9 +688,13 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
           },
         ]);
         setIsComplete(true);
-        setTimeout(() => {
-          onClose();
-        }, 10000);
+        setHandOff(noWhatsAppSender);
+        // Sem número conectado o cliente ainda precisa tocar no botão: não fecha sozinho
+        if (!noWhatsAppSender) {
+          setTimeout(() => {
+            onClose();
+          }, 10000);
+        }
       } catch (error) {
         console.error("Erro ao salvar lead:", error);
         toast({
@@ -698,6 +712,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
 
   const resetChat = () => {
     setLeadWhatsapp(null);
+    setHandOff(false);
     setMessages([]);
     setCurrentStep(0);
     setLeadData({});
@@ -972,7 +987,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
               className="p-4 border-t border-border space-y-3"
             >
               <p className="text-sm text-muted-foreground text-center mb-2">
-                Ou fale diretamente conosco:
+                {handOff ? "Toque para enviar no WhatsApp:" : "Ou fale diretamente conosco:"}
               </p>
               <div className="flex flex-wrap justify-center gap-2">
                 {isDynamic && companyWhatsApp ? (
