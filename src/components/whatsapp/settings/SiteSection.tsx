@@ -65,6 +65,7 @@ export function SiteSection() {
   const [busy, setBusy] = useState<string | null>(null);
   const [domainInput, setDomainInput] = useState("");
   const [domain, setDomain] = useState<DomainStatus | null>(null);
+  const [whatsConnected, setWhatsConnected] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -95,6 +96,13 @@ export function SiteSection() {
   }, [companyId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // As perguntas antes do WhatsApp só funcionam com o número do buffet conectado
+  useEffect(() => {
+    if (!companyId) return;
+    supabase.from("wapi_instances").select("id").eq("company_id", companyId).eq("status", "connected").eq("is_active", true).limit(1)
+      .then(({ data }) => setWhatsConnected(!!data?.length));
+  }, [companyId]);
 
   const loadDomain = useCallback(async () => {
     if (!companyId || !currentCompany?.domain_canonical) { setDomain(null); return; }
@@ -365,6 +373,26 @@ export function SiteSection() {
               <Input id="site-whats" inputMode="tel" placeholder="(15) 99999-0000" value={content.hero.whatsapp_number || ""} onChange={(e) => patch("hero", { whatsapp_number: e.target.value })} />
               <p className="text-xs text-muted-foreground">O número que a IA atende.</p>
             </div>
+          </div>
+          <div className="flex items-start justify-between gap-3 rounded-lg border p-3">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Perguntas antes do WhatsApp</p>
+              <p className="text-xs text-muted-foreground">
+                O cliente responde no site o mês, o dia, os convidados, o nome e o WhatsApp. O contato já entra na plataforma e a IA
+                manda a primeira mensagem sabendo esses dados. Desligado, o botão abre o WhatsApp direto.
+              </p>
+              {!whatsConnected && <p className="text-xs text-amber-700 dark:text-amber-400">Fica disponível depois que o WhatsApp do buffet estiver conectado.</p>}
+            </div>
+            <Switch
+              checked={content.hero.cta_mode === "chatbot"}
+              disabled={!whatsConnected && content.hero.cta_mode !== "chatbot"}
+              onCheckedChange={(v) => {
+                patch("hero", { cta_mode: v ? "chatbot" : "whatsapp" });
+                // Sem essa linha o contato do site não é direcionado ao número conectado
+                if (v) supabase.from("lp_bot_settings").upsert({ company_id: companyId }, { onConflict: "company_id", ignoreDuplicates: true }).then(() => {});
+              }}
+              aria-label="Perguntas antes do WhatsApp"
+            />
           </div>
         </CardContent>
       </Card>

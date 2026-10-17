@@ -86,7 +86,7 @@ export interface SiteSeed {
 
 /** Seções da página como ficam salvas em company_landing_pages */
 export interface SiteContent {
-  hero: LPHero & { cta_mode?: "whatsapp"; whatsapp_number?: string | null; site_builder?: boolean; palette?: string };
+  hero: LPHero & { cta_mode?: "whatsapp" | "chatbot"; whatsapp_number?: string | null; site_builder?: boolean; palette?: string };
   benefits: LPBenefits & { no_default_badges?: boolean };
   gallery: LPGallery;
   offer: LPOffer;
