@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { upcomingMonthOptions } from "@/lib/partyDate";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -388,7 +389,11 @@ export function SiteSection() {
               onCheckedChange={(v) => {
                 patch("hero", { cta_mode: v ? "chatbot" : "whatsapp" });
                 // Sem essa linha o contato do site não é direcionado ao número conectado
-                if (v) supabase.from("lp_bot_settings").upsert({ company_id: companyId }, { onConflict: "company_id", ignoreDuplicates: true }).then(() => {});
+                // Meses com ano (Novembro/26...), trocando sozinhos todo mês, como no Castelo
+                if (v) supabase.from("lp_bot_settings").upsert(
+                  { company_id: companyId, month_options: upcomingMonthOptions(), auto_rotate_months: true },
+                  { onConflict: "company_id", ignoreDuplicates: true },
+                ).then(() => {});
               }}
               aria-label="Perguntas antes do WhatsApp"
             />
