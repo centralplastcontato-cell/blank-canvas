@@ -1,1 +1,1 @@
-{"start": "2026-10-16T19:00:00Z", "end": "2026-10-17T02:30:00Z", "filter": "evolution-monitor"}
+{"start": "2026-10-16T19:00:00Z", "end": "2026-10-17T02:30:00Z", "sql": "select timestamp, event_message from function_logs where event_message like '%evolution-monitor%' order by timestamp asc limit 1000"}
