@@ -48,6 +48,9 @@ async function uniqueSlug(supabase: SB, name: string): Promise<string> {
   return `${base}-${crypto.randomUUID().slice(0, 6)}`;
 }
 
+/** Módulos que o buffet do cadastro automático já ganha (a IA só liga na aprovação) */
+const SIGNUP_MODULES = { agenda: true, onboarding_checklist: true };
+
 const onlyDigits = (v: unknown) => String(v || "").replace(/\D/g, "");
 
 async function userFromJwt(supabase: SB, req: Request): Promise<string | null> {
@@ -106,7 +109,11 @@ async function signup(supabase: SB, req: Request, body: Json): Promise<Response>
       slug,
       is_active: true,
       parent_id: roots?.[0]?.id ?? null,
-      settings: { signup: { status: "cadastro", source: "site", created_at: new Date().toISOString(), owner_user_id: userId, unit: unitName } },
+      settings: {
+        signup: { status: "cadastro", source: "site", created_at: new Date().toISOString(), owner_user_id: userId, unit: unitName },
+        // Agenda já ligada: é onde o dono vê as datas ocupadas, as festas e as visitas que a IA marcar
+        enabled_modules: { ...SIGNUP_MODULES },
+      },
     }).select("id").single();
     if (cErr) throw new Error(cErr.message);
     companyId = company.id as string;
@@ -186,7 +193,7 @@ async function approve(supabase: SB, req: Request, body: Json): Promise<Response
 
   await patchSignup(supabase, companyId, { status: "aprovado", approved_at: new Date().toISOString(), approved_by: userId }, (s) => ({
     ...s,
-    enabled_modules: { ...(s.enabled_modules || {}), ia_conversacional: true },
+    enabled_modules: { ...(s.enabled_modules || {}), ...SIGNUP_MODULES, ia_conversacional: true },
   }));
   const { error: aiErr } = await supabase.from("ai_agent_settings")
     .update({ enabled: true, unit: inst.unit, activated_at: new Date().toISOString() }).eq("company_id", companyId);
