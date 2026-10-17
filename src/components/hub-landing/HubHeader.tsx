@@ -59,6 +59,9 @@ export default function HubHeader({ onOpenWizard }: HubHeaderProps) {
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
+        <a href="/hub-login" className="text-[15px] font-semibold text-slate-600 transition-colors hover:text-[#0F1222]">
+          Entrar
+        </a>
         <a href="/comecar" className="hidden text-[15px] font-semibold text-[#0F1222] transition-colors hover:text-[#E0457A] sm:inline">
           Criar conta grátis
         </a>

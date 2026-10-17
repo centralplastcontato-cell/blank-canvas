@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Lock, Mail } from "lucide-react";
 import { LoadingScreen } from "@/components/ui/loading-screen";
-import logoCelebrei from "@/assets/logo-celebrei-2.png";
+import CelebreiLogo from "@/components/hub-landing/CelebreiLogo";
 import { z } from "zod";
 import { hasAnyCompany, hasHubAccess } from "@/lib/hubAccess";
 
@@ -116,11 +116,11 @@ export default function HubLogin() {
       <div className="w-full max-w-md relative z-10">
         <div className="rounded-3xl p-8 border border-primary/20 bg-gradient-to-br from-primary/5 via-background to-accent/5 backdrop-blur-sm shadow-lg">
           <div className="text-center mb-8">
-            <div className="w-48 h-48 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <img src={logoCelebrei} alt="Celebrei" className="h-42 w-auto object-contain" />
-            </div>
-            <h1 className="font-display text-2xl font-bold text-foreground">Hub Celebrei</h1>
-            <p className="text-muted-foreground mt-2">Entre na sua conta</p>
+            <a href="/" className="mx-auto mb-6 inline-flex" aria-label="Celebrei, página inicial">
+              <CelebreiLogo className="text-2xl" markClassName="h-10 w-10" />
+            </a>
+            <h1 className="font-display text-2xl font-bold text-foreground">Entrar na sua conta</h1>
+            <p className="text-muted-foreground mt-2">Use o e-mail e a senha do seu cadastro</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -161,7 +161,7 @@ export default function HubLogin() {
               className="w-full py-5 rounded-xl font-semibold transition-all duration-300"
               disabled={isLoading}
             >
-              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Entrar no Hub"}
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Entrar"}
             </Button>
           </form>
           <p className="mt-6 text-center text-sm text-muted-foreground">
