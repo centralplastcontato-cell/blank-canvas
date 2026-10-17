@@ -1,7 +1,7 @@
 import { ArrowRight, Check } from "lucide-react";
 import { motion } from "framer-motion";
 import { DemoPlayer } from "./HubDemoVideo";
-import { BTN_PRIMARY, BTN_SECONDARY, GRADIENT_TEXT, scrollToSection } from "./lp-theme";
+import { BTN_PRIMARY, BTN_SECONDARY, GRADIENT_TEXT } from "./lp-theme";
 
 interface HubHeroProps {
   onOpenWizard: () => void;
@@ -54,9 +54,9 @@ export default function HubHero({ onOpenWizard, video }: HubHeroProps) {
                 Agendar demonstração gratuita
                 <ArrowRight className="h-5 w-5" />
               </button>
-              <button type="button" onClick={() => scrollToSection("como-funciona")} className={`${BTN_SECONDARY} hidden sm:inline-flex`}>
-                Ver como funciona
-              </button>
+              <a href="/comecar" className={BTN_SECONDARY}>
+                Criar conta grátis
+              </a>
             </div>
 
             <ul className="mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 lg:justify-start">

@@ -58,6 +58,10 @@ export default function HubHeader({ onOpenWizard }: HubHeaderProps) {
           ))}
         </nav>
 
+        <div className="flex items-center gap-2 sm:gap-3">
+        <a href="/comecar" className="hidden text-[15px] font-semibold text-[#0F1222] transition-colors hover:text-[#E0457A] sm:inline">
+          Criar conta grátis
+        </a>
         <button
           type="button"
           onClick={onOpenWizard}
@@ -67,6 +71,7 @@ export default function HubHeader({ onOpenWizard }: HubHeaderProps) {
           <span className="hidden sm:inline">Agendar demonstração</span>
           <ArrowRight className="h-4 w-4" />
         </button>
+        </div>
       </div>
     </header>
   );
