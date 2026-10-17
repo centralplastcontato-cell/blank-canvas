@@ -2,7 +2,7 @@
 // do bloqueio do VENDAS 2): follow-ups, jornada da IA, reativação, campanhas,
 // confirmações de visita e avisos de pré-reserva.
 //   - uma mensagem a cada 60–180 s (aleatório) por número
-//   - teto por dia por número (VENDAS 2: pausado até 23/10 e depois sobe aos poucos)
+//   - teto por dia por número (VENDAS 2: sobe aos poucos depois de voltar)
 //   - só das 9h às 20h (horário de Brasília)
 // Respostas a quem mandou mensagem (IA, robô, equipe) não passam por aqui e
 // seguem no intervalo normal (8–15 s). Números da Z-API ficam como estavam.
@@ -22,12 +22,9 @@ export const SYSTEM_DAILY_CAP_DEFAULT = 80; // VENDAS 1 e demais números da Evo
 const VENDAS_2 = "3f39419e-e7f5-4c3b-8ebd-1703e6c7a0c7";
 
 // Só respondendo quem chama: o número não inicia conversa nenhuma — nem envio
-// do sistema (teto 0) nem a equipe abrindo conversa com quem nunca escreveu.
-// VENDAS 2 levou restrição de "reachout" do WhatsApp (contato com números
-// novos) e caiu em 16/10 19:49; reconectado em 16/10 21:59 → 7 dias.
-export const REPLY_ONLY: Array<{ instanceRowId: string; untilIso: string }> = [
-  { instanceRowId: VENDAS_2, untilIso: "2026-10-24T03:00:00Z" }, // até 23/10 23:59
-];
+// do sistema nem a equipe abrindo conversa com quem nunca escreveu. Usado no
+// VENDAS 2 depois da restrição de "reachout" (16/10); liberado em 17/10 a pedido.
+export const REPLY_ONLY: Array<{ instanceRowId: string; untilIso: string }> = [];
 
 /** Fim do "só responde" deste número (null = pode iniciar conversas) */
 export function replyOnlyUntil(instanceRowId: string, nowMs: number): string | null {
@@ -37,11 +34,10 @@ export function replyOnlyUntil(instanceRowId: string, nowMs: number): string | n
 
 /** Tetos especiais por número, com validade (vale o primeiro ainda válido; depois volta ao padrão) */
 export const SYSTEM_DAILY_CAPS: Array<{ instanceRowId: string; cap: number; untilIso: string }> = [
-  // VENDAS 2: nada do sistema enquanto só responde; depois sobe aos poucos —
-  // 20/dia até 27/10, 40/dia até 31/10, depois o padrão
-  { instanceRowId: VENDAS_2, cap: 0, untilIso: "2026-10-24T03:00:00Z" },
-  { instanceRowId: VENDAS_2, cap: 20, untilIso: "2026-10-28T03:00:00Z" },
-  { instanceRowId: VENDAS_2, cap: 40, untilIso: "2026-11-01T03:00:00Z" },
+  // VENDAS 2 voltou em 16/10 21:59 (depois da restrição de "reachout"): sobe
+  // aos poucos — 20/dia até 19/10, 40/dia até 23/10, depois o padrão
+  { instanceRowId: VENDAS_2, cap: 20, untilIso: "2026-10-20T03:00:00Z" },
+  { instanceRowId: VENDAS_2, cap: 40, untilIso: "2026-10-24T03:00:00Z" },
 ];
 
 const BR_OFFSET_MS = 3 * 3600 * 1000; // Brasília, sem horário de verão
