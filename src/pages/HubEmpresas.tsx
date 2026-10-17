@@ -25,6 +25,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { signupStatus } from "@/lib/selfSetup";
 
 export default function HubEmpresas() {
   return (
@@ -101,6 +102,26 @@ function HubEmpresasContent() {
   const [qrCompany, setQrCompany] = useState<Company | null>(null);
 
   useEffect(() => { fetchCompanies(); }, []);
+
+  // Cadastro feito pelo site: libera a IA (o número já precisa estar conectado)
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const approveSignup = async (company: Company) => {
+    setApprovingId(company.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("self-signup", { body: { action: "approve", company_id: company.id } });
+      let msg: string | null = data?.error ?? null;
+      if (error && !msg) {
+        try { msg = (await (error as { context?: Response }).context?.json())?.error || error.message; } catch { msg = error.message; }
+      }
+      if (msg) throw new Error(msg);
+      toast({ title: `${company.name} aprovado!`, description: data?.whatsapp_connected ? "A IA já está atendendo." : "A IA começa assim que o QR Code do número for lido." });
+      fetchCompanies();
+    } catch (e) {
+      toast({ title: "Não consegui aprovar", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    } finally {
+      setApprovingId(null);
+    }
+  };
 
   const fetchCompanies = async () => {
     setIsLoading(true);
@@ -553,6 +574,22 @@ function HubEmpresasContent() {
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
+                {signupStatus(child.settings) && signupStatus(child.settings) !== "aprovado" && (
+                  <div className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs space-y-2">
+                    <p className="font-medium text-amber-900">
+                      {signupStatus(child.settings) === "cadastro" ? "Cadastro pelo site — fazendo o passo a passo" : "Cadastro pelo site — pronto para aprovar"}
+                    </p>
+                    {signupStatus(child.settings) === "aguardando_aprovacao" && (
+                      <>
+                        <p className="text-amber-800">1) Conecte o número dele em Hub → WhatsApp. 2) Aprove para ligar a IA.</p>
+                        <Button size="sm" className="w-full" disabled={approvingId === child.id} onClick={() => approveSignup(child)}>
+                          {approvingId === child.id ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />}
+                          Aprovar e ligar a IA
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
                 {members === 0 && (
                   <Button
                     variant="default"

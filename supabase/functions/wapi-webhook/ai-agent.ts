@@ -1075,9 +1075,11 @@ async function markQuoteSent(
 }
 
 async function loadSalesMaterials(supabase: any, instance: AgentInstance): Promise<any[]> {
+  // Sempre da própria empresa: dois buffets podem ter unidades com o mesmo nome
   const { data } = await supabase
     .from('sales_materials')
     .select('*')
+    .eq('company_id', instance.company_id)
     .eq('unit', instance.unit)
     .eq('is_active', true)
     .order('sort_order', { ascending: true });
