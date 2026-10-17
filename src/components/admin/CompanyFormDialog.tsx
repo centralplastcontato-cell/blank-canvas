@@ -147,7 +147,7 @@ export function CompanyFormDialog({ open, onOpenChange, company, onSubmit }: Com
             />
             {slug && (
               <p className="text-xs text-muted-foreground">
-                Usado no link: <code className="bg-muted px-1 py-0.5 rounded">celebrei.com/{slug}</code>
+                Usado no endereço do site: <code className="bg-muted px-1 py-0.5 rounded">{slug}.hubcelebrei.com.br</code>
               </p>
             )}
           </div>
@@ -210,7 +210,7 @@ export function CompanyFormDialog({ open, onOpenChange, company, onSubmit }: Com
               id="company-domain"
               value={customDomain}
               onChange={(e) => setCustomDomain(e.target.value)}
-              placeholder="ex: castelo.celebrei.com"
+              placeholder="ex: meubuffet.com.br"
               className="text-sm"
             />
             <p className="text-[10px] text-muted-foreground">

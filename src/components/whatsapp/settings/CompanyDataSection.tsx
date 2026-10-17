@@ -9,12 +9,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, Loader2, Save } from "lucide-react";
 import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
+import { siteSubdomain } from "@/lib/siteBuilder";
 
 export function CompanyDataSection() {
   const { currentCompany, refreshCompanies } = useCompany();
 
   const [name, setName] = useState(currentCompany?.name || "");
-  const [customDomain, setCustomDomain] = useState(currentCompany?.custom_domain || "");
   const [logoUrl, setLogoUrl] = useState(currentCompany?.logo_url || "");
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -74,7 +74,6 @@ export function CompanyDataSection() {
         .from("companies")
         .update({
           name: name.trim(),
-          custom_domain: customDomain.trim() || null,
           logo_url: cleanLogoUrl || null,
         })
         .eq("id", currentCompany.id);
@@ -162,32 +161,17 @@ export function CompanyDataSection() {
             <p className="text-xs text-muted-foreground">
               Esse é o nome usado no link da sua página.
             </p>
-            {currentCompany.custom_domain ? (
-              <>
-                <p className="text-xs font-medium text-primary/80">
-                  <span className="font-bold">{currentCompany.custom_domain}</span>
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Também acessível via celebrei.com/<span className="font-semibold">{currentCompany.slug}</span>
-                </p>
-              </>
-            ) : (
-              <p className="text-xs font-medium text-primary/80">
-                celebrei.com/<span className="font-bold">{currentCompany.slug}</span>
+            <p className="text-xs font-medium text-primary/80">
+              <span className="font-bold">{currentCompany.custom_domain || siteSubdomain(currentCompany.slug)}</span>
+            </p>
+            {currentCompany.custom_domain && (
+              <p className="text-xs text-muted-foreground">
+                Também acessível em {siteSubdomain(currentCompany.slug)}
               </p>
             )}
-          </div>
-
-          {/* Custom Domain */}
-          <div className="space-y-2">
-            <Label htmlFor="company-domain">Domínio Customizado</Label>
-            <Input
-              id="company-domain"
-              value={customDomain}
-              onChange={(e) => setCustomDomain(e.target.value)}
-              placeholder="exemplo.com.br"
-            />
-            <p className="text-xs text-muted-foreground">Domínio personalizado para a landing page.</p>
+            <p className="text-xs text-muted-foreground">
+              Para editar o site ou usar o domínio do seu buffet, vá em <span className="font-semibold">Meu site</span>.
+            </p>
           </div>
         </CardContent>
       </Card>

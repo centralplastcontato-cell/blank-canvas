@@ -7,6 +7,7 @@ export interface Company {
   parent_id: string | null;
   logo_url: string | null;
   custom_domain: string | null;
+  domain_canonical?: string | null;
   is_active: boolean;
   settings: Record<string, unknown>;
   created_at: string;

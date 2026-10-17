@@ -267,7 +267,7 @@ function addCoverPage(doc: jsPDF, logoBase64?: string) {
   doc.setFillColor(...rgb(C.coverDark));
   doc.rect(0, PAGE_H - 30, PAGE_W, 30, "F");
   doc.setFontSize(9);
-  doc.text("celebrei.com", PAGE_W / 2, PAGE_H - 12, { align: "center" });
+  doc.text("hubcelebrei.com.br", PAGE_W / 2, PAGE_H - 12, { align: "center" });
 }
 
 function addCategorySection(doc: jsPDF, cat: FeatureCategory) {
