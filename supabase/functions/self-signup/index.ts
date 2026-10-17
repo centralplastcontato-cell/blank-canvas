@@ -168,6 +168,8 @@ async function finish(supabase: SB, req: Request, body: Json): Promise<Response>
   const status = (company.settings as Json)?.signup?.status;
   if (status !== "cadastro") return json({ ok: true, status });
   await patchSignup(supabase, companyId, { status: "aguardando_aprovacao", submitted_at: new Date().toISOString() });
+  // O cartão do Hub mostra "Onboarding completo"
+  await supabase.from("company_onboarding").update({ status: "completo" }).eq("company_id", companyId);
 
   const { count: busy } = await supabase.from("company_events").select("id", { count: "exact", head: true }).eq("company_id", companyId);
   await sendOwnerAlert(supabase, `✅ *Celebrei — cadastro pronto para aprovar*\n\n*${company.name}* terminou o passo a passo (IA respondida, ${busy ?? 0} data(s) ocupada(s) na agenda).\n\n👉 Hub → Empresas: conecte o número de WhatsApp dele e clique em *Aprovar e ligar a IA*.`);
@@ -191,6 +193,7 @@ async function approve(supabase: SB, req: Request, body: Json): Promise<Response
   const inst = ((insts || []) as Json[]).find((i) => i.unit);
   if (!inst) return json({ error: "Conecte primeiro o número de WhatsApp do buffet (Hub → WhatsApp) e depois aprove." }, 400);
 
+  await supabase.from("company_onboarding").update({ status: "completo" }).eq("company_id", companyId);
   await patchSignup(supabase, companyId, { status: "aprovado", approved_at: new Date().toISOString(), approved_by: userId }, (s) => ({
     ...s,
     enabled_modules: { ...(s.enabled_modules || {}), ...SIGNUP_MODULES, ia_conversacional: true },
