@@ -18,7 +18,7 @@ import { serializeTeamHours, serializeVisitHours } from "@/lib/businessHours";
 import { buildSiteDraft, siteSubdomain } from "@/lib/siteBuilder";
 import { resizeImageFile } from "@/lib/imageResize";
 import {
-  BUSY_NOTE, buildPartySlots, dayKey, monthsAhead, SATURDAY, SETUP_SELECTS, type SetupAnswers, type Slot, WEEKDAYS,
+  BUSY_NOTE, buildPartySlots, dayKey, hasTerm, monthsAhead, SATURDAY, SETUP_SELECTS, SETUP_SUGGESTIONS, toggleTerm, type SetupAnswers, type Slot, WEEKDAYS,
 } from "@/lib/selfSetup";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -47,6 +47,23 @@ async function invokeFn(name: string, body: Json): Promise<Json> {
   }
   if (data?.error) throw new Error(data.error);
   return data as Json;
+}
+
+/** Sugestões prontas: toca para adicionar no texto, toca de novo para tirar */
+function Suggestions({ items, value, onChange }: { items: readonly string[]; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {items.map((t) => {
+        const on = hasTerm(value, t);
+        return (
+          <button key={t} type="button" onClick={() => onChange(toggleTerm(value, t))}
+            className={cn("rounded-full border px-2.5 py-1 text-xs", on ? "border-primary bg-primary text-primary-foreground" : "bg-background text-muted-foreground")}>
+            {on ? "✓ " : "+ "}{t}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 /** Passo a passo do buffet que se cadastrou sozinho: buffet → IA → datas ocupadas → site → concluir */
@@ -449,11 +466,13 @@ export default function SetupBuffet() {
                 <div className="space-y-2">
                   <Label htmlFor="s-est">6. O que o espaço tem (estrutura e brinquedos)</Label>
                   <Textarea id="s-est" rows={3} value={ans.estrutura} onChange={(e) => setA("estrutura", e.target.value)} placeholder="Salão climatizado para 120 pessoas, brinquedão, cama elástica, piscina de bolinhas, fraldário…" />
+                  <Suggestions items={SETUP_SUGGESTIONS.estrutura} value={ans.estrutura} onChange={(v) => setA("estrutura", v)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="s-dif">7. Por que escolher vocês (diferenciais)</Label>
                   <Textarea id="s-dif" rows={3} value={ans.diferenciais} onChange={(e) => setA("diferenciais", e.target.value)} placeholder="10 anos de tradição, monitores o tempo todo, estacionamento próprio…" />
-                  <p className="text-xs text-muted-foreground">Só escreva o que é verdade: a IA vai usar isso com os clientes.</p>
+                  <Suggestions items={SETUP_SUGGESTIONS.diferenciais} value={ans.diferenciais} onChange={(v) => setA("diferenciais", v)} />
+                  <p className="text-xs text-muted-foreground">Toque nas sugestões ou escreva do seu jeito. Só coloque o que é verdade: a IA vai usar isso com os clientes.</p>
                 </div>
                 {SETUP_SELECTS.map((q, i) => (
                   <div key={q.key} className="space-y-2">
@@ -469,10 +488,12 @@ export default function SetupBuffet() {
                 <div className="space-y-2">
                   <Label htmlFor="s-regras">10. Regras e o que vocês não fazem</Label>
                   <Textarea id="s-regras" rows={2} value={ans.regras} onChange={(e) => setA("regras", e.target.value)} placeholder="Não fazemos festa fora do buffet. Visita só com hora marcada…" />
+                  <Suggestions items={SETUP_SUGGESTIONS.regras} value={ans.regras} onChange={(v) => setA("regras", v)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="s-proibido">O que a IA NUNCA deve dizer ou prometer (opcional)</Label>
                   <Textarea id="s-proibido" rows={2} value={ans.proibido} onChange={(e) => setA("proibido", e.target.value)} placeholder="Dar desconto, garantir data sem contrato…" />
+                  <Suggestions items={SETUP_SUGGESTIONS.proibido} value={ans.proibido} onChange={(v) => setA("proibido", v)} />
                 </div>
               </>
             )}

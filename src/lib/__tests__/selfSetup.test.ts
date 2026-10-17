@@ -26,3 +26,15 @@ describe("passo a passo do cadastro", () => {
     expect(signupStatus(null)).toBeNull();
   });
 });
+
+describe("sugestões para tocar", () => {
+  it("adiciona no fim e tira se tocar de novo", async () => {
+    const { toggleTerm, hasTerm } = await import("../selfSetup");
+    let t = toggleTerm("", "Cama elástica");
+    expect(t).toBe("Cama elástica");
+    t = toggleTerm("Salão climatizado para 120 pessoas", "Brinquedão");
+    expect(t).toBe("Salão climatizado para 120 pessoas, Brinquedão");
+    expect(hasTerm(t, "brinquedão")).toBe(true);
+    expect(toggleTerm(t, "Brinquedão")).toBe("Salão climatizado para 120 pessoas");
+  });
+});
