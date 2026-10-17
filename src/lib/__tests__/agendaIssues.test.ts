@@ -5,6 +5,10 @@ const ev = (over: Partial<IssueEvent> = {}): IssueEvent => ({ status: "confirmad
 const ctx = { hasUnits: true, hasOverduePayment: false };
 
 describe("eventIssues", () => {
+  it("ignora data ocupada marcada no cadastro", () => {
+    expect(eventIssues(ev({ total_value: null, start_time: null, internal_notes: "Marcado no cadastro" }), { hasUnits: true, hasOverduePayment: false })).toEqual([]);
+  });
+
   it("festa completa e em dia: nada a resolver", () => {
     expect(eventIssues(ev(), ctx)).toEqual([]);
   });

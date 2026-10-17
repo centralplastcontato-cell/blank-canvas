@@ -1,6 +1,7 @@
 // "O que falta resolver" nas próximas festas: dados que faltam e parcela vencida.
 // Contrato assinado fica de fora: quase nenhuma empresa marca a assinatura no
 // sistema, e a lista viraria só aviso.
+import { BUSY_NOTE } from "@/lib/selfSetup";
 
 export type EventIssue = "parcela_vencida" | "pendente" | "sem_valor" | "sem_horario" | "sem_unidade";
 
@@ -21,13 +22,15 @@ export interface IssueEvent {
   start_time: string | null;
   unit: string | null;
   is_permuta?: boolean | null;
+  internal_notes?: string | null;
 }
 
 /** Quanto tempo à frente a lista olha */
 export const UPCOMING_ISSUE_DAYS = 60;
 
 export function eventIssues(ev: IssueEvent, ctx: { hasUnits: boolean; hasOverduePayment: boolean }): EventIssue[] {
-  if (ev.status === "cancelado") return [];
+  // Data ocupada marcada no cadastro não é festa a acertar
+  if (ev.status === "cancelado" || ev.internal_notes === BUSY_NOTE) return [];
   const issues: EventIssue[] = [];
   if (ctx.hasOverduePayment) issues.push("parcela_vencida");
   if (ev.status === "pendente") issues.push("pendente");
