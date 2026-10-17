@@ -170,7 +170,7 @@ export function CompanyDataSection() {
               </p>
             )}
             <p className="text-xs text-muted-foreground">
-              Para editar o site ou usar o domínio do seu buffet, vá em <span className="font-semibold">Meu site</span>.
+              O site abre nesse endereço depois que você tocar em <span className="font-semibold">Publicar</span>, em <span className="font-semibold">Meu site</span> (lá também dá para editar e usar o domínio do buffet).
             </p>
           </div>
         </CardContent>
