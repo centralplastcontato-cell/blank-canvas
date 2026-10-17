@@ -6,6 +6,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { isHubDomain } from "@/hooks/useDomainDetection";
 import { hasHubAccess } from "@/lib/hubAccess";
+import { signupStatus } from "@/lib/selfSetup";
 import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { User, Session } from "@supabase/supabase-js";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -1140,7 +1141,7 @@ export default function CentralAtendimento() {
         />
 
         {/* Onboarding Banner - Mobile */}
-        {modules.onboarding_checklist && (isAdmin || role === 'gestor') && (
+        {(modules.onboarding_checklist || !!signupStatus(currentCompany?.settings)) && (isAdmin || role === 'gestor') && (
           <OnboardingBanner />
         )}
         </div>
@@ -1603,7 +1604,7 @@ export default function CentralAtendimento() {
           />
 
           {/* Onboarding Banner - Desktop */}
-          {modules.onboarding_checklist && (isAdmin || role === 'gestor') && (
+          {(modules.onboarding_checklist || !!signupStatus(currentCompany?.settings)) && (isAdmin || role === 'gestor') && (
             <OnboardingBanner />
           )}
 
