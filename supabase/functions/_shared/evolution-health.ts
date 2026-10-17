@@ -172,7 +172,7 @@ const fmt = (iso: string | null | undefined) =>
     ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
     : "agora há pouco";
 
-export function instanceAlertText(kind: "down" | "up", state: EvoState, unit: string, since: string | null, extra: { stuck?: number; resent?: number; expired?: number } = {}): string {
+export function instanceAlertText(kind: "down" | "up", state: EvoState, unit: string, since: string | null, extra: { stuck?: number; resent?: number; expired?: number; byEvents?: boolean } = {}): string {
   const who = `*${unit || "WhatsApp"}* (Evolution Go)`;
   if (kind === "up") {
     const lines = [`🟢 *Celebrei — número voltou*`, ``, `${who} está conectado de novo (fora desde ${fmt(since)}).`];
@@ -180,6 +180,12 @@ export function instanceAlertText(kind: "down" | "up", state: EvoState, unit: st
     if (extra.expired) lines.push(`🗑️ ${extra.expired} mensagem(ns) da queda não foram reenviadas por estarem antigas — confira na Central se alguém ficou sem resposta.`);
     if (extra.stuck) lines.push(`⚠️ ${extra.stuck} mensagem(ns) ficaram como "enviada" sem confirmação nesse período — vale conferir na Central.`);
     return lines.join("\n");
+  }
+  if (state === "needs_qr" && extra.byEvents) {
+    return `🔴 *Celebrei — número desconectado (precisa ler o QR)*\n\n${who}: o WhatsApp encerrou a sessão (LoggedOut) às ${fmt(since)}. Nada entra nem sai por ele.\n\n👉 No Hub: Configurações → Conexão → ${unit} → Conectar e leia o QR Code no celular do número (WhatsApp → Aparelhos conectados → Conectar um aparelho).`;
+  }
+  if (state === "reconnecting" && extra.byEvents) {
+    return `🔴 *Celebrei — número caindo sem parar*\n\n${who} está caindo e voltando desde ${fmt(since)} e nenhuma mensagem está passando.\n\n👉 Confira se o celular do número está ligado e com internet e se o WhatsApp dele está funcionando. Se vários números estiverem assim, reinicie o serviço *evolution-go* no Coolify.`;
   }
   if (state === "needs_qr") {
     return `🔴 *Celebrei — número desconectado (precisa ler o QR)*\n\n${who} perdeu a sessão do WhatsApp desde ${fmt(since)}. Nada entra nem sai por ele.\n\n👉 Confira no Hub (Configurações → Conexão) se o ${unit} aparece Desconectado. Se sim: Conectar e leia o QR Code no celular do número (WhatsApp → Aparelhos conectados → Conectar um aparelho). Se estiver Online, mande uma mensagem de teste antes de mexer.`;

@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { evolutionHoldReason, PAUSED_INSTANCE_ROW_IDS } from "./evolution-guard.ts";
+import { currentDownStreak, evolutionHoldReason, PAUSED_INSTANCE_ROW_IDS, streakNeedsAlert } from "./evolution-guard.ts";
 import { evolutionRequest, isHeldError, setEvolutionCallGuard } from "./evolution.ts";
 
 // Banco de mentira: último evento do número e trava do monitor
@@ -48,4 +48,60 @@ Deno.test("chamada segurada não vai para a Evolution e volta marcada", async ()
   const r = await evolutionRequest("token", "/send/text", "POST", { number: "x" });
   setEvolutionCallGuard(null);
   assertEquals([r.ok, r.held, isHeldError(r.error)], [false, true, true]);
+});
+
+Deno.test("queda pelos eventos: LoggedOut avisa na hora; caindo e voltando só depois de 10 min", () => {
+  const now = Date.parse("2026-10-16T23:30:00Z");
+  assertEquals(streakNeedsAlert(null, now), false);
+  assertEquals(streakNeedsAlert({ since: "2026-10-16T23:29:50Z", loggedOut: true }, now), true);
+  assertEquals(streakNeedsAlert({ since: "2026-10-16T23:25:00Z", loggedOut: false }, now), false);
+  assertEquals(streakNeedsAlert({ since: "2026-10-16T23:20:00Z", loggedOut: false }, now), true);
+});
+
+// Banco de mentira com os eventos do número (mais novos primeiro quando pedir desc)
+function eventsDb(events: Array<{ event_type: string; received_at: string }>) {
+  return {
+    from: () => {
+      const f: { types: string[]; gte?: string; gt?: string; asc: boolean } = { types: [], asc: true };
+      const q = {
+        select: () => q,
+        eq: () => q,
+        in: (_c: string, v: string[]) => (f.types = v, q),
+        gte: (_c: string, v: string) => (f.gte = v, q),
+        gt: (_c: string, v: string) => (f.gt = v, q),
+        order: (_c: string, o: { ascending: boolean }) => (f.asc = o.ascending, q),
+        limit: (n: number) => {
+          const rows = events.filter((e) => f.types.includes(e.event_type) && (!f.gte || e.received_at >= f.gte) && (!f.gt || e.received_at > f.gt))
+            .sort((a, b) => (f.asc ? 1 : -1) * a.received_at.localeCompare(b.received_at));
+          return Promise.resolve({ data: rows.slice(0, n) });
+        },
+      };
+      return q;
+    },
+  };
+}
+
+Deno.test("queda pelos eventos: lê desde o último sinal de vida", async () => {
+  const now = Date.parse("2026-10-16T23:30:00Z");
+  // VENDAS 2 em 16/10: mensagens até 22:49, depois LoggedOut em ciclo
+  const db = eventsDb([
+    { event_type: "Message", received_at: "2026-10-16T22:07:01Z" },
+    { event_type: "Receipt", received_at: "2026-10-16T22:49:00.700Z" },
+    { event_type: "LoggedOut", received_at: "2026-10-16T22:49:00.873Z" },
+    { event_type: "Disconnected", received_at: "2026-10-16T22:52:31Z" },
+    { event_type: "LoggedOut", received_at: "2026-10-16T23:29:14Z" },
+  ]);
+  assertEquals(await currentDownStreak(db, "cb4a0b19", now), { since: "2026-10-16T22:49:00.873Z", loggedOut: true });
+  // Reconectou (PairSuccess) depois: não há queda em andamento
+  const back = eventsDb([
+    { event_type: "LoggedOut", received_at: "2026-10-16T23:29:14Z" },
+    { event_type: "PairSuccess", received_at: "2026-10-16T23:29:40Z" },
+  ]);
+  assertEquals(await currentDownStreak(back, "cb4a0b19", now), null);
+  // Queda rápida que voltou sozinha (Disconnected → Connected)
+  const blip = eventsDb([
+    { event_type: "Disconnected", received_at: "2026-10-16T23:28:00Z" },
+    { event_type: "Connected", received_at: "2026-10-16T23:28:03Z" },
+  ]);
+  assertEquals(await currentDownStreak(blip, "cb4a0b19", now), null);
 });

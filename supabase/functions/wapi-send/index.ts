@@ -5,6 +5,7 @@ import { EVOLUTION_WEBHOOK_EVENTS, isHeldError, evolutionDownloadMedia, evolutio
 import { decryptWhatsAppMedia, encryptedMediaUrl, type WaMediaType } from "../_shared/whatsapp-media-crypto.ts";
 import { classifyEvolutionStatus, skipLoggedOutCheck } from "../_shared/evolution-health.ts";
 import { isContactBlocked } from "../_shared/contact-block.ts";
+import { replyOnlyUntil } from "../_shared/system-send-pacing.ts";
 import { claimEvolutionLock, installEvolutionCallGuard, PAUSED_INSTANCE_ROW_IDS, recentConnectionEvent, releaseEvolutionLock } from "../_shared/evolution-guard.ts";
 import { aiTakesSiteLead, buildAiSiteWelcome, cleanSiteLead, type SiteLeadInfo, siteLeadBotData } from "../_shared/ai-site-lead.ts";
 
@@ -1532,6 +1533,31 @@ Deno.serve(async (req) => {
     // === PHASE 1: Preflight session health check for all send actions ===
     const preflightResult = await checkSessionHealth(instance_id, instance_token, supabase, action, conversationId, companyId, message, directProvider !== null);
     if (preflightResult) return preflightResult;
+
+    // === Só responde quem chama (VENDAS 2 depois da restrição de "reachout", 16/10) ===
+    // Nesse período o número não abre conversa com quem nunca escreveu para
+    // ele — nem envio automático nem a equipe. Grupos e reações passam.
+    if (isEvolution && sendActionsForLid.includes(action) && !String(phone || '').endsWith('@g.us')) {
+      const { data: roInst } = await supabase.from('wapi_instances').select('id, unit').eq('instance_id', instance_id).maybeSingle();
+      const roUntil = roInst ? replyOnlyUntil(roInst.id, Date.now()) : null;
+      if (roUntil) {
+        let contactWrote = false;
+        if (conversationId) {
+          const { data: inbound } = await supabase.from('wapi_messages').select('id').eq('conversation_id', conversationId).eq('from_me', false).limit(1);
+          contactWrote = !!(inbound && inbound[0]);
+        }
+        if (!contactWrote) {
+          const ate = new Date(Date.parse(roUntil) - 1000).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' });
+          console.warn(`[wapi-send] 🚫 ${roInst?.unit || instance_id} só responde quem chama até ${roUntil} — não inicia conversa (phone=${phone}, action=${action}, source=${body.source ?? body.messageSource ?? 'platform'})`);
+          await persistBlockedMessage(supabase, conversationId, companyId, message, 'REPLY_ONLY');
+          return new Response(JSON.stringify({
+            error: `O ${roInst?.unit || 'número'} está só respondendo quem manda mensagem até ${ate} (proteção depois do bloqueio do WhatsApp). Este contato ainda não escreveu para ele: use outro número para iniciar a conversa.`,
+            errorType: 'REPLY_ONLY',
+            blocked: true,
+          }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+      }
+    }
 
     // === BOT LOOP GUARD: silently block automated outbound when convo is paused ===
     // Only blocks when caller explicitly opts-in as automation (body.automation === true

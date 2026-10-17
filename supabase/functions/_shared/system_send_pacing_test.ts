@@ -4,6 +4,7 @@ import {
   claimSystemSendSlot,
   decideSystemSend,
   inSystemSendWindow,
+  replyOnlyUntil,
   systemDailyCap,
 } from "./system-send-pacing.ts";
 
@@ -40,14 +41,20 @@ Deno.test("ritmo do sistema: teto por dia, zera no dia seguinte", () => {
   assertEquals(brDayKey(Date.parse("2026-10-16T02:00:00Z")), "2026-10-15");
 });
 
-Deno.test("teto: VENDAS 2 sobe 20 → 40 → 80; VENDAS 1 80", () => {
-  assertEquals(systemDailyCap(VENDAS_2, NOW), 20);
-  assertEquals(systemDailyCap(VENDAS_2, Date.parse("2026-10-19T02:59:00Z")), 20); // 18/10 23:59
-  assertEquals(systemDailyCap(VENDAS_2, Date.parse("2026-10-19T03:00:00Z")), 40); // 19/10 00:00
-  assertEquals(systemDailyCap(VENDAS_2, Date.parse("2026-10-23T02:59:00Z")), 40); // 22/10 23:59
-  assertEquals(systemDailyCap(VENDAS_2, Date.parse("2026-10-23T03:00:00Z")), 80);
+Deno.test("teto: VENDAS 2 pausado até 23/10 e depois sobe 20 → 40 → 80; VENDAS 1 80", () => {
+  assertEquals(systemDailyCap(VENDAS_2, Date.parse("2026-10-17T15:00:00Z")), 0);
+  assertEquals(systemDailyCap(VENDAS_2, Date.parse("2026-10-24T02:59:00Z")), 0); // 23/10 23:59
+  assertEquals(systemDailyCap(VENDAS_2, Date.parse("2026-10-24T03:00:00Z")), 20); // 24/10 00:00
+  assertEquals(systemDailyCap(VENDAS_2, Date.parse("2026-10-28T03:00:00Z")), 40);
+  assertEquals(systemDailyCap(VENDAS_2, Date.parse("2026-11-01T03:00:00Z")), 80);
   assertEquals(decideSystemSend(fresh, 0, NOW, 0), { ok: false, reason: "envios do sistema pausados neste número" });
   assertEquals(systemDailyCap("vendas-1", NOW), 80);
+});
+
+Deno.test("só responde: VENDAS 2 até 23/10; os outros números podem iniciar conversa", () => {
+  assertEquals(replyOnlyUntil(VENDAS_2, Date.parse("2026-10-17T15:00:00Z")), "2026-10-24T03:00:00Z");
+  assertEquals(replyOnlyUntil(VENDAS_2, Date.parse("2026-10-24T03:00:00Z")), null);
+  assertEquals(replyOnlyUntil("vendas-1", NOW), null);
 });
 
 // Banco de mentira só com a linha do ritmo

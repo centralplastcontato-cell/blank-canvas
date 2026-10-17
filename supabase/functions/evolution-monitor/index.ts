@@ -9,10 +9,11 @@
 // - Depois que volta, reenvia (com limite) o que falhou durante a queda
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { ALIVE_TIMEOUT_MS, evolutionCheckAlive, evolutionConnect, evolutionReconnect, evolutionSendMedia, evolutionSendText, evolutionStatus, extractEvolutionMessageId } from "../_shared/evolution.ts";
-import { CELEBREI_GO_PAUSED, claimEvolutionLock, installEvolutionCallGuard, PAUSED_INSTANCE_ROW_IDS, recentConnectionEvent, releaseEvolutionLock } from "../_shared/evolution-guard.ts";
+import { CELEBREI_GO_PAUSED, claimEvolutionLock, currentDownStreak, type DownStreak, installEvolutionCallGuard, PAUSED_INSTANCE_ROW_IDS, recentConnectionEvent, releaseEvolutionLock, streakNeedsAlert } from "../_shared/evolution-guard.ts";
 import {
   aliveCheckHealthy,
   classifyEvolutionStatus,
+  CONFIRM_CHECKS,
   decideInstanceHealth,
   decideServerHealth,
   type EvoState,
@@ -21,6 +22,7 @@ import {
   instanceAlertText,
   isConfirmedDown,
   looksLikeDbExhausted,
+  MAX_RECONNECT_ATTEMPTS,
   recoveriesInLastDay,
   pickResendable,
   reminderDue,
@@ -297,6 +299,54 @@ async function countStuckSent(supabase: SB, inst: Inst, sinceIso: string): Promi
   return count || 0;
 }
 
+// ─── Queda vista pelos eventos do webhook ──────────────────────────────────
+
+/**
+ * "LoggedOut" (sessão encerrada pelo WhatsApp) avisa na hora; "Disconnected"
+ * sem parar e sem nenhuma mensagem passando avisa depois de 10 min. Nada aqui
+ * chama a Evolution: o número está fora e cada consulta reabre o ciclo de QR.
+ * Também não tenta reconectar sozinho: sessão encerrada só volta lendo o QR
+ * (o "connect" de 16/10 23:20 só reabriu o ciclo de QR).
+ */
+async function handleEventDown(supabase: SB, inst: Inst, streak: DownStreak, prevRow: Json | null, nowIso: string): Promise<Json> {
+  const key = instKey(inst.id);
+  const unit = inst.unit || inst.instance_id;
+  const state: EvoState = streak.loggedOut ? "needs_qr" : "reconnecting";
+  const prevDown = !!prevRow && prevRow.state !== "online" && prevRow.state !== "unknown";
+  const since = prevDown && prevRow!.state_since && Date.parse(prevRow!.state_since) < Date.parse(streak.since) ? prevRow!.state_since : streak.since;
+  await saveHealth(supabase, key, inst.id, {
+    state,
+    state_since: since,
+    bad_checks: Math.max(CONFIRM_CHECKS, Number(prevRow?.bad_checks) || 0),
+    reconnect_attempts: MAX_RECONNECT_ATTEMPTS,
+    last_check_at: nowIso,
+    detail: { ...((prevRow?.detail as Json | null) || {}), reason: "eventos", by_events: { since: streak.since, logged_out: streak.loggedOut } },
+  });
+  if (inst.status === "connected") await supabase.from("wapi_instances").update({ status: "disconnected" }).eq("id", inst.id);
+
+  const prevAlerted = (prevRow?.alerted_state as string | null) ?? null;
+  const warned = !!prevAlerted && prevAlerted !== "online";
+  // Já avisado: só o aviso novo se piorou (caindo e voltando → sessão encerrada) ou o lembrete de hora em hora
+  if (!warned || (state === "needs_qr" && prevAlerted !== "needs_qr")) {
+    if (await claimAlert(supabase, key, prevAlerted, state)) {
+      console.log(`[evolution-monitor] ${unit}: ${state} pelos eventos desde ${streak.since} — alerta enviado (sem consultar a Evolution)`);
+      await alertOwner(supabase, instanceAlertText("down", state, unit, since, { byEvents: true }), false);
+      await openIncident(supabase, key, inst.id, unit, state, since);
+      await notifyCompany(supabase, inst,
+        state === "needs_qr" ? "⚠️ WhatsApp desconectado — ler o QR" : "⚠️ WhatsApp sem conexão",
+        state === "needs_qr"
+          ? `${inst.unit || "WhatsApp"} perdeu a sessão. Reconecte lendo o QR Code em Configurações → Conexão.`
+          : `${inst.unit || "WhatsApp"} está caindo e voltando sem parar e nenhuma mensagem está passando.`,
+        state);
+      return { unit, state, alert: "down", by_events: true };
+    }
+  } else if (prevRow && reminderDue(prevRow, true, Date.now()) && await claimReminder(supabase, key, prevRow.alerted_at)) {
+    await alertOwner(supabase, reminderText("instance", state, unit, since, Date.now()), false);
+    await bumpReminder(supabase, key);
+  }
+  return { unit, state, alert: null, by_events: true };
+}
+
 // ─── Rodada ───────────────────────────────────────────────────────────────
 
 // Tráfego real vale mais que o status: em 13/10 o /instance/status da
@@ -349,9 +399,17 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
   //  - uma chamada por vez por número (trava)
   //  - /user/check só com o status "logado"; nada de re-checar em seguida
   const quiet: Inst[] = [];
+  const downByEvents: Array<{ inst: Inst; streak: DownStreak }> = [];
   const checked = await Promise.all(toCheck.map(async (inst) => {
     const evt = await recentConnectionEvent(supabase, inst.instance_id);
     if (evt) {
+      // Evento recente de queda não pode calar o alerta para sempre (o ciclo de
+      // QR manda "LoggedOut" a cada 2 min): a queda é lida dos eventos
+      const streak = evt.hint === "online" ? null : await currentDownStreak(supabase, inst.instance_id);
+      if (streak && streakNeedsAlert(streak, Date.now())) {
+        downByEvents.push({ inst, streak });
+        return null;
+      }
       console.log(`[evolution-monitor] ${inst.unit}: evento ${evt.event} às ${evt.at} — sem chamadas por 2 min (a Evolution reconecta sozinha)`);
       quiet.push(inst);
       return null;
@@ -537,6 +595,11 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
   }
   for (const r of results) await releaseEvolutionLock(supabase, r.inst.id);
 
+  // Quedas vistas pelos eventos (sem consultar a Evolution)
+  for (const { inst, streak } of downByEvents) {
+    summary.push(await handleEventDown(supabase, inst, streak, health[instKey(inst.id)] || null, nowIso));
+  }
+
   // Deslogados sem checagem nesta rodada: só o lembrete de hora em hora
   for (const inst of throttled) {
     const key = instKey(inst.id);
@@ -546,7 +609,7 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
       await bumpReminder(supabase, key);
     }
   }
-  return { checked: results.length, quiet: quiet.map((i) => i.unit), throttled: throttled.map((i) => i.unit), serverDown, suspect: !onlyInstanceId && serverIncident, celebreiDown, reason, summary };
+  return { checked: results.length, quiet: quiet.map((i) => i.unit), downByEvents: downByEvents.map((d) => d.inst.unit), throttled: throttled.map((i) => i.unit), serverDown, suspect: !onlyInstanceId && serverIncident, celebreiDown, reason, summary };
 }
 
 Deno.serve(async (req) => {
