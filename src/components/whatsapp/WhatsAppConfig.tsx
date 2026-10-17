@@ -93,9 +93,9 @@ const allConfigSections = [
 
 export function WhatsAppConfig({ userId, isAdmin, isGestor = false }: WhatsAppConfigProps) {
   const navigate = useNavigate();
-  const { permissions, isLoading, hasAnyPermission } = useConfigPermissions(userId, isAdmin);
   const modules = useCompanyModules();
   const { currentRole } = useCompany();
+  const { permissions, isLoading } = useConfigPermissions(userId, isAdmin, currentRole === 'owner');
   const isCompanyAdminOrOwner = currentRole === 'admin' || currentRole === 'owner';
   
   // Filter sections based on permissions AND company modules
@@ -167,7 +167,8 @@ export function WhatsAppConfig({ userId, isAdmin, isGestor = false }: WhatsAppCo
     );
   }
 
-  if (!hasAnyPermission) {
+  // Dono/admin da empresa sempre vê Empresa, Meu site e o Guia
+  if (configSections.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <div className="p-4 rounded-full bg-muted mb-4">
