@@ -147,9 +147,13 @@ export function parseModules(settings: Json | null | undefined): CompanyModules 
   const s = settings as Record<string, Json | undefined>;
   const em = s.enabled_modules;
   if (!em || typeof em !== 'object' || Array.isArray(em)) {
-    return { ...DEFAULT_MODULES };
+    const fromSignupOnly = !!(s.signup && typeof s.signup === 'object');
+    return fromSignupOnly ? { ...DEFAULT_MODULES, agenda: true, onboarding_checklist: true } : { ...DEFAULT_MODULES };
   }
   const modules = em as Record<string, Json | undefined>;
+  // Cadastro pelo site: Agenda e guia de primeiros passos vêm ligados (quem se
+  // cadastrou antes dessa regra também), a não ser que o Hub desligue
+  const fromSignup = !!(s.signup && typeof s.signup === 'object');
   return {
     // --- Atendimento & CRM ---
     whatsapp: modules.whatsapp !== false,
@@ -167,7 +171,7 @@ export function parseModules(settings: Json | null | undefined): CompanyModules 
     inteligencia: modules.inteligencia === true,
     relatorio_origem: modules.relatorio_origem === true,
     inteligencia_ia: modules.inteligencia_ia === true,
-    agenda: modules.agenda === true,
+    agenda: modules.agenda === true || (fromSignup && modules.agenda === undefined),
     operacoes: modules.operacoes !== false,
     // --- Automações & Bot ---
     automations: modules.automations !== false,
@@ -183,7 +187,7 @@ export function parseModules(settings: Json | null | undefined): CompanyModules 
     financeiro: modules.financeiro === true,
     // --- Outros ---
     treinamento: modules.treinamento !== false,
-    onboarding_checklist: modules.onboarding_checklist === true,
+    onboarding_checklist: modules.onboarding_checklist === true || (fromSignup && modules.onboarding_checklist === undefined),
     empresa_parceira: modules.empresa_parceira === true,
     // --- Inteligência Artificial ---
     ia_conversacional: modules.ia_conversacional === true,
