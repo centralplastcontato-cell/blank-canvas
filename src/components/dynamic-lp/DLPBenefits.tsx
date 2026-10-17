@@ -65,7 +65,9 @@ const cardVariants = {
 
 export function DLPBenefits({ theme, companyName, benefits }: DLPBenefitsProps) {
   const items = benefits?.items?.length ? benefits.items : defaultBenefits;
-  const badges = benefits?.trust_badges?.length ? benefits.trust_badges : defaultTrustBadges;
+  // Site automático não mostra os selos de exemplo ("+5.000 festas"…): só os que o buffet cadastrar
+  const noDefaults = (benefits as { no_default_badges?: boolean } | undefined)?.no_default_badges === true;
+  const badges = benefits?.trust_badges?.length ? benefits.trust_badges : noDefaults ? [] : defaultTrustBadges;
   const subtitle = benefits?.subtitle || "Há mais de 10 anos transformando sonhos em realidade com festas inesquecíveis";
 
   return (

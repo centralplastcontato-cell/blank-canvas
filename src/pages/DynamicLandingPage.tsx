@@ -16,6 +16,7 @@ import { DLPFooter } from "@/components/dynamic-lp/DLPFooter";
 import { DLPFloatingCTA } from "@/components/dynamic-lp/DLPFloatingCTA";
 import { LeadChatbot } from "@/components/landing/LeadChatbot";
 import { BackgroundMusic } from "@/components/landing/BackgroundMusic";
+import { isSiteBuilderPage, siteWhatsAppMessage } from "@/lib/siteBuilder";
 import { applyHeroAssetOverrides, getCompanyLogoOverride, getExtraGalleryPhotos, getGalleryPhotosOverride } from "@/lib/companyAssetOverrides";
 import type { LPHero, LPVideo, LPGallery, LPTestimonials, LPOffer, LPTheme, LPFooter, LPBenefits, LPSocialProof, LPHowItWorks } from "@/types/landing-page";
 
@@ -64,14 +65,17 @@ interface LPData {
 
 interface DynamicLandingPageProps {
   domain?: string;
+  /** Site automático aberto pelo subdomínio (<slug>.hubcelebrei.com.br) */
+  slug?: string;
 }
 
 // Empresas que não usam mais o robô/plataforma: os CTAs abrem o WhatsApp
 // da própria empresa direto, em vez do chat de captação de leads.
 const DIRECT_WHATSAPP_SLUGS = new Set(["aventura-kids"]);
 
-export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) {
-  const { slug } = useParams<{ slug: string }>();
+export default function DynamicLandingPage({ domain, slug: slugProp }: DynamicLandingPageProps) {
+  const { slug: routeSlug } = useParams<{ slug: string }>();
+  const slug = slugProp ?? routeSlug;
   const [data, setData] = useState<LPData | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -218,14 +222,19 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
     );
   }
 
-  const directWhatsApp =
-    DIRECT_WHATSAPP_SLUGS.has(data.company_slug) && data.company_whatsapp
-      ? `55${data.company_whatsapp.replace(/\D/g, "")}`
-      : null;
+  // Site automático (só IA): o botão abre o WhatsApp com "Vim pelo site" e a IA atende
+  const builderPage = isSiteBuilderPage(data.hero);
+  const heroNumber = String((data.hero as { whatsapp_number?: string | null }).whatsapp_number || "").replace(/\D/g, "");
+  const siteNumber = heroNumber || (data.company_whatsapp || "").replace(/\D/g, "");
+  const wantsDirect = DIRECT_WHATSAPP_SLUGS.has(data.company_slug) || (data.hero as { cta_mode?: string }).cta_mode === "whatsapp";
+  const directWhatsApp = wantsDirect && siteNumber
+    ? (siteNumber.length <= 11 ? `55${siteNumber}` : siteNumber)
+    : null;
 
   const openChat = () => {
     if (directWhatsApp) {
-      window.open(whatsappLink(directWhatsApp, `Olá! Vim pelo site do ${data.company_name} e gostaria de saber mais!`), "_blank", "noopener,noreferrer");
+      const text = builderPage ? siteWhatsAppMessage(data.company_name) : `Olá! Vim pelo site do ${data.company_name} e gostaria de saber mais!`;
+      window.open(whatsappLink(directWhatsApp, text), "_blank", "noopener,noreferrer");
       return;
     }
     setIsChatOpen(true);
@@ -268,7 +277,7 @@ export default function DynamicLandingPage({ domain }: DynamicLandingPageProps) 
       <DLPHowItWorks howItWorks={data.how_it_works} theme={data.theme} />
       <DLPTestimonials testimonials={data.testimonials} theme={data.theme} />
       <DLPOffer offer={data.offer} theme={data.theme} onCtaClick={openChat} />
-      <DLPFooter footer={data.footer} theme={data.theme} companyName={data.company_name} companyLogo={data.company_logo} instagramHandle={data.company_instagram} whatsappNumber={data.company_whatsapp} />
+      <DLPFooter footer={data.footer} theme={data.theme} companyName={data.company_name} companyLogo={data.company_logo} instagramHandle={data.company_instagram} whatsappNumber={directWhatsApp || data.company_whatsapp} />
 
       <DLPFloatingCTA theme={data.theme} onClick={openChat} />
       {/castelo/i.test(data.company_slug) && (

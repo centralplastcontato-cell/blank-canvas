@@ -260,6 +260,26 @@ async function resolveByDomain(domain: string, pathname: string): Promise<Respon
     if (result) return result;
   }
 
+  // Site automático: <slug>.hubcelebrei.com.br (antes das marcas fixas — "hubcelebrei" casaria com o Hub)
+  const siteMatch = canonical.match(/^([a-z0-9-]+)\.hubcelebrei\.com\.br$/);
+  if (siteMatch && siteMatch[1] !== "www") {
+    const supabase = getSupabase();
+    const { data: siteCompany } = await supabase.from("companies").select("id, name, logo_url, slug")
+      .eq("slug", siteMatch[1]).eq("is_active", true).maybeSingle();
+    if (siteCompany) {
+      const { data: siteLp } = await supabase.from("company_landing_pages").select("hero")
+        .eq("company_id", siteCompany.id).eq("is_published", true).maybeSingle();
+      const siteHero = siteLp?.hero as { title?: string; subtitle?: string; background_image_url?: string | null } | null;
+      const siteUrl = `https://${canonical}${pathname !== "/" ? pathname : ""}`;
+      return new Response(buildHTML({
+        title: siteCompany.name,
+        description: siteHero?.subtitle || siteHero?.title || `Conheça o ${siteCompany.name} - buffet infantil`,
+        image: siteHero?.background_image_url || siteCompany.logo_url || "https://hubcelebrei.com.br/og-para-buffets.jpg",
+        url: siteUrl,
+      }, siteUrl), { headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" } });
+    }
+  }
+
   // Static brands (fast path)
   for (const [key, brand] of Object.entries(STATIC_BRANDS)) {
     if (canonical.includes(key)) {
@@ -290,7 +310,7 @@ async function resolveByDomain(domain: string, pathname: string): Promise<Respon
     .maybeSingle();
 
   const hero = lp?.hero as { title?: string; subtitle?: string } | null;
-  const targetDomain = company.custom_domain || `hubcelebrei.com.br/lp/${company.slug}`;
+  const targetDomain = company.custom_domain || `${company.slug}.hubcelebrei.com.br`;
   const targetUrl = `https://${targetDomain}${pathname !== "/" ? pathname : ""}`;
 
   const meta = {

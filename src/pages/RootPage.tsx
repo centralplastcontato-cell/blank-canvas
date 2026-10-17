@@ -1,10 +1,10 @@
 import { getCanonicalHost, isHubDomain, isPreviewDomain, getKnownBuffetDomain } from "@/hooks/useDomainDetection";
+import { slugFromSiteHost } from "@/lib/siteBuilder";
 import HubLandingPage from "./HubLandingPage";
 import LandingPage from "./LandingPage";
 import MegaMagicLandingPage from "./MegaMagicLandingPage";
 import PlanetaDivertidoLandingPage from "./PlanetaDivertidoLandingPage";
 import DynamicLandingPage from "./DynamicLandingPage";
-import NotFound from "./NotFound";
 
 const CASTELO_DOMAINS = ["castelodadiversao.com.br", "castelodadiversao.online"];
 const MEGAMAGIC_DOMAINS = ["buffetmegamagic.com.br"];
@@ -16,7 +16,9 @@ const PLANETA_DOMAINS = ["buffetplanetadivertido.online"];
  * - lovable.app / localhost → Castelo/Buffet landing page (default)
  * - castelodadiversao.online → Static Castelo LP (via canonical match)
  * - buffetmegamagic.com.br → Static Mega Magic LP
- * - Any other domain → Dynamic LP (company custom domain)
+ * - <slug>.hubcelebrei.com.br → site do buffet (site automático)
+ * - Any other domain → Dynamic LP do buffet cujo domínio está cadastrado
+ *   (companies.domain_canonical); domínio desconhecido mostra "não encontrada"
  */
 export default function RootPage() {
   const canonical = getCanonicalHost();
@@ -26,6 +28,12 @@ export default function RootPage() {
       hostname: window.location.hostname,
       canonicalHost: canonical,
     });
+  }
+
+  // Site automático do buffet: <slug>.hubcelebrei.com.br
+  const siteSlug = slugFromSiteHost(canonical);
+  if (siteSlug) {
+    return <DynamicLandingPage slug={siteSlug} />;
   }
 
   if (isHubDomain()) {
@@ -53,6 +61,7 @@ export default function RootPage() {
     return <DynamicLandingPage domain={buffetDomain} />;
   }
 
-  // Unknown domain → safe 404 (no risk of showing the wrong buffet's LP)
-  return <NotFound />;
+  // Domínio próprio de um buffet: busca exata pelo domínio cadastrado na
+  // empresa (domínio desconhecido cai no "Página não encontrada")
+  return <DynamicLandingPage domain={canonical} />;
 }

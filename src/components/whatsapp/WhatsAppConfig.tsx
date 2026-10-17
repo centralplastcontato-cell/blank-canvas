@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Wifi, Bell, Bot, Settings, Lock, HelpCircle, FileText, Building2 } from "lucide-react";
+import { Wifi, Bell, Bot, Settings, Lock, HelpCircle, FileText, Building2, Globe } from "lucide-react";
 import { ConnectionSection } from "./settings/ConnectionSection";
 import { NotificationsSection } from "./settings/NotificationsSection";
 import { AutomationsSection } from "./settings/AutomationsSection";
@@ -8,6 +8,7 @@ import { AdvancedSection } from "./settings/AdvancedSection";
 import { VisualGuideSection } from "./settings/VisualGuideSection";
 import { ContentSection } from "./settings/ContentSection";
 import { CompanyDataSection } from "./settings/CompanyDataSection";
+import { SiteSection } from "./settings/SiteSection";
 import { useConfigPermissions } from "@/hooks/useConfigPermissions";
 import { useCompanyModules, type CompanyModules } from "@/hooks/useCompanyModules";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -29,6 +30,15 @@ const allConfigSections = [
     title: "Empresa",
     description: "Logo, nome e dados",
     icon: Building2,
+    requiresCompanyAdmin: true,
+  },
+  {
+    id: "site",
+    permissionKey: null as any,
+    moduleKey: null as keyof CompanyModules | null,
+    title: "Meu site",
+    description: "Página do buffet",
+    icon: Globe,
     requiresCompanyAdmin: true,
   },
   {
@@ -113,6 +123,8 @@ export function WhatsAppConfig({ userId, isAdmin, isGestor = false }: WhatsAppCo
     switch (activeSection) {
       case "company":
         return <CompanyDataSection />;
+      case "site":
+        return <SiteSection />;
       case "connection":
         return <ConnectionSection userId={userId} isAdmin={isAdmin} />;
       case "content":
