@@ -381,11 +381,10 @@ export function SiteSection() {
                 O cliente responde no site o mês, o dia, os convidados, o nome e o WhatsApp. O contato já entra na plataforma e a IA
                 manda a primeira mensagem sabendo esses dados. Desligado, o botão abre o WhatsApp direto.
               </p>
-              {!whatsConnected && <p className="text-xs text-amber-700 dark:text-amber-400">Fica disponível depois que o WhatsApp do buffet estiver conectado.</p>}
+              {!whatsConnected && <p className="text-xs text-muted-foreground">Enquanto o WhatsApp do buffet não estiver conectado, no fim o cliente toca num botão e manda os dados pelo WhatsApp dele.</p>}
             </div>
             <Switch
               checked={content.hero.cta_mode === "chatbot"}
-              disabled={!whatsConnected && content.hero.cta_mode !== "chatbot"}
               onCheckedChange={(v) => {
                 patch("hero", { cta_mode: v ? "chatbot" : "whatsapp" });
                 // Sem essa linha o contato do site não é direcionado ao número conectado

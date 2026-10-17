@@ -113,7 +113,7 @@ export function buildSiteDraft(seed: SiteSeed): SiteContent {
       cta_text: "Ver datas livres no WhatsApp",
       background_image_url: photos[0] || null,
       background_images: photos.slice(0, 3),
-      cta_mode: "whatsapp",
+      cta_mode: "chatbot",
       whatsapp_number: onlyDigits(seed.whatsapp) || null,
       site_builder: true,
       palette: SITE_PALETTES[0].id,

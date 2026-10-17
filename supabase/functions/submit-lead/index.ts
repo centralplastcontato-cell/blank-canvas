@@ -490,6 +490,7 @@ Deno.serve(async (req) => {
     // WhatsApp do número que recebeu o lead: o botão "fale diretamente conosco"
     // do site abre ESTE número (não um fixo), para a conversa não se dividir
     let unitWhatsapp: string | null = null;
+    let unitConnected = false;
     if (resolvedUnit) {
       try {
         const { data: unitInsts } = await supabase.from('wapi_instances')
@@ -501,11 +502,12 @@ Deno.serve(async (req) => {
         const pick = ((unitInsts || []) as Array<{ phone_number: string | null; status: string | null }>)
           .sort((a, b) => (a.status === 'connected' ? 0 : 1) - (b.status === 'connected' ? 0 : 1))[0];
         unitWhatsapp = pick?.phone_number ? String(pick.phone_number).replace(/\D/g, '') : null;
+        unitConnected = pick?.status === 'connected';
       } catch (_e) { /* sem número: o site usa o padrão */ }
     }
 
     return new Response(
-      JSON.stringify({ success: true, resolved_unit: resolvedUnit, unit_whatsapp: unitWhatsapp }),
+      JSON.stringify({ success: true, resolved_unit: resolvedUnit, unit_whatsapp: unitWhatsapp, unit_connected: unitConnected }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err) {

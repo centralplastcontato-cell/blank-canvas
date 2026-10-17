@@ -28,7 +28,7 @@ describe("endereço do site", () => {
 describe("rascunho do site", () => {
   it("nasce do cadastro, abre o WhatsApp e sem números inventados", () => {
     const d = buildSiteDraft({ companyName: "Buffet Alegria", city: "Sorocaba", state: "SP", photoUrls: ["a.jpg", "b.jpg"], whatsapp: "(15) 99999-0000" });
-    expect(d.hero.cta_mode).toBe("whatsapp");
+    expect(d.hero.cta_mode).toBe("chatbot");
     expect(d.hero.whatsapp_number).toBe("15999990000");
     expect(d.hero.subtitle).toContain("em Sorocaba/SP");
     expect(d.hero.background_image_url).toBe("a.jpg");
