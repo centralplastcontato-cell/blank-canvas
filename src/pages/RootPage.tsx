@@ -1,10 +1,14 @@
 import { getCanonicalHost, isHubDomain, isPreviewDomain, getKnownBuffetDomain } from "@/hooks/useDomainDetection";
 import { slugFromSiteHost } from "@/lib/siteBuilder";
-import HubLandingPage from "./HubLandingPage";
-import LandingPage from "./LandingPage";
-import MegaMagicLandingPage from "./MegaMagicLandingPage";
-import PlanetaDivertidoLandingPage from "./PlanetaDivertidoLandingPage";
-import DynamicLandingPage from "./DynamicLandingPage";
+import { lazy, Suspense } from "react";
+
+// Cada página só é baixada no domínio dela (antes todas iam juntas no arquivo
+// principal e a página do Hub demorava para abrir)
+const HubLandingPage = lazy(() => import("./HubLandingPage"));
+const LandingPage = lazy(() => import("./LandingPage"));
+const MegaMagicLandingPage = lazy(() => import("./MegaMagicLandingPage"));
+const PlanetaDivertidoLandingPage = lazy(() => import("./PlanetaDivertidoLandingPage"));
+const DynamicLandingPage = lazy(() => import("./DynamicLandingPage"));
 
 const CASTELO_DOMAINS = ["castelodadiversao.com.br", "castelodadiversao.online"];
 const MEGAMAGIC_DOMAINS = ["buffetmegamagic.com.br"];
@@ -21,6 +25,14 @@ const PLANETA_DOMAINS = ["buffetplanetadivertido.online"];
  *   (companies.domain_canonical); domínio desconhecido mostra "não encontrada"
  */
 export default function RootPage() {
+  return (
+    <Suspense fallback={null}>
+      <RootContent />
+    </Suspense>
+  );
+}
+
+function RootContent() {
   const canonical = getCanonicalHost();
 
   if (import.meta.env.DEV) {
