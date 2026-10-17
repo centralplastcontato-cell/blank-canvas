@@ -18,7 +18,7 @@ import { serializeTeamHours, serializeVisitHours } from "@/lib/businessHours";
 import { buildSiteDraft, siteSubdomain } from "@/lib/siteBuilder";
 import { resizeImageFile } from "@/lib/imageResize";
 import {
-  BUSY_NOTE, buildPartySlots, dayKey, monthsAhead, SETUP_SELECTS, type SetupAnswers, type Slot, WEEKDAYS,
+  BUSY_NOTE, buildPartySlots, dayKey, monthsAhead, SATURDAY, SETUP_SELECTS, type SetupAnswers, type Slot, WEEKDAYS,
 } from "@/lib/selfSetup";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -77,6 +77,8 @@ export default function SetupBuffet() {
     slots: [{ start: "13:00", end: "17:00" }, { start: "19:00", end: "23:00" }],
     visit_days: [0, 1, 2, 3, 4], visit_start: "10:00", visit_end: "17:00",
     team_days: [0, 1, 2, 3, 4, 5], team_start: "09:00", team_end: "18:00",
+    visit_sat_diff: false, visit_sat_start: "09:00", visit_sat_end: "13:00",
+    team_sat_diff: false, team_sat_start: "09:00", team_sat_end: "13:00",
     duracao: "4 horas", estrutura: "", diferenciais: "", comida_externa: "", monitores: "", regras: "", proibido: "",
   });
 
@@ -207,8 +209,8 @@ export default function SetupBuffet() {
       company_id: companyId, enabled: false, unit,
       assistant_name: ans.assistant_name.trim(),
       party_slots: buildPartySlots(slots),
-      visit_hours: serializeVisitHours(ans.visit_days, ans.visit_start, ans.visit_end, true),
-      team_hours: serializeTeamHours(ans.team_days, ans.team_start, ans.team_end),
+      visit_hours: serializeVisitHours(ans.visit_days, ans.visit_start, ans.visit_end, true, !!ans.visit_sat_diff, ans.visit_sat_start || "", ans.visit_sat_end || ""),
+      team_hours: serializeTeamHours(ans.team_days, ans.team_start, ans.team_end, !!ans.team_sat_diff, ans.team_sat_start || "", ans.team_sat_end || ""),
       extra_instructions: info,
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -422,6 +424,22 @@ export default function SetupBuffet() {
                       <span className="text-sm text-muted-foreground">às</span>
                       <Input type="time" aria-label="Até" value={ans[`${k}_end`]} onChange={(e) => setA(`${k}_end`, e.target.value)} className="w-32" />
                     </div>
+                    {ans[`${k}_days`].includes(SATURDAY) && (
+                      <>
+                        <label className="flex items-center gap-2 text-sm">
+                          <Checkbox checked={!!ans[`${k}_sat_diff`]} onCheckedChange={(v) => setA(`${k}_sat_diff`, v === true)} />
+                          Sábado em outro horário
+                        </label>
+                        {ans[`${k}_sat_diff`] && (
+                          <div className="flex items-center gap-2">
+                            <span className="w-4 text-xs font-semibold text-muted-foreground">Sáb</span>
+                            <Input type="time" aria-label="Sábado das" value={ans[`${k}_sat_start`] || ""} onChange={(e) => setA(`${k}_sat_start`, e.target.value)} className="w-32" />
+                            <span className="text-sm text-muted-foreground">às</span>
+                            <Input type="time" aria-label="Sábado até" value={ans[`${k}_sat_end`] || ""} onChange={(e) => setA(`${k}_sat_end`, e.target.value)} className="w-32" />
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 ))}
                 <div className="space-y-2">
