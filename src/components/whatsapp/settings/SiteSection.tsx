@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle2, ExternalLink, Globe, ImagePlus, Loader2, RefreshCw, Save, Sparkles, Star, Trash2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resizeImageFile } from "@/lib/imageResize";
+import { GuestRangesEditor } from "./GuestRangesEditor";
 import {
   buildSiteDraft,
   isSiteBuilderPage,
@@ -398,6 +399,7 @@ export function SiteSection() {
               aria-label="Perguntas antes do WhatsApp"
             />
           </div>
+          {content.hero.cta_mode === "chatbot" && <GuestRangesEditor companyId={companyId} />}
         </CardContent>
       </Card>
 
