@@ -210,6 +210,8 @@ async function approve(supabase: SB, req: Request, body: Json): Promise<Response
     ...s,
     enabled_modules: { ...(s.enabled_modules || {}), ...SIGNUP_MODULES, ia_conversacional: true },
   }));
+  // A IA procura fotos, vídeo e PDF pela unidade do número: os enviados no cadastro passam para ela
+  await supabase.from("sales_materials").update({ unit: inst.unit }).eq("company_id", companyId).neq("unit", inst.unit);
   // Site: o contato que vem pelas perguntas do site vai para o número conectado
   // Meses com ano (Novembro/26...) e troca automática todo mês, como no Castelo
   await supabase.from("lp_bot_settings").upsert(

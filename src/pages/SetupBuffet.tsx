@@ -11,12 +11,14 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, Clock, Globe, ImagePlus, Loader2, PartyPopper, Sparkles, Store, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, Clock, FolderOpen, Globe, ImagePlus, Loader2, PartyPopper, Sparkles, Store, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { serializeBuffetInfo } from "@/lib/aiBuffetFields";
 import { serializeTeamHours, serializeVisitHours } from "@/lib/businessHours";
 import { buildSiteDraft, siteSubdomain } from "@/lib/siteBuilder";
 import { resizeImageFile } from "@/lib/imageResize";
+import { syncSitePhotosCollection } from "@/lib/aiMaterials";
+import { MaterialsQuickSetup } from "@/components/setup/MaterialsQuickSetup";
 import {
   BUSY_NOTE, buildPartySlots, dayKey, hasTerm, monthsAhead, SATURDAY, SETUP_SELECTS, SETUP_SUGGESTIONS, toggleTerm, type SetupAnswers, type Slot, WEEKDAYS,
 } from "@/lib/selfSetup";
@@ -29,6 +31,7 @@ const STEPS = [
   { id: "ia", title: "Atendimento da IA", icon: Sparkles },
   { id: "agenda", title: "Datas ocupadas", icon: CalendarDays },
   { id: "site", title: "Seu site", icon: Globe },
+  { id: "materiais", title: "Fotos, vídeo e PDF", icon: FolderOpen },
   { id: "fim", title: "Concluir", icon: PartyPopper },
 ] as const;
 
@@ -242,6 +245,8 @@ export default function SetupBuffet() {
   };
 
   const ensureSite = async (): Promise<boolean> => {
+    // As fotos do site também são as fotos que a IA manda no WhatsApp
+    await syncSitePhotosCollection(companyId, unit, photos).catch(() => undefined);
     if (siteExists) {
       if (photos.length) {
         const { data: lp } = await supabase.from("company_landing_pages").select("hero, gallery").eq("company_id", companyId).maybeSingle();
@@ -585,6 +590,10 @@ export default function SetupBuffet() {
                   </div>
                 )}
               </>
+            )}
+
+            {STEPS[step].id === "materiais" && (
+              <MaterialsQuickSetup companyId={companyId} unit={unit} sitePhotos={photos} />
             )}
 
             {STEPS[step].id === "fim" && (

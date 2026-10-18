@@ -195,6 +195,10 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
   const [uploadProgress, setUploadProgress] = useState(0);
   const [editingMaterial, setEditingMaterial] = useState<SalesMaterial | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<string>(UNITS[0] || "");
+  // As unidades chegam depois do primeiro desenho: sem isso a caixa ficava em branco
+  useEffect(() => {
+    if (!selectedUnit && UNITS.length) setSelectedUnit(UNITS[0]);
+  }, [UNITS, selectedUnit]);
   const [selectedType, setSelectedType] = useState<string>("pdf_package");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const multiFileInputRef = useRef<HTMLInputElement>(null);

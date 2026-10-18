@@ -19,6 +19,7 @@ import { toast } from "@/hooks/use-toast";
 import { MessageSquare, Plus, Pencil, Trash2, GripVertical, Loader2, Copy, ImagePlus, X } from "lucide-react";
 import { useRef } from "react";
 import { CaptionsCard } from "./CaptionsCard";
+import { signupStatus } from "@/lib/selfSetup";
 
 const DEFAULT_TEMPLATES = [
   { name: "Primeiro contato", template: "Oi {{nome}}! Aqui é do {{empresa}}! Vi seu pedido para festa em {{mes}} com {{convidados}}. Vou te enviar as opções e valores!!" },
@@ -43,7 +44,9 @@ interface MessagesSectionProps {
 }
 
 export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
-  const { currentCompanyId } = useCompany();
+  const { currentCompanyId, currentCompany } = useCompany();
+  // Buffet que se cadastrou pelo site só usa a IA: as legendas são do chatbot antigo
+  const aiOnly = !!signupStatus(currentCompany?.settings);
   // Any user who can see this section has permission to manage templates
   const canManage = true;
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
@@ -304,10 +307,12 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
           <div>
             <CardTitle className="flex items-center gap-2 text-lg sm:text-2xl">
               <MessageSquare className="w-5 h-5" />
-              Templates<span className="hidden sm:inline"> de Resposta Rápida</span>
+              {aiOnly ? "Respostas prontas da equipe" : <>Templates<span className="hidden sm:inline"> de Resposta Rápida</span></>}
             </CardTitle>
-            <CardDescription className="hidden sm:block">
-              Crie mensagens pré-definidas para agilizar o atendimento
+            <CardDescription className={aiOnly ? undefined : "hidden sm:block"}>
+              {aiOnly
+                ? "Mensagens prontas para quem atende pela Central de Atendimento: toque e a mensagem já vem escrita. A IA não usa estas mensagens."
+                : "Crie mensagens pré-definidas para agilizar o atendimento"}
             </CardDescription>
           </div>
           {canManage && (
@@ -405,7 +410,7 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
       </Card>
 
       {/* Legendas de Materiais - Collapsible */}
-      <CaptionsCard />
+      {!aiOnly && <CaptionsCard />}
 
       {/* Variáveis disponíveis */}
       <Card>

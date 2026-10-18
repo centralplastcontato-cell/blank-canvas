@@ -1,6 +1,7 @@
 // Site automático do buffet (tela "Meu site"): o que o navegador do dono não
 // pode fazer sozinho.
 //   - upload-photo: guarda uma foto do site no bucket "landing-pages"
+//   - material-upload-url: link de envio (assinado) do vídeo / PDF que a IA manda
 //   - publish: põe <slug>.hubcelebrei.com.br no projeto da Vercel e publica
 //   - set-domain / domain-status / remove-domain: domínio próprio do buffet
 // Só o dono/admin da empresa (ou admin da Celebrei). A chave da Vercel fica no
@@ -134,6 +135,23 @@ Deno.serve(async (req) => {
       if (error) return json({ error: `Não consegui guardar a foto (${error.message}).` }, 500);
       const { data } = supabase.storage.from("landing-pages").getPublicUrl(path);
       return json({ url: data.publicUrl });
+    }
+
+    // ── Materiais da IA (vídeo e PDF): o navegador envia direto para o Storage ──
+    // com um link assinado, sem passar o arquivo grande por aqui
+    if (action === "material-upload-url") {
+      const kind = String(body.kind || "");
+      const ext = String(body.ext || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const allowed: Record<string, string[]> = { video: ["mp4", "mov", "m4v", "webm", "3gp"], pdf: ["pdf"] };
+      if (!allowed[kind]) return json({ error: "Tipo de material inválido." }, 400);
+      if (!allowed[kind].includes(ext)) {
+        return json({ error: kind === "pdf" ? "Envie um arquivo PDF." : "Envie um vídeo MP4 ou MOV." }, 400);
+      }
+      const path = `${companyId}/${kind}/${crypto.randomUUID()}.${ext}`;
+      const { data, error } = await supabase.storage.from("sales-materials").createSignedUploadUrl(path);
+      if (error || !data) return json({ error: `Não consegui preparar o envio (${error?.message || "sem link"}).` }, 500);
+      const { data: pub } = supabase.storage.from("sales-materials").getPublicUrl(path);
+      return json({ path, token: data.token, url: pub.publicUrl });
     }
 
     // ── Publicar (endereço <slug>.hubcelebrei.com.br) ────────────────────
