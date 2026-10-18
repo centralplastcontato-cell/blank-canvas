@@ -161,7 +161,7 @@ export function CaptionsCard() {
                 <div className="p-3 bg-muted/50 rounded-lg text-sm">
                   <p className="text-muted-foreground">
                     Use <code className="bg-background px-1 py-0.5 rounded">{"{unidade}"}</code> para 
-                    inserir automaticamente o nome da unidade (Manchester ou Trujillo).
+                    inserir automaticamente o nome da unidade.
                   </p>
                 </div>
 

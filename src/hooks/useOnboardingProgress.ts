@@ -30,7 +30,8 @@ export function useOnboardingProgress() {
         const [instRes, lpPub, matRes, teamRes] = await Promise.all([
           supabase.from('wapi_instances').select('id', { count: 'exact', head: true }).eq('company_id', currentCompanyId).eq('status', 'connected'),
           supabase.from('company_landing_pages').select('id', { count: 'exact', head: true }).eq('company_id', currentCompanyId).eq('is_published', true),
-          supabase.from('sales_materials').select('id', { count: 'exact', head: true }).eq('company_id', currentCompanyId).eq('is_active', true),
+          // As fotos do site já viram a coleção sozinhas: conta só o PDF de pacotes
+          supabase.from('sales_materials').select('id', { count: 'exact', head: true }).eq('company_id', currentCompanyId).eq('is_active', true).eq('type', 'pdf_package'),
           supabase.from('user_companies').select('id', { count: 'exact', head: true }).eq('company_id', currentCompanyId),
         ]);
         setSteps([
@@ -38,7 +39,7 @@ export function useOnboardingProgress() {
           { id: 'whatsapp', label: 'WhatsApp conectado', description: 'A equipe Celebrei conecta o seu número; depois é só ler o QR Code', completed: (instRes.count ?? 0) > 0, route: '/configuracoes?secao=connection' },
           { id: 'ia', label: 'IA atendendo', description: 'Liberada pela Celebrei depois da aprovação', completed: signup === 'aprovado' },
           { id: 'site', label: 'Publicar o site do buffet', description: 'Os botões do site abrem o seu WhatsApp', completed: (lpPub.count ?? 0) > 0, route: '/configuracoes?secao=site' },
-          { id: 'materiais', label: 'Enviar fotos e PDF de pacotes', description: 'A IA manda esses materiais para os clientes', completed: (matRes.count ?? 0) > 0, route: '/configuracoes?secao=content' },
+          { id: 'materiais', label: 'Enviar o PDF de pacotes e o vídeo', description: 'A IA manda fotos, vídeo e pacotes quando o cliente pede', completed: (matRes.count ?? 0) > 0, route: '/configuracoes?secao=content' },
           { id: 'team', label: 'Convidar a equipe', description: 'Quem vai atender os clientes que a IA passar', completed: (teamRes.count ?? 0) > 1, route: '/configuracoes?tab=usuarios' },
         ]);
         setIsLoading(false);
