@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2, Loader2 } from "lucide-react";
+import { LEGAL_VERSION } from "@/lib/legal";
 
 const UFS = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
 
@@ -13,6 +14,7 @@ const UFS = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "
 export default function Comecar() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ buffet_name: "", owner_name: "", whatsapp: "", city: "", state: "SP", email: "", password: "", website: "" });
+  const [accepted, setAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -22,7 +24,7 @@ export default function Comecar() {
     setError(null);
     setBusy(true);
     try {
-      const { data, error: fnErr } = await supabase.functions.invoke("self-signup", { body: { action: "signup", ...form } });
+      const { data, error: fnErr } = await supabase.functions.invoke("self-signup", { body: { action: "signup", ...form, accept_terms: accepted, terms_version: LEGAL_VERSION } });
       let msg: string | null = data?.error ?? null;
       if (fnErr && !msg) {
         try {
@@ -96,8 +98,15 @@ export default function Comecar() {
           </div>
           {/* Campo escondido: só robô preenche */}
           <input type="text" name="website" value={form.website} onChange={set("website")} className="hidden" tabIndex={-1} autoComplete="off" aria-hidden="true" />
+          <label className="flex items-start gap-2 text-sm text-slate-600">
+            <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#E0457A]" />
+            <span>
+              Li e aceito os <a href="/termos" target="_blank" rel="noopener noreferrer" className="font-medium text-[#E0457A] underline">Termos de Uso</a> e
+              a <a href="/privacidade" target="_blank" rel="noopener noreferrer" className="font-medium text-[#E0457A] underline">Política de Privacidade</a>.
+            </span>
+          </label>
           {error && <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
-          <Button type="submit" className="w-full" disabled={busy}>
+          <Button type="submit" className="w-full" disabled={busy || !accepted}>
             {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Criar conta e começar
           </Button>
           <p className="text-center text-xs text-slate-500">

@@ -1,4 +1,5 @@
 import { Instagram } from "lucide-react";
+import { Link } from "react-router-dom";
 import CelebreiLogo from "./CelebreiLogo";
 
 export default function HubFooter() {
@@ -19,6 +20,10 @@ export default function HubFooter() {
             <Instagram className="h-4 w-4" />
             @celebrei.app
           </a>
+          <div className="flex gap-4 text-xs text-slate-500">
+            <Link to="/termos" className="[@media(hover:hover)]:hover:text-[#D23468]">Termos de Uso</Link>
+            <Link to="/privacidade" className="[@media(hover:hover)]:hover:text-[#D23468]">Política de Privacidade</Link>
+          </div>
           <p className="text-xs text-slate-400">© {new Date().getFullYear()} Celebrei. Todos os direitos reservados.</p>
         </div>
       </div>

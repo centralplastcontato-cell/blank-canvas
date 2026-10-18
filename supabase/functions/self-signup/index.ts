@@ -90,6 +90,8 @@ async function signup(supabase: SB, req: Request, body: Json): Promise<Response>
   if (password.length < 8) return json({ error: "A senha precisa ter pelo menos 8 caracteres." }, 400);
   if (whatsapp.length < 10 || whatsapp.length > 13) return json({ error: "WhatsApp inválido. Use DDD + número." }, 400);
   if (!city) return json({ error: "Escreva a cidade do buffet." }, 400);
+  if (body.accept_terms !== true) return json({ error: "Aceite os Termos de Uso e a Política de Privacidade para continuar." }, 400);
+  const termsVersion = String(body.terms_version || "").slice(0, 20);
 
   const { data: created, error: userErr } = await supabase.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name: ownerName } });
   if (userErr || !created?.user) {
@@ -110,7 +112,8 @@ async function signup(supabase: SB, req: Request, body: Json): Promise<Response>
       is_active: true,
       parent_id: roots?.[0]?.id ?? null,
       settings: {
-        signup: { status: "cadastro", source: "site", created_at: new Date().toISOString(), owner_user_id: userId, unit: unitName },
+        signup: { status: "cadastro", source: "site", created_at: new Date().toISOString(), owner_user_id: userId, unit: unitName,
+          terms_accepted_at: new Date().toISOString(), terms_version: termsVersion },
         // Agenda já ligada: é onde o dono vê as datas ocupadas, as festas e as visitas que a IA marcar
         enabled_modules: { ...SIGNUP_MODULES },
       },

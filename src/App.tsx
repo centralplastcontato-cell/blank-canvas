@@ -19,6 +19,7 @@ const lazyImports = {
   "/dashboard": () => import("./pages/Index"),
   "/auth": () => import("./pages/Auth"),
   "/comecar": () => import("./pages/Comecar"),
+  "/termos": () => import("./pages/LegalPage"),
   "/setup": () => import("./pages/SetupBuffet"),
   "/atendimento": () => import("./pages/CentralAtendimento"),
   "/configuracoes": () => import("./pages/Configuracoes"),
@@ -75,6 +76,7 @@ export function prefetchRoute(path: string) {
 const Index = lazy(lazyImports["/dashboard"]);
 const Auth = lazy(lazyImports["/auth"]);
 const Comecar = lazy(lazyImports["/comecar"]);
+const LegalPage = lazy(lazyImports["/termos"]);
 const SetupBuffet = lazy(lazyImports["/setup"]);
 const CentralAtendimento = lazy(lazyImports["/atendimento"]);
 const Configuracoes = lazy(lazyImports["/configuracoes"]);
@@ -173,6 +175,8 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/:slug" element={<Auth />} />
               <Route path="/comecar" element={<Comecar />} />
+              <Route path="/termos" element={<LegalPage doc="termos" />} />
+              <Route path="/privacidade" element={<LegalPage doc="privacidade" />} />
               <Route path="/setup" element={<SetupBuffet />} />
               <Route path="/atendimento" element={<CentralAtendimento />} />
               <Route path="/configuracoes" element={<Configuracoes />} />
