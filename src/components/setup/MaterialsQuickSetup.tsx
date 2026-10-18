@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CheckCircle2, FileText, Images, Loader2, Trash2, Upload, Video } from "lucide-react";
 import { loadAiMaterials, removeAiMaterial, uploadAiMaterial, type AiMaterial, type MaterialKind } from "@/lib/aiMaterials";
+import { AiImagesEditor } from "./AiImagesEditor";
 
 interface Props {
   companyId: string;
@@ -137,8 +138,10 @@ export function MaterialsQuickSetup({ companyId, unit, sitePhotos }: Props) {
         </div>
       </div>
 
+      <AiImagesEditor companyId={companyId} />
+
       <p className="text-xs text-muted-foreground">
-        Pode pular e enviar depois em Configurações → Empresa e WhatsApp → Conteúdo → Materiais.
+        Pode pular e enviar depois em Configurações → Empresa e WhatsApp → Conteúdo → Materiais (a imagem da primeira mensagem fica em Minha IA).
       </p>
     </div>
   );

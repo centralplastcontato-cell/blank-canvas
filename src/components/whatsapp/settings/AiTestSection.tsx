@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle2, Sparkles } from "lucide-react";
 import { AiTestChat } from "@/components/setup/AiTestChat";
+import { AiImagesEditor } from "@/components/setup/AiImagesEditor";
 
 const IDEAS = [
   "Peça orçamento (\"quanto fica pra 70 pessoas no sábado?\")",
@@ -36,6 +37,12 @@ export function AiTestSection() {
           </ul>
           <Button onClick={() => setOpen(true)} className="w-full sm:w-auto"><Sparkles className="mr-2 h-4 w-4" /> Conversar com a minha IA</Button>
           <p className="text-xs text-muted-foreground">Alguma resposta errada? Avise a equipe Celebrei que a gente ajusta.</p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="space-y-3 pt-6">
+          <p className="font-medium">Imagens da IA</p>
+          <AiImagesEditor companyId={currentCompany.id} showFollowUps />
         </CardContent>
       </Card>
       <AiTestChat open={open} onOpenChange={setOpen} companyId={currentCompany.id} />
