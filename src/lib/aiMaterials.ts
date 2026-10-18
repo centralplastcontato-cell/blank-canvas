@@ -19,14 +19,15 @@ export interface AiMaterial {
   name: string;
   file_url: string;
   photo_urls: string[] | null;
+  guest_count: number | null;
 }
 
 export async function loadAiMaterials(companyId: string): Promise<AiMaterial[]> {
   const { data } = await supabase.from("sales_materials")
-    .select("id, type, name, file_url, photo_urls")
+    .select("id, type, name, file_url, photo_urls, guest_count")
     .eq("company_id", companyId).eq("is_active", true)
     .in("type", ["photo_collection", "video", "pdf_package"])
-    .order("sort_order");
+    .order("sort_order").order("guest_count", { ascending: true, nullsFirst: true });
   return (data || []) as AiMaterial[];
 }
 
@@ -47,8 +48,14 @@ export async function syncSitePhotosCollection(companyId: string, unit: string, 
   }
 }
 
-/** Envia o vídeo ou o PDF (link assinado do site-builder) e guarda como material da IA */
-export async function uploadAiMaterial(companyId: string, unit: string, kind: MaterialKind, file: File, name: string): Promise<void> {
+/**
+ * Envia o vídeo ou um PDF (link assinado do site-builder) e guarda como material da IA.
+ * Vídeo: um só (o novo substitui). PDF: pode ter vários, cada um com a sua faixa
+ * de convidados (guestCount) ou nenhuma (vale para todos).
+ */
+export async function uploadAiMaterial(
+  companyId: string, unit: string, kind: MaterialKind, file: File, name: string, guestCount: number | null = null,
+): Promise<void> {
   const bytes = await file.arrayBuffer().catch(() => new ArrayBuffer(0));
   if (bytes.byteLength === 0) {
     throw new Error("Não consegui ler o arquivo (chegou vazio). No iPhone, salve o arquivo no aparelho (Fotos ou Arquivos) e escolha de novo.");
@@ -69,13 +76,22 @@ export async function uploadAiMaterial(companyId: string, unit: string, kind: Ma
     .uploadToSignedUrl(link.path, link.token, new Blob([bytes], { type: contentType }), { contentType });
   if (upErr) throw new Error(`Não consegui enviar o arquivo (${upErr.message}).`);
 
-  // Um vídeo e um PDF: o novo substitui o anterior
   const type = MATERIAL_TYPE[kind];
-  const { data: existing } = await supabase.from("sales_materials")
-    .select("id").eq("company_id", companyId).eq("type", type).eq("is_active", true).order("sort_order").limit(1);
   const row = { file_url: link.url as string, file_path: link.path as string, name };
-  const { error } = existing?.length
-    ? await supabase.from("sales_materials").update(row).eq("id", existing[0].id)
-    : await supabase.from("sales_materials").insert({ company_id: companyId, unit, type, is_active: true, sort_order: 0, ...row });
+  let existingId: string | null = null;
+  if (kind === "video") {
+    const { data: existing } = await supabase.from("sales_materials")
+      .select("id").eq("company_id", companyId).eq("type", type).eq("is_active", true).order("sort_order").limit(1);
+    existingId = existing?.[0]?.id ?? null;
+  }
+  const { error } = existingId
+    ? await supabase.from("sales_materials").update(row).eq("id", existingId)
+    : await supabase.from("sales_materials").insert({ company_id: companyId, unit, type, is_active: true, sort_order: 0, guest_count: guestCount, ...row });
   if (error) throw new Error(`Arquivo enviado, mas não consegui salvar (${error.message}).`);
+}
+
+/** Tira um PDF da lista da IA */
+export async function removeAiMaterial(id: string): Promise<void> {
+  const { error } = await supabase.from("sales_materials").delete().eq("id", id);
+  if (error) throw new Error(`Não consegui tirar (${error.message}).`);
 }
