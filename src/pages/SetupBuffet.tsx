@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, Clock, FolderOpen, Globe, ImagePlus, Loader2, PartyPopper, Sparkles, Store, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, BadgeDollarSign, CalendarDays, CheckCircle2, Clock, FolderOpen, Globe, ImagePlus, Loader2, PartyPopper, Sparkles, Store, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { serializeBuffetInfo } from "@/lib/aiBuffetFields";
 import { serializeTeamHours, serializeVisitHours } from "@/lib/businessHours";
@@ -19,6 +19,7 @@ import { buildSiteDraft, siteSubdomain } from "@/lib/siteBuilder";
 import { resizeImageFile } from "@/lib/imageResize";
 import { syncSitePhotosCollection } from "@/lib/aiMaterials";
 import { MaterialsQuickSetup } from "@/components/setup/MaterialsQuickSetup";
+import { PricesQuickSetup, type PricesQuickSetupHandle } from "@/components/setup/PricesQuickSetup";
 import {
   BUSY_NOTE, buildPartySlots, dayKey, hasTerm, monthsAhead, SATURDAY, SETUP_SELECTS, SETUP_SUGGESTIONS, toggleTerm, type SetupAnswers, type Slot, WEEKDAYS,
 } from "@/lib/selfSetup";
@@ -32,6 +33,7 @@ const STEPS = [
   { id: "agenda", title: "Datas ocupadas", icon: CalendarDays },
   { id: "site", title: "Seu site", icon: Globe },
   { id: "materiais", title: "Fotos, vídeo e PDF", icon: FolderOpen },
+  { id: "valores", title: "Valores", icon: BadgeDollarSign },
   { id: "fim", title: "Concluir", icon: PartyPopper },
 ] as const;
 
@@ -110,6 +112,7 @@ export default function SetupBuffet() {
   const [siteExists, setSiteExists] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
   const photoRef = useRef<HTMLInputElement>(null);
+  const pricesRef = useRef<PricesQuickSetupHandle>(null);
 
   // Passo 5
   const [agendaOk, setAgendaOk] = useState(false);
@@ -271,7 +274,7 @@ export default function SetupBuffet() {
     setSaving(true);
     try {
       const id = STEPS[step].id;
-      const ok = id === "buffet" ? await saveBuffet() : id === "ia" ? await saveAi() : id === "site" ? await ensureSite() : true;
+      const ok = id === "buffet" ? await saveBuffet() : id === "ia" ? await saveAi() : id === "site" ? await ensureSite() : id === "valores" ? await (pricesRef.current?.save() ?? true) : true;
       if (ok) {
         const nextStep = Math.min(step + 1, STEPS.length - 1);
         setStep(nextStep);
@@ -595,6 +598,8 @@ export default function SetupBuffet() {
             {STEPS[step].id === "materiais" && (
               <MaterialsQuickSetup companyId={companyId} unit={unit} sitePhotos={photos} />
             )}
+
+            {STEPS[step].id === "valores" && <PricesQuickSetup ref={pricesRef} companyId={companyId} />}
 
             {STEPS[step].id === "fim" && (
               <>
