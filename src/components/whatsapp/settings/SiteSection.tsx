@@ -18,7 +18,9 @@ import {
   buildSiteDraft,
   isSiteBuilderPage,
   normalizeCustomDomain,
+  formatPrice,
   offerTitleFromPrice,
+  parsePrice,
   onlyDigits,
   paletteTheme,
   SITE_PALETTES,
@@ -91,7 +93,7 @@ export function SiteSection() {
         footer: lp.footer, theme: lp.theme, video: lp.video, testimonials: lp.testimonials, social_proof: lp.social_proof,
       } as unknown as SiteContent;
       setContent(c);
-      const m = (c.offer?.title || "").match(/R\$\s*([\d.]+)/);
+      const m = (c.offer?.title || "").match(/R\$\s*([\d.,]+)/);
       setPrice(m ? m[1] : "");
     }
     setLoading(false);
@@ -473,7 +475,8 @@ export function SiteSection() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="site-price">A partir de (R$)</Label>
-                  <Input id="site-price" inputMode="numeric" placeholder="Ex.: 3.900" value={price} onChange={(e) => setPrice(e.target.value)} />
+                  <Input id="site-price" inputMode="numeric" placeholder="Ex.: 3.900,00" value={price} onChange={(e) => setPrice(e.target.value.replace(/[^\d.,]/g, ""))}
+                    onBlur={() => { const n = parsePrice(price); setPrice(n ? formatPrice(n) : ""); }} />
                   {!price.trim() && <p className="text-xs text-muted-foreground">Sem valor, o site mostra só "Conheça nossos pacotes".</p>}
                 </div>
                 <div className="space-y-2">
