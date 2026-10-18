@@ -8,6 +8,7 @@
 
 // deno-lint-ignore-file no-explicit-any
 import { findLeadByPhone } from "../_shared/lead-phone.ts";
+import { parseGuestCount, pickPackagePdfs } from "../_shared/package-pdf.ts";
 import { DEFAULT_AI_MODEL, estimateChatCostUsd, providerForModel } from "../_shared/ai-models.ts";
 import { type ChatTurn, createLlmSession, type LlmStep, type ToolDef } from "./ai-llm.ts";
 import { describeImage, fetchMediaBytes, mediaHistoryText, transcribeAudio } from "./ai-media.ts";
@@ -1185,8 +1186,15 @@ async function toolEnviarMateriais(
   }
 
   if (tipo === 'pacotes') {
-    const pdf = (materials as any[]).find((m) => m.type === 'pdf_package');
-    if (!pdf?.file_url) return 'ERRO: sem PDF de pacotes cadastrado.';
+    // Vários PDFs por faixa de convidados: o mesmo critério do envio automático
+    const allPdfs = (materials as any[]).filter((m) => m.type === 'pdf_package' && m.file_url);
+    if (!allPdfs.length) return 'ERRO: sem PDF de pacotes cadastrado.';
+    const guests = parseGuestCount((conv.bot_data as Json | null)?.convidados);
+    const picked = pickPackagePdfs(allPdfs, guests);
+    if (picked.needGuests) {
+      return 'AINDA NÃO: os pacotes são separados por quantidade de convidados. Pergunte quantos convidados (e registre com registrar_dados_festa) antes de mandar o PDF.';
+    }
+    const pdf = picked.pdfs[0] || allPdfs[0];
     const id = await sendViaWapiSendId(supabase, 'send-document', instance, conv, {
       mediaUrl: pdf.file_url,
       fileName: pdf.name ? `${pdf.name}.pdf` : 'Pacotes.pdf',
