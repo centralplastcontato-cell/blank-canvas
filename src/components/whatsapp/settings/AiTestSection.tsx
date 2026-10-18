@@ -1,0 +1,44 @@
+import { useState } from "react";
+import { useCompany } from "@/contexts/CompanyContext";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { CheckCircle2, Sparkles } from "lucide-react";
+import { AiTestChat } from "@/components/setup/AiTestChat";
+
+const IDEAS = [
+  "Peça orçamento (\"quanto fica pra 70 pessoas no sábado?\")",
+  "Pergunte se tem data livre num mês",
+  "Peça fotos, o vídeo ou os pacotes",
+  "Peça para visitar o buffet",
+  "Pergunte uma regra (bolo de fora, decoração, horário)",
+];
+
+/** "Minha IA": o dono testa como a IA atende, sem nada sair pelo WhatsApp */
+export function AiTestSection() {
+  const { currentCompany } = useCompany();
+  const [open, setOpen] = useState(false);
+  if (!currentCompany) return null;
+  return (
+    <div className="max-w-xl space-y-4">
+      <Card>
+        <CardContent className="space-y-4 pt-6">
+          <div className="space-y-1">
+            <p className="flex items-center gap-2 font-medium"><Sparkles className="h-4 w-4 text-primary" /> Testar a minha IA</p>
+            <p className="text-sm text-muted-foreground">
+              Converse com a sua IA como se fosse um cliente e veja como ela responde: com a sua agenda, os seus valores,
+              fotos e pacotes. É só um teste: nada vai para o WhatsApp e nada fica gravado.
+            </p>
+          </div>
+          <ul className="space-y-1.5 text-sm">
+            {IDEAS.map((i) => (
+              <li key={i} className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" /> {i}</li>
+            ))}
+          </ul>
+          <Button onClick={() => setOpen(true)} className="w-full sm:w-auto"><Sparkles className="mr-2 h-4 w-4" /> Conversar com a minha IA</Button>
+          <p className="text-xs text-muted-foreground">Alguma resposta errada? Avise a equipe Celebrei que a gente ajusta.</p>
+        </CardContent>
+      </Card>
+      <AiTestChat open={open} onOpenChange={setOpen} companyId={currentCompany.id} />
+    </div>
+  );
+}

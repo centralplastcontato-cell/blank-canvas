@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Wifi, Bell, Bot, Settings, Lock, HelpCircle, FileText, Building2, Globe } from "lucide-react";
+import { Wifi, Bell, Bot, Settings, Lock, HelpCircle, FileText, Building2, Globe, Sparkles } from "lucide-react";
 import { ConnectionSection } from "./settings/ConnectionSection";
 import { NotificationsSection } from "./settings/NotificationsSection";
 import { AutomationsSection } from "./settings/AutomationsSection";
@@ -9,9 +9,11 @@ import { VisualGuideSection } from "./settings/VisualGuideSection";
 import { ContentSection } from "./settings/ContentSection";
 import { CompanyDataSection } from "./settings/CompanyDataSection";
 import { SiteSection } from "./settings/SiteSection";
+import { AiTestSection } from "./settings/AiTestSection";
 import { useConfigPermissions } from "@/hooks/useConfigPermissions";
 import { useCompanyModules, type CompanyModules } from "@/hooks/useCompanyModules";
 import { useCompany } from "@/contexts/CompanyContext";
+import { signupStatus } from "@/lib/selfSetup";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,6 +41,15 @@ const allConfigSections = [
     title: "Meu site",
     description: "Página do buffet",
     icon: Globe,
+    requiresCompanyAdmin: true,
+  },
+  {
+    id: "ia-teste",
+    permissionKey: null as any,
+    moduleKey: null as keyof CompanyModules | null,
+    title: "Minha IA",
+    description: "Testar como ela atende",
+    icon: Sparkles,
     requiresCompanyAdmin: true,
   },
   {
@@ -94,7 +105,7 @@ const allConfigSections = [
 export function WhatsAppConfig({ userId, isAdmin, isGestor = false }: WhatsAppConfigProps) {
   const navigate = useNavigate();
   const modules = useCompanyModules();
-  const { currentRole } = useCompany();
+  const { currentRole, currentCompany } = useCompany();
   const { permissions, isLoading } = useConfigPermissions(userId, isAdmin, currentRole === 'owner');
   const isCompanyAdminOrOwner = currentRole === 'admin' || currentRole === 'owner';
   
@@ -102,11 +113,13 @@ export function WhatsAppConfig({ userId, isAdmin, isGestor = false }: WhatsAppCo
   const configSections = useMemo(() => {
     return allConfigSections.filter(section => {
       if ((section as any).requiresCompanyAdmin && !isCompanyAdminOrOwner && !isAdmin && !isGestor) return false;
+      // Teste da IA: só para quem tem IA (módulo ligado ou buffet do cadastro pelo site)
+      if (section.id === "ia-teste" && !modules.ia_conversacional && !signupStatus(currentCompany?.settings)) return false;
       const hasPermission = section.permissionKey === null || permissions[section.permissionKey];
       const moduleEnabled = isAdmin || section.moduleKey === null || modules[section.moduleKey];
       return hasPermission && moduleEnabled;
     });
-  }, [permissions, modules, isAdmin, isCompanyAdminOrOwner, isGestor]);
+  }, [permissions, modules, isAdmin, isCompanyAdminOrOwner, isGestor, currentCompany?.settings]);
 
   const [activeSection, setActiveSection] = useState<string | null>(null);
 
@@ -125,6 +138,8 @@ export function WhatsAppConfig({ userId, isAdmin, isGestor = false }: WhatsAppCo
         return <CompanyDataSection />;
       case "site":
         return <SiteSection />;
+      case "ia-teste":
+        return <AiTestSection />;
       case "connection":
         return <ConnectionSection userId={userId} isAdmin={isAdmin} />;
       case "content":
