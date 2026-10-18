@@ -74,10 +74,12 @@ interface LeadChatbotProps {
   origem?: string | null;
   /** Site automático: sem número conectado, o fim da conversa leva ao WhatsApp do buffet (com os dados) */
   siteBuilder?: boolean;
+  /** Cores do site (site automático): o chat usa o modelo do Castelo com estas cores */
+  accent?: { primary: string; secondary: string } | null;
 }
 
 
-export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLogo, companyWhatsApp, lpBotConfig, unitOptions, interestContext, origem, siteBuilder }: LeadChatbotProps) {
+export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLogo, companyWhatsApp, lpBotConfig, unitOptions, interestContext, origem, siteBuilder, accent }: LeadChatbotProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   // UTMs do anúncio: lidas ao abrir a página (a URL pode mudar até o envio do lead)
   const [initialUtms] = useState(captureLandingUtms);
@@ -138,6 +140,12 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
   const displayLogo = isDynamic ? companyLogo : logoCastelo;
   // Visual novo só no chat do Castelo; as LPs dos outros buffets ficam como estão
   const castelo = !isDynamic;
+  // Site automático: o mesmo modelo do Castelo, com as cores do site do buffet
+  const sb = !castelo && !!siteBuilder;
+  const c1 = accent?.primary || "#E91E63";
+  const c2 = accent?.secondary || "#F57C00";
+  const sbGradient = `linear-gradient(110deg, ${c1}, ${c2})`;
+  const sbSoftBg = /^#[0-9a-f]{6}$/i.test(c1) ? `linear-gradient(180deg, ${c1}0D 0%, #FFFFFF 100%)` : "#FAFAFB";
 
   const emojis = [
     "😀","😂","😍","🥰","😎","🤩","😇","🥳","😘","😜",
@@ -762,18 +770,19 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           className="bg-card rounded-3xl shadow-floating w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden"
+          style={sb ? ({ "--chat-c1": c1 } as React.CSSProperties) : undefined}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
           <div
-            className={castelo ? "p-4 flex items-center justify-between" : "bg-gradient-hero p-4 flex items-center justify-between"}
-            style={castelo ? { background: "linear-gradient(110deg, #E91E63 0%, #C2185B 45%, #F57C00 100%)" } : undefined}
+            className={castelo || sb ? "p-4 flex items-center justify-between" : "bg-gradient-hero p-4 flex items-center justify-between"}
+            style={castelo ? { background: "linear-gradient(110deg, #E91E63 0%, #C2185B 45%, #F57C00 100%)" } : sb ? { background: sbGradient } : undefined}
           >
             <div className="flex items-center gap-3">
-              {displayLogo && (castelo ? (
+              {displayLogo && (castelo || sb ? (
                 <div className="relative">
                   <div className="w-12 h-12 rounded-full bg-white shadow-md ring-2 ring-white/60 flex items-center justify-center overflow-hidden">
-                    <img src={displayLogo} alt={displayName} className="w-10 h-auto" />
+                    <img src={displayLogo} alt={displayName} className={sb ? "w-full h-full object-contain p-1" : "w-10 h-auto"} />
                   </div>
                   <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-green-400 ring-2 ring-white" />
                 </div>
@@ -785,7 +794,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
                 />
               ))}
               <div>
-                <h3 className={castelo ? "font-display font-bold text-white text-lg leading-tight" : "font-display font-bold bg-gradient-to-r from-yellow-300 via-white to-pink-200 bg-clip-text text-transparent drop-shadow-sm"}>{displayName}</h3>
+                <h3 className={castelo || sb ? "font-display font-bold text-white text-lg leading-tight" : "font-display font-bold bg-gradient-to-r from-yellow-300 via-white to-pink-200 bg-clip-text text-transparent drop-shadow-sm"}>{displayName}</h3>
                 <p className="text-sm text-white/90">{castelo ? "Online agora · resposta rápida" : "Online agora"}</p>
               </div>
             </div>
@@ -800,7 +809,7 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
           {/* Messages */}
           <div
             className="flex-1 overflow-y-auto p-4 space-y-4"
-            style={castelo ? { background: "linear-gradient(180deg, #FFF5F9 0%, #FFFDF5 100%)" } : undefined}
+            style={castelo ? { background: "linear-gradient(180deg, #FFF5F9 0%, #FFFDF5 100%)" } : sb ? { background: sbSoftBg } : undefined}
           >
             <AnimatePresence>
               {messages.map((message) => (
@@ -808,31 +817,36 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
                   key={message.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`flex ${message.type === "user" ? "justify-end" : "justify-start"} ${castelo ? "items-end gap-2" : ""}`}
+                  className={`flex ${message.type === "user" ? "justify-end" : "justify-start"} ${castelo || sb ? "items-end gap-2" : ""}`}
                 >
                   {castelo && message.type === "bot" && (
                     <div className="w-8 h-8 flex-shrink-0 rounded-full bg-white shadow ring-1 ring-pink-100 flex items-center justify-center overflow-hidden">
                       <img src={logoCastelo} alt="" className="w-7 h-auto" />
                     </div>
                   )}
+                  {sb && message.type === "bot" && displayLogo && (
+                    <div className="w-8 h-8 flex-shrink-0 rounded-full bg-white shadow ring-1 ring-black/5 flex items-center justify-center overflow-hidden">
+                      <img src={displayLogo} alt="" className="w-full h-full object-contain p-0.5" />
+                    </div>
+                  )}
                   <div
-                    className={`${castelo ? "max-w-[85%]" : "max-w-[80%]"} rounded-2xl p-4 ${
-                      castelo
+                    className={`${castelo || sb ? "max-w-[85%]" : "max-w-[80%]"} rounded-2xl p-4 ${
+                      castelo || sb
                         ? message.type === "user"
                           ? "text-white rounded-br-md shadow-md"
-                          : "bg-white text-foreground rounded-bl-md shadow-sm ring-1 ring-pink-100"
+                          : `bg-white text-foreground rounded-bl-md shadow-sm ring-1 ${castelo ? "ring-pink-100" : "ring-black/5"}`
                         : message.type === "user"
                           ? "bg-primary text-primary-foreground rounded-br-md"
                           : "bg-muted text-foreground rounded-bl-md"
                     }`}
-                    style={castelo && message.type === "user" ? { background: "linear-gradient(110deg, #E91E63, #F57C00)" } : undefined}
+                    style={castelo && message.type === "user" ? { background: "linear-gradient(110deg, #E91E63, #F57C00)" } : sb && message.type === "user" ? { background: sbGradient } : undefined}
                   >
                     <p className="whitespace-pre-line">{message.content}</p>
                     {message.options && (
                       <div className={`mt-3 ${
                         message.id === "day-of-month" 
                           ? "" 
-                          : castelo && message.options.length >= 6
+                          : (castelo || sb) && message.options.length >= 6
                             ? "grid grid-cols-3 gap-2"
                             : "flex flex-wrap gap-2"
                       }`}>
@@ -875,11 +889,15 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
                                   message.id === "day-of-month"
                                     ? castelo
                                       ? "bg-pink-50 text-foreground w-9 h-9 rounded-lg text-sm font-semibold ring-1 ring-pink-100 hover:bg-[#E91E63] hover:text-white transition-colors flex items-center justify-center"
+                                      : sb
+                                      ? "bg-white text-foreground w-9 h-9 rounded-lg text-sm font-semibold ring-1 ring-black/10 hover:bg-[var(--chat-c1)] hover:text-white transition-colors flex items-center justify-center"
                                       : "bg-card text-foreground w-9 h-9 rounded-lg text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm flex items-center justify-center"
                                     : isPromoMonth
                                       ? "bg-gradient-to-r from-primary to-festive text-primary-foreground px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-all shadow-md ring-2 ring-primary/30"
                                       : castelo
                                         ? "bg-white text-[#AD1457] px-1 sm:px-3 py-2.5 rounded-xl text-[13px] sm:text-sm font-semibold whitespace-nowrap ring-1 ring-pink-200 shadow-sm hover:bg-[#E91E63] hover:text-white hover:ring-[#E91E63] hover:-translate-y-0.5 active:scale-95 transition-all"
+                                        : sb
+                                        ? "bg-white text-[var(--chat-c1)] px-1 sm:px-3 py-2.5 rounded-xl text-[13px] sm:text-sm font-semibold whitespace-nowrap ring-1 ring-black/10 shadow-sm hover:bg-[var(--chat-c1)] hover:text-white active:scale-95 transition-all"
                                         : "bg-card text-foreground px-4 py-2 rounded-full text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"
                                 }`}
                               >
@@ -952,17 +970,17 @@ export function LeadChatbot({ isOpen, onClose, companyId, companyName, companyLo
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && handleInputSubmit()}
-                  enterKeyHint={castelo ? "send" : undefined}
-                  placeholder={inputType === "name" ? (castelo ? "Seu nome" : "Seu nome completo") : inputType === "whatsapp" ? "(11) 99999-9999" : "Ex: Vila Mariana, São Paulo"}
-                  className={`flex-1 ${castelo ? "min-w-0 " : ""}bg-muted border border-border rounded-full px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary`}
+                  enterKeyHint={castelo || sb ? "send" : undefined}
+                  placeholder={inputType === "name" ? (castelo || sb ? "Seu nome" : "Seu nome completo") : inputType === "whatsapp" ? "(11) 99999-9999" : "Ex: Vila Mariana, São Paulo"}
+                  className={`flex-1 ${castelo || sb ? "min-w-0 " : ""}bg-muted border border-border rounded-full px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary`}
                 />
-                {castelo ? (
+                {castelo || sb ? (
                   // Botão com a palavra "Enviar": só o aviãozinho confundia (parecia o botão flutuante)
                   <button
                     onClick={handleInputSubmit}
                     disabled={isSaving}
                     className="shrink-0 text-white font-bold text-sm pl-4 pr-3.5 py-3 rounded-full shadow-md hover:scale-105 transition-transform disabled:opacity-50 flex items-center gap-1.5"
-                    style={{ background: "linear-gradient(110deg, #E91E63, #F57C00)" }}
+                    style={{ background: castelo ? "linear-gradient(110deg, #E91E63, #F57C00)" : sbGradient }}
                   >
                     {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Enviar<Send className="w-4 h-4" /></>}
                   </button>

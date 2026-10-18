@@ -294,6 +294,7 @@ export default function DynamicLandingPage({ domain, slug: slugProp }: DynamicLa
         unitOptions={data.unitNames}
         interestContext={interestContext}
         siteBuilder={builderPage}
+        accent={builderPage ? { primary: data.theme.primary_color, secondary: data.theme.secondary_color } : null}
       />
     </div>
   );
