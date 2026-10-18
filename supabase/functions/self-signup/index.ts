@@ -189,6 +189,94 @@ function upcomingMonthOptions(now: Date): string[] {
   });
 }
 
+// ─── Valores (passo a passo) ────────────────────────────────────────────────
+// Tabela que a IA usa para responder preço (consultar_valor_pacote):
+// company_packages + package_price_tiers, colunas Seg a Qui / Sexta / Sáb e Dom
+// (feriado cai no valor do dia da semana).
+
+const SIGNUP_DAY_TYPES = [
+  { key: "seg_qui", label: "Seg a Qui" },
+  { key: "sexta", label: "Sexta" },
+  { key: "sab_dom", label: "Sáb e Dom" },
+];
+const DAY_KEYS = SIGNUP_DAY_TYPES.map((d) => d.key);
+
+async function ownerOfSignup(supabase: SB, req: Request, companyId: string): Promise<Response | Json> {
+  const userId = await userFromJwt(supabase, req);
+  if (!userId) return json({ error: "Faça login de novo." }, 401);
+  const { data: link } = await supabase.from("user_companies").select("role").eq("user_id", userId).eq("company_id", companyId).maybeSingle();
+  if (!link || (link.role !== "owner" && link.role !== "admin")) return json({ error: "Só o dono do buffet pode mexer nos valores." }, 403);
+  const { data: company } = await supabase.from("companies").select("settings").eq("id", companyId).maybeSingle();
+  if (!company || !(company.settings as Json)?.signup) return json({ error: "Disponível só para buffets do cadastro pelo site." }, 400);
+  return company.settings as Json;
+}
+
+async function pricesLoad(supabase: SB, req: Request, body: Json): Promise<Response> {
+  const companyId = String(body.company_id || "");
+  const settings = await ownerOfSignup(supabase, req, companyId);
+  if (settings instanceof Response) return settings;
+  const [{ data: pkgs }, { data: tiers }] = await Promise.all([
+    supabase.from("company_packages").select("id, name").eq("company_id", companyId).eq("is_active", true).order("sort_order"),
+    supabase.from("package_price_tiers").select("package_id, guest_count, day_type, price").eq("company_id", companyId),
+  ]);
+  return json({
+    guest_tiers: Array.isArray(settings.guest_tiers) ? settings.guest_tiers : null,
+    packages: ((pkgs || []) as Json[]).map((p) => ({
+      id: p.id, name: p.name,
+      prices: Object.fromEntries(((tiers || []) as Json[]).filter((t) => t.package_id === p.id && DAY_KEYS.includes(t.day_type))
+        .map((t) => [`${t.guest_count}_${t.day_type}`, Number(t.price)])),
+    })),
+  });
+}
+
+async function pricesSave(supabase: SB, req: Request, body: Json): Promise<Response> {
+  const companyId = String(body.company_id || "");
+  const settings = await ownerOfSignup(supabase, req, companyId);
+  if (settings instanceof Response) return settings;
+
+  const tiers = Array.from(new Set(((body.guest_tiers || []) as unknown[]).map((n) => Math.round(Number(n)))))
+    .filter((n) => n >= 5 && n <= 3000).sort((a, b) => a - b).slice(0, 12);
+  const packages = ((body.packages || []) as Json[]).slice(0, 4)
+    .map((p) => ({ id: typeof p.id === "string" ? p.id : null, name: String(p.name || "").trim().slice(0, 60), prices: (p.prices || {}) as Json }))
+    .filter((p) => p.name);
+  if (!tiers.length) return json({ error: "Coloque pelo menos uma faixa de convidados." }, 400);
+  if (!packages.length) return json({ error: "Dê um nome para o pacote." }, 400);
+
+  // Grade do buffet: faixas e as 3 colunas de dia
+  const { error: sErr } = await supabase.from("companies")
+    .update({ settings: { ...settings, guest_tiers: tiers, day_type_config: SIGNUP_DAY_TYPES } }).eq("id", companyId);
+  if (sErr) return json({ error: `Não consegui salvar (${sErr.message}).` }, 500);
+
+  const { data: existing } = await supabase.from("company_packages").select("id").eq("company_id", companyId);
+  const mine = new Set(((existing || []) as Json[]).map((p) => p.id));
+  const keep: string[] = [];
+  for (let i = 0; i < packages.length; i++) {
+    const p = packages[i];
+    let id = p.id && mine.has(p.id) ? p.id : null;
+    if (id) {
+      await supabase.from("company_packages").update({ name: p.name, sort_order: i, is_active: true }).eq("id", id);
+    } else {
+      const { data: created, error } = await supabase.from("company_packages")
+        .insert({ company_id: companyId, name: p.name, sort_order: i, is_active: true }).select("id").single();
+      if (error) return json({ error: `Não consegui criar o pacote (${error.message}).` }, 500);
+      id = created.id as string;
+    }
+    keep.push(id as string);
+    await supabase.from("package_price_tiers").delete().eq("package_id", id);
+    const rows = tiers.flatMap((g) => DAY_KEYS.map((d) => ({ g, d, v: Number(p.prices[`${g}_${d}`]) })))
+      .filter((r) => r.v > 0 && r.v < 1_000_000)
+      .map((r) => ({ company_id: companyId, package_id: id, guest_count: r.g, day_type: r.d, price: Math.round(r.v * 100) / 100 }));
+    if (rows.length) {
+      const { error } = await supabase.from("package_price_tiers").insert(rows);
+      if (error) return json({ error: `Não consegui salvar os valores (${error.message}).` }, 500);
+    }
+  }
+  // Pacotes tirados da lista deixam de valer para a IA
+  const removed = [...mine].filter((id) => !keep.includes(id as string));
+  if (removed.length) await supabase.from("company_packages").update({ is_active: false }).in("id", removed);
+  return json({ ok: true, packages: keep });
+}
+
 // ─── Aprovação (Celebrei) ───────────────────────────────────────────────────
 
 async function approve(supabase: SB, req: Request, body: Json): Promise<Response> {
@@ -242,6 +330,8 @@ Deno.serve(async (req) => {
     if (body.action === "signup") return await signup(supabase, req, body);
     if (body.action === "finish") return await finish(supabase, req, body);
     if (body.action === "approve") return await approve(supabase, req, body);
+    if (body.action === "prices-load") return await pricesLoad(supabase, req, body);
+    if (body.action === "prices-save") return await pricesSave(supabase, req, body);
     return json({ error: "Ação desconhecida." }, 400);
   } catch (e) {
     console.error("[self-signup] erro:", e);
