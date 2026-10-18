@@ -473,11 +473,12 @@ export function SiteSection() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="site-price">A partir de (R$)</Label>
-                  <Input id="site-price" inputMode="numeric" placeholder="3.900" value={price} onChange={(e) => setPrice(e.target.value)} />
+                  <Input id="site-price" inputMode="numeric" placeholder="Ex.: 3.900" value={price} onChange={(e) => setPrice(e.target.value)} />
+                  {!price.trim() && <p className="text-xs text-muted-foreground">Sem valor, o site mostra só "Conheça nossos pacotes".</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="site-offer-desc">Resumo</Label>
-                  <Input id="site-offer-desc" placeholder="Festa de 4 horas para até 50 convidados" value={content.offer.description} maxLength={140} onChange={(e) => patch("offer", { description: e.target.value })} />
+                  <Input id="site-offer-desc" placeholder="Ex.: Festa de 4 horas para até 50 convidados" value={content.offer.description} maxLength={140} onChange={(e) => patch("offer", { description: e.target.value })} />
                 </div>
               </div>
               <div className="space-y-2">
