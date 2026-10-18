@@ -50,8 +50,10 @@ describe("rascunho do site", () => {
   });
 
   it("preço do pacote", () => {
-    expect(offerTitleFromPrice("3.900")).toBe("Pacotes a partir de R$ 3.900");
-    expect(offerTitleFromPrice("3.900,00")).toBe("Pacotes a partir de R$ 3.900");
+    expect(offerTitleFromPrice("3.900")).toBe("Pacotes a partir de R$ 3.900,00");
+    expect(offerTitleFromPrice("3900")).toBe("Pacotes a partir de R$ 3.900,00");
+    expect(offerTitleFromPrice("3.900,00")).toBe("Pacotes a partir de R$ 3.900,00");
+    expect(offerTitleFromPrice("3.900,5")).toBe("Pacotes a partir de R$ 3.900,50");
     expect(offerTitleFromPrice("")).toBe("Conheça nossos pacotes");
   });
 });

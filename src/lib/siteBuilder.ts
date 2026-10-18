@@ -167,9 +167,20 @@ export function siteWhatsAppMessage(companyName: string): string {
 }
 
 /** Oferta: "Pacotes a partir de R$ 3.900" a partir do valor digitado */
+/** "3.900", "3900" ou "3.900,50" → valor em reais (null se vazio) */
+export function parsePrice(price: string): number | null {
+  const [reais, cents = ""] = String(price || "").split(",");
+  const n = Number(onlyDigits(reais)) + Number(onlyDigits(cents).padEnd(2, "0").slice(0, 2)) / 100;
+  return n > 0 ? n : null;
+}
+
+/** 3900 → "3.900,00" (como se escreve dinheiro no Brasil) */
+export function formatPrice(n: number): string {
+  return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export function offerTitleFromPrice(price: string): string {
-  // "3.900,00" → 3900 (centavos fora)
-  const n = Number(onlyDigits(price.split(",")[0]));
+  const n = parsePrice(price);
   if (!n) return "Conheça nossos pacotes";
-  return `Pacotes a partir de R$ ${n.toLocaleString("pt-BR")}`;
+  return `Pacotes a partir de R$ ${formatPrice(n)}`;
 }
