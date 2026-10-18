@@ -177,6 +177,18 @@ async function finish(supabase: SB, req: Request, body: Json): Promise<Response>
   return json({ ok: true, status: "aguardando_aprovacao" });
 }
 
+const MONTH_NAMES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+/** Próximos 12 meses no formato do site ("Novembro/26"); igual a upcomingMonthOptions do site */
+function upcomingMonthOptions(now: Date): string[] {
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const start = now.getDate() >= lastDay ? 1 : 0;
+  return Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() + start + i, 1);
+    return `${MONTH_NAMES[d.getMonth()]}/${String(d.getFullYear()).slice(-2)}`;
+  });
+}
+
 // ─── Aprovação (Celebrei) ───────────────────────────────────────────────────
 
 async function approve(supabase: SB, req: Request, body: Json): Promise<Response> {
@@ -199,7 +211,11 @@ async function approve(supabase: SB, req: Request, body: Json): Promise<Response
     enabled_modules: { ...(s.enabled_modules || {}), ...SIGNUP_MODULES, ia_conversacional: true },
   }));
   // Site: o contato que vem pelas perguntas do site vai para o número conectado
-  await supabase.from("lp_bot_settings").upsert({ company_id: companyId }, { onConflict: "company_id", ignoreDuplicates: true });
+  // Meses com ano (Novembro/26...) e troca automática todo mês, como no Castelo
+  await supabase.from("lp_bot_settings").upsert(
+    { company_id: companyId, month_options: upcomingMonthOptions(new Date()), auto_rotate_months: true },
+    { onConflict: "company_id", ignoreDuplicates: true },
+  );
   const { error: aiErr } = await supabase.from("ai_agent_settings")
     .update({ enabled: true, unit: inst.unit, activated_at: new Date().toISOString() }).eq("company_id", companyId);
   if (aiErr) return json({ error: `Aprovado, mas não consegui ligar a IA (${aiErr.message}). Ligue em Configurar IA.` }, 500);
