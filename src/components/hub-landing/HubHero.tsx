@@ -15,9 +15,9 @@ export default function HubHero({ onOpenWizard, video }: HubHeroProps) {
     <section className="relative overflow-hidden bg-[#FFF9F3]">
       {/* Fundo: brilhos quentes + pontilhado */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-40 -top-40 h-[520px] w-[520px] rounded-full bg-[#FFC93C]/30 blur-[110px]" />
-        <div className="absolute -right-32 top-24 h-[480px] w-[480px] rounded-full bg-[#F0457A]/20 blur-[120px]" />
-        <div className="absolute bottom-0 left-1/3 h-[360px] w-[560px] rounded-full bg-[#8E3FD9]/10 blur-[120px]" />
+        <div className="absolute -left-[270px] -top-[270px]" style={{ width: 740, height: 740, background: "radial-gradient(closest-side, rgba(255,201,60,0.30) 45%, transparent 100%)" }} />
+        <div className="absolute -right-[248px] -top-[24px]" style={{ width: 720, height: 720, background: "radial-gradient(closest-side, rgba(240,69,122,0.20) 45%, transparent 100%)" }} />
+        <div className="absolute -bottom-[120px] left-1/3 -ml-[120px]" style={{ width: 800, height: 600, background: "radial-gradient(closest-side, rgba(142,63,217,0.10) 45%, transparent 100%)" }} />
         <div
           className="absolute inset-0 opacity-60 [mask-image:radial-gradient(ellipse_at_center,black_30%,transparent_75%)]"
           style={{

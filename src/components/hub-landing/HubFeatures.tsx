@@ -111,7 +111,7 @@ export default function HubFeatures() {
             type="button"
             onClick={() => setShowAll((v) => !v)}
             aria-expanded={showAll}
-            className="inline-flex items-center gap-1.5 rounded-full border border-[#0F1222]/10 bg-[#FFF9F3] px-5 py-2.5 text-sm font-semibold text-[#0F1222] transition-colors hover:bg-[#FFF3EA]"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#0F1222]/10 bg-[#FFF9F3] px-5 py-2.5 text-sm font-semibold text-[#0F1222] transition-colors [@media(hover:hover)]:hover:bg-[#FFF3EA]"
           >
             {showAll ? "Ver menos" : `Ver todas as funcionalidades (+${MORE.length})`}
             <ChevronDown className={cn("h-4 w-4 transition-transform", showAll && "rotate-180")} />
@@ -147,7 +147,7 @@ function Card({ icon: Icon, title, description, className, children }: CardProps
     <motion.div
       variants={item}
       className={cn(
-        "group flex w-[85%] shrink-0 snap-center flex-col overflow-hidden rounded-3xl border border-[#0F1222]/[0.07] bg-[#FCFAF8] transition-shadow duration-300 hover:shadow-[0_24px_50px_-30px_rgba(15,18,34,0.35)] md:w-auto",
+        "group flex w-[85%] shrink-0 snap-center flex-col overflow-hidden rounded-3xl border border-[#0F1222]/[0.07] bg-[#FCFAF8] transition-shadow duration-300 [@media(hover:hover)]:hover:shadow-[0_24px_50px_-30px_rgba(15,18,34,0.35)] md:w-auto",
         className,
       )}
     >

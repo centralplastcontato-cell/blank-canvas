@@ -14,7 +14,7 @@ export default function HubFooter() {
             href="https://www.instagram.com/celebrei.app"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border border-[#0F1222]/[0.08] bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-[#F0457A]/40 hover:text-[#D23468]"
+            className="inline-flex items-center gap-2 rounded-full border border-[#0F1222]/[0.08] bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors [@media(hover:hover)]:hover:border-[#F0457A]/40 [@media(hover:hover)]:hover:text-[#D23468]"
           >
             <Instagram className="h-4 w-4" />
             @celebrei.app

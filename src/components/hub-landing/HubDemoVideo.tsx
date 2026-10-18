@@ -99,7 +99,7 @@ export function DemoPlayer({ youtubeId, localVideoUrl, posterUrl }: HubDemoVideo
             <motion.div
               whileHover={hasVideo ? { scale: 1.08 } : {}}
               whileTap={hasVideo ? { scale: 0.96 } : {}}
-              className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center shadow-[0_0_60px_rgba(0,0,0,0.5)] transition-all duration-300 ${hasVideo ? "bg-gradient-to-br from-[#FF8A3D] via-[#F0457A] to-[#8E3FD9] group-hover:scale-110" : "bg-white/10 border-2 border-white/20"}`}
+              className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center shadow-[0_0_60px_rgba(0,0,0,0.5)] transition-all duration-300 ${hasVideo ? "bg-gradient-to-br from-[#FF8A3D] via-[#F0457A] to-[#8E3FD9] [@media(hover:hover)]:group-hover:scale-110" : "bg-white/10 border-2 border-white/20"}`}
             >
               <Play className="h-8 w-8 sm:h-10 sm:w-10 text-white ml-1" />
             </motion.div>

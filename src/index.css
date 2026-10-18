@@ -347,3 +347,11 @@
     margin: 2cm;
   }
 }
+
+/* LP do Hub: no iPhone o toque vai direto para o botão/link (sem esperar duplo toque) */
+.hub-lp a,
+.hub-lp button,
+.hub-lp [role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
