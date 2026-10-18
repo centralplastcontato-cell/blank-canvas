@@ -20,7 +20,7 @@ export default function HubLandingPage() {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-white pb-20 font-inter text-[#0F1222] antialiased sm:pb-0">
+    <div className="hub-lp min-h-screen bg-white pb-20 font-inter text-[#0F1222] antialiased sm:pb-0">
       <Helmet>
         <title>Celebrei | A melhor plataforma para buffets infantis</title>
         <meta name="description" content="Transforme leads em festas fechadas com CRM + WhatsApp automatizado. Plataforma completa para buffets infantis." />

@@ -51,7 +51,7 @@ export default function HubHeader({ onOpenWizard }: HubHeaderProps) {
                 e.preventDefault();
                 scrollToSection(item.id);
               }}
-              className="text-[15px] font-medium text-slate-600 transition-colors hover:text-[#0F1222]"
+              className="text-[15px] font-medium text-slate-600 transition-colors [@media(hover:hover)]:hover:text-[#0F1222]"
             >
               {item.label}
             </a>
@@ -59,16 +59,16 @@ export default function HubHeader({ onOpenWizard }: HubHeaderProps) {
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
-        <a href="/hub-login" className="text-[15px] font-semibold text-slate-600 transition-colors hover:text-[#0F1222]">
+        <a href="/hub-login" className="text-[15px] font-semibold text-slate-600 transition-colors [@media(hover:hover)]:hover:text-[#0F1222]">
           Entrar
         </a>
-        <a href="/comecar" className="hidden text-[15px] font-semibold text-[#0F1222] transition-colors hover:text-[#E0457A] sm:inline">
+        <a href="/comecar" className="hidden text-[15px] font-semibold text-[#0F1222] transition-colors [@media(hover:hover)]:hover:text-[#E0457A] sm:inline">
           Criar conta grátis
         </a>
         <button
           type="button"
           onClick={onOpenWizard}
-          className="inline-flex items-center gap-1.5 rounded-full bg-[#0F1222] px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-[#1B2036] sm:px-5"
+          className="inline-flex items-center gap-1.5 rounded-full bg-[#0F1222] px-4 py-2.5 text-sm font-semibold text-white transition-all [@media(hover:hover)]:hover:bg-[#1B2036] sm:px-5"
         >
           <span className="sm:hidden">Agendar demo</span>
           <span className="hidden sm:inline">Agendar demonstração</span>

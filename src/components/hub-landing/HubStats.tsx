@@ -22,8 +22,8 @@ export default function HubStats({ onOpenWizard }: { onOpenWizard: () => void })
   return (
     <section id="resultados" className="relative scroll-mt-16 overflow-hidden bg-[#0F1222] py-20 sm:py-28">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-40 top-0 h-[460px] w-[460px] rounded-full bg-[#FF8A3D]/15 blur-[120px]" />
-        <div className="absolute -right-40 bottom-0 h-[460px] w-[460px] rounded-full bg-[#8E3FD9]/20 blur-[120px]" />
+        <div className="absolute -left-[280px] -top-[120px]" style={{ width: 700, height: 700, background: "radial-gradient(closest-side, rgba(255,138,61,0.15) 45%, transparent 100%)" }} />
+        <div className="absolute -right-[280px] -bottom-[120px]" style={{ width: 700, height: 700, background: "radial-gradient(closest-side, rgba(142,63,217,0.20) 45%, transparent 100%)" }} />
         <div
           className="absolute inset-0 opacity-[0.05]"
           style={{
@@ -62,7 +62,7 @@ export default function HubStats({ onOpenWizard }: { onOpenWizard: () => void })
             <button
               type="button"
               onClick={onOpenWizard}
-              className="mt-10 inline-flex items-center gap-2 rounded-full bg-white px-7 py-4 text-base font-semibold text-[#0F1222] shadow-[0_16px_40px_-14px_rgba(255,255,255,0.35)] transition-all hover:-translate-y-0.5 hover:bg-white/90"
+              className="mt-10 inline-flex items-center gap-2 rounded-full bg-white px-7 py-4 text-base font-semibold text-[#0F1222] shadow-[0_16px_40px_-14px_rgba(255,255,255,0.35)] transition-all [@media(hover:hover)]:hover:-translate-y-0.5 [@media(hover:hover)]:hover:bg-white/90"
             >
               Quero ver funcionando
               <ArrowRight className="h-5 w-5" />

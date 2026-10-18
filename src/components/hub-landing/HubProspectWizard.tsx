@@ -202,7 +202,7 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
           <div className="bg-[#0F1222] p-5 relative">
             <button
               onClick={handleClose}
-              className="absolute top-4 right-4 w-8 h-8 bg-primary-foreground/20 rounded-full flex items-center justify-center hover:bg-primary-foreground/30 transition-colors"
+              className="absolute top-4 right-4 w-8 h-8 bg-primary-foreground/20 rounded-full flex items-center justify-center [@media(hover:hover)]:hover:bg-primary-foreground/30 transition-colors"
             >
               <X className="w-5 h-5 text-primary-foreground" />
             </button>
@@ -354,7 +354,7 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
                           className={`text-sm px-3 py-2.5 rounded-xl border transition-all ${
                             data.has_website === opt
                               ? "border-primary bg-primary/10 text-primary font-medium"
-                              : "border-border bg-muted text-foreground hover:border-primary/50"
+                              : "border-border bg-muted text-foreground [@media(hover:hover)]:hover:border-primary/50"
                           }`}
                         >
                           {opt}
@@ -399,7 +399,7 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
                           className={`text-sm px-3 py-2.5 rounded-xl border transition-all text-left ${
                             data.monthly_leads === opt
                               ? "border-primary bg-primary/10 text-primary font-medium"
-                              : "border-border bg-muted text-foreground hover:border-primary/50"
+                              : "border-border bg-muted text-foreground [@media(hover:hover)]:hover:border-primary/50"
                           }`}
                         >
                           {opt}
@@ -420,7 +420,7 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
                           className={`text-sm px-3 py-2.5 rounded-xl border transition-all text-left ${
                             data.lead_cost === opt
                               ? "border-primary bg-primary/10 text-primary font-medium"
-                              : "border-border bg-muted text-foreground hover:border-primary/50"
+                              : "border-border bg-muted text-foreground [@media(hover:hover)]:hover:border-primary/50"
                           }`}
                         >
                           {opt}
@@ -450,7 +450,7 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
                           className={`w-full text-sm px-3 py-2.5 rounded-xl border transition-all text-left ${
                             data.has_lead_clarity === opt
                               ? "border-primary bg-primary/10 text-primary font-medium"
-                              : "border-border bg-muted text-foreground hover:border-primary/50"
+                              : "border-border bg-muted text-foreground [@media(hover:hover)]:hover:border-primary/50"
                           }`}
                         >
                           {opt}
@@ -471,7 +471,7 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
                           className={`text-sm px-3 py-2.5 rounded-xl border transition-all text-left ${
                             data.lead_organization === opt
                               ? "border-primary bg-primary/10 text-primary font-medium"
-                              : "border-border bg-muted text-foreground hover:border-primary/50"
+                              : "border-border bg-muted text-foreground [@media(hover:hover)]:hover:border-primary/50"
                           }`}
                         >
                           {opt}
@@ -508,7 +508,7 @@ export default function HubProspectWizard({ isOpen, onClose }: HubProspectWizard
                           className={`w-full text-sm px-3 py-2.5 rounded-xl border transition-all text-left ${
                             data.investment_willingness === opt
                               ? "border-primary bg-primary/10 text-primary font-medium"
-                              : "border-border bg-muted text-foreground hover:border-primary/50"
+                              : "border-border bg-muted text-foreground [@media(hover:hover)]:hover:border-primary/50"
                           }`}
                         >
                           {opt}
