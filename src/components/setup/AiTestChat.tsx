@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { FileText, Loader2, RotateCcw, Send } from "lucide-react";
+import { FileText, Globe, Loader2, MessageCircle, RotateCcw, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { upcomingMonthOptions } from "@/lib/partyDate";
 
 interface Reply { kind: "text" | "image" | "video" | "document"; text: string; mediaUrl?: string; fileName?: string }
 interface Line { who: "cliente" | "ia" | "aviso"; reply: Reply }
@@ -20,20 +21,27 @@ export function AiTestChat({ open, onOpenChange, companyId }: { open: boolean; o
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [left, setLeft] = useState<number | null>(null);
+  // Começo do teste: escolher como o cliente chegou
+  const [mode, setMode] = useState<"escolher" | "whatsapp" | "site">("escolher");
+  const [site, setSite] = useState({ name: "Mariana", month: "", day: "", guests: "70" });
+  const months = upcomingMonthOptions();
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { endRef.current?.scrollIntoView?.({ behavior: "smooth" }); }, [lines, busy]);
 
-  const reset = () => { setLines([]); setState(null); setLeft(null); setText(""); };
+  const reset = () => { setLines([]); setState(null); setLeft(null); setText(""); setMode("escolher"); };
 
-  const send = async (msg: string) => {
+  // siteLead: começa como o lead do site (a IA abre com a boas-vindas do site)
+  const send = async (msg: string, siteLead?: Record<string, unknown>) => {
     const m = msg.trim();
-    if (!m || busy) return;
+    if ((!m && !siteLead) || busy) return;
     setText("");
-    setLines((l) => [...l, { who: "cliente", reply: { kind: "text", text: m } }]);
+    setLines((l) => siteLead
+      ? [...l, { who: "aviso", reply: { kind: "text", text: `${siteLead.name} respondeu no site: ${siteLead.month}, dia ${siteLead.day || "?"}, ${siteLead.guests} convidados` } }]
+      : [...l, { who: "cliente", reply: { kind: "text", text: m } }]);
     setBusy(true);
     try {
-      const { data, error } = await supabase.functions.invoke("ai-simulator", { body: { action: "chat", company_id: companyId, message: m, state } });
+      const { data, error } = await supabase.functions.invoke("ai-simulator", { body: { action: "chat", company_id: companyId, message: m, state, site_lead: siteLead } });
       let err: string | undefined = data?.error;
       if (error && !err) {
         try { err = (await (error as { context?: Response }).context?.json())?.error; } catch { /* genérica */ }
@@ -57,16 +65,54 @@ export function AiTestChat({ open, onOpenChange, companyId }: { open: boolean; o
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[85vh] max-w-md flex-col gap-0 p-0">
+      {/* No celular ocupa a tela toda (o teclado não empurra a janela) */}
+      <DialogContent className="flex h-[100dvh] max-h-[100dvh] w-full max-w-md flex-col gap-0 rounded-none p-0 sm:h-[85vh] sm:rounded-lg">
         <DialogHeader className="border-b p-4 text-left">
           <DialogTitle>Testar a minha IA</DialogTitle>
           <p className="text-xs text-muted-foreground">Escreva como se fosse um cliente. É só um teste: nada vai para o WhatsApp e nada fica gravado.</p>
         </DialogHeader>
 
         <div className="flex-1 space-y-2 overflow-y-auto bg-muted/30 p-3">
-          {lines.length === 0 && (
+          {lines.length === 0 && mode === "escolher" && (
             <div className="space-y-2 pt-2">
-              <p className="text-center text-xs text-muted-foreground">Toque numa ideia ou escreva a sua:</p>
+              <p className="text-center text-xs text-muted-foreground">Como o cliente chegou?</p>
+              <button type="button" onClick={() => setMode("site")} className="flex w-full items-start gap-3 rounded-xl border bg-background p-3 text-left hover:border-primary">
+                <Globe className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                <span><span className="block text-sm font-medium">Veio pelo site</span><span className="text-xs text-muted-foreground">Respondeu mês, dia e convidados no site e a IA começa a conversa</span></span>
+              </button>
+              <button type="button" onClick={() => setMode("whatsapp")} className="flex w-full items-start gap-3 rounded-xl border bg-background p-3 text-left hover:border-primary">
+                <MessageCircle className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
+                <span><span className="block text-sm font-medium">Mandou mensagem no WhatsApp</span><span className="text-xs text-muted-foreground">O cliente escreve primeiro (de anúncio, Instagram, indicação)</span></span>
+              </button>
+            </div>
+          )}
+          {lines.length === 0 && mode === "site" && (
+            <form className="space-y-2 rounded-xl border bg-background p-3" onSubmit={(e) => {
+              e.preventDefault();
+              send("", { name: site.name.trim() || "Cliente", month: site.month || months[1], day: Number(site.day) || null, guests: site.guests.trim() || "50" });
+            }}>
+              <p className="text-sm font-medium">O que o cliente respondeu no site</p>
+              <input value={site.name} onChange={(e) => setSite({ ...site, name: e.target.value })} placeholder="Nome" aria-label="Nome"
+                className="w-full rounded-lg border bg-muted px-3 py-2 text-base" />
+              <div className="grid grid-cols-[1fr_72px] gap-2">
+                <select value={site.month || months[1]} onChange={(e) => setSite({ ...site, month: e.target.value })} aria-label="Mês"
+                  className="w-full rounded-lg border bg-muted px-2 py-2 text-base">
+                  {months.map((m) => <option key={m} value={m}>{m.replace("/", " de 20")}</option>)}
+                </select>
+                <input value={site.day} onChange={(e) => setSite({ ...site, day: e.target.value.replace(/\D/g, "").slice(0, 2) })} inputMode="numeric" placeholder="Dia" aria-label="Dia"
+                  className="w-full rounded-lg border bg-muted px-3 py-2 text-base" />
+              </div>
+              <input value={site.guests} onChange={(e) => setSite({ ...site, guests: e.target.value })} placeholder="Convidados (ex.: 70)" aria-label="Convidados"
+                className="w-full rounded-lg border bg-muted px-3 py-2 text-base" />
+              <div className="flex gap-2">
+                <Button type="button" variant="ghost" size="sm" onClick={() => setMode("escolher")}>Voltar</Button>
+                <Button type="submit" size="sm" className="flex-1" disabled={busy}>Enviar pelo site</Button>
+              </div>
+            </form>
+          )}
+          {lines.length === 0 && mode === "whatsapp" && (
+            <div className="space-y-2 pt-2">
+              <p className="text-center text-xs text-muted-foreground">Escreva a primeira mensagem do cliente ou toque numa ideia:</p>
               {SUGGESTIONS.map((s) => (
                 <button key={s} type="button" onClick={() => send(s)} className="block w-full rounded-xl border bg-background px-3 py-2 text-left text-sm hover:border-primary">
                   {s}
@@ -100,7 +146,7 @@ export function AiTestChat({ open, onOpenChange, companyId }: { open: boolean; o
         <div className="space-y-2 border-t p-3">
           <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); send(text); }}>
             <input value={text} onChange={(e) => setText(e.target.value)} maxLength={600} enterKeyHint="send" placeholder="Mensagem do cliente"
-              className="min-w-0 flex-1 rounded-full border bg-muted px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              className="min-w-0 flex-1 rounded-full border bg-muted px-4 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-primary" />
             <Button type="submit" size="icon" className="shrink-0 rounded-full" disabled={busy || !text.trim()} aria-label="Enviar"><Send className="h-4 w-4" /></Button>
           </form>
           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
