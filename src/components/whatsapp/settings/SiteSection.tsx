@@ -94,7 +94,9 @@ export function SiteSection() {
       } as unknown as SiteContent;
       setContent(c);
       const m = (c.offer?.title || "").match(/R\$\s*([\d.,]+)/);
-      setPrice(m ? m[1] : "");
+      // Títulos antigos não tinham centavos ("R$ 3.900"): normaliza para "3.900,00"
+      const saved = m ? parsePrice(m[1]) : null;
+      setPrice(saved ? formatPrice(saved) : "");
     }
     setLoading(false);
   }, [companyId]);
@@ -475,8 +477,10 @@ export function SiteSection() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="site-price">A partir de (R$)</Label>
-                  <Input id="site-price" inputMode="numeric" placeholder="Ex.: 3.900,00" value={price} onChange={(e) => setPrice(e.target.value.replace(/[^\d.,]/g, ""))}
-                    onBlur={() => { const n = parsePrice(price); setPrice(n ? formatPrice(n) : ""); }} />
+                  <Input id="site-price" inputMode="numeric" placeholder="Ex.: 3.900,00" value={price}
+                    // Campo de dinheiro (como app de banco): só números, os dois últimos são os centavos —
+                    // o teclado numérico do iPhone não tem vírgula
+                    onChange={(e) => { const d = e.target.value.replace(/\D/g, "").replace(/^0+/, "").slice(0, 9); setPrice(d ? formatPrice(Number(d) / 100) : ""); }} />
                   {!price.trim() && <p className="text-xs text-muted-foreground">Sem valor, o site mostra só "Conheça nossos pacotes".</p>}
                 </div>
                 <div className="space-y-2">
