@@ -6,6 +6,7 @@ import { CheckCircle2, Sparkles } from "lucide-react";
 import { AiTestChat } from "@/components/setup/AiTestChat";
 import { AiImagesEditor } from "@/components/setup/AiImagesEditor";
 import { HandoffAlertPhone } from "@/components/setup/HandoffAlertPhone";
+import { AiHandoffReasons } from "@/components/setup/AiHandoffReasons";
 
 const IDEAS = [
   "Peça orçamento (\"quanto fica pra 70 pessoas no sábado?\")",
@@ -38,6 +39,12 @@ export function AiTestSection() {
           </ul>
           <Button onClick={() => setOpen(true)} className="w-full sm:w-auto"><Sparkles className="mr-2 h-4 w-4" /> Conversar com a minha IA</Button>
           <p className="text-xs text-muted-foreground">Alguma resposta errada? Avise a equipe Celebrei que a gente ajusta.</p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="space-y-3 pt-6">
+          <p className="font-medium">O que a IA passou para a equipe</p>
+          <AiHandoffReasons companyId={currentCompany.id} />
         </CardContent>
       </Card>
       <Card>
