@@ -18,6 +18,7 @@ import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { DEFAULT_AI_MODEL } from "../_shared/ai-models.ts";
 import { listAvailableSlots, normalizeTime, parseVisitHours, slotKey, teamHoursText, visitSlotsByDay } from "../_shared/business-hours.ts";
 import { GENERAL_SCENARIOS } from "./scenarios.ts";
+import { buildAiSiteWelcome, cleanIntroImage, cleanSiteLead, siteLeadBotData } from "../_shared/ai-site-lead.ts";
 import { isHolidayYmd, localHolidaysFrom } from "../_shared/package-pricing.ts";
 import { auditConversation, type RealMessage, realTranscript } from "./audit.ts";
 import { closedPeriodsNote, isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
@@ -177,7 +178,9 @@ async function start(req: Request, body: any): Promise<Response> {
 async function chat(req: Request, body: any): Promise<Response> {
   const companyId = String(body.company_id || "");
   const message = String(body.message || "").trim().slice(0, 600);
-  if (!companyId || !message) return json({ error: "Escreva uma mensagem" }, 400);
+  // Começo "veio pelo site": o mesmo que o site faz (dados anotados + boas-vindas da IA)
+  const siteLead = !body.state && body.site_lead ? cleanSiteLead(body.site_lead) : null;
+  if (!companyId || (!message && !siteLead)) return json({ error: "Escreva uma mensagem" }, 400);
   const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
   const { data: { user } } = jwt ? await admin.auth.getUser(jwt) : { data: { user: null } };
   if (!user) return json({ error: "Faça login" }, 401);
@@ -186,7 +189,7 @@ async function chat(req: Request, body: any): Promise<Response> {
     const { data: isAdmin } = await admin.rpc("is_admin", { _user_id: user.id });
     if (isAdmin !== true) return json({ error: "Só o dono do buffet pode testar a IA" }, 403);
   }
-  const { data: settings } = await admin.from("ai_agent_settings").select("unit, model, test_mode_enabled, test_model").eq("company_id", companyId).maybeSingle();
+  const { data: settings } = await admin.from("ai_agent_settings").select("*").eq("company_id", companyId).maybeSingle();
   if (!settings?.unit) return json({ error: "Responda as perguntas da IA antes de testar" }, 400);
 
   let state = body.state && typeof body.state === "object" && body.state.sandbox ? body.state as ScenarioState : null;
@@ -196,6 +199,24 @@ async function chat(req: Request, body: any): Promise<Response> {
       .select("id, lead_id, company_id, unit, data_visita, horario_visita, status_visita")
       .eq("company_id", companyId).gte("data_visita", today).limit(500);
     state = initialState(`chat-${crypto.randomUUID()}`, "Cliente", visits || []);
+  }
+  if (siteLead) {
+    const todayYmd = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+    const { data: company } = await admin.from("companies").select("name").eq("id", companyId).maybeSingle();
+    const welcome = buildAiSiteWelcome(siteLead, company?.name || "Buffet", todayYmd, String(settings.assistant_name || ""));
+    const conv = state.sandbox.memory.wapi_conversations.find((c: any) => c.id === state!.convId);
+    if (conv) {
+      conv.contact_name = siteLead.name || "Cliente";
+      conv.bot_step = "ai_agent";
+      conv.bot_data = { ...(conv.bot_data || {}), ...siteLeadBotData(siteLead, todayYmd) };
+    }
+    state.sandbox.memory.wapi_messages.push({
+      id: crypto.randomUUID(), conversation_id: state.convId, message_id: `sim-out-site`, from_me: true,
+      content: welcome, message_type: "text", timestamp: new Date().toISOString(), metadata: { source: "site" },
+    });
+    const image = cleanIntroImage(settings.intro_image_url);
+    const replies = [image ? { kind: "image", text: welcome, mediaUrl: image } : { kind: "text", text: welcome }];
+    return json({ state, replies, handoff: false, left: CHAT_MAX_TURNS - state.turn });
   }
   if (state.turn >= CHAT_MAX_TURNS) return json({ error: `O teste vai até ${CHAT_MAX_TURNS} mensagens. Toque em "Começar de novo".` }, 400);
 
