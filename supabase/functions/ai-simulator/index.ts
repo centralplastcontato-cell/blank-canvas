@@ -24,10 +24,12 @@ import { closedPeriodsNote, isClosedDay, parseClosedPeriods } from "../_shared/c
 import { AI_ACTOR, AI_ACTOR_HEADER } from "../wapi-webhook/ai-db-guard.ts";
 import {
   agentCostUsd,
+  CHAT_MAX_TURNS,
   deterministicChecks,
   initialState,
   judgeScenario,
   passed,
+  runChatTurn,
   runScenarioSlice,
   type Scenario,
   type ScenarioState,
@@ -167,6 +169,39 @@ async function start(req: Request, body: any): Promise<Response> {
 
   background(Promise.all(Array.from({ length: Math.min(WORKERS, scenarios.length) }, () => triggerWorker(run.id))));
   return json({ run_id: run.id, total: scenarios.length, model });
+}
+
+// "Testar a minha IA": o dono escreve como se fosse um cliente e a IA responde no
+// modo isolado. Vale antes da aprovação (o módulo ainda desligado) porque nada
+// sai pelo WhatsApp nem é gravado; só dono/admin da empresa (ou da Celebrei).
+async function chat(req: Request, body: any): Promise<Response> {
+  const companyId = String(body.company_id || "");
+  const message = String(body.message || "").trim().slice(0, 600);
+  if (!companyId || !message) return json({ error: "Escreva uma mensagem" }, 400);
+  const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  const { data: { user } } = jwt ? await admin.auth.getUser(jwt) : { data: { user: null } };
+  if (!user) return json({ error: "Faça login" }, 401);
+  const { data: link } = await admin.from("user_companies").select("role").eq("user_id", user.id).eq("company_id", companyId).maybeSingle();
+  if (!link || !["owner", "admin"].includes(link.role)) {
+    const { data: isAdmin } = await admin.rpc("is_admin", { _user_id: user.id });
+    if (isAdmin !== true) return json({ error: "Só o dono do buffet pode testar a IA" }, 403);
+  }
+  const { data: settings } = await admin.from("ai_agent_settings").select("unit, model, test_mode_enabled, test_model").eq("company_id", companyId).maybeSingle();
+  if (!settings?.unit) return json({ error: "Responda as perguntas da IA antes de testar" }, 400);
+
+  let state = body.state && typeof body.state === "object" && body.state.sandbox ? body.state as ScenarioState : null;
+  if (!state) {
+    const today = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+    const { data: visits } = await admin.from("lead_visits")
+      .select("id, lead_id, company_id, unit, data_visita, horario_visita, status_visita")
+      .eq("company_id", companyId).gte("data_visita", today).limit(500);
+    state = initialState(`chat-${crypto.randomUUID()}`, "Cliente", visits || []);
+  }
+  if (state.turn >= CHAT_MAX_TURNS) return json({ error: `O teste vai até ${CHAT_MAX_TURNS} mensagens. Toque em "Começar de novo".` }, 400);
+
+  const model = (settings.test_mode_enabled && settings.test_model) || settings.model || DEFAULT_AI_MODEL;
+  const r = await runChatTurn({ realDb: aiReadDb, companyId, unit: settings.unit, model, state, message });
+  return json({ state: r.state, replies: r.replies, handoff: r.handoff, left: CHAT_MAX_TURNS - r.state.turn });
 }
 
 async function resume(req: Request, body: any): Promise<Response> {
@@ -412,6 +447,7 @@ Deno.serve(async (req) => {
     }
     if (body.action === "start") return await start(req, body);
     if (body.action === "resume") return await resume(req, body);
+    if (body.action === "chat") return await chat(req, body);
     if (body.action === "audit") return await audit(req, body);
     return json({ error: "ação desconhecida" }, 400);
   } catch (err) {

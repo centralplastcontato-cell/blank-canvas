@@ -237,6 +237,57 @@ export async function runScenarioSlice(opts: {
   return state;
 }
 
+// ---------- Conversa digitada pelo dono ("Testar a minha IA") ----------
+
+export const CHAT_MAX_TURNS = 20;
+
+export interface ChatReply { kind: "text" | "image" | "video" | "document"; text: string; mediaUrl?: string; fileName?: string }
+
+/**
+ * Uma mensagem do dono (fazendo o papel do cliente) e a resposta da IA, no modo
+ * isolado. O estado vai e volta com o navegador: nada fica gravado.
+ */
+export async function runChatTurn(opts: {
+  realDb: any;
+  companyId: string;
+  unit: string;
+  model: string | null;
+  state: ScenarioState;
+  message: string;
+}): Promise<{ state: ScenarioState; replies: ChatReply[]; handoff: boolean }> {
+  const { state } = opts;
+  const ctx = new SandboxContext(state.sandbox, opts.model);
+  const db = createSandboxDb(opts.realDb, state.sandbox.memory);
+  const instance = { id: "sim", instance_id: "sim", instance_token: "", unit: opts.unit, company_id: opts.companyId, provider: "zapi" };
+  state.turn += 1;
+  const lastId = ctx.nextId("sim-in");
+  state.sandbox.memory.wapi_messages.push({
+    id: crypto.randomUUID(),
+    conversation_id: state.convId,
+    message_id: lastId,
+    from_me: false,
+    content: opts.message,
+    message_type: "text",
+    timestamp: ctx.tick(30000),
+    metadata: null,
+  });
+  state.sandbox.outbox = [];
+  state.sandbox.tools = [];
+  const conv = JSON.parse(JSON.stringify(state.sandbox.memory.wapi_conversations.find((c) => c.id === state.convId)!));
+  await aiSandbox.run(ctx, () =>
+    maybeHandleWithAiAgent(db, instance, conv, opts.message, SIM_PHONE, "Cliente", undefined, undefined, lastId)
+  );
+  const replies: ChatReply[] = state.sandbox.outbox.map((o) => {
+    const kind = (o.action === "send-text" ? "text" : o.action.replace("send-", "")) as ChatReply["kind"];
+    return { kind: ["text", "image", "video", "document"].includes(kind) ? kind : "text", text: o.message || o.caption || "", mediaUrl: o.mediaUrl, fileName: o.fileName };
+  });
+  // Só a conversa precisa voltar: caixa de saída e ferramentas desta vez ficam de fora
+  state.sandbox.outbox = [];
+  state.sandbox.tools = [];
+  const after = state.sandbox.memory.wapi_conversations.find((c) => c.id === state.convId);
+  return { state, replies, handoff: after?.bot_step === "human_takeover" };
+}
+
 /** Custo da IA de verdade nesta conversa (linhas de consumo em memória) */
 export function agentCostUsd(state: ScenarioState): number {
   return (state.sandbox.memory.ai_agent_usage || []).reduce((s, u) => s + (Number(u.cost_usd) || 0), 0);

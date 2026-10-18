@@ -20,6 +20,7 @@ import { resizeImageFile } from "@/lib/imageResize";
 import { syncSitePhotosCollection } from "@/lib/aiMaterials";
 import { MaterialsQuickSetup } from "@/components/setup/MaterialsQuickSetup";
 import { PricesQuickSetup, type PricesQuickSetupHandle } from "@/components/setup/PricesQuickSetup";
+import { AiTestChat } from "@/components/setup/AiTestChat";
 import {
   BUSY_NOTE, buildPartySlots, dayKey, hasTerm, monthsAhead, SATURDAY, SETUP_SELECTS, SETUP_SUGGESTIONS, toggleTerm, type SetupAnswers, type Slot, WEEKDAYS,
 } from "@/lib/selfSetup";
@@ -116,6 +117,7 @@ export default function SetupBuffet() {
 
   // Passo 5
   const [agendaOk, setAgendaOk] = useState(false);
+  const [testOpen, setTestOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!companyId) return;
@@ -192,9 +194,13 @@ export default function SetupBuffet() {
                 <p className="text-sm text-muted-foreground">A equipe Celebrei vai conectar o seu WhatsApp e ligar a IA. Avisamos você assim que estiver pronto (normalmente em até 1 dia útil).</p>
               </>
             )}
-            <Button onClick={() => navigate("/atendimento")}>Ir para a plataforma</Button>
+            <div className="flex flex-col gap-2">
+              <Button variant="outline" onClick={() => setTestOpen(true)}><Sparkles className="mr-2 h-4 w-4" /> Testar a minha IA</Button>
+              <Button onClick={() => navigate("/atendimento")}>Ir para a plataforma</Button>
+            </div>
           </CardContent>
         </Card>
+        {companyId && <AiTestChat open={testOpen} onOpenChange={setTestOpen} companyId={companyId} />}
       </div>
     );
   }
@@ -614,7 +620,13 @@ export default function SetupBuffet() {
                   <Checkbox checked={agendaOk} onCheckedChange={(v) => setAgendaOk(v === true)} className="mt-0.5" />
                   <span>Confirmo que <strong>todas as datas já ocupadas</strong> estão marcadas. A IA vai oferecer como livres as datas que não estiverem.</span>
                 </label>
+                <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                  <p className="text-sm font-medium">Veja como a sua IA vai atender</p>
+                  <p className="text-xs text-muted-foreground">Converse com ela como se fosse um cliente. Se algo sair errado, volte nos passos e ajuste antes de enviar.</p>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setTestOpen(true)}><Sparkles className="mr-2 h-4 w-4" /> Testar a minha IA</Button>
+                </div>
                 <p className="text-sm text-muted-foreground">Depois de enviar, a equipe Celebrei conecta o seu WhatsApp e liga a IA.</p>
+                <AiTestChat open={testOpen} onOpenChange={setTestOpen} companyId={companyId} />
               </>
             )}
           </CardContent>

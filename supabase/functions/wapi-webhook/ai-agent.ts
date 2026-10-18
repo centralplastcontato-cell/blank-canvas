@@ -2030,7 +2030,8 @@ export async function maybeHandleWithAiAgent(
       return false;
     }
     // Módulo do Hub: sem ele a IA não responde, mesmo com a configuração ligada
-    if (!(await loadAiConversationalEnabled(supabase, instance.company_id))) {
+    // (no teste isolado do dono o módulo ainda pode estar desligado: nada sai nem é gravado)
+    if (!inSandbox() && !(await loadAiConversationalEnabled(supabase, instance.company_id))) {
       console.log(`[AI Agent] Módulo IA Conversacional desligado no Hub para a empresa ${instance.company_id} — pulando`);
       return false;
     }
