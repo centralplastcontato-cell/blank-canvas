@@ -35,7 +35,7 @@ async function call(companyId: string, action: string, extra: Record<string, unk
  * Evolution e mostra o QR Code (ou o código, para quem está no próprio celular).
  * Fechou a tela sem conectar = o servidor apaga o número que ficou esperando.
  */
-export function WhatsAppConnect({ companyId, defaultPhone = "" }: { companyId: string; defaultPhone?: string }) {
+export function WhatsAppConnect({ companyId, defaultPhone = "", onConnected }: { companyId: string; defaultPhone?: string; onConnected?: () => void }) {
   const [status, setStatus] = useState<Status>("loading");
   const [phone, setPhone] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("qr");
@@ -47,7 +47,10 @@ export function WhatsAppConnect({ companyId, defaultPhone = "" }: { companyId: s
   const statusRef = useRef<Status>("loading");
   statusRef.current = status;
 
+  const onConnectedRef = useRef(onConnected);
+  onConnectedRef.current = onConnected;
   const apply = useCallback((r: Awaited<ReturnType<typeof call>>) => {
+    if (r.status === "connected" && statusRef.current === "pending") onConnectedRef.current?.();
     setStatus(r.status);
     if (r.status === "connected") setPhone(r.phone || null);
     if (r.qrcode !== undefined) setQr(r.qrcode || null);

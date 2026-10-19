@@ -3,6 +3,9 @@ import { asWhatsAppProvider, WHATSAPP_PROVIDERS, type WhatsAppProvider } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useUnitPermissions } from "@/hooks/useUnitPermissions";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
+import { useCompany } from "@/contexts/CompanyContext";
+import { signupStatus } from "@/lib/selfSetup";
+import { WhatsAppConnect } from "@/components/setup/WhatsAppConnect";
 import { useWhatsAppConnection } from "@/hooks/useWhatsAppConnection";
 import { insertWithCompany } from "@/lib/supabase-helpers";
 import { configureWapiWebhooks, WAPI_WEBHOOK_URL } from "@/lib/wapi-webhook-config";
@@ -65,6 +68,8 @@ const webhookUrl = WAPI_WEBHOOK_URL;
 export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   const { unitOptions: UNITS, isLoading: isLoadingUnits } = useCompanyUnits();
   const { allowedUnits, canViewAll, isLoading: isLoadingPermissions } = useUnitPermissions(userId);
+  const { currentCompany } = useCompany();
+  const selfSignup = !!signupStatus(currentCompany?.settings);
   
   const [instances, setInstances] = useState<WapiInstance[]>([]);
   // Evolution Go: estado real consultado agora (não o status guardado no banco)
@@ -114,12 +119,14 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
       .order("unit", { ascending: true });
 
     if (data) {
-      setInstances(data as WapiInstance[]);
+      // Número do cadastro ainda sem parear: só a tela "Conectar meu WhatsApp" mexe nele
+      const rows = (data as Array<WapiInstance & { managed_by_celebrei?: boolean }>).filter((i) => !(i.managed_by_celebrei && i.is_active === false));
+      setInstances(rows as WapiInstance[]);
       setIsLoading(false);
 
       // Instância desativada não precisa (nem deve) ter o status consultado —
       // o dono pode já estar usando esse número em outro sistema.
-      const toSync = (data as WapiInstance[]).filter((i) => i.is_active !== false);
+      const toSync = (rows as WapiInstance[]).filter((i) => i.is_active !== false);
       if (toSync.length > 0) {
         syncInstancesInBackground(toSync);
       }
@@ -1114,7 +1121,9 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
             )}
           </CardHeader>
           <CardContent className="space-y-4">
-            {filteredInstances.length === 0 ? (
+            {filteredInstances.length === 0 && selfSignup && currentCompany ? (
+              <WhatsAppConnect companyId={currentCompany.id} onConnected={fetchInstances} />
+            ) : filteredInstances.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
                 Nenhuma instância configurada pelo administrador.
               </p>
