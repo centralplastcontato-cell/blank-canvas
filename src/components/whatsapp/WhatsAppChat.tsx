@@ -116,6 +116,8 @@ async function prepareAudioBlobForWhatsApp(blob: Blob): Promise<Blob> {
 }
 
 import { insertWithCompany, insertSingleWithCompany, getCurrentCompanyId } from "@/lib/supabase-helpers";
+import { signupStatus } from "@/lib/selfSetup";
+import { WhatsAppConnect } from "@/components/setup/WhatsAppConnect";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -2265,7 +2267,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const companyId = localStorage.getItem('selected_company_id') || 'a0000000-0000-0000-0000-000000000001';
     let query = supabase
       .from("wapi_instances")
-      .select("id, instance_id, status, unit, is_active, provider")
+      .select("id, instance_id, status, unit, is_active, provider, managed_by_celebrei")
       .eq("company_id", companyId);
 
     // Filter by allowed units - if empty, show nothing (user has no unit access)
@@ -2299,7 +2301,9 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
     // Keep inactive/hidden instances available for historical conversations.
     // The Hub toggle should control visibility/connection preference, not erase old chats from the buffet panel.
-    let accessibleData = data || [];
+    // Número do cadastro que ainda não pareou (ou desistiu): não é um WhatsApp de verdade
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let accessibleData = ((data || []) as any[]).filter((i) => !(i.managed_by_celebrei && i.is_active === false));
 
     // Per-user WhatsApp instance restriction (whatsapp.instance.* permissions)
     if (!canViewAllInstances) {
@@ -4897,6 +4901,18 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
       <div className="flex items-center justify-center h-96">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
+    );
+  }
+
+  if (instances.length === 0 && hasAttemptedLoad && signupStatus(currentCompany?.settings) && currentCompany) {
+    return (
+      <Card>
+        <CardContent className="mx-auto max-w-md space-y-3 py-10">
+          <p className="text-center font-semibold">Conecte o WhatsApp do buffet</p>
+          <p className="text-center text-sm text-muted-foreground">As conversas aparecem aqui assim que o número estiver conectado.</p>
+          <WhatsAppConnect companyId={currentCompany.id} onConnected={() => fetchInstances()} />
+        </CardContent>
+      </Card>
     );
   }
 

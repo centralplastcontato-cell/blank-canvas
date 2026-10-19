@@ -1415,6 +1415,18 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Número do cadastro ainda esperando QR (whatsapp-connect): status/QR/connect
+    // por aqui reiniciam o ciclo de QR e gastam o banco da Evolution — só a tela
+    // "Conectar meu WhatsApp" mexe nele até parear
+    if (isEvolution && (action === 'get-status' || action === 'get-qr' || action === 'configure-webhooks')) {
+      const { data: managed } = await supabase.from('wapi_instances').select('managed_by_celebrei, is_active').eq('instance_id', instance_id).maybeSingle();
+      if (managed?.managed_by_celebrei === true && managed.is_active === false) {
+        return new Response(JSON.stringify({ success: false, connected: false, status: 'disconnected', error: 'Este número está sendo conectado pela tela "Conectar meu WhatsApp".', provider, cached: true }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     console.log('wapi-send:', action, phone ? `phone:${phone}` : '', 'instance:', instance_id, 'trace:', trackingId);
 
     // 🔭 trace: send_platform_attempt — entrada do envio outbound
