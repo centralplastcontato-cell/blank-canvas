@@ -112,3 +112,18 @@ Deno.test("pareamento: número do evento e prazo do QR", () => {
   assertEquals(isExpired({ updated_at: new Date(now - PENDING_TTL_MS - 1000).toISOString() }, now), true);
   assertEquals(isExpired({ updated_at: new Date(now - 60_000).toISOString() }, now), false);
 });
+
+Deno.test("remover (admin): desconecta e apaga a pareada, mas nunca uma protegida", async () => {
+  const evo = fakeEvolution([
+    { id: "p1", name: "celebrei-pareada", jid: "5515999990000:3@s.whatsapp.net" },
+    { id: "c1", name: "castelo-vendas1", jid: "5515988880000:1@s.whatsapp.net" },
+  ]);
+  try {
+    // sem o token da própria instância, número pareado não sai
+    await throwsAsync(() => deleteManagedInstance({ instance_id: "p1", evolution_name: "celebrei-pareada", managed_by_celebrei: true, provider: "evolution" }, { allowPaired: true }));
+    await throwsAsync(() => deleteManagedInstance({ instance_id: "c1", evolution_name: "castelo-vendas1", managed_by_celebrei: true, provider: "evolution" }, { allowPaired: true, instanceToken: "tok" }));
+    assertEquals(evo.calls.some((c) => c.startsWith("DELETE")), false);
+    await deleteManagedInstance({ instance_id: "p1", evolution_name: "celebrei-pareada", managed_by_celebrei: true, provider: "evolution" }, { allowPaired: true, instanceToken: "tok" });
+    assertEquals(evo.calls.filter((c) => c.startsWith("DELETE")), ["DELETE /instance/logout", "DELETE /instance/delete/p1"]);
+  } finally { evo.restore(); }
+});

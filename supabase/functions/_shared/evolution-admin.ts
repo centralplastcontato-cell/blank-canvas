@@ -131,7 +131,7 @@ export async function createManagedInstance(name: string, token: string): Promis
 export interface ManagedRow { instance_id: string; evolution_name: string | null; managed_by_celebrei: boolean | null; provider: string }
 
 /** Confere tudo antes de apagar; devolve o motivo para NÃO apagar, ou null */
-export function deleteBlockReason(row: ManagedRow | null, live: InstanceSummary | undefined): string | null {
+export function deleteBlockReason(row: ManagedRow | null, live: InstanceSummary | undefined, opts: { allowPaired?: boolean } = {}): string | null {
   if (!row) return "sem registro no wapi_instances";
   if (row.managed_by_celebrei !== true) return "não foi criada pela Celebrei";
   if (row.provider !== "evolution") return "não é da Evolution";
@@ -139,17 +139,31 @@ export function deleteBlockReason(row: ManagedRow | null, live: InstanceSummary 
   if (!live) return "já não existe na Evolution";
   if (live.id !== row.instance_id) return "ID diferente do salvo";
   if (live.name.toLowerCase() !== String(row.evolution_name).toLowerCase()) return "nome diferente do salvo";
-  if (isPaired(live)) return "número já conectado";
+  if (isPaired(live) && !opts.allowPaired) return "número já conectado";
   return null;
 }
 
-/** Apaga uma "celebrei-*" que a Celebrei criou e que nunca conectou. true = apagou (ou já não existia) */
-export async function deleteManagedInstance(row: ManagedRow): Promise<boolean> {
+/**
+ * Apaga uma "celebrei-*" que a Celebrei criou. Sem opção, só se nunca pareou.
+ * Remoção pedida por um admin (allowPaired + token da própria instância):
+ * desconecta antes (logout pelo token dela) e depois apaga.
+ */
+export async function deleteManagedInstance(row: ManagedRow, opts: { allowPaired?: boolean; instanceToken?: string } = {}): Promise<boolean> {
   const list = await listInstances();
   const live = list.find((i) => i.id === row.instance_id);
-  const reason = deleteBlockReason(row, live);
+  const reason = deleteBlockReason(row, live, { allowPaired: opts.allowPaired && !!opts.instanceToken });
   if (reason === "já não existe na Evolution") return true;
   if (reason) throw new EvolutionAdminError(`não apago ${row.evolution_name || row.instance_id}: ${reason}`);
+  if (live && isPaired(live) && opts.instanceToken) {
+    try {
+      const out = await fetch(`${evolutionBaseUrl()}/instance/logout`, {
+        method: "DELETE", headers: { "Content-Type": "application/json", apikey: opts.instanceToken }, signal: AbortSignal.timeout(30000),
+      });
+      if (!out.ok) console.warn(`[evolution-admin] logout de ${row.evolution_name}: HTTP ${out.status} — apagando mesmo assim`);
+    } catch (e) {
+      console.warn(`[evolution-admin] logout de ${row.evolution_name} falhou — apagando mesmo assim:`, e instanceof Error ? e.message : e);
+    }
+  }
   const r = await globalRequest({ method: "DELETE", path: `/instance/delete/${encodeURIComponent(row.instance_id)}` });
   if (!r.ok) throw new EvolutionAdminError(`não consegui apagar ${row.evolution_name} (${r.error})`);
   return true;
