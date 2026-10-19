@@ -10,7 +10,7 @@ import { HubMobileMenu } from "./HubMobileMenu";
 
 interface HubLayoutProps {
   children: (props: { user: User; profile: HubProfile | null }) => ReactNode;
-  currentPage: "hub" | "empresas" | "users" | "whatsapp" | "onboarding" | "prospeccao" | "comercial-b2b" | "consumo-ia" | "treinamento" | "leads" | "suporte" | "materiais" | "recrutamento" | "funcionalidades" | "backups" | "message-trace";
+  currentPage: "hub" | "empresas" | "users" | "whatsapp" | "onboarding" | "prospeccao" | "comercial-b2b" | "consumo-ia" | "treinamento" | "leads" | "suporte" | "materiais" | "recrutamento" | "funcionalidades" | "backups" | "instagram" | "message-trace";
   header: ReactNode;
 }
 
