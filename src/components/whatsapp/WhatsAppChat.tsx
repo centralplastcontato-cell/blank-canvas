@@ -297,6 +297,14 @@ const isUnresolvedLidIdentifier = (
   return false;
 };
 
+// Inicial da bolinha: primeira letra/número (nome começando com emoji ou símbolo
+// mostrava "�", porque charAt(0) corta o emoji pela metade)
+const avatarInitial = (name: string | null | undefined): string => {
+  const chars = Array.from(String(name || ''));
+  const letter = chars.find((c) => /[\p{L}\p{N}]/u.test(c));
+  return (letter || chars[0] || '?').toUpperCase();
+};
+
 // Helper: resolve the best display name for a conversation
 const getConversationDisplayName = (
   conv: { contact_name: string | null; contact_phone: string; id: string; remote_jid?: string | null },
@@ -5208,7 +5216,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                           "text-primary text-sm font-semibold bg-gradient-to-br",
                           isAwaitingRead(conv) ? "from-primary/30 to-primary/10" : "from-primary/15 to-primary/5"
                         )}>
-                          {getConversationDisplayName(conv, conversationLeadsMap).charAt(0).toUpperCase()}
+                          {avatarInitial(getConversationDisplayName(conv, conversationLeadsMap))}
                         </AvatarFallback>
                       </Avatar>
                       {conv.is_favorite && (
@@ -5360,7 +5368,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                             "text-primary text-sm font-semibold bg-gradient-to-br",
                             isAwaitingRead(conv) ? "from-primary/30 to-primary/10" : "from-primary/15 to-primary/5"
                           )}>
-                            {getConversationDisplayName(conv, conversationLeadsMap).charAt(0).toUpperCase()}
+                            {avatarInitial(getConversationDisplayName(conv, conversationLeadsMap))}
                           </AvatarFallback>
                         </Avatar>
                           {conv.is_favorite && (
@@ -5558,7 +5566,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         referrerPolicy="no-referrer"
                       />
                       <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary text-sm font-semibold">
-                        {getConversationDisplayName(selectedConversation, conversationLeadsMap).charAt(0).toUpperCase()}
+                        {avatarInitial(getConversationDisplayName(selectedConversation, conversationLeadsMap))}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
@@ -6807,9 +6815,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         referrerPolicy="no-referrer"
                       />
                       <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                        {(selectedConversation.contact_name || selectedConversation.contact_phone)
-                          .charAt(0)
-                          .toUpperCase()}
+                        {avatarInitial(selectedConversation.contact_name || selectedConversation.contact_phone)}
                       </AvatarFallback>
                     </Avatar>
                     {/* Tocar no nome abre os dados do contato (como no WhatsApp) */}
