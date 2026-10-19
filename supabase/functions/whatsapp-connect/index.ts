@@ -6,9 +6,10 @@
 //   pair   — código de 8 letras para quem está no celular do buffet
 //   check  — só confere se pareou (pelos eventos, sem chamar a Evolution)
 //   cancel — desistiu: apaga a instância que não pareou
+//   remove — só admin da Celebrei: desconecta e apaga o número (ex.: teste)
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { evolutionRequest, EVOLUTION_WEBHOOK_EVENTS } from "../_shared/evolution.ts";
-import { createManagedInstance, EvolutionAdminError, managedNameFor } from "../_shared/evolution-admin.ts";
+import { createManagedInstance, deleteManagedInstance, EvolutionAdminError, managedNameFor } from "../_shared/evolution-admin.ts";
 import { PENDING_SELECT, type ProvisionRow, settle } from "../_shared/whatsapp-provision.ts";
 
 // deno-lint-ignore no-explicit-any
@@ -26,15 +27,15 @@ const json = (body: unknown, status = 200) =>
 const webhookUrl = () => `${Deno.env.get("SUPABASE_URL")}/functions/v1/wapi-webhook`;
 const SUBSCRIBE = [...EVOLUTION_WEBHOOK_EVENTS, "QRCODE"];
 
-async function authorize(supabase: SB, req: Request, companyId: string): Promise<{ userId: string } | Response> {
+async function authorize(supabase: SB, req: Request, companyId: string): Promise<{ userId: string; isAdmin: boolean } | Response> {
   const jwt = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
   const { data: { user } } = jwt ? await supabase.auth.getUser(jwt) : { data: { user: null } };
   if (!user) return json({ error: "Faça login de novo." }, 401);
   const { data: isAdmin } = await supabase.rpc("is_admin", { _user_id: user.id });
-  if (isAdmin === true) return { userId: user.id };
+  if (isAdmin === true) return { userId: user.id, isAdmin: true };
   const { data: link } = await supabase.from("user_companies").select("role").eq("user_id", user.id).eq("company_id", companyId).maybeSingle();
   if (!link || (link.role !== "owner" && link.role !== "admin")) return json({ error: "Só o dono do buffet pode conectar o WhatsApp." }, 403);
-  return { userId: user.id };
+  return { userId: user.id, isAdmin: false };
 }
 
 async function managedRow(supabase: SB, companyId: string): Promise<(ProvisionRow & { phone_number: string | null; instance_token: string }) | null> {
@@ -141,6 +142,16 @@ Deno.serve(async (req) => {
         if (!row || row.status !== "pending_qr") return json(view(row));
         const s = await settle(supabase, row, { force: true });
         return json(s === "connected" ? view(await managedRow(supabase, companyId)) : { status: "none" });
+      }
+      case "remove": {
+        if (!auth.isAdmin) return json({ error: "Só a equipe Celebrei pode remover o número." }, 403);
+        const row = await managedRow(supabase, companyId);
+        if (!row) return json({ status: "none" });
+        // Desliga antes: o "LoggedOut" que vem do logout não vira alerta de queda
+        await supabase.from("wapi_instances").update({ is_active: false, status: "not_connected" }).eq("id", row.id);
+        await deleteManagedInstance(row, { allowPaired: true, instanceToken: row.instance_token });
+        console.log(`[whatsapp-connect] ${row.evolution_name} removida por admin (${auth.userId})`);
+        return json({ status: "none" });
       }
       default:
         return json({ error: "Ação desconhecida." }, 400);
