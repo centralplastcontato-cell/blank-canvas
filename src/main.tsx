@@ -1,3 +1,5 @@
+// Primeiro de tudo: lê o link de "Esqueci minha senha" antes do Supabase limpar a URL
+import "./lib/passwordRecovery";
 import { createRoot } from "react-dom/client";
 import { HelmetProvider } from "react-helmet-async";
 import App from "./App.tsx";
