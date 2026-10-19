@@ -309,12 +309,15 @@ const getConversationDisplayName = (
   const leadName = leadsMap[conv.id]?.name;
   if (isValidLeadDisplayName(leadName)) return leadName.trim();
 
-  // 3. @lid não resolvido → rótulo amigável em vez do ID anônimo.
+  // 3. Grupo cujo nome ainda não veio (Evolution: o monitor busca em até 1 h)
+  if (conv.remote_jid?.endsWith('@g.us')) return 'Grupo';
+
+  // 4. @lid não resolvido → rótulo amigável em vez do ID anônimo.
   if (isUnresolvedLidIdentifier(conv.remote_jid, conv.contact_phone)) {
     return 'Contato sem identificação';
   }
 
-  // 4. Fallback to phone
+  // 5. Fallback to phone
   return conv.contact_phone;
 };
 

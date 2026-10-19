@@ -10,6 +10,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { ALIVE_TIMEOUT_MS, evolutionCheckAlive, evolutionConnect, evolutionReconnect, evolutionSendMedia, evolutionSendText, evolutionStatus, extractEvolutionMessageId } from "../_shared/evolution.ts";
 import { cleanupAbandoned } from "../_shared/whatsapp-provision.ts";
+import { fillGroupNames } from "../_shared/evolution-groups.ts";
 import { claimEvolutionLock, currentDownStreak, type DownStreak, installEvolutionCallGuard, PAUSED_INSTANCE_ROW_IDS, recentConnectionEvent, releaseEvolutionLock, streakNeedsAlert } from "../_shared/evolution-guard.ts";
 import {
   aliveCheckHealthy,
@@ -56,6 +57,7 @@ interface Inst {
   company_id: string;
   status: string | null;
   phone_number: string | null;
+  managed_by_celebrei?: boolean | null;
 }
 
 const corsHeaders = {
@@ -358,7 +360,7 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
     }
   }
   let q = supabase.from("wapi_instances")
-    .select("id, instance_id, instance_token, unit, company_id, status, phone_number")
+    .select("id, instance_id, instance_token, unit, company_id, status, phone_number, managed_by_celebrei")
     .eq("provider", "evolution").eq("is_active", true);
   if (onlyInstanceId) q = q.eq("id", onlyInstanceId);
   const { data: instances } = await q;
@@ -576,6 +578,20 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
     if (!onlyInstanceId && !serverIncident && final.state !== "online" && reminderDue(row, true, Date.now()) && await claimReminder(supabase, key, row!.alerted_at)) {
       await alertOwner(supabase, reminderText("instance", final.state, inst.unit || inst.instance_id, row!.state_since, Date.now()), serverDown);
       await bumpReminder(supabase, key);
+    }
+  }
+  // Nome dos grupos (números do cadastro): só em número que acabou de responder
+  // logado e sem reconexão nesta rodada, ainda dentro da trava desta checagem
+  if (!onlyInstanceId) {
+    for (const r of results) {
+      const p = pending.find((x) => x.inst.id === r.inst.id);
+      const reconnected = summary.find((x) => x.unit === r.inst.unit)?.reconnect;
+      if (!r.inst.managed_by_celebrei || !r.aliveOk || classifyEvolutionStatus(r.res) !== "online" || p?.final.state !== "online" || reconnected) continue;
+      try {
+        await fillGroupNames(supabase, r.inst);
+      } catch (e) {
+        console.error(`[evolution-monitor] ${r.inst.unit}: nomes dos grupos falharam:`, e instanceof Error ? e.message : e);
+      }
     }
   }
   for (const r of results) await releaseEvolutionLock(supabase, r.inst.id);
