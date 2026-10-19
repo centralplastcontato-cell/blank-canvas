@@ -263,6 +263,7 @@ export default function DynamicLandingPage({ domain, slug: slugProp }: DynamicLa
         companyLogo={data.company_logo}
         onCtaClick={openChat}
         multipleUnits={data.multipleUnits}
+        whatsappCta={!builderPage && !!directWhatsApp && (data.hero as { cta_mode?: string }).cta_mode === "whatsapp"}
       />
       <DLPSocialProof socialProof={data.social_proof} theme={data.theme} />
       <DLPBenefits theme={data.theme} companyName={data.company_name} benefits={data.benefits} />
