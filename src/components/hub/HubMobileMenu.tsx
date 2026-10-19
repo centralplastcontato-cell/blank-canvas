@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { BarChart3, Building2, LogOut, Smartphone, Presentation, Brain, GraduationCap, Contact, Headset, Package, UserSearch, BookOpen, Activity, Target, Database } from "lucide-react";
+import { BarChart3, Building2, LogOut, Smartphone, Presentation, Brain, GraduationCap, Contact, Headset, Package, UserSearch, BookOpen, Activity, Target, Database, Instagram } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +16,7 @@ interface HubMobileMenuProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   trigger: React.ReactNode;
-  currentPage: "hub" | "empresas" | "users" | "whatsapp" | "onboarding" | "prospeccao" | "comercial-b2b" | "consumo-ia" | "treinamento" | "leads" | "suporte" | "materiais" | "recrutamento" | "funcionalidades" | "backups" | "message-trace";
+  currentPage: "hub" | "empresas" | "users" | "whatsapp" | "onboarding" | "prospeccao" | "comercial-b2b" | "consumo-ia" | "treinamento" | "leads" | "suporte" | "materiais" | "recrutamento" | "funcionalidades" | "backups" | "instagram" | "message-trace";
   userName: string;
   userEmail: string;
   userAvatar?: string | null;
@@ -33,6 +33,7 @@ const menuItems = [
   { id: "empresas", label: "Empresas", icon: Building2, path: "/hub/empresas" },
   { id: "comercial-b2b", label: "Comercial B2B", icon: Presentation, path: "/hub/comercial-b2b" },
   { id: "prospeccao", label: "Prospecção", icon: Target, path: "/hub/prospeccao" },
+  { id: "instagram", label: "Instagram", icon: Instagram, path: "/hub/instagram" },
   { id: "whatsapp", label: "WhatsApp", icon: Smartphone, path: "/hub/whatsapp" },
   { id: "message-trace", label: "Diagnóstico Msg", icon: Activity, path: "/admin/message-trace" },
   { id: "consumo-ia", label: "Consumo IA", icon: Brain, path: "/hub/consumo-ia" },

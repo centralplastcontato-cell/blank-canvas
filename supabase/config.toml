@@ -119,3 +119,6 @@ verify_jwt = false
 
 [functions.whatsapp-connect]
 verify_jwt = false
+
+[functions.hub-instagram]
+verify_jwt = false

@@ -12,13 +12,13 @@ export default function HubFooter() {
         </div>
         <div className="flex flex-col items-center gap-3 sm:items-end">
           <a
-            href="https://www.instagram.com/celebrei.app"
+            href="https://www.instagram.com/hubcelebrei"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-full border border-[#0F1222]/[0.08] bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors [@media(hover:hover)]:hover:border-[#F0457A]/40 [@media(hover:hover)]:hover:text-[#D23468]"
           >
             <Instagram className="h-4 w-4" />
-            @celebrei.app
+            @hubcelebrei
           </a>
           <div className="flex gap-4 text-xs text-slate-500">
             <Link to="/termos" className="[@media(hover:hover)]:hover:text-[#D23468]">Termos de Uso</Link>
