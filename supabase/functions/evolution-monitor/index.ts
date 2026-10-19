@@ -3,13 +3,13 @@
 //
 // - Consulta GET /instance/status de cada número com provider 'evolution'
 // - Caiu com sessão (LoggedIn): POST /instance/reconnect (até 3x). Sem sessão: só alerta (QR)
-// - Avisa o dono no WhatsApp quando cai e quando volta, sem repetir. Sai pela
-//   instância "celebrei-go" (secret EVOLUTION_ALERT_TOKEN); se ela/o servidor
-//   estiver fora, sai por um número do Castelo que não é da Evolution (Z-API primeiro)
+// - Avisa o dono no WhatsApp quando cai e quando volta, sem repetir. Sai por um
+//   número do Castelo que não é da Evolution (Z-API primeiro). A celebrei-go
+//   (15 97400-0152) foi apagada em 19/10: o número agora é do Prospecta
 // - Depois que volta, reenvia (com limite) o que falhou durante a queda
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { ALIVE_TIMEOUT_MS, evolutionCheckAlive, evolutionConnect, evolutionReconnect, evolutionSendMedia, evolutionSendText, evolutionStatus, extractEvolutionMessageId } from "../_shared/evolution.ts";
-import { CELEBREI_GO_PAUSED, claimEvolutionLock, currentDownStreak, type DownStreak, installEvolutionCallGuard, PAUSED_INSTANCE_ROW_IDS, recentConnectionEvent, releaseEvolutionLock, streakNeedsAlert } from "../_shared/evolution-guard.ts";
+import { claimEvolutionLock, currentDownStreak, type DownStreak, installEvolutionCallGuard, PAUSED_INSTANCE_ROW_IDS, recentConnectionEvent, releaseEvolutionLock, streakNeedsAlert } from "../_shared/evolution-guard.ts";
 import {
   aliveCheckHealthy,
   classifyEvolutionStatus,
@@ -128,19 +128,6 @@ async function bumpReminder(supabase: SB, key: string): Promise<void> {
 
 // ─── Envio do alerta ──────────────────────────────────────────────────────
 
-async function sendViaCelebreiGo(text: string): Promise<boolean> {
-  // celebrei-go bloqueada (15/10): alertas só pela Z-API até segunda ordem
-  if (CELEBREI_GO_PAUSED) return false;
-  const token = Deno.env.get("EVOLUTION_ALERT_TOKEN");
-  if (!token) {
-    console.warn("[evolution-monitor] EVOLUTION_ALERT_TOKEN não configurado — usando o plano B");
-    return false;
-  }
-  const res = await evolutionSendText(token, OWNER_ALERT_PHONE, text);
-  if (!res.ok) console.warn("[evolution-monitor] celebrei-go não enviou o alerta:", res.error);
-  return res.ok;
-}
-
 /** Plano B: um número do Castelo que não é da Evolution (Z-API primeiro) */
 async function sendViaFallback(supabase: SB, text: string): Promise<boolean> {
   const { data: senders } = await supabase
@@ -193,8 +180,7 @@ async function sendViaFallback(supabase: SB, text: string): Promise<boolean> {
   }
 }
 
-async function alertOwner(supabase: SB, text: string, serverDown: boolean): Promise<void> {
-  if (!serverDown && await sendViaCelebreiGo(text)) return;
+async function alertOwner(supabase: SB, text: string, _serverDown: boolean): Promise<void> {
   await sendViaFallback(supabase, text);
 }
 
@@ -446,21 +432,10 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
     return looksLikeDbExhausted(res, known) || looksLikeDbExhausted(alive, known);
   });
   if (dbExhausted) console.warn("[evolution-monitor] 🚨 Banco da Evolution parece esgotado (401/too many clients) — sem reconexões");
-  // Servidor fora: nenhum número respondeu e a celebrei-go também não
-  // celebrei-go pausada: não consultar (cada consulta numa instância deslogada vaza conexões no banco da Evolution)
-  const alertToken = CELEBREI_GO_PAUSED ? undefined : Deno.env.get("EVOLUTION_ALERT_TOKEN");
+  // Servidor fora: 2+ números sem resposta (sem número próprio da Celebrei
+  // na Evolution para confirmar)
   const allUnreachable = results.length > 0 && results.every((r) => !r.res.ok && (!r.res.status || r.res.status >= 500));
-  let serverDown = false;
-  let celebreiDown = false;
-  if (!onlyInstanceId && alertToken) {
-    const probe = await evolutionStatus(alertToken);
-    const probeOnline = classifyEvolutionStatus(probe) === "online";
-    celebreiDown = !probeOnline || !aliveCheckHealthy(await evolutionCheckAlive(alertToken, OWNER_ALERT_PHONE), ALIVE_TIMEOUT_MS);
-    serverDown = allUnreachable && !probe.ok;
-  } else if (allUnreachable && !onlyInstanceId && results.length >= 2) {
-    // Sem a celebrei-go para confirmar: só com 2+ números sem resposta
-    serverDown = true;
-  }
+  const serverDown = allUnreachable && !onlyInstanceId && results.length >= 2;
   const serverRow = (health[SERVER_KEY] || null) as Json | null;
   const serverIncidentOpen = serverRow?.alerted_state === "down";
 
@@ -531,20 +506,20 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
   }
 
   // 3) Servidor (só na rodada completa): fora do ar, ou provável travamento
-  // quando 2+ números (contando a celebrei-go) caem juntos
+  // quando 2+ números caem juntos
   const confirmedDown = pending.filter((p) => isConfirmedDown(p.final));
-  const suspect = !serverDown && confirmedDown.length + (celebreiDown ? 1 : 0) >= SUSPECT_MIN_DOWN && confirmedDown.length >= 1;
+  const suspect = !serverDown && confirmedDown.length >= SUSPECT_MIN_DOWN;
   let serverIncident = serverIncidentOpen;
   if (!onlyInstanceId) {
     const prev = serverRow as HealthRow | null;
     const d = decideServerHealth(prev, serverDown || suspect || dbExhausted, { confirmNow: suspect && !dbExhausted });
     const earliestDown = confirmedDown.map((p) => p.stateSince).sort()[0] || nowIso;
     const since = d.state === "down" ? (prev?.state === "down" ? serverRow!.state_since : (suspect ? earliestDown : nowIso)) : (prev?.state === "online" ? serverRow?.state_since : nowIso);
-    const downUnits = [...confirmedDown.map((p) => p.inst.unit || p.inst.instance_id), ...(celebreiDown ? ["celebrei-go"] : [])];
+    const downUnits = confirmedDown.map((p) => p.inst.unit || p.inst.instance_id);
     const units = serverDown || dbExhausted ? list.map((i) => i.unit || i.instance_id) : downUnits;
     await saveHealth(supabase, SERVER_KEY, null, {
       state: d.state, state_since: since, bad_checks: d.bad_checks, last_check_at: nowIso,
-      detail: { suspect, server_down: serverDown, db_exhausted: dbExhausted, celebrei_down: celebreiDown, down_units: downUnits },
+      detail: { suspect, server_down: serverDown, db_exhausted: dbExhausted, down_units: downUnits },
     });
     if (d.alert && await claimAlert(supabase, SERVER_KEY, prev?.alerted_state ?? null, d.alert === "down" ? "down" : "online")) {
       const lastUnits = ((serverRow?.detail as Json | null)?.down_units as string[] | undefined) || units;
@@ -609,7 +584,7 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
       await bumpReminder(supabase, key);
     }
   }
-  return { checked: results.length, quiet: quiet.map((i) => i.unit), downByEvents: downByEvents.map((d) => d.inst.unit), throttled: throttled.map((i) => i.unit), serverDown, suspect: !onlyInstanceId && serverIncident, celebreiDown, reason, summary };
+  return { checked: results.length, quiet: quiet.map((i) => i.unit), downByEvents: downByEvents.map((d) => d.inst.unit), throttled: throttled.map((i) => i.unit), serverDown, suspect: !onlyInstanceId && serverIncident, reason, summary };
 }
 
 Deno.serve(async (req) => {
