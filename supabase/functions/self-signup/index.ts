@@ -294,7 +294,7 @@ async function approve(supabase: SB, req: Request, body: Json): Promise<Response
   // A IA responde no número cuja unidade é a mesma da configuração dela
   const { data: insts } = await supabase.from("wapi_instances").select("unit, status").eq("company_id", companyId).eq("is_active", true);
   const inst = ((insts || []) as Json[]).find((i) => i.unit);
-  if (!inst) return json({ error: "Conecte primeiro o número de WhatsApp do buffet (Hub → WhatsApp) e depois aprove." }, 400);
+  if (!inst) return json({ error: "O buffet ainda não conectou o WhatsApp (ele conecta no fim do cadastro ou em Minha IA; a equipe também pode cadastrar em Hub → WhatsApp). Depois aprove." }, 400);
 
   await supabase.from("company_onboarding").update({ status: "completo" }).eq("company_id", companyId);
   await patchSignup(supabase, companyId, { status: "aprovado", approved_at: new Date().toISOString(), approved_by: userId }, (s) => ({
@@ -318,7 +318,7 @@ async function approve(supabase: SB, req: Request, body: Json): Promise<Response
     await supabase.from("notifications").insert((users as Json[]).map((u) => ({
       user_id: u.user_id, company_id: companyId, type: "self_signup_approved",
       title: "🎉 Seu buffet está no ar!",
-      message: inst.status === "connected" ? "A IA já está atendendo o seu WhatsApp." : "Falta ler o QR Code do WhatsApp em Configurações → Conexão para a IA começar a atender.",
+      message: inst.status === "connected" ? "A IA já está atendendo o seu WhatsApp." : "Falta conectar o WhatsApp em Configurações → Minha IA para a IA começar a atender.",
       data: { company_id: companyId },
     })));
   }

@@ -7,6 +7,8 @@ import { AiTestChat } from "@/components/setup/AiTestChat";
 import { AiImagesEditor } from "@/components/setup/AiImagesEditor";
 import { HandoffAlertPhone } from "@/components/setup/HandoffAlertPhone";
 import { AiHandoffReasons } from "@/components/setup/AiHandoffReasons";
+import { WhatsAppConnect } from "@/components/setup/WhatsAppConnect";
+import { signupStatus } from "@/lib/selfSetup";
 
 const IDEAS = [
   "Peça orçamento (\"quanto fica pra 70 pessoas no sábado?\")",
@@ -23,6 +25,14 @@ export function AiTestSection() {
   if (!currentCompany) return null;
   return (
     <div className="max-w-xl space-y-4">
+      {signupStatus(currentCompany.settings) && (
+        <Card>
+          <CardContent className="space-y-3 pt-6">
+            <p className="font-medium">WhatsApp do buffet</p>
+            <WhatsAppConnect companyId={currentCompany.id} />
+          </CardContent>
+        </Card>
+      )}
       <Card>
         <CardContent className="space-y-4 pt-6">
           <div className="space-y-1">
