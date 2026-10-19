@@ -6,6 +6,8 @@ const calls: string[] = [];
 let connected = false;
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
+    auth: { getUser: async () => ({ data: { user: { id: "u" } } }) },
+    rpc: async () => ({ data: false }),
     functions: {
       invoke: async (_fn: string, { body }: { body: { action: string } }) => {
         calls.push(body.action);
