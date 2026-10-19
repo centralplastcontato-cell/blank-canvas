@@ -14,6 +14,7 @@ import { CheckCircle2, ExternalLink, Globe, ImagePlus, Loader2, RefreshCw, Save,
 import { cn } from "@/lib/utils";
 import { resizeImageFile } from "@/lib/imageResize";
 import { GuestRangesEditor } from "./GuestRangesEditor";
+import { LpCtaModeSwitch } from "./LpCtaModeSwitch";
 import {
   buildSiteDraft,
   isSiteBuilderPage,
@@ -287,6 +288,7 @@ export function SiteSection() {
         <CardContent className="pt-6 space-y-3">
           <p className="font-medium">Seu site foi feito sob medida pela equipe Celebrei.</p>
           <p className="text-sm text-muted-foreground">Para mudar textos, fotos ou o endereço, fale com a gente que ajustamos para você.</p>
+          <LpCtaModeSwitch companyId={currentCompany.id} />
           {published && (
             <Button variant="outline" asChild>
               <a href={currentCompany.custom_domain ? `https://${currentCompany.custom_domain}` : `/lp/${currentCompany.slug}`} target="_blank" rel="noreferrer">
