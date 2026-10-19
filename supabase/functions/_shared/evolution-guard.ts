@@ -21,7 +21,7 @@ export const EVENT_QUIET_MS = 2 * 60 * 1000;
 // VENDAS 2 saiu da pausa em 15/10 (liberado pelo WhatsApp): respostas e
 // monitor normais; os envios do sistema seguem pausados em system-send-pacing.ts.
 export const PAUSED_INSTANCE_ROW_IDS = new Set<string>([]);
-export const CELEBREI_GO_PAUSED = true; // 15 97400-0152 bloqueado: sem consultas e sem enviar alertas por ela
+// celebrei-go (15 97400-0152) apagada em 19/10 — o número é do Prospecta; alertas só pela Z-API
 
 export const CONNECTION_EVENTS = [
   "Connected", "PairSuccess", "KeepAliveRestored",
@@ -168,7 +168,7 @@ export async function evolutionHoldReason(supabase: SB, inst: { id: string; inst
 
 /**
  * Instala a trava nas chamadas à Evolution desta requisição. O token aponta
- * para a instância (tokens fora da tabela — ex.: celebrei-go — passam).
+ * para a instância (tokens fora da tabela passam).
  */
 export function installEvolutionCallGuard(supabase: SB): void {
   const byToken = new Map<string, { id: string; instance_id: string } | null>();
