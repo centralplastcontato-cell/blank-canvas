@@ -20,6 +20,7 @@ import { resizeImageFile } from "@/lib/imageResize";
 import { syncSitePhotosCollection } from "@/lib/aiMaterials";
 import { MaterialsQuickSetup } from "@/components/setup/MaterialsQuickSetup";
 import { PricesQuickSetup, type PricesQuickSetupHandle } from "@/components/setup/PricesQuickSetup";
+import { WhatsAppConnect } from "@/components/setup/WhatsAppConnect";
 import { AiTestChat } from "@/components/setup/AiTestChat";
 import {
   BUSY_NOTE, buildPartySlots, dayKey, hasTerm, monthsAhead, SATURDAY, SETUP_SELECTS, SETUP_SUGGESTIONS, toggleTerm, type SetupAnswers, type Slot, WEEKDAYS,
@@ -186,13 +187,19 @@ export default function SetupBuffet() {
             {status === "aprovado" ? (
               <>
                 <p className="text-lg font-semibold">Seu buffet está no ar! 🎉</p>
-                <p className="text-sm text-muted-foreground">Se ainda não leu o QR Code do WhatsApp, vá em Configurações → WhatsApp → Conexão.</p>
+                <p className="text-sm text-muted-foreground">A IA atende pelo WhatsApp conectado abaixo.</p>
               </>
             ) : (
               <>
                 <p className="text-lg font-semibold">Cadastro enviado!</p>
-                <p className="text-sm text-muted-foreground">A equipe Celebrei vai conectar o seu WhatsApp e ligar a IA. Avisamos você assim que estiver pronto (normalmente em até 1 dia útil).</p>
+                <p className="text-sm text-muted-foreground">Agora conecte o WhatsApp do buffet. Depois a equipe Celebrei confere tudo e liga a IA (normalmente em até 1 dia útil). Avisamos você quando estiver no ar.</p>
               </>
+            )}
+            {companyId && (
+              <div className="space-y-2 rounded-lg border p-3 text-left">
+                <p className="text-sm font-medium">WhatsApp do buffet</p>
+                <WhatsAppConnect companyId={companyId} defaultPhone={whatsapp} />
+              </div>
             )}
             <div className="flex flex-col gap-2">
               <Button variant="outline" onClick={() => setTestOpen(true)}><Sparkles className="mr-2 h-4 w-4" /> Testar a minha IA</Button>
@@ -625,7 +632,7 @@ export default function SetupBuffet() {
                   <p className="text-xs text-muted-foreground">Converse com ela como se fosse um cliente. Se algo sair errado, volte nos passos e ajuste antes de enviar.</p>
                   <Button type="button" size="sm" variant="outline" onClick={() => setTestOpen(true)}><Sparkles className="mr-2 h-4 w-4" /> Testar a minha IA</Button>
                 </div>
-                <p className="text-sm text-muted-foreground">Depois de enviar, a equipe Celebrei conecta o seu WhatsApp e liga a IA.</p>
+                <p className="text-sm text-muted-foreground">Depois de enviar, você conecta o WhatsApp do buffet (leva 1 minuto) e a equipe Celebrei liga a IA.</p>
                 <AiTestChat open={testOpen} onOpenChange={setTestOpen} companyId={companyId} />
               </>
             )}

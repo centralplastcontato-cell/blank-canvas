@@ -56,7 +56,7 @@ export default function Comecar() {
           <h1 className="font-grotesque text-3xl font-bold leading-tight text-[#0F1222] sm:text-4xl">Coloque seu buffet para atender sozinho no WhatsApp</h1>
           <p className="text-slate-600">Em uns 15 minutos você deixa tudo pronto:</p>
           <ul className="space-y-3 text-slate-700">
-            {["A IA aprende sobre o seu buffet com 10 perguntas", "Você marca as datas que já estão ocupadas", "O site do buffet fica pronto, com o botão do WhatsApp", "A equipe Celebrei conecta o seu número e liga a IA"].map((t) => (
+            {["A IA aprende sobre o seu buffet com 10 perguntas", "Você marca as datas que já estão ocupadas", "O site do buffet fica pronto, com o botão do WhatsApp", "Você conecta o WhatsApp lendo um QR Code e a equipe Celebrei liga a IA"].map((t) => (
               <li key={t} className="flex gap-2"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[#E0457A]" /> {t}</li>
             ))}
           </ul>

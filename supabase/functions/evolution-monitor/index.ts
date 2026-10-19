@@ -9,6 +9,7 @@
 // - Depois que volta, reenvia (com limite) o que falhou durante a queda
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { ALIVE_TIMEOUT_MS, evolutionCheckAlive, evolutionConnect, evolutionReconnect, evolutionSendMedia, evolutionSendText, evolutionStatus, extractEvolutionMessageId } from "../_shared/evolution.ts";
+import { cleanupAbandoned } from "../_shared/whatsapp-provision.ts";
 import { claimEvolutionLock, currentDownStreak, type DownStreak, installEvolutionCallGuard, PAUSED_INSTANCE_ROW_IDS, recentConnectionEvent, releaseEvolutionLock, streakNeedsAlert } from "../_shared/evolution-guard.ts";
 import {
   aliveCheckHealthy,
@@ -347,6 +348,15 @@ async function hasRecentTraffic(supabase: SB, inst: Inst): Promise<boolean> {
 }
 
 async function run(supabase: SB, onlyInstanceId: string | null, reason: string): Promise<Json> {
+  // Números dos buffets do cadastro que ficaram esperando QR e foram esquecidos
+  if (!onlyInstanceId) {
+    try {
+      const cleaned = await cleanupAbandoned(supabase);
+      if (cleaned.length) console.log(`[evolution-monitor] QR abandonado: ${cleaned.join(", ")}`);
+    } catch (e) {
+      console.error("[evolution-monitor] limpeza de QR abandonado falhou:", e instanceof Error ? e.message : e);
+    }
+  }
   let q = supabase.from("wapi_instances")
     .select("id, instance_id, instance_token, unit, company_id, status, phone_number")
     .eq("provider", "evolution").eq("is_active", true);
