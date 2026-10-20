@@ -48,7 +48,8 @@ interface ReactivationMetrics {
   total_eligible: number;
   total_sent: number;
   total_replied: number;
-  total_closed: number;
+  // null = banco ainda sem a data de fechamento (campaign_leads.closed_at)
+  total_closed: number | null;
 }
 
 const DEFAULT_SETTINGS: Omit<ReactivationSettings, 'company_id'> = {
@@ -136,21 +137,53 @@ export function ReactivationSection() {
   const fetchMetrics = async () => {
     if (!currentCompanyId) return;
 
-    const { data: history } = await supabase
-      .from('lead_reactivation_history')
-      .select('id, status, lead_id, option_selected')
-      .eq('company_id', currentCompanyId);
-
-    if (history) {
-      const sent = history.filter(h => h.status === 'sent' || h.status === 'replied').length;
-      const replied = history.filter(h => h.status === 'replied').length;
-      setMetrics({
-        total_eligible: 0,
-        total_sent: sent,
-        total_replied: replied,
-        total_closed: 0,
-      });
+    // Em páginas: o banco devolve no máximo 1000 linhas por consulta
+    const history: { status: string; lead_id: string; sent_at: string | null }[] = [];
+    for (let from = 0; from < 20000; from += 1000) {
+      const { data, error } = await supabase
+        .from('lead_reactivation_history')
+        .select('status, lead_id, sent_at')
+        .eq('company_id', currentCompanyId)
+        .order('id')
+        .range(from, from + 999);
+      if (error || !data) break;
+      history.push(...data);
+      if (data.length < 1000) break;
     }
+
+    const sentRows = history.filter(h => h.status === 'sent' || h.status === 'replied');
+    const replied = history.filter(h => h.status === 'replied').length;
+
+    // Fechados depois da reativação: lead fechado (closed_at) depois do 1º envio
+    const firstSent = new Map<string, string>();
+    for (const h of sentRows) {
+      if (!h.sent_at) continue;
+      const prev = firstSent.get(h.lead_id);
+      if (!prev || h.sent_at < prev) firstSent.set(h.lead_id, h.sent_at);
+    }
+    let closed: number | null = 0;
+    const ids = [...firstSent.keys()];
+    for (let i = 0; i < ids.length && closed !== null; i += 200) {
+      const { data, error } = await (supabase as any)
+        .from('campaign_leads')
+        .select('id, closed_at')
+        .in('id', ids.slice(i, i + 200))
+        .not('closed_at', 'is', null);
+      if (error) {
+        closed = null;
+        break;
+      }
+      for (const l of (data || []) as { id: string; closed_at: string }[]) {
+        if (Date.parse(l.closed_at) >= Date.parse(firstSent.get(l.id)!)) closed++;
+      }
+    }
+
+    setMetrics({
+      total_eligible: 0,
+      total_sent: sentRows.length,
+      total_replied: replied,
+      total_closed: closed,
+    });
   };
 
   const saveSettings = async () => {
@@ -241,8 +274,10 @@ export function ReactivationSection() {
             <p className="text-2xl font-bold">{metrics.total_replied}</p>
           </Card>
           <Card className="p-3">
-            <p className="text-xs text-muted-foreground">Fechamentos</p>
-            <p className="text-2xl font-bold">{metrics.total_closed}</p>
+            <p className="text-xs text-muted-foreground">Fechados depois da reativação</p>
+            <p className="text-2xl font-bold" title={metrics.total_closed === null ? "Falta a atualização do banco (data de fechamento)" : undefined}>
+              {metrics.total_closed ?? "—"}
+            </p>
           </Card>
           <Card className="p-3">
             <p className="text-xs text-muted-foreground">Taxa Resposta</p>

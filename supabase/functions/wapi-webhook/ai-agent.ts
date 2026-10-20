@@ -1003,7 +1003,9 @@ async function toolAgendarVisita(
     return 'ERRO: falha ao registrar a visita. Use transferir_para_atendente.';
   }
 
-  await supabase.from('campaign_leads').update({ status: 'em_contato' }).eq('id', leadId);
+  // A IA só avança o status: Novo e Orçamento enviado (o PDF que ela mesma
+  // manda) viram Visita; Negociando, Fechado, Perdido etc. ficam como estão
+  await supabase.from('campaign_leads').update({ status: 'em_contato' }).eq('id', leadId).in('status', ['novo', 'orcamento_enviado']);
   await supabase.from('wapi_conversations').update({ has_scheduled_visit: true }).eq('id', conv.id);
   await supabase.from('lead_history').insert({
     lead_id: leadId,
