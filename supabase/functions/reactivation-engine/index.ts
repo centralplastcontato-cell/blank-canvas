@@ -394,8 +394,9 @@ Deno.serve(async (req) => {
                 continue;
               }
 
-              // Conversa acompanhada pela Bia: o lembrete é dela
-              if (biaConvs.has(conv.id)) {
+              // Conversa acompanhada pela Bia: o lembrete é dela. Conversa que a IA
+              // atendeu (mesmo já passada para a equipe): fica fora da reativação
+              if (biaConvs.has(conv.id) || (conv.bot_data as Record<string, unknown> | null)?.ai_agent === "on") {
                 await supabase.from("lead_reactivation_history")
                   .delete().eq("lead_id", lead.id).eq("reactivation_stage", stage.stage).eq("status", "pending");
                 totalSkipped++;
