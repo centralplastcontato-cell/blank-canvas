@@ -1130,19 +1130,19 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
               </p>
             ) : (
               filteredInstances.map((instance) => (
-                <div key={instance.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${instance.status === 'connected' ? 'bg-primary/10' : 'bg-muted'}`}>
+                <div key={instance.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`p-2 rounded-lg shrink-0 ${instance.status === 'connected' ? 'bg-primary/10' : 'bg-muted'}`}>
                       {instance.status === 'connected' ? (
                         <Wifi className="w-5 h-5 text-primary" />
                       ) : (
                         <WifiOff className="w-5 h-5 text-muted-foreground" />
                       )}
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-medium flex items-center gap-2 flex-wrap">
-                        <Building2 className="w-4 h-4" />
-                        {instance.unit}
+                        <Building2 className="w-4 h-4 shrink-0" />
+                        <span className="break-words">{instance.unit}</span>
                         {instance.provider === 'zapi' ? (
                           <Badge className="bg-blue-600 hover:bg-blue-600 text-white border-0 text-[10px] px-2 py-0.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-white mr-1.5 inline-block" />
@@ -1163,13 +1163,13 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                           </Badge>
                         )}
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground break-all">
                         {instance.status === 'connected' ? 'Conectado' : 'Desconectado'}
                         {instance.phone_number && ` • ${instance.phone_number}`}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap sm:shrink-0 sm:justify-end">
                     {instance.status !== 'connected' && (
                       <Button 
                         size="sm" 
@@ -1651,12 +1651,12 @@ const EVO_LIVE: Record<string, { label: string; className: string }> = {
 
 function EvolutionLiveChip({ live }: { live?: { state: string; checkedAt: number } }) {
   if (!live) {
-    return <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">Checando…</span>;
+    return <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium whitespace-nowrap">Checando…</span>;
   }
   const info = EVO_LIVE[live.state] || { label: "Status desconhecido", className: "bg-muted text-muted-foreground" };
   const at = new Date(live.checkedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   return (
-    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${info.className}`} title={`Consultado na Evolution Go às ${at}`}>
+    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold whitespace-nowrap ${info.className}`} title={`Consultado na Evolution Go às ${at}`}>
       {info.label}
     </span>
   );
