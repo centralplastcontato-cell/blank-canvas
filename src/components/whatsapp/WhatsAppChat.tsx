@@ -2278,7 +2278,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     const companyId = localStorage.getItem('selected_company_id') || 'a0000000-0000-0000-0000-000000000001';
     let query = supabase
       .from("wapi_instances")
-      .select("id, instance_id, status, unit, is_active, provider, managed_by_celebrei")
+      .select("id, instance_id, status, unit, is_active, provider, managed_by_celebrei, connected_at")
       .eq("company_id", companyId);
 
     // Filter by allowed units - if empty, show nothing (user has no unit access)
@@ -2312,9 +2312,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
 
     // Keep inactive/hidden instances available for historical conversations.
     // The Hub toggle should control visibility/connection preference, not erase old chats from the buffet panel.
-    // Número do cadastro que ainda não pareou (ou desistiu): não é um WhatsApp de verdade
+    // Número do cadastro que nunca conectou (esperando QR ou desistiu) não é um
+    // WhatsApp de verdade. O que já conectou e foi desconectado continua, para
+    // as conversas antigas seguirem aparecendo
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let accessibleData = ((data || []) as any[]).filter((i) => !(i.managed_by_celebrei && i.is_active === false));
+    let accessibleData = ((data || []) as any[]).filter((i) => !(i.managed_by_celebrei && i.is_active === false && !i.connected_at));
 
     // Per-user WhatsApp instance restriction (whatsapp.instance.* permissions)
     if (!canViewAllInstances) {

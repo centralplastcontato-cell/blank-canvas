@@ -68,7 +68,7 @@ async function start(supabase: SB, companyId: string, userId: string): Promise<R
   const now = new Date().toISOString();
   const fields = {
     instance_id: instanceId, instance_token: token, evolution_name: name, managed_by_celebrei: true, provider: "evolution",
-    is_active: false, status: "pending_qr", phone_number: null, connected_at: null, updated_at: now,
+    is_active: false, status: "pending_qr", phone_number: null, updated_at: now,
     unit: String(signup.unit || company.name).slice(0, 40),
   };
   const { error } = existing
