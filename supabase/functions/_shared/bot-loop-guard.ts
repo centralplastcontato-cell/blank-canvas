@@ -34,7 +34,6 @@ const BOT_HINT_PATTERNS: RegExp[] = [
   /\bdigite\s+(apenas|somente|só)\b/i,
   /\bresponda\s+(apenas|somente|só)\s+com\b/i,
   /\b(ol[áa]!?\s+eu\s+sou|sou\s+(o|a)\s+(robo|robô|atendente\s+virtual|assistente))\b/i,
-  /[1-9]\s*[️⃣]/, // 1️⃣ 2️⃣ keycap emoji
   /\*\s*n[úu]mero\s*\*/i,
   /\b(menu|op[çc][ãa]o)\s+\d\b/i,
 ];
@@ -49,10 +48,17 @@ function normalizeContent(s: string | null | undefined): string {
     .slice(0, 200);
 }
 
-function looksLikeBotMessage(s: string | null | undefined): boolean {
+// Menu com emojis de número em várias linhas (1️⃣ … / 2️⃣ …) é coisa de robô.
+// Um emoji de número sozinho NÃO: é o cliente respondendo o nosso menu
+// copiando o emoji (Mega Magic, 17/10: "1️⃣2️⃣" pausou a conversa por 24 h).
+function looksLikeKeycapMenu(v: string): boolean {
+  return v.split('\n').filter((line) => /^\s*\*?\s*[0-9]\uFE0F?\u20E3/.test(line)).length >= 2;
+}
+
+export function looksLikeBotMessage(s: string | null | undefined): boolean {
   const v = String(s || '');
   if (!v) return false;
-  return BOT_HINT_PATTERNS.some((re) => re.test(v));
+  return looksLikeKeycapMenu(v) || BOT_HINT_PATTERNS.some((re) => re.test(v));
 }
 
 export type LoopReason =

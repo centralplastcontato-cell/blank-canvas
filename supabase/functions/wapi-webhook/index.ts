@@ -1645,7 +1645,10 @@ async function sendInteractiveOrText(
         })),
       });
       if (res.ok) {
-        const msgId = res.data ? ((res.data as JsonRecord).zaapId || (res.data as JsonRecord).zapiMessageId || (res.data as JsonRecord).messageId) as string || null : null;
+        // messageId (o do WhatsApp) primeiro: é ele que volta no eco "enviado
+        // por mim". Com o zaapId gravado, o eco virava uma 2ª boas-vindas na
+        // Central como se a equipe tivesse digitado (Mega Magic, 17/10)
+        const msgId = res.data ? ((res.data as JsonRecord).messageId || (res.data as JsonRecord).zapiMessageId || (res.data as JsonRecord).zaapId) as string || null : null;
         console.log(`[Bot-Interactive] Button send OK, msgId=${msgId}`);
         return msgId;
       }
@@ -1666,7 +1669,7 @@ async function sendInteractiveOrText(
         },
       });
       if (res.ok) {
-        const msgId = res.data ? ((res.data as JsonRecord).zaapId || (res.data as JsonRecord).zapiMessageId || (res.data as JsonRecord).messageId) as string || null : null;
+        const msgId = res.data ? ((res.data as JsonRecord).messageId || (res.data as JsonRecord).zapiMessageId || (res.data as JsonRecord).zaapId) as string || null : null;
         console.log(`[Bot-Interactive] List send OK, msgId=${msgId}`);
         return msgId;
       }
