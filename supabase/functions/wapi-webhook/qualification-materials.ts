@@ -55,6 +55,17 @@ export function fillPdfIntro(template: string, vars: { nome: string; convidados:
     .trim();
 }
 
+// Prova social (Materiais → "Prova social", até 4 imagens): cada cliente
+// recebe só 1, sempre a mesma para o mesmo número, em rodízio entre clientes
+export function pickSocialProof(urls: string[], phone: string): string | null {
+  const list = urls.filter(Boolean);
+  if (list.length === 0) return null;
+  const digits = phone.replace(/\D/g, '');
+  let hash = 0;
+  for (const ch of digits) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return list[hash % list.length];
+}
+
 export async function sendQualificationMaterials(
   supabase: SupabaseClient,
   instance: { id: string; instance_id: string; instance_token: string; unit: string | null; company_id: string },
@@ -226,6 +237,15 @@ export async function sendQualificationMaterials(
         console.log('[Bot Materials] Photos step complete');
         await delay(pacing ? pacing.afterPhotosMs : messageDelay);
       }
+    }
+
+    // Prova social: 1 avaliação por cliente, logo depois das fotos do espaço
+    const socialProof = materials.find((material) => material.type === 'social_proof' && material.company_id === instance.company_id);
+    const proofUrl = sendPhotos && socialProof ? pickSocialProof(socialProof.photo_urls || [], phone) : null;
+    if (proofUrl) {
+      console.log('[Bot Materials] Sending social proof');
+      await sendImage(proofUrl, '', 'social_proof');
+      await delay(pacing ? pacing.afterPhotosMs : messageDelay);
     }
 
     if (sendPresentationVideo && presentationVideos.length > 0) {
