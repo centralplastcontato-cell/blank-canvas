@@ -25,6 +25,9 @@ interface VisitConfirmationSettings {
   send_window_end: number;
   reply_confirmed_message: string;
   reply_reschedule_message: string;
+  // Lembrete na véspera (colunas novas: só aparecem depois do SQL)
+  eve_reminder_enabled?: boolean;
+  eve_reminder_hour?: number;
 }
 
 const DEFAULT_SETTINGS: Omit<VisitConfirmationSettings, "company_id"> = {
@@ -76,6 +79,7 @@ export function VisitConfirmationSection() {
   const [settings, setSettings] = useState<VisitConfirmationSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [hasEve, setHasEve] = useState(false);
 
   useEffect(() => {
     if (!currentCompany?.id) return;
@@ -93,6 +97,9 @@ export function VisitConfirmationSection() {
     if (error) {
       console.error("Error loading visit confirmation settings:", error);
     }
+    // Colunas do lembrete na véspera já existem no banco?
+    const { error: eveErr } = await (supabase as any).from("visit_confirmation_settings").select("eve_reminder_enabled").limit(1);
+    setHasEve(!eveErr);
 
     if (data) {
       setSettings(data);
@@ -118,6 +125,7 @@ export function VisitConfirmationSection() {
       send_window_end: settings.send_window_end,
       reply_confirmed_message: settings.reply_confirmed_message,
       reply_reschedule_message: settings.reply_reschedule_message,
+      ...(hasEve ? { eve_reminder_enabled: !!settings.eve_reminder_enabled, eve_reminder_hour: settings.eve_reminder_hour ?? 18 } : {}),
     };
 
     let error;
@@ -252,6 +260,46 @@ export function VisitConfirmationSection() {
                 </div>
               </div>
             </div>
+
+            {hasEve && (
+              <div className="rounded-xl border border-border/40 bg-card p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold">Lembrete na véspera</p>
+                    <p className="text-xs text-muted-foreground">
+                      No dia anterior à visita, a partir do horário abaixo, sai a mesma mensagem de confirmação. Quem responder na
+                      véspera não recebe a do dia; quem não respondeu recebe a confirmação no dia, no prazo configurado acima.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={!!settings.eve_reminder_enabled}
+                    onCheckedChange={(v) => update("eve_reminder_enabled", v)}
+                    aria-label="Lembrete na véspera"
+                  />
+                </div>
+                {settings.eve_reminder_enabled && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Enviar na véspera a partir de</Label>
+                    <Select
+                      value={String(settings.eve_reminder_hour ?? 18)}
+                      onValueChange={(v) => update("eve_reminder_hour", parseInt(v))}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[14, 15, 16, 17, 18, 19].map((h) => (
+                          <SelectItem key={h} value={String(h)}>{h}:00</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {(settings.eve_reminder_hour ?? 18) >= settings.send_window_end && (
+                      <p className="text-xs text-destructive">Esse horário está depois do "Horário fim" de envio: o lembrete não sairia.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Confirmation Message */}
             <div className="rounded-xl border border-border/40 bg-card p-4 space-y-3">
