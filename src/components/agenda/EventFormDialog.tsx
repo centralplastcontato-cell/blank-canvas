@@ -28,7 +28,7 @@ import { DEFAULT_EVENT_TYPES } from "@/components/admin/EventTypesConfig";
 import { splitNonAntecipadoInstallments } from "@/lib/cardFees";
 import { buildParcelasDetails, type ParcelaDetail } from "@/lib/parcelas";
 import { computeAdjustment, isAdjustmentRow, ADJUSTMENT_NOTE_PREFIX } from "@/lib/parcelasSync";
-import { clientDataUrl, shortClientToken } from "@/lib/clientDataRequest";
+import { clientDataMessageLink, clientDataUrl, shortClientToken } from "@/lib/clientDataRequest";
 
 export type { ParcelaDetail };
 
@@ -1350,7 +1350,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       if (error) throw error;
       setClientRequest(data as ClientDataRequest);
 
-      const link = buildClientLink(token);
+      const link = clientDataMessageLink(token, currentCompany?.custom_domain);
       const template = await getFormAutomationTemplate(currentCompany.id, "contrato");
       const resolved = resolveContractMessage(template, link);
       setResolvedMessage(resolved);
@@ -1423,7 +1423,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       const instanceUnitLabel = (instance as any).unit || "padrão";
       toast({ title: `Enviando via ${instanceUnitLabel}...` });
 
-      const link = buildClientLink(effectiveToken);
+      const link = clientDataMessageLink(effectiveToken, currentCompany?.custom_domain);
 
       let message = "";
       const template = await getFormAutomationTemplate(currentCompany.id, "contrato");
