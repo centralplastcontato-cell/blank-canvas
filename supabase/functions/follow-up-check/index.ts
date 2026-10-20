@@ -1034,6 +1034,30 @@ async function processFollowUp({
     }
   }
 
+  // Conversa que a IA atendeu (mesmo já passada para a equipe): sem follow-up
+  // fixo do robô — o acompanhamento é da IA ou da equipe (Castelo, 20/10)
+  if (leadsNeedingFollowUp.length > 0) {
+    const { data: aiTouched, error: aiTouchedError } = await chunkedInQuery(
+      (chunk) =>
+        supabase
+          .from("wapi_conversations")
+          .select("lead_id")
+          .in("lead_id", chunk)
+          .eq("instance_id", settings.instance_id)
+          .eq("bot_data->>ai_agent", "on"),
+      leadsNeedingFollowUp,
+    );
+    if (aiTouchedError) {
+      console.error(`[follow-up-check] Erro ao separar conversas da IA — follow-up #${followUpNumber} adiado:`, aiTouchedError);
+      return { successCount: 0, errors: [String(aiTouchedError)] };
+    }
+    const aiTouchedLeads = new Set((aiTouched || []).map((c: { lead_id: string }) => c.lead_id));
+    if (aiTouchedLeads.size > 0) {
+      leadsNeedingFollowUp = leadsNeedingFollowUp.filter((id) => !aiTouchedLeads.has(id));
+      console.log(`[follow-up-check] ${aiTouchedLeads.size} lead(s) atendidos pela IA — follow-up #${followUpNumber} fixo pulado`);
+    }
+  }
+
   if (leadsNeedingFollowUp.length === 0) {
     console.log(`[follow-up-check] All potential leads already received follow-up #${followUpNumber} or replied`);
     return { successCount: 0, errors: [] };
