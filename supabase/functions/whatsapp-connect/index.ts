@@ -6,7 +6,7 @@
 //   pair   — código de 8 letras para quem está no celular do buffet
 //   check  — só confere se pareou (pelos eventos, sem chamar a Evolution)
 //   cancel — desistiu: apaga a instância que não pareou
-//   remove — só admin da Celebrei: desconecta e apaga o número (ex.: teste)
+//   remove — dono do buffet ou admin da Celebrei: desconecta e apaga o número
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { evolutionRequest, EVOLUTION_WEBHOOK_EVENTS } from "../_shared/evolution.ts";
 import { createManagedInstance, deleteManagedInstance, EvolutionAdminError, managedNameFor } from "../_shared/evolution-admin.ts";
@@ -144,13 +144,12 @@ Deno.serve(async (req) => {
         return json(s === "connected" ? view(await managedRow(supabase, companyId)) : { status: "none" });
       }
       case "remove": {
-        if (!auth.isAdmin) return json({ error: "Só a equipe Celebrei pode remover o número." }, 403);
         const row = await managedRow(supabase, companyId);
         if (!row) return json({ status: "none" });
         // Desliga antes: o "LoggedOut" que vem do logout não vira alerta de queda
         await supabase.from("wapi_instances").update({ is_active: false, status: "not_connected" }).eq("id", row.id);
         await deleteManagedInstance(row, { allowPaired: true, instanceToken: row.instance_token });
-        console.log(`[whatsapp-connect] ${row.evolution_name} removida por admin (${auth.userId})`);
+        console.log(`[whatsapp-connect] ${row.evolution_name} desconectada (${auth.isAdmin ? "admin" : "dono"} ${auth.userId})`);
         return json({ status: "none" });
       }
       default:
