@@ -244,7 +244,8 @@ export async function sendQualificationMaterials(
     const proofUrl = sendPhotos && socialProof ? pickSocialProof(socialProof.photo_urls || [], phone) : null;
     if (proofUrl) {
       console.log('[Bot Materials] Sending social proof');
-      await sendImage(proofUrl, '', 'social_proof');
+      // Legenda opcional: o campo "Legenda" da prova social (vazio = só a imagem)
+      await sendImage(proofUrl, String(socialProof.name || '').trim(), 'social_proof');
       await delay(pacing ? pacing.afterPhotosMs : messageDelay);
     }
 

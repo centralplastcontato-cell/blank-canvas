@@ -1308,7 +1308,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
 
             <div className="space-y-2">
               <Label htmlFor="name">
-                {formData.type === "photo_collection" ? "Nome da Coleção" : formData.type === "social_proof" ? "Nome (só para você)" : "Nome do Material"}
+                {formData.type === "photo_collection" ? "Nome da Coleção" : formData.type === "social_proof" ? "Legenda (opcional)" : "Nome do Material"}
               </Label>
               <Input
                 id="name"
@@ -1322,7 +1322,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                     : formData.type === "photo_collection"
                       ? "Opcional — ex: Área do Buffet"
                       : formData.type === "social_proof"
-                        ? "Opcional — ex: Avaliações do Google"
+                        ? "Vai junto com a imagem. Ex.: Olha o que as famílias falam da festa 💜"
                       : formData.type === "photo" 
                         ? "Opcional — ex: Salão Principal"
                         : "Opcional — ex: Tour Virtual"
