@@ -327,15 +327,16 @@ export function LeadsTable({
                     />
                   </TableHead>
                 )}
-                <TableHead>Nome</TableHead>
+                <TableHead className="min-w-[170px]">Nome</TableHead>
                 <TableHead>WhatsApp</TableHead>
                 <TableHead>Unidade</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Responsável</TableHead>
+                {/* iPad: sem espaço para tudo; o responsável aparece ao abrir o lead */}
+                <TableHead className="hidden xl:table-cell">Responsável</TableHead>
                 <TableHead>Mês/Dia</TableHead>
                 <TableHead>Convidados</TableHead>
                 <TableHead>Chegou em</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead className="text-right sticky right-0 bg-card">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -373,15 +374,15 @@ export function LeadsTable({
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-muted-foreground" />
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      <Phone className="w-4 h-4 text-muted-foreground shrink-0" />
                       {canViewContact ? lead.whatsapp : maskPhone(lead.whatsapp)}
                     </div>
                   </TableCell>
                   <TableCell>
                     {lead.unit ? (
-                      <Badge variant="default" className="flex items-center gap-1 w-fit">
-                        <MapPin className="w-3 h-3" />
+                      <Badge variant="default" className="flex items-center gap-1 w-fit whitespace-nowrap">
+                        <MapPin className="w-3 h-3 shrink-0" />
                         {lead.unit}
                       </Badge>
                     ) : (
@@ -427,14 +428,14 @@ export function LeadsTable({
                       </div>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden xl:table-cell">
                     {getResponsavelName(lead.responsavel_id) || (
                       <span className="text-muted-foreground">-</span>
                     )}
                   </TableCell>
                   <TableCell>
                     {lead.month ? (
-                      <Badge variant="secondary">
+                      <Badge variant="secondary" className="whitespace-nowrap">
                         {lead.day_of_month || lead.day_preference || "-"}/{lead.month}
                       </Badge>
                     ) : (
@@ -443,8 +444,8 @@ export function LeadsTable({
                   </TableCell>
                   <TableCell>
                     {lead.guests ? (
-                      <div className="flex items-center gap-1">
-                        <Users className="w-4 h-4 text-muted-foreground" />
+                      <div className="flex items-center gap-1 whitespace-nowrap">
+                        <Users className="w-4 h-4 text-muted-foreground shrink-0" />
                         {lead.guests}
                       </div>
                     ) : (
@@ -461,8 +462,9 @@ export function LeadsTable({
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-2">
+                  {/* Fixa na direita: no iPad a tabela rola de lado e os botões ficavam escondidos */}
+                  <TableCell className="sticky right-0 bg-card">
+                    <div className="flex items-center justify-end gap-1">
                       <Button
                         variant="ghost"
                         size="sm"

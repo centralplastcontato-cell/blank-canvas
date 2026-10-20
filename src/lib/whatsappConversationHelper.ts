@@ -27,7 +27,7 @@ export function toCanonicalBrazilianPhone(phone: string | null | undefined): str
  * Generate phone variants for Brazilian numbers to handle 9th digit differences.
  * E.g. 11999887766 -> also try 5511999887766, 1199887766, 551199887766
  */
-function getBrazilianPhoneVariants(phone: string): string[] {
+export function getBrazilianPhoneVariants(phone: string): string[] {
   const clean = normalizePhone(phone);
   const variants = new Set<string>();
   variants.add(clean);
