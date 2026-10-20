@@ -28,6 +28,7 @@ import { DEFAULT_EVENT_TYPES } from "@/components/admin/EventTypesConfig";
 import { splitNonAntecipadoInstallments } from "@/lib/cardFees";
 import { buildParcelasDetails, type ParcelaDetail } from "@/lib/parcelas";
 import { computeAdjustment, isAdjustmentRow, ADJUSTMENT_NOTE_PREFIX } from "@/lib/parcelasSync";
+import { clientDataUrl, shortClientToken } from "@/lib/clientDataRequest";
 
 export type { ParcelaDetail };
 
@@ -1322,7 +1323,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     });
   };
 
-  const buildClientLink = (token: string) => `${window.location.origin}/dados-contratante/${token}`;
+  const buildClientLink = (token: string) => clientDataUrl(token, currentCompany?.custom_domain);
 
   const generateClientLink = async (forcedEventId?: string, options?: { skipClipboard?: boolean }): Promise<ClientDataRequest | null> => {
     const resolvedEventId = forcedEventId || eventId;
@@ -1332,7 +1333,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
     setGeneratingLink(true);
     try {
-      const token = crypto.randomUUID().replace(/-/g, "").slice(0, 24);
+      const token = shortClientToken();
       const { data, error } = await supabase
         .from("client_data_requests")
         .insert({
@@ -1342,7 +1343,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           token,
           status: "sent",
           sent_at: new Date().toISOString(),
-        })
+          sent_via: "agenda",
+        } as any)
         .select("id, token, status, client_data, completed_at")
         .single();
       if (error) throw error;

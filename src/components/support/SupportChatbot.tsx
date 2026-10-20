@@ -420,7 +420,7 @@ export function SupportChatbot() {
     "/equipe", "/manutencao", "/acompanhamento",
     "/lista-presenca", "/informacoes", "/freelancer", "/trabalhe",
     "/escala", "/festa", "/hub-landing", "/hub-login",
-    "/recrutamento-comercial",
+    "/recrutamento-comercial", "/dados", "/assinar-contrato",
   ];
   const isPublicPage = location.pathname === "/" || PUBLIC_PREFIXES.some((p) => location.pathname.startsWith(p));
 

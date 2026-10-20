@@ -550,6 +550,8 @@ import { configureWapiWebhooks } from "@/lib/wapi-webhook-config";
 import { useInstancePermissions } from "@/hooks/useInstancePermissions";
 import { formatPhoneBR } from "@/lib/mask-utils";
 import { senderDot } from "@/lib/messageSender";
+import { ClientDataBar } from "./ClientDataBar";
+import { type ClientDataRequestRow, clientDataLabel, clientDataState, latestClientDataByLead } from "@/lib/clientDataRequest";
 
 export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded, onLeadClosedMobile, onUnreadCountChange, isVisible = true, onConversationOpenChange, onActiveUnitChange }: WhatsAppChatProps) {
   const { currentCompany } = useCompany();
@@ -1003,6 +1005,18 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   // Undo send state
   
   const [conversationLeadsMap, setConversationLeadsMap] = useState<Record<string, Lead | null>>({});
+  // Dados do contrato pendentes/atrasados: etiqueta na lista de conversas
+  const [clientDataByLead, setClientDataByLead] = useState<Map<string, ClientDataRequestRow>>(new Map());
+  const clientDataLeadKey = useMemo(
+    () => Object.values(conversationLeadsMap).filter((l): l is Lead => !!l && l.status === "fechado").map((l) => l.id).sort().join(","),
+    [conversationLeadsMap],
+  );
+  useEffect(() => {
+    if (!clientDataLeadKey) { setClientDataByLead(new Map()); return; }
+    let cancelled = false;
+    latestClientDataByLead(clientDataLeadKey.split(",")).then((m) => { if (!cancelled) setClientDataByLead(m); });
+    return () => { cancelled = true; };
+  }, [clientDataLeadKey]);
   const leadStatusConversationIds = useMemo(() => {
     const statusMap = {
       fechado: new Set<string>(),
@@ -5268,6 +5282,11 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         </p>
                         <AiConversationBadge conv={conv} />
                         {awaitingTeam.has(conv.id) && <NeedsReplyTag late={awaitingTeam.get(conv.id) === true} />}
+                        {conv.lead_id && clientDataByLead.get(conv.lead_id) && clientDataState(clientDataByLead.get(conv.lead_id)!) !== "recebido" && (
+                          <span className={cn("text-[9px] px-1.5 py-0.5 rounded font-semibold shrink-0 leading-none", clientDataState(clientDataByLead.get(conv.lead_id)!) === "atrasado" ? "bg-red-500/15 text-red-700" : "bg-amber-500/15 text-amber-700")} title={clientDataLabel(clientDataByLead.get(conv.lead_id)!)}>
+                            {clientDataState(clientDataByLead.get(conv.lead_id)!) === "atrasado" ? "⚠️ Dados" : "📋 Dados"}
+                          </span>
+                        )}
                         {conv.lead_id && (
                           <Link2 className="w-3 h-3 text-primary shrink-0" />
                         )}
@@ -5420,6 +5439,11 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                               </p>
                               <AiConversationBadge conv={conv} />
                               {awaitingTeam.has(conv.id) && <NeedsReplyTag late={awaitingTeam.get(conv.id) === true} />}
+                              {conv.lead_id && clientDataByLead.get(conv.lead_id) && clientDataState(clientDataByLead.get(conv.lead_id)!) !== "recebido" && (
+                          <span className={cn("text-[9px] px-1.5 py-0.5 rounded font-semibold shrink-0 leading-none", clientDataState(clientDataByLead.get(conv.lead_id)!) === "atrasado" ? "bg-red-500/15 text-red-700" : "bg-amber-500/15 text-amber-700")} title={clientDataLabel(clientDataByLead.get(conv.lead_id)!)}>
+                            {clientDataState(clientDataByLead.get(conv.lead_id)!) === "atrasado" ? "⚠️ Dados" : "📋 Dados"}
+                          </span>
+                        )}
                               {conv.lead_id && (
                                 <Link2 className="w-3 h-3 text-primary shrink-0" />
                               )}
@@ -5916,6 +5940,15 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                     </div>
       )}
 
+                  {linkedLead && currentCompany && (
+                    <ClientDataBar
+                      companyId={currentCompany.id}
+                      companyName={currentCompany.name}
+                      customDomain={currentCompany.custom_domain}
+                      lead={linkedLead}
+                      sendText={sendTextMessageDirect}
+                    />
+                  )}
                   {contactBlocked && (
                     <div className="px-3 py-1.5 border-b border-destructive/20 bg-destructive/10 text-destructive text-xs font-medium flex items-center gap-2 shrink-0">
                       <BellOff className="w-3.5 h-3.5 shrink-0" />
@@ -7034,6 +7067,16 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                   </div>
                 )}
 
+                {linkedLead && currentCompany && (
+                  <ClientDataBar
+                    companyId={currentCompany.id}
+                    companyName={currentCompany.name}
+                    customDomain={currentCompany.custom_domain}
+                    lead={linkedLead}
+                    sendText={sendTextMessageDirect}
+                    compact
+                  />
+                )}
                 {/* Mobile Lead Classification Panel - collapsible */}
                 <div className="border-b bg-card/50 shrink-0">
                   <button

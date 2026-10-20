@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { getFormAutomationTemplate, resolveFormAutomationMessage } from "@/lib/formAutomationMessages";
+import { clientDataUrl } from "@/lib/clientDataRequest";
 
 interface ContactInfoSheetProps {
   isOpen: boolean;
@@ -140,7 +141,7 @@ export function ContactInfoSheet({
       .limit(1);
 
     if (req?.length) {
-      setClientDataLink(`${window.location.origin}/dados-contratante/${req[0].token}`);
+      setClientDataLink(clientDataUrl(req[0].token, currentCompany?.custom_domain));
       setClientDataStatus(req[0].status);
     }
   };

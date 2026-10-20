@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Bell, Check, Trash2, UserPlus, ArrowRightLeft, Crown, CalendarCheck,
   ExternalLink, MessageCircle, Search, Send, UserX, Clock, AlertTriangle, Headset,
-  WifiOff, Hand, Sparkles, BellOff, PartyPopper,
+  WifiOff, Hand, Sparkles, BellOff, PartyPopper, FileSignature,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 const TAB_GROUPS = [
   { key: "todos", label: "Todos", types: null },
   { key: "visitas", label: "Visitas", types: ["visit_scheduled"] },
-  { key: "clientes", label: "Clientes", types: ["existing_client", "party_soon"] },
+  { key: "clientes", label: "Clientes", types: ["existing_client", "party_soon", "client_data"] },
   { key: "transferencias", label: "Transf.", types: ["lead_transfer", "lead_assigned"] },
   { key: "outros", label: "Outros", types: ["lead_questions", "lead_analyzing", "follow_up_sent", "lead_lost", "stale_reminded", "lead_risk", "message_stuck", "lead_needs_human", "new_candidate", "delivery_stall", "contact_stop_request"] },
 ] as const;
@@ -49,6 +49,7 @@ const ICON_MAP: Record<string, { icon: React.ElementType; className: string }> =
   new_candidate:   { icon: UserPlus,       className: "text-violet-500" },
   contact_stop_request: { icon: BellOff,   className: "text-red-500" },
   party_soon:      { icon: PartyPopper,    className: "text-pink-500" },
+  client_data:     { icon: FileSignature,  className: "text-blue-500" },
 };
 
 // Avisos da Bia (IA): passagem para a equipe e cliente sem resposta — na cor dela
