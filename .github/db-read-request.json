@@ -1,1 +1,1 @@
-{"sql": "SELECT extra_units::text AS outros_numeros, (SELECT is_enabled::text || ' / ' || coalesce(hours_before_visit::text, '') FROM visit_confirmation_settings v WHERE v.company_id = a.company_id) AS confirmacao_visita FROM ai_agent_settings a WHERE company_id = 'a0000000-0000-0000-0000-000000000001'"}
+{"sql": "SELECT c.name, count(*) AS conversas_ia FROM wapi_conversations w JOIN wapi_instances i ON i.id = w.instance_id JOIN companies c ON c.id = i.company_id WHERE w.bot_data->>'ai_agent' = 'on' GROUP BY c.name ORDER BY 2 DESC"}
