@@ -4,7 +4,7 @@ import { findLeadByPhone } from "../_shared/lead-phone.ts";
 import { fetchLastReturns, leadsWithActionSinceReturn } from "../_shared/lead-return.ts";
 import { decideStuckAlert, formatContactList } from "../_shared/stuck-alert.ts";
 import { decideDegradedAlert } from "../_shared/degraded-alert.ts";
-import { businessMinutesBetween, parseVisitHours, teamHoursText } from "../_shared/business-hours.ts";
+import { businessMinutesBetween, isOpenAt, parseVisitHours, teamHoursText } from "../_shared/business-hours.ts";
 import { teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { keycapsToDigits } from "../_shared/menu-reply.ts";
 import { activeConversations } from "../_shared/followup-activity.ts";
@@ -19,6 +19,7 @@ import { loadBlockedContacts } from "../_shared/contact-block.ts";
 import { installEvolutionCallGuard } from "../_shared/evolution-guard.ts";
 import { claimSystemSendSlot } from "../_shared/system-send-pacing.ts";
 import { PARTY_SOON_ACTION, partySoon, partySoonLabel } from "../_shared/party-soon.ts";
+import { clientDataLink, DEFAULT_CLIENT_DATA_MESSAGE, DEFAULT_CLIENT_DATA_REMINDERS, dueReminder, fillClientDataTemplate, isOverdue, normalizeReminderHours, shortClientToken } from "../_shared/client-data.ts";
 
 type SupabaseAdmin = any;
 
@@ -430,6 +431,12 @@ Deno.serve(async (req) => {
     const partySoonResult = await processPartySoonAlerts({ supabase });
     if (partySoonResult.errors.length > 0) {
       console.error("[follow-up-check] Erros no alerta de festa próxima:", partySoonResult.errors);
+    }
+
+    // Dados do contratante: link ao fechar, cobranças e avisos (se ligado)
+    const clientDataResult = await processClientDataRequests({ supabase });
+    if (clientDataResult.errors.length > 0) {
+      console.error("[follow-up-check] Erros nos dados do contratante:", clientDataResult.errors);
     }
 
     // Acompanhamento da Bia (Configurar IA → Follow-up): só nos números com a
@@ -2720,6 +2727,204 @@ async function processPartySoonAlerts({
       }
       console.log(`[follow-up-check] 🎉 Festa próxima: ${fresh.length} lead(s) da empresa ${cfg.company_id} — WhatsApp: ${whatsappSent}`);
       sent += fresh.length;
+    } catch (e) {
+      errors.push(String(e));
+    }
+  }
+  return { sent, errors };
+}
+
+// ============= DADOS DO CONTRATANTE: ENVIO AO FECHAR, COBRANÇAS E AVISOS =============
+// Buffets com form_automation_settings (contrato) auto_on_closed / reminders_enabled:
+// 1) lead que virou "Fechado" (closed_at nos últimos 2 dias) sem pedido → manda o link;
+// 2) pedido sem resposta → cobranças nos prazos configurados, só no horário de
+//    atendimento (Configurar IA; sem configuração, 9h–18h) e nunca depois das 20h;
+//    pausa se o cliente/equipe falaram nas últimas 2 h ou se o cliente espera resposta;
+// 3) cobranças acabaram (24 h depois da última) → alerta à equipe e etiqueta "atrasado";
+// 4) cliente preencheu → aviso no sininho e no WhatsApp de alerta.
+// Regras em _shared/client-data.ts. Desligado: nada disso roda para o buffet.
+async function processClientDataRequests({
+  supabase,
+}: { supabase: SupabaseAdmin }): Promise<{ sent: number; errors: string[] }> {
+  const errors: string[] = [];
+  let sent = 0;
+  const { data: configs, error } = await supabase
+    .from("form_automation_settings")
+    .select("company_id, message_template, auto_on_closed, reminders_enabled, reminder_hours, reminder_messages")
+    .eq("form_type", "contrato")
+    .or("auto_on_closed.eq.true,reminders_enabled.eq.true");
+  // Banco sem as colunas novas: desligado
+  if (error) return { sent, errors: /auto_on_closed|reminders_enabled|reminder_/.test(String(error.message)) ? [] : [String(error.message)] };
+  if (!configs || configs.length === 0) return { sent, errors };
+
+  const nowMs = Date.now();
+  const localHour = Number(new Date(nowMs).toLocaleString("en-US", { timeZone: "America/Sao_Paulo", hour: "2-digit", hour12: false })) % 24;
+
+  for (const cfg of configs as any[]) {
+    try {
+      const companyId = cfg.company_id as string;
+      const [{ data: company }, { data: aiSettings }] = await Promise.all([
+        supabase.from("companies").select("name, custom_domain").eq("id", companyId).maybeSingle(),
+        supabase.from("ai_agent_settings").select("team_hours, handoff_alert_phone").eq("company_id", companyId).maybeSingle(),
+      ]);
+      const hours = parseVisitHours(teamHoursText(aiSettings?.team_hours));
+      const canMessageClient = isOpenAt(hours, nowMs) && localHour < 20;
+      const reminderHours = normalizeReminderHours(cfg.reminder_hours);
+      const reminderTexts = DEFAULT_CLIENT_DATA_REMINDERS.map((d, i) => String((cfg.reminder_messages || [])[i] || "").trim() || d);
+      while (reminderTexts.length < reminderHours.length) reminderTexts.push(reminderTexts[reminderTexts.length - 1]);
+
+      // Conversa e número do cliente (a mais recente do lead, fora de grupos)
+      const clientConversation = async (leadId: string) => {
+        const { data: convs } = await supabase.from("wapi_conversations")
+          .select("id, instance_id, remote_jid, contact_phone, last_message_at, last_message_from_me")
+          .eq("lead_id", leadId).not("remote_jid", "like", "%@g.us%")
+          .order("last_message_at", { ascending: false }).limit(1);
+        const conv = (convs || [])[0];
+        if (!conv) return null;
+        const { data: inst } = await supabase.from("wapi_instances")
+          .select("id, instance_id, instance_token, client_token, provider, company_id, unit, status, is_active")
+          .eq("id", conv.instance_id).maybeSingle();
+        if (!inst || inst.is_active === false || inst.status !== "connected") return null;
+        return { conv, inst };
+      };
+      const sendToClient = async (leadId: string, text: string): Promise<boolean> => {
+        const target = await clientConversation(leadId);
+        if (!target) return false;
+        const phone = String(target.conv.contact_phone || target.conv.remote_jid || "").replace(/@.*/, "").replace(/\D/g, "");
+        if (phone.length < 10) return false;
+        const slot = await claimSystemSendSlot(supabase, { id: target.inst.id, provider: target.inst.provider });
+        if (!slot.ok) return false;
+        const res = await providerSendText(target.inst as any, phone, text);
+        if (!res.ok) {
+          errors.push(`envio dados do contratante (${leadId}): ${res.error}`);
+          return false;
+        }
+        const nowIso = new Date().toISOString();
+        await supabase.from("wapi_messages").upsert({
+          conversation_id: target.conv.id,
+          message_id: res.messageId || `client_data_${Date.now()}`,
+          from_me: true, message_type: "text", content: text, status: "sent",
+          timestamp: nowIso, company_id: companyId,
+          metadata: { source: "client_data" },
+        }, { onConflict: "conversation_id,message_id", ignoreDuplicates: true });
+        await supabase.from("wapi_conversations").update({
+          last_message_at: nowIso, last_message_content: text.substring(0, 100), last_message_from_me: true,
+        }).eq("id", target.conv.id);
+        return true;
+      };
+      const eventDateLabel = async (eventId: string | null, leadId: string) => {
+        let q = supabase.from("company_events").select("event_date");
+        q = eventId ? q.eq("id", eventId) : q.eq("lead_id", leadId).order("event_date", { ascending: false }).limit(1);
+        const { data } = await q;
+        const d = (data || [])[0]?.event_date as string | undefined;
+        return d ? d.split("-").reverse().join("/") : "";
+      };
+      const notifyTeam = async (leadId: string, unit: string | null, title: string, message: string, whatsappText: string) => {
+        const targets = await resolveUnitNotificationTargets(supabase, companyId, unit);
+        if (targets.length > 0) {
+          await supabase.from("notifications").insert(targets.map((uid: string) => ({
+            user_id: uid, company_id: companyId, type: "client_data", title, message,
+            data: { lead_id: leadId, reason: "client_data" }, read: false,
+          })));
+        }
+        const alertPhone = String(aiSettings?.handoff_alert_phone || "").replace(/\D/g, "");
+        if (alertPhone.length >= 10) {
+          await sendHandoffAlertWhatsApp(supabase, { id: "", company_id: companyId }, alertPhone.startsWith("55") ? alertPhone : `55${alertPhone}`, whatsappText);
+        }
+      };
+
+      // 4) Cliente preencheu (últimos 3 dias) → avisa uma vez
+      const { data: done } = await supabase.from("client_data_requests")
+        .select("id, lead_id, client_data")
+        .eq("company_id", companyId).in("status", ["completed", "reviewed"]).is("notified_at", null)
+        .gte("completed_at", new Date(nowMs - 3 * 86400000).toISOString()).limit(50);
+      for (const r of (done || []) as any[]) {
+        const { data: marked } = await supabase.from("client_data_requests").update({ notified_at: new Date().toISOString() })
+          .eq("id", r.id).is("notified_at", null).select("id");
+        if (!marked || marked.length === 0) continue;
+        const { data: lead } = r.lead_id ? await supabase.from("campaign_leads").select("name, unit").eq("id", r.lead_id).maybeSingle() : { data: null };
+        const name = String(r.client_data?.nome || lead?.name || "Cliente");
+        await notifyTeam(r.lead_id, lead?.unit || null, `✅ ${name} preencheu os dados do contrato`, "Os dados já estão na festa e no contrato. Abra a conversa para conferir.",
+          `✅ *Dados do contrato recebidos*\n\n${name} preencheu o cadastro (CPF, endereço e aniversariante). Já estão na festa e no contrato. 🎉`);
+      }
+
+      if (!canMessageClient) continue;
+
+      // 1) Virou "Fechado" sem pedido → manda o link
+      if (cfg.auto_on_closed === true) {
+        const { data: closed } = await supabase.from("campaign_leads")
+          .select("id, name, unit")
+          .eq("company_id", companyId).eq("status", "fechado")
+          .gte("closed_at", new Date(nowMs - 2 * 86400000).toISOString()).limit(50);
+        for (const lead of (closed || []) as any[]) {
+          const { data: existing } = await supabase.from("client_data_requests").select("id").eq("lead_id", lead.id).limit(1);
+          if (existing && existing.length > 0) continue;
+          const { data: events } = await supabase.from("company_events").select("id").eq("company_id", companyId).eq("lead_id", lead.id)
+            .order("event_date", { ascending: false }).limit(1);
+          const token = shortClientToken();
+          const { data: created, error: insErr } = await supabase.from("client_data_requests").insert({
+            company_id: companyId, lead_id: lead.id, event_id: events?.[0]?.id || null, token,
+            status: "sent", sent_at: new Date().toISOString(), sent_via: "fechado",
+          }).select("id, event_id").single();
+          if (insErr || !created) { errors.push(`pedido ${lead.id}: ${insErr?.message}`); continue; }
+          const text = fillClientDataTemplate(String(cfg.message_template || "").trim() || DEFAULT_CLIENT_DATA_MESSAGE, {
+            nome: lead.name, empresa: company?.name, data_evento: await eventDateLabel(created.event_id, lead.id), link: clientDataLink(token, company?.custom_domain),
+          });
+          if (await sendToClient(lead.id, text)) {
+            sent++;
+            console.log(`[follow-up-check] 📋 Link dos dados do contrato enviado ao fechar (lead ${lead.id})`);
+          } else {
+            // Sem conversa/número conectado: desfaz para tentar de novo (ou a equipe manda pelo botão)
+            await supabase.from("client_data_requests").delete().eq("id", created.id).eq("status", "sent");
+          }
+        }
+      }
+
+      // 2) e 3) Cobranças e atraso
+      if (cfg.reminders_enabled === true) {
+        const { data: pending } = await supabase.from("client_data_requests")
+          .select("id, lead_id, event_id, token, sent_at, reminder_count, last_reminder_at, overdue_alerted_at")
+          .eq("company_id", companyId).in("status", ["pending", "sent"]).lt("reminder_count", 99)
+          .gte("sent_at", new Date(nowMs - 20 * 86400000).toISOString()).not("lead_id", "is", null).limit(100);
+        for (const r of (pending || []) as any[]) {
+          const { data: lead } = await supabase.from("campaign_leads").select("name, unit, status").eq("id", r.lead_id).maybeSingle();
+          if (!lead || lead.status === "perdido") continue;
+          if (isOverdue(r, reminderHours, nowMs)) {
+            if (!r.overdue_alerted_at) {
+              const { data: marked } = await supabase.from("client_data_requests").update({ overdue_alerted_at: new Date().toISOString() })
+                .eq("id", r.id).is("overdue_alerted_at", null).select("id");
+              if (marked && marked.length > 0) {
+                const days = Math.max(1, Math.floor((nowMs - Date.parse(r.sent_at)) / 86400000));
+                await notifyTeam(r.lead_id, lead.unit, `⚠️ ${lead.name} não preencheu os dados do contrato`, `Faz ${days} dia(s) e ${r.reminder_count} cobrança(s). Vale ligar para o cliente.`,
+                  `⚠️ *Dados do contrato atrasados*\n\n${lead.name} não preencheu o cadastro há ${days} dia(s), mesmo com ${r.reminder_count} cobrança(s).\n\n👉 Vale ligar para o cliente.`);
+              }
+            }
+            continue;
+          }
+          const idx = dueReminder(r, reminderHours, nowMs);
+          if (idx === null) continue;
+          // Conversa ativa ou cliente esperando resposta: a cobrança espera
+          const target = await clientConversation(r.lead_id);
+          if (!target) continue;
+          const lastMs = Date.parse(String(target.conv.last_message_at || ""));
+          if (Number.isFinite(lastMs) && nowMs - lastMs < 2 * 3600000) continue;
+          if (target.conv.last_message_from_me === false) continue;
+          const text = fillClientDataTemplate(reminderTexts[idx], {
+            nome: lead.name, empresa: company?.name, data_evento: await eventDateLabel(r.event_id, r.lead_id), link: clientDataLink(r.token, company?.custom_domain),
+          });
+          // Marca antes de enviar: nunca duas cobranças iguais
+          const { data: marked } = await supabase.from("client_data_requests")
+            .update({ reminder_count: idx + 1, last_reminder_at: new Date().toISOString() })
+            .eq("id", r.id).eq("reminder_count", idx).select("id");
+          if (!marked || marked.length === 0) continue;
+          if (await sendToClient(r.lead_id, text)) {
+            sent++;
+            console.log(`[follow-up-check] 📋 Cobrança ${idx + 1} dos dados do contrato (lead ${r.lead_id})`);
+          } else {
+            await supabase.from("client_data_requests").update({ reminder_count: idx, last_reminder_at: r.last_reminder_at }).eq("id", r.id);
+          }
+        }
+      }
     } catch (e) {
       errors.push(String(e));
     }

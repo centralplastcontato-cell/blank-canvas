@@ -34,6 +34,8 @@ import { LeadReturnBadge } from "./LeadReturnBadge";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { maskPhone } from "@/lib/mask-utils";
+import { cn } from "@/lib/utils";
+import { clientDataLabel, clientDataState } from "@/lib/clientDataRequest";
 
 interface KanbanCardProps {
   lead: Lead;
@@ -267,6 +269,16 @@ export function KanbanCard({
               <div className="flex items-center gap-1 flex-1 min-w-0 flex-wrap">
                 <p className="font-bold text-sm truncate max-w-[140px] flex-shrink min-w-0" title={lead.name}>{lead.name.length > 22 ? lead.name.substring(0, 22) + '…' : lead.name}</p>
                 <LeadOriginBadge origem={lead.origem} />
+                {lead.client_data && (
+                  <span className={cn(
+                    "flex-shrink-0 px-1.5 py-0.5 rounded-md border text-[10px] font-semibold",
+                    clientDataState(lead.client_data) === "recebido" ? "bg-green-500/15 border-green-500/30 text-green-700"
+                      : clientDataState(lead.client_data) === "atrasado" ? "bg-red-500/15 border-red-500/30 text-red-700"
+                      : "bg-amber-500/15 border-amber-500/30 text-amber-700",
+                  )} title="Dados do contratante (contrato)">
+                    {clientDataLabel(lead.client_data)}
+                  </span>
+                )}
                 {lead.has_scheduled_visit && (
                   <Tooltip>
                     <TooltipTrigger asChild>

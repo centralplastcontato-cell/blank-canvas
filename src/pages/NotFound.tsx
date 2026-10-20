@@ -15,6 +15,7 @@ const FORM_PATHS = [
   { prefix: "/equipe", label: "Equipe", icon: ClipboardList },
   { prefix: "/informacoes", label: "Informações", icon: ClipboardList },
   { prefix: "/dados-contratante", label: "Dados do Contratante", icon: FileText },
+  { prefix: "/dados/", label: "Dados do Contratante", icon: FileText },
   { prefix: "/assinar-contrato", label: "Assinatura de Contrato", icon: FileText },
 ];
 

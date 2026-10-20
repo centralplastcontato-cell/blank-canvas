@@ -58,6 +58,7 @@ import { deleteLeads } from "@/lib/leadDelete";
 import { AWAITING_READ_OR_FILTER, fetchInactiveInstanceIds } from "@/lib/conversationUnread";
 import { visitUnitAccess } from "@/lib/unitAccess";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
+import { latestClientDataByLead } from "@/lib/clientDataRequest";
 
 // Quadro (CRM): quantos leads cada coluna mostra (os mais recentes); o número no topo
 // é o total real. "Fechado" busca mais porque quem já teve a festa vai para "Realizada".
@@ -345,6 +346,7 @@ export default function CentralAtendimento() {
     const followUps: Record<string, Set<string>> = {};
     const returnRows: { lead_id: string; created_at: string }[] = [];
     const partyDateByLead = new Map<string, string>();
+    const clientData = await latestClientDataByLead(ids);
     for (let i = 0; i < ids.length; i += 100) {
       const chunk = ids.slice(i, i + 100);
       const [convResult, historyResult, eventsResult] = await Promise.all([
@@ -384,6 +386,7 @@ export default function CentralAtendimento() {
       has_follow_up_3: has(FOLLOW_UP_ACTIONS[2], lead.id),
       has_follow_up_4: has(FOLLOW_UP_ACTIONS[3], lead.id),
       party_date: partyDateByLead.get(lead.id) || null,
+      client_data: clientData.get(lead.id) || null,
     }));
   }, []);
 

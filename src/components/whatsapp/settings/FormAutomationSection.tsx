@@ -11,6 +11,7 @@ import { ClipboardList, PartyPopper, UtensilsCrossed, Star, Clock, Save, Loader2
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { ClientDataAutomationCard } from "./ClientDataAutomationCard";
 
 interface FormConfig {
   id?: string;
@@ -239,6 +240,8 @@ export function FormAutomationSection() {
           </p>
         </div>
       </div>
+
+      <ClientDataAutomationCard />
 
       <div className="grid gap-4">
         {configs.map((config) => {

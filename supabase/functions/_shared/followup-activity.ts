@@ -6,7 +6,7 @@
 
 // Envios automáticos que não contam como "a equipe falou" (o próprio follow-up,
 // campanhas, avisos, IA, reações)
-const AUTOMATED_SOURCES = new Set(["auto_reminder", "campaign_auto_reply", "system_alert", "ai_agent", "reactivation_engine", "visit_confirmation", "reaction"]);
+const AUTOMATED_SOURCES = new Set(["auto_reminder", "campaign_auto_reply", "system_alert", "ai_agent", "reactivation_engine", "visit_confirmation", "reaction", "client_data"]);
 
 export interface ActivityRow {
   conversation_id: string;

@@ -223,6 +223,7 @@ const App = () => (
               <Route path="/festa/:eventId" element={<PublicPartyControl />} />
               {/* Public client data form */}
               <Route path="/dados-contratante/:token" element={<PublicClientData />} />
+              <Route path="/dados/:token" element={<PublicClientData />} />
               {/* Public contract signing */}
               <Route path="/assinar-contrato/:token" element={<PublicContractSign />} />
               {/* Public dynamic landing page by slug */}
