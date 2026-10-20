@@ -1034,8 +1034,9 @@ async function processFollowUp({
     }
   }
 
-  // Conversa que a IA atendeu (mesmo já passada para a equipe): sem follow-up
-  // fixo do robô — o acompanhamento é da IA ou da equipe (Castelo, 20/10)
+  // Conversa que ainda está com a IA: sem follow-up fixo do robô (o
+  // acompanhamento é dela). Passada para a equipe (human_takeover): segue os
+  // prazos do robô normalmente, para ninguém ficar esquecido (Castelo, 20/10)
   if (leadsNeedingFollowUp.length > 0) {
     const { data: aiTouched, error: aiTouchedError } = await chunkedInQuery(
       (chunk) =>
@@ -1044,6 +1045,7 @@ async function processFollowUp({
           .select("lead_id")
           .in("lead_id", chunk)
           .eq("instance_id", settings.instance_id)
+          .eq("bot_step", "ai_agent")
           .eq("bot_data->>ai_agent", "on"),
       leadsNeedingFollowUp,
     );
@@ -1054,7 +1056,7 @@ async function processFollowUp({
     const aiTouchedLeads = new Set((aiTouched || []).map((c: { lead_id: string }) => c.lead_id));
     if (aiTouchedLeads.size > 0) {
       leadsNeedingFollowUp = leadsNeedingFollowUp.filter((id) => !aiTouchedLeads.has(id));
-      console.log(`[follow-up-check] ${aiTouchedLeads.size} lead(s) atendidos pela IA — follow-up #${followUpNumber} fixo pulado`);
+      console.log(`[follow-up-check] ${aiTouchedLeads.size} lead(s) ainda com a IA — follow-up #${followUpNumber} fixo pulado`);
     }
   }
 
