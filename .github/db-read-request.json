@@ -1,1 +1,1 @@
-{"sql": "SELECT h.action, h.old_value, h.new_value, count(*) AS n, max(h.created_at)::text AS ultimo FROM lead_history h JOIN campaign_leads l ON l.id = h.lead_id WHERE l.status = 'fechado' AND (h.new_value ILIKE '%fech%' OR h.action ILIKE '%status%' OR h.action ILIKE '%fech%') GROUP BY 1, 2, 3 ORDER BY n DESC LIMIT 30"}
+{"sql": "SELECT party_soon_alert, (length(regexp_replace(coalesce(handoff_alert_phone, ''), '\\D', '', 'g')) >= 10) AS tem_whatsapp_alerta FROM ai_agent_settings WHERE company_id = 'a0000000-0000-0000-0000-000000000001'"}
