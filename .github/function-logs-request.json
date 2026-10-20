@@ -1,1 +1,1 @@
-{"start":"2026-10-17T15:50:28Z","end":"2026-10-17T15:50:45Z","filter":"5511996472316"}
+{"start":"2026-10-17T15:50:29Z","end":"2026-10-17T15:50:50Z","sql":"select timestamp, event_message from function_logs where event_message like '%Bot%' or event_message like '%996472316%' or event_message like '%3A24916243D3B3040C3F%' order by timestamp asc limit 300"}
