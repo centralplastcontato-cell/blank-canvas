@@ -4,6 +4,8 @@ import { LpCtaModeSwitch } from "../LpCtaModeSwitch";
 
 const update = vi.fn((_p: unknown) => ({ eq: async () => ({ error: null }) }));
 let admin = true;
+let role: string | null = null;
+vi.mock("@/contexts/CompanyContext", () => ({ useCompany: () => ({ currentRole: role }) }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     auth: { getUser: async () => ({ data: { user: { id: "u" } } }) },
@@ -24,8 +26,16 @@ describe("LpCtaModeSwitch", () => {
     await waitFor(() => expect(update).toHaveBeenCalledWith({ hero: { title: "Oi", cta_text: "Quero fazer a festa!", cta_mode: "whatsapp" } }));
   });
 
-  it("quem não é da equipe Celebrei não vê", async () => {
+  it("o dono do buffet também pode mudar", async () => {
     admin = false;
+    role = "owner";
+    render(<LpCtaModeSwitch companyId="c" />);
+    expect(await screen.findByRole("switch", { name: "Perguntas antes do WhatsApp" })).toBeInTheDocument();
+  });
+
+  it("atendente (sem ser dono) não vê", async () => {
+    admin = false;
+    role = "member";
     const { container } = render(<LpCtaModeSwitch companyId="c" />);
     await new Promise((r) => setTimeout(r, 50));
     expect(container).toBeEmptyDOMElement();
