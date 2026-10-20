@@ -549,6 +549,7 @@ import { useDraftMessages } from "@/hooks/useDraftMessages";
 import { configureWapiWebhooks } from "@/lib/wapi-webhook-config";
 import { useInstancePermissions } from "@/hooks/useInstancePermissions";
 import { formatPhoneBR } from "@/lib/mask-utils";
+import { senderDot } from "@/lib/messageSender";
 
 export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded, onLeadClosedMobile, onUnreadCountChange, isVisible = true, onConversationOpenChange, onActiveUnitChange }: WhatsAppChatProps) {
   const { currentCompany } = useCompany();
@@ -6405,9 +6406,10 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                                   msg.from_me ? "justify-end" : "justify-start",
                                   (msg.message_type === 'image' || msg.message_type === 'video') && "px-2 pb-1"
                                 )}>
-                                  {msg.from_me && msg.metadata?.source === 'platform' && !msg.metadata?.type && (
-                                    <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block shrink-0" title="Enviado pela plataforma" />
-                                  )}
+                                  {(() => {
+                                    const dot = senderDot(msg);
+                                    return dot && <span className={cn("w-2 h-2 rounded-full inline-block shrink-0", dot.className)} title={dot.title} />;
+                                  })()}
                                   <span className={cn(
                                     "text-[10px]",
                                     (msg.message_type === 'image' || msg.message_type === 'video')
@@ -7517,9 +7519,10 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                               msg.from_me ? "justify-end" : "justify-start",
                               (msg.message_type === 'image' || msg.message_type === 'video') && "px-2 pb-1"
                             )}>
-                              {msg.from_me && msg.metadata?.source === 'platform' && !msg.metadata?.type && (
-                                <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block shrink-0" title="Enviado pela plataforma" />
-                              )}
+                              {(() => {
+                                const dot = senderDot(msg);
+                                return dot && <span className={cn("w-2 h-2 rounded-full inline-block shrink-0", dot.className)} title={dot.title} />;
+                              })()}
                               <span className={cn(
                                 "text-[10px]",
                                 (msg.message_type === 'image' || msg.message_type === 'video')
