@@ -1,3 +1,4 @@
+import { logPasswordChange } from "@/lib/passwordLog";
 import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -101,6 +102,7 @@ export function ProfileContent({ userId, userEmail }: ProfileContentProps) {
       setIsSavingPassword(true);
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
+      void logPasswordChange("perfil");
       setNewPassword("");
       setConfirmPassword("");
       toast({ title: "Senha alterada", description: "Sua senha foi atualizada com sucesso." });

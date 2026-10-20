@@ -1,3 +1,4 @@
+import { logPasswordChange } from "@/lib/passwordLog";
 import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
@@ -66,6 +67,7 @@ export default function RedefinirSenha() {
         : "Não consegui trocar a senha. Peça um link novo e tente de novo.");
       return;
     }
+    void logPasswordChange("esqueci_senha");
     clearRecoveryFlag();
     setMode("pronto");
   };
