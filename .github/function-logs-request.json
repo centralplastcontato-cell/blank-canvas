@@ -1,1 +1,1 @@
-{"start": "2026-10-20T21:49:00Z", "end": "2026-10-20T22:10:00Z", "sql": "select timestamp, m.version, m.deployment_id, m.level, event_message from function_logs cross join unnest(metadata) as m where event_message like '%evolution-monitor%' order by timestamp asc limit 200"}
+{"start": "2026-10-20T21:49:00Z", "end": "2026-10-20T22:10:00Z", "sql": "select timestamp, event_message, metadata from logs where source_name = 'function_edge_logs' and event_message like '%evolution-monitor%' order by timestamp asc limit 10"}
