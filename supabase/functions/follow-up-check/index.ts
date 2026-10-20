@@ -6,6 +6,8 @@ import { decideStuckAlert, formatContactList } from "../_shared/stuck-alert.ts";
 import { decideDegradedAlert } from "../_shared/degraded-alert.ts";
 import { businessMinutesBetween, parseVisitHours, teamHoursText } from "../_shared/business-hours.ts";
 import { teamRepliedAfter } from "../_shared/ai-turn.ts";
+import { keycapsToDigits } from "../_shared/menu-reply.ts";
+import { activeConversations } from "../_shared/followup-activity.ts";
 import { decideUnconfirmedMedia, MEDIA_ACK_TIMEOUT_MS, type MediaAckMeta } from "../_shared/media-ack.ts";
 import { BOT_STEPS_WAITING_ANSWER, botShouldHaveAnswered, UNANSWERED_MAX_AGE_HOURS, UNANSWERED_MINUTES } from "../_shared/unanswered-bot.ts";
 import { resolveUnitNotificationTargets } from "../_shared/notification-targets.ts";
@@ -954,6 +956,41 @@ async function processFollowUp({
     leadsNeedingFollowUp = leadsNeedingFollowUp.filter(id => !repliedLeads.has(id));
     
     console.log(`[follow-up-check] After filtering replied leads: ${leadsNeedingFollowUp.length} leads need follow-up #${followUpNumber}`);
+  }
+
+  // Cliente ou equipe falaram depois do momento de referência (agora − atraso):
+  // a conversa está ativa, o follow-up automático espera (Vanessa, 19/10)
+  if (leadsNeedingFollowUp.length > 0) {
+    const { data: convRows } = await chunkedInQuery(
+      (chunk) =>
+        supabase
+          .from("wapi_conversations")
+          .select("id, lead_id")
+          .in("lead_id", chunk)
+          .eq("instance_id", settings.instance_id),
+      leadsNeedingFollowUp,
+    );
+    const convToLead = new Map((convRows || []).map((c: { id: string; lead_id: string }) => [c.id, c.lead_id]));
+    const { data: recentRows, error: recentError } = await chunkedInQuery(
+      (chunk) =>
+        supabase
+          .from("wapi_messages")
+          .select("conversation_id, from_me, metadata")
+          .in("conversation_id", chunk)
+          .gt("timestamp", maxTime.toISOString())
+          .limit(5000),
+      [...convToLead.keys()],
+    );
+    if (recentError) {
+      // Sem saber se a equipe está conversando, não manda (melhor atrasar que atropelar)
+      console.error(`[follow-up-check] Erro ao conferir conversas ativas — follow-up #${followUpNumber} adiado:`, recentError);
+      return { successCount: 0, errors: [String(recentError)] };
+    }
+    const activeLeads = new Set([...activeConversations(recentRows || [])].map((id) => convToLead.get(id)).filter(Boolean));
+    if (activeLeads.size > 0) {
+      leadsNeedingFollowUp = leadsNeedingFollowUp.filter((id) => !activeLeads.has(id));
+      console.log(`[follow-up-check] ${activeLeads.size} lead(s) com conversa ativa (cliente ou equipe falaram nas últimas ${delayHours}h) — follow-up #${followUpNumber} espera`);
+    }
   }
 
   // Número com a jornada da Bia ligada: conversa que ela cobre segue a jornada da Bia
@@ -3140,7 +3177,9 @@ function recoveryValidateName(input: string): { valid: boolean; value?: string; 
 }
 
 function recoveryValidateMenuChoice(input: string, options: { num: number; value: string }[]): { valid: boolean; value?: string; error?: string } {
-  const normalized = input.trim();
+  // "1️⃣2️⃣" → "12" (antes virava a opção 1); "1 2" → "12" como no webhook
+  const keyed = keycapsToDigits(input.trim());
+  const normalized = /^\d[\d\s\-,./]*\d$/.test(keyed) ? keyed.replace(/[\s\-,./]+/g, "") : keyed;
   const numMatch = normalized.match(/^(\d+)/);
   if (numMatch) {
     const num = parseInt(numMatch[1]);

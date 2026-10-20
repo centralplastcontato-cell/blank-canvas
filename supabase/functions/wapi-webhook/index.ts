@@ -21,6 +21,7 @@ import { detectWhatsAppReturn } from "../_shared/lead-return.ts";
 import { isLiveReplyToBotQuestion } from "../_shared/reconnect-quarantine.ts";
 import { collectStatusMessageIds, isPlayedStatus, mapProviderMessageStatus, statusUpdateFilter } from "../_shared/message-status.ts";
 import { AI_CONFIRMATION_STYLE, fixedConfirmationTextChoice } from "../_shared/visit-confirm.ts";
+import { keycapsToDigits } from "../_shared/menu-reply.ts";
 import { evolutionConnectionEvent, evolutionDownloadMedia, evolutionSendMedia, evolutionSendText, extractEvolutionMessageId, isEvolutionPayload, normalizeEvolutionPayload, redactEvolutionPayload, sameToken } from "../_shared/evolution.ts";
 import { decryptWhatsAppMedia, encryptedMediaUrl, type WaMediaType } from "../_shared/whatsapp-media-crypto.ts";
 import { isContactBlocked, asksToStopMessages } from "../_shared/contact-block.ts";
@@ -1040,7 +1041,8 @@ function validateName(input: string): { valid: boolean; value?: string; error?: 
 }
 
 function validateMenuChoice(input: string, options: { num: number; value: string }[], stepName: string): { valid: boolean; value?: string; error?: string } {
-  const normalized = input.trim();
+  // "1️⃣2️⃣" (emoji copiado da lista) → "12": antes virava a opção 1
+  const normalized = keycapsToDigits(input.trim());
 
   // 0. Special case: input is only digits + separators (space/hyphen/comma/dot/slash)
   // between digits → treat as single number. Fixes "1 1" → 11, "1 2" → 12 (Nov/Dez).
