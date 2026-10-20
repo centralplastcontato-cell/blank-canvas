@@ -2310,8 +2310,6 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       }
     }
 
-    // Keep inactive/hidden instances available for historical conversations.
-    // The Hub toggle should control visibility/connection preference, not erase old chats from the buffet panel.
     // Número do cadastro que nunca conectou (esperando QR ou desistiu) não é um
     // WhatsApp de verdade. O que já conectou e foi desconectado continua, para
     // as conversas antigas seguirem aparecendo
@@ -2324,6 +2322,14 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const before = accessibleData.length;
       accessibleData = accessibleData.filter((i: any) => allowedSet.has(i.id));
       console.log('[WhatsAppChat] Filtered by instance permissions:', { before, after: accessibleData.length, allowedInstanceIds });
+    }
+
+    // Unidade só com número desativado some da Central (as conversas dele deixam
+    // de abrir aqui). Número antigo da mesma unidade de um ativo continua, para o
+    // histórico de quem trocou de número. Se tudo estiver desativado, nada some
+    const activeUnits = new Set(accessibleData.filter((i) => i.is_active !== false).map((i) => i.unit));
+    if (activeUnits.size > 0) {
+      accessibleData = accessibleData.filter((i) => i.is_active !== false || activeUnits.has(i.unit));
     }
 
     if (accessibleData.length > 0) {
