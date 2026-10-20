@@ -55,7 +55,7 @@ import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { EventFormDialog, EventFormData } from "@/components/agenda/EventFormDialog";
 import { saveEvent } from "@/lib/eventSave";
 import { deleteLeads } from "@/lib/leadDelete";
-import { AWAITING_READ_OR_FILTER } from "@/lib/conversationUnread";
+import { AWAITING_READ_OR_FILTER, fetchInactiveInstanceIds } from "@/lib/conversationUnread";
 import { visitUnitAccess } from "@/lib/unitAccess";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 
@@ -139,7 +139,7 @@ export default function CentralAtendimento() {
   
   const [initialPhone, setInitialPhone] = useState<string | null>(null);
   const [initialDraft, setInitialDraft] = useState<string | null>(null);
-  const [chatInstances, setChatInstances] = useState<{ id: string; unit: string | null; status: string | null }[]>([]);
+  const [chatInstances, setChatInstances] = useState<{ id: string; unit: string | null; status: string | null; is_active: boolean }[]>([]);
   const [selectedChatUnit, setSelectedChatUnit] = useState<string | null>(() => {
     if (!currentCompany?.id) return null;
     try {
@@ -681,7 +681,9 @@ export default function CentralAtendimento() {
       .gt("unread_count", 0)
       .or(AWAITING_READ_OR_FILTER);
     if (instanceIds) query = query.in("instance_id", instanceIds);
-    const { data } = await query;
+    const [{ data: rows }, inactiveIds] = await Promise.all([query, fetchInactiveInstanceIds(supabase, currentCompany.id)]);
+    // Número desativado não conta: as conversas dele ficam só como histórico
+    const data = rows?.filter((conv) => !conv.instance_id || !inactiveIds.has(conv.instance_id));
     
     if (data) {
       const total = data.reduce((sum, conv) => sum + (conv.unread_count || 0), 0);
@@ -1188,10 +1190,14 @@ export default function CentralAtendimento() {
                       {chatUnitOptions.map((unit) => {
                         const inst = chatInstances.find(i => i.unit === unit);
                         const instUnread = inst ? (unreadPerInstance[inst.id] || 0) : 0;
+                        const inactive = inst?.is_active === false;
                         return (
                           <SelectItem key={unit} value={unit}>
-                            <span className="flex items-center gap-2">
+                            <span className={`flex items-center gap-2 ${inactive ? "text-muted-foreground" : ""}`}>
                               {unit}
+                              {inactive && (
+                                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">desativado</span>
+                              )}
                               {instUnread > 0 && selectedChatUnit !== unit && (
                                 <span className="h-4 min-w-4 px-1 text-[9px] font-bold rounded-full bg-destructive text-destructive-foreground flex items-center justify-center">
                                   {instUnread > 99 ? "99+" : instUnread}
@@ -1441,10 +1447,13 @@ export default function CentralAtendimento() {
                           onClick={() => handleSetSelectedChatUnit(inst.unit)}
                           className={`h-7 px-3 rounded-md transition-all text-xs shrink-0 whitespace-nowrap ${
                             selectedChatUnit === inst.unit ? "shadow-sm" : "hover:bg-background/80"
-                          }`}
+                          } ${!inst.is_active && selectedChatUnit !== inst.unit ? "text-muted-foreground" : ""}`}
                         >
                           <Building2 className="w-3.5 h-3.5 mr-1" />
                           {inst.unit}
+                          {!inst.is_active && (
+                            <span className="ml-1 text-[9px] font-semibold opacity-70">(desativado)</span>
+                          )}
                           {(unreadPerInstance[inst.id] || 0) > 0 && selectedChatUnit !== inst.unit && (
                             <span className="ml-1 h-4 min-w-4 px-1 text-[9px] font-bold rounded-full bg-destructive text-destructive-foreground flex items-center justify-center">
                               {(unreadPerInstance[inst.id] || 0) > 99 ? "99+" : unreadPerInstance[inst.id]}

@@ -452,7 +452,7 @@ interface WhatsAppChatProps {
   initialDraft?: string | null;
   onPhoneHandled?: () => void;
   externalSelectedUnit?: string | null;
-  onInstancesLoaded?: (instances: { id: string; unit: string | null; status: string | null }[]) => void;
+  onInstancesLoaded?: (instances: { id: string; unit: string | null; status: string | null; is_active: boolean }[]) => void;
   onLeadClosedMobile?: (lead: Lead) => void | Promise<void>;
   onUnreadCountChange?: () => void;
   /** false enquanto a Central mostra a aba Leads (o chat fica carregado por trás) */
@@ -2349,7 +2349,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         const score = (i: any) => (i.is_active === false ? 0 : 100) + (i.status === 'connected' ? 10 : i.status === 'degraded' ? 5 : 0) + (i.provider === 'zapi' ? 1 : 0);
         if (score(inst) > score(existing)) dedupByUnit.set(key, inst);
       });
-      const dedupedForParent = Array.from(dedupByUnit.values()).map((d: any) => ({ id: d.id, unit: d.unit, status: d.status }));
+      // Números desativados vão para o fim da lista (só para abrir o histórico)
+      const dedupedForParent = Array.from(dedupByUnit.values())
+        .map((d: any) => ({ id: d.id, unit: d.unit, status: d.status, is_active: d.is_active !== false }))
+        .sort((a, b) => Number(b.is_active) - Number(a.is_active));
       onInstancesLoaded?.(dedupedForParent);
       setSelectedInstance(prev => {
         if (prev) {
