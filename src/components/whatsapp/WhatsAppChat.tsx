@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { getBrazilianPhoneVariants } from "@/lib/whatsappConversationHelper";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { formatMessageContent } from "@/lib/format-message";
 import { LEAD_STATUS_COLORS, type LeadStatus } from "@/types/crm";
@@ -556,6 +557,11 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [selectedInstance, setSelectedInstance] = useState<WapiInstance | null>(null);
   const [instanceConversationCounts, setInstanceConversationCounts] = useState<Record<string, number>>({});
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  // Lista já carregada (e de qual unidade): abrir uma conversa por telefone
+  // na mesma unidade não precisa apagar e recarregar a lista inteira
+  const conversationsCountRef = useRef(0);
+  conversationsCountRef.current = conversations.length;
+  const loadedListKeyRef = useRef<string | null>(null);
   // Versao da busca de conversas: invalida respostas atrasadas de uma instancia
   // anterior (trocar VENDAS 1 -> 2 nao pode deixar a lista antiga sobrescrever a nova).
   const conversationsFetchSeqRef = useRef(0);
@@ -1747,6 +1753,10 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       } else if (initialPhone && initialPhoneProcessed) {
         // Abertura por telefone em andamento — nao dispara uma busca concorrente
         // sem telefone, que invalidaria (isStale) a busca que vai abrir a conversa.
+      } else if (initialPhone && !initialPhoneProcessed && conversationsCountRef.current > 0 && loadedListKeyRef.current === selectedUnitInstanceIds.join(",")) {
+        // Lista desta unidade já está na tela: só acha e abre a conversa
+        fetchConversations(initialPhone, false, true);
+        setInitialPhoneProcessed(true);
       } else {
         conversationsFetchSeqRef.current++; // invalida buscas da instancia anterior
         setConversations([]);
@@ -2440,7 +2450,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     }
   };
 
-  const fetchConversations = async (selectPhone?: string, skipLeadRefresh?: boolean) => {
+  const fetchConversations = async (selectPhone?: string, skipLeadRefresh?: boolean, keepLoadedList?: boolean) => {
     if (!selectedInstance) return;
 
     // Marca esta busca; qualquer troca de instancia (ou nova busca) a invalida.
@@ -2465,8 +2475,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     // segundos em buffets grandes). A lista continua carregando em seguida.
     let effectiveInstanceIds = selectedUnitInstanceIds;
     if (selectPhone) {
-      const cleanPhone = selectPhone.replace(/\D/g, '');
-      const phoneVariants = [cleanPhone, cleanPhone.replace(/^55/, ''), `55${cleanPhone}`];
+      // Com e sem o 9 do celular: o WhatsApp guarda muitos números sem ele
+      const phoneVariants = getBrazilianPhoneVariants(selectPhone);
       const phoneFilter = phoneVariants.map(p => `contact_phone.ilike.%${p}%`).join(',');
 
       const { data: quickMatch } = await supabase
@@ -2483,11 +2493,13 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       if (quickMatch) {
         setSelectedConversation(quickMatch as unknown as Conversation);
         onPhoneHandled?.();
+        if (keepLoadedList) return;
       } else {
-        // Nao esta na unidade atual — procura em todas as instancias
+        // Nao esta na unidade atual — procura nos outros numeros da Central
         const { data: crossInstanceConv } = await supabase
           .from("wapi_conversations")
           .select(conversationColumns)
+          .in("instance_id", instances.map((i) => i.id))
           .or(phoneFilter)
           .order("last_message_at", { ascending: false })
           .limit(1)
@@ -2568,6 +2580,7 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       });
       
       setConversations(dedupeConversations(sortedConversations as Conversation[]));
+      loadedListKeyRef.current = effectiveInstanceIds.join(",");
 
       // If the component was remounted/refreshed after the operator changed
       // browser tabs, reopen the exact chat they were viewing.
