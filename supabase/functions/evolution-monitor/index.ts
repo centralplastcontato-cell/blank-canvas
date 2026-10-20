@@ -424,7 +424,7 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
       : { ok: false, ms: 0, status: undefined, data: null, error: "status não está online" };
     const aliveOk = statusOnline && aliveCheckHealthy(alive, ALIVE_TIMEOUT_MS);
     if (statusOnline && !aliveOk) console.log(`[evolution-monitor] ${inst.unit}: /user/check falhou (http ${alive.status ?? "-"}, ${alive.ms} ms): ${rawSnippet(alive.data ?? alive.error)}`);
-    return { inst, res, alive, aliveOk };
+    return { inst, res, alive, aliveOk, stuck: statusOnline && !aliveOk };
   }));
   const results = checked.filter((r): r is NonNullable<typeof r> => r !== null);
   // Voltou pelo tráfego (sem consultar a Evolution)
@@ -435,6 +435,7 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
       res: { ok: true, status: 200, data: { data: { Connected: true, LoggedIn: true } } },
       alive: { ok: true, ms: 0, status: 200, data: null },
       aliveOk: true,
+      stuck: false,
     });
   }
   // Banco da Evolution esgotado ("too many clients", ou 401 num token que já
@@ -456,7 +457,7 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
   type Pending = { inst: Inst; key: string; prev: HealthRow | null; final: ReturnType<typeof decideInstanceHealth>; stateSince: string; downSince: string | null; resent: number; expired: number };
   const pending: Pending[] = [];
   const summary: Json[] = [];
-  for (const { inst, res, alive, aliveOk } of results) {
+  for (const { inst, res, alive, aliveOk, stuck } of results) {
     const key = instKey(inst.id);
     const prevRow = health[key] || null;
     const prev = prevRow as HealthRow | null;
@@ -468,7 +469,9 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
       observed = "online";
     }
     const recoveryLog = recoveriesInLastDay((prevRow?.detail as Json | null)?.recoveries, Date.now());
-    const d = decideInstanceHealth(prev, observed, { serverDown, dbExhausted, recoveriesToday: recoveryLog.length });
+    // Logado mas o /user/check falhou agora e na checagem anterior: socket zumbi
+    const stuckSession = stuck && observed === "unreachable" && (prevRow?.detail as Json | null)?.stuck === true;
+    const d = decideInstanceHealth(prev, observed, { serverDown, dbExhausted, recoveriesToday: recoveryLog.length, stuckSession });
     // "Fora desde": troca entre estados de queda (sem sessão ↔ sem resposta) não reinicia a contagem
     const stillDown = !!prevRow && prevRow.state !== "online" && prevRow.state !== "unknown" && d.state !== "online";
     const stateSince = prevRow && (prevRow.state === d.state || stillDown) ? prevRow.state_since : nowIso;
@@ -495,7 +498,7 @@ async function run(supabase: SB, onlyInstanceId: string | null, reason: string):
       reconnect_attempts: final.state === "online" ? 0 : d.reconnect_attempts,
       last_check_at: nowIso,
       detail: {
-        reason, reconnect: reconnectResult, recoveries: recoveryLog, db_exhausted: dbExhausted || undefined,
+        reason, reconnect: reconnectResult, recoveries: recoveryLog, db_exhausted: dbExhausted || undefined, stuck,
         http_status: res.status ?? null, error: res.ok ? null : String(res.error || "").slice(0, 200),
         alive: { ok: aliveOk, ms: alive.ms, http: alive.status ?? null, raw: rawSnippet(alive.data ?? alive.error) },
       },

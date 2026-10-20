@@ -100,7 +100,18 @@ export function looksLikeDbExhausted(res: { ok: boolean; status?: number; error?
 export function decideInstanceHealth(
   prev: HealthRow | null,
   observed: EvoState,
-  opts: { serverDown?: boolean; dbExhausted?: boolean; recoveriesToday?: number } = {},
+  opts: {
+    serverDown?: boolean;
+    dbExhausted?: boolean;
+    recoveriesToday?: number;
+    /**
+     * Socket "zumbi": o status diz logado, mas o /user/check falhou nesta
+     * checagem e na anterior (VENDAS 2, 20/10 18:07–18:23). Só nesse caso o
+     * "sem resposta" pede reconnect; sem isso pode ser a Evolution fora, e
+     * reconectar não adianta
+     */
+    stuckSession?: boolean;
+  } = {},
 ): HealthDecision {
   const wasDown = !!prev && prev.state !== "online" && prev.state !== "unknown";
   if (observed === "online") {
@@ -123,7 +134,11 @@ export function decideInstanceHealth(
     attempts < MAX_RECONNECT_ATTEMPTS && (opts.recoveriesToday ?? 0) < MAX_RECOVERIES_PER_DAY;
   // Sessão existe e caiu a conexão → reconnect; cliente parado (ex.: depois de
   // reiniciar o servidor) → connect, que volta logado sem QR se a sessão está salva
-  const recover = !canRecover ? null : observed === "reconnecting" ? "reconnect" : observed === "needs_qr" ? "connect" : null;
+  const recover = !canRecover ? null
+    : observed === "reconnecting" ? "reconnect"
+    : observed === "needs_qr" ? "connect"
+    : observed === "unreachable" && opts.stuckSession ? "reconnect"
+    : null;
   if (recover) attempts += 1;
   // Servidor/banco fora: o aviso do servidor cobre. Um aviso de queda por vez.
   // Com uma recuperação tentando agora, o aviso espera a próxima checagem

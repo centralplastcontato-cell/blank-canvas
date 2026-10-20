@@ -39,6 +39,28 @@ Deno.test("caiu com sessão: espera a Evolution reconectar sozinha; 1 reconnect 
   assertEquals([fourth.recover, fourth.alert], [null, null]);
 });
 
+Deno.test("socket zumbi (logado, /user/check falhando 2x): 1 reconnect na 2ª checagem", () => {
+  const first = decideInstanceHealth(row("online"), "unreachable", { stuckSession: false });
+  assertEquals([first.recover, first.alert, first.bad_checks], [null, null, 1]);
+  const second = decideInstanceHealth(row("unreachable", 1, 0), "unreachable", { stuckSession: true });
+  assertEquals([second.recover, second.alert, second.reconnect_attempts], ["reconnect", null, 1]);
+  // Não resolveu: não tenta de novo nesta queda, só avisa
+  const third = decideInstanceHealth(row("unreachable", 2, 1), "unreachable", { stuckSession: true });
+  assertEquals([third.recover, third.alert], [null, "down"]);
+});
+
+Deno.test("sem resposta sem ser zumbi (Evolution fora): não reconecta, só avisa", () => {
+  const d = decideInstanceHealth(row("unreachable", 1, 0), "unreachable");
+  assertEquals([d.recover, d.alert], [null, "down"]);
+});
+
+Deno.test("socket zumbi respeita 3 por dia e servidor fora", () => {
+  const day = decideInstanceHealth(row("unreachable", 1, 0), "unreachable", { stuckSession: true, recoveriesToday: 3 });
+  assertEquals([day.recover, day.alert], [null, "down"]);
+  const server = decideInstanceHealth(row("unreachable", 1, 0), "unreachable", { stuckSession: true, serverDown: true });
+  assertEquals(server.recover, null);
+});
+
 Deno.test("limite de recuperações: 3 por dia — passou disso, só avisa", () => {
   const d = decideInstanceHealth(row("reconnecting", 1, 0), "reconnecting", { recoveriesToday: 3 });
   assertEquals([d.recover, d.alert], [null, "down"]);
