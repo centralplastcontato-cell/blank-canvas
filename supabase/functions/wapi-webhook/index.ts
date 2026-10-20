@@ -6266,12 +6266,19 @@ async function processWebhookEvent(body: JsonRecord) {
         // arrives with a different JID alias (e.g. pseudo-LID resolved above, or a
         // variant phone format). The unique constraint is (conversation_id, message_id),
         // so a conv-scoped search would miss cross-conversation duplicates.
-        const { data: existingMsg } = await supabase.from('wapi_messages')
+        const findSaved = () => supabase.from('wapi_messages')
           .select('id, conversation_id')
           .eq('message_id', String(msgId))
           .eq('company_id', instance.company_id)
           .limit(1)
           .maybeSingle();
+        let { data: existingMsg } = await findSaved();
+        // Plataforma, IA e robô gravam a mensagem antes (ou logo depois) de o eco
+        // chegar: espera 3 s antes de concluir que veio do celular do buffet
+        if (!existingMsg && !/^\[Reação\]/.test(content) && !reconnectHistoryReplay) {
+          await new Promise<void>((res) => setTimeout(res, 3000));
+          ({ data: existingMsg } = await findSaved());
+        }
 
         if (existingMsg) {
           console.log(`[Bot] Skipping duplicate outgoing message ${msgId} - already saved (conv=${existingMsg.conversation_id})`);
@@ -6295,7 +6302,10 @@ async function processWebhookEvent(body: JsonRecord) {
             media_url: url, media_key: key, media_direct_path: path, status: 'sent',
             timestamp: messageTimestamp,
             company_id: instance.company_id,
-            metadata: /^\[Reação\]/.test(content) ? { ...(grpMeta1 || {}), source: 'reaction' } : grpMeta1,
+            // Não estava gravada: veio do celular do buffet (bolinha branca na Central)
+            metadata: /^\[Reação\]/.test(content)
+              ? { ...(grpMeta1 || {}), source: 'reaction' }
+              : reconnectHistoryReplay ? grpMeta1 : { ...(grpMeta1 || {}), source: 'phone' },
             quoted_message_id: quotedDbId,
           }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
           if (_insErr1) {
