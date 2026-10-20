@@ -17,3 +17,13 @@ export function isAwaitingRead(c: UnreadLike): boolean {
 
 /** Filtro do banco com a mesma regra (somar com .gt("unread_count", 0)) */
 export const AWAITING_READ_OR_FILTER = `last_message_from_me.is.false,last_message_from_me.is.null,unread_count.gte.${AI_HANDOFF_UNREAD}`;
+
+/**
+ * Números desativados da empresa. As conversas deles continuam abertas na
+ * Central (histórico), mas as não lidas não entram nos contadores.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function fetchInactiveInstanceIds(db: any, companyId: string): Promise<Set<string>> {
+  const { data } = await db.from("wapi_instances").select("id").eq("company_id", companyId).eq("is_active", false);
+  return new Set(((data || []) as Array<{ id: string }>).map((i) => i.id));
+}
