@@ -423,14 +423,25 @@ Deno.serve(async (req) => {
           supabaseAdmin.from('profiles').select('full_name').eq('user_id', requestingUser.id).single(),
         ])
 
-        await supabaseAdmin.from('password_reset_logs').insert({
+        const entry = {
           target_user_id: body.user_id,
           target_user_name: targetProfile.data?.full_name || null,
           target_user_email: targetProfile.data?.email || null,
           reset_by_user_id: requestingUser.id,
           reset_by_user_name: requesterProfile.data?.full_name || null,
           company_id: body.company_id || null,
-        })
+        }
+        // O gatilho do banco já registrou a troca (sem autor): completa esse
+        // registro; sem o gatilho, cria um novo como antes
+        const since = new Date(Date.now() - 5 * 60000).toISOString()
+        const { data: pending, error: pendingError } = await supabaseAdmin.from('password_reset_logs')
+          .select('id').eq('target_user_id', body.user_id).is('reset_by_user_id', null)
+          .gte('created_at', since).order('created_at', { ascending: false }).limit(1)
+        if (!pendingError && pending && pending[0]) {
+          await supabaseAdmin.from('password_reset_logs').update({ ...entry, method: 'admin' }).eq('id', pending[0].id)
+        } else {
+          await supabaseAdmin.from('password_reset_logs').insert(entry)
+        }
       } catch (logErr) {
         console.error('Failed to log password reset (non-blocking):', logErr)
       }

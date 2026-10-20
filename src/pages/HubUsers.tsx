@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { PASSWORD_METHOD_LABELS } from "@/lib/passwordLog";
 
 interface UserWithCompanies extends UserWithRole {
   company_ids: string[];
@@ -196,6 +197,9 @@ interface PasswordResetLog {
   target_user_email: string | null;
   reset_by_user_name: string | null;
   created_at: string;
+  // Sem o SQL do histórico completo, essas colunas não existem (fica "—")
+  method?: string | null;
+  device?: string | null;
 }
 
 function PasswordResetHistoryDialog() {
@@ -207,7 +211,7 @@ function PasswordResetHistoryDialog() {
     setLoading(true);
     const { data } = await supabase
       .from("password_reset_logs" as any)
-      .select("id, target_user_name, target_user_email, reset_by_user_name, created_at")
+      .select("*")
       .order("created_at", { ascending: false })
       .limit(50);
     setLogs((data as any as PasswordResetLog[]) || []);
@@ -227,8 +231,8 @@ function PasswordResetHistoryDialog() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Histórico de Redefinições de Senha</DialogTitle>
-            <DialogDescription>Registro de todas as senhas redefinidas por administradores.</DialogDescription>
+            <DialogTitle>Histórico de Senhas</DialogTitle>
+            <DialogDescription>Toda troca de senha: pelo Perfil, pelo "Esqueci minha senha" ou por um administrador, com o aparelho usado.</DialogDescription>
           </DialogHeader>
           {loading ? (
             <div className="flex justify-center py-8">
@@ -241,7 +245,8 @@ function PasswordResetHistoryDialog() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Usuário</TableHead>
-                  <TableHead>Redefinido por</TableHead>
+                  <TableHead>Trocada por</TableHead>
+                  <TableHead>Como / aparelho</TableHead>
                   <TableHead>Data</TableHead>
                 </TableRow>
               </TableHeader>
@@ -255,6 +260,10 @@ function PasswordResetHistoryDialog() {
                       </div>
                     </TableCell>
                     <TableCell className="text-sm">{log.reset_by_user_name || "—"}</TableCell>
+                    <TableCell className="text-sm">
+                      <p>{log.method ? PASSWORD_METHOD_LABELS[log.method] || log.method : "Admin (tela de Usuários)"}</p>
+                      {log.device && <p className="text-xs text-muted-foreground">{log.device}</p>}
+                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {format(new Date(log.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     </TableCell>
