@@ -83,6 +83,8 @@ interface AiAgentSettings {
   intro_image_url?: string | null;
   // Outros números com a IA, cada um com a sua data de liberação (só clientes novos dali em diante)
   extra_units?: ExtraUnit[] | null;
+  // Alerta de cliente com festa nos próximos 60 dias (sininho + WhatsApp do alerta)
+  party_soon_alert?: boolean | null;
 }
 
 interface ExtraUnit {
@@ -221,6 +223,7 @@ export function AiAgentSection() {
   const [teamSatEnd, setTeamSatEnd] = useState("13:00");
   const [alertMinutes, setAlertMinutes] = useState(10);
   const [alertPhone, setAlertPhone] = useState("");
+  const [partySoonAlert, setPartySoonAlert] = useState(false);
   const [partySlots, setPartySlots] = useState(DEFAULT_PARTY_SLOTS);
   const [closedPeriods, setClosedPeriods] = useState<ClosedPeriod[]>([]);
   const [fuEnabled, setFuEnabled] = useState(false);
@@ -320,6 +323,7 @@ export function AiAgentSection() {
       intro_image_url: next.intro_image_url ?? null,
       // Só manda quando o banco já tem a coluna (veio na leitura)
       ...(next.extra_units !== undefined ? { extra_units: next.extra_units ?? [] } : {}),
+      ...(next.party_soon_alert !== undefined ? { party_soon_alert: next.party_soon_alert === true } : {}),
       updated_at: new Date().toISOString(),
     };
     const save = (body: Record<string, unknown>, columns: string) => (supabase as any)
@@ -425,6 +429,7 @@ export function AiAgentSection() {
     setTeamSatEnd(team.satEnd);
     setAlertMinutes(settings.handoff_alert_minutes || 10);
     setAlertPhone(settings.handoff_alert_phone || "");
+    setPartySoonAlert(settings.party_soon_alert === true);
     setPartySlots(settings.party_slots || DEFAULT_PARTY_SLOTS);
     setClosedPeriods(Array.isArray(settings.closed_periods) ? settings.closed_periods : []);
     const fu = normalizeFollowUpConfig(settings.followup_config);
@@ -523,6 +528,8 @@ export function AiAgentSection() {
       team_hours: serializeTeamHours(teamDays, teamStart, teamEnd, teamSatDifferent, teamSatStart, teamSatEnd),
       handoff_alert_minutes: alertMinutes,
       handoff_alert_phone: alertPhone.trim() || null,
+      // Só quando o banco já tem a coluna (veio na leitura)
+      ...(settings.party_soon_alert !== undefined ? { party_soon_alert: partySoonAlert } : {}),
       party_slots: partySlots.trim() && partySlots.trim() !== DEFAULT_PARTY_SLOTS ? partySlots.trim() : null,
       closed_periods: [...periods].sort((a, b) => a.start.localeCompare(b.start)),
       followup_config: followUp,
@@ -921,6 +928,17 @@ export function AiAgentSection() {
                   <p className="text-[11px] text-muted-foreground">
                     Quando a IA passa uma conversa para a equipe e ninguém responde o cliente nesse tempo (contando só o horário de atendimento), esse WhatsApp recebe um alerta 🚨 com o nome do cliente e o motivo, além do sininho. Sem número, fica só o sininho.
                   </p>
+                  {settings.party_soon_alert !== undefined && (
+                    <div className="space-y-1 rounded-lg border border-border bg-muted/30 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-xs font-bold">🎉 Avisar quando a festa for nos próximos 60 dias</Label>
+                        <Switch checked={partySoonAlert} onCheckedChange={setPartySoonAlert} aria-label="Avisar festa nos próximos 60 dias" />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Vale para todos os clientes (IA, robô e site). Com data exata (site), conta 60 dias; quando só tem o mês (IA e robô), vale o mês atual e o seguinte. Aviso no sininho e no WhatsApp acima, uma vez por cliente.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Recesso / dias fechados: a IA não oferece festa nem visita

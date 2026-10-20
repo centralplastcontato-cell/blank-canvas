@@ -18,6 +18,7 @@ import { type AiTarget, journeyOwnsConversation, type JourneyScope, journeyScope
 import { loadBlockedContacts } from "../_shared/contact-block.ts";
 import { installEvolutionCallGuard } from "../_shared/evolution-guard.ts";
 import { claimSystemSendSlot } from "../_shared/system-send-pacing.ts";
+import { PARTY_SOON_ACTION, partySoon, partySoonLabel } from "../_shared/party-soon.ts";
 
 type SupabaseAdmin = any;
 
@@ -423,6 +424,12 @@ Deno.serve(async (req) => {
     const handoffResult = await processAiHandoffAlerts({ supabase });
     if (handoffResult.errors.length > 0) {
       console.error("[follow-up-check] Erros no alerta de passagem da IA:", handoffResult.errors);
+    }
+
+    // Cliente com festa nos próximos 60 dias: aviso para a equipe (se ligado)
+    const partySoonResult = await processPartySoonAlerts({ supabase });
+    if (partySoonResult.errors.length > 0) {
+      console.error("[follow-up-check] Erros no alerta de festa próxima:", partySoonResult.errors);
     }
 
     // Acompanhamento da Bia (Configurar IA → Follow-up): só nos números com a
@@ -2590,6 +2597,103 @@ async function processAiHandoffAlerts({
       }
       console.log(`[follow-up-check] 🚨 Passagem da IA sem resposta: conv ${conv.id} (${unitLabel}, ${waited} min) — WhatsApp: ${whatsappSent}`);
       sent++;
+    } catch (e) {
+      errors.push(String(e));
+    }
+  }
+  return { sent, errors };
+}
+
+// ============= ALERTA: FESTA NOS PRÓXIMOS 60 DIAS =============
+// Buffets com ai_agent_settings.party_soon_alert ligado: lead que entrou nos
+// últimos 2 dias e informou uma festa próxima (regras em _shared/party-soon.ts)
+// gera um aviso no sininho e entra num WhatsApp único por empresa para o
+// handoff_alert_phone (mesmo remetente do alerta de passagem). Uma vez por
+// lead: a marca fica no histórico do lead.
+const PARTY_SOON_LOOKBACK_MS = 2 * 86400000;
+const PARTY_SOON_SKIP_STATUS = ["fechado", "perdido", "trabalhe_conosco", "fornecedor", "outros"];
+
+async function processPartySoonAlerts({
+  supabase,
+}: { supabase: SupabaseAdmin }): Promise<{ sent: number; errors: string[] }> {
+  const errors: string[] = [];
+  let sent = 0;
+  const { data: companies, error } = await supabase
+    .from("ai_agent_settings")
+    .select("company_id, handoff_alert_phone")
+    .eq("party_soon_alert", true);
+  // Banco ainda sem a coluna: alerta desligado
+  if (error) return { sent, errors: /party_soon_alert/.test(String(error.message)) ? [] : [String(error.message || error)] };
+  if (!companies || companies.length === 0) return { sent, errors };
+
+  const nowMs = Date.now();
+  const since = new Date(nowMs - PARTY_SOON_LOOKBACK_MS).toISOString();
+  const todayYmd = new Date(nowMs).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+
+  for (const cfg of companies as any[]) {
+    try {
+      const { data: leads } = await supabase
+        .from("campaign_leads")
+        .select("id, name, whatsapp, unit, month, day_of_month, status")
+        .eq("company_id", cfg.company_id)
+        .not("month", "is", null)
+        .not("status", "in", `(${PARTY_SOON_SKIP_STATUS.join(",")})`)
+        .or(`created_at.gte.${since},last_entry_at.gte.${since}`)
+        .limit(300);
+      const soon = ((leads || []) as any[])
+        .map((l) => ({ ...l, when: partySoon(l.month, l.day_of_month, todayYmd) }))
+        .filter((l) => l.when);
+      if (soon.length === 0) continue;
+
+      const { data: done } = await supabase
+        .from("lead_history")
+        .select("lead_id")
+        .in("lead_id", soon.map((l) => l.id))
+        .eq("action", PARTY_SOON_ACTION);
+      const already = new Set(((done || []) as any[]).map((d) => d.lead_id));
+      const fresh = soon.filter((l) => !already.has(l.id));
+      if (fresh.length === 0) continue;
+
+      // Marca antes de avisar: se algo falhar, não repete o alerta a cada rodada
+      const { error: histErr } = await supabase.from("lead_history").insert(fresh.map((l) => ({
+        lead_id: l.id,
+        company_id: cfg.company_id,
+        action: PARTY_SOON_ACTION,
+        new_value: l.when,
+        user_name: "Sistema",
+      })));
+      if (histErr) {
+        errors.push(`histórico ${cfg.company_id}: ${histErr.message}`);
+        continue;
+      }
+
+      const line = (l: any) => `• *${l.name || "Cliente"}* (${String(l.whatsapp || "").replace(/\D/g, "")}) — festa em ${partySoonLabel(l.when)}${l.unit ? ` · ${l.unit}` : ""}`;
+      for (const l of fresh) {
+        const targets = await resolveUnitNotificationTargets(supabase, cfg.company_id, l.unit);
+        if (targets.length === 0) continue;
+        await supabase.from("notifications").insert(targets.map((uid: string) => ({
+          user_id: uid,
+          company_id: cfg.company_id,
+          type: "party_soon",
+          title: `🎉 Festa em ${partySoonLabel(l.when)}: cliente com pressa`,
+          message: `${l.name || "Cliente"}${l.unit ? ` (${l.unit})` : ""} quer festa nos próximos 60 dias. Dê prioridade ao atendimento!`,
+          data: { lead_id: l.id, contact_phone: l.whatsapp, unit: l.unit, party: l.when, reason: "party_soon" },
+          read: false,
+        })));
+      }
+
+      const alertPhone = String(cfg.handoff_alert_phone || "").replace(/\D/g, "");
+      let whatsappSent = false;
+      if (alertPhone.length >= 10) {
+        const text = `🎉 *Festa próxima — prioridade*\n\n` +
+          `${fresh.length === 1 ? "Este cliente quer" : "Estes clientes querem"} festa nos próximos 60 dias:\n` +
+          fresh.slice(0, 15).map(line).join("\n") +
+          (fresh.length > 15 ? `\n… e mais ${fresh.length - 15} (veja no sininho)` : "") +
+          `\n\n👉 Dê prioridade pela Central de Atendimento do Celebrei.`;
+        whatsappSent = await sendHandoffAlertWhatsApp(supabase, { id: "", company_id: cfg.company_id }, alertPhone.startsWith("55") ? alertPhone : `55${alertPhone}`, text);
+      }
+      console.log(`[follow-up-check] 🎉 Festa próxima: ${fresh.length} lead(s) da empresa ${cfg.company_id} — WhatsApp: ${whatsappSent}`);
+      sent += fresh.length;
     } catch (e) {
       errors.push(String(e));
     }
