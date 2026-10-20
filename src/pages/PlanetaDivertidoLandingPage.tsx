@@ -6,6 +6,8 @@ import {
   MapPin, Instagram, MessageCircle, CalendarClock, Sparkles, Building2,
 } from "lucide-react";
 import { LeadChatbot } from "@/components/landing/LeadChatbot";
+import { supabase } from "@/integrations/supabase/client";
+import { whatsappLink } from "@/lib/whatsappLink";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
 import { Link } from "react-router-dom";
 import planetaLogoImg from "@/assets/thumb-planeta-logo-transparent.png";
@@ -36,6 +38,42 @@ const VIDEO_URL = `${STORAGE}/videos/1771618735052.mp4`;
 const VIDEO_POSTER = PHOTOS[0];
 
 const COMPANY_ID = "6bc204ae-1311-4c67-bb6b-9ab55dae9d11";
+const DIRECT_MESSAGE = "Olá! Vim pelo site do Planeta Divertido e gostaria de saber mais!";
+
+/**
+ * Mesma chave do "Meu site" (Perguntas antes do WhatsApp → hero.cta_mode da LP
+ * do Planeta): desligada, os botões abrem o WhatsApp do buffet direto, sem as
+ * perguntas. Devolve o número (com 55) ou null enquanto as perguntas valem.
+ */
+function useDirectWhatsApp(): { direct: string | null; number: string | null } {
+  const [state, setState] = useState<{ direct: string | null; number: string | null }>({ direct: null, number: null });
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      supabase.rpc("get_landing_page_by_slug", { _slug: "planeta-divertido" }),
+      supabase.rpc("get_onboarding_public_fields", { _company_id: COMPANY_ID }),
+    ]).then(([lp, onb]) => {
+      if (cancelled) return;
+      const row = Array.isArray(lp.data) ? lp.data[0] : lp.data;
+      const onbRow = Array.isArray(onb.data) ? onb.data[0] : onb.data;
+      const raw = String((row?.hero as { whatsapp_number?: string } | null)?.whatsapp_number || onbRow?.whatsapp_numbers?.[0] || "").replace(/\D/g, "");
+      const number = raw ? (raw.length <= 11 ? `55${raw}` : raw) : null;
+      const direct = (row?.hero as { cta_mode?: string } | null)?.cta_mode === "whatsapp" ? number : null;
+      setState({ direct, number });
+    }).catch(() => { /* sem a configuração, ficam as perguntas */ });
+    return () => { cancelled = true; };
+  }, []);
+  return state;
+}
+
+function WhatsAppGlyph({ className }: { className: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={`${className} fill-current`} aria-hidden="true">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
+      <path d="M12 0C5.373 0 0 5.373 0 12c0 2.625.846 5.059 2.284 7.034L.789 23.492a.5.5 0 00.611.611l4.458-1.495A11.953 11.953 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-2.387 0-4.636-.837-6.397-2.297l-.283-.236-2.937.985.985-2.937-.236-.283A9.953 9.953 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z" />
+    </svg>
+  );
+}
 
 const PLANETA_THEME = {
   primary_color: "#8B5CF6",
@@ -129,7 +167,7 @@ const benefits = [
 // ─────────────────────────────────────────────
 // HERO
 // ─────────────────────────────────────────────
-function PlanetaHeroSection({ onCtaClick }: { onCtaClick: () => void }) {
+function PlanetaHeroSection({ onCtaClick, whatsappCta = false }: { onCtaClick: () => void; whatsappCta?: boolean }) {
   const [activeImage, setActiveImage] = useState(0);
   const [loaded, setLoaded] = useState(false);
 
@@ -248,6 +286,20 @@ function PlanetaHeroSection({ onCtaClick }: { onCtaClick: () => void }) {
 
           {/* CTA */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7, duration: 0.6 }} className="pt-2 flex flex-col items-center gap-3">
+            {whatsappCta ? (
+              <motion.button
+                onClick={onCtaClick}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                animate={{ boxShadow: ["0 0 0 0 rgba(37,211,102,0.7)", "0 0 0 20px rgba(37,211,102,0)"] }}
+                transition={{ duration: 1.6, repeat: Infinity }}
+                className="inline-flex items-center gap-3 px-9 md:px-12 py-5 md:py-6 rounded-full text-white font-extrabold text-xl md:text-2xl tracking-wide"
+                style={{ backgroundColor: "#25D366" }}
+              >
+                <WhatsAppGlyph className="w-7 h-7 md:w-8 md:h-8" />
+                Chamar no WhatsApp
+              </motion.button>
+            ) : (
             <button
               onClick={onCtaClick}
               className="group relative inline-flex items-center gap-3 px-8 md:px-10 py-4 md:py-5 rounded-full text-white font-bold text-base md:text-lg tracking-wide shadow-[0_10px_40px_-10px_rgba(139,92,246,0.7)] hover:shadow-[0_20px_60px_-10px_rgba(139,92,246,0.9)] transition-all duration-500 hover:scale-[1.03]"
@@ -257,6 +309,7 @@ function PlanetaHeroSection({ onCtaClick }: { onCtaClick: () => void }) {
               <span className="text-lg group-hover:translate-x-1 transition-transform">→</span>
               <span className="absolute inset-0 rounded-full bg-purple-400/30 blur-xl -z-10 opacity-60 group-hover:opacity-100 transition-opacity" />
             </button>
+            )}
             <p className="text-xs text-white/60 font-light tracking-wide" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
               Sem compromisso · resposta rápida pelo WhatsApp
             </p>
@@ -611,7 +664,7 @@ function PlanetaGallerySection() {
 // ─────────────────────────────────────────────
 // FOOTER
 // ─────────────────────────────────────────────
-function PlanetaFooter() {
+function PlanetaFooter({ whatsappNumber }: { whatsappNumber: string | null }) {
   return (
     <footer style={{ backgroundColor: DARK_BG }} className="text-white py-12">
       <div className="max-w-5xl mx-auto px-4">
@@ -635,7 +688,7 @@ function PlanetaFooter() {
 
           <div className="flex flex-wrap justify-center gap-4 mb-8">
             <a
-              href="https://wa.me/5511000000000"
+              href={whatsappNumber ? whatsappLink(whatsappNumber, DIRECT_MESSAGE) : "https://wa.me/5511000000000"}
               target="_blank"
               rel="noopener noreferrer"
               className="group flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full transition-all duration-300 text-sm font-medium hover:scale-105 hover:shadow-lg"
@@ -691,7 +744,14 @@ function PlanetaFloatingCTA({ onClick }: { onClick: () => void }) {
 // ─────────────────────────────────────────────
 export default function PlanetaDivertidoLandingPage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const openChat = () => setIsChatOpen(true);
+  const { direct, number } = useDirectWhatsApp();
+  const openChat = () => {
+    if (direct) {
+      window.open(whatsappLink(direct, DIRECT_MESSAGE), "_blank", "noopener,noreferrer");
+      return;
+    }
+    setIsChatOpen(true);
+  };
   const closeChat = () => setIsChatOpen(false);
 
   return (
@@ -720,13 +780,13 @@ export default function PlanetaDivertidoLandingPage() {
         </div>
       </header>
 
-      <PlanetaHeroSection onCtaClick={openChat} />
+      <PlanetaHeroSection onCtaClick={openChat} whatsappCta={!!direct} />
       <PlanetaReviewsSection />
       <PlanetaBenefitsSection />
 
       <PlanetaVideoSection />
       <PlanetaGallerySection />
-      <PlanetaFooter />
+      <PlanetaFooter whatsappNumber={number} />
 
       <PlanetaFloatingCTA onClick={openChat} />
 
