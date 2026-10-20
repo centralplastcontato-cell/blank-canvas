@@ -6,6 +6,7 @@ import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { useCompany } from "@/contexts/CompanyContext";
 import { signupStatus } from "@/lib/selfSetup";
 import { WhatsAppConnect } from "@/components/setup/WhatsAppConnect";
+import { DisconnectManagedButton } from "./DisconnectManagedButton";
 import { useWhatsAppConnection } from "@/hooks/useWhatsAppConnection";
 import { insertWithCompany } from "@/lib/supabase-helpers";
 import { configureWapiWebhooks, WAPI_WEBHOOK_URL } from "@/lib/wapi-webhook-config";
@@ -1181,6 +1182,9 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                     <Badge variant={instance.status === 'connected' ? 'default' : 'secondary'}>
                       {instance.status === 'connected' ? 'Online' : 'Offline'}
                     </Badge>
+                    {(instance as WapiInstance & { managed_by_celebrei?: boolean }).managed_by_celebrei && (
+                      <DisconnectManagedButton companyId={(instance as WapiInstance & { company_id: string }).company_id} onDone={fetchInstances} />
+                    )}
                   </div>
                 </div>
               ))
@@ -1268,6 +1272,11 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
               {filteredInstances.map((instance) => (
                 <Card key={instance.id} className={instance.is_active === false ? "opacity-60" : undefined}>
                   <CardContent className="pt-4">
+                    {(instance as WapiInstance & { managed_by_celebrei?: boolean }).managed_by_celebrei && instance.is_active !== false && (
+                      <div className="mb-3 flex justify-end">
+                        <DisconnectManagedButton companyId={(instance as WapiInstance & { company_id: string }).company_id} onDone={fetchInstances} />
+                      </div>
+                    )}
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className={`p-3 rounded-lg shrink-0 ${instance.status === 'connected' ? 'bg-primary/10' : 'bg-muted'}`}>
