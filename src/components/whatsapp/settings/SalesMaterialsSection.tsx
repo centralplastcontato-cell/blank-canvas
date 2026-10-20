@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { FileText, Image, Video, Plus, Pencil, Trash2, Loader2, Upload, FolderOpen, Images, X, GripVertical, ZoomIn, RotateCw, Replace, Save } from "lucide-react";
+import { FileText, Image, Video, Plus, Pencil, Trash2, Loader2, Upload, FolderOpen, Images, X, GripVertical, ZoomIn, RotateCw, Replace, Save, Star } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -51,10 +51,12 @@ function unitFolder(unit: string): string {
     .replace(/(^-|-$)/g, "") || "geral";
 }
 
+type MaterialType = "pdf_package" | "photo" | "video" | "photo_collection" | "social_proof";
+
 interface SalesMaterial {
   id: string;
   unit: string;
-  type: "pdf_package" | "photo" | "video" | "photo_collection";
+  type: MaterialType;
   name: string;
   guest_count: number | null;
   file_url: string;
@@ -72,6 +74,10 @@ interface SalesMaterialsSectionProps {
 
 const GUEST_OPTIONS = [50, 60, 70, 80, 90, 100];
 const MAX_PHOTOS_PER_COLLECTION = 10;
+// Prova social: avaliações do Google; cada cliente recebe só 1, em rodízio
+const MAX_SOCIAL_PROOF = 4;
+const isMultiPhoto = (type: string) => type === "photo_collection" || type === "social_proof";
+const maxPhotosFor = (type: string) => (type === "social_proof" ? MAX_SOCIAL_PROOF : MAX_PHOTOS_PER_COLLECTION);
 const MAX_COLLECTIONS_PER_UNIT = 5;
 
 // Sortable material item for drag-and-drop
@@ -145,7 +151,7 @@ function SortableMaterialItem({
             )}
           </div>
           <p className="text-xs text-muted-foreground truncate">
-            {material.type === "photo_collection" && material.photo_urls
+            {isMultiPhoto(material.type) && material.photo_urls
               ? `${material.photo_urls.length} foto${material.photo_urls.length !== 1 ? 's' : ''}`
               : material.type === "pdf_package"
                 ? (material.guest_count ? `${material.guest_count} pessoas` : "Todos os pacotes")
@@ -205,7 +211,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
   
   const [formData, setFormData] = useState({
     name: "",
-    type: "pdf_package" as "pdf_package" | "photo" | "video" | "photo_collection",
+    type: "pdf_package" as MaterialType,
     guest_count: null as number | null,
     file_url: "",
     file_path: null as string | null,
@@ -339,13 +345,13 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    const remainingSlots = MAX_PHOTOS_PER_COLLECTION - formData.photo_urls.length;
+    const remainingSlots = maxPhotosFor(formData.type) - formData.photo_urls.length;
     const filesToUpload = Array.from(files).slice(0, remainingSlots);
 
     if (files.length > remainingSlots) {
       toast({
         title: "Limite de fotos",
-        description: `Apenas ${remainingSlots} foto(s) podem ser adicionadas. Máximo de ${MAX_PHOTOS_PER_COLLECTION} por coleção.`,
+        description: `Apenas ${remainingSlots} foto(s) podem ser adicionadas. Máximo de ${maxPhotosFor(formData.type)}.`,
         variant: "destructive",
       });
     }
@@ -681,7 +687,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
   const handleSaveMaterial = async () => {
     const materialName = formData.name.trim();
 
-    if (formData.type === "photo_collection") {
+    if (isMultiPhoto(formData.type)) {
       if (formData.photo_urls.length === 0) {
         toast({
           title: "Erro",
@@ -703,6 +709,16 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
       toast({
         title: "Erro",
         description: "Selecione a quantidade de convidados ou 'Todos (universal)'.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Prova social: uma por unidade (com até 4 imagens)
+    if (formData.type === "social_proof" && !editingMaterial && materials.some(m => m.unit === selectedUnit && m.type === "social_proof")) {
+      toast({
+        title: "Prova social já existe",
+        description: "Edite a prova social desta unidade para trocar ou adicionar imagens.",
         variant: "destructive",
       });
       return;
@@ -733,11 +749,11 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
             name: materialName,
             type: formData.type,
             guest_count: formData.type === "pdf_package" ? formData.guest_count : null,
-            file_url: formData.type === "photo_collection" 
+            file_url: isMultiPhoto(formData.type) 
               ? (formData.photo_urls[0] || "collection") 
               : formData.file_url,
             file_path: formData.file_path,
-            photo_urls: formData.type === "photo_collection" ? formData.photo_urls : [],
+            photo_urls: isMultiPhoto(formData.type) ? formData.photo_urls : [],
             is_active: formData.is_active,
             unit: formData.unit || editingMaterial.unit,
             send_without_caption: formData.send_without_caption,
@@ -762,11 +778,11 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
           name: materialName,
           type: formData.type,
           guest_count: formData.type === "pdf_package" ? formData.guest_count : null,
-          file_url: formData.type === "photo_collection" 
+          file_url: isMultiPhoto(formData.type) 
             ? (formData.photo_urls[0] || "collection") 
             : formData.file_url,
           file_path: formData.file_path,
-          photo_urls: formData.type === "photo_collection" ? formData.photo_urls : [],
+          photo_urls: isMultiPhoto(formData.type) ? formData.photo_urls : [],
           is_active: formData.is_active,
           sort_order: maxOrder,
           send_without_caption: formData.send_without_caption,
@@ -883,7 +899,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
     setGuestSelectionTouched(false);
     setFormData({
       name: "",
-      type: "pdf_package",
+      type: selectedType === "social_proof" ? "social_proof" : "pdf_package",
       guest_count: null,
       file_url: "",
       file_path: null,
@@ -912,6 +928,8 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
         return <Image className="w-5 h-5 text-blue-500" />;
       case "photo_collection":
         return <Images className="w-5 h-5 text-green-500" />;
+      case "social_proof":
+        return <Star className="w-5 h-5 text-amber-500" />;
       case "video":
         return <Video className="w-5 h-5 text-purple-500" />;
       default:
@@ -927,6 +945,8 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
         return "Foto";
       case "photo_collection":
         return "Coleção";
+      case "social_proof":
+        return "Prova social";
       case "video":
         return "Vídeo";
       default:
@@ -1074,6 +1094,10 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                 <Video className="w-3.5 h-3.5 shrink-0" />
                 Vídeos
               </TabsTrigger>
+              <TabsTrigger value="social_proof" className="flex-1 text-[11px] px-1.5 gap-1 shrink-0">
+                <Star className="w-3.5 h-3.5 shrink-0" />
+                Avaliações
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value={selectedType} className="mt-0">
@@ -1085,13 +1109,15 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                   <p className="text-sm text-muted-foreground mb-3">
                     {selectedType === "photo_collection" 
                       ? "Nenhuma coleção" 
-                      : "Nenhum material"
+                      : selectedType === "social_proof"
+                        ? "Nenhuma prova social. Suba até 4 avaliações do Google: cada cliente recebe 1, em rodízio, logo depois das fotos do espaço."
+                        : "Nenhum material"
                     }
                   </p>
                   {canManage && (
                     <Button size="sm" variant="outline" onClick={() => handleOpenDialog()}>
                       <Plus className="w-4 h-4 mr-1" />
-                      {selectedType === "photo_collection" ? "Nova Coleção" : "Adicionar"}
+                      {selectedType === "photo_collection" ? "Nova Coleção" : selectedType === "social_proof" ? "Adicionar avaliações" : "Adicionar"}
                     </Button>
                   )}
                 </div>
@@ -1126,6 +1152,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
               {materials.filter(m => m.unit === selectedUnit && m.type === "photo_collection" && m.is_active).length} coleções · {" "}
               {materials.filter(m => m.unit === selectedUnit && m.type === "photo" && m.is_active).length} fotos · {" "}
               {materials.filter(m => m.unit === selectedUnit && m.type === "video" && m.is_active).length} vídeos
+              {materials.some(m => m.unit === selectedUnit && m.type === "social_proof" && m.is_active) ? " · prova social ativa" : ""}
             </p>
           </div>
         </CardContent>
@@ -1175,7 +1202,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                 <Label>Tipo de Material *</Label>
                 <Select 
                   value={formData.type} 
-                  onValueChange={(value: "pdf_package" | "photo" | "video" | "photo_collection") => 
+                  onValueChange={(value: MaterialType) => 
                     setFormData({ ...formData, type: value, guest_count: null, photo_urls: [], file_url: "", file_path: null })
                   }
                 >
@@ -1193,6 +1220,12 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                       <div className="flex items-center gap-2">
                         <Images className="w-4 h-4 text-green-500" />
                         Coleção de Fotos ({collectionsCount}/{MAX_COLLECTIONS_PER_UNIT})
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="social_proof">
+                      <div className="flex items-center gap-2">
+                        <Star className="w-4 h-4 text-amber-500" />
+                        Prova social (avaliações)
                       </div>
                     </SelectItem>
                     <SelectItem value="photo">
@@ -1275,7 +1308,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
 
             <div className="space-y-2">
               <Label htmlFor="name">
-                {formData.type === "photo_collection" ? "Nome da Coleção" : "Nome do Material"}
+                {formData.type === "photo_collection" ? "Nome da Coleção" : formData.type === "social_proof" ? "Legenda (opcional)" : "Nome do Material"}
               </Label>
               <Input
                 id="name"
@@ -1288,6 +1321,8 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                     ? "Opcional — deixe em branco se não quiser texto" 
                     : formData.type === "photo_collection"
                       ? "Opcional — ex: Área do Buffet"
+                      : formData.type === "social_proof"
+                        ? "Vai junto com a imagem. Ex.: Olha o que as famílias falam da festa 💜"
                       : formData.type === "photo" 
                         ? "Opcional — ex: Salão Principal"
                         : "Opcional — ex: Tour Virtual"
@@ -1298,11 +1333,18 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
             </div>
 
             {/* Photo Collection Upload */}
-            {formData.type === "photo_collection" && (
+            {isMultiPhoto(formData.type) && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label>Fotos da Coleção * ({formData.photo_urls.length}/{MAX_PHOTOS_PER_COLLECTION})</Label>
+                  <Label>
+                    {formData.type === "social_proof" ? "Avaliações" : "Fotos da Coleção"} * ({formData.photo_urls.length}/{maxPhotosFor(formData.type)})
+                  </Label>
                 </div>
+                {formData.type === "social_proof" && (
+                  <p className="text-xs text-muted-foreground">
+                    Cada cliente recebe só 1 dessas imagens (sempre a mesma para o mesmo cliente), em rodízio entre os clientes. Vai logo depois das fotos do espaço, no robô e na IA.
+                  </p>
+                )}
                 
                 {/* Photo thumbnails grid */}
                 {formData.photo_urls.length > 0 && (
@@ -1415,7 +1457,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
                   </div>
                 )}
 
-                {formData.photo_urls.length < MAX_PHOTOS_PER_COLLECTION && (
+                {formData.photo_urls.length < maxPhotosFor(formData.type) && (
                   <div 
                     className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-primary transition-colors"
                     onClick={() => multiFileInputRef.current?.click()}
@@ -1467,7 +1509,7 @@ export function SalesMaterialsSection({ userId, isAdmin }: SalesMaterialsSection
             )}
 
             {/* Single file upload for other types */}
-            {formData.type !== "photo_collection" && (
+            {!isMultiPhoto(formData.type) && (
               <div className="space-y-2">
                 <Label>Arquivo *</Label>
                 {formData.file_url ? (
