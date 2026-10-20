@@ -8,6 +8,7 @@ import {
   type ClientDataRequestRow,
   clientDataLabel,
   clientDataState,
+  clientDataMessageLink,
   clientDataUrl,
   createClientDataRequest,
   latestClientDataByLead,
@@ -67,7 +68,7 @@ export function ClientDataBar({ companyId, companyName, customDomain, lead, send
     if (!request) return;
     setBusy(true);
     try {
-      const link = clientDataUrl(request.token, customDomain);
+      const link = clientDataMessageLink(request.token, customDomain);
       const first = lead.name.trim().split(/\s+/)[0] || "";
       await sendText(`Oi${first ? `, ${first}` : ""}! 😊 Segue de novo o link pra preencher os dados do contrato da festa:\n\n${link}`);
       toast({ title: "Link reenviado ✅" });

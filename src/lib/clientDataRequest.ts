@@ -20,6 +20,11 @@ export function clientDataUrl(token: string, customDomain?: string | null): stri
   return `${base}/dados/${token}`;
 }
 
+/** Para a mensagem do WhatsApp: sem "https://" (o WhatsApp não quebra o link em 3 linhas e continua clicável) */
+export function clientDataMessageLink(token: string, customDomain?: string | null): string {
+  return clientDataUrl(token, customDomain).replace(/^https?:\/\//i, "");
+}
+
 export interface ClientDataRequestRow {
   id: string;
   token: string;
@@ -103,7 +108,7 @@ export async function createClientDataRequest(opts: {
     .single();
   if (error) throw error;
 
-  const link = clientDataUrl(token, opts.customDomain);
+  const link = clientDataMessageLink(token, opts.customDomain);
   const template = await getFormAutomationTemplate(opts.companyId, "contrato");
   const dateLabel = event?.event_date ? event.event_date.split("-").reverse().join("/") : "";
   let message = resolveFormAutomationMessage(template, {

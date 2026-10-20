@@ -2,9 +2,9 @@ import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals
 import { clientDataLink, dueReminder, fillClientDataTemplate, isOverdue, normalizeReminderHours, shortClientToken } from "./client-data.ts";
 
 Deno.test("clientDataLink: domínio do buffet, link curto", () => {
-  assertEquals(clientDataLink("K7M2QX9", "www.castelodadiversao.com.br"), "https://www.castelodadiversao.com.br/dados/K7M2QX9");
-  assertEquals(clientDataLink("K7M2QX9", "https://buffetmegamagic.com.br/"), "https://buffetmegamagic.com.br/dados/K7M2QX9");
-  assertEquals(clientDataLink("K7M2QX9", null), "https://hubcelebrei.com.br/dados/K7M2QX9");
+  assertEquals(clientDataLink("K7M2QX9", "www.castelodadiversao.com.br"), "www.castelodadiversao.com.br/dados/K7M2QX9");
+  assertEquals(clientDataLink("K7M2QX9", "https://buffetmegamagic.com.br/"), "buffetmegamagic.com.br/dados/K7M2QX9");
+  assertEquals(clientDataLink("K7M2QX9", null), "hubcelebrei.com.br/dados/K7M2QX9");
   const t = shortClientToken();
   assertEquals(t.length, 7);
   assertEquals(/^[A-HJ-NP-Z2-9]+$/.test(t), true);

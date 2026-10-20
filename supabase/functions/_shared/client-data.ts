@@ -11,10 +11,14 @@ export function shortClientToken(length = 7): string {
   return Array.from(bytes, (b) => ALPHABET[b % ALPHABET.length]).join("");
 }
 
-/** https://www.castelodadiversao.com.br/dados/K7M2QX9 — sem domínio próprio, o endereço da Celebrei */
+/**
+ * www.castelodadiversao.com.br/dados/K7M2QX9 — sem domínio próprio, o
+ * endereço da Celebrei. Sem "https://": o WhatsApp continua deixando clicável
+ * e não quebra o link em 3 linhas.
+ */
 export function clientDataLink(token: string, customDomain: string | null | undefined): string {
   const domain = (customDomain || "").trim().replace(/\/$/, "");
-  const base = domain ? (/^https?:\/\//i.test(domain) ? domain : `https://${domain}`) : "https://hubcelebrei.com.br";
+  const base = domain ? domain.replace(/^https?:\/\//i, "") : "hubcelebrei.com.br";
   return `${base}/dados/${token}`;
 }
 
