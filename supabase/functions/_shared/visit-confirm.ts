@@ -131,3 +131,34 @@ export function sendOutcome(
   if (sendData?.skipped) return "skipped";
   return "sent";
 }
+
+// ─── Lembrete na véspera (Castelo, 20/10) ────────────────────────────────
+// Além da confirmação X horas antes, um lembrete no dia anterior a partir de
+// um horário (ex.: 18h). Quem responde na véspera (confirma ou pede para
+// remarcar) não recebe a do dia; quem não respondeu recebe a do dia.
+
+export const EVE_TYPE = "eve";
+
+/** Dia seguinte (YYYY-MM-DD) */
+export function nextDayYmd(ymd: string): string {
+  const d = new Date(`${ymd}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Hora de mandar o lembrete da véspera: a visita é amanhã e já passou do horário */
+export function eveReminderDue(visitYmd: string, todayYmd: string, hourNow: number, eveHour: number): boolean {
+  return visitYmd === nextDayYmd(todayYmd) && hourNow >= eveHour;
+}
+
+interface EveRow { message_type?: string | null; status?: string | null; response_received?: boolean | null }
+
+/** Lembrete da véspera já enviado (ou respondido) */
+export function eveSent(rows: EveRow[]): boolean {
+  return rows.some((r) => r.message_type === EVE_TYPE && (r.status === "sent" || r.status === "responded"));
+}
+
+/** O cliente respondeu o lembrete da véspera: a confirmação do dia não sai */
+export function eveAnswered(rows: EveRow[]): boolean {
+  return rows.some((r) => r.message_type === EVE_TYPE && (r.response_received === true || r.status === "responded"));
+}

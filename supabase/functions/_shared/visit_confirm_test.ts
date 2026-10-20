@@ -88,3 +88,21 @@ Deno.test("sendOutcome: pulada não conta como enviada", () => {
   assertEquals(sendOutcome(null, { error: "x" }), "failed");
   assertEquals(sendOutcome(new Error("x"), null), "failed");
 });
+
+import { eveAnswered, eveReminderDue, eveSent, nextDayYmd } from "./visit-confirm.ts";
+
+Deno.test("véspera: só para visita de amanhã, a partir do horário configurado", () => {
+  assertEquals(nextDayYmd("2026-10-31"), "2026-11-01");
+  assertEquals(eveReminderDue("2026-10-21", "2026-10-20", 18, 18), true);
+  assertEquals(eveReminderDue("2026-10-21", "2026-10-20", 17, 18), false);
+  assertEquals(eveReminderDue("2026-10-20", "2026-10-20", 19, 18), false);
+  assertEquals(eveReminderDue("2026-10-22", "2026-10-20", 19, 18), false);
+});
+
+Deno.test("véspera: enviada e respondida", () => {
+  assertEquals(eveSent([{ message_type: "eve", status: "sent" }]), true);
+  assertEquals(eveSent([{ message_type: "eve", status: "failed" }]), false);
+  assertEquals(eveAnswered([{ message_type: "eve", status: "sent", response_received: true }]), true);
+  assertEquals(eveAnswered([{ message_type: "eve", status: "sent", response_received: false }]), false);
+  assertEquals(eveAnswered([{ message_type: "first", status: "responded" }]), false);
+});

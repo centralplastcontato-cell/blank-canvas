@@ -8,9 +8,14 @@ import {
   buildAiVisitConfirmation,
   MIN_HOURS_AFTER_BOOKING,
   confirmationsForCurrentDate,
+  EVE_TYPE,
+  eveAnswered,
+  eveReminderDue,
+  eveSent,
   isAiOwnedConversation,
   isConfirmableVisit,
   isFirstConfirmationDone,
+  nextDayYmd,
   sendOutcome,
   visitStartMs,
 } from "../_shared/visit-confirm.ts";
@@ -127,6 +132,12 @@ Deno.serve(async (req) => {
 
         const targetDateMin = targetTimeMin.toISOString().split("T")[0];
         const targetDateMax = targetTimeMax.toISOString().split("T")[0];
+        // Lembrete na véspera (eve_reminder_*): busca também as visitas de amanhã
+        const eveEnabled = settings.eve_reminder_enabled === true;
+        const eveHour = Number.isFinite(Number(settings.eve_reminder_hour)) ? Number(settings.eve_reminder_hour) : 18;
+        const todayYmdSP = `${nowSP.getFullYear()}-${String(nowSP.getMonth() + 1).padStart(2, "0")}-${String(nowSP.getDate()).padStart(2, "0")}`;
+        const tomorrowYmdSP = nextDayYmd(todayYmdSP);
+        const fetchDateMax = eveEnabled && tomorrowYmdSP > targetDateMax ? tomorrowYmdSP : targetDateMax;
 
         const { data: visits, error: visitsError } = await supabase
           .from("lead_visits")
@@ -137,7 +148,7 @@ Deno.serve(async (req) => {
           // remarcada também: a data nova precisa de confirmação
           .in("status_visita", ["agendada", "remarcada"])
           .gte("data_visita", targetDateMin)
-          .lte("data_visita", targetDateMax);
+          .lte("data_visita", fetchDateMax);
 
         if (visitsError) {
           console.error(`[visit-confirmation] Error fetching visits:`, visitsError);
@@ -255,8 +266,16 @@ Deno.serve(async (req) => {
 
             let messageToSend: string | null = null;
             let messageType = "first";
+            // A confirmação "X horas antes" vale só para as datas da janela dela
+            // (as visitas de amanhã entram na busca por causa da véspera)
+            const inFirstWindow = visit.data_visita >= targetDateMin && visit.data_visita <= targetDateMax;
+            const eveDone = eveSent(existingConfs);
 
-            if (!firstSent && !recentAttempt("first")) {
+            if (eveEnabled && !firstSent && !eveDone && !recentAttempt(EVE_TYPE) &&
+              eveReminderDue(visit.data_visita, todayYmdSP, nowSP.getHours(), eveHour)) {
+              messageToSend = settings.confirmation_message;
+              messageType = EVE_TYPE;
+            } else if (inFirstWindow && !firstSent && !recentAttempt("first") && !eveAnswered(existingConfs) && !recentAttempt(EVE_TYPE)) {
               messageToSend = settings.confirmation_message;
               messageType = "first";
             } else if (
@@ -319,7 +338,7 @@ Deno.serve(async (req) => {
             // Conversa que a IA está atendendo: confirmação no tom dela, sem
             // menu 1/2 — quem entende a resposta é a própria IA. Sem 2ª mensagem.
             const aiStyle = aiOn && !!aiUnitFor(aiSettings, instance.unit) && isAiOwnedConversation(conv);
-            if (aiStyle && messageType !== "first") continue;
+            if (aiStyle && messageType === "second") continue;
 
             // Interpolate message with smart day reference
             const firstName = resolveFirstName(lead.name);
