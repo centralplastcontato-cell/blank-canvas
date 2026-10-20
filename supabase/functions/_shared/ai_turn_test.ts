@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { clientAffirms, clientAskedPrice, closingAfterMaterials, confirmsPartyInterest, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, priceRequestPending, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, teamRepliedAfter } from "./ai-turn.ts";
+import { clientAffirms, clientAskedPrice, closingAfterMaterials, friendlyVisitSlot, hasVisitInvite, visitInviteAfterMaterials, confirmsPartyInterest, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, priceRequestPending, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, teamRepliedAfter } from "./ai-turn.ts";
 
 Deno.test("pickLatestIncoming: a última mensagem do cliente responde por todas", () => {
   assertEquals(pickLatestIncoming([
@@ -259,4 +259,17 @@ Deno.test("clientAskedPrice: só pergunta de preço conta, \"orçamento\" sozinh
   assertEquals(clientAskedPrice(u("Queria fazer um orçamento")), false);
   assertEquals(clientAskedPrice(u("1")), false);
   assertEquals(clientAskedPrice(u("Eu amei")), false);
+});
+
+Deno.test("visitInviteAfterMaterials: convite com 2 horários livres depois do PDF", () => {
+  const today = "2026-10-20"; // terça
+  assertEquals(friendlyVisitSlot({ date: "2026-10-21", time: "10:00" }, today), "amanhã às 10h");
+  assertEquals(friendlyVisitSlot({ date: "2026-10-22", time: "15:30" }, today), "quinta (22/10) às 15h30");
+  assertEquals(friendlyVisitSlot({ date: "2026-10-20", time: "17:00" }, today), "hoje às 17h");
+  const offers = [{ date: "2026-10-21", time: "10:00" }, { date: "2026-10-22", time: "15:00" }];
+  assertEquals(visitInviteAfterMaterials("Ana", offers, today, 0), "Se fizer sentido pra vocês, Ana, te recebo pra conhecer o espaço: amanhã às 10h ou quinta (22/10) às 15h. Qual fica melhor? 😊");
+  assertEquals(visitInviteAfterMaterials("", offers, today, 1)!.includes(", ?"), false);
+  assertEquals(visitInviteAfterMaterials("Ana", offers.slice(0, 1), today, 0), null);
+  assertEquals(hasVisitInvite(visitInviteAfterMaterials("Ana", offers, today, 0)!), true);
+  assertEquals(hasVisitInvite(visitInviteAfterMaterials("Ana", offers, today, 1)!), true);
 });

@@ -277,6 +277,34 @@ export function closingAfterMaterials(firstName: string, seed: number): string {
   return options[Math.abs(seed) % options.length];
 }
 
+const WEEKDAY_NAMES = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+
+/** "amanhã às 10h", "quinta (22/10) às 15h30" */
+export function friendlyVisitSlot(slot: { date: string; time: string }, todayYmd: string): string {
+  const noon = (ymd: string) => Date.parse(`${ymd}T12:00:00Z`);
+  const diff = Math.round((noon(slot.date) - noon(todayYmd)) / 86400000);
+  const [, mo, d] = slot.date.split("-");
+  const day = diff === 0 ? "hoje" : diff === 1 ? "amanhã" : `${WEEKDAY_NAMES[new Date(noon(slot.date)).getUTCDay()]} (${d}/${mo})`;
+  const hour = slot.time.endsWith(":00") ? `${Number(slot.time.slice(0, 2))}h` : slot.time.slice(0, 5).replace(/^0/, "").replace(":", "h");
+  return `${day} às ${hour}`;
+}
+
+/**
+ * Depois do PDF: convite para conhecer o espaço com 2 horários livres da
+ * agenda (em vez de "o que achou?", que deixava a conversa parada). null =
+ * sem 2 horários livres.
+ */
+export function visitInviteAfterMaterials(firstName: string, offers: Array<{ date: string; time: string }>, todayYmd: string, seed: number): string | null {
+  if (offers.length < 2) return null;
+  const [a, b] = offers.slice(0, 2).map((o) => friendlyVisitSlot(o, todayYmd));
+  const name = firstName ? `, ${firstName}` : "";
+  const options = [
+    `Se fizer sentido pra vocês${name}, te recebo pra conhecer o espaço: ${a} ou ${b}. Qual fica melhor? 😊`,
+    `Que tal vir conhecer o espaço de pertinho${name}? Tenho ${a} ou ${b}. Qual fica melhor pra vocês? 🏰✨`,
+  ];
+  return options[Math.abs(seed) % options.length];
+}
+
 /** O cliente desistiu / disse que não vai fechar agora */
 export function clientDeclined(text: string): boolean {
   return /(n[aã]o vai dar|n[aã]o d[aá] pra|n[aã]o vou (fechar|conseguir)|desist|fica pra (pr[oó]xima|outra)|sem interesse|n[aã]o tenho interesse|acho que n[aã]o|vou procurar outro|muito caro pra mim)/i.test(text || "");
