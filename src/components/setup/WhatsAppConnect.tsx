@@ -44,7 +44,6 @@ export function WhatsAppConnect({ companyId, defaultPhone = "", onConnected }: {
   const [code, setCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const statusRef = useRef<Status>("loading");
   statusRef.current = status;
 
@@ -55,10 +54,6 @@ export function WhatsAppConnect({ companyId, defaultPhone = "", onConnected }: {
     setStatus(r.status);
     if (r.status === "connected") setPhone(r.phone || null);
     if (r.qrcode !== undefined) setQr(r.qrcode || null);
-  }, []);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => data.user && supabase.rpc("is_admin", { _user_id: data.user.id }).then(({ data: a }) => setIsAdmin(a === true)));
   }, []);
 
   useEffect(() => {
@@ -104,7 +99,7 @@ export function WhatsAppConnect({ companyId, defaultPhone = "", onConnected }: {
   if (status === "loading") return <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />;
 
   const remove = async () => {
-    if (!window.confirm("Desconectar e apagar este número da Evolution? As conversas já salvas continuam na plataforma.")) return;
+    if (!window.confirm("Desconectar o WhatsApp do buffet da plataforma? As conversas já salvas continuam aqui, e você pode conectar de novo quando quiser.")) return;
     setBusy(true); setError(null);
     try { apply(await call(companyId, "remove")); } catch (e) { setError((e as Error).message); }
     setBusy(false);
@@ -117,11 +112,9 @@ export function WhatsAppConnect({ companyId, defaultPhone = "", onConnected }: {
           <CheckCircle2 className="h-5 w-5 shrink-0" />
           <span>WhatsApp conectado{phone ? `: ${fmtPhone(phone)}` : ""}.</span>
         </div>
-        {isAdmin && (
-          <Button type="button" variant="outline" size="sm" onClick={remove} disabled={busy}>
-            {busy && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />} Remover número (equipe Celebrei)
-          </Button>
-        )}
+        <Button type="button" variant="outline" size="sm" onClick={remove} disabled={busy}>
+          {busy && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />} Desconectar WhatsApp
+        </Button>
         {error && <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
       </div>
     );
