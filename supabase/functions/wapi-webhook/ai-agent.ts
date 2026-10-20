@@ -40,7 +40,7 @@ import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
 import { buildCandidateLink, candidateName, inviteCode, shortCandidateLink, withCandidateLink } from "../_shared/ai-candidate.ts";
 import { findPromotion, promoMentions, promoNote } from "../_shared/promo.ts";
 import { closedPeriodAt, closedPeriodsNote, formatClosedPeriod, isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
-import { asksPartnership, clientAffirms, clientAskedPrice, PRICE_ASK_WINDOW_MS, closingAfterMaterials, confirmsPartyInterest, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
+import { asksPartnership, clientAffirms, clientAskedPrice, PRICE_ASK_WINDOW_MS, closingAfterMaterials, visitInviteAfterMaterials, confirmsPartyInterest, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 import { askedForName, nameFromAnswer } from "../_shared/name-answer.ts";
 import { falseMaterialClaims, hasMaterialClaim, hasSubstance, refersToMaterial, stripFalseMaterialClaims } from "../_shared/material-claims.ts";
@@ -1276,7 +1276,7 @@ async function toolRegistrarDados(
   if (conv.__firstReply) {
     // Primeira resposta: apresentação primeiro, fotos/vídeo/PDF depois dela
     conv.__deferMaterials = true;
-    return `OK: dados salvos. As fotos, o vídeo e o PDF vão logo DEPOIS da sua resposta (não diga que já mandou). Escreva a resposta em DUAS partes, separadas por uma linha só com ---: a 1ª (antes dos materiais) se apresenta, responde o que o cliente disse e termina avisando que vai mostrar o espaço (ex.: "Vou te mostrar o nosso espaço 😍👇"); a 2ª (depois do PDF) é UMA frase curta perguntando o que ele achou. Nesta resposta, não passe valores nem convide para visita, a menos que o cliente tenha pedido.${minNote}`;
+    return `OK: dados salvos. As fotos, o vídeo e o PDF vão logo DEPOIS da sua resposta (não diga que já mandou). Escreva a resposta em DUAS partes, separadas por uma linha só com ---: a 1ª (antes dos materiais) se apresenta, responde o que o cliente disse e termina avisando que vai mostrar o espaço (ex.: "Vou te mostrar o nosso espaço 😍👇"); a 2ª (depois do PDF) é UMA frase curta convidando para conhecer o espaço, com os 2 horários de visita livres que você tem (ex.: "Se fizer sentido pra vocês, te recebo pra conhecer o espaço: amanhã às 10h ou quinta às 15h, qual fica melhor? 😊") — se ele já tem visita marcada, pergunte só o que achou. Na 1ª parte, não passe valores nem convide para visita, a menos que o cliente tenha pedido.${minNote}`;
   }
   if (conv.__holdMaterials) return `OK: dados salvos. Ainda não mande materiais: a mensagem do cliente não deixa claro que é sobre a festa — pergunte antes como pode ajudar.${minNote}`;
   return await autoSendMaterials(supabase, instance, conv, phone, contactName, botSettings, args, minNote, askedGuests);
@@ -2277,7 +2277,7 @@ export async function maybeHandleWithAiAgent(
       if (confirmsPartyInterest(lastUserText)) {
         console.log(`[AI Agent] Mês e convidados já conhecidos e materiais ainda não enviados — saem depois da resposta (conv ${conv.id})`);
         conv.__deferMaterials = true;
-        materialsNote = 'logo DEPOIS da sua resposta, o sistema vai mandar as fotos do espaço, o vídeo e o PDF dos pacotes (com legendas próprias). Escreva a resposta em DUAS partes, separadas por uma linha só com ---. A 1ª parte sai ANTES dos materiais: responda o que o cliente disse (se ele cumprimentou, cumprimente de volta) e termine avisando, com naturalidade, que vai mostrar o espaço — ex.: "Vou te mostrar o nosso espaço 😍👇". A 2ª parte sai DEPOIS do PDF: UMA frase curta perguntando o que ele achou — ex.: "E aí, o que achou do nosso espaço? 😍". NÃO diga que já mandou. Nesta resposta, não passe valores nem convide para visita (isso vem depois que ele vir o espaço), a menos que o cliente tenha pedido.';
+        materialsNote = 'logo DEPOIS da sua resposta, o sistema vai mandar as fotos do espaço, o vídeo e o PDF dos pacotes (com legendas próprias). Escreva a resposta em DUAS partes, separadas por uma linha só com ---. A 1ª parte sai ANTES dos materiais: responda o que o cliente disse (se ele cumprimentou, cumprimente de volta) e termine avisando, com naturalidade, que vai mostrar o espaço — ex.: "Vou te mostrar o nosso espaço 😍👇". A 2ª parte sai DEPOIS do PDF: UMA frase curta convidando para conhecer o espaço, com os 2 horários de visita livres que você tem — ex.: "Se fizer sentido pra vocês, te recebo pra conhecer o espaço: amanhã às 10h ou quinta às 15h, qual fica melhor? 😊" (se ele já tem visita marcada, pergunte só o que achou). NÃO diga que já mandou. Na 1ª parte, não passe valores nem convide para visita, a menos que o cliente tenha pedido.';
       } else {
         // Lead do site com data e convidados, mas a resposta não fala da festa
         // (só "oi", uma foto solta, outro assunto): pergunta antes de mandar
@@ -2597,7 +2597,15 @@ export async function maybeHandleWithAiAgent(
           if (latestNow && latestNow !== myMessageId) {
             console.log(`[AI Agent] Cliente escreveu durante o envio dos materiais — a pergunta final fica para a próxima resposta (conv ${conv.id})`);
           } else {
-            const closing = parts.after || closingAfterMaterials(firstNameOrEmpty(String(bd.nome || '')), Math.floor(Date.now() / 1000));
+            // Sem a 2ª parte da IA: convite para visita com 2 horários livres
+            // (ou "o que achou?" se já tem visita, acabou de convidar ou não há horário)
+            const firstName = firstNameOrEmpty(String(bd.nome || ''));
+            const seed = Math.floor(Date.now() / 1000);
+            const recentInvite = repliesSinceVisitInvite(chatMessages);
+            const canInvite = !leadVisit && !(recentInvite !== null && recentInvite < 3) && !clientDeclined(lastUserText);
+            const closing = parts.after
+              || (canInvite ? visitInviteAfterMaterials(firstName, pickTwoOffers(available), ymdBR(Date.now()), seed) : null)
+              || closingAfterMaterials(firstName, seed);
             await sendViaWapiSend(supabase, 'send-text', instance, conv, { message: closing, delayTyping: 2 });
           }
         }
