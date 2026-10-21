@@ -29,6 +29,7 @@ import { splitNonAntecipadoInstallments } from "@/lib/cardFees";
 import { buildParcelasDetails, type ParcelaDetail } from "@/lib/parcelas";
 import { computeAdjustment, isAdjustmentRow, ADJUSTMENT_NOTE_PREFIX } from "@/lib/parcelasSync";
 import { clientDataMessageLink, clientDataUrl, shortClientToken } from "@/lib/clientDataRequest";
+import { leadPartyPrefill } from "@/lib/leadPartyPrefill";
 
 export type { ParcelaDetail };
 
@@ -851,6 +852,31 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         setLoadingClientRequest(false);
       });
   }, [open, eventId, leadForClientData, currentCompany?.id, syncClientDataIntoForm]);
+
+  // Festa nova ligada a um lead: data (dia/mês do lead) e convidados já vêm
+  // preenchidos — só o que ainda está vazio, uma vez por lead
+  const prefilledLeadRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!open || !leadForClientData || prefilledLeadRef.current === leadForClientData) return;
+    prefilledLeadRef.current = leadForClientData;
+    supabase
+      .from("campaign_leads")
+      .select("month, day_of_month, guests")
+      .eq("id", leadForClientData)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        const todayYmd = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+        const p = leadPartyPrefill(data, todayYmd);
+        if (p.month && !dateMonth && !dateDay) {
+          if (p.day) setDateDay(p.day);
+          setDateMonth(p.month);
+          if (p.year && !dateYear) setDateYear(p.year);
+        }
+        if (p.guests) setForm((prev) => (prev.guest_count ? prev : { ...prev, guest_count: p.guests }));
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, leadForClientData]);
 
   // Etapa 4: identifica blocos que já têm parcela paga (não podem ser editados/removidos)
   useEffect(() => {
