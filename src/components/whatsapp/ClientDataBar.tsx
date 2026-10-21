@@ -175,6 +175,7 @@ function ClientDataDialog({ open, onOpenChange, data }: { open: boolean; onOpenC
     const lines = [
       d.nome && `Nome: ${d.nome}`, d.cpf && `CPF: ${d.cpf}`, d.rg && `RG: ${d.rg}`,
       d.nascimento && `Nascimento: ${brDate(d.nascimento)}`, d.email && `E-mail: ${d.email}`, address && `Endereço: ${address}`,
+      d.pacote && `Pacote: ${d.pacote}`, d.convidados && `Convidados: ${d.convidados}`,
       ...children.map((c) => `Aniversariante: ${c.name}${c.age ? `, ${c.age} anos` : ""}${c.birthdate ? ` (${brDate(c.birthdate)})` : ""}`),
       ...people.map((r) => `Responsável: ${r.name}${r.relation ? ` (${r.relation})` : ""}${r.phone ? ` · ${brPhone(r.phone)}` : ""}`),
     ].filter(Boolean);
@@ -203,6 +204,12 @@ function ClientDataDialog({ open, onOpenChange, data }: { open: boolean; onOpenC
               <Field label="E-mail" value={String(d.email || "")} />
             </Section>
             <div className="space-y-3">
+              {(d.pacote || d.convidados) && (
+                <Section icon="🎉" title="Festa">
+                  <Field label="Pacote" value={String(d.pacote || "")} />
+                  <Field label="Convidados" value={d.convidados ? String(d.convidados) : ""} />
+                </Section>
+              )}
               {address && (
                 <Section icon="📍" title="Endereço">
                   <Field label="Endereço" value={address} />

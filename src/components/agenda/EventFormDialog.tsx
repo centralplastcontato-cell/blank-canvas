@@ -547,9 +547,15 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
       // Nome completo do formulário no lugar do nome curto do WhatsApp (só se ninguém editou)
       const fullName = String(clientData?.nome || "").trim();
       const title = fullName && (!prev.title || prev.title === prev.lead_name) ? fullName : prev.title;
+      // Convidados e pacote que o cliente informou no formulário: valem numa
+      // festa nova (no lugar do número do primeiro contato) ou se estiver vazio
+      const guests = parseInt(String(clientData?.convidados || "").replace(/\D/g, ""), 10);
+      const pkg = String(clientData?.pacote || "").trim();
       return {
         ...prev,
         title,
+        guest_count: guests > 0 && (!prev.id || !prev.guest_count) ? guests : prev.guest_count,
+        package_name: pkg && pkg !== "Ainda não sei" && !prev.package_name ? pkg : prev.package_name,
         ...buildClientDataEventFields(clientData, prev),
       };
     });
@@ -1766,7 +1772,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                   disabled={pricingMode === 'per_person'}
                   className={pricingMode === 'per_person' ? 'opacity-60' : ''}
                 />
-                {!eventId && guestsFromLead !== null && form.guest_count === guestsFromLead && pricingMode !== 'per_person' && (
+                {!eventId && guestsFromLead !== null && form.guest_count === guestsFromLead && !clientRequest?.client_data?.convidados && pricingMode !== 'per_person' && (
                   <p className="text-[11px] text-amber-700 dark:text-amber-400">
                     Veio do primeiro contato do cliente. Confira com o que foi combinado na conversa.
                   </p>
