@@ -228,6 +228,21 @@ function InfoRow({ icon: Icon, children, accent }: { icon: React.ComponentType<{
   );
 }
 
+/* ── Dado curto do resumo: rótulo pequeno + valor ── */
+function Fact({ icon: Icon, label, children, accent, className }: { icon: React.ComponentType<{ className?: string }>; label: string; children: React.ReactNode; accent?: boolean; className?: string }) {
+  return (
+    <div className={cn("flex items-start gap-2 min-w-0", className)}>
+      <div className={cn("flex items-center justify-center w-6 h-6 rounded-lg shrink-0 mt-0.5", accent ? "bg-primary/10" : "bg-muted/50")}>
+        <Icon className={cn("w-3.5 h-3.5", accent ? "text-primary" : "text-muted-foreground")} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/60 leading-tight">{label}</p>
+        <p className="text-xs font-medium text-foreground/85 truncate">{children}</p>
+      </div>
+    </div>
+  );
+}
+
 export function LeadInfoPopover({
   linkedLead,
   selectedConversation,
@@ -762,53 +777,43 @@ export function LeadInfoPopover({
               </div>
             </div>
             
-            {/* Content sections */}
-            <div className="px-5 py-3.5 space-y-0.5">
-              {/* Client data */}
-              <div className="rounded-xl bg-muted/20 border border-border/30 p-3.5 space-y-2">
-                <PopoverSection title="Dados do Cliente" icon={MessageSquare}>
-                  <div className="space-y-1.5 pl-0.5">
-                    {linkedLead.created_at && !isNaN(new Date(linkedLead.created_at).getTime()) && (
-                      <InfoRow icon={Clock}>
-                        Chegou em {format(new Date(linkedLead.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                      </InfoRow>
-                    )}
-                    {linkedLead.unit && (
-                      <InfoRow icon={MapPin} accent>{linkedLead.unit}</InfoRow>
-                    )}
-                  </div>
-                </PopoverSection>
+            {/* Resumo do lead: tudo num quadro só, em duas colunas (antes eram
+                4 cartões empilhados e a janela rolava muito) */}
+            <div className="px-4 pt-3 pb-2">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 rounded-xl bg-muted/20 border border-border/30 p-3">
+                {linkedLead.created_at && !isNaN(new Date(linkedLead.created_at).getTime()) && (
+                  <Fact icon={Clock} label="Chegou em">
+                    {format(new Date(linkedLead.created_at), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}
+                  </Fact>
+                )}
+                {linkedLead.unit && <Fact icon={MapPin} label="Número" accent>{linkedLead.unit}</Fact>}
+                {(linkedLead.month || linkedLead.day_preference) && (
+                  <Fact icon={Calendar} label="Festa">
+                    {[linkedLead.month, linkedLead.day_of_month && `dia ${linkedLead.day_of_month}`, linkedLead.day_preference].filter(Boolean).join(' · ')}
+                  </Fact>
+                )}
+                {linkedLead.guests && <Fact icon={Users} label="Convidados">{linkedLead.guests}</Fact>}
+                {latestVisit && (
+                  <Fact icon={MapPin} label="Última visita" accent className="col-span-2">
+                    {latestVisit.data_visita.split("-").reverse().join("/")}
+                    {latestVisit.horario_visita && ` às ${latestVisit.horario_visita}`}
+                    {" · "}
+                    {latestVisit.status_visita === "agendada" ? "Agendada" :
+                     latestVisit.status_visita === "confirmada" ? "Confirmada" :
+                     latestVisit.status_visita === "realizada" ? "Realizada" :
+                     latestVisit.status_visita === "nao_compareceu" ? "Não compareceu" :
+                     latestVisit.status_visita === "remarcada" ? "Remarcada" :
+                     latestVisit.status_visita === "cancelada" ? "Cancelada" :
+                     latestVisit.status_visita}
+                  </Fact>
+                )}
               </div>
             </div>
 
-            {/* Party data */}
-            {(linkedLead.month || linkedLead.day_preference || linkedLead.guests) && (
-              <div className="px-5 pb-3.5 -mt-1">
-                <div className="rounded-xl bg-muted/20 border border-border/30 p-3.5">
-                  <PopoverSection title="Dados da Festa" icon={Calendar}>
-                    <div className="space-y-1.5 pl-0.5">
-                      {(linkedLead.month || linkedLead.day_preference) && (
-                        <InfoRow icon={Calendar}>
-                          {[
-                            linkedLead.month,
-                            linkedLead.day_of_month && `dia ${linkedLead.day_of_month}`,
-                            linkedLead.day_preference
-                          ].filter(Boolean).join(' · ')}
-                        </InfoRow>
-                      )}
-                      {linkedLead.guests && (
-                        <InfoRow icon={Users}>{linkedLead.guests} convidados</InfoRow>
-                      )}
-                    </div>
-                  </PopoverSection>
-                </div>
-              </div>
-            )}
-
             {/* Observações */}
-            <div className="px-5 pb-3.5 -mt-1">
-              <div className="rounded-xl bg-muted/20 border border-border/30 p-3.5">
-                <div className="space-y-2">
+            <div className="px-4 pb-2.5">
+              <div className="rounded-xl bg-muted/20 border border-border/30 px-3 py-2">
+                <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="p-1 rounded-md bg-primary/8">
@@ -873,7 +878,7 @@ export function LeadInfoPopover({
                   ) : (
                     <p
                       className={cn(
-                        "text-xs leading-relaxed line-clamp-3 cursor-pointer rounded-lg px-2.5 py-2 hover:bg-background/60 transition-colors",
+                        "text-xs leading-relaxed line-clamp-2 cursor-pointer rounded-lg px-1.5 py-1 hover:bg-background/60 transition-colors",
                         linkedLead.observacoes ? "text-muted-foreground" : "text-muted-foreground/40 italic"
                       )}
                       onClick={() => { if (!canEditLead) return; setEditedObs(linkedLead.observacoes || ""); setIsEditingObs(true); }}
@@ -885,35 +890,10 @@ export function LeadInfoPopover({
               </div>
             </div>
 
-            {/* Latest Visit */}
-            {latestVisit && (
-              <div className="px-5 pb-3.5 -mt-1">
-                <div className="rounded-xl bg-muted/20 border border-border/30 p-3.5">
-                  <PopoverSection title="Última Visita" icon={MapPin}>
-                    <div className="space-y-1.5 pl-0.5">
-                      <InfoRow icon={Calendar} accent>
-                        {latestVisit.data_visita.split("-").reverse().join("/")}
-                        {latestVisit.horario_visita && ` às ${latestVisit.horario_visita}`}
-                      </InfoRow>
-                      <InfoRow icon={MapPin}>
-                        {latestVisit.status_visita === "agendada" ? "Agendada" :
-                         latestVisit.status_visita === "confirmada" ? "Confirmada" :
-                         latestVisit.status_visita === "realizada" ? "Realizada" :
-                         latestVisit.status_visita === "nao_compareceu" ? "Não compareceu" :
-                         latestVisit.status_visita === "remarcada" ? "Remarcada" :
-                         latestVisit.status_visita === "cancelada" ? "Cancelada" :
-                         latestVisit.status_visita}
-                      </InfoRow>
-                    </div>
-                  </PopoverSection>
-                </div>
-              </div>
-            )}
-
             {/* Lead marcado como "Visita" mas sem nenhuma visita registrada */}
             {!latestVisit && visitLoaded && linkedLead.status === "em_contato" && (
-              <div className="px-5 pb-3.5 -mt-1">
-                <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3.5 space-y-2.5">
+              <div className="px-4 pb-2.5">
+                <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3 space-y-2">
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                     <div className="text-xs leading-relaxed">
@@ -939,7 +919,7 @@ export function LeadInfoPopover({
             )}
 
             {/* Bot + Actions */}
-            <div className="px-5 pb-4 space-y-2.5">
+            <div className="px-4 pb-3 space-y-2">
               {/* Bot Toggle (conversa da IA: quem está atendendo + assumir/devolver) */}
               {isBiaConversation(selectedConversation) && onTakeOverFromBia && onReturnToBia ? (
                 <BiaControl conversation={selectedConversation} onTakeOver={onTakeOverFromBia} onReturn={onReturnToBia} />
@@ -1063,33 +1043,35 @@ export function LeadInfoPopover({
                   </Button>
                 )}
 
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full text-xs h-9 gap-2 rounded-xl font-medium border-border/40 hover:bg-muted/50 transition-all"
-                  onClick={onShowShareToGroupDialog}
-                >
-                  <UsersRound className="w-3.5 h-3.5 text-muted-foreground" />
-                  Compartilhar em Grupo
-                </Button>
-
-                {canTransferLeads && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full text-xs h-9 gap-2 rounded-xl font-medium border-border/40 hover:bg-muted/50 transition-all"
-                    onClick={onShowTransferDialog}
+                {/* Ações secundárias lado a lado (menos rolagem) */}
+                <div className={cn("grid gap-1.5", canTransferLeads ? "grid-cols-2" : "grid-cols-1")}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-9 gap-1.5 rounded-xl font-medium border-border/40 hover:bg-muted/50 transition-all"
+                    onClick={onShowShareToGroupDialog}
                   >
-                    <ArrowRightLeft className="w-3.5 h-3.5 text-muted-foreground" />
-                    Transferir Lead
+                    <UsersRound className="w-3.5 h-3.5 text-muted-foreground" />
+                    Compartilhar
                   </Button>
-                )}
-              
+                  {canTransferLeads && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-9 gap-1.5 rounded-xl font-medium border-border/40 hover:bg-muted/50 transition-all"
+                      onClick={onShowTransferDialog}
+                    >
+                      <ArrowRightLeft className="w-3.5 h-3.5 text-muted-foreground" />
+                      Transferir
+                    </Button>
+                  )}
+                </div>
+
                 {canDeleteFromChat && (
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    className="w-full text-xs h-9 gap-2 rounded-xl font-medium text-destructive/70 hover:text-destructive hover:bg-destructive/8 transition-all"
+                    className="w-full text-xs h-7 gap-2 rounded-xl font-medium text-destructive/70 hover:text-destructive hover:bg-destructive/8 transition-all"
                     onClick={onShowDeleteDialog}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -1270,7 +1252,7 @@ export function LeadInfoPopover({
           "p-0 rounded-2xl shadow-2xl shadow-black/10 border-border/30 overflow-hidden backdrop-blur-sm",
           // max-h usa o espaço real disponível na tela a partir de onde o card
           // abre (var do Radix); só vh deixava o card estourar o rodapé no iPad
-          "w-[360px] max-h-[min(80vh,var(--radix-popover-content-available-height))] overflow-y-auto"
+          "w-[380px] max-h-[min(85vh,var(--radix-popover-content-available-height))] overflow-y-auto"
         )}
       >
         {panel}
