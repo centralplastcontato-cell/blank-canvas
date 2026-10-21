@@ -19,6 +19,8 @@ interface RequestInfo {
   company_logo: string;
   event_title: string;
   event_date: string;
+  // Número em que o cliente estava conversando (sem o SQL novo: undefined)
+  reply_phone?: string | null;
 }
 
 interface BirthdayChild {
@@ -99,9 +101,10 @@ function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: 
 }
 
 function whatsappDigits(raw: unknown): string | null {
-  const d = String(raw || "").replace(/\D/g, "");
-  if (d.length < 10) return null;
-  return d.startsWith("55") ? d : `55${d}`;
+  const digits = String(raw || "").replace(/\D/g, "");
+  const local = digits.length >= 12 && digits.startsWith("55") ? digits.slice(2) : digits;
+  // Só número brasileiro válido (DDD + 8 ou 9 dígitos)
+  return local.length === 10 || local.length === 11 ? `55${local}` : null;
 }
 
 function instagramUrl(raw: unknown): string | null {
@@ -142,7 +145,10 @@ export default function PublicClientData() {
       setLoading(false);
       const { data: fields } = await supabase.rpc("get_onboarding_public_fields", { _company_id: info.company_id });
       const row = ((fields as any[]) || [])[0];
-      if (row) setContacts({ whatsapp: whatsappDigits(row.whatsapp_numbers?.[0]), instagram: instagramUrl(row.instagram) });
+      setContacts({
+        whatsapp: whatsappDigits(info.reply_phone) || whatsappDigits(row?.whatsapp_numbers?.[0]),
+        instagram: instagramUrl(row?.instagram),
+      });
     };
     fetchRequest();
   }, [token]);
