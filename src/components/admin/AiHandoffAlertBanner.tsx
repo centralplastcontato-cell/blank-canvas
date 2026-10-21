@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentCompanyId } from "@/lib/supabase-helpers";
-import { Sparkles, X, MessageSquare, UserPlus, CalendarCheck, WifiOff } from "lucide-react";
+import { Sparkles, X, MessageSquare, UserPlus, CalendarCheck, WifiOff, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNotificationSounds } from "@/hooks/useNotificationSounds";
 import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
@@ -14,7 +14,8 @@ import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
 // Também avisa candidato novo do "Trabalhe Conosco" (no sininho ninguém via).
 const AI_REASONS = ["ai_handoff", "ai_handoff_unanswered"];
 // + número que parou de entregar mensagens (ninguém percebia até o cliente reclamar)
-const ALERT_TYPES = ["lead_needs_human", "new_candidate", "visit_scheduled", "delivery_stall"];
+// + cliente preencheu os dados do contrato (a equipe pode estar em outra conversa)
+const ALERT_TYPES = ["lead_needs_human", "new_candidate", "visit_scheduled", "delivery_stall", "client_data"];
 
 interface AiHandoffData {
   conversation_id: string;
@@ -59,7 +60,12 @@ const isAiVisit = (n: { type: string; data: unknown }) =>
 const isDeliveryStall = (n: { type: string; data: unknown }) =>
   n.type === "delivery_stall" && !!n.data && typeof n.data === "object" && "instance_id" in (n.data as object);
 
-const isAlert = (n: { type: string; data: unknown }) => isAiHandoff(n) || isNewCandidate(n) || isAiVisit(n) || isDeliveryStall(n);
+// Cliente preencheu os dados do contrato
+const isClientDataDone = (n: { type: string; data: unknown }) =>
+  n.type === "client_data" && !!n.data && typeof n.data === "object" &&
+  (n.data as Record<string, unknown>).reason === "client_data_done" && "conversation_id" in (n.data as object);
+
+const isAlert = (n: { type: string; data: unknown }) => isAiHandoff(n) || isNewCandidate(n) || isAiVisit(n) || isDeliveryStall(n) || isClientDataDone(n);
 
 export function AiHandoffAlertBanner({ userId, onOpenConversation }: AiHandoffAlertBannerProps) {
   const navigate = useNavigate();
@@ -141,6 +147,7 @@ export function AiHandoffAlertBanner({ userId, onOpenConversation }: AiHandoffAl
   const urgent = latest.data.reason === "ai_handoff_unanswered" || stall;
   const candidate = isNewCandidate(latest);
   const visit = isAiVisit(latest);
+  const clientData = isClientDataDone(latest);
   const remaining = alerts.length - 1;
   const title = latest.title.replace(/^[^\p{L}\p{N}]+/u, "");
 
@@ -151,12 +158,12 @@ export function AiHandoffAlertBanner({ userId, onOpenConversation }: AiHandoffAl
           <div className={`relative flex items-center justify-center w-11 h-11 rounded-full bg-white/20 shrink-0 ring-2 ring-white/50 overflow-hidden ${urgent ? "animate-pulse" : ""}`}>
             {candidate && latest.data.photo_url
               ? <img src={latest.data.photo_url} alt="" className="w-full h-full object-cover" />
-              : candidate ? <UserPlus className="w-5 h-5 text-white" /> : visit ? <CalendarCheck className="w-5 h-5 text-white" /> : stall ? <WifiOff className="w-5 h-5 text-white" /> : <Sparkles className="w-5 h-5 text-white" />}
+              : candidate ? <UserPlus className="w-5 h-5 text-white" /> : visit ? <CalendarCheck className="w-5 h-5 text-white" /> : clientData ? <ClipboardCheck className="w-5 h-5 text-white" /> : stall ? <WifiOff className="w-5 h-5 text-white" /> : <Sparkles className="w-5 h-5 text-white" />}
             {urgent && <span className="absolute -top-1 -right-1 text-sm" aria-hidden>🚨</span>}
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm sm:text-base font-extrabold text-white truncate">
-              <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-[10px] sm:text-xs font-black tracking-wide mr-1.5 align-middle">{candidate ? "CANDIDATO" : visit ? "IA · VISITA" : stall ? "WHATSAPP" : "IA"}</span>
+              <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-[10px] sm:text-xs font-black tracking-wide mr-1.5 align-middle">{candidate ? "CANDIDATO" : visit ? "IA · VISITA" : clientData ? "DADOS RECEBIDOS" : stall ? "WHATSAPP" : "IA"}</span>
               {title}
             </p>
             <p className="text-xs sm:text-sm text-violet-100 truncate">

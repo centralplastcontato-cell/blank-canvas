@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { clientDataLink, dueReminder, fillClientDataTemplate, hasCpfInText, isOverdue, normalizeReminderHours, shortClientToken } from "./client-data.ts";
+import { clientDataLink, clientDataThanks, dueReminder, fillClientDataTemplate, hasCpfInText, isOverdue, normalizeReminderHours, shortClientToken } from "./client-data.ts";
 
 Deno.test("clientDataLink: domínio do buffet, link curto", () => {
   assertEquals(clientDataLink("K7M2QX9", "www.castelodadiversao.com.br"), "www.castelodadiversao.com.br/dados/K7M2QX9");
@@ -38,4 +38,10 @@ Deno.test("hasCpfInText: CPF válido mandado pelo chat", () => {
   assertEquals(hasCpfInText("telefone 15981121710"), false);
   assertEquals(hasCpfInText("111.111.111-11"), false);
   assertEquals(hasCpfInText("oi, tudo bem?"), false);
+});
+
+Deno.test("clientDataThanks: primeiro nome, sem caixa alta", () => {
+  assertEquals(clientDataThanks("DIANDRA LUMA GONÇALVES").startsWith("Recebemos seus dados, Diandra! 💜"), true);
+  assertEquals(clientDataThanks("Mayara Valeska").startsWith("Recebemos seus dados, Mayara! 💜"), true);
+  assertEquals(clientDataThanks("").startsWith("Recebemos seus dados! 💜"), true);
 });
