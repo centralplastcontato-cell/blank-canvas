@@ -151,8 +151,9 @@ export default function Auth() {
     setIsLoading(true);
 
     try {
-      // Sign out current session before signing in as different user
-      await supabase.auth.signOut();
+      // Sai só deste aparelho antes de entrar (escopo global derrubava o
+      // mesmo login em todos os computadores e celulares)
+      await supabase.auth.signOut({ scope: "local" });
 
       const { error } = await supabase.auth.signInWithPassword({
         email,

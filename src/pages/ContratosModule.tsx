@@ -44,7 +44,7 @@ export default function ContratosModule() {
       .then(({ data }) => { if (data) setProfile(data); });
   }, [user]);
 
-  const handleLogout = async () => { await supabase.auth.signOut(); navigate("/auth"); };
+  const handleLogout = async () => { await supabase.auth.signOut({ scope: "local" }); navigate("/auth"); };
   const handleRefresh = () => window.location.reload();
 
   if (isLoading || !user) {

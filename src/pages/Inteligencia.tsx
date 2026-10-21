@@ -128,7 +128,7 @@ export default function Inteligencia() {
     : physicalUnits.filter(u => allowedUnits.includes(u.name)).map(u => ({ value: u.name, label: u.name }));
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
     navigate("/auth");
   };
 
