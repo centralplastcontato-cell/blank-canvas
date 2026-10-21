@@ -19,7 +19,7 @@ import { loadBlockedContacts } from "../_shared/contact-block.ts";
 import { installEvolutionCallGuard } from "../_shared/evolution-guard.ts";
 import { claimSystemSendSlot } from "../_shared/system-send-pacing.ts";
 import { PARTY_SOON_ACTION, partySoon, partySoonLabel } from "../_shared/party-soon.ts";
-import { clientDataLink, DEFAULT_CLIENT_DATA_MESSAGE, DEFAULT_CLIENT_DATA_REMINDERS, dueReminder, fillClientDataTemplate, isOverdue, normalizeReminderHours, shortClientToken } from "../_shared/client-data.ts";
+import { clientDataLink, DEFAULT_CLIENT_DATA_MESSAGE, DEFAULT_CLIENT_DATA_REMINDERS, dueReminder, fillClientDataTemplate, hasCpfInText, isOverdue, normalizeReminderHours, shortClientToken } from "../_shared/client-data.ts";
 
 type SupabaseAdmin = any;
 
@@ -2812,6 +2812,15 @@ async function processClientDataRequests({
         }).eq("id", target.conv.id);
         return true;
       };
+      // Cliente já mandou os dados por texto no chat (CPF válido numa mensagem dele): sem link nem cobrança
+      const sentDataInChat = async (leadId: string, sinceIso: string): Promise<boolean> => {
+        const { data: convs } = await supabase.from("wapi_conversations").select("id").eq("lead_id", leadId);
+        const ids = ((convs || []) as Array<{ id: string }>).map((c) => c.id);
+        if (ids.length === 0) return false;
+        const { data: msgs } = await supabase.from("wapi_messages").select("content")
+          .in("conversation_id", ids).eq("from_me", false).gte("timestamp", sinceIso).limit(300);
+        return ((msgs || []) as Array<{ content: string | null }>).some((m) => hasCpfInText(m.content));
+      };
       const eventDateLabel = async (eventId: string | null, leadId: string) => {
         let q = supabase.from("company_events").select("event_date");
         q = eventId ? q.eq("id", eventId) : q.eq("lead_id", leadId).order("event_date", { ascending: false }).limit(1);
@@ -2859,6 +2868,10 @@ async function processClientDataRequests({
         for (const lead of (closed || []) as any[]) {
           const { data: existing } = await supabase.from("client_data_requests").select("id").eq("lead_id", lead.id).limit(1);
           if (existing && existing.length > 0) continue;
+          if (await sentDataInChat(lead.id, new Date(nowMs - 14 * 86400000).toISOString())) {
+            console.log(`[follow-up-check] 📋 Lead ${lead.id} já mandou os dados pelo chat — sem link automático`);
+            continue;
+          }
           const { data: events } = await supabase.from("company_events").select("id").eq("company_id", companyId).eq("lead_id", lead.id)
             .order("event_date", { ascending: false }).limit(1);
           const token = shortClientToken();
@@ -2903,6 +2916,12 @@ async function processClientDataRequests({
           }
           const idx = dueReminder(r, reminderHours, nowMs);
           if (idx === null) continue;
+          if (await sentDataInChat(r.lead_id, new Date(Date.parse(r.sent_at) - 14 * 86400000).toISOString())) {
+            // Mandou os dados por texto: para as cobranças (sem alerta de atraso)
+            await supabase.from("client_data_requests").update({ reminder_count: 99 }).eq("id", r.id);
+            console.log(`[follow-up-check] 📋 Lead ${r.lead_id} mandou os dados pelo chat — cobranças encerradas`);
+            continue;
+          }
           // Conversa ativa ou cliente esperando resposta: a cobrança espera
           const target = await clientConversation(r.lead_id);
           if (!target) continue;

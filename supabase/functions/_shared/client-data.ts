@@ -71,3 +71,20 @@ export function normalizeReminderHours(raw: unknown): number[] {
   const list = Array.isArray(raw) ? raw.map(Number).filter((n) => Number.isFinite(n) && n >= 1 && n <= 240) : [];
   return list.length > 0 ? [...list].sort((a, b) => a - b) : [24, 48, 72];
 }
+
+function validCpf(d: string): boolean {
+  if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+  const check = (len: number) => {
+    let sum = 0;
+    for (let i = 0; i < len; i++) sum += Number(d[i]) * (len + 1 - i);
+    const r = (sum * 10) % 11;
+    return (r === 10 ? 0 : r) === Number(d[len]);
+  };
+  return check(9) && check(10);
+}
+
+/** O cliente mandou um CPF válido pelo chat (sinal de que já passou os dados por texto) */
+export function hasCpfInText(text: string | null | undefined): boolean {
+  const matches = String(text || "").match(/\d{3}[.\s]?\d{3}[.\s]?\d{3}[-.\s]?\d{2}/g) || [];
+  return matches.some((m) => validCpf(m.replace(/\D/g, "")));
+}
