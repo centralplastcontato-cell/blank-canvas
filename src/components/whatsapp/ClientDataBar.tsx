@@ -125,42 +125,103 @@ export function ClientDataBar({ companyId, companyName, customDomain, lead, send
 
 type Json = Record<string, any>;
 
+// "1985-03-06" → "06/03/1985"; "15981121710" → "(15) 98112-1710"
+const brDate = (v: unknown) => {
+  const t = String(v || "").trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(t);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : t;
+};
+const brPhone = (v: unknown) => {
+  const d = String(v || "").replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "");
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return String(v || "");
+};
+
+function Field({ label, value }: { label: string; value: string }) {
+  if (!value) return null;
+  const copy = () => {
+    navigator.clipboard.writeText(value);
+    toast({ title: `${label} copiado` });
+  };
+  return (
+    <button type="button" onClick={copy} className="group flex w-full items-start justify-between gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-muted/60">
+      <span className="shrink-0 text-xs text-muted-foreground pt-0.5">{label}</span>
+      <span className="flex min-w-0 items-start gap-1.5 text-right text-sm font-medium text-foreground">
+        <span className="break-words">{value}</span>
+        <Copy className="mt-0.5 h-3 w-3 shrink-0 opacity-30 group-hover:opacity-70" />
+      </span>
+    </button>
+  );
+}
+
+function Section({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-border/50 bg-muted/30 p-3">
+      <p className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{icon} {title}</p>
+      {children}
+    </div>
+  );
+}
+
 function ClientDataDialog({ open, onOpenChange, data }: { open: boolean; onOpenChange: (v: boolean) => void; data: Record<string, unknown> | null }) {
   const d = (data || {}) as Json;
-  const line = (label: string, value: unknown) => (value ? (
-    <div className="flex justify-between gap-3 py-1 text-sm"><span className="text-muted-foreground">{label}</span><span className="text-right font-medium">{String(value)}</span></div>
-  ) : null);
-  const address = [d.endereco, d.numero, d.complemento, d.bairro, d.cidade && `${d.cidade}${d.estado ? `/${d.estado}` : ""}`, d.cep].filter(Boolean).join(", ");
+  const address = [d.endereco && `${d.endereco}${d.numero ? `, ${d.numero}` : ""}`, d.complemento, d.bairro, d.cidade && `${d.cidade}${d.estado ? `/${d.estado}` : ""}`, d.cep && `CEP ${d.cep}`]
+    .filter(Boolean).join(" · ");
   const children = Array.isArray(d.birthday_children) ? (d.birthday_children as Json[]).filter((c) => c?.name) : [];
   const people = Array.isArray(d.responsaveis) ? (d.responsaveis as Json[]).filter((r) => r?.name) : [];
+
+  const copyAll = () => {
+    const lines = [
+      d.nome && `Nome: ${d.nome}`, d.cpf && `CPF: ${d.cpf}`, d.rg && `RG: ${d.rg}`,
+      d.nascimento && `Nascimento: ${brDate(d.nascimento)}`, d.email && `E-mail: ${d.email}`, address && `Endereço: ${address}`,
+      ...children.map((c) => `Aniversariante: ${c.name}${c.age ? `, ${c.age} anos` : ""}${c.birthdate ? ` (${brDate(c.birthdate)})` : ""}`),
+      ...people.map((r) => `Responsável: ${r.name}${r.relation ? ` (${r.relation})` : ""}${r.phone ? ` · ${brPhone(r.phone)}` : ""}`),
+    ].filter(Boolean);
+    navigator.clipboard.writeText(lines.join("\n"));
+    toast({ title: "Dados copiados" });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Dados do contratante</DialogTitle>
-          <DialogDescription>Preenchidos pelo cliente. Já vão para a festa e para o contrato.</DialogDescription>
+      <DialogContent className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-y-auto rounded-3xl p-5 sm:rounded-3xl">
+        <DialogHeader className="space-y-1 text-left">
+          <DialogTitle className="flex items-center gap-2 text-lg">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500/15 text-base">✅</span>
+            Dados do contratante
+          </DialogTitle>
+          <DialogDescription className="text-xs">Preenchidos pelo cliente. Já vão para a festa e para o contrato. Toque num dado para copiar.</DialogDescription>
         </DialogHeader>
-        <div className="divide-y">
-          <div className="pb-2">
-            {line("Nome", d.nome)}
-            {line("CPF", d.cpf)}
-            {line("RG", d.rg)}
-            {line("Nascimento", d.nascimento)}
-            {line("E-mail", d.email)}
-            {line("Endereço", address)}
-          </div>
+        <div className="space-y-3">
+          <Section icon="👤" title="Contratante">
+            <Field label="Nome" value={String(d.nome || "")} />
+            <Field label="CPF" value={String(d.cpf || "")} />
+            <Field label="RG" value={String(d.rg || "")} />
+            <Field label="Nascimento" value={brDate(d.nascimento)} />
+            <Field label="E-mail" value={String(d.email || "")} />
+          </Section>
+          {address && (
+            <Section icon="📍" title="Endereço">
+              <Field label="Endereço" value={address} />
+            </Section>
+          )}
           {children.length > 0 && (
-            <div className="py-2">
-              <p className="pb-1 text-xs font-semibold uppercase text-muted-foreground">Aniversariante{children.length > 1 ? "s" : ""}</p>
-              {children.map((c, i) => <div key={i}>{line(c.name, [c.age && `${c.age} anos`, c.birthdate].filter(Boolean).join(" · ") || "—")}</div>)}
-            </div>
+            <Section icon="🎂" title={`Aniversariante${children.length > 1 ? "s" : ""}`}>
+              {children.map((c, i) => (
+                <Field key={i} label={String(c.name)} value={[c.age && `${c.age} anos`, c.birthdate && brDate(c.birthdate)].filter(Boolean).join(" · ") || "—"} />
+              ))}
+            </Section>
           )}
           {people.length > 0 && (
-            <div className="pt-2">
-              <p className="pb-1 text-xs font-semibold uppercase text-muted-foreground">Responsáveis</p>
-              {people.map((r, i) => <div key={i}>{line(r.name, [r.relation, r.phone].filter(Boolean).join(" · ") || "—")}</div>)}
-            </div>
+            <Section icon="👨‍👩‍👧" title="Responsáveis">
+              {people.map((r, i) => (
+                <Field key={i} label={`${r.name}${r.relation ? ` (${r.relation})` : ""}`} value={brPhone(r.phone) || "—"} />
+              ))}
+            </Section>
           )}
+          <Button variant="outline" className="w-full rounded-xl" onClick={copyAll}>
+            <Copy className="mr-2 h-4 w-4" /> Copiar todos os dados
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
