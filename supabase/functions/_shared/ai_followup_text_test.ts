@@ -30,8 +30,16 @@ Deno.test("followUpInstruction: objetivo, agenda real e valores", () => {
   assertEquals(free.includes("ainda está disponível neste momento (almoço (13h) ou noite (19h))"), true);
   assertEquals(free.includes("NÃO cite valores"), true);
   const taken = followUpInstruction({ ...base, partyYmd: "2026-12-18", partyDateFree: [], valuesAlreadyGiven: true });
-  assertEquals(taken.includes("NÃO está mais disponível"), true);
+  assertEquals(taken.includes("JÁ FOI RESERVADA"), true);
+  assertEquals(taken.includes("Não achei outras datas livres perto"), true);
   assertEquals(taken.includes("os mesmos que você já passou"), true);
+  // Data reservada: as datas livres de agora vão no aviso, e o lembrete curto retoma a escolha da data
+  const alt = "🗓️ Sexta, 25 de dezembro\n🌙 Noite (19h às 23h)";
+  const takenAlt = followUpInstruction({ ...base, partyYmd: "2026-12-18", partyDateFree: [], alternatives: alt });
+  assertEquals(takenAlt.includes(alt), true);
+  const takenInactive = followUpInstruction({ ...base, kind: "inactivity", reminderNumber: 1, partyYmd: "2026-12-18", partyDateFree: [], alternatives: alt, silenceMs: 30 * 60000 });
+  assertEquals(takenInactive.includes("parou na escolha de outra data"), true);
+  assertEquals(takenInactive.includes("NÃO convide para visita agora"), true);
   const inactive = followUpInstruction({ ...base, kind: "inactivity", silenceMs: 60 * 60000 });
   assertEquals(inactive.includes("há 60 minutos"), true);
   const second = followUpInstruction({ ...base, kind: "inactivity", reminderNumber: 2, silenceMs: 200 * 60000 });

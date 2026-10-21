@@ -48,6 +48,8 @@ export function followUpInstruction(c: FollowUpContext): string {
     c.guests ? `convidados: ${c.guests}` : null,
   ].filter(Boolean).join("; ");
   const monthOnly = c.kind === "reactivation" && c.partyExact === false;
+  // Data pedida já reservada (agenda conferida agora)
+  const dateTaken = !!c.partyYmd && Array.isArray(c.partyDateFree) && c.partyDateFree.length === 0;
   const altText = c.alternatives
     ? ` Outras datas disponíveis neste momento — linhas prontas (copie como estão, uma data por bloco):\n${c.alternatives}\n`
     : "";
@@ -59,11 +61,13 @@ export function followUpInstruction(c: FollowUpContext): string {
     ? ` AGENDA AGORA: ${formatDateLong(c.partyYmd)} ainda está disponível neste momento (${c.partyDateFree.join(" ou ")}). Se citar, diga "disponível neste momento" — você não reserva nem segura a data.`
     : c.kind === "reactivation"
     ? ` AGENDA AGORA: ${formatDateLong(c.partyYmd)} NÃO está mais disponível (foi reservada). Avise com gentileza e honestidade, sem drama, e ofereça as alternativas abaixo.${altText || " Não achei outras datas livres perto: ofereça ver com a equipe."}`
-    : ` AGENDA AGORA: ${formatDateLong(c.partyYmd)} NÃO está mais disponível. Não ofereça essa data; se fizer sentido, ofereça ver outras datas com ele.`;
+    : ` AGENDA AGORA: ${formatDateLong(c.partyYmd)} JÁ FOI RESERVADA (se a conversa mostra que você já avisou, não repita a notícia). Não ofereça essa data. Se falar de datas, use só estas — são a agenda de agora (datas que você ofereceu antes podem ter sido reservadas e não valem mais).${altText || " Não achei outras datas livres perto: ofereça ver com a equipe."}`;
   const what = c.kind === "reactivation"
     ? `LEMBRETE ANTES DA FESTA: faltam cerca de ${c.daysBefore} dias para a festa e o cliente não responde há ${silenceText(c.silenceMs)}. Retome o contato com carinho (a festa está chegando), mostre a agenda real (abaixo) e convide para conhecer o espaço ou garantir a data com a equipe. Escreva UMA mensagem curta (2 a 5 frases + as linhas de datas, se houver), terminando com uma pergunta simples. Não diga que é um lembrete automático.`
     : c.kind === "inactivity" && c.reminderNumber === 2
     ? `O cliente parou de responder há ${silenceText(c.silenceMs)} e não respondeu nem ao seu 1º lembrete. Escreva UM 2º lembrete bem curto (1 ou 2 frases), em outro tom e sem repetir o 1º: leve e sem pressão — deixe claro que você fica por aqui quando ele puder e termine com uma pergunta simples.`
+    : c.kind === "inactivity" && dateTaken
+    ? `O cliente parou de responder há ${silenceText(c.silenceMs)}, no meio da conversa. A data que ele pediu já foi reservada e a conversa parou na escolha de outra data: escreva UM lembrete curto (1 ou 2 frases) retomando ESSE assunto de leve — ex.: pergunte se ele conseguiu olhar as datas ou se prefere outro dia, que você vê na agenda. NÃO convide para visita agora e NÃO repita a pergunta da sua última mensagem com as mesmas palavras.`
     : c.kind === "inactivity"
     ? `O cliente parou de responder há ${silenceText(c.silenceMs)}, no meio da conversa. Escreva UM lembrete curto (1 ou 2 frases) retomando de onde vocês pararam. NÃO repita a pergunta da sua última mensagem, nem com outras palavras: traga algo NOVO e útil (ex.: depois das fotos/PDF, convide para conhecer o espaço com 2 horários; ou destaque um diferencial do buffet que combine com a festa dele) e termine com uma pergunta DIFERENTE e simples.`
     : `Follow-up ${c.stepNumber} de ${c.stepsTotal}: o cliente não responde há ${silenceText(c.silenceMs)}. OBJETIVO DESTA MENSAGEM (definido pelo buffet): ${c.goal} Escreva UMA mensagem curta (2 a 4 frases), no seu tom, terminando com uma pergunta simples.`;
