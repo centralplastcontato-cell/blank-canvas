@@ -542,10 +542,16 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   const draftHydratedRef = useRef(false);
 
   const syncClientDataIntoForm = useCallback((clientData: any) => {
-    setForm((prev) => ({
-      ...prev,
-      ...buildClientDataEventFields(clientData, prev),
-    }));
+    setForm((prev) => {
+      // Nome completo do formulário no lugar do nome curto do WhatsApp (só se ninguém editou)
+      const fullName = String(clientData?.nome || "").trim();
+      const title = fullName && (!prev.title || prev.title === prev.lead_name) ? fullName : prev.title;
+      return {
+        ...prev,
+        title,
+        ...buildClientDataEventFields(clientData, prev),
+      };
+    });
   }, []);
 
   const handleClientDataSaved = useCallback((req: ClientDataRequest, mode: "manual" | "editing" = "manual") => {
@@ -815,15 +821,25 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
     }
   }, [open, draftStorageKey, form, payment, dateDay, dateMonth, dateYear, pricingMode, adultCount, childCount, pricePerAdult, pricePerChild]);
 
-  // Fetch client data request for existing events
+  // Pedido de dados do contratante: o da festa ou, festa nova ligada a um
+  // lead, o que o cliente já preencheu pelo link (ao salvar, ele é vinculado
+  // à festa pelo banco). Assim os dados já aparecem e preenchem a festa.
   const eventId = persistedEventId || form.id || initialData?.id;
+  const leadForClientData = !eventId ? form.lead_id || null : null;
   useEffect(() => {
-    if (!open || !eventId || !currentCompany?.id) return;
+    if (!open || !currentCompany?.id) return;
+    if (!eventId && !leadForClientData) {
+      setClientRequest(null);
+      return;
+    }
     setLoadingClientRequest(true);
-    supabase
+    let query = supabase
       .from("client_data_requests")
-      .select("id, token, status, client_data, completed_at")
-      .eq("event_id", eventId)
+      .select("id, token, status, client_data, completed_at");
+    query = eventId
+      ? query.eq("event_id", eventId)
+      : query.eq("lead_id", leadForClientData as string).eq("company_id", currentCompany.id).is("event_id", null);
+    query
       .order("created_at", { ascending: false })
       .limit(1)
       .then(({ data }) => {
@@ -834,7 +850,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
         }
         setLoadingClientRequest(false);
       });
-  }, [open, eventId, currentCompany?.id, syncClientDataIntoForm]);
+  }, [open, eventId, leadForClientData, currentCompany?.id, syncClientDataIntoForm]);
 
   // Etapa 4: identifica blocos que já têm parcela paga (não podem ser editados/removidos)
   useEffect(() => {
