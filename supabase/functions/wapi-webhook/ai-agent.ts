@@ -40,6 +40,7 @@ import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
 import { buildCandidateLink, candidateName, inviteCode, shortCandidateLink, withCandidateLink } from "../_shared/ai-candidate.ts";
 import { findPromotion, promoMentions, promoNote } from "../_shared/promo.ts";
 import { closedPeriodAt, closedPeriodsNote, formatClosedPeriod, isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
+import { nearestAlternativeDays, partyDateFreeNote, partyDateTakenMessage } from "../_shared/party-date-check.ts";
 import { asksPartnership, clientAffirms, clientAskedPrice, PRICE_ASK_WINDOW_MS, closingAfterMaterials, visitInviteAfterMaterials, confirmsPartyInterest, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 import { askedForName, nameFromAnswer } from "../_shared/name-answer.ts";
@@ -77,6 +78,8 @@ interface AgentConv {
   __firstReply?: boolean;
   // Quer trabalhar: link do cadastro de candidatos que o sistema põe no fim da resposta
   __candidateLink?: string;
+  // Data da festa pedida conferida na agenda neste turno (para a mensagem depois do PDF)
+  __partyDate?: PartyDateCheck | null;
 }
 
 interface AiSettings {
@@ -1453,6 +1456,47 @@ async function loadFreeSlots(
   };
 }
 
+interface PartyDateCheck {
+  date: string;
+  status: 'free' | 'taken' | 'recess';
+  alternatives: string | null; // linhas prontas (uma data por bloco), só quando não está livre
+}
+
+// Data da festa pedida (formulário do site ou conversa) ainda não conferida
+// com o cliente: null quando não há data exata, já passou ou já foi conferida
+function pendingPartyDate(conv: AgentConv): string | null {
+  const bd = (conv.bot_data || {}) as Json;
+  const ymd = typeof bd.data_festa === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(bd.data_festa) ? bd.data_festa as string : null;
+  if (!ymd || bd.data_conferida === ymd) return null;
+  return ymd > ymdBR(Date.now()) ? ymd : null;
+}
+
+// Data conferida (e avisada, se reservada): não confere de novo nem repete o aviso
+async function markPartyDateChecked(supabase: any, conv: AgentConv, check: PartyDateCheck): Promise<void> {
+  const patch: Json = { data_conferida: check.date, ...(check.status !== 'free' ? { data_ocupada_avisada: check.date } : {}) };
+  await mergeBotData(supabase, conv, patch);
+  conv.bot_data = { ...(conv.bot_data || {}), ...patch } as Json;
+}
+
+// Confere a data da festa na agenda: livre, reservada ou no recesso (com
+// datas próximas livres). SÓ LEITURA.
+async function checkPartyDate(supabase: any, instance: AgentInstance, settings: AiSettings, ymd: string): Promise<PartyDateCheck> {
+  const tomorrow = addDaysYmd(ymdBR(Date.now()), 1);
+  const from = addDaysYmd(ymd, -14) < tomorrow ? tomorrow : addDaysYmd(ymd, -14);
+  const agenda = await loadFreeSlots(supabase, instance, settings, from, addDaysYmd(ymd, 28));
+  if (agenda.perUnit.some((u) => u.free.some((f) => f.date === ymd))) return { date: ymd, status: 'free', alternatives: null };
+  const recess = !!closedPeriodAt(ymd, parseClosedPeriods(settings.closed_periods));
+  const blocks = agenda.perUnit
+    .map(({ unit, free }) => {
+      const days = nearestAlternativeDays(free, ymd, 3);
+      if (days.length === 0) return null;
+      return `${agenda.perUnit.length > 1 ? `*Unidade ${unit}*\n` : ''}${daysBlock(days)}`;
+    })
+    .filter(Boolean) as string[];
+  console.log(`[AI Agent] Data da festa ${ymd}: ${recess ? 'recesso' : 'reservada'} — ${blocks.length > 0 ? 'com' : 'sem'} datas próximas livres`);
+  return { date: ymd, status: recess ? 'recess' : 'taken', alternatives: blocks.length > 0 ? blocks.join('\n\n') : null };
+}
+
 // "O que inclui" de cada pacote ativo, para o prompt (Operações → Pacotes)
 async function loadPackagesText(supabase: any, instance: AgentInstance): Promise<string | null> {
   const { data } = await supabase.from('company_packages').select('*')
@@ -1480,6 +1524,7 @@ async function toolConsultarDatas(
   instance: AgentInstance,
   settings: AiSettings,
   args: { mes?: string; data?: string; dia_semana?: string; preferencia?: string },
+  conv?: AgentConv,
 ): Promise<string> {
   const today = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
   const tomorrow = addDaysYmd(today, 1);
@@ -1535,6 +1580,17 @@ async function toolConsultarDatas(
     }
   }
   console.log(`[AI Agent] Consulta de agenda (${askedDate || `${from}..${to}`}): ${agenda.events} festa(s), ${agenda.pre} pré-reserva(s)`);
+  // A própria IA já conferiu esta data com o cliente: o sistema não repete
+  if (askedDate && conv) {
+    const busy = !perUnit.some((u) => u.free.some((f) => f.date === askedDate));
+    const bd = (conv.bot_data || {}) as Json;
+    // Data pedida estava reservada e ele olhou outra, livre: passa a ser a data da festa
+    if (!busy && bd.data_festa !== askedDate && bd.data_ocupada_avisada === bd.data_festa) {
+      await mergeBotData(supabase, conv, { data_festa: askedDate });
+      conv.bot_data = { ...bd, data_festa: askedDate } as Json;
+    }
+    await markPartyDateChecked(supabase, conv, { date: askedDate, status: busy ? 'taken' : 'free', alternatives: null });
+  }
   return `AGENDA (só consulta, nada foi reservado):\n${blocks.join('\n\n')}\n${rules}`;
 }
 
@@ -1560,7 +1616,8 @@ async function toolConsultarValor(
   // outro valor sem dizer o dia (no simulador ela trocou o feriado 12/10 por "domingo")
   const savedDate = typeof bd.data_festa === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(bd.data_festa) ? bd.data_festa as string : null;
   const todayYmd = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
-  if (!args.data && savedDate && savedDate >= todayYmd && !args.dia_semana) args = { ...args, data: savedDate };
+  // (data já avisada como reservada não vale: o cliente vai escolher outra)
+  if (!args.data && savedDate && savedDate >= todayYmd && !args.dia_semana && bd.data_ocupada_avisada !== savedDate) args = { ...args, data: savedDate };
 
   let day: PartyDay | null = null;
   let dayText = '';
@@ -1618,6 +1675,7 @@ async function toolConsultarValor(
         ? `${fmtDateBR(date)} cai no RECESSO do buffet (fechado ${formatClosedPeriod(recess, today)}, sem festas)`
         : isNaN(wantHour) ? `${fmtDateBR(date)} está OCUPADO` : `${fmtDateBR(date)}, ${formatSlotLabel(`${String(wantHour).padStart(2, '0')}:00`)}, está OCUPADO`;
       console.log(`[AI Agent] Valor pedido para horário ocupado (${date} ${args.horario || 'dia todo'}) — oferecendo alternativas`);
+      if (onDay.length === 0) await markPartyDateChecked(supabase, conv, { date, status: recess ? 'recess' : 'taken', alternatives: null });
       return `${what} na agenda: NÃO informe valor para esse horário. Avise o cliente e ofereça o(s) horário(s) livre(s) mais próximo(s) (disponível neste momento) — linhas prontas:\n${nearest.length > 0 ? `${daysBlock(nearest)}\n${toolRefsLine(nearest)}` : '(nenhum nas semanas próximas — passe para a equipe)'}\nSe ele escolher um deles, consulte o valor de novo com a nova data/horário.`;
     }
     freeHours = wanted.map((f) => f.slot.start);
@@ -1625,6 +1683,7 @@ async function toolConsultarValor(
       await mergeBotData(supabase, conv, { data_festa: date });
       conv.bot_data = { ...(conv.bot_data || {}), data_festa: date } as Json;
     }
+    if (bd.data_conferida !== date) await markPartyDateChecked(supabase, conv, { date, status: 'free', alternatives: null });
   }
 
   const [{ data: packages }, { data: tiers }] = await Promise.all([
@@ -2277,7 +2336,13 @@ export async function maybeHandleWithAiAgent(
       if (confirmsPartyInterest(lastUserText)) {
         console.log(`[AI Agent] Mês e convidados já conhecidos e materiais ainda não enviados — saem depois da resposta (conv ${conv.id})`);
         conv.__deferMaterials = true;
-        materialsNote = 'logo DEPOIS da sua resposta, o sistema vai mandar as fotos do espaço, o vídeo e o PDF dos pacotes (com legendas próprias). Escreva a resposta em DUAS partes, separadas por uma linha só com ---. A 1ª parte sai ANTES dos materiais: responda o que o cliente disse (se ele cumprimentou, cumprimente de volta) e termine avisando, com naturalidade, que vai mostrar o espaço — ex.: "Vou te mostrar o nosso espaço 😍👇". A 2ª parte sai DEPOIS do PDF: UMA frase curta convidando para conhecer o espaço, com os 2 horários de visita livres que você tem — ex.: "Se fizer sentido pra vocês, te recebo pra conhecer o espaço: amanhã às 10h ou quinta às 15h, qual fica melhor? 😊" (se ele já tem visita marcada, pergunte só o que achou). NÃO diga que já mandou. Na 1ª parte, não passe valores nem convide para visita, a menos que o cliente tenha pedido.';
+        // Data da festa do formulário: conferida agora; o aviso (livre ou
+        // reservada, com outras datas) sai pelo sistema depois do PDF
+        const pendingDate = pendingPartyDate(conv);
+        conv.__partyDate = pendingDate ? await checkPartyDate(supabase, instance, settings, pendingDate) : null;
+        materialsNote = conv.__partyDate && conv.__partyDate.status !== 'free'
+          ? 'logo DEPOIS da sua resposta, o sistema vai mandar as fotos do espaço, o vídeo e o PDF dos pacotes (com legendas próprias) e, depois do PDF, uma mensagem sobre a data da festa. Escreva UMA parte só (sem ---): responda o que o cliente disse (se ele cumprimentou, cumprimente de volta) e termine avisando, com naturalidade, que vai mostrar o espaço — ex.: "Vou te mostrar o nosso espaço 😍👇". NÃO diga que já mandou. NÃO fale se a data está livre ou reservada e NÃO convide para visita nesta resposta. Não passe valores, a menos que o cliente tenha pedido.'
+          : 'logo DEPOIS da sua resposta, o sistema vai mandar as fotos do espaço, o vídeo e o PDF dos pacotes (com legendas próprias). Escreva a resposta em DUAS partes, separadas por uma linha só com ---. A 1ª parte sai ANTES dos materiais: responda o que o cliente disse (se ele cumprimentou, cumprimente de volta) e termine avisando, com naturalidade, que vai mostrar o espaço — ex.: "Vou te mostrar o nosso espaço 😍👇". A 2ª parte sai DEPOIS do PDF: UMA frase curta convidando para conhecer o espaço, com os 2 horários de visita livres que você tem — ex.: "Se fizer sentido pra vocês, te recebo pra conhecer o espaço: amanhã às 10h ou quinta às 15h, qual fica melhor? 😊" (se ele já tem visita marcada, pergunte só o que achou). NÃO diga que já mandou. Na 1ª parte, não passe valores nem convide para visita, a menos que o cliente tenha pedido.' + (conv.__partyDate ? ' Não diga se a data está livre: o sistema já conta isso antes da sua 2ª parte.' : '');
       } else {
         // Lead do site com data e convidados, mas a resposta não fala da festa
         // (só "oi", uma foto solta, outro assunto): pergunta antes de mandar
@@ -2293,7 +2358,11 @@ export async function maybeHandleWithAiAgent(
       firstNameOrEmpty(bd.nome as string) ? `nome ${bd.nome}` : null,
       bd.mes ? `mês ${bd.mes}` : null,
       bd.convidados ? `${bd.convidados}` : null,
-      typeof bd.data_festa === 'string' ? `data da festa ${formatDateLong(bd.data_festa)} (${bd.data_festa}) — use esta data em consultar_valor_pacote enquanto o cliente não mudar` : null,
+      typeof bd.data_festa === 'string' && bd.data_ocupada_avisada === bd.data_festa
+        ? `data pedida ${formatDateLong(bd.data_festa)} (${bd.data_festa}) — JÁ RESERVADA: o cliente já foi avisado e recebeu outras datas livres; não trate como a data da festa e, quando ele escolher outra, consulte essa nova data`
+        : typeof bd.data_festa === 'string' ? `data da festa ${formatDateLong(bd.data_festa)} (${bd.data_festa}) — use esta data em consultar_valor_pacote enquanto o cliente não mudar${
+          // Ainda não conferida com o cliente (e não vai pelo sistema depois do PDF neste turno)
+          pendingPartyDate(conv) && !conv.__deferMaterials ? '; ainda NÃO conferida na agenda: antes de convidar para visita, use consultar_datas_livres com essa data e conte ao cliente se está livre' : ''}` : null,
     ].filter(Boolean) as string[];
     const leadVisit = await loadLeadVisit(supabase, conv.lead_id);
     const visitConfirmPending = leadVisit ? !!(await loadPendingVisitConfirmation(supabase, leadVisit.id)) : false;
@@ -2416,6 +2485,19 @@ export async function maybeHandleWithAiAgent(
           let toolResult = 'ERRO: ferramenta desconhecida.';
           if (call.name === 'registrar_dados_festa') {
             toolResult = await toolRegistrarDados(supabase, instance, conv, phone, contactName, botSettings, args);
+            // Materiais saíram agora e a resposta da IA vem depois do PDF: ela
+            // já conta da data da festa (livre ou reservada, com outras datas)
+            const pendingDate = toolResult.startsWith('OK: dados salvos e os materiais foram enviados agora') ? pendingPartyDate(conv) : null;
+            if (pendingDate) {
+              const pd = await checkPartyDate(supabase, instance, settings, pendingDate);
+              await markPartyDateChecked(supabase, conv, pd);
+              const day = formatDateLong(pd.date);
+              toolResult += pd.status === 'free'
+                ? ` DATA DA FESTA: ${day} está disponível neste momento — conte isso junto do convite para visita (ex.: "e uma notícia boa: o ${day} ainda está livre na agenda ✅"). Não diga que reservou ou segurou a data.`
+                : pd.alternatives
+                ? ` DATA DA FESTA: ${day} ${pd.status === 'recess' ? 'cai no RECESSO do buffet (sem festas)' : 'JÁ FOI RESERVADA'}. Nesta resposta NÃO convide para visita: avise com gentileza (ex.: "o ${day} já foi reservado 😕") e ofereça estas datas livres — linhas prontas, copie como estão:\n${pd.alternatives}\nTermine perguntando se alguma delas funciona, e no fim, entre parênteses: "(A data fica garantida com contrato e sinal ✨)".`
+                : ` DATA DA FESTA: ${day} ${pd.status === 'recess' ? 'cai no RECESSO do buffet (sem festas)' : 'JÁ FOI RESERVADA'} e não há datas livres por perto. Avise com gentileza, diga que vai ver com a equipe as melhores opções de data e use transferir_para_atendente (motivo: "data pedida (${day}) já reservada, sem datas livres por perto — ofereça opções").`;
+            }
           } else if (call.name === 'agendar_visita') {
             toolResult = await toolAgendarVisita(supabase, instance, conv, phone, contactName, settings, args);
           } else if (call.name === 'confirmar_visita' && visitConfirmPending) {
@@ -2423,7 +2505,7 @@ export async function maybeHandleWithAiAgent(
           } else if (call.name === 'enviar_materiais') {
             toolResult = await toolEnviarMateriais(supabase, instance, conv, phone, contactName, String(args.tipo || ''), args.reenviar === true);
           } else if (call.name === 'consultar_datas_livres') {
-            toolResult = await toolConsultarDatas(supabase, instance, settings, args);
+            toolResult = await toolConsultarDatas(supabase, instance, settings, args, conv);
           } else if (call.name === 'consultar_valor_pacote' && !clientAskedPrice(priceTurns)) {
             // Valor aberto só para quem perguntou o preço (pedir "orçamento" não conta)
             toolResult = 'NÃO PASSE VALORES: o cliente ainda não perguntou o preço (pedir "orçamento" não é perguntar o preço). Não escreva nenhum valor em R$ nem ofereça passar. Os pacotes estão no PDF; responda o que ele disse e conduza para a data e a visita.';
@@ -2603,10 +2685,34 @@ export async function maybeHandleWithAiAgent(
             const seed = Math.floor(Date.now() / 1000);
             const recentInvite = repliesSinceVisitInvite(chatMessages);
             const canInvite = !leadVisit && !(recentInvite !== null && recentInvite < 3) && !clientDeclined(lastUserText);
-            const closing = parts.after
+            let closing = parts.after
               || (canInvite ? visitInviteAfterMaterials(firstName, pickTwoOffers(available), ymdBR(Date.now()), seed) : null)
               || closingAfterMaterials(firstName, seed);
-            await sendViaWapiSend(supabase, 'send-text', instance, conv, { message: closing, delayTyping: 2 });
+            // Data da festa pedida: livre → boa notícia junto do convite;
+            // reservada → no lugar do convite, aviso com datas livres (o
+            // convite fica para depois que ele escolher)
+            const pendingDate = pendingPartyDate(conv);
+            const pd = conv.__partyDate && conv.__partyDate.date === pendingDate
+              ? conv.__partyDate
+              : pendingDate ? await checkPartyDate(supabase, instance, settings, pendingDate) : null;
+            if (pd && pd.status === 'free') {
+              closing = `${partyDateFreeNote(pd.date)}\n\n${closing}`;
+            } else if (pd) {
+              closing = partyDateTakenMessage({
+                firstName,
+                ymd: pd.date,
+                alternatives: pd.alternatives,
+                recess: pd.status === 'recess',
+                birthdayName: firstNameOrEmpty(String((conv.bot_data as Json | null)?.aniversariante || '')) || null,
+              });
+            }
+            const closingSent = await sendViaWapiSend(supabase, 'send-text', instance, conv, { message: closing, delayTyping: 2 });
+            if (pd && closingSent) {
+              await markPartyDateChecked(supabase, conv, pd);
+              if (pd.status !== 'free' && !pd.alternatives) {
+                await toolTransferir(supabase, instance, conv, phone, contactName, settings, `data pedida (${formatDateLong(pd.date)}) já reservada, sem datas livres por perto — ofereça opções`);
+              }
+            }
           }
         }
       }

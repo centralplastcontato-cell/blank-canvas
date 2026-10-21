@@ -425,8 +425,9 @@ export async function runAiJourney(
         const partyYmd = typeof bd.data_festa === "string" && bd.data_festa >= todayYmd ? bd.data_festa : null;
         const promo = findPromotion(settings.extra_instructions, todayYmd);
         const dateFree = partyYmd ? await partyDateFreeSlots(supabase, settings, instance.company_id, partyYmd) : null;
-        // Lembrete antes da festa: datas alternativas reais (data ocupada ou só o mês)
-        const alternatives = plan.action.kind === "reactivation" && party && (!party.exact || (dateFree !== null && dateFree.length === 0))
+        // Datas alternativas reais: data pedida já reservada (qualquer mensagem
+        // da jornada) ou, no lembrete antes da festa, só o mês
+        const alternatives = party && ((party.exact && dateFree !== null && dateFree.length === 0) || (plan.action.kind === "reactivation" && !party.exact))
           ? await alternativeDates(supabase, settings, instance.company_id, party, todayYmd)
           : null;
         const instruction = followUpInstruction({
