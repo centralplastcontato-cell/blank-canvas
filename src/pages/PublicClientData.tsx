@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, CheckCircle2, User, CreditCard, MapPin, Mail, Calendar, FileText, Baby, Plus, Trash2 } from "lucide-react";
+import { Loader2, CheckCircle2, User, CreditCard, MapPin, Mail, Calendar, FileText, Baby, Plus, Trash2, MessageCircle, Instagram } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatCPF, isValidCPF } from "@/lib/mask-utils";
 
@@ -98,6 +98,20 @@ function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: 
   );
 }
 
+function whatsappDigits(raw: unknown): string | null {
+  const d = String(raw || "").replace(/\D/g, "");
+  if (d.length < 10) return null;
+  return d.startsWith("55") ? d : `55${d}`;
+}
+
+function instagramUrl(raw: unknown): string | null {
+  const v = String(raw || "").trim();
+  if (!v) return null;
+  if (/^https?:\/\//i.test(v)) return v;
+  const handle = v.replace(/^@/, "").replace(/^(www\.)?instagram\.com\//i, "").replace(/\/.*$/, "");
+  return handle ? `https://instagram.com/${handle}` : null;
+}
+
 export default function PublicClientData() {
   const { token } = useParams<{ token: string }>();
   const [loading, setLoading] = useState(true);
@@ -108,6 +122,8 @@ export default function PublicClientData() {
   const [error, setError] = useState<string | null>(null);
   const [fetchingCep, setFetchingCep] = useState(false);
   const [cpfError, setCpfError] = useState<string | null>(null);
+  // WhatsApp e Instagram do buffet (os mesmos do site) para a tela final
+  const [contacts, setContacts] = useState<{ whatsapp: string | null; instagram: string | null }>({ whatsapp: null, instagram: null });
 
   useEffect(() => {
     if (!token) return;
@@ -124,6 +140,9 @@ export default function PublicClientData() {
       }
       setRequestInfo(info);
       setLoading(false);
+      const { data: fields } = await supabase.rpc("get_onboarding_public_fields", { _company_id: info.company_id });
+      const row = ((fields as any[]) || [])[0];
+      if (row) setContacts({ whatsapp: whatsappDigits(row.whatsapp_numbers?.[0]), instagram: instagramUrl(row.instagram) });
     };
     fetchRequest();
   }, [token]);
@@ -206,22 +225,66 @@ export default function PublicClientData() {
   }
 
   if (submitted) {
+    const firstName = form.nome.trim().split(/\s+/)[0] || "";
+    const child = form.birthday_children.find((c) => c.name.trim())?.name.trim().split(/\s+/)[0] || "";
+    const partyDate = requestInfo?.event_date
+      ? new Date(`${requestInfo.event_date}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" })
+      : "";
+    const steps = [
+      { done: true, text: "Recebemos seus dados" },
+      { done: false, text: "Nossa equipe prepara o contrato" },
+      { done: false, text: "Você recebe o contrato para assinar pelo WhatsApp" },
+    ];
     return (
-      <div className="min-h-screen bg-muted/40 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-muted/40 px-5 py-10 sm:py-14">
         <Helmet>
           <title>Dados enviados | {requestInfo?.company_name}</title>
         </Helmet>
-        <div className="text-center space-y-5 max-w-md">
+        <div className="mx-auto max-w-md space-y-6 text-center">
           {requestInfo?.company_logo && (
-            <img src={requestInfo.company_logo} alt={requestInfo.company_name} className="h-16 mx-auto object-contain" />
+            <img src={requestInfo.company_logo} alt={requestInfo.company_name} className="mx-auto h-28 w-auto max-w-[260px] object-contain sm:h-32" />
           )}
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-green-500/10 flex items-center justify-center">
-            <CheckCircle2 className="h-8 w-8 text-green-600" />
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-green-500/10">
+            <CheckCircle2 className="h-9 w-9 text-green-600" />
           </div>
-          <h1 className="text-xl font-bold text-foreground">Dados enviados com sucesso!</h1>
-          <p className="text-muted-foreground">
-            Obrigado por preencher seus dados. O buffet será notificado e entrará em contato.
-          </p>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold text-foreground">{firstName ? `Obrigado, ${firstName}! 🎉` : "Obrigado! 🎉"}</h1>
+            <p className="text-muted-foreground">Recebemos seus dados. Nossa equipe já está com tudo para preparar o contrato.</p>
+          </div>
+
+          {(child || partyDate) && (
+            <div className="rounded-2xl border border-border/40 bg-card px-5 py-4 shadow-sm">
+              <p className="text-base font-semibold text-foreground">🎂 {child ? `Aniversário de ${child}` : "Sua festa"}</p>
+              {partyDate && <p className="mt-0.5 text-sm capitalize text-muted-foreground">{partyDate}</p>}
+            </div>
+          )}
+
+          <div className="rounded-2xl border border-border/40 bg-card p-5 text-left shadow-sm">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">O que acontece agora</p>
+            <ol className="space-y-3">
+              {steps.map((st, i) => (
+                <li key={i} className="flex items-center gap-3 text-sm">
+                  <span className={st.done ? "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-600 text-white" : "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted font-semibold text-muted-foreground"}>
+                    {st.done ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
+                  </span>
+                  <span className={st.done ? "font-medium text-foreground" : "text-foreground"}>{st.text}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          <div className="space-y-3">
+            {contacts.whatsapp && (
+              <a href={`https://wa.me/${contacts.whatsapp}`} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] font-semibold text-white shadow-sm hover:opacity-95">
+                <MessageCircle className="h-5 w-5" /> Voltar para o WhatsApp
+              </a>
+            )}
+            {contacts.instagram && (
+              <a href={contacts.instagram} target="_blank" rel="noreferrer" className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card font-semibold text-foreground shadow-sm hover:bg-muted/50">
+                <Instagram className="h-5 w-5 text-pink-600" /> Siga a gente no Instagram
+              </a>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -237,7 +300,7 @@ export default function PublicClientData() {
       <header className="border-b border-border/40 bg-card shadow-sm">
         <div className="max-w-2xl mx-auto flex items-center gap-4 px-6 py-4">
           {requestInfo?.company_logo && (
-            <img src={requestInfo.company_logo} alt={requestInfo?.company_name} className="h-11 object-contain" />
+            <img src={requestInfo.company_logo} alt={requestInfo?.company_name} className="h-14 w-auto max-w-[140px] object-contain" />
           )}
           <div>
             <h1 className="text-base font-bold text-foreground tracking-tight">{requestInfo?.company_name}</h1>
