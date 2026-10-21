@@ -856,6 +856,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
   // Festa nova ligada a um lead: data (dia/mês do lead) e convidados já vêm
   // preenchidos — só o que ainda está vazio, uma vez por lead
   const prefilledLeadRef = useRef<string | null>(null);
+  // Convidados que o cliente falou no primeiro contato (o combinado pode ter mudado na conversa)
+  const [guestsFromLead, setGuestsFromLead] = useState<number | null>(null);
   useEffect(() => {
     if (!open || !leadForClientData || prefilledLeadRef.current === leadForClientData) return;
     prefilledLeadRef.current = leadForClientData;
@@ -873,7 +875,10 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
           setDateMonth(p.month);
           if (p.year && !dateYear) setDateYear(p.year);
         }
-        if (p.guests) setForm((prev) => (prev.guest_count ? prev : { ...prev, guest_count: p.guests }));
+        if (p.guests) {
+          setGuestsFromLead(p.guests);
+          setForm((prev) => (prev.guest_count ? prev : { ...prev, guest_count: p.guests }));
+        }
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, leadForClientData]);
@@ -1761,6 +1766,11 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                   disabled={pricingMode === 'per_person'}
                   className={pricingMode === 'per_person' ? 'opacity-60' : ''}
                 />
+                {!eventId && guestsFromLead !== null && form.guest_count === guestsFromLead && pricingMode !== 'per_person' && (
+                  <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                    Veio do primeiro contato do cliente. Confira com o que foi combinado na conversa.
+                  </p>
+                )}
                 {pricingMode === 'per_person' && (
                   <p className="text-[10px] text-muted-foreground">Auto-calculado: {(adultCount || 0)} adultos + {(childCount || 0)} crianças</p>
                 )}
