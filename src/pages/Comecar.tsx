@@ -35,7 +35,7 @@ export default function Comecar() {
         }
       }
       if (msg) throw new Error(msg);
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: "local" });
       const { error: loginErr } = await supabase.auth.signInWithPassword({ email: form.email.trim().toLowerCase(), password: form.password });
       if (loginErr) throw new Error("Conta criada! Entre com o seu e-mail e senha para continuar.");
       if (data?.company_id) localStorage.setItem("selected_company_id", data.company_id);

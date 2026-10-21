@@ -96,7 +96,7 @@ export default function Configuracoes() {
   }, [user]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
     showLogoutToast();
     navigate("/auth");
   };

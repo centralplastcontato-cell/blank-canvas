@@ -81,7 +81,7 @@ export default function HubLogin() {
       const hasAccess = await checkHubAccess(data.user.id);
       if (!hasAccess && (await goToPlatform(data.user.id))) return;
       if (!hasAccess) {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: "local" });
         toast({
           title: "Acesso negado",
           description: "Sua conta não tem permissão para acessar o Hub.",

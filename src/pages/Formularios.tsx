@@ -104,7 +104,7 @@ export default function Formularios() {
     return visibleSections[0]?.value || "formularios";
   }, [activeSection, visibleSections]);
 
-  const handleLogout = async () => { await supabase.auth.signOut(); navigate("/auth"); };
+  const handleLogout = async () => { await supabase.auth.signOut({ scope: "local" }); navigate("/auth"); };
   const handleRefresh = () => { window.location.reload(); };
 
   const handleSectionChange = (section: string) => {

@@ -774,7 +774,7 @@ export default function CentralAtendimento() {
   useLeadsRealtime(handleLeadInsert, handleLeadUpdate, handleLeadDelete, { debounceMs: 300 }, currentCompany?.id);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
     showLogoutToast();
     navigate("/auth");
   };

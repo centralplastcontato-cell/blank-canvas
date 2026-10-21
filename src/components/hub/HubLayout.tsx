@@ -84,7 +84,7 @@ export function HubLayout({ children, currentPage, header }: HubLayoutProps) {
   }, [canAccess, navigate]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
     navigate("/hub-login");
   };
 
