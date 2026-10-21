@@ -148,7 +148,7 @@ function Field({ label, value }: { label: string; value: string }) {
     <button type="button" onClick={copy} className="group flex w-full items-start justify-between gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-muted/60">
       <span className="shrink-0 text-xs text-muted-foreground pt-0.5">{label}</span>
       <span className="flex min-w-0 items-start gap-1.5 text-right text-sm font-medium text-foreground">
-        <span className="break-words">{value}</span>
+        <span className="[overflow-wrap:anywhere]">{value}</span>
         <Copy className="mt-0.5 h-3 w-3 shrink-0 opacity-30 group-hover:opacity-70" />
       </span>
     </button>
@@ -184,42 +184,47 @@ function ClientDataDialog({ open, onOpenChange, data }: { open: boolean; onOpenC
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-y-auto rounded-3xl p-5 sm:rounded-3xl">
-        <DialogHeader className="space-y-1 text-left">
+      <DialogContent className="flex w-[calc(100%-2rem)] max-w-md flex-col gap-0 overflow-hidden rounded-3xl p-0 max-h-[85vh] sm:max-w-3xl sm:rounded-3xl">
+        <DialogHeader className="space-y-1 px-5 pb-3 pt-5 pr-12 text-left sm:px-6 sm:pt-6">
           <DialogTitle className="flex items-center gap-2 text-lg">
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500/15 text-base">✅</span>
             Dados do contratante
           </DialogTitle>
           <DialogDescription className="text-xs">Preenchidos pelo cliente. Já vão para a festa e para o contrato. Toque num dado para copiar.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
-          <Section icon="👤" title="Contratante">
-            <Field label="Nome" value={String(d.nome || "")} />
-            <Field label="CPF" value={String(d.cpf || "")} />
-            <Field label="RG" value={String(d.rg || "")} />
-            <Field label="Nascimento" value={brDate(d.nascimento)} />
-            <Field label="E-mail" value={String(d.email || "")} />
-          </Section>
-          {address && (
-            <Section icon="📍" title="Endereço">
-              <Field label="Endereço" value={address} />
+        {/* Rolagem por dentro: a barra não corta os cantos arredondados */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 [scrollbar-width:thin] sm:px-6 sm:pb-6">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Section icon="👤" title="Contratante">
+              <Field label="Nome" value={String(d.nome || "")} />
+              <Field label="CPF" value={String(d.cpf || "")} />
+              <Field label="RG" value={String(d.rg || "")} />
+              <Field label="Nascimento" value={brDate(d.nascimento)} />
+              <Field label="E-mail" value={String(d.email || "")} />
             </Section>
-          )}
-          {children.length > 0 && (
-            <Section icon="🎂" title={`Aniversariante${children.length > 1 ? "s" : ""}`}>
-              {children.map((c, i) => (
-                <Field key={i} label={String(c.name)} value={[c.age && `${c.age} anos`, c.birthdate && brDate(c.birthdate)].filter(Boolean).join(" · ") || "—"} />
-              ))}
-            </Section>
-          )}
-          {people.length > 0 && (
-            <Section icon="👨‍👩‍👧" title="Responsáveis">
-              {people.map((r, i) => (
-                <Field key={i} label={`${r.name}${r.relation ? ` (${r.relation})` : ""}`} value={brPhone(r.phone) || "—"} />
-              ))}
-            </Section>
-          )}
-          <Button variant="outline" className="w-full rounded-xl" onClick={copyAll}>
+            <div className="space-y-3">
+              {address && (
+                <Section icon="📍" title="Endereço">
+                  <Field label="Endereço" value={address} />
+                </Section>
+              )}
+              {children.length > 0 && (
+                <Section icon="🎂" title={`Aniversariante${children.length > 1 ? "s" : ""}`}>
+                  {children.map((c, i) => (
+                    <Field key={i} label={String(c.name)} value={[c.age && `${c.age} anos`, c.birthdate && brDate(c.birthdate)].filter(Boolean).join(" · ") || "—"} />
+                  ))}
+                </Section>
+              )}
+              {people.length > 0 && (
+                <Section icon="👨‍👩‍👧" title="Responsáveis">
+                  {people.map((r, i) => (
+                    <Field key={i} label={`${r.name}${r.relation ? ` (${r.relation})` : ""}`} value={brPhone(r.phone) || "—"} />
+                  ))}
+                </Section>
+              )}
+            </div>
+          </div>
+          <Button variant="outline" className="mt-3 w-full rounded-xl" onClick={copyAll}>
             <Copy className="mr-2 h-4 w-4" /> Copiar todos os dados
           </Button>
         </div>
