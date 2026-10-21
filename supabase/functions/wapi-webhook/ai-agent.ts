@@ -542,6 +542,7 @@ interface PromptContext {
   visitSlotsText: string; // horários de visita livres dos próximos dias
   weekdayNote: string | null; // cliente escreveu dia da semana que não bate com a data
   houseNote: string | null; // cliente perguntou de regra do cadastro (comida de fora, animal)
+  singleVenue: boolean; // buffet com um único espaço físico (sem outra unidade/filial)
   recessNote: string | null; // recesso / dias fechados (Configurar IA)
   materialsNote: string | null; // fotos/vídeo/PDF saem logo depois da resposta deste turno
   promoNote: string | null; // promoção vigente do cadastro: quando e como oferecer
@@ -570,9 +571,9 @@ function buildSystemPrompt(companyName: string, unit: string, settings: AiSettin
     ? ctx.offers.map(formatSlot).join(' ou ')
     : 'nenhum horário livre nos próximos dias — nesse caso transfira para a equipe';
   const assistantName = String(settings.assistant_name || '').trim();
-  return `Você é ${assistantName ? `a ${assistantName}, ` : ''}a assistente virtual de vendas do ${companyName} (buffet infantil), atendendo pelo WhatsApp da unidade ${unit}. Hoje é ${today}.${assistantName ? ` SEU NOME é ${assistantName} (definido nas configurações): use sempre este nome, mesmo que as informações do buffet ou mensagens antigas da conversa citem outro.` : ''}
+  return `Você é ${assistantName ? `a ${assistantName}, ` : ''}a assistente virtual de vendas do ${companyName} (buffet infantil), atendendo por um dos WhatsApps de atendimento ("${unit}" é só o nome interno deste número: nunca cite ao cliente nem chame de unidade). Hoje é ${today}.${assistantName ? ` SEU NOME é ${assistantName} (definido nas configurações): use sempre este nome, mesmo que as informações do buffet ou mensagens antigas da conversa citem outro.` : ''}
 
-${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}${ctx.houseNote ? `ATENÇÃO — REGRA DO BUFFET: ${ctx.houseNote}\n\n` : ''}${ctx.recessNote ? `ATENÇÃO — ${ctx.recessNote}\n\n` : ''}${ctx.intentNote ? `ATENÇÃO — QUEM É O CONTATO: ${ctx.intentNote}\n\n` : ''}${ctx.promoNote ? `${ctx.promoNote}\n\n` : ''}${ctx.materialsNote ? `ATENÇÃO — MATERIAIS NESTE TURNO: ${ctx.materialsNote}\n\n` : ''}MENSAGENS DA EQUIPE: no histórico, o que começa com "[Equipe]" foi escrito por uma pessoa da equipe, não por você. Respeite o que ela combinou (valores, condições, horários, visitas): não contradiga nem repita; se o cliente pedir algo além do que ela combinou, passe para a equipe. Nunca escreva "[Equipe]" nas suas respostas.
+${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}${ctx.houseNote ? `ATENÇÃO — REGRA DO BUFFET: ${ctx.houseNote}\n\n` : ''}${ctx.singleVenue ? `ESPAÇO ÚNICO: o ${companyName} tem UM único espaço (o endereço das informações do buffet). NÃO existe outra unidade ou filial. Se o cliente perguntar de outra unidade ("unidade 1", outro endereço, qual fica mais perto), responda com naturalidade que hoje o ${companyName} fica só nesse endereço e siga a conversa. Nunca diga "esta unidade", nunca dê a entender que existe outra e não passe para a equipe por isso.\n\n` : ''}${ctx.recessNote ? `ATENÇÃO — ${ctx.recessNote}\n\n` : ''}${ctx.intentNote ? `ATENÇÃO — QUEM É O CONTATO: ${ctx.intentNote}\n\n` : ''}${ctx.promoNote ? `${ctx.promoNote}\n\n` : ''}${ctx.materialsNote ? `ATENÇÃO — MATERIAIS NESTE TURNO: ${ctx.materialsNote}\n\n` : ''}MENSAGENS DA EQUIPE: no histórico, o que começa com "[Equipe]" foi escrito por uma pessoa da equipe, não por você. Respeite o que ela combinou (valores, condições, horários, visitas): não contradiga nem repita; se o cliente pedir algo além do que ela combinou, passe para a equipe. Nunca escreva "[Equipe]" nas suas respostas.
 
 SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até AGENDAR UMA VISITA ao buffet. A visita é o passo que mais fecha festas.
 
@@ -2368,6 +2369,10 @@ export async function maybeHandleWithAiAgent(
     const visitConfirmPending = leadVisit ? !!(await loadPendingVisitConfirmation(supabase, leadVisit.id)) : false;
     // Regras do cadastro (comida de fora, animal): a IA recebe a resposta exata quando o cliente pergunta
     const houseRules = parseHouseRules(settings.extra_instructions);
+    // Um único espaço físico ativo: a IA não pode dar a entender que existe outra unidade
+    const { data: physicalUnits } = await supabase.from('company_units').select('name')
+      .eq('company_id', instance.company_id).eq('is_active', true).eq('is_physical', true);
+    const singleVenue = ((physicalUnits || []) as Array<{ name: string }>).filter((u) => !/trabalhe conosco/i.test(u?.name || '')).length <= 1;
     const askedTopics = topicsAsked(lastUserText);
     const systemPrompt = buildSystemPrompt(companyName, instance.unit, settings, today, {
       offers: pickTwoOffers(available),
@@ -2393,6 +2398,7 @@ export async function maybeHandleWithAiAgent(
         return wrong.length > 0 ? wrong.map((w) => `o cliente escreveu "${w.said}", mas no calendário é "${w.right}".`).join(' ') : null;
       })(),
       houseNote: houseRuleNote(houseRules, askedTopics),
+      singleVenue,
       recessNote: closedPeriodsNote(closedPeriods, ymdBR(nowMs)),
       materialsNote,
       intentNote: (() => {
@@ -2516,7 +2522,10 @@ export async function maybeHandleWithAiAgent(
             const motivo = String(args.motivo || '');
             // Visita (marcar, trocar, outro horário) a IA resolve sozinha — o
             // simulador pegou ela passando "troca de visita" para a equipe
-            if (/visita|remarc/i.test(motivo) && !/atendente|pessoa|humano|reclama/i.test(motivo)) {
+            if (singleVenue && /unidade|filial/i.test(motivo) && !/atendente|pessoa|humano|reclama/i.test(motivo)) {
+              toolResult = `NÃO TRANSFIRA por causa de unidade: o ${companyName} tem um único espaço (o endereço das informações do buffet), não existe outra unidade. Diga isso com naturalidade ao cliente e siga a conversa.`;
+              console.log(`[AI Agent] Passagem por "outra unidade" recusada — espaço único (conv ${conv.id})`);
+            } else if (/visita|remarc/i.test(motivo) && !/atendente|pessoa|humano|reclama/i.test(motivo)) {
               toolResult = 'NÃO TRANSFIRA por causa de visita: você mesma resolve. Ofereça horários livres da lista de visitas do sistema (2 opções no dia/turno que o cliente pediu) e, quando ele escolher, use agendar_visita — com remarcar=true se ele já tem visita marcada.';
               console.log(`[AI Agent] Passagem por visita recusada (conv ${conv.id}): ${motivo.slice(0, 80)}`);
             } else {
