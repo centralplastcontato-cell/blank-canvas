@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { clientDataLink, dueReminder, fillClientDataTemplate, isOverdue, normalizeReminderHours, shortClientToken } from "./client-data.ts";
+import { clientDataLink, dueReminder, fillClientDataTemplate, hasCpfInText, isOverdue, normalizeReminderHours, shortClientToken } from "./client-data.ts";
 
 Deno.test("clientDataLink: domínio do buffet, link curto", () => {
   assertEquals(clientDataLink("K7M2QX9", "www.castelodadiversao.com.br"), "www.castelodadiversao.com.br/dados/K7M2QX9");
@@ -30,4 +30,12 @@ Deno.test("dueReminder / isOverdue: prazos a partir do envio", () => {
   assertEquals(isOverdue({ sent_at: sent, reminder_count: 99, last_reminder_at: last }, [24, 48, 72], h(300)), false);
   assertEquals(normalizeReminderHours([72, 24, "48"]), [24, 48, 72]);
   assertEquals(normalizeReminderHours(null), [24, 48, 72]);
+});
+
+Deno.test("hasCpfInText: CPF válido mandado pelo chat", () => {
+  assertEquals(hasCpfInText("Meu CPF é 323.243.778-88"), true);
+  assertEquals(hasCpfInText("cpf 32324377888 rg 29627570"), true);
+  assertEquals(hasCpfInText("telefone 15981121710"), false);
+  assertEquals(hasCpfInText("111.111.111-11"), false);
+  assertEquals(hasCpfInText("oi, tudo bem?"), false);
 });
