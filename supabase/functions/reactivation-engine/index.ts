@@ -231,7 +231,7 @@ Deno.serve(async (req) => {
         // Batch fetch: existing history
         const { data: existingHistory } = await supabase
           .from("lead_reactivation_history")
-          .select("lead_id, reactivation_stage, status")
+          .select("lead_id, reactivation_stage, status, created_at")
           .eq("company_id", settings.company_id)
           .in("lead_id", leadIds)
           .in("status", ["sent", "pending"]);
@@ -239,6 +239,8 @@ Deno.serve(async (req) => {
         const historyMap = new Map<string, Set<string>>();
         const sentCountMap = new Map<string, number>();
         for (const h of (existingHistory || [])) {
+          // Reserva travada há mais de 2 h não conta: a etapa é tentada de novo
+          if (h.status === "pending" && Date.now() - Date.parse(h.created_at) > 2 * 3600000) continue;
           if (!historyMap.has(h.lead_id)) historyMap.set(h.lead_id, new Set());
           historyMap.get(h.lead_id)!.add(h.reactivation_stage);
           if (h.status === 'sent') {
@@ -301,7 +303,7 @@ Deno.serve(async (req) => {
 
         const { data: instances } = await supabase
           .from("wapi_instances")
-          .select("id, instance_id, instance_token, unit, status, provider")
+          .select("id, instance_id, instance_token, client_token, unit, status, provider")
           .eq("company_id", settings.company_id)
           .eq("status", "connected");
 
@@ -348,19 +350,29 @@ Deno.serve(async (req) => {
               const leadStages = historyMap.get(lead.id);
               if (leadStages?.has(stage.stage)) continue;
 
-              // Per-lead dedup check
+              // Per-lead dedup check (único por lead + etapa). Tentativa que falhou
+              // (ex.: número Z-API antes de ter envio por ela) ou reserva travada há
+              // mais de 2 h volta a valer: reaproveita o registro em vez de pular o lead.
               const { data: existingRecord } = await supabase
                 .from("lead_reactivation_history")
-                .select("id")
+                .select("id, status, created_at")
                 .eq("lead_id", lead.id)
                 .eq("reactivation_stage", stage.stage)
                 .limit(1)
                 .maybeSingle();
 
-              if (existingRecord) continue;
+              if (existingRecord) {
+                const stalePending = existingRecord.status === "pending" && Date.now() - Date.parse(existingRecord.created_at) > 2 * 3600000;
+                if (existingRecord.status !== "failed" && !stalePending) continue;
+                const { data: reclaimed } = await supabase.from("lead_reactivation_history")
+                  .update({ status: "pending", failure_reason: null, sent_at: null, created_at: new Date().toISOString() })
+                  .eq("id", existingRecord.id).eq("status", existingRecord.status)
+                  .select("id");
+                if (!reclaimed || reclaimed.length === 0) continue;
+              }
 
               // Reserve slot
-              const { error: reserveErr } = await supabase.from("lead_reactivation_history").insert({
+              const { error: reserveErr } = existingRecord ? { error: null } : await supabase.from("lead_reactivation_history").insert({
                 company_id: settings.company_id,
                 lead_id: lead.id,
                 conversation_id: null as unknown as string,
@@ -448,11 +460,18 @@ Deno.serve(async (req) => {
               }
               if (slot.paced) pacedOut.add(instance.id);
 
-              // Evolution Go: envia pela Evolution (o resto segue pela W-API como antes)
+              // Evolution Go pela Evolution, Z-API pela Z-API (antes ia para a W-API e
+              // falhava com "instância não encontrada"); o resto segue pela W-API
               const sendResponse = instance.provider === "evolution"
                 ? await evolutionSendText(instance.instance_token, phone, message).then((r) =>
                   new Response(JSON.stringify(r.ok ? { messageId: extractEvolutionMessageId(r.data) } : { error: r.error }), { status: r.ok ? 200 : 502 })
                 )
+                : instance.provider === "zapi"
+                ? await fetch(`https://api.z-api.io/instances/${instance.instance_id}/token/${instance.instance_token}/send-text`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", ...(instance.client_token ? { "Client-Token": instance.client_token } : {}) },
+                  body: JSON.stringify({ phone: phone.replace(/\D/g, ""), message }),
+                })
                 : await fetch(
                 `https://api.w-api.app/v1/message/send-text?instanceId=${instance.instance_id}`,
                 {
@@ -477,7 +496,7 @@ Deno.serve(async (req) => {
               } else {
                 try {
                   const sendData = await sendResponse.json();
-                  sentMsgId = sendData?.result?.key?.id || sendData?.key?.id || sendData?.messageId || null;
+                  sentMsgId = sendData?.result?.key?.id || sendData?.key?.id || sendData?.messageId || sendData?.zaapId || null;
                 } catch { /* ignore */ }
                 console.log(`[reactivation-engine] ✅ Sent ${stage.stage} to ${phone} (lead: ${lead.name})`);
               }
