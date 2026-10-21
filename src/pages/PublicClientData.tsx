@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, CheckCircle2, User, CreditCard, MapPin, Mail, Calendar, FileText, Baby, Plus, Trash2, MessageCircle, Instagram } from "lucide-react";
+import { Loader2, CheckCircle2, User, CreditCard, MapPin, Mail, Calendar, FileText, Baby, Plus, Trash2, MessageCircle, Instagram, PartyPopper } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatCPF, isValidCPF } from "@/lib/mask-utils";
 
@@ -50,6 +50,9 @@ interface ClientFormData {
   estado: string;
   birthday_children: BirthdayChild[];
   responsaveis: Responsible[];
+  // Festa: o pacote que fechou e os convidados (o buffet confere)
+  pacote: string;
+  convidados: string;
 }
 
 const EMPTY_FORM: ClientFormData = {
@@ -67,6 +70,8 @@ const EMPTY_FORM: ClientFormData = {
   estado: "",
   birthday_children: [{ name: "", age: "", birthdate: "" }],
   responsaveis: [{ name: "", phone: "", relation: "" }, { name: "", phone: "", relation: "" }],
+  pacote: "",
+  convidados: "",
 };
 
 const RELATIONS = [
@@ -125,6 +130,8 @@ export default function PublicClientData() {
   const [error, setError] = useState<string | null>(null);
   const [fetchingCep, setFetchingCep] = useState(false);
   const [cpfError, setCpfError] = useState<string | null>(null);
+  // Pacotes ativos do buffet (sem a função no banco: o pacote vira campo de texto)
+  const [packages, setPackages] = useState<string[]>([]);
   // WhatsApp e Instagram do buffet (os mesmos do site) para a tela final
   const [contacts, setContacts] = useState<{ whatsapp: string | null; instagram: string | null }>({ whatsapp: null, instagram: null });
 
@@ -141,6 +148,9 @@ export default function PublicClientData() {
       if (info.status === "completed" || info.status === "reviewed") {
         setSubmitted(true);
       }
+      supabase.rpc("get_client_data_packages" as any, { _token: token }).then(({ data: pk }) => {
+        if (Array.isArray(pk)) setPackages((pk as Array<{ name: string }>).map((p) => p.name).filter(Boolean));
+      });
       setRequestInfo(info);
       setLoading(false);
       const { data: fields } = await supabase.rpc("get_onboarding_public_fields", { _company_id: info.company_id });
@@ -488,6 +498,46 @@ export default function PublicClientData() {
                     className="bg-muted/30 border-border/50 focus:bg-background"
                   />
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section: Festa (pacote e convidados que a cliente fechou; o buffet confere) */}
+          <div className="rounded-2xl border border-border/40 bg-card p-5 sm:p-6 shadow-sm">
+            <SectionHeader icon={PartyPopper} label="Sua Festa" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground">Pacote escolhido</Label>
+                {packages.length > 0 ? (
+                  <Select value={form.pacote} onValueChange={(v) => setForm({ ...form, pacote: v })}>
+                    <SelectTrigger className="bg-muted/30 border-border/50 focus:bg-background">
+                      <SelectValue placeholder="Selecione o pacote" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {packages.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                      <SelectItem value="Ainda não sei">Ainda não sei</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={form.pacote}
+                    onChange={(e) => setForm({ ...form, pacote: e.target.value })}
+                    placeholder="Ex.: Festa Premium"
+                    className="bg-muted/30 border-border/50 focus:bg-background"
+                  />
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground">Quantidade de convidados</Label>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  value={form.convidados}
+                  onChange={(e) => setForm({ ...form, convidados: e.target.value.replace(/\D/g, "").slice(0, 4) })}
+                  placeholder="Ex.: 60"
+                  className="bg-muted/30 border-border/50 focus:bg-background"
+                />
               </div>
             </div>
           </div>
