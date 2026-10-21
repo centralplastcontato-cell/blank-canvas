@@ -19,7 +19,7 @@ import { loadBlockedContacts } from "../_shared/contact-block.ts";
 import { installEvolutionCallGuard } from "../_shared/evolution-guard.ts";
 import { claimSystemSendSlot } from "../_shared/system-send-pacing.ts";
 import { PARTY_SOON_ACTION, partySoon, partySoonLabel } from "../_shared/party-soon.ts";
-import { clientDataLink, DEFAULT_CLIENT_DATA_MESSAGE, DEFAULT_CLIENT_DATA_REMINDERS, dueReminder, fillClientDataTemplate, hasCpfInText, isOverdue, normalizeReminderHours, shortClientToken } from "../_shared/client-data.ts";
+import { clientDataLink, clientDataThanks, DEFAULT_CLIENT_DATA_MESSAGE, DEFAULT_CLIENT_DATA_REMINDERS, dueReminder, fillClientDataTemplate, hasCpfInText, isOverdue, normalizeReminderHours, shortClientToken } from "../_shared/client-data.ts";
 
 type SupabaseAdmin = any;
 
@@ -2828,12 +2828,12 @@ async function processClientDataRequests({
         const d = (data || [])[0]?.event_date as string | undefined;
         return d ? d.split("-").reverse().join("/") : "";
       };
-      const notifyTeam = async (leadId: string, unit: string | null, title: string, message: string, whatsappText: string) => {
+      const notifyTeam = async (leadId: string, unit: string | null, title: string, message: string, whatsappText: string, extra: Record<string, unknown> = {}) => {
         const targets = await resolveUnitNotificationTargets(supabase, companyId, unit);
         if (targets.length > 0) {
           await supabase.from("notifications").insert(targets.map((uid: string) => ({
             user_id: uid, company_id: companyId, type: "client_data", title, message,
-            data: { lead_id: leadId, reason: "client_data" }, read: false,
+            data: { lead_id: leadId, reason: "client_data", ...extra }, read: false,
           })));
         }
         const alertPhone = String(aiSettings?.handoff_alert_phone || "").replace(/\D/g, "");
@@ -2844,7 +2844,7 @@ async function processClientDataRequests({
 
       // 4) Cliente preencheu (últimos 3 dias) → avisa uma vez
       const { data: done } = await supabase.from("client_data_requests")
-        .select("id, lead_id, client_data")
+        .select("id, lead_id, client_data, completed_at")
         .eq("company_id", companyId).in("status", ["completed", "reviewed"]).is("notified_at", null)
         .gte("completed_at", new Date(nowMs - 3 * 86400000).toISOString()).limit(50);
       for (const r of (done || []) as any[]) {
@@ -2853,8 +2853,20 @@ async function processClientDataRequests({
         if (!marked || marked.length === 0) continue;
         const { data: lead } = r.lead_id ? await supabase.from("campaign_leads").select("name, unit").eq("id", r.lead_id).maybeSingle() : { data: null };
         const name = String(r.client_data?.nome || lead?.name || "Cliente");
+        // Conversa do cliente: o aviso grande da Central abre direto nela
+        const { data: convs } = r.lead_id
+          ? await supabase.from("wapi_conversations").select("id, contact_phone, remote_jid")
+            .eq("lead_id", r.lead_id).not("remote_jid", "like", "%@g.us%")
+            .order("last_message_at", { ascending: false }).limit(1)
+          : { data: [] };
+        const conv = ((convs || []) as any[])[0];
         await notifyTeam(r.lead_id, lead?.unit || null, `✅ ${name} preencheu os dados do contrato`, "Os dados já estão na festa e no contrato. Abra a conversa para conferir.",
-          `✅ *Dados do contrato recebidos*\n\n${name} preencheu o cadastro (CPF, endereço e aniversariante). Já estão na festa e no contrato. 🎉`);
+          `✅ *Dados do contrato recebidos*\n\n${name} preencheu o cadastro (CPF, endereço e aniversariante). Já estão na festa e no contrato. 🎉`,
+          conv ? { reason: "client_data_done", conversation_id: conv.id, contact_phone: String(conv.contact_phone || conv.remote_jid || "").replace(/@.*/, "") } : {});
+        // Agradece ao cliente pelo mesmo número (logo depois de preencher; resposta ao que ele acabou de fazer)
+        if (r.lead_id && r.completed_at && nowMs - Date.parse(r.completed_at) <= 6 * 3600000) {
+          if (await sendToClient(r.lead_id, clientDataThanks(name))) sent++;
+        }
       }
 
       if (!canMessageClient) continue;

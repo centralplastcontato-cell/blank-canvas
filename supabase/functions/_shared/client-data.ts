@@ -48,6 +48,14 @@ export function fillClientDataTemplate(template: string, vars: { nome?: string |
   return out;
 }
 
+/** Agradecimento ao cliente logo depois de preencher o formulário */
+export function clientDataThanks(name: string | null | undefined): string {
+  const raw = String(name || "").trim().split(/\s+/)[0] || "";
+  // "DIANDRA" → "Diandra"
+  const first = raw ? raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase() : "";
+  return `Recebemos seus dados${first ? `, ${first}` : ""}! 💜 Obrigado por preencher.\n\nAgora a equipe já consegue preparar o seu contrato 📝✨`;
+}
+
 export interface ReminderState {
   sent_at: string | null;
   reminder_count: number;
