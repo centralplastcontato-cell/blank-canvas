@@ -24,7 +24,8 @@ vi.mock("@/components/whatsapp/settings/AiTestSection", () => ({ AiTestSection: 
 vi.mock("@/components/whatsapp/settings/AutomationsSection", () => ({
   AutomationsSection: ({ tabs }: { tabs?: string[] }) => <div>automações {tabs?.join(",")}</div>,
 }));
-vi.mock("@/components/whatsapp/settings/AdvancedSection", () => ({ AdvancedSection: stub("avancado") }));
+vi.mock("@/components/admin/DataImportSection", () => ({ DataImportSection: stub("importar") }));
+vi.mock("@/components/admin/UnitColorManager", () => ({ UnitColorManager: stub("cores") }));
 
 import { SettingsHub } from "../SettingsHub";
 
@@ -36,7 +37,7 @@ describe("SettingsHub", () => {
     render(<MemoryRouter initialEntries={["/configuracoes"]}><SettingsHub {...props} isMobile /></MemoryRouter>);
     expect(screen.getByText("Meu buffet")).toBeTruthy();
     expect(screen.getByText("Inteligência Artificial")).toBeTruthy();
-    expect(screen.queryByText("Avançado")).toBeNull(); // sem permissão
+    expect(screen.queryByText("Importar dados")).toBeNull(); // só administrador
     fireEvent.click(screen.getByText("Configurar a IA"));
     expect(screen.getByText("conteúdo ia-config")).toBeTruthy();
     fireEvent.click(screen.getByText("Configurações"));
