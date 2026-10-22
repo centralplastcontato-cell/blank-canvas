@@ -5,6 +5,7 @@
 // outras conversas (bot fixo, outros números, outros buffets) seguem os
 // follow-ups de sempre, sem mudança.
 
+import { conversationPacedRecently, pacingHeldLeads } from "../_shared/auto-pacing.ts";
 import { claimSystemSendSlot, peekSystemSend } from "../_shared/system-send-pacing.ts";
 import { DEFAULT_AI_MODEL, estimateChatCostUsd, providerForModel } from "../_shared/ai-models.ts";
 import { type ChatTurn, createLlmSession } from "../wapi-webhook/ai-llm.ts";
@@ -83,7 +84,7 @@ export async function journeyOwnsConversation(supabase: Db, scope: JourneyScope,
 }
 
 /** Horários livres na agenda (festas + pré-reservas, sem o recesso) entre duas datas. Só leitura. */
-async function freeSlotsBetween(supabase: Db, settings: Json, companyId: string, from: string, to: string): Promise<FreeSlot[]> {
+export async function freeSlotsBetween(supabase: Db, settings: Json, companyId: string, from: string, to: string): Promise<FreeSlot[]> {
   const [{ data: units }, { data: events }, { data: pre }] = await Promise.all([
     supabase.from("company_units").select("name").eq("company_id", companyId).eq("is_active", true).eq("is_physical", true),
     supabase.from("company_events").select("event_date, start_time, end_time, status, unit").eq("company_id", companyId).gte("event_date", from).lte("event_date", to),
@@ -389,6 +390,15 @@ export async function runAiJourney(
           if ((visits || []).length > 0) continue;
         }
         if (await isConversationPaused(supabase, conv.id)) continue;
+        // Ritmo: etapas e lembretes antes da festa esperam se o cliente já recebeu
+        // outra mensagem automática nas últimas 24 h; na janela do pós-visita, nada
+        // (nem o perdido automático). O lembrete curto de inatividade segue.
+        if (plan.action.kind !== "inactivity") {
+          const held = conv.lead_id
+            ? (await pacingHeldLeads(supabase, instance.company_id, [conv.lead_id])).has(conv.lead_id)
+            : await conversationPacedRecently(supabase, instance.company_id, conv.id);
+          if (held) continue;
+        }
         if (!(await claim(supabase, conv.id, nowMs))) continue;
 
         if (plan.action.kind === "lost") {

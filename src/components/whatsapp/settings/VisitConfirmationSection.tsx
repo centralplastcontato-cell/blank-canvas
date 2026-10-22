@@ -27,6 +27,9 @@ interface VisitConfirmationSettings {
   reply_reschedule_message: string;
   // Lembrete na véspera (colunas novas: só aparecem depois do SQL)
   eve_reminder_enabled?: boolean;
+  post_visit_enabled?: boolean;
+  scheduled_return_enabled?: boolean;
+  auto_one_per_day?: boolean;
   eve_reminder_hour?: number;
 }
 
@@ -79,6 +82,8 @@ export function VisitConfirmationSection() {
   const [settings, setSettings] = useState<VisitConfirmationSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [hasPostVisit, setHasPostVisit] = useState(false);
+  const [hasReturn, setHasReturn] = useState(false);
   const [hasEve, setHasEve] = useState(false);
 
   useEffect(() => {
@@ -100,6 +105,11 @@ export function VisitConfirmationSection() {
     // Colunas do lembrete na véspera já existem no banco?
     const { error: eveErr } = await (supabase as any).from("visit_confirmation_settings").select("eve_reminder_enabled").limit(1);
     setHasEve(!eveErr);
+    // Colunas do pós-visita já existem no banco?
+    const { error: pvErr } = await (supabase as any).from("visit_confirmation_settings").select("post_visit_enabled").limit(1);
+    setHasPostVisit(!pvErr);
+    const { error: srErr } = await (supabase as any).from("visit_confirmation_settings").select("scheduled_return_enabled").limit(1);
+    setHasReturn(!srErr);
 
     if (data) {
       setSettings(data);
@@ -126,6 +136,8 @@ export function VisitConfirmationSection() {
       reply_confirmed_message: settings.reply_confirmed_message,
       reply_reschedule_message: settings.reply_reschedule_message,
       ...(hasEve ? { eve_reminder_enabled: !!settings.eve_reminder_enabled, eve_reminder_hour: settings.eve_reminder_hour ?? 18 } : {}),
+      ...(hasPostVisit ? { post_visit_enabled: !!settings.post_visit_enabled, auto_one_per_day: !!settings.auto_one_per_day } : {}),
+      ...(hasReturn ? { scheduled_return_enabled: !!settings.scheduled_return_enabled } : {}),
     };
 
     let error;
@@ -296,6 +308,57 @@ export function VisitConfirmationSection() {
                     {(settings.eve_reminder_hour ?? 18) >= settings.send_window_end && (
                       <p className="text-xs text-destructive">Esse horário está depois do "Horário fim" de envio: o lembrete não sairia.</p>
                     )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {hasPostVisit && (
+              <div className="rounded-xl border border-border/40 bg-card p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold">Pós-visita</p>
+                    <p className="text-xs text-muted-foreground">
+                      No dia seguinte à visita, a partir das 10h e no horário da equipe: quem visitou e não fechou recebe uma
+                      mensagem (e outra 3 dias depois, se não responder); quem não compareceu recebe um convite para remarcar com
+                      2 horários livres. Não sai se a equipe ou o cliente já conversaram depois da visita. A resposta vai para a equipe.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={!!settings.post_visit_enabled}
+                    onCheckedChange={(v) => update("post_visit_enabled", v)}
+                    aria-label="Pós-visita"
+                  />
+                </div>
+                <div className="flex items-start justify-between gap-3 border-t border-border/40 pt-3">
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold">No máximo 1 mensagem automática por cliente por dia</p>
+                    <p className="text-xs text-muted-foreground">
+                      Follow-ups do robô, da IA, reativação e pós-visita: se o cliente já recebeu uma hoje, a próxima espera para o dia
+                      seguinte. Depois da visita, por 7 dias, só o pós-visita fala com ele.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={!!settings.auto_one_per_day}
+                    onCheckedChange={(v) => update("auto_one_per_day", v)}
+                    aria-label="Uma mensagem automática por dia"
+                  />
+                </div>
+                {hasReturn && (
+                  <div className="flex items-start justify-between gap-3 border-t border-border/40 pt-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold">Retomar na data que o cliente falou</p>
+                      <p className="text-xs text-muted-foreground">
+                        Quando o cliente diz quando quer retomar ("vou agendar início de novembro", "semana que vem"), a IA anota a data
+                        no lead e, no dia, às 10h, manda a mensagem com 2 horários de visita. Cancela se ele marcar visita, fechar ou
+                        voltar a conversar antes.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={!!settings.scheduled_return_enabled}
+                      onCheckedChange={(v) => update("scheduled_return_enabled", v)}
+                      aria-label="Retomar na data combinada"
+                    />
                   </div>
                 )}
               </div>
