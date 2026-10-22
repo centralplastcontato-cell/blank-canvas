@@ -1,7 +1,7 @@
 import { useEffect, useMemo, type ComponentType, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
-  Activity, Bell, Bot, Building2, ChevronLeft, ChevronRight, Database, FileText, FolderOpen, Globe, HelpCircle,
+  Activity, Bell, Bot, Building2, ChevronLeft, ChevronRight, Database, FileText, FolderOpen, Globe,
   MessageSquare, PartyPopper, Send, Settings, Sparkles, UserCircle, Users, Wifi, Wand2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -25,7 +25,6 @@ import { AiAgentSection } from "@/components/whatsapp/settings/AiAgentSection";
 import { AiTestSection } from "@/components/whatsapp/settings/AiTestSection";
 import { AutomationsSection } from "@/components/whatsapp/settings/AutomationsSection";
 import { AdvancedSection } from "@/components/whatsapp/settings/AdvancedSection";
-import { VisualGuideSection } from "@/components/whatsapp/settings/VisualGuideSection";
 
 // Configurações organizadas pelo que o dono quer fazer (22/10): um menu só,
 // em 6 grupos, no lugar das três fileiras de abas (Configurações → Empresa e
@@ -67,7 +66,6 @@ const LEGACY: Record<string, string> = {
   notifications: "notifications",
   automations: "automations",
   advanced: "advanced",
-  guide: "guide",
 };
 
 interface Props {
@@ -130,7 +128,6 @@ export function SettingsHub({ userId, userEmail, isAdmin, isGestor, canManageUse
         { id: "backup", title: "Backup", description: "Cópia dos dados do buffet", icon: Database, visible: systemOn, render: () => <CompanyBackupPanel /> },
         { id: "auditoria", title: "Auditoria", description: "Quem fez o quê na plataforma", icon: Activity, visible: systemOn, render: () => <ActivityLogPanel /> },
         { id: "advanced", title: "Avançado", description: "Sincronização, logs e importação", icon: Settings, visible: !!permissions.advanced && (isAdmin || !!modules.advanced), render: () => <AdvancedSection userId={userId} isAdmin={isAdmin} /> },
-        { id: "guide", title: "Guia visual", description: "O que significa cada ícone", icon: HelpCircle, visible: true, render: () => <VisualGuideSection /> },
       ],
     },
   ].map((g) => ({ ...g, items: g.items.filter((i) => i.visible) })).filter((g) => g.items.length > 0),

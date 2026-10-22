@@ -25,7 +25,6 @@ vi.mock("@/components/whatsapp/settings/AutomationsSection", () => ({
   AutomationsSection: ({ tabs }: { tabs?: string[] }) => <div>automações {tabs?.join(",")}</div>,
 }));
 vi.mock("@/components/whatsapp/settings/AdvancedSection", () => ({ AdvancedSection: stub("avancado") }));
-vi.mock("@/components/whatsapp/settings/VisualGuideSection", () => ({ VisualGuideSection: stub("guia") }));
 
 import { SettingsHub } from "../SettingsHub";
 
