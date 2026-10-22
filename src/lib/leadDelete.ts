@@ -39,5 +39,13 @@ export function leadDeleteOutcome(
 export async function deleteLeads(ids: string[]): Promise<LeadDeleteOutcome> {
   if (ids.length === 0) return { ok: true, deleted: 0 };
   const { data, error } = await supabase.from("campaign_leads").delete().in("id", ids).select("id");
-  return leadDeleteOutcome(ids.length, data?.length || 0, error);
+  const deleted = data?.length || 0;
+  if (!error && deleted < ids.length) {
+    // Lead que já tinha sido apagado (ex.: pela conversa do mesmo cliente em outro
+    // número) não é falta de permissão: conta como apagado
+    const { data: still } = await supabase.from("campaign_leads").select("id").in("id", ids);
+    const gone = ids.length - (still?.length || 0);
+    return leadDeleteOutcome(ids.length, Math.max(deleted, gone), null);
+  }
+  return leadDeleteOutcome(ids.length, deleted, error);
 }
