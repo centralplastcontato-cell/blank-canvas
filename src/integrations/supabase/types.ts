@@ -7043,6 +7043,16 @@ export type Database = {
       }
       get_user_company_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_default_company: { Args: { _user_id: string }; Returns: string }
+      hub_dashboard_metrics: {
+        Args: {
+          p_company_id?: string
+          p_from: string
+          p_status?: string
+          p_to: string
+          p_today_start: string
+        }
+        Returns: Json
+      }
       increment_freelancer_template_views: {
         Args: { _template_id: string }
         Returns: undefined

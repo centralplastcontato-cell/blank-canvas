@@ -2,12 +2,9 @@ import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowDown } from "lucide-react";
 
-interface LeadRecord {
-  status: string;
-}
-
 interface HubSalesFunnelProps {
-  leads: LeadRecord[];
+  /** Quantidade de leads por status no período */
+  statusCounts: Record<string, number>;
 }
 
 const FUNNEL_STAGES = [
@@ -18,18 +15,19 @@ const FUNNEL_STAGES = [
   { key: "fechado", label: "Fechados", color: "bg-emerald-500" },
 ];
 
-export function HubSalesFunnel({ leads }: HubSalesFunnelProps) {
+export function HubSalesFunnel({ statusCounts }: HubSalesFunnelProps) {
+  const totalLeads = useMemo(() => Object.values(statusCounts).reduce((a, n) => a + n, 0), [statusCounts]);
   const stages = useMemo(() => {
-    const total = leads.length || 1;
+    const total = totalLeads || 1;
     return FUNNEL_STAGES.map(stage => {
-      const count = leads.filter(l => l.status === stage.key).length;
+      const count = statusCounts[stage.key] || 0;
       return { ...stage, count, pct: Math.round((count / total) * 100) };
     });
-  }, [leads]);
+  }, [statusCounts, totalLeads]);
 
   const maxCount = Math.max(...stages.map(s => s.count), 1);
 
-  if (!leads.length) return null;
+  if (!totalLeads) return null;
 
   return (
     <Card>
@@ -60,9 +58,9 @@ export function HubSalesFunnel({ leads }: HubSalesFunnelProps) {
           );
         })}
         <div className="pt-2 border-t flex items-center justify-between text-xs text-muted-foreground">
-          <span>Perdidos: {leads.filter(l => l.status === "perdido").length}</span>
-          <span>Retorno: {leads.filter(l => l.status === "cliente_retorno").length}</span>
-          <span>Transferidos: {leads.filter(l => l.status === "transferido").length}</span>
+          <span>Perdidos: {statusCounts.perdido || 0}</span>
+          <span>Retorno: {statusCounts.cliente_retorno || 0}</span>
+          <span>Transferidos: {statusCounts.transferido || 0}</span>
         </div>
       </CardContent>
     </Card>

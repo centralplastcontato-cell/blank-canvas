@@ -30,12 +30,10 @@ export function HubUnitRanking({ metrics, followUpsByCompany, closedByCompany }:
         // Use period-filtered closed count when available; falls back to historical leadsClosed
         const closedInPeriod = closedByCompany?.get(m.companyId) ?? m.leadsClosed;
         const conversionRate = m.totalLeads > 0 ? (closedInPeriod / m.totalLeads) * 100 : 0;
-        const lossRate = m.totalLeads > 0 ? (m.leadsLost / m.totalLeads) * 100 : 0;
-        // Score: weighted by conversion, penalized by loss
-        const score = conversionRate * 2 + closedInPeriod * 3 - lossRate;
-        return { ...m, leadsClosed: closedInPeriod, conversionRate, lossRate, score };
+        return { ...m, leadsClosed: closedInPeriod, conversionRate };
       })
-      .sort((a, b) => b.score - a.score);
+      // Festas fechadas primeiro; conversão desempata (evita premiar quem tem poucos leads)
+      .sort((a, b) => b.leadsClosed - a.leadsClosed || b.conversionRate - a.conversionRate);
   }, [metrics, closedByCompany]);
 
   if (!metrics.length) return null;
