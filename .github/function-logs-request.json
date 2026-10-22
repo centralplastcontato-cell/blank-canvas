@@ -1,1 +1,1 @@
-{"start":"2026-10-22T03:08:00Z","end":"2026-10-22T03:20:00Z","sql":"select timestamp, event_message from function_logs where event_message like '%hub-weekly-summary%' or event_message like '%OpenAI%' or event_message like '%IA não%' order by timestamp asc limit 100"}
+{"start":"2026-10-22T03:08:00Z","end":"2026-10-22T03:30:00Z","sql":"select timestamp, event_message from function_edge_logs where event_message like '%hub-weekly-summary%' order by timestamp asc limit 50"}
