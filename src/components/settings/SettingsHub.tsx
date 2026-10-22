@@ -2,7 +2,7 @@ import { useEffect, useMemo, type ComponentType, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Activity, Bell, Bot, Building2, ChevronLeft, ChevronRight, Database, FileText, FolderOpen, Globe,
-  MessageSquare, PartyPopper, Send, Settings, Sparkles, UserCircle, Users, Wifi, Wand2,
+  MessageSquare, Palette, PartyPopper, Send, Settings, Sparkles, Upload, UserCircle, Users, Wifi, Wand2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,7 +24,8 @@ import { SalesMaterialsSection } from "@/components/whatsapp/settings/SalesMater
 import { AiAgentSection } from "@/components/whatsapp/settings/AiAgentSection";
 import { AiTestSection } from "@/components/whatsapp/settings/AiTestSection";
 import { AutomationsSection } from "@/components/whatsapp/settings/AutomationsSection";
-import { AdvancedSection } from "@/components/whatsapp/settings/AdvancedSection";
+import { DataImportSection } from "@/components/admin/DataImportSection";
+import { UnitColorManager } from "@/components/admin/UnitColorManager";
 
 // Configurações organizadas pelo que o dono quer fazer (22/10): um menu só,
 // em 6 grupos, no lugar das três fileiras de abas (Configurações → Empresa e
@@ -77,7 +78,7 @@ const LEGACY: Record<string, string> = {
   content: "materials",
   notifications: "notifications",
   automations: "automations",
-  advanced: "advanced",
+  advanced: "import",
 };
 
 interface Props {
@@ -108,6 +109,7 @@ export function SettingsHub({ userId, userEmail, isAdmin, isGestor, canManageUse
         { id: "site", title: "Meu site", description: "Página do buffet e botões do WhatsApp", icon: Globe, visible: companyAdmin, render: () => <SiteSection /> },
         { id: "festa", title: "Controle da festa", description: "Checklists e operação do dia da festa", icon: PartyPopper, visible: showOperacoes, render: () => <PartyControlConfig /> },
         { id: "usuarios", title: "Usuários", description: "Equipe, senhas e permissões", icon: Users, visible: canManageUsers, render: () => <UsersManagementPanel userId={userId} isAdmin={isAdmin} /> },
+        { id: "unit-colors", title: "Cores dos números", description: "Cor de cada número (VENDAS 1, 2, 3) nas etiquetas", icon: Palette, visible: isAdmin, render: () => <UnitColorManager /> },
       ],
     },
     {
@@ -139,7 +141,8 @@ export function SettingsHub({ userId, userEmail, isAdmin, isGestor, canManageUse
         { id: "perfil", title: "Meu perfil", description: "Seu nome, foto e senha", icon: UserCircle, visible: true, render: () => <ProfileContent userId={userId} userEmail={userEmail} /> },
         { id: "backup", title: "Backup", description: "Cópia dos dados do buffet", icon: Database, visible: systemOn, render: () => <CompanyBackupPanel /> },
         { id: "auditoria", title: "Auditoria", description: "Quem fez o quê na plataforma", icon: Activity, visible: systemOn, render: () => <ActivityLogPanel /> },
-        { id: "advanced", title: "Avançado", description: "Sincronização, logs e importação", icon: Settings, visible: !!permissions.advanced && (isAdmin || !!modules.advanced), render: () => <AdvancedSection userId={userId} isAdmin={isAdmin} /> },
+        // Só administrador: importar leads de planilha (o antigo "Avançado" tinha botões que não faziam nada)
+        { id: "import", title: "Importar dados", description: "Importar leads de planilha", icon: Upload, visible: isAdmin, render: () => <DataImportSection isAdmin={isAdmin} /> },
       ],
     },
   ].map((g) => ({ ...g, items: g.items.filter((i) => i.visible) })).filter((g) => g.items.length > 0),
