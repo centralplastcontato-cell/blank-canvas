@@ -156,12 +156,26 @@ export default function PublicPartyControl() {
       setEvent(evData as PartyEvent);
       companyIdRef = evData.company_id;
 
-      const [companyRes, evalTmplRes, prefestTmplRes, cardapioTmplRes] = await Promise.all([
+      const [companyRes, tmplRes] = await Promise.all([
         supabase.rpc("get_company_public_with_settings", { _company_id: companyIdRef }),
-        supabase.from("evaluation_templates").select("id, name, slug").eq("company_id", companyIdRef).eq("is_active", true),
-        (supabase as any).from("prefesta_templates").select("id, name, slug").eq("company_id", companyIdRef).eq("is_active", true),
-        supabase.from("cardapio_templates").select("id, name, slug").eq("company_id", companyIdRef).eq("is_active", true),
+        (supabase as any).rpc("get_party_form_templates", { _event_id: eventId }),
       ]);
+      // Modelos pela função pública (funciona sem login). Se a função ainda não
+      // existir no banco, lê direto das tabelas (só funciona para a equipe logada).
+      let evalList: any[] = [], prefestList: any[] = [], cardapioList: any[] = [];
+      if (!tmplRes.error && Array.isArray(tmplRes.data)) {
+        const rows = tmplRes.data as { form_type: string; id: string; name: string; slug: string | null }[];
+        evalList = rows.filter((r) => r.form_type === "avaliacao");
+        prefestList = rows.filter((r) => r.form_type === "prefesta");
+        cardapioList = rows.filter((r) => r.form_type === "cardapio");
+      } else {
+        const [e, p, c] = await Promise.all([
+          supabase.from("evaluation_templates").select("id, name, slug").eq("company_id", companyIdRef).eq("is_active", true),
+          supabase.from("prefesta_templates").select("id, name, slug").eq("company_id", companyIdRef).eq("is_active", true),
+          supabase.from("cardapio_templates").select("id, name, slug").eq("company_id", companyIdRef).eq("is_active", true),
+        ]);
+        evalList = e.data || []; prefestList = p.data || []; cardapioList = c.data || [];
+      }
 
       if (companyRes.data) {
         const cArr = companyRes.data as any[];
@@ -173,9 +187,9 @@ export default function PublicPartyControl() {
         }
       }
 
-      setEvalTemplates(evalTmplRes.data || []);
-      setPrefestTemplates(prefestTmplRes.data || []);
-      setCardapioTemplates(cardapioTmplRes.data || []);
+      setEvalTemplates(evalList);
+      setPrefestTemplates(prefestList);
+      setCardapioTemplates(cardapioList);
       await fetchModuleStatus(companyIdRef);
       setLoading(false);
     };
