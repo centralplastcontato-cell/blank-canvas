@@ -7,6 +7,8 @@ import { HubSalesFunnel } from "@/components/hub/HubSalesFunnel";
 import { HubUnitRanking } from "@/components/hub/HubUnitRanking";
 import { HubKpiCard, HubStatTile, type KpiDelta } from "@/components/hub/HubKpiCard";
 import { HubCompanyCard } from "@/components/hub/HubCompanyCard";
+import { HubAlerts } from "@/components/hub/HubAlerts";
+import { HubWeeklySummary } from "@/components/hub/HubWeeklySummary";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -151,6 +153,12 @@ function HubDashboardContent() {
 
   return (
     <div className="space-y-5 max-w-[1600px] mx-auto">
+      {/* Inteligência: alertas de agora + resumo da semana (não dependem dos filtros) */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 items-start">
+        <HubAlerts />
+        <HubWeeklySummary />
+      </div>
+
       <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0">
           <HubDashboardFilters
