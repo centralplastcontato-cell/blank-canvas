@@ -2,7 +2,7 @@ import { useEffect, useMemo, type ComponentType, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Activity, Bell, Bot, Building2, ChevronLeft, ChevronRight, Database, FileText, FolderOpen, Globe,
-  MessageSquare, Palette, PartyPopper, Send, Settings, Sparkles, Upload, UserCircle, Users, Wifi, Wand2,
+  MessageSquare, MessagesSquare, Palette, PartyPopper, Send, Settings, Sparkles, Upload, UserCircle, Users, Wifi, Wand2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,8 +32,12 @@ import { UnitColorManager } from "@/components/admin/UnitColorManager";
 // WhatsApp → Automações). Nenhuma função mudou de comportamento, só de lugar;
 // as permissões de cada item são as mesmas de antes.
 
-const MESSAGE_TABS = ["visitas", "followups", "reativacao", "prereserva", "formularios", "campanhas"];
-const ROBOT_TABS = ["geral", "perguntas", "bot-lp", "festa", "vip", "gatilhos", "fluxos"];
+// Saíram (22/10): Campanhas (nada lia), VIP (ninguém usava; "Não enviar mais nada"
+// por contato já faz isso) e Fluxos (sem uso). Bot Festa e Gatilhos são mensagens
+// enviadas por botões da Agenda e de Freelancers: ficam em "Modelos de mensagem".
+const MESSAGE_TABS = ["visitas", "followups", "reativacao", "prereserva", "formularios"];
+const ROBOT_TABS = ["geral", "perguntas", "bot-lp"];
+const TEMPLATE_TABS = ["festa", "gatilhos"];
 
 interface Item {
   id: string;
@@ -128,12 +132,13 @@ export function SettingsHub({ userId, userEmail, isAdmin, isGestor, canManageUse
     },
     {
       id: "auto", title: "Mensagens automáticas", icon: Send, items: [
-        { id: "automations", title: "Mensagens automáticas", description: "Visitas e pós-visita, follow-ups, reativação, pré-reserva, dados do contrato e campanhas", icon: Send, visible: automationsOn, render: () => <AutomationsSection tabs={MESSAGE_TABS} hideAi /> },
+        { id: "automations", title: "Mensagens automáticas", description: "Visitas e pós-visita, follow-ups, reativação, pré-reserva e dados do contrato", icon: Send, visible: automationsOn, render: () => <AutomationsSection tabs={MESSAGE_TABS} hideAi /> },
+        { id: "modelos", title: "Modelos de mensagem", description: "Convidados das festas (Bot Festa) e freelancers (aprovação e escala)", icon: MessagesSquare, visible: automationsOn, render: () => <AutomationsSection tabs={TEMPLATE_TABS} hideAi /> },
       ],
     },
     {
       id: "robot", title: "Robô de atendimento", icon: Bot, items: [
-        { id: "robot", title: "Robô e fluxos", description: "Perguntas, Bot LP, Bot Festa, VIP, gatilhos e fluxos", icon: Bot, visible: automationsOn, render: () => <AutomationsSection tabs={ROBOT_TABS} hideAi /> },
+        { id: "robot", title: "Robô fixo", description: "Atendimento, perguntas e robô do site", icon: Bot, visible: automationsOn, render: () => <AutomationsSection tabs={ROBOT_TABS} hideAi /> },
       ],
     },
     {

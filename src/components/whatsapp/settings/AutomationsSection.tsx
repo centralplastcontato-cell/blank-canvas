@@ -259,9 +259,29 @@ function SortableQuestionItem({ question, index, getStepLabel, updateQuestion }:
 export function AutomationsSection({ tabs, hideAi = false }: { tabs?: string[]; hideAi?: boolean } = {}) {
   const show = (tab: string) => !tabs || tabs.includes(tab);
   const modules = useCompanyModules();
+  // Aba pedida e com o módulo dela ligado (Bot Festa e Fluxos dependem de módulo)
+  const available = (tab: string) => (tab === "festa" ? !!modules.bot_festa : tab === "fluxos" ? !!modules.flow_builder : true);
+  const visible = (tab: string) => show(tab) && available(tab);
+  const visibleTabs = (tabs ?? ["geral"]).filter(visible);
   const { currentCompanyId } = useCompany();
+  // Números atendidos pela IA (Configurar a IA): neles o bot fixo não responde
+  const [aiUnits, setAiUnits] = useState<string[]>([]);
+  useEffect(() => {
+    if (!currentCompanyId) return;
+    (supabase as any)
+      .from("ai_agent_settings")
+      .select("*")
+      .eq("company_id", currentCompanyId)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (!data?.enabled || data.test_mode_enabled) return setAiUnits([]);
+        const extra = Array.isArray(data.extra_units) ? data.extra_units.map((u: any) => String(u?.unit || "")) : [];
+        setAiUnits([String(data.unit || ""), ...extra].map((u) => u.trim().toLowerCase()).filter(Boolean));
+      });
+  }, [currentCompanyId]);
   const [instances, setInstances] = useState<WapiInstance[]>([]);
   const [selectedInstance, setSelectedInstance] = useState<WapiInstance | null>(null);
+  const aiServesUnit = !!selectedInstance?.unit && aiUnits.includes(selectedInstance.unit.trim().toLowerCase());
   const [botSettings, setBotSettings] = useState<BotSettings | null>(null);
   const [vipNumbers, setVipNumbers] = useState<VipNumber[]>([]);
   const [botQuestions, setBotQuestions] = useState<BotQuestion[]>([]);
@@ -796,61 +816,61 @@ export function AutomationsSection({ tabs, hideAi = false }: { tabs?: string[]; 
       )}
 
       {/* Tabs */}
-      <Tabs defaultValue={tabs?.[0] ?? "geral"} className="w-full">
-        <TabsList className={cn("bg-transparent p-0 h-auto gap-1.5 flex flex-nowrap overflow-x-auto md:flex-wrap md:overflow-x-visible [&>*]:shrink-0", tabs?.length === 1 && "hidden")}>
-          <TabsTrigger value="geral" className={cn(!show("geral") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
+      <Tabs defaultValue={visibleTabs[0] ?? "geral"} className="w-full">
+        <TabsList className={cn("bg-transparent p-0 h-auto gap-1.5 flex flex-nowrap overflow-x-auto md:flex-wrap md:overflow-x-visible [&>*]:shrink-0", tabs && visibleTabs.length <= 1 && "hidden")}>
+          <TabsTrigger value="geral" className={cn("rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5", !visible("geral") && "hidden")}>
             <Power className="w-3.5 h-3.5" />
             <span>Geral</span>
           </TabsTrigger>
-          <TabsTrigger value="perguntas" className={cn(!show("perguntas") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
+          <TabsTrigger value="perguntas" className={cn("rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5", !visible("perguntas") && "hidden")}>
             <MessageSquare className="w-3.5 h-3.5" />
             <span>Perguntas</span>
           </TabsTrigger>
-          <TabsTrigger value="followups" className={cn(!show("followups") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
+          <TabsTrigger value="followups" className={cn("rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5", !visible("followups") && "hidden")}>
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Follow-ups</span>
           </TabsTrigger>
-          <TabsTrigger value="bot-lp" className={cn(!show("bot-lp") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
+          <TabsTrigger value="bot-lp" className={cn("rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5", !visible("bot-lp") && "hidden")}>
             <Globe2 className="w-3.5 h-3.5" />
             <span>Bot LP</span>
           </TabsTrigger>
           {modules.bot_festa && (
-            <TabsTrigger value="festa" className={cn(!show("festa") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
+            <TabsTrigger value="festa" className={cn("rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5", !visible("festa") && "hidden")}>
               <Send className="w-3.5 h-3.5" />
               <span>Bot Festa</span>
             </TabsTrigger>
           )}
-          <TabsTrigger value="vip" className={cn(!show("vip") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
+          <TabsTrigger value="vip" className={cn("rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5", !visible("vip") && "hidden")}>
             <Shield className="w-3.5 h-3.5" />
             <span>VIP</span>
           </TabsTrigger>
-          <TabsTrigger value="gatilhos" className={cn(!show("gatilhos") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
+          <TabsTrigger value="gatilhos" className={cn("rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5", !visible("gatilhos") && "hidden")}>
             <Workflow className="w-3.5 h-3.5" />
             <span>Gatilhos</span>
           </TabsTrigger>
           {modules.flow_builder && (
-            <TabsTrigger value="fluxos" className={cn(!show("fluxos") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
+            <TabsTrigger value="fluxos" className={cn("rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5", !visible("fluxos") && "hidden")}>
               <GitBranch className="w-3.5 h-3.5" />
               <span>Fluxos</span>
             </TabsTrigger>
           )}
-          <TabsTrigger value="reativacao" className={cn(!show("reativacao") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
+          <TabsTrigger value="reativacao" className={cn("rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5", !visible("reativacao") && "hidden")}>
             <Sparkles className="w-3.5 h-3.5" />
             <span>Reativação</span>
           </TabsTrigger>
-          <TabsTrigger value="visitas" className={cn(!show("visitas") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
+          <TabsTrigger value="visitas" className={cn("rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5", !visible("visitas") && "hidden")}>
             <Map className="w-3.5 h-3.5" />
             <span>Visitas</span>
           </TabsTrigger>
-          <TabsTrigger value="prereserva" className={cn(!show("prereserva") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
+          <TabsTrigger value="prereserva" className={cn("rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5", !visible("prereserva") && "hidden")}>
             <CalendarClock className="w-3.5 h-3.5" />
             <span>Pré-reserva</span>
           </TabsTrigger>
-          <TabsTrigger value="formularios" className={cn(!show("formularios") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
+          <TabsTrigger value="formularios" className={cn("rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5", !visible("formularios") && "hidden")}>
             <ClipboardList className="w-3.5 h-3.5" />
             <span>Formulários</span>
           </TabsTrigger>
-          <TabsTrigger value="campanhas" className={cn(!show("campanhas") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
+          <TabsTrigger value="campanhas" className={cn("rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5", !visible("campanhas") && "hidden")}>
             <Megaphone className="w-3.5 h-3.5" />
             <span>Campanhas</span>
           </TabsTrigger>
@@ -899,8 +919,15 @@ export function AutomationsSection({ tabs, hideAi = false }: { tabs?: string[]; 
                     Roteiro pronto: pergunta mês, dia e convidados e envia os materiais
                   </p>
                 </div>
+                {aiServesUnit && (
+                  <p className="text-xs rounded-lg bg-violet-500/10 text-violet-700 dark:text-violet-300 px-3 py-2 leading-relaxed">
+                    🤖 Este número é atendido pela IA. O bot fixo não responde aqui: perguntas, boas-vindas e lembretes do robô não saem neste número.
+                  </p>
+                )}
                 <div className="mt-auto pt-1">
-                  {botSettings?.bot_enabled && !botSettings?.use_flow_builder ? (
+                  {aiServesUnit ? (
+                    <span className="text-[11px] font-extrabold tracking-wide text-violet-700 bg-violet-500/15 rounded-full px-3 py-1">ATENDIDO PELA IA</span>
+                  ) : botSettings?.bot_enabled && !botSettings?.use_flow_builder ? (
                     <span className="text-[11px] font-extrabold tracking-wide text-green-700 bg-green-500/15 rounded-full px-3 py-1">EM USO</span>
                   ) : botSettings?.bot_enabled ? (
                     <span className="text-[11px] font-extrabold tracking-wide text-muted-foreground bg-muted rounded-full px-3 py-1">SUBSTITUÍDO PELO FLUXO</span>
@@ -918,7 +945,8 @@ export function AutomationsSection({ tabs, hideAi = false }: { tabs?: string[]; 
               )}
 
               {/* Fluxo visual (Flow Builder) */}
-              {modules.flow_builder && (
+              {/* Fluxo visual: sem uso hoje — só aparece para quem ainda o tem ligado (para poder desligar) */}
+              {modules.flow_builder && botSettings?.use_flow_builder && (
                 <div className={`relative rounded-2xl bg-card p-5 flex flex-col gap-3 transition-all ${botSettings?.use_flow_builder ? "border-2 border-secondary shadow-md" : "border border-border shadow-sm"}`}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="w-11 h-11 rounded-xl bg-secondary/15 flex items-center justify-center">
@@ -1112,19 +1140,6 @@ export function AutomationsSection({ tabs, hideAi = false }: { tabs?: string[]; 
                       onBlur={() => botSettings && debouncedUpdateBotSettings('guest_limit_redirect_name', { guest_limit_redirect_name: botSettings.guest_limit_redirect_name }, 300)}
                       placeholder="Ex: Buffet Mega Magic"
                       className="text-base"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Mensagem de conclusão</Label>
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Mensagem final enviada ao lead após o redirecionamento
-                    </p>
-                    <Textarea
-                      value={botSettings.redirect_completion_message || ''}
-                      onChange={(e) => setBotSettings(prev => prev ? { ...prev, redirect_completion_message: e.target.value } : null)}
-                      onBlur={() => botSettings && debouncedUpdateBotSettings('redirect_completion_message', { redirect_completion_message: botSettings.redirect_completion_message }, 300)}
-                      placeholder="Ex: Prontinho! Seus dados foram encaminhados para o Buffet Mega Magic. Eles entrarão em contato em breve!"
-                      className="min-h-[80px] text-base"
                     />
                   </div>
                 </div>

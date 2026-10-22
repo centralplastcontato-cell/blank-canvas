@@ -50,7 +50,11 @@ describe("SettingsHub", () => {
     expect(screen.getByText("conteúdo materiais")).toBeTruthy();
     fireEvent.click(screen.getByText("Robô de atendimento"));
     expect(screen.getByText(/automações geral,perguntas/)).toBeTruthy();
-    fireEvent.click(screen.getAllByText("Mensagens automáticas")[0]);
+    // O grupo tem dois itens agora: abre o item (o último texto igual ao do grupo)
+    const messages = screen.getAllByText("Mensagens automáticas");
+    fireEvent.click(messages[messages.length - 1]);
     expect(screen.getByText(/automações visitas,followups/)).toBeTruthy();
+    fireEvent.click(screen.getByText("Modelos de mensagem"));
+    expect(screen.getByText(/automações festa,gatilhos/)).toBeTruthy();
   });
 });
