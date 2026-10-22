@@ -24,8 +24,10 @@ interface ActivityLog {
 }
 
 const MODULE_LABELS: Record<string, string> = {
-  crm: 'CRM',
-  events: 'Eventos',
+  crm: 'Leads',
+  events: 'Festas',
+  agenda: 'Tarefas',
+  users: 'Usuários',
   financial: 'Financeiro',
   contracts: 'Contratos',
   settings: 'Configurações',
@@ -46,7 +48,60 @@ const ACTION_LABELS: Record<string, string> = {
   payment: 'Pagamento',
   export: 'Exportou',
   import: 'Importou',
+  permission_grant: 'Deu permissão',
+  permission_revoke: 'Tirou permissão',
 };
+
+// O que foi mexido (gravado em inglês no banco)
+const ENTITY_LABELS: Record<string, string> = {
+  expense: 'despesa',
+  revenue: 'receita',
+  payment: 'pagamento',
+  event: 'festa',
+  event_payment: 'pagamento da festa',
+  lead: 'lead',
+  task: 'tarefa',
+  client_data: 'dados do contratante',
+  user: 'usuário',
+  visit: 'visita',
+};
+
+// Campos das alterações ("de → para")
+const FIELD_LABELS: Record<string, string> = {
+  title: 'Título',
+  event_date: 'Data',
+  start_time: 'Início',
+  end_time: 'Fim',
+  total_value: 'Valor',
+  package_name: 'Pacote',
+  guest_count: 'Convidados',
+  status: 'Status',
+  unit: 'Unidade',
+  amount: 'Valor',
+  due_date: 'Vencimento',
+  paid_at: 'Pago em',
+  payment_method: 'Forma',
+  type: 'Tipo',
+  funcao: 'Função',
+};
+
+function showValue(v: unknown): string {
+  if (v === null || v === undefined || v === '') return '—';
+  const t = String(v);
+  const ymd = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (ymd && t.length <= 10) return `${ymd[3]}/${ymd[2]}/${ymd[1]}`;
+  if (ymd) return format(new Date(t), 'dd/MM/yy HH:mm', { locale: ptBR });
+  return t;
+}
+
+/** Alterações em linhas legíveis: "Data: 01/11/2026 → 08/11/2026" */
+function changeLines(details: any): string[] {
+  const ch = details && typeof details === 'object' ? details.alteracoes : null;
+  if (!ch || typeof ch !== 'object') return [];
+  return Object.entries(ch as Record<string, { de?: unknown; para?: unknown }>).map(
+    ([k, v]) => `${FIELD_LABELS[k] || k}: ${showValue(v?.de)} → ${showValue(v?.para)}`,
+  );
+}
 
 const ACTION_COLORS: Record<string, string> = {
   create: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
@@ -72,6 +127,23 @@ export function ActivityLogPanel() {
   const [search, setSearch] = useState('');
   const [moduleFilter, setModuleFilter] = useState<string>('all');
   const [actionFilter, setActionFilter] = useState<string>('all');
+  const [userFilter, setUserFilter] = useState<string>('all');
+  const [people, setPeople] = useState<string[]>([]);
+
+  // Pessoas que aparecem no registro (para o filtro "Todas as pessoas")
+  useEffect(() => {
+    if (!currentCompany?.id) return;
+    supabase
+      .from('activity_logs')
+      .select('user_name')
+      .eq('company_id', currentCompany.id)
+      .order('created_at', { ascending: false })
+      .limit(3000)
+      .then(({ data }) => {
+        const names = new Set((data || []).map((r) => r.user_name).filter((n): n is string => !!n));
+        setPeople([...names].sort((a, b) => a.localeCompare(b, 'pt-BR')));
+      });
+  }, [currentCompany?.id]);
 
   const fetchLogs = async () => {
     if (!currentCompany?.id) return;
@@ -86,6 +158,7 @@ export function ActivityLogPanel() {
 
     if (moduleFilter !== 'all') query = query.eq('module', moduleFilter);
     if (actionFilter !== 'all') query = query.eq('action', actionFilter);
+    if (userFilter !== 'all') query = query.eq('user_name', userFilter);
     if (search) query = query.or(`user_name.ilike.%${search}%,entity_name.ilike.%${search}%`);
 
     const { data, count, error } = await query;
@@ -100,14 +173,19 @@ export function ActivityLogPanel() {
 
   useEffect(() => {
     fetchLogs();
-  }, [currentCompany?.id, page, moduleFilter, actionFilter, search]);
+  }, [currentCompany?.id, page, moduleFilter, actionFilter, userFilter, search]);
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const formatDescription = (log: ActivityLog): string => {
     const action = ACTION_LABELS[log.action] || log.action;
-    const entity = log.entity_name || log.entity_type || '';
-    return `${action} ${entity}`.trim();
+    if (log.entity_type === 'permission') {
+      return `${action} para ${log.entity_name || 'usuário'}: ${log.details?.permissao || ''}`.replace(/: $/, '');
+    }
+    const kind = log.entity_type ? ENTITY_LABELS[log.entity_type] ?? '' : '';
+    const name = log.entity_name || '';
+    if (kind && name) return `${action} ${kind}: ${name}`;
+    return `${action} ${name || kind}`.trim();
   };
 
   return (
@@ -146,6 +224,18 @@ export function ActivityLogPanel() {
                 <SelectItem value="all">Todos módulos</SelectItem>
                 {Object.entries(MODULE_LABELS).map(([k, v]) => (
                   <SelectItem key={k} value={k}>{v}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={userFilter} onValueChange={(v) => { setUserFilter(v); setPage(1); }}>
+              <SelectTrigger className="w-[180px] h-9">
+                <User className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                <SelectValue placeholder="Pessoa" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as pessoas</SelectItem>
+                {people.map((n) => (
+                  <SelectItem key={n} value={n}>{n}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -196,6 +286,9 @@ export function ActivityLogPanel() {
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">{formatDescription(log)}</p>
+                      {changeLines(log.details).map((line) => (
+                        <p key={line} className="text-xs text-foreground/80 mt-0.5">{line}</p>
+                      ))}
                       {log.details && typeof log.details === 'object' && Object.keys(log.details).length > 0 && (
                         <details className="mt-1">
                           <summary className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground">
