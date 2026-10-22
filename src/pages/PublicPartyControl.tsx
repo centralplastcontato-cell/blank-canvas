@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { pickCardapioForPackage } from "@/lib/cardapioForPackage";
 import { supabase } from "@/integrations/supabase/client";
 import { buildPublicFormPath } from "@/lib/publicFormRoutes";
 import {
@@ -241,7 +242,10 @@ export default function PublicPartyControl() {
       case "info": return status.info.id ? `/informacoes/${status.info.id}` : null;
       case "avaliacao": return evalTemplates[0] ? buildPublicFormPath({ type: "avaliacao", templateId: evalTemplates[0].id, templateSlug: evalTemplates[0].slug, companySlug }) : null;
       case "prefesta": return prefestTemplates[0] ? buildPublicFormPath({ type: "prefesta", templateId: prefestTemplates[0].id, templateSlug: prefestTemplates[0].slug, companySlug }) : null;
-      case "cardapio": return cardapioTemplates[0] ? buildPublicFormPath({ type: "cardapio", templateId: cardapioTemplates[0].id, templateSlug: cardapioTemplates[0].slug, companySlug }) : null;
+      case "cardapio": {
+        const t = pickCardapioForPackage(cardapioTemplates, event?.package_name, company?.name);
+        return t ? buildPublicFormPath({ type: "cardapio", templateId: t.id, templateSlug: t.slug, companySlug }) : null;
+      }
       default: return null;
     }
   };
