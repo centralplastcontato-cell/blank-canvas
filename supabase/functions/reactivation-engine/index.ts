@@ -1,3 +1,4 @@
+import { pacingHeldLeads } from "../_shared/auto-pacing.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { biaReminderConversationIds } from "../_shared/ai-journey-scope.ts";
@@ -309,6 +310,7 @@ Deno.serve(async (req) => {
 
         if (!instances || instances.length === 0) continue;
 
+        const pacingHeld = await pacingHeldLeads(supabase, settings.company_id, filteredLeads.map((l: { id: string }) => l.id));
         let companySentThisCycle = 0;
         // Números da Evolution que já usaram a vez nesta rodada (ritmo do sistema: 60–180 s, teto do dia, 9h–20h)
         const pacedOut = new Set<string>();
@@ -332,6 +334,8 @@ Deno.serve(async (req) => {
             if (leadsWithEvents.has(lead.id)) { totalSkipped++; continue; }
             if (settings.require_human_interaction && !humanTakeoverLeads.has(lead.id)) { totalSkipped++; continue; }
             if (recentlyActiveLeads.has(lead.id)) { totalSkipped++; continue; }
+            // Ritmo: outra mensagem automática nas últimas 24 h ou janela do pós-visita
+            if (pacingHeld.has(lead.id)) { totalSkipped++; continue; }
 
             // ── GUARD 2: Lead rate limit – skip if sent anything in last 24h ──
             if (recentlySentLeads.has(lead.id)) {
