@@ -1,18 +1,35 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Database, Download, Loader2, Shield, Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Database, Download, Loader2, Shield, Clock, AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+
+const PAGE_SIZE = 5;
+
+// "4124 leads · 234 festas · …" (backups antigos não têm as abas novas)
+function recordsLine(r: Record<string, number>): string {
+  const parts: string[] = [
+    `${r.leads || 0} leads`,
+    `${r.events || 0} festas`,
+    `${r.expenses || 0} despesas`,
+  ];
+  if (r.payments !== undefined) parts.push(`${r.payments} pagamentos`);
+  if (r.visits !== undefined) parts.push(`${r.visits} visitas`);
+  if (r.client_data !== undefined) parts.push(`${r.client_data} dados de contratante`);
+  return parts.join(" · ");
+}
 
 export function CompanyBackupPanel() {
   const { currentCompany } = useCompany();
   const queryClient = useQueryClient();
   const companyId = currentCompany?.id;
+  const [page, setPage] = useState(0);
 
   const { data: backups, isLoading } = useQuery({
     queryKey: ["company-backup-logs", companyId],
@@ -23,7 +40,7 @@ export function CompanyBackupPanel() {
         .select("*")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(30);
       return data || [];
     },
     enabled: !!companyId,
@@ -36,11 +53,15 @@ export function CompanyBackupPanel() {
         body: { company_id: companyId },
       });
       if (error) throw error;
-      return data;
+      const result = data?.results?.[0];
+      if (result?.status === "error") throw new Error(result.error);
+      return result as { file_name?: string } | undefined;
     },
-    onSuccess: () => {
-      toast.success("Backup gerado com sucesso!", { description: "O arquivo está pronto para download." });
+    onSuccess: (result) => {
+      toast.success("Backup gerado com sucesso!");
+      setPage(0);
       queryClient.invalidateQueries({ queryKey: ["company-backup-logs"] });
+      if (result?.file_name) handleDownload(result.file_name);
     },
     onError: (err) => toast.error("Erro ao gerar backup", { description: String(err) }),
   });
@@ -104,8 +125,9 @@ export function CompanyBackupPanel() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">
-            Gere um backup completo dos seus dados (leads, eventos, despesas e contatos) em formato CSV. 
-            O arquivo pode ser aberto no Excel e salvo no seu computador.
+            Uma cópia dos dados do buffet em uma planilha do Excel, com uma aba para cada parte:
+            leads, festas, despesas, pagamentos das festas, visitas e dados do contratante.
+            O arquivo tem dados pessoais dos clientes (CPF, endereço): guarde em lugar seguro.
           </p>
 
           {isLoading ? (
@@ -124,7 +146,7 @@ export function CompanyBackupPanel() {
                 <Clock className="h-3 w-3" />
                 Histórico de backups
               </h4>
-              {backups.map((b: any) => {
+              {backups.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((b: any) => {
                 const records = b.records_count as Record<string, number> | null;
                 return (
                   <div
@@ -140,7 +162,7 @@ export function CompanyBackupPanel() {
                       </div>
                       {records && (
                         <p className="text-xs text-muted-foreground">
-                          {records.leads || 0} leads · {records.events || 0} eventos · {records.expenses || 0} despesas · {records.contacts || 0} contatos
+                          {recordsLine(records)}
                         </p>
                       )}
                       {b.file_size_bytes && (
@@ -157,6 +179,26 @@ export function CompanyBackupPanel() {
                   </div>
                 );
               })}
+              {backups.length > PAGE_SIZE && (
+                <div className="flex items-center justify-between pt-2">
+                  <Button size="sm" variant="ghost" disabled={page === 0} onClick={() => setPage(page - 1)}>
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Mais recentes
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    {page + 1} de {Math.ceil(backups.length / PAGE_SIZE)}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={(page + 1) * PAGE_SIZE >= backups.length}
+                    onClick={() => setPage(page + 1)}
+                  >
+                    Anteriores
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
@@ -169,7 +211,7 @@ export function CompanyBackupPanel() {
             <div className="text-sm space-y-1">
               <p className="font-medium">🔒 Seus dados estão seguros</p>
               <p className="text-muted-foreground">
-                Todo <strong>domingo à noite</strong>, o sistema gera automaticamente um backup. 
+                Todo <strong>sábado à noite</strong>, o sistema gera automaticamente um backup. 
                 Além disso, você pode gerar e baixar um backup a qualquer momento clicando no botão acima.
               </p>
             </div>
