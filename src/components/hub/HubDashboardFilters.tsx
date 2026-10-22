@@ -88,11 +88,11 @@ export function HubDashboardFilters({ companies, filters, onFiltersChange }: Hub
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Filter className="h-4 w-4 text-muted-foreground" />
+      <Filter className="h-4 w-4 text-muted-foreground hidden sm:block" />
 
       {/* Period */}
       <Select value={selectedPreset} onValueChange={handlePresetChange}>
-        <SelectTrigger className="w-[160px] h-8 text-xs">
+        <SelectTrigger className="flex-1 min-w-[140px] sm:flex-none sm:w-[160px] h-9 sm:h-8 text-xs">
           <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
           <SelectValue placeholder="Período" />
         </SelectTrigger>
@@ -136,7 +136,7 @@ export function HubDashboardFilters({ companies, filters, onFiltersChange }: Hub
         value={filters.companyId || "all"}
         onValueChange={v => onFiltersChange({ ...filters, companyId: v === "all" ? null : v })}
       >
-        <SelectTrigger className="w-[160px] h-8 text-xs">
+        <SelectTrigger className="flex-1 min-w-[140px] sm:flex-none sm:w-[180px] h-9 sm:h-8 text-xs">
           <SelectValue placeholder="Empresa" />
         </SelectTrigger>
         <SelectContent>
@@ -152,7 +152,7 @@ export function HubDashboardFilters({ companies, filters, onFiltersChange }: Hub
         value={filters.status || "all"}
         onValueChange={v => onFiltersChange({ ...filters, status: v === "all" ? null : v })}
       >
-        <SelectTrigger className="w-[140px] h-8 text-xs">
+        <SelectTrigger className="flex-1 min-w-[120px] sm:flex-none sm:w-[140px] h-9 sm:h-8 text-xs">
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
@@ -168,7 +168,7 @@ export function HubDashboardFilters({ companies, filters, onFiltersChange }: Hub
         </Button>
       )}
 
-      <span className="text-xs text-muted-foreground ml-auto">
+      <span className="text-xs text-muted-foreground w-full sm:w-auto sm:ml-auto">
         {format(filters.dateRange.from, "dd/MM/yy", { locale: ptBR })} — {format(filters.dateRange.to, "dd/MM/yy", { locale: ptBR })}
       </span>
     </div>

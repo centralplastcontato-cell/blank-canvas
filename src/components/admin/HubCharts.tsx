@@ -46,14 +46,17 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export function HubCharts({ leads, isLoading }: HubChartsProps) {
-  // Monthly evolution data (last 6 months)
+  // Evolução mensal: meses cobertos pelos leads do período (até 12)
   const monthlyData = useMemo(() => {
     if (!leads.length) return [];
 
-    const now = new Date();
+    const first = new Date(leads.reduce((min, l) => (l.created_at < min ? l.created_at : min), leads[0].created_at));
+    const last = new Date(leads.reduce((max, l) => (l.created_at > max ? l.created_at : max), leads[0].created_at));
+    const span = (last.getFullYear() - first.getFullYear()) * 12 + (last.getMonth() - first.getMonth());
+    const count = Math.min(Math.max(span, 0), 11);
     const months: { month: string; key: string }[] = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    for (let i = count; i >= 0; i--) {
+      const d = new Date(last.getFullYear(), last.getMonth() - i, 1);
       months.push({
         month: `${MONTH_LABELS[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`,
         key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
@@ -118,7 +121,7 @@ export function HubCharts({ leads, isLoading }: HubChartsProps) {
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
-            Evolução de Leads (Últimos 6 meses)
+            Evolução de Leads por mês
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -160,7 +163,7 @@ export function HubCharts({ leads, isLoading }: HubChartsProps) {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* Company Comparison - Bar Chart */}
         <Card>
           <CardHeader className="pb-2">

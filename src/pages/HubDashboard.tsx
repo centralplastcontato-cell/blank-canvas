@@ -1,19 +1,23 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { HubLayout } from "@/components/hub/HubLayout";
 import { HubCharts } from "@/components/admin/HubCharts";
 import { HubDashboardFilters, DashboardFilters, getDefaultFilters } from "@/components/hub/HubDashboardFilters";
 import { HubSalesFunnel } from "@/components/hub/HubSalesFunnel";
 import { HubUnitRanking } from "@/components/hub/HubUnitRanking";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { HubKpiCard, HubStatTile, type KpiDelta } from "@/components/hub/HubKpiCard";
+import { HubCompanyCard } from "@/components/hub/HubCompanyCard";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Building2, Users, MessageSquare, UserPlus,
   CheckCircle, XCircle, BarChart3, Percent, Timer,
-  Phone, Send, ArrowUpRight, ArrowDownLeft
+  Send, ArrowUpRight, ArrowDownLeft
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import {
+  buildPeriodMetrics, computePreviousRange, type CompanyPeriodMetrics, formatMinutes, inRange, median, percentDelta, pointsDelta,
+} from "@/lib/hubDashboardMetrics";
 
 interface LeadRecord {
   company_id: string;
@@ -22,30 +26,8 @@ interface LeadRecord {
   created_at: string;
 }
 
-interface CompanyMetrics {
-  companyId: string;
-  companyName: string;
-  logoUrl: string | null;
-  totalLeads: number;
-  leadsToday: number;
-  leadsClosed: number;
-  leadsLost: number;
-  leadsNew: number;
-  totalConversations: number;
-  activeConversations: number;
-  totalMessages: number;
-  lastLeadAt: string | null;
-  whatsappStatus: 'connected' | 'disconnected' | 'unknown';
-  whatsappPhone: string | null;
-}
-
-interface ConversationTiming {
-  company_id: string;
-  created_at: string;
-  first_message_at: string | null;
-}
-
 interface ConvoRecord {
+  id: string;
   company_id: string;
   created_at: string;
   is_closed: boolean;
@@ -61,17 +43,52 @@ interface ClosedEventRecord {
   data_fechamento_venda: string;
 }
 
+interface CompanyInfo {
+  id: string;
+  name: string;
+  logoUrl: string | null;
+  whatsappStatus: "connected" | "disconnected" | "unknown";
+  whatsappPhone: string | null;
+}
+
+interface ResponseSample {
+  company_id: string;
+  minutes: number;
+}
+
+// Batch loader: busca todas as linhas em blocos de 1000
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function fetchAll<T>(query: any): Promise<T[]> {
+  const results: T[] = [];
+  let from = 0;
+  const PAGE = 1000;
+  while (true) {
+    const { data } = await query.range(from, from + PAGE - 1);
+    if (!data || data.length === 0) break;
+    results.push(...data);
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+  return results;
+}
+
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
 export default function HubDashboard() {
   return (
     <HubLayout
       currentPage="hub"
       header={
-        <div>
+        <div className="min-w-0">
           <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Painel Celebrei
+            <BarChart3 className="h-5 w-5 shrink-0" />
+            <span className="truncate">Painel Celebrei</span>
           </h1>
-          <p className="text-xs text-muted-foreground">Visão consolidada de todas as empresas</p>
+          <p className="text-xs text-muted-foreground truncate">Visão consolidada de todas as empresas</p>
         </div>
       }
     >
@@ -81,18 +98,39 @@ export default function HubDashboard() {
 }
 
 function HubDashboardContent({ userId }: { userId: string }) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const empresaParam = searchParams.get("empresa");
+
   const [isLoadingMetrics, setIsLoadingMetrics] = useState(true);
-  const [companyMetrics, setCompanyMetrics] = useState<CompanyMetrics[]>([]);
+  const [companies, setCompanies] = useState<CompanyInfo[]>([]);
   const [allLeadRecords, setAllLeadRecords] = useState<LeadRecord[]>([]);
-  const [conversationTimings, setConversationTimings] = useState<ConversationTiming[]>([]);
-  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [allConvoRecords, setAllConvoRecords] = useState<ConvoRecord[]>([]);
   const [allFollowUps, setAllFollowUps] = useState<FollowUpRecord[]>([]);
   const [allClosedEvents, setAllClosedEvents] = useState<ClosedEventRecord[]>([]);
-  const [messagesSent, setMessagesSent] = useState<number>(0);
-  const [messagesReceived, setMessagesReceived] = useState<number>(0);
+  const [messagesSent, setMessagesSent] = useState<number | null>(null);
+  const [messagesReceived, setMessagesReceived] = useState<number | null>(null);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [filters, setFilters] = useState<DashboardFilters>(getDefaultFilters);
+  const [responseSamples, setResponseSamples] = useState<ResponseSample[]>([]);
+  const [isLoadingResponse, setIsLoadingResponse] = useState(false);
+  const [filters, setFilters] = useState<DashboardFilters>(() => ({
+    ...getDefaultFilters(),
+    companyId: empresaParam,
+  }));
+
+  // ?empresa=<id> (vindo da busca rápida) controla o filtro de empresa
+  useEffect(() => {
+    setFilters(f => (f.companyId === empresaParam ? f : { ...f, companyId: empresaParam }));
+  }, [empresaParam]);
+
+  const handleFiltersChange = useCallback((next: DashboardFilters) => {
+    setFilters(next);
+    if (next.companyId !== empresaParam) {
+      const params = new URLSearchParams(searchParams);
+      if (next.companyId) params.set("empresa", next.companyId);
+      else params.delete("empresa");
+      setSearchParams(params, { replace: true });
+    }
+  }, [empresaParam, searchParams, setSearchParams]);
 
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -104,120 +142,25 @@ function HubDashboardContent({ userId }: { userId: string }) {
 
         const childCompanies = allCompanies.filter(c => c.parent_id !== null);
         const targetCompanies = childCompanies.length > 0 ? childCompanies : allCompanies;
-        setCompanies(targetCompanies.map(c => ({ id: c.id, name: c.name })));
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayISO = today.toISOString();
-
-        const metrics: CompanyMetrics[] = [];
-        const allLeadsRecords: LeadRecord[] = [];
-        const timings: ConversationTiming[] = [];
-
-        // Fetch all data in parallel with batch loading for large datasets
         const companyIds = targetCompanies.map(c => c.id);
+        const nameById = new Map(targetCompanies.map(c => [c.id, c.name]));
 
-        // Batch loader: fetches all rows in chunks of 1000
-        async function fetchAll<T>(query: any): Promise<T[]> {
-          const results: T[] = [];
-          let from = 0;
-          const PAGE = 1000;
-          while (true) {
-            const { data } = await query.range(from, from + PAGE - 1);
-            if (!data || data.length === 0) break;
-            results.push(...data);
-            if (data.length < PAGE) break;
-            from += PAGE;
-          }
-          return results;
-        }
-
-        const [allLeads, allConvos, { count: _totalMessagesCount }, { data: allInstances }] = await Promise.all([
-          fetchAll<any>(supabase.from("campaign_leads").select("id, status, created_at, company_id").in("company_id", companyIds)),
-          fetchAll<any>(supabase.from("wapi_conversations").select("id, is_closed, created_at, company_id").in("company_id", companyIds)),
-          supabase.from("wapi_messages").select("id", { count: "exact", head: true }).in("company_id", companyIds),
-          supabase.from("wapi_instances").select("status, phone_number, company_id, connected_at").in("company_id", companyIds).order("connected_at", { ascending: false }),
+        const [allLeads, allConvos, followUpsRaw, closedEventsRaw, { data: allInstances }] = await Promise.all([
+          fetchAll<{ status: string; created_at: string; company_id: string }>(supabase.from("campaign_leads").select("id, status, created_at, company_id").in("company_id", companyIds)),
+          fetchAll<{ id: string; is_closed: boolean | null; created_at: string; company_id: string }>(supabase.from("wapi_conversations").select("id, is_closed, created_at, company_id").in("company_id", companyIds)),
+          fetchAll<FollowUpRecord>(
+            supabase.from("lead_history").select("company_id, created_at")
+              .ilike("action", "Follow-up%").in("company_id", companyIds)
+          ),
+          fetchAll<ClosedEventRecord>(
+            supabase.from("company_events").select("company_id, data_fechamento_venda")
+              .in("company_id", companyIds).not("data_fechamento_venda", "is", null)
+          ),
+          supabase.from("wapi_instances").select("status, phone_number, company_id, connected_at")
+            .in("company_id", companyIds).order("connected_at", { ascending: false }),
         ]);
 
-        // Fetch follow-ups directly by company_id (lead_history has company_id)
-        const followUpsRaw = await fetchAll<any>(
-          supabase
-            .from("lead_history")
-            .select("company_id, created_at")
-            .ilike("action", "Follow-up%")
-            .in("company_id", companyIds)
-        );
-        const followUps: FollowUpRecord[] = followUpsRaw
-          .filter((fu: any) => fu.company_id)
-          .map((fu: any) => ({ company_id: fu.company_id, created_at: fu.created_at }));
-
-        // Fetch closed events (festas fechadas) by data_fechamento_venda
-        const closedEventsRaw = await fetchAll<any>(
-          supabase
-            .from("company_events")
-            .select("company_id, data_fechamento_venda")
-            .in("company_id", companyIds)
-            .not("data_fechamento_venda", "is", null)
-        );
-        const closedEvents: ClosedEventRecord[] = closedEventsRaw
-          .filter((e: any) => e.company_id && e.data_fechamento_venda)
-          .map((e: any) => ({ company_id: e.company_id, data_fechamento_venda: e.data_fechamento_venda }));
-
-        const leadsByCompany = new Map<string, any[]>();
-        allLeads.forEach(l => {
-          const arr = leadsByCompany.get(l.company_id) || [];
-          arr.push(l);
-          leadsByCompany.set(l.company_id, arr);
-        });
-
-        const convosByCompany = new Map<string, any[]>();
-        allConvos.forEach(c => {
-          const arr = convosByCompany.get(c.company_id) || [];
-          arr.push(c);
-          convosByCompany.set(c.company_id, arr);
-        });
-
-        // Get first messages for response time - batch up to 50 convos total for speed
-        // Get first messages for response time - batch up to 100 convos total for speed
-        const sampleConvos = allConvos.slice(0, 100);
-        if (sampleConvos.length > 0) {
-          const convoIds = sampleConvos.map(c => c.id);
-          const { data: firstMessages } = await supabase
-            .from("wapi_messages")
-            .select("conversation_id, created_at")
-            .in("conversation_id", convoIds)
-            .eq("from_me", true)
-            .order("created_at", { ascending: true });
-
-          // Group by conversation_id, take first per convo
-          const firstMsgMap = new Map<string, string>();
-          (firstMessages || []).forEach(m => {
-            if (!firstMsgMap.has(m.conversation_id)) {
-              firstMsgMap.set(m.conversation_id, m.created_at);
-            }
-          });
-
-          sampleConvos.forEach(convo => {
-            timings.push({
-              company_id: convo.company_id,
-              created_at: convo.created_at,
-              first_message_at: firstMsgMap.get(convo.id) || null,
-            });
-          });
-        }
-
-        // Count messages per company from totals
-        const msgCountByCompany = new Map<string, number>();
-        // We'll use the total count divided proportionally, or just use totalMessagesCount for now
-        // For per-company counts, we need individual queries but can do them in parallel
-        const msgCountPromises = targetCompanies.map(c =>
-          supabase.from("wapi_messages").select("id", { count: "exact", head: true }).eq("company_id", c.id)
-            .then(res => ({ companyId: c.id, count: res.count || 0 }))
-        );
-        const msgCounts = await Promise.all(msgCountPromises);
-        msgCounts.forEach(mc => msgCountByCompany.set(mc.companyId, mc.count));
-
-        // Instance map (latest per company)
+        // Instância mais recente por empresa
         const instanceMap = new Map<string, { status: string; phone_number: string | null }>();
         (allInstances || []).forEach(inst => {
           if (!instanceMap.has(inst.company_id)) {
@@ -225,44 +168,25 @@ function HubDashboardContent({ userId }: { userId: string }) {
           }
         });
 
-        for (const company of targetCompanies) {
-          const companyLeads = leadsByCompany.get(company.id) || [];
-          const companyConvos = convosByCompany.get(company.id) || [];
-          const instance = instanceMap.get(company.id);
-
-          allLeadsRecords.push(...companyLeads.map(l => ({
-            company_id: company.id, company_name: company.name, status: l.status, created_at: l.created_at,
-          })));
-
-          const lastLead = companyLeads.length > 0
-            ? companyLeads.reduce((latest, l) => l.created_at > latest ? l.created_at : latest, companyLeads[0].created_at)
-            : null;
-
-          metrics.push({
-            companyId: company.id, companyName: company.name, logoUrl: company.logo_url,
-            totalLeads: companyLeads.length,
-            leadsToday: companyLeads.filter(l => l.created_at >= todayISO).length,
-            leadsClosed: companyLeads.filter(l => l.status === "fechado").length,
-            leadsLost: companyLeads.filter(l => l.status === "perdido").length,
-            leadsNew: companyLeads.filter(l => l.status === "novo").length,
-            totalConversations: companyConvos.length,
-            activeConversations: companyConvos.filter(c => !c.is_closed).length,
-            totalMessages: msgCountByCompany.get(company.id) || 0,
-            lastLeadAt: lastLead,
-            whatsappStatus: instance?.status === 'open' || instance?.status === 'connected' ? 'connected' : instance ? 'disconnected' : 'unknown',
+        setCompanies(targetCompanies.map(c => {
+          const instance = instanceMap.get(c.id);
+          return {
+            id: c.id,
+            name: c.name,
+            logoUrl: c.logo_url,
+            whatsappStatus: instance?.status === "open" || instance?.status === "connected"
+              ? "connected" : instance ? "disconnected" : "unknown",
             whatsappPhone: instance?.phone_number || null,
-          });
-        }
-        setCompanyMetrics(metrics);
-        setAllLeadRecords(allLeadsRecords);
-        setAllConvoRecords(allConvos.map(c => ({
-          company_id: c.company_id,
-          created_at: c.created_at,
-          is_closed: !!c.is_closed,
+          };
+        }));
+        setAllLeadRecords(allLeads.map(l => ({
+          company_id: l.company_id, company_name: nameById.get(l.company_id) || "", status: l.status, created_at: l.created_at,
         })));
-        setAllFollowUps(followUps);
-        setAllClosedEvents(closedEvents);
-        setConversationTimings(timings);
+        setAllConvoRecords(allConvos.map(c => ({
+          id: c.id, company_id: c.company_id, created_at: c.created_at, is_closed: !!c.is_closed,
+        })));
+        setAllFollowUps(followUpsRaw.filter(f => f.company_id));
+        setAllClosedEvents(closedEventsRaw.filter(e => e.company_id && e.data_fechamento_venda));
       } catch (err) {
         console.error("Error fetching hub metrics:", err);
       }
@@ -271,337 +195,295 @@ function HubDashboardContent({ userId }: { userId: string }) {
     fetchMetrics();
   }, [userId]);
 
-  // Fetch sent/received message counts whenever filters or companies change
+  const companyIdsInScope = useMemo(
+    () => (filters.companyId ? [filters.companyId] : companies.map(c => c.id)),
+    [filters.companyId, companies]
+  );
+
+  // Mensagens enviadas/recebidas: uma contagem por empresa (consultas menores não estouram o tempo
+  // limite do banco). Se alguma falhar, mostramos "—" em vez de um 0 enganoso.
   useEffect(() => {
-    if (companies.length === 0) return;
+    if (companyIdsInScope.length === 0) return;
+    let cancelled = false;
     const fetchMessageCounts = async () => {
       setIsLoadingMessages(true);
-      try {
-        const fromISO = filters.dateRange.from.toISOString();
-        const toISO = filters.dateRange.to.toISOString();
-        const companyIds = filters.companyId
-          ? [filters.companyId]
-          : companies.map(c => c.id);
-
-        const baseSent = supabase
+      const fromISO = filters.dateRange.from.toISOString();
+      const toISO = filters.dateRange.to.toISOString();
+      const countFor = (companyId: string, fromMe: boolean) =>
+        supabase
           .from("wapi_messages")
           .select("id", { count: "exact", head: true })
-          .in("company_id", companyIds)
-          .eq("from_me", true)
+          .eq("company_id", companyId)
+          .eq("from_me", fromMe)
           .gte("created_at", fromISO)
-          .lte("created_at", toISO);
+          .lte("created_at", toISO)
+          .then(({ count, error }) => (error || count === null ? null : count));
 
-        const baseReceived = supabase
-          .from("wapi_messages")
-          .select("id", { count: "exact", head: true })
-          .in("company_id", companyIds)
-          .eq("from_me", false)
-          .gte("created_at", fromISO)
-          .lte("created_at", toISO);
+      const sum = (values: (number | null)[]) =>
+        values.some(v => v === null) ? null : values.reduce<number>((a, v) => a + (v as number), 0);
 
-        const [sentRes, recvRes] = await Promise.all([baseSent, baseReceived]);
-        setMessagesSent(sentRes.count || 0);
-        setMessagesReceived(recvRes.count || 0);
-      } catch (err) {
-        console.error("Error fetching message counts:", err);
-      }
+      const [sent, received] = await Promise.all([
+        Promise.all(companyIdsInScope.map(id => countFor(id, true))),
+        Promise.all(companyIdsInScope.map(id => countFor(id, false))),
+      ]);
+      if (cancelled) return;
+      setMessagesSent(sum(sent));
+      setMessagesReceived(sum(received));
       setIsLoadingMessages(false);
     };
     fetchMessageCounts();
-  }, [companies, filters.companyId, filters.dateRange.from, filters.dateRange.to]);
-
-  // Apply filters
-  const filteredLeads = useMemo(() => {
-    let result = allLeadRecords;
-    const fromISO = filters.dateRange.from.toISOString();
-    const toISO = filters.dateRange.to.toISOString();
-    result = result.filter(l => l.created_at >= fromISO && l.created_at <= toISO);
-    if (filters.companyId) result = result.filter(l => l.company_id === filters.companyId);
-    if (filters.status) result = result.filter(l => l.status === filters.status);
-    return result;
-  }, [allLeadRecords, filters]);
-
-  const filteredMetrics = useMemo(() => {
-    if (!filters.companyId) return companyMetrics;
-    return companyMetrics.filter(m => m.companyId === filters.companyId);
-  }, [companyMetrics, filters.companyId]);
+    return () => { cancelled = true; };
+  }, [companyIdsInScope, filters.dateRange.from, filters.dateRange.to]);
 
   // Conversas filtradas por data + empresa (status não se aplica a conversas)
   const filteredConvos = useMemo(() => {
-    const fromISO = filters.dateRange.from.toISOString();
-    const toISO = filters.dateRange.to.toISOString();
-    return allConvoRecords.filter(c => {
-      if (c.created_at < fromISO || c.created_at > toISO) return false;
-      if (filters.companyId && c.company_id !== filters.companyId) return false;
-      return true;
-    });
-  }, [allConvoRecords, filters]);
+    return allConvoRecords.filter(c =>
+      inRange(c.created_at, filters.dateRange) &&
+      (!filters.companyId || c.company_id === filters.companyId)
+    );
+  }, [allConvoRecords, filters.dateRange, filters.companyId]);
 
-  // Follow-ups filtrados (data + empresa)
-  const filteredFollowUps = useMemo(() => {
-    const fromISO = filters.dateRange.from.toISOString();
-    const toISO = filters.dateRange.to.toISOString();
-    return allFollowUps.filter(f => {
-      if (f.created_at < fromISO || f.created_at > toISO) return false;
-      if (filters.companyId && f.company_id !== filters.companyId) return false;
-      return true;
-    });
-  }, [allFollowUps, filters]);
+  // Tempo de resposta: amostra das conversas mais recentes do período (até 30 por empresa),
+  // da criação da conversa até a primeira mensagem enviada por nós.
+  useEffect(() => {
+    if (isLoadingMetrics) return;
+    let cancelled = false;
+    const fetchResponseTimes = async () => {
+      setIsLoadingResponse(true);
+      const byCompany = new Map<string, ConvoRecord[]>();
+      [...filteredConvos]
+        .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+        .forEach(c => {
+          const arr = byCompany.get(c.company_id) || [];
+          if (arr.length < 30) arr.push(c);
+          byCompany.set(c.company_id, arr);
+        });
+      const sample = [...byCompany.values()].flat();
+      const createdById = new Map(sample.map(c => [c.id, c]));
 
-  const followUpsByCompany = useMemo(() => {
-    const map = new Map<string, number>();
-    filteredFollowUps.forEach(f => map.set(f.company_id, (map.get(f.company_id) || 0) + 1));
-    return map;
-  }, [filteredFollowUps]);
+      const firstReply = new Map<string, string>();
+      await Promise.all(chunk(sample, 10).map(async group => {
+        const { data } = await supabase
+          .from("wapi_messages")
+          .select("conversation_id, timestamp, created_at")
+          .in("conversation_id", group.map(c => c.id))
+          .eq("from_me", true)
+          .order("timestamp", { ascending: true })
+          .limit(1000);
+        (data || []).forEach(m => {
+          if (!firstReply.has(m.conversation_id)) firstReply.set(m.conversation_id, m.timestamp || m.created_at);
+        });
+      }));
+      if (cancelled) return;
 
-  // Festas fechadas (eventos com data_fechamento_venda) filtradas pelo período + empresa
-  const filteredClosedEvents = useMemo(() => {
-    const fromYMD = filters.dateRange.from.toISOString().slice(0, 10);
-    const toYMD = filters.dateRange.to.toISOString().slice(0, 10);
+      const samples: ResponseSample[] = [];
+      firstReply.forEach((replyAt, convoId) => {
+        const convo = createdById.get(convoId);
+        if (!convo) return;
+        const minutes = (new Date(replyAt).getTime() - new Date(convo.created_at).getTime()) / 60000;
+        // Descarta anomalias (negativo ou mais de 30 dias)
+        if (minutes >= 0 && minutes < 30 * 24 * 60) samples.push({ company_id: convo.company_id, minutes });
+      });
+      setResponseSamples(samples);
+      setIsLoadingResponse(false);
+    };
+    fetchResponseTimes();
+    return () => { cancelled = true; };
+  }, [filteredConvos, isLoadingMetrics]);
+
+  const previousRange = useMemo(() => computePreviousRange(filters.dateRange), [filters.dateRange]);
+
+  const matchesScope = useCallback(
+    (r: { company_id: string }) => !filters.companyId || r.company_id === filters.companyId,
+    [filters.companyId]
+  );
+
+  const filteredLeads = useMemo(() => allLeadRecords.filter(l =>
+    inRange(l.created_at, filters.dateRange) && matchesScope(l) && (!filters.status || l.status === filters.status)
+  ), [allLeadRecords, filters, matchesScope]);
+
+  const previousLeads = useMemo(() => allLeadRecords.filter(l =>
+    inRange(l.created_at, previousRange) && matchesScope(l) && (!filters.status || l.status === filters.status)
+  ), [allLeadRecords, previousRange, filters.status, matchesScope]);
+
+  const filteredFollowUps = useMemo(
+    () => allFollowUps.filter(f => inRange(f.created_at, filters.dateRange) && matchesScope(f)),
+    [allFollowUps, filters.dateRange, matchesScope]
+  );
+
+  // Festas fechadas (data_fechamento_venda é uma data, sem hora)
+  const closedIn = useCallback((range: { from: Date; to: Date }) => {
+    const fromYMD = range.from.toISOString().slice(0, 10);
+    const toYMD = range.to.toISOString().slice(0, 10);
     return allClosedEvents.filter(e => {
-      const ymd = (e.data_fechamento_venda || "").slice(0, 10);
-      if (ymd < fromYMD || ymd > toYMD) return false;
-      if (filters.companyId && e.company_id !== filters.companyId) return false;
-      return true;
+      const ymd = e.data_fechamento_venda.slice(0, 10);
+      return ymd >= fromYMD && ymd <= toYMD && matchesScope(e);
     });
-  }, [allClosedEvents, filters]);
+  }, [allClosedEvents, matchesScope]);
 
-  const closedByCompany = useMemo(() => {
-    const map = new Map<string, number>();
-    filteredClosedEvents.forEach(e => map.set(e.company_id, (map.get(e.company_id) || 0) + 1));
-    return map;
-  }, [filteredClosedEvents]);
+  const filteredClosedEvents = useMemo(() => closedIn(filters.dateRange), [closedIn, filters.dateRange]);
+  const previousClosedEvents = useMemo(() => closedIn(previousRange), [closedIn, previousRange]);
 
-  // Today ISO para "Leads Hoje" (sempre hoje, independente do filtro de período)
   const todayISO = useMemo(() => {
     const t = new Date();
     t.setHours(0, 0, 0, 0);
     return t.toISOString();
   }, []);
 
-  // KPIs derivados dos leads filtrados pelo período
-  const totals = useMemo(() => {
-    const leads = filteredLeads;
-    return {
-      leads: leads.length,
-      leadsToday: leads.filter(l => l.created_at >= todayISO).length,
-      closed: filteredClosedEvents.length,
-      lost: leads.filter(l => l.status === "perdido").length,
-      newLeads: leads.filter(l => l.status === "novo").length,
-      conversations: filteredConvos.length,
-      activeConversations: filteredConvos.filter(c => !c.is_closed).length,
-      messages: filteredMetrics.reduce((acc, m) => acc + m.totalMessages, 0),
-    };
-  }, [filteredLeads, filteredConvos, filteredMetrics, filteredClosedEvents, todayISO]);
+  const scopedCompanies = useMemo(
+    () => companies.filter(c => !filters.companyId || c.id === filters.companyId),
+    [companies, filters.companyId]
+  );
 
-  const conversionRate = totals.leads > 0 ? ((totals.closed / totals.leads) * 100).toFixed(1) : "0";
+  // Métricas por empresa, sempre dentro do período selecionado
+  const periodMetrics: CompanyPeriodMetrics[] = useMemo(() => buildPeriodMetrics({
+    companies: scopedCompanies,
+    leads: filteredLeads,
+    convos: filteredConvos,
+    followUps: filteredFollowUps,
+    closedEvents: filteredClosedEvents,
+    responseSamples,
+    todayISO,
+  }), [scopedCompanies, filteredLeads, filteredConvos, filteredFollowUps, filteredClosedEvents, responseSamples, todayISO]);
 
-  const avgResponseTime = useMemo(() => {
-    const fromISO = filters.dateRange.from.toISOString();
-    const toISO = filters.dateRange.to.toISOString();
-    const relevant = conversationTimings.filter(t => {
-      if (!t.first_message_at) return false;
-      if (filters.companyId && t.company_id !== filters.companyId) return false;
-      if (t.created_at < fromISO || t.created_at > toISO) return false;
-      return true;
-    });
-    if (!relevant.length) return null;
-    const totalMinutes = relevant.reduce((sum, t) => {
-      const diff = new Date(t.first_message_at!).getTime() - new Date(t.created_at).getTime();
-      return sum + Math.max(0, diff / 60000);
-    }, 0);
-    const avg = totalMinutes / relevant.length;
-    if (avg < 60) return `${Math.round(avg)}min`;
-    if (avg < 1440) return `${(avg / 60).toFixed(1)}h`;
-    return `${(avg / 1440).toFixed(1)}d`;
-  }, [conversationTimings, filters]);
+  const followUpsByCompany = useMemo(
+    () => new Map(periodMetrics.map(m => [m.companyId, m.followUps])),
+    [periodMetrics]
+  );
+  const closedByCompany = useMemo(
+    () => new Map(periodMetrics.map(m => [m.companyId, m.leadsClosed])),
+    [periodMetrics]
+  );
 
-  const summaryCards = [
-    { title: "Total de Leads", value: totals.leads, icon: Users, gradient: "from-primary/20 via-primary/10 to-transparent", iconBg: "bg-primary/15", iconColor: "text-primary", borderColor: "border-primary/20" },
-    { title: "Leads Hoje", value: totals.leadsToday, icon: UserPlus, gradient: "from-sky-500/20 via-sky-500/10 to-transparent", iconBg: "bg-sky-500/15", iconColor: "text-sky-600", borderColor: "border-sky-500/20" },
-    { title: "Conversão", value: `${conversionRate}%`, icon: Percent, gradient: "from-emerald-500/20 via-emerald-500/10 to-transparent", iconBg: "bg-emerald-500/15", iconColor: "text-emerald-600", borderColor: "border-emerald-500/20" },
-    { title: "Tempo Resposta", value: avgResponseTime || "—", icon: Timer, gradient: "from-violet-500/20 via-violet-500/10 to-transparent", iconBg: "bg-violet-500/15", iconColor: "text-violet-600", borderColor: "border-violet-500/20" },
-    { title: "Fechados", value: totals.closed, icon: CheckCircle, gradient: "from-teal-500/20 via-teal-500/10 to-transparent", iconBg: "bg-teal-500/15", iconColor: "text-teal-600", borderColor: "border-teal-500/20" },
-    { title: "Perdidos", value: totals.lost, icon: XCircle, gradient: "from-rose-500/20 via-rose-500/10 to-transparent", iconBg: "bg-rose-500/15", iconColor: "text-rose-600", borderColor: "border-rose-500/20" },
-    { title: "Conversas Ativas", value: totals.activeConversations, icon: MessageSquare, gradient: "from-amber-500/20 via-amber-500/10 to-transparent", iconBg: "bg-amber-500/15", iconColor: "text-amber-600", borderColor: "border-amber-500/20" },
-    { title: "Follow-ups", value: filteredFollowUps.length, icon: Send, gradient: "from-indigo-500/20 via-indigo-500/10 to-transparent", iconBg: "bg-indigo-500/15", iconColor: "text-indigo-600", borderColor: "border-indigo-500/20" },
-    { title: "Msgs Enviadas", value: isLoadingMessages ? "…" : messagesSent.toLocaleString("pt-BR"), icon: ArrowUpRight, gradient: "from-cyan-500/20 via-cyan-500/10 to-transparent", iconBg: "bg-cyan-500/15", iconColor: "text-cyan-600", borderColor: "border-cyan-500/20" },
-    { title: "Msgs Recebidas", value: isLoadingMessages ? "…" : messagesReceived.toLocaleString("pt-BR"), icon: ArrowDownLeft, gradient: "from-fuchsia-500/20 via-fuchsia-500/10 to-transparent", iconBg: "bg-fuchsia-500/15", iconColor: "text-fuchsia-600", borderColor: "border-fuchsia-500/20" },
+  const totals = useMemo(() => ({
+    leads: filteredLeads.length,
+    leadsToday: filteredLeads.filter(l => l.created_at >= todayISO).length,
+    closed: filteredClosedEvents.length,
+    lost: filteredLeads.filter(l => l.status === "perdido").length,
+    activeConversations: filteredConvos.filter(c => !c.is_closed).length,
+  }), [filteredLeads, filteredConvos, filteredClosedEvents, todayISO]);
+
+  const conversion = totals.leads > 0 ? (totals.closed / totals.leads) * 100 : 0;
+  const previousConversion = previousLeads.length > 0 ? (previousClosedEvents.length / previousLeads.length) * 100 : null;
+
+  const responseMedian = useMemo(() => median(responseSamples.map(s => s.minutes)), [responseSamples]);
+
+  const periodDays = Math.max(1, Math.round((filters.dateRange.to.getTime() - filters.dateRange.from.getTime()) / 86400000));
+  const comparisonCaption = `vs. ${periodDays} dias anteriores`;
+
+  const fmt = (n: number | null) => (n === null ? "—" : n.toLocaleString("pt-BR"));
+
+  const heroCards: { title: string; value: string | number; icon: typeof Users; accent: string; delta?: KpiDelta | null; caption?: string; hint?: string }[] = [
+    {
+      title: "Leads no período",
+      value: totals.leads.toLocaleString("pt-BR"),
+      icon: Users,
+      accent: "bg-primary/10 text-primary",
+      delta: percentDelta(totals.leads, previousLeads.length),
+      caption: comparisonCaption,
+    },
+    {
+      title: "Festas fechadas",
+      value: totals.closed.toLocaleString("pt-BR"),
+      icon: CheckCircle,
+      accent: "bg-emerald-500/10 text-emerald-600",
+      delta: percentDelta(totals.closed, previousClosedEvents.length),
+      caption: comparisonCaption,
+      hint: "Eventos com data de fechamento da venda dentro do período.",
+    },
+    {
+      title: "Conversão",
+      value: `${conversion.toFixed(1).replace(".", ",")}%`,
+      icon: Percent,
+      accent: "bg-violet-500/10 text-violet-600",
+      delta: previousConversion === null ? null : pointsDelta(conversion, previousConversion),
+      caption: comparisonCaption,
+      hint: "Festas fechadas ÷ leads que chegaram no período.",
+    },
+    {
+      title: "1ª resposta",
+      value: isLoadingResponse ? "…" : responseMedian === null ? "—" : formatMinutes(responseMedian),
+      icon: Timer,
+      accent: "bg-amber-500/10 text-amber-600",
+      caption: responseSamples.length > 0 ? `mediana de ${responseSamples.length} conversas` : "sem conversas respondidas",
+      hint: "Tempo entre a abertura da conversa e a primeira mensagem enviada pelo buffet (inclui o robô). Usa as conversas mais recentes do período, até 30 por empresa.",
+    },
+  ];
+
+  const secondaryStats = [
+    { label: "Leads hoje", value: totals.leadsToday.toLocaleString("pt-BR"), icon: UserPlus },
+    { label: "Perdidos", value: totals.lost.toLocaleString("pt-BR"), icon: XCircle },
+    { label: "Conversas ativas", value: totals.activeConversations.toLocaleString("pt-BR"), icon: MessageSquare },
+    { label: "Follow-ups", value: filteredFollowUps.length.toLocaleString("pt-BR"), icon: Send },
+    {
+      label: "Msgs enviadas",
+      value: isLoadingMessages ? "…" : fmt(messagesSent),
+      icon: ArrowUpRight,
+      hint: messagesSent === null ? "Não foi possível contar agora. Tente um período menor." : undefined,
+    },
+    {
+      label: "Msgs recebidas",
+      value: isLoadingMessages ? "…" : fmt(messagesReceived),
+      icon: ArrowDownLeft,
+      hint: messagesReceived === null ? "Não foi possível contar agora. Tente um período menor." : undefined,
+    },
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Filters */}
-      <HubDashboardFilters companies={companies} filters={filters} onFiltersChange={setFilters} />
+    <div className="space-y-5 max-w-[1600px] mx-auto">
+      <HubDashboardFilters
+        companies={companies.map(c => ({ id: c.id, name: c.name }))}
+        filters={filters}
+        onFiltersChange={handleFiltersChange}
+      />
 
-      {/* Summary Cards */}
       {isLoadingMetrics ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-10 gap-3">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Card key={i} className="border-border/50 overflow-hidden">
-              <CardContent className="p-4"><Skeleton className="h-4 w-20 mb-3" /><Skeleton className="h-8 w-12" /></CardContent>
-            </Card>
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}><CardContent className="p-5"><Skeleton className="h-4 w-24 mb-4" /><Skeleton className="h-8 w-16 mb-2" /><Skeleton className="h-4 w-28" /></CardContent></Card>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[62px] rounded-xl" />)}
+          </div>
+        </>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-10 gap-3">
-          {summaryCards.map((metric) => (
-            <Card key={metric.title} className={`relative border ${metric.borderColor} overflow-hidden hover:shadow-lg hover:scale-[1.02] transition-all duration-300 bg-card`}>
-              <div className={`absolute inset-0 bg-gradient-to-br ${metric.gradient} pointer-events-none`} />
-              <CardContent className="p-4 relative z-10">
-                <div className="flex items-center gap-2.5 mb-3">
-                  <div className={`p-2 rounded-lg ${metric.iconBg} shadow-sm`}>
-                    <metric.icon className={`w-4 h-4 ${metric.iconColor}`} />
-                  </div>
-                  <span className="text-xs text-muted-foreground font-medium truncate">{metric.title}</span>
-                </div>
-                <p className="text-2xl font-bold text-foreground tracking-tight">{metric.value}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {heroCards.map(card => <HubKpiCard key={card.title} {...card} />)}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+            {secondaryStats.map(s => <HubStatTile key={s.label} {...s} />)}
+          </div>
+        </>
       )}
 
-      {/* Funnel + Ranking */}
       {!isLoadingMetrics && (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <HubSalesFunnel leads={filteredLeads} />
-          <HubUnitRanking metrics={filteredMetrics} followUpsByCompany={followUpsByCompany} closedByCompany={closedByCompany} />
+          <HubUnitRanking
+            metrics={periodMetrics}
+            followUpsByCompany={followUpsByCompany}
+            closedByCompany={closedByCompany}
+          />
         </div>
       )}
 
-      {/* Charts */}
       <HubCharts leads={filteredLeads} isLoading={isLoadingMetrics} />
 
-      {/* Per Company */}
       <div>
-        <h2 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
+        <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
           <Building2 className="h-4 w-4" /> Por Empresa
+          <span className="text-xs font-normal text-muted-foreground">· números do período</span>
         </h2>
         {isLoadingMetrics ? (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {[1, 2].map(i => (<Card key={i}><CardContent className="p-6"><Skeleton className="h-32 w-full" /></CardContent></Card>))}
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {filteredMetrics.map((m) => {
-              const companyConvRate = m.totalLeads > 0 ? ((m.leadsClosed / m.totalLeads) * 100).toFixed(1) : "0";
-              const companyTimings = conversationTimings.filter(t => t.company_id === m.companyId && t.first_message_at);
-              let companyAvgResponse = "—";
-              if (companyTimings.length > 0) {
-                const totalMin = companyTimings.reduce((sum, t) => {
-                  const diff = new Date(t.first_message_at!).getTime() - new Date(t.created_at).getTime();
-                  return sum + Math.max(0, diff / 60000);
-                }, 0);
-                const avg = totalMin / companyTimings.length;
-                companyAvgResponse = avg < 60 ? `${Math.round(avg)}min` : avg < 1440 ? `${(avg / 60).toFixed(1)}h` : `${(avg / 1440).toFixed(1)}d`;
-              }
-
-              return (
-                <Card key={m.companyId} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {m.logoUrl ? (
-                          <img src={m.logoUrl} alt={m.companyName} className="h-10 w-10 rounded-lg object-contain bg-muted" />
-                        ) : (
-                          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <Building2 className="h-5 w-5 text-primary" />
-                          </div>
-                        )}
-                        <div>
-                          <CardTitle className="text-base">{m.companyName}</CardTitle>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <span className={`h-2 w-2 rounded-full ${m.whatsappStatus === 'connected' ? 'bg-emerald-500' : m.whatsappStatus === 'disconnected' ? 'bg-destructive' : 'bg-muted-foreground'}`} />
-                            <span className="text-xs text-muted-foreground">
-                              {m.whatsappStatus === 'connected' ? 'WhatsApp conectado' : m.whatsappStatus === 'disconnected' ? 'WhatsApp desconectado' : 'Sem instância'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      {m.whatsappPhone && (
-                        <a
-                          href={`https://wa.me/${m.whatsappPhone.replace(/\D/g, '')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-colors text-xs font-medium"
-                        >
-                          <Phone className="h-3.5 w-3.5" />
-                          WhatsApp
-                        </a>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    {/* KPIs row */}
-                    <div className="grid grid-cols-4 gap-2 mb-3">
-                      <div className="text-center p-2 rounded-lg bg-muted/50">
-                        <p className="text-lg font-bold text-foreground">{m.totalLeads}</p>
-                        <p className="text-[10px] text-muted-foreground">Leads</p>
-                      </div>
-                      <div className="text-center p-2 rounded-lg bg-muted/50">
-                        <p className="text-lg font-bold text-emerald-600">{companyConvRate}%</p>
-                        <p className="text-[10px] text-muted-foreground">Conversão</p>
-                      </div>
-                      <div className="text-center p-2 rounded-lg bg-muted/50">
-                        <p className="text-lg font-bold text-foreground">{companyAvgResponse}</p>
-                        <p className="text-[10px] text-muted-foreground">T. Resposta</p>
-                      </div>
-                      <div className="text-center p-2 rounded-lg bg-muted/50">
-                        <p className="text-lg font-bold text-foreground">{m.leadsToday}</p>
-                        <p className="text-[10px] text-muted-foreground">Hoje</p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Novos</span>
-                          <span className="font-medium text-amber-600">{m.leadsNew}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Fechados</span>
-                          <span className="font-medium text-emerald-600">{m.leadsClosed}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Perdidos</span>
-                          <span className="font-medium text-destructive">{m.leadsLost}</span>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Conversas</span>
-                          <span className="font-semibold">{m.totalConversations}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Ativas</span>
-                          <span className="font-medium text-primary">{m.activeConversations}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Mensagens</span>
-                          <span className="font-semibold">{m.totalMessages}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Last lead + footer */}
-                    <div className="mt-3 pt-3 border-t flex items-center justify-between text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1.5">
-                        <Timer className="h-3 w-3" />
-                        {m.lastLeadAt
-                          ? `Último lead: ${formatDistanceToNow(new Date(m.lastLeadAt), { addSuffix: true, locale: ptBR })}`
-                          : 'Sem leads'}
-                      </span>
-                      {m.whatsappPhone && (
-                        <span className="font-mono text-[10px]">
-                          {m.whatsappPhone}
-                        </span>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {periodMetrics.map(m => <HubCompanyCard key={m.companyId} metrics={m} />)}
           </div>
         )}
       </div>

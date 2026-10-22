@@ -7,10 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Menu } from "lucide-react";
 import { HubSidebar } from "./HubSidebar";
 import { HubMobileMenu } from "./HubMobileMenu";
+import { HubCommandPalette } from "./HubCommandPalette";
+import type { HubPage } from "./hubNavigation";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface HubLayoutProps {
   children: (props: { user: User; profile: HubProfile | null }) => ReactNode;
-  currentPage: "hub" | "empresas" | "users" | "whatsapp" | "onboarding" | "prospeccao" | "comercial-b2b" | "consumo-ia" | "treinamento" | "leads" | "suporte" | "materiais" | "recrutamento" | "funcionalidades" | "backups" | "instagram" | "message-trace";
+  currentPage: HubPage;
   header: ReactNode;
 }
 
@@ -30,6 +33,7 @@ export function HubLayout({ children, currentPage, header }: HubLayoutProps) {
   const [canAccess, setCanAccess] = useState<boolean | null>(null);
   const [profile, setProfile] = useState<HubProfile | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
@@ -98,8 +102,6 @@ export function HubLayout({ children, currentPage, header }: HubLayoutProps) {
 
   if (!user || canAccess !== true) return null;
 
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
@@ -110,9 +112,9 @@ export function HubLayout({ children, currentPage, header }: HubLayoutProps) {
           />
         )}
 
-        <SidebarInset className="flex-1">
-          <header className="bg-card border-b border-border px-4 py-3 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
+        <SidebarInset className="flex-1 min-w-0">
+          <header className="sticky top-0 z-30 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 border-b border-border px-4 py-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               {isMobile ? (
                 <HubMobileMenu
                   isOpen={isMobileMenuOpen}
@@ -127,11 +129,12 @@ export function HubLayout({ children, currentPage, header }: HubLayoutProps) {
               ) : (
                 <SidebarTrigger />
               )}
-              {header}
+              <div className="min-w-0">{header}</div>
             </div>
+            <HubCommandPalette />
           </header>
 
-          <div className="p-4 md:p-6">
+          <div className="p-4 md:p-6 min-w-0 overflow-x-clip">
             {children({ user, profile })}
           </div>
         </SidebarInset>
