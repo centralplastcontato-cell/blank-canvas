@@ -3876,6 +3876,39 @@ export type Database = {
         }
         Relationships: []
       }
+      hub_weekly_summaries: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string | null
+          facts: Json | null
+          id: string
+          model: string | null
+          period_from: string
+          period_to: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by?: string | null
+          facts?: Json | null
+          id?: string
+          model?: string | null
+          period_from: string
+          period_to: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          facts?: Json | null
+          id?: string
+          model?: string | null
+          period_from?: string
+          period_to?: string
+        }
+        Relationships: []
+      }
       lead_contract_data: {
         Row: {
           bairro: string | null
@@ -7043,6 +7076,7 @@ export type Database = {
       }
       get_user_company_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_default_company: { Args: { _user_id: string }; Returns: string }
+      hub_health: { Args: never; Returns: Json }
       hub_dashboard_metrics: {
         Args: {
           p_company_id?: string
