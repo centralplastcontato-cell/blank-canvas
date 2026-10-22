@@ -63,7 +63,7 @@ export function EventTaskTemplateManager() {
           </p>
 
           {templates.length === 0 && !loading && (
-            <p className="text-xs text-muted-foreground italic">Nenhum template cadastrado.</p>
+            <p className="text-xs text-muted-foreground italic">Nenhum modelo cadastrado.</p>
           )}
 
           {templates.map((t) => (
@@ -98,11 +98,11 @@ export function EventTaskTemplateManager() {
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Novo Template de Tarefas</DialogTitle>
+                <DialogTitle>Novo Modelo de Tarefas</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label>Nome do template</Label>
+                  <Label>Nome do modelo</Label>
                   <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Checklist Festa Infantil" />
                 </div>
 
@@ -158,7 +158,7 @@ export function EventTaskTemplateManager() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-                <Button onClick={handleCreate} disabled={!name.trim()}>Criar template</Button>
+                <Button onClick={handleCreate} disabled={!name.trim()}>Criar modelo</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>

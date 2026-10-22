@@ -908,11 +908,11 @@ export function FreelancerManagerContent() {
     if (editingTemplate) {
       const { error } = await supabase.from("freelancer_templates").update(payload).eq("id", editingTemplate.id);
       if (error) { toast({ title: "Erro ao salvar", variant: "destructive" }); setSaving(false); return; }
-      toast({ title: "Template atualizado!" });
+      toast({ title: "Modelo atualizado!" });
     } else {
       const { error } = await supabase.from("freelancer_templates").insert(payload);
       if (error) { toast({ title: "Erro ao criar", variant: "destructive" }); setSaving(false); return; }
-      toast({ title: "Template criado!" });
+      toast({ title: "Modelo criado!" });
     }
     setSaving(false);
     setDialogOpen(false);
@@ -931,14 +931,14 @@ export function FreelancerManagerContent() {
       thank_you_message: t.thank_you_message,
     });
     if (error) { toast({ title: "Erro ao duplicar", variant: "destructive" }); return; }
-    toast({ title: "Template duplicado!" });
+    toast({ title: "Modelo duplicado!" });
     fetchTemplates();
   };
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("freelancer_templates").delete().eq("id", id);
     if (error) { toast({ title: "Erro ao excluir", variant: "destructive" }); return; }
-    toast({ title: "Template excluído" });
+    toast({ title: "Modelo excluído" });
     if (expandedTemplateId === id) setExpandedTemplateId(null);
     fetchTemplates();
   };
@@ -1008,8 +1008,8 @@ export function FreelancerManagerContent() {
       <PasswordConfirmDialog
         open={templatePasswordDialogOpen}
         onOpenChange={setTemplatePasswordDialogOpen}
-        title="Excluir template de freelancer"
-        description="Esta ação é irreversível e excluirá o template e todas as respostas vinculadas. Digite sua senha de acesso para confirmar."
+        title="Excluir modelo de freelancer"
+        description="Esta ação é irreversível e excluirá o modelo e todas as respostas vinculadas. Digite sua senha de acesso para confirmar."
         onConfirmed={() => { if (pendingDeleteTemplateId) handleDelete(pendingDeleteTemplateId); }}
       />
 
@@ -1017,7 +1017,7 @@ export function FreelancerManagerContent() {
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground hidden md:block">Crie formulários de cadastro para freelancers</p>
           {isAdmin && (
-            <Button onClick={openNew} size="sm"><Plus className="h-4 w-4 mr-1" /> Novo Template</Button>
+            <Button onClick={openNew} size="sm"><Plus className="h-4 w-4 mr-1" /> Novo Modelo</Button>
           )}
         </div>
 
@@ -1027,8 +1027,8 @@ export function FreelancerManagerContent() {
           <Card className="bg-card border-border">
             <CardContent className="p-8 text-center space-y-3">
               <HardHat className="h-12 w-12 text-muted-foreground mx-auto" />
-              <p className="text-muted-foreground">Nenhum template de freelancer criado ainda.</p>
-              {isAdmin && <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Criar Primeiro Template</Button>}
+              <p className="text-muted-foreground">Nenhum modelo de freelancer criado ainda.</p>
+              {isAdmin && <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Criar Primeiro Modelo</Button>}
             </CardContent>
           </Card>
         ) : (
@@ -1124,7 +1124,7 @@ export function FreelancerManagerContent() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-lg">{editingTemplate ? "Editar Template" : "Novo Template de Freelancer"}</DialogTitle>
+            <DialogTitle className="text-lg">{editingTemplate ? "Editar Modelo" : "Novo Modelo de Freelancer"}</DialogTitle>
             <DialogDescription className="text-xs">Configure as informações e perguntas do formulário de cadastro.</DialogDescription>
           </DialogHeader>
 
@@ -1219,7 +1219,7 @@ export function FreelancerManagerContent() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving || !formName.trim()}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {editingTemplate ? "Salvar" : "Criar Template"}
+              {editingTemplate ? "Salvar" : "Criar Modelo"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,10 +1,10 @@
-import { Fragment, useEffect, useMemo, type ComponentType, type ReactNode } from "react";
+import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
-  Activity, Bell, Bot, Building2, ChevronLeft, ChevronRight, Database, FileText, FolderOpen, Globe,
+  Activity, Bell, Bot, Building2, Database, FileText, FolderOpen, Globe,
   MessageSquare, MessagesSquare, Palette, PartyPopper, Send, Settings, Sparkles, Upload, UserCircle, Users, Wifi, Wand2,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { HubLayout, type HubGroup, type HubTone } from "./HubLayout";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
@@ -39,25 +39,11 @@ const MESSAGE_TABS = ["visitas", "followups", "reativacao", "prereserva", "formu
 const ROBOT_TABS = ["geral", "perguntas", "bot-lp"];
 const TEMPLATE_TABS = ["festa", "gatilhos"];
 
-interface Item {
-  id: string;
-  title: string;
-  description: string;
-  icon: ComponentType<{ className?: string }>;
-  visible: boolean;
-  render: () => ReactNode;
-}
-
-interface Group {
-  id: string;
-  title: string;
-  icon: ComponentType<{ className?: string }>;
-  items: Item[];
-}
+type Group = HubGroup;
 
 // Cor de cada grupo: o grupo (tópico) tem ícone colorido e título forte; as
 // funções ficam recuadas embaixo, na mesma cor quando abertas
-const TONES: Record<string, { chip: string; line: string; active: string }> = {
+const TONES: Record<string, HubTone> = {
   buffet: { chip: "bg-amber-500/15 text-amber-600", line: "border-amber-500/30", active: "bg-amber-500/10 text-amber-700 dark:text-amber-400" },
   whatsapp: { chip: "bg-emerald-500/15 text-emerald-600", line: "border-emerald-500/30", active: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" },
   ia: { chip: "bg-violet-500/15 text-violet-600", line: "border-violet-500/30", active: "bg-violet-500/10 text-violet-700 dark:text-violet-400" },
@@ -165,11 +151,6 @@ export function SettingsHub({ userId, userEmail, isAdmin, isGestor, canManageUse
     setSearchParams(next, { replace: false });
   };
 
-  const activeId = active?.id;
-  useEffect(() => {
-    if (activeId) document.getElementById("settings-content-top")?.scrollIntoView({ block: "start" });
-  }, [activeId]);
-
   if (isLoading) {
     return (
       <div className="flex flex-col md:flex-row gap-4">
@@ -179,116 +160,5 @@ export function SettingsHub({ userId, userEmail, isAdmin, isGestor, canManageUse
     );
   }
 
-  const groupOf = (id: string) => groups.find((g) => g.items.some((i) => i.id === id));
-
-  // Celular: lista de cartões; ao tocar, abre o item com "voltar"
-  if (isMobile) {
-    if (!active) {
-      return (
-        <div className="space-y-5 pb-6">
-          {groups.map((g) => (
-            <section key={g.id} className="space-y-2">
-              <h2 className="flex items-center gap-2 px-1 text-sm font-bold text-foreground">
-                <span className={cn("flex h-7 w-7 items-center justify-center rounded-lg", toneOf(g.id).chip)}><g.icon className="h-4 w-4" /></span>
-                {g.title}
-              </h2>
-              <div className="overflow-hidden rounded-2xl border border-border/50 bg-card divide-y divide-border/50">
-                {g.items.map((i) => (
-                  <button key={i.id} type="button" onClick={() => open(i.id)} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-muted/60">
-                    <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", toneOf(g.id).chip)}><i.icon className="h-4 w-4" /></span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold text-foreground">{i.title}</span>
-                      <span className="block text-xs text-muted-foreground truncate">{i.description}</span>
-                    </span>
-                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" />
-                  </button>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
-      );
-    }
-    return (
-      <div className="space-y-4 pb-6">
-        <div id="settings-content-top" />
-        <button type="button" onClick={() => open(null)} className="flex items-center gap-1 text-sm font-medium text-primary">
-          <ChevronLeft className="h-4 w-4" /> Configurações
-        </button>
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{groupOf(active.id)?.title}</p>
-          <h2 className="text-lg font-bold text-foreground">{active.title}</h2>
-          <p className="text-xs text-muted-foreground">{active.description}</p>
-        </div>
-        <div className="min-w-0"><Fragment key={active.id}>{active.render()}</Fragment></div>
-      </div>
-    );
-  }
-
-  // Computador: menu à esquerda, conteúdo à direita
-  return (
-    <div className="flex gap-6 items-start">
-      <nav className="w-64 shrink-0 sticky top-0 divide-y divide-border/50 rounded-2xl border border-border/40 bg-card px-3 py-1 shadow-sm">
-        {groups.map((g) => {
-          const tone = toneOf(g.id);
-          const single = g.items.length === 1 ? g.items[0] : null;
-          const header = (
-            <>
-              <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg", tone.chip)}><g.icon className="h-4 w-4" /></span>
-              <span className="truncate text-sm font-bold text-foreground">{g.title}</span>
-            </>
-          );
-          return (
-            <div key={g.id} className="py-2.5">
-              {single ? (
-                // Grupo com uma função só: o próprio título abre
-                <button
-                  type="button"
-                  onClick={() => open(single.id)}
-                  className={cn("flex w-full items-center gap-2.5 rounded-xl px-2 py-1.5 text-left transition-colors", active?.id === single.id ? tone.active : "hover:bg-muted")}
-                >
-                  {header}
-                </button>
-              ) : (
-                <>
-                  <div className="flex items-center gap-2.5 px-2 py-1.5">{header}</div>
-                  <div className={cn("ml-5 mt-1 space-y-0.5 border-l-2 pl-3", tone.line)}>
-                    {g.items.map((i) => (
-                      <button
-                        key={i.id}
-                        type="button"
-                        onClick={() => open(i.id)}
-                        className={cn(
-                          "flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-[13px] transition-colors",
-                          active?.id === i.id ? cn(tone.active, "font-semibold") : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                        )}
-                      >
-                        <span className="truncate">{i.title}</span>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          );
-        })}
-      </nav>
-      <div className="min-w-0 flex-1">
-        <div id="settings-content-top" />
-        {active && (
-          <>
-            <div className="mb-5 flex items-center gap-3 border-b border-border pb-3">
-              <div className={cn("rounded-xl p-2.5", toneOf(groupOf(active.id)?.id || "").chip)}><active.icon className="h-5 w-5" /></div>
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{groupOf(active.id)?.title}</p>
-                <h2 className="font-display text-lg font-bold tracking-tight">{active.title}</h2>
-                <p className="text-sm text-muted-foreground">{active.description}</p>
-              </div>
-            </div>
-            <Fragment key={active.id}>{active.render()}</Fragment>
-          </>
-        )}
-      </div>
-    </div>
-  );
+  return <HubLayout groups={groups} active={active} onOpen={open} isMobile={isMobile} backLabel="Configurações" toneOf={toneOf} />;
 }

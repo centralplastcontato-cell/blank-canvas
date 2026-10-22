@@ -311,14 +311,14 @@ export function AvaliacoesContent() {
       thank_you_message: t.thank_you_message,
     });
     if (error) { toast({ title: "Erro ao duplicar", variant: "destructive" }); return; }
-    toast({ title: "Template duplicado!" });
+    toast({ title: "Modelo duplicado!" });
     fetchTemplates();
   };
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("evaluation_templates").delete().eq("id", id);
     if (error) { toast({ title: "Erro ao excluir", variant: "destructive" }); return; }
-    toast({ title: "Template excluído" });
+    toast({ title: "Modelo excluído" });
     if (expandedTemplateId === id) setExpandedTemplateId(null);
     fetchTemplates();
   };
@@ -344,11 +344,11 @@ export function AvaliacoesContent() {
     if (editingTemplate) {
       const { error } = await supabase.from("evaluation_templates").update(payload).eq("id", editingTemplate.id);
       if (error) { toast({ title: "Erro ao salvar", variant: "destructive" }); setSaving(false); return; }
-      toast({ title: "Template atualizado!" });
+      toast({ title: "Modelo atualizado!" });
     } else {
       const { error } = await supabase.from("evaluation_templates").insert(payload);
       if (error) { toast({ title: "Erro ao criar", variant: "destructive" }); setSaving(false); return; }
-      toast({ title: "Template criado!" });
+      toast({ title: "Modelo criado!" });
     }
     setSaving(false);
     setDialogOpen(false);
@@ -444,7 +444,7 @@ export function AvaliacoesContent() {
       <div className="max-w-6xl mx-auto space-y-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground hidden md:block">Crie formulários de avaliação para enviar aos anfitriões</p>
-          <Button onClick={openNew} size="sm"><Plus className="h-4 w-4 mr-1" /> Novo Template</Button>
+          <Button onClick={openNew} size="sm"><Plus className="h-4 w-4 mr-1" /> Novo Modelo</Button>
         </div>
 
         {loading ? (
@@ -453,8 +453,8 @@ export function AvaliacoesContent() {
           <Card className="bg-card border-border">
             <CardContent className="p-8 text-center space-y-3">
               <ClipboardCheck className="h-12 w-12 text-muted-foreground mx-auto" />
-              <p className="text-muted-foreground">Nenhum template de avaliação criado ainda.</p>
-              <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Criar Primeiro Template</Button>
+              <p className="text-muted-foreground">Nenhum modelo de avaliação criado ainda.</p>
+              <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Criar Primeiro Modelo</Button>
             </CardContent>
           </Card>
         ) : (
@@ -506,7 +506,7 @@ export function AvaliacoesContent() {
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Excluir template?</AlertDialogTitle>
+                              <AlertDialogTitle>Excluir modelo?</AlertDialogTitle>
                               <AlertDialogDescription>Essa ação não pode ser desfeita. Todas as respostas vinculadas também serão excluídas.</AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -622,12 +622,12 @@ export function AvaliacoesContent() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingTemplate ? "Editar Template" : "Novo Template de Avaliação"}</DialogTitle>
+            <DialogTitle>{editingTemplate ? "Editar Modelo" : "Novo Modelo de Avaliação"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid gap-3">
               <div>
-                <Label>Nome do template</Label>
+                <Label>Nome do modelo</Label>
                 <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Ex: Avaliação Pós-Festa" />
               </div>
               <div>
@@ -702,7 +702,7 @@ export function AvaliacoesContent() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving || !formName.trim()}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {editingTemplate ? "Salvar" : "Criar Template"}
+              {editingTemplate ? "Salvar" : "Criar Modelo"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1948,9 +1948,9 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     <ListChecks className="h-4 w-4" /> Template de Checklist
                   </Label>
                   <Select value={selectedTemplate} onValueChange={(v) => { setSelectedTemplate(v); setForm({ ...form, checklist_template_id: v || null }); }}>
-                    <SelectTrigger><SelectValue placeholder="Sem template" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Sem modelo" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Sem template</SelectItem>
+                      <SelectItem value="none">Sem modelo</SelectItem>
                       {templates.map((t) => <SelectItem key={t.id} value={t.id}>{t.name} ({t.items.length} itens)</SelectItem>)}
                     </SelectContent>
                   </Select>
