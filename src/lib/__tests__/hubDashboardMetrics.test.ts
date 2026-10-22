@@ -1,23 +1,65 @@
 import { describe, it, expect } from "vitest";
 import {
-  buildPeriodMetrics, computePreviousRange, formatMinutes, inRange, median, percentDelta, pointsDelta,
+  countByStatus, formatMinutes, isIdle, parseHubDashboard, percentDelta, pointsDelta, sumTotals,
 } from "../hubDashboardMetrics";
 
-describe("computePreviousRange", () => {
-  it("returns the window of the same length right before", () => {
-    const range = { from: new Date("2026-10-01T00:00:00Z"), to: new Date("2026-10-31T00:00:00Z") };
-    const prev = computePreviousRange(range);
-    expect(prev.to.toISOString()).toBe("2026-10-01T00:00:00.000Z");
-    expect(prev.from.toISOString()).toBe("2026-09-01T00:00:00.000Z");
+const rpcResponse = {
+  companies_all: [{ id: "a", name: "A" }, { id: "b", name: "B" }],
+  companies: [
+    {
+      id: "a", name: "A", logo_url: null, whatsapp_status: "connected", whatsapp_phone: "5511",
+      leads: 10, leads_today: 2, leads_new: 3, leads_lost: 1, last_lead_at: "2026-10-22T10:00:00Z",
+      closed: 2, conversations: 8, active_conversations: 5, follow_ups: 4,
+      msgs_sent: 100, msgs_received: 50, response_median_minutes: 12.5, response_samples: 7,
+    },
+    {
+      id: "b", name: "B", logo_url: null, whatsapp_status: "weird", whatsapp_phone: null,
+      leads: 0, leads_today: 0, leads_new: 0, leads_lost: 0, last_lead_at: null,
+      closed: 0, conversations: 0, active_conversations: 0, follow_ups: 0,
+      msgs_sent: 3, msgs_received: 0, response_median_minutes: null, response_samples: 0,
+    },
+  ],
+  previous: { leads: 8, closed: "1" },
+  response: { median_minutes: 9, samples: 7 },
+  lead_buckets: [
+    { company_id: "a", month: "2026-09", status: "novo", count: 2 },
+    { company_id: "a", month: "2026-10", status: "novo", count: 1 },
+    { company_id: "a", month: "2026-10", status: "fechado", count: 7 },
+  ],
+};
+
+describe("parseHubDashboard", () => {
+  it("maps the database response", () => {
+    const data = parseHubDashboard(rpcResponse);
+    expect(data.companiesAll).toHaveLength(2);
+    expect(data.companies[0]).toMatchObject({
+      companyId: "a", totalLeads: 10, leadsClosed: 2, messagesSent: 100, responseMedianMinutes: 12.5, followUps: 4,
+    });
+    expect(data.companies[1].whatsappStatus).toBe("unknown");
+    expect(data.companies[1].responseMedianMinutes).toBeNull();
+    expect(data.previous).toEqual({ leads: 8, closed: 1 });
+    expect(data.response).toEqual({ medianMinutes: 9, samples: 7 });
+    expect(data.leadBuckets[2]).toEqual({ companyId: "a", month: "2026-10", status: "fechado", count: 7 });
+  });
+
+  it("survives an empty response", () => {
+    const data = parseHubDashboard(null);
+    expect(data.companies).toEqual([]);
+    expect(data.response.medianMinutes).toBeNull();
   });
 });
 
-describe("inRange", () => {
-  it("includes both ends", () => {
-    const range = { from: new Date("2026-10-01T00:00:00Z"), to: new Date("2026-10-02T00:00:00Z") };
-    expect(inRange("2026-10-01T00:00:00.000Z", range)).toBe(true);
-    expect(inRange("2026-10-02T00:00:00.000Z", range)).toBe(true);
-    expect(inRange("2026-10-02T00:00:01.000Z", range)).toBe(false);
+describe("totals and grouping", () => {
+  const data = parseHubDashboard(rpcResponse);
+  it("sums companies", () => {
+    expect(sumTotals(data.companies)).toMatchObject({ leads: 10, closed: 2, messagesSent: 103, followUps: 4 });
+  });
+  it("counts leads by status", () => {
+    expect(countByStatus(data.leadBuckets)).toEqual({ novo: 3, fechado: 7 });
+  });
+  it("flags companies with no movement", () => {
+    expect(isIdle(data.companies[0])).toBe(false);
+    expect(isIdle(data.companies[1])).toBe(true);
   });
 });
 
@@ -40,47 +82,11 @@ describe("pointsDelta", () => {
   });
 });
 
-describe("median", () => {
-  it("handles empty, odd and even lists", () => {
-    expect(median([])).toBeNull();
-    expect(median([5, 1, 3])).toBe(3);
-    expect(median([1, 2, 3, 10])).toBe(2.5);
-  });
-});
-
 describe("formatMinutes", () => {
   it("picks a readable unit", () => {
     expect(formatMinutes(0.2)).toBe("< 1min");
     expect(formatMinutes(14)).toBe("14min");
     expect(formatMinutes(90)).toBe("1,5h");
     expect(formatMinutes(2880)).toBe("2,0d");
-  });
-});
-
-describe("buildPeriodMetrics", () => {
-  it("counts each company only from the rows it receives", () => {
-    const [a, b] = buildPeriodMetrics({
-      companies: [
-        { id: "a", name: "A", logoUrl: null, whatsappStatus: "connected", whatsappPhone: null },
-        { id: "b", name: "B", logoUrl: null, whatsappStatus: "unknown", whatsappPhone: null },
-      ],
-      leads: [
-        { company_id: "a", status: "novo", created_at: "2026-10-22T10:00:00.000Z" },
-        { company_id: "a", status: "perdido", created_at: "2026-10-01T10:00:00.000Z" },
-        { company_id: "b", status: "novo", created_at: "2026-10-05T10:00:00.000Z" },
-      ],
-      convos: [{ company_id: "a", is_closed: false }, { company_id: "a", is_closed: true }],
-      followUps: [{ company_id: "b" }],
-      closedEvents: [{ company_id: "a" }],
-      responseSamples: [{ company_id: "a", minutes: 4 }, { company_id: "a", minutes: 10 }],
-      todayISO: "2026-10-22T03:00:00.000Z",
-    });
-
-    expect(a).toMatchObject({
-      totalLeads: 2, leadsToday: 1, leadsNew: 1, leadsLost: 1, leadsClosed: 1,
-      totalConversations: 2, activeConversations: 1, followUps: 0, responseMedianMinutes: 7,
-      lastLeadAt: "2026-10-22T10:00:00.000Z",
-    });
-    expect(b).toMatchObject({ totalLeads: 1, followUps: 1, leadsClosed: 0, responseMedianMinutes: null });
   });
 });

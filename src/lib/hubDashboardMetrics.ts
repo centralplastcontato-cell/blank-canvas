@@ -1,4 +1,5 @@
-// Cálculos puros do Painel do Hub (sem Supabase), para poder testar.
+// Painel do Hub: leitura da resposta de hub_dashboard_metrics (banco) e formatações.
+// Funções puras, sem Supabase, para poder testar.
 
 export interface DateRange {
   from: Date;
@@ -9,16 +10,6 @@ export interface Delta {
   label: string;
   direction: "up" | "down" | "flat";
   goodWhenUp?: boolean;
-}
-
-export function inRange(iso: string, range: DateRange): boolean {
-  return iso >= range.from.toISOString() && iso <= range.to.toISOString();
-}
-
-/** Período imediatamente anterior, com a mesma duração */
-export function computePreviousRange(range: DateRange): DateRange {
-  const duration = range.to.getTime() - range.from.getTime();
-  return { from: new Date(range.from.getTime() - duration), to: new Date(range.from.getTime()) };
 }
 
 /** Variação percentual; null quando não há base de comparação */
@@ -36,13 +27,6 @@ export function pointsDelta(current: number, previous: number): Delta {
   if (diff === 0) return { label: "0 p.p.", direction: "flat" };
   const text = Math.abs(diff).toFixed(1).replace(".", ",");
   return { label: `${diff > 0 ? "+" : "−"}${text} p.p.`, direction: diff > 0 ? "up" : "down" };
-}
-
-export function median(values: number[]): number | null {
-  if (values.length === 0) return null;
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 export function formatMinutes(minutes: number): string {
@@ -66,64 +50,98 @@ export interface CompanyPeriodMetrics {
   totalConversations: number;
   activeConversations: number;
   followUps: number;
+  messagesSent: number;
+  messagesReceived: number;
   responseMedianMinutes: number | null;
+  responseSamples: number;
   lastLeadAt: string | null;
 }
 
-interface BuildInput {
-  companies: {
-    id: string;
-    name: string;
-    logoUrl: string | null;
-    whatsappStatus: "connected" | "disconnected" | "unknown";
-    whatsappPhone: string | null;
-  }[];
-  leads: { company_id: string; status: string; created_at: string }[];
-  convos: { company_id: string; is_closed: boolean }[];
-  followUps: { company_id: string }[];
-  closedEvents: { company_id: string }[];
-  responseSamples: { company_id: string; minutes: number }[];
-  todayISO: string;
+export interface LeadBucket {
+  companyId: string;
+  /** "YYYY-MM" no fuso de São Paulo */
+  month: string;
+  status: string;
+  count: number;
 }
 
-function groupBy<T extends { company_id: string }>(rows: T[]): Map<string, T[]> {
-  const map = new Map<string, T[]>();
-  rows.forEach(r => {
-    const arr = map.get(r.company_id);
-    if (arr) arr.push(r);
-    else map.set(r.company_id, [r]);
-  });
-  return map;
+export interface HubDashboardData {
+  companiesAll: { id: string; name: string }[];
+  companies: CompanyPeriodMetrics[];
+  previous: { leads: number; closed: number };
+  response: { medianMinutes: number | null; samples: number };
+  leadBuckets: LeadBucket[];
 }
 
-/** Métricas por empresa, todas calculadas sobre as linhas já filtradas pelo período */
-export function buildPeriodMetrics(input: BuildInput): CompanyPeriodMetrics[] {
-  const leads = groupBy(input.leads);
-  const convos = groupBy(input.convos);
-  const followUps = groupBy(input.followUps);
-  const closed = groupBy(input.closedEvents);
-  const responses = groupBy(input.responseSamples);
+export interface HubDashboardTotals {
+  leads: number;
+  leadsToday: number;
+  closed: number;
+  lost: number;
+  activeConversations: number;
+  followUps: number;
+  messagesSent: number;
+  messagesReceived: number;
+}
 
-  return input.companies.map(c => {
-    const cl = leads.get(c.id) || [];
-    const cc = convos.get(c.id) || [];
-    const lastLeadAt = cl.reduce<string | null>((latest, l) => (!latest || l.created_at > latest ? l.created_at : latest), null);
-    return {
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const num = (v: any): number => (typeof v === "number" ? v : Number(v) || 0);
+const numOrNull = (v: any): number | null => (v === null || v === undefined ? null : Number(v));
+
+/** Converte o JSON devolvido por hub_dashboard_metrics */
+export function parseHubDashboard(raw: any): HubDashboardData {
+  const r = raw || {};
+  return {
+    companiesAll: (r.companies_all || []).map((c: any) => ({ id: c.id, name: c.name })),
+    companies: (r.companies || []).map((c: any): CompanyPeriodMetrics => ({
       companyId: c.id,
       companyName: c.name,
-      logoUrl: c.logoUrl,
-      whatsappStatus: c.whatsappStatus,
-      whatsappPhone: c.whatsappPhone,
-      totalLeads: cl.length,
-      leadsToday: cl.filter(l => l.created_at >= input.todayISO).length,
-      leadsNew: cl.filter(l => l.status === "novo").length,
-      leadsClosed: (closed.get(c.id) || []).length,
-      leadsLost: cl.filter(l => l.status === "perdido").length,
-      totalConversations: cc.length,
-      activeConversations: cc.filter(x => !x.is_closed).length,
-      followUps: (followUps.get(c.id) || []).length,
-      responseMedianMinutes: median((responses.get(c.id) || []).map(r => r.minutes)),
-      lastLeadAt,
-    };
-  });
+      logoUrl: c.logo_url ?? null,
+      whatsappStatus: c.whatsapp_status === "connected" || c.whatsapp_status === "disconnected" ? c.whatsapp_status : "unknown",
+      whatsappPhone: c.whatsapp_phone ?? null,
+      totalLeads: num(c.leads),
+      leadsToday: num(c.leads_today),
+      leadsNew: num(c.leads_new),
+      leadsClosed: num(c.closed),
+      leadsLost: num(c.leads_lost),
+      totalConversations: num(c.conversations),
+      activeConversations: num(c.active_conversations),
+      followUps: num(c.follow_ups),
+      messagesSent: num(c.msgs_sent),
+      messagesReceived: num(c.msgs_received),
+      responseMedianMinutes: numOrNull(c.response_median_minutes),
+      responseSamples: num(c.response_samples),
+      lastLeadAt: c.last_lead_at ?? null,
+    })),
+    previous: { leads: num(r.previous?.leads), closed: num(r.previous?.closed) },
+    response: { medianMinutes: numOrNull(r.response?.median_minutes), samples: num(r.response?.samples) },
+    leadBuckets: (r.lead_buckets || []).map((b: any) => ({
+      companyId: b.company_id, month: b.month, status: b.status, count: num(b.count),
+    })),
+  };
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+export function sumTotals(companies: CompanyPeriodMetrics[]): HubDashboardTotals {
+  return companies.reduce<HubDashboardTotals>((t, c) => ({
+    leads: t.leads + c.totalLeads,
+    leadsToday: t.leadsToday + c.leadsToday,
+    closed: t.closed + c.leadsClosed,
+    lost: t.lost + c.leadsLost,
+    activeConversations: t.activeConversations + c.activeConversations,
+    followUps: t.followUps + c.followUps,
+    messagesSent: t.messagesSent + c.messagesSent,
+    messagesReceived: t.messagesReceived + c.messagesReceived,
+  }), { leads: 0, leadsToday: 0, closed: 0, lost: 0, activeConversations: 0, followUps: 0, messagesSent: 0, messagesReceived: 0 });
+}
+
+export function countByStatus(buckets: LeadBucket[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  buckets.forEach(b => { out[b.status] = (out[b.status] || 0) + b.count; });
+  return out;
+}
+
+/** Empresa sem nenhum movimento no período (vai para a lista recolhida) */
+export function isIdle(c: CompanyPeriodMetrics): boolean {
+  return c.totalLeads === 0 && c.totalConversations === 0 && c.leadsClosed === 0 && c.messagesReceived === 0;
 }

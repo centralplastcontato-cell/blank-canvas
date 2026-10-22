@@ -3,15 +3,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { TrendingUp, PieChart as PieChartIcon } from "lucide-react";
 
-interface LeadRecord {
-  company_id: string;
-  company_name: string;
+interface LeadBucket {
+  companyId: string;
+  month: string;
   status: string;
-  created_at: string;
+  count: number;
 }
 
 interface HubChartsProps {
-  leads: LeadRecord[];
+  buckets: LeadBucket[];
+  companyNames: Map<string, string>;
   isLoading: boolean;
 }
 
@@ -45,74 +46,73 @@ const STATUS_LABELS: Record<string, string> = {
   transferido: "Transferido",
 };
 
-export function HubCharts({ leads, isLoading }: HubChartsProps) {
-  // Evolução mensal: meses cobertos pelos leads do período (até 12)
-  const monthlyData = useMemo(() => {
-    if (!leads.length) return [];
+export function HubCharts({ buckets, companyNames, isLoading }: HubChartsProps) {
+  const nameOf = (id: string) => companyNames.get(id) || "—";
+  const uniqueCompanies = useMemo(
+    () => [...new Set(buckets.filter(b => b.count > 0).map(b => nameOf(b.companyId)))],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [buckets, companyNames]
+  );
 
-    const first = new Date(leads.reduce((min, l) => (l.created_at < min ? l.created_at : min), leads[0].created_at));
-    const last = new Date(leads.reduce((max, l) => (l.created_at > max ? l.created_at : max), leads[0].created_at));
-    const span = (last.getFullYear() - first.getFullYear()) * 12 + (last.getMonth() - first.getMonth());
-    const count = Math.min(Math.max(span, 0), 11);
+  // Evolução mensal: meses cobertos pelo período (até 12)
+  const monthlyData = useMemo(() => {
+    if (!buckets.length) return [];
+    const keys = [...new Set(buckets.map(b => b.month))].sort();
+    const [fy, fm] = keys[0].split("-").map(Number);
+    const [ly, lm] = keys[keys.length - 1].split("-").map(Number);
+    const span = Math.min((ly - fy) * 12 + (lm - fm), 11);
     const months: { month: string; key: string }[] = [];
-    for (let i = count; i >= 0; i--) {
-      const d = new Date(last.getFullYear(), last.getMonth() - i, 1);
+    for (let i = span; i >= 0; i--) {
+      const d = new Date(ly, lm - 1 - i, 1);
       months.push({
         month: `${MONTH_LABELS[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`,
         key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
       });
     }
-
-    // Get unique companies
-    const companies = [...new Set(leads.map(l => l.company_name))];
-
     return months.map(({ month, key }) => {
       const row: Record<string, string | number> = { month };
       let total = 0;
-      companies.forEach(company => {
-        const count = leads.filter(l => l.company_name === company && l.created_at.startsWith(key)).length;
-        row[company] = count;
-        total += count;
+      uniqueCompanies.forEach(company => { row[company] = 0; });
+      buckets.filter(b => b.month === key).forEach(b => {
+        const name = nameOf(b.companyId);
+        row[name] = (Number(row[name]) || 0) + b.count;
+        total += b.count;
       });
       row["Total"] = total;
       return row;
     });
-  }, [leads]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buckets, uniqueCompanies]);
 
-  // Company comparison data
+  // Comparativo por empresa
   const companyComparison = useMemo(() => {
-    if (!leads.length) return [];
-    const companies = [...new Set(leads.map(l => l.company_name))];
-    return companies.map(name => {
-      const companyLeads = leads.filter(l => l.company_name === name);
-      return {
-        name,
-        total: companyLeads.length,
-        fechados: companyLeads.filter(l => l.status === "fechado").length,
-        perdidos: companyLeads.filter(l => l.status === "perdido").length,
-        novos: companyLeads.filter(l => l.status === "novo").length,
-      };
+    const map = new Map<string, { name: string; total: number; fechados: number; perdidos: number; novos: number }>();
+    buckets.forEach(b => {
+      const name = nameOf(b.companyId);
+      const row = map.get(name) || { name, total: 0, fechados: 0, perdidos: 0, novos: 0 };
+      row.total += b.count;
+      if (b.status === "fechado") row.fechados += b.count;
+      if (b.status === "perdido") row.perdidos += b.count;
+      if (b.status === "novo") row.novos += b.count;
+      map.set(name, row);
     });
-  }, [leads]);
+    return [...map.values()];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buckets, companyNames]);
 
-  // Status distribution (pie chart)
+  // Distribuição por status
   const statusDistribution = useMemo(() => {
-    if (!leads.length) return [];
     const counts: Record<string, number> = {};
-    leads.forEach(l => {
-      counts[l.status] = (counts[l.status] || 0) + 1;
-    });
+    buckets.forEach(b => { counts[b.status] = (counts[b.status] || 0) + b.count; });
     return Object.entries(counts).map(([status, value]) => ({
       name: STATUS_LABELS[status] || status,
       value,
       color: STATUS_COLORS[status] || "hsl(var(--muted))",
     }));
-  }, [leads]);
-
-  const uniqueCompanies = useMemo(() => [...new Set(leads.map(l => l.company_name))], [leads]);
+  }, [buckets]);
 
   if (isLoading) return null;
-  if (!leads.length) return null;
+  if (!buckets.length) return null;
 
   return (
     <div className="space-y-6">

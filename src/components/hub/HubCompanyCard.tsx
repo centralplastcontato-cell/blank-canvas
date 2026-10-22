@@ -17,7 +17,7 @@ export function HubCompanyCard({ metrics: m }: { metrics: CompanyPeriodMetrics }
   const kpis = [
     { label: "Leads", value: m.totalLeads, className: "text-foreground" },
     { label: "Conversão", value: `${conversion}%`, className: "text-emerald-600" },
-    { label: "T. resposta", value: m.responseMedianMinutes === null ? "—" : formatMinutes(m.responseMedianMinutes), className: "text-foreground" },
+    { label: "Resp. equipe", value: m.responseMedianMinutes === null ? "—" : formatMinutes(m.responseMedianMinutes), className: "text-foreground" },
     { label: "Hoje", value: m.leadsToday, className: "text-foreground" },
   ];
 

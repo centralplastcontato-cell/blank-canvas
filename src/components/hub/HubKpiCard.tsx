@@ -32,7 +32,7 @@ export function HubKpiCard({ title, value, icon: Icon, accent, delta, caption, h
     <Card className="overflow-hidden h-full">
       <CardContent className="p-4 md:p-5">
         <div className="flex items-center justify-between gap-2 mb-3">
-          <span className="text-xs md:text-sm text-muted-foreground font-medium truncate">{title}</span>
+          <span className="text-xs md:text-sm text-muted-foreground font-medium leading-tight line-clamp-2">{title}</span>
           <div className={cn("p-1.5 rounded-lg shrink-0", accent)}>
             <Icon className="w-4 h-4" />
           </div>
