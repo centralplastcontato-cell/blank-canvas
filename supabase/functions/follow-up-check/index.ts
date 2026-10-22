@@ -4,7 +4,7 @@ import { findLeadByPhone } from "../_shared/lead-phone.ts";
 import { fetchLastReturns, leadsWithActionSinceReturn } from "../_shared/lead-return.ts";
 import { decideStuckAlert, formatContactList } from "../_shared/stuck-alert.ts";
 import { decideDegradedAlert } from "../_shared/degraded-alert.ts";
-import { businessMinutesBetween, isOpenAt, parseVisitHours, teamHoursText } from "../_shared/business-hours.ts";
+import { businessMinutesBetween, isOpenAt, listAvailableSlots, normalizeTime, parseVisitHours, pickTwoOffers, slotKey, teamHoursText } from "../_shared/business-hours.ts";
 import { teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { keycapsToDigits } from "../_shared/menu-reply.ts";
 import { activeConversations } from "../_shared/followup-activity.ts";
@@ -14,11 +14,17 @@ import { resolveUnitNotificationTargets } from "../_shared/notification-targets.
 import { decideDeliveryStall, type OutgoingRow, STALL_LOOKBACK_MS } from "../_shared/delivery-stall.ts";
 import { isAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { evolutionSendMedia, evolutionSendText, extractEvolutionMessageId } from "../_shared/evolution.ts";
-import { type AiTarget, journeyOwnsConversation, type JourneyScope, journeyScopes, loadAiJourneyTargets, runAiJourney } from "./ai-journey.ts";
+import { type AiTarget, freeSlotsBetween, journeyOwnsConversation, type JourneyScope, journeyScopes, loadAiJourneyTargets, runAiJourney } from "./ai-journey.ts";
+import { firstNameOf, partyYmdFromLead, postVisitDue, postVisitMessage } from "../_shared/post-visit.ts";
+import { visitStartMs } from "../_shared/visit-confirm.ts";
+import { findPromotion } from "../_shared/promo.ts";
+import { friendlyVisitSlot } from "../_shared/ai-turn.ts";
+import { parseClosedPeriods, isClosedDay } from "../_shared/closed-periods.ts";
 import { loadBlockedContacts } from "../_shared/contact-block.ts";
 import { installEvolutionCallGuard } from "../_shared/evolution-guard.ts";
 import { claimSystemSendSlot } from "../_shared/system-send-pacing.ts";
 import { PARTY_SOON_ACTION, partySoon, partySoonLabel } from "../_shared/party-soon.ts";
+import { pacingHeldLeads } from "../_shared/auto-pacing.ts";
 import { clientDataLink, clientDataThanks, DEFAULT_CLIENT_DATA_MESSAGE, DEFAULT_CLIENT_DATA_REMINDERS, dueReminder, fillClientDataTemplate, hasCpfInText, isOverdue, normalizeReminderHours, shortClientToken } from "../_shared/client-data.ts";
 
 type SupabaseAdmin = any;
@@ -435,6 +441,14 @@ Deno.serve(async (req) => {
 
     // Dados do contratante: link ao fechar, cobranças e avisos (se ligado)
     const clientDataResult = await processClientDataRequests({ supabase });
+    // Pós-visita (Automações → Visitas): dia seguinte à visita
+    try {
+      const postVisit = await processPostVisit({ supabase });
+      if (postVisit.sent > 0) console.log(`[follow-up-check] Pós-visita: ${postVisit.sent} mensagem(ns)`);
+      if (postVisit.errors.length > 0) console.error("[follow-up-check] Erros no pós-visita:", postVisit.errors);
+    } catch (err) {
+      console.error("[follow-up-check] Erro no pós-visita:", err);
+    }
     if (clientDataResult.errors.length > 0) {
       console.error("[follow-up-check] Erros nos dados do contratante:", clientDataResult.errors);
     }
@@ -1064,6 +1078,18 @@ async function processFollowUp({
     if (aiTouchedLeads.size > 0) {
       leadsNeedingFollowUp = leadsNeedingFollowUp.filter((id) => !aiTouchedLeads.has(id));
       console.log(`[follow-up-check] ${aiTouchedLeads.size} lead(s) ainda com a IA — follow-up #${followUpNumber} fixo pulado`);
+    }
+  }
+
+  // Ritmo: outra mensagem automática nas últimas 24 h ou janela do pós-visita → espera
+  if (leadsNeedingFollowUp.length > 0) {
+    const { data: inst } = await supabase.from("wapi_instances").select("company_id").eq("id", settings.instance_id).maybeSingle();
+    if (inst?.company_id) {
+      const held = await pacingHeldLeads(supabase, inst.company_id, leadsNeedingFollowUp);
+      if (held.size > 0) {
+        leadsNeedingFollowUp = leadsNeedingFollowUp.filter((id) => !held.has(id));
+        console.log(`[follow-up-check] ${held.size} lead(s) esperam (1 mensagem automática por dia / pós-visita) — follow-up #${followUpNumber}`);
+      }
     }
   }
 
@@ -2967,6 +2993,187 @@ async function processClientDataRequests({
 // diferente do que atende a conversa (para não misturar com o atendimento)
 // e Z-API primeiro. Grava a mensagem antes do eco para o webhook não achar
 // que alguém digitou no celular.
+// Pós-visita (Automações → Visitas, Castelo 22/10): no dia seguinte à visita,
+// a partir das 10h e no horário da equipe (nunca depois das 20h):
+// - visitou (Realizada) e não fechou → mensagem; sem resposta, outra 3 dias depois;
+// - não compareceu → convite para remarcar com 2 horários livres.
+// Não sai se a equipe ou o cliente conversaram depois da visita, se a festa já
+// foi criada ou o lead está Fechado/Perdido. A resposta do cliente vai para a
+// equipe (aviso grande na Central); a IA não assume a negociação.
+async function processPostVisit({ supabase }: { supabase: SupabaseAdmin }): Promise<{ sent: number; errors: string[] }> {
+  const errors: string[] = [];
+  let sent = 0;
+  const { data: cfgs, error } = await supabase.from("visit_confirmation_settings").select("company_id").eq("post_visit_enabled", true);
+  if (error) return { sent, errors: /post_visit/.test(String(error.message)) ? [] : [String(error.message)] };
+  if (!cfgs || cfgs.length === 0) return { sent, errors };
+
+  const nowMs = Date.now();
+  const todayYmd = new Date(nowMs - 3 * 3600000).toISOString().slice(0, 10);
+  const localHour = Number(new Date(nowMs).toLocaleString("en-US", { timeZone: "America/Sao_Paulo", hour: "2-digit", hour12: false })) % 24;
+  const addDays = (ymd: string, n: number) => new Date(Date.parse(`${ymd}T12:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
+  const isBlocked = await loadBlockedContacts(supabase);
+
+  for (const cfg of cfgs as Array<{ company_id: string }>) {
+    const companyId = cfg.company_id;
+    try {
+      const [{ data: company }, { data: ai }] = await Promise.all([
+        supabase.from("companies").select("name").eq("id", companyId).maybeSingle(),
+        supabase.from("ai_agent_settings").select("team_hours, extra_instructions, party_slots, closed_periods, visit_hours").eq("company_id", companyId).maybeSingle(),
+      ]);
+      const canSend = isOpenAt(parseVisitHours(teamHoursText(ai?.team_hours)), nowMs) && localHour < 20;
+
+      const { data: visits } = await supabase.from("lead_visits")
+        .select("id, lead_id, data_visita, horario_visita, status_visita, post_visit_count, post_visit_last_at, post_visit_replied_at")
+        .eq("company_id", companyId).in("status_visita", ["realizada", "nao_compareceu"])
+        .gte("data_visita", addDays(todayYmd, -10)).lt("data_visita", todayYmd)
+        .order("data_visita", { ascending: false }).limit(300);
+      // Só a visita mais recente de cada lead (e nenhuma visita marcada depois dela)
+      const latest = new Map<string, any>();
+      for (const v of (visits || []) as any[]) if (!latest.has(v.lead_id)) latest.set(v.lead_id, v);
+      if (latest.size === 0) continue;
+      const leadIds = [...latest.keys()];
+      const { data: newer } = await supabase.from("lead_visits").select("lead_id, data_visita").in("lead_id", leadIds).gte("data_visita", todayYmd)
+        .in("status_visita", ["agendada", "confirmada", "remarcada"]);
+      const rebooked = new Set(((newer || []) as Array<{ lead_id: string }>).map((v) => v.lead_id));
+
+      for (const v of latest.values()) {
+        const count = Number(v.post_visit_count || 0);
+        const lastAtMs = v.post_visit_last_at ? Date.parse(v.post_visit_last_at) : null;
+        const { data: convs } = await supabase.from("wapi_conversations")
+          .select("id, instance_id, remote_jid, contact_phone, contact_name, bot_step, bot_data")
+          .eq("lead_id", v.lead_id).not("remote_jid", "like", "%@g.us%")
+          .order("last_message_at", { ascending: false }).limit(1);
+        const conv = ((convs || []) as any[])[0];
+        if (!conv) continue;
+
+        // Cliente respondeu ao pós-visita → avisa a equipe (uma vez) e encerra
+        if (count >= 1 && count < 99 && lastAtMs && !v.post_visit_replied_at) {
+          const { data: reply } = await supabase.from("wapi_messages").select("content")
+            .eq("conversation_id", conv.id).eq("from_me", false).gt("timestamp", new Date(lastAtMs).toISOString())
+            .order("timestamp", { ascending: true }).limit(1);
+          const first = ((reply || []) as Array<{ content: string | null }>)[0];
+          if (first) {
+            const { data: marked } = await supabase.from("lead_visits").update({ post_visit_replied_at: new Date().toISOString(), post_visit_count: 99 })
+              .eq("id", v.id).is("post_visit_replied_at", null).select("id");
+            if (marked && marked.length > 0) {
+              const { data: lead } = await supabase.from("campaign_leads").select("name, unit").eq("id", v.lead_id).maybeSingle();
+              const name = firstNameOf(lead?.name || conv.contact_name) || "Cliente";
+              const targets = await resolveUnitNotificationTargets(supabase, companyId, lead?.unit || null);
+              if (targets.length > 0) {
+                await supabase.from("notifications").insert(targets.map((uid: string) => ({
+                  user_id: uid, company_id: companyId, type: "lead_needs_human",
+                  title: `💬 ${name} respondeu a mensagem pós-visita`,
+                  message: String(first.content || "").slice(0, 120) || "Abra a conversa para responder.",
+                  data: { reason: "post_visit_reply", conversation_id: conv.id, contact_phone: String(conv.contact_phone || conv.remote_jid || "").replace(/@.*/, ""), lead_id: v.lead_id },
+                  read: false,
+                })));
+              }
+            }
+          }
+          continue;
+        }
+
+        if (!canSend || rebooked.has(v.lead_id)) continue;
+        const step = postVisitDue({ status: v.status_visita, visitYmd: v.data_visita, count, lastAtMs }, todayYmd, localHour, nowMs);
+        if (!step) continue;
+        if (isBlocked(companyId, conv.remote_jid)) continue;
+
+        const stop = async () => { await supabase.from("lead_visits").update({ post_visit_count: 99 }).eq("id", v.id); };
+        const { data: lead } = await supabase.from("campaign_leads").select("name, status, month, day_of_month").eq("id", v.lead_id).maybeSingle();
+        if (!lead || ["fechado", "perdido"].includes(lead.status)) { await stop(); continue; }
+        const { data: events } = await supabase.from("company_events").select("id").eq("lead_id", v.lead_id).neq("status", "cancelado").limit(1);
+        if ((events || []).length > 0) { await stop(); continue; }
+
+        // Equipe ou cliente conversaram depois da visita (ou da 1ª mensagem): a equipe já está cuidando
+        const refMs = step === "second" ? (lastAtMs as number) : visitStartMs(v.data_visita, v.horario_visita) + 3600000;
+        const { data: since } = await supabase.from("wapi_messages").select("conversation_id, from_me, metadata")
+          .eq("conversation_id", conv.id).gt("timestamp", new Date(refMs).toISOString()).limit(500);
+        if (activeConversations((since || []) as any[]).has(conv.id)) { await stop(); continue; }
+
+        // Uma mensagem automática por dia: espera (tenta de novo na próxima rodada)
+        if ((await pacingHeldLeads(supabase, companyId, [v.lead_id], { forPostVisit: true })).has(v.lead_id)) continue;
+
+        const { data: inst } = await supabase.from("wapi_instances")
+          .select("id, instance_id, instance_token, client_token, provider, company_id, unit, status, is_active")
+          .eq("id", conv.instance_id).maybeSingle();
+        if (!inst || inst.is_active === false || inst.status !== "connected") continue;
+        const phone = String(conv.contact_phone || conv.remote_jid || "").replace(/@.*/, "").replace(/\D/g, "");
+        if (phone.length < 10) continue;
+
+        // Dados para a mensagem: aniversariante, data da festa (livre agora?), promoção, horários de visita
+        const bd = (conv.bot_data || {}) as Record<string, any>;
+        const partyYmd = (typeof bd.data_festa === "string" && bd.data_festa > todayYmd ? bd.data_festa : null)
+          || partyYmdFromLead(lead.month, lead.day_of_month, todayYmd);
+        let partyFree: boolean | null = null;
+        if (step === "first" && partyYmd && ai) {
+          partyFree = (await freeSlotsBetween(supabase, ai, companyId, partyYmd, partyYmd)).length > 0;
+        }
+        let offers: string[] = [];
+        if (step === "no_show" && ai) {
+          const { data: booked } = await supabase.from("lead_visits").select("data_visita, horario_visita")
+            .eq("company_id", companyId).gte("data_visita", todayYmd).in("status_visita", ["agendada", "confirmada", "remarcada"]).limit(1000);
+          const keys = new Set<string>();
+          for (const b of (booked || []) as Array<{ data_visita: string; horario_visita: string | null }>) {
+            const t = normalizeTime(b.horario_visita || "");
+            if (t) keys.add(slotKey({ date: String(b.data_visita).slice(0, 10), time: t }));
+          }
+          const closed = parseClosedPeriods(ai.closed_periods);
+          const free = listAvailableSlots(parseVisitHours(ai.visit_hours), nowMs, keys, { days: 14, minLeadMinutes: 120, max: 60 })
+            .filter((sl) => !isClosedDay(sl.date, closed));
+          offers = pickTwoOffers(free).map((sl) => friendlyVisitSlot(sl, todayYmd));
+        }
+        const promo = findPromotion(ai?.extra_instructions, todayYmd);
+        const text = postVisitMessage(step, {
+          firstName: firstNameOf(lead.name || conv.contact_name),
+          companyName: String(company?.name || "buffet"),
+          childName: firstNameOf(bd.aniversariante) || null,
+          visitYmd: v.data_visita,
+          todayYmd,
+          partyYmd,
+          partyFree,
+          promo: promo ? { title: promo.title, endYmd: promo.endYmd } : null,
+          offers,
+        });
+
+        // Reserva a vez (duas rodadas juntas não mandam duas vezes)
+        const { data: claimed } = await supabase.from("lead_visits").update({ post_visit_count: count + 1, post_visit_last_at: new Date().toISOString() })
+          .eq("id", v.id).eq("post_visit_count", count).select("id");
+        if (!claimed || claimed.length === 0) continue;
+        const slot = await claimSystemSendSlot(supabase, { id: inst.id, provider: inst.provider });
+        if (!slot.ok) {
+          await supabase.from("lead_visits").update({ post_visit_count: count, post_visit_last_at: v.post_visit_last_at }).eq("id", v.id);
+          continue;
+        }
+        const res = await providerSendText(inst as any, phone, text);
+        if (!res.ok) {
+          await supabase.from("lead_visits").update({ post_visit_count: count, post_visit_last_at: v.post_visit_last_at }).eq("id", v.id);
+          errors.push(`pós-visita (${v.lead_id}): ${res.error}`);
+          continue;
+        }
+        const nowIso = new Date().toISOString();
+        await supabase.from("wapi_messages").upsert({
+          conversation_id: conv.id, message_id: res.messageId || `post_visit_${Date.now()}`,
+          from_me: true, message_type: "text", content: text, status: "sent", timestamp: nowIso, company_id: companyId,
+          metadata: { source: "post_visit", step },
+        }, { onConflict: "conversation_id,message_id", ignoreDuplicates: true });
+        // Depois da visita quem conduz é a equipe: conversa da IA passa para a equipe
+        const convPatch: Record<string, unknown> = { last_message_at: nowIso, last_message_content: text.substring(0, 100), last_message_from_me: true };
+        if (conv.bot_step === "ai_agent") convPatch.bot_step = "human_takeover";
+        await supabase.from("wapi_conversations").update(convPatch).eq("id", conv.id);
+        await supabase.from("lead_history").insert({
+          lead_id: v.lead_id, company_id: companyId, user_name: "Sistema",
+          action: step === "no_show" ? "Pós-visita: convite para remarcar" : `Pós-visita: mensagem ${step === "first" ? "1" : "2"}`,
+          new_value: text.slice(0, 200),
+        });
+        sent++;
+      }
+    } catch (err) {
+      errors.push(`empresa ${companyId}: ${String(err)}`);
+    }
+  }
+  return { sent, errors };
+}
+
 async function sendHandoffAlertWhatsApp(
   supabase: SupabaseAdmin,
   inst: { id: string; company_id: string },

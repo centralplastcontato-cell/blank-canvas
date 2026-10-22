@@ -27,6 +27,8 @@ interface VisitConfirmationSettings {
   reply_reschedule_message: string;
   // Lembrete na véspera (colunas novas: só aparecem depois do SQL)
   eve_reminder_enabled?: boolean;
+  post_visit_enabled?: boolean;
+  auto_one_per_day?: boolean;
   eve_reminder_hour?: number;
 }
 
@@ -79,6 +81,7 @@ export function VisitConfirmationSection() {
   const [settings, setSettings] = useState<VisitConfirmationSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [hasPostVisit, setHasPostVisit] = useState(false);
   const [hasEve, setHasEve] = useState(false);
 
   useEffect(() => {
@@ -100,6 +103,9 @@ export function VisitConfirmationSection() {
     // Colunas do lembrete na véspera já existem no banco?
     const { error: eveErr } = await (supabase as any).from("visit_confirmation_settings").select("eve_reminder_enabled").limit(1);
     setHasEve(!eveErr);
+    // Colunas do pós-visita já existem no banco?
+    const { error: pvErr } = await (supabase as any).from("visit_confirmation_settings").select("post_visit_enabled").limit(1);
+    setHasPostVisit(!pvErr);
 
     if (data) {
       setSettings(data);
@@ -126,6 +132,7 @@ export function VisitConfirmationSection() {
       reply_confirmed_message: settings.reply_confirmed_message,
       reply_reschedule_message: settings.reply_reschedule_message,
       ...(hasEve ? { eve_reminder_enabled: !!settings.eve_reminder_enabled, eve_reminder_hour: settings.eve_reminder_hour ?? 18 } : {}),
+      ...(hasPostVisit ? { post_visit_enabled: !!settings.post_visit_enabled, auto_one_per_day: !!settings.auto_one_per_day } : {}),
     };
 
     let error;
@@ -298,6 +305,40 @@ export function VisitConfirmationSection() {
                     )}
                   </div>
                 )}
+              </div>
+            )}
+
+            {hasPostVisit && (
+              <div className="rounded-xl border border-border/40 bg-card p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold">Pós-visita</p>
+                    <p className="text-xs text-muted-foreground">
+                      No dia seguinte à visita, a partir das 10h e no horário da equipe: quem visitou e não fechou recebe uma
+                      mensagem (e outra 3 dias depois, se não responder); quem não compareceu recebe um convite para remarcar com
+                      2 horários livres. Não sai se a equipe ou o cliente já conversaram depois da visita. A resposta vai para a equipe.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={!!settings.post_visit_enabled}
+                    onCheckedChange={(v) => update("post_visit_enabled", v)}
+                    aria-label="Pós-visita"
+                  />
+                </div>
+                <div className="flex items-start justify-between gap-3 border-t border-border/40 pt-3">
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold">No máximo 1 mensagem automática por cliente por dia</p>
+                    <p className="text-xs text-muted-foreground">
+                      Follow-ups do robô, da IA, reativação e pós-visita: se o cliente já recebeu uma hoje, a próxima espera para o dia
+                      seguinte. Depois da visita, por 7 dias, só o pós-visita fala com ele.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={!!settings.auto_one_per_day}
+                    onCheckedChange={(v) => update("auto_one_per_day", v)}
+                    aria-label="Uma mensagem automática por dia"
+                  />
+                </div>
               </div>
             )}
 
