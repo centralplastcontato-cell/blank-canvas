@@ -277,6 +277,29 @@ export function closingAfterMaterials(firstName: string, seed: number): string {
   return options[Math.abs(seed) % options.length];
 }
 
+/**
+ * Depois do PDF, quando ainda não sabemos o DIA da festa (só o mês): perguntar
+ * o dia para conferir na agenda — o convite para visita vem na resposta
+ * seguinte, já com a data conferida (Castelo, 22/10).
+ */
+export function askPartyDayAfterMaterials(firstName: string, month: string | null | undefined, seed: number): string {
+  const name = firstName ? `, ${firstName}` : "";
+  const m = String(month || "").trim().toLowerCase().replace(/\s+de\s+\d{4}$/, "");
+  const when = m ? ` em ${m}` : "";
+  const options = [
+    `Já te mandei tudo pra vocês verem com calma${name} 🥳\n\nVocês já têm um dia em mente${when}? Assim já confiro aqui na agenda se está livre 😊`,
+    `Dá uma olhadinha com calma${name} 😍\n\nE me conta: já tem um dia certinho${when}? Eu confiro agora na agenda se está livre ✨`,
+  ];
+  return options[Math.abs(seed) % options.length];
+}
+
+/** Ainda não sabemos o dia da festa (só o mês) e ainda não perguntamos */
+export function needsPartyDay(bd: Record<string, unknown> | null | undefined): boolean {
+  const b = bd || {};
+  const hasDay = typeof b.data_festa === "string" && /^\d{4}-\d{2}-\d{2}$/.test(b.data_festa);
+  return !hasDay && !b.dia_perguntado && !!b.mes;
+}
+
 const WEEKDAY_NAMES = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 
 /** "amanhã às 10h", "quinta (22/10) às 15h30" */
