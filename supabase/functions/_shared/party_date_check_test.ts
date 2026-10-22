@@ -34,3 +34,12 @@ Deno.test("partyDateFreeNote / partyDateTakenMessage", () => {
   assertEquals(none.includes("Vou ver aqui com a equipe"), true);
   assertEquals(partyDateTakenMessage({ firstName: "Ana", ymd: "2027-01-03", alternatives: alt, recess: true }).includes("recesso"), true);
 });
+
+Deno.test("artigo do dia da semana: a quinta / o sábado", () => {
+  assertEquals(partyDateFreeNote("2027-04-22"), "Ah, e uma notícia boa: a quinta, 22 de abril, ainda está livre na agenda ✅");
+  assertEquals(partyDateFreeNote("2026-12-12").startsWith("Ah, e uma notícia boa: o sábado"), true);
+  assertEquals(
+    partyDateTakenMessage({ firstName: "", ymd: "2027-04-22", alternatives: null }).startsWith("uma coisa importante: a quinta, 22 de abril, já foi reservada"),
+    true,
+  );
+});
