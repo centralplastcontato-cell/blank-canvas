@@ -453,6 +453,7 @@ export async function runAiJourney(
           todayYmd,
           clientName: bd.nome || conv.contact_name || lead?.name || null,
           birthdayName: bd.aniversariante || null,
+          corporate: bd.tipo_evento === "empresa" ? String(bd.empresa || "") : null,
           partyYmd,
           partyMonth: bd.mes || null,
           guests: bd.convidados || null,

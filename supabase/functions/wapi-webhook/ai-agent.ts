@@ -41,6 +41,7 @@ import { buildCandidateLink, candidateName, inviteCode, shortCandidateLink, with
 import { findPromotion, promoMentions, promoNote } from "../_shared/promo.ts";
 import { closedPeriodAt, closedPeriodsNote, formatClosedPeriod, isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
 import { dayWithArticle, nearestAlternativeDays, partyDateFreeNote, partyDateTakenMessage } from "../_shared/party-date-check.ts";
+import { birthdayFlavored, corporateCaptions, corporateLeadNote, corporatePromptBlock, mentionsCorporate } from "../_shared/corporate-event.ts";
 import { asksPartnership, clientAffirms, clientAskedPrice, PRICE_ASK_WINDOW_MS, closingAfterMaterials, visitInviteAfterMaterials, confirmsPartyInterest, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 import { askedForName, nameFromAnswer } from "../_shared/name-answer.ts";
@@ -80,6 +81,8 @@ interface AgentConv {
   __candidateLink?: string;
   // Data da festa pedida conferida na agenda neste turno (para a mensagem depois do PDF)
   __partyDate?: PartyDateCheck | null;
+  // Buffet atende confraternização de empresas (roteiro próprio)
+  __corporateEnabled?: boolean;
 }
 
 interface AiSettings {
@@ -109,6 +112,9 @@ interface AiSettings {
   // Apresentação: nome da assistente e a arte dela (vai na 1ª mensagem)
   assistant_name?: string | null;
   intro_image_url?: string | null;
+  // Confraternização de empresas: roteiro próprio (sem aniversariante) e capacidade do espaço
+  corporate_events_enabled?: boolean | null;
+  corporate_max_guests?: number | null;
 }
 
 // Áudio ou foto que o cliente acabou de mandar (a mensagem já está salva)
@@ -469,6 +475,24 @@ async function notifyTeam(
   }
 }
 
+// Lead de empresa (confraternização): marca no lead para a equipe filtrar e
+// avisa a equipe uma vez — o ticket é maior e vale um contato rápido
+async function markCorporateLead(supabase: any, instance: AgentInstance, conv: AgentConv, leadId: string | null, phone: string): Promise<void> {
+  if (leadId) {
+    const { error } = await supabase.from('campaign_leads').update({ lead_kind: 'empresa' }).eq('id', leadId);
+    if (error) console.error('[AI Agent] Erro ao marcar lead de empresa:', error.message);
+  }
+  const bd = (conv.bot_data || {}) as Json;
+  if (bd.empresa_avisada) return;
+  await mergeBotData(supabase, conv, { empresa_avisada: new Date().toISOString() });
+  const who = firstNameOrEmpty(bd.nome as string) || 'Cliente';
+  await notifyTeam(supabase, instance, {
+    title: `🏢 ${who}${bd.empresa ? ` (${bd.empresa})` : ''} quer orçamento de confraternização`,
+    message: `Lead de empresa${bd.convidados ? ` · ${bd.convidados}` : ''}${bd.mes ? ` · ${bd.mes}` : ''}. A IA segue o atendimento — vale um contato rápido da equipe.`,
+    data: { reason: 'company_lead', conversation_id: conv.id, contact_phone: phone, lead_id: leadId },
+  });
+}
+
 // Decide (uma única vez por conversa) se a IA pode assumir. O resultado fica
 // gravado em bot_data.ai_agent ('on'/'off') para não reavaliar a cada mensagem.
 /**
@@ -547,6 +571,7 @@ interface PromptContext {
   materialsNote: string | null; // fotos/vídeo/PDF saem logo depois da resposta deste turno
   promoNote: string | null; // promoção vigente do cadastro: quando e como oferecer
   intentNote: string | null; // contato que talvez não queira orçamento (trabalho, fornecedor, cliente com festa)
+  corporateNote?: string | null; // contato é (ou parece ser) uma empresa — confraternização
 }
 
 // Convidar para a visita no máximo a cada 3–4 respostas, ou quando fizer sentido
@@ -573,7 +598,7 @@ function buildSystemPrompt(companyName: string, unit: string, settings: AiSettin
   const assistantName = String(settings.assistant_name || '').trim();
   return `Você é ${assistantName ? `a ${assistantName}, ` : ''}a assistente virtual de vendas do ${companyName} (buffet infantil), atendendo por um dos WhatsApps de atendimento ("${unit}" é só o nome interno deste número: nunca cite ao cliente nem chame de unidade). Hoje é ${today}.${assistantName ? ` SEU NOME é ${assistantName} (definido nas configurações): use sempre este nome, mesmo que as informações do buffet ou mensagens antigas da conversa citem outro.` : ''}
 
-${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}${ctx.houseNote ? `ATENÇÃO — REGRA DO BUFFET: ${ctx.houseNote}\n\n` : ''}${ctx.singleVenue ? `ESPAÇO ÚNICO: o ${companyName} tem UM único espaço (o endereço das informações do buffet). NÃO existe outra unidade ou filial. Se o cliente perguntar de outra unidade ("unidade 1", outro endereço, qual fica mais perto), responda com naturalidade que hoje o ${companyName} fica só nesse endereço e siga a conversa. Nunca diga "esta unidade", nunca dê a entender que existe outra e não passe para a equipe por isso.\n\n` : ''}${ctx.recessNote ? `ATENÇÃO — ${ctx.recessNote}\n\n` : ''}${ctx.intentNote ? `ATENÇÃO — QUEM É O CONTATO: ${ctx.intentNote}\n\n` : ''}${ctx.promoNote ? `${ctx.promoNote}\n\n` : ''}${ctx.materialsNote ? `ATENÇÃO — MATERIAIS NESTE TURNO: ${ctx.materialsNote}\n\n` : ''}MENSAGENS DA EQUIPE: no histórico, o que começa com "[Equipe]" foi escrito por uma pessoa da equipe, não por você. Respeite o que ela combinou (valores, condições, horários, visitas): não contradiga nem repita; se o cliente pedir algo além do que ela combinou, passe para a equipe. Nunca escreva "[Equipe]" nas suas respostas.
+${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}${ctx.houseNote ? `ATENÇÃO — REGRA DO BUFFET: ${ctx.houseNote}\n\n` : ''}${ctx.singleVenue ? `ESPAÇO ÚNICO: o ${companyName} tem UM único espaço (o endereço das informações do buffet). NÃO existe outra unidade ou filial. Se o cliente perguntar de outra unidade ("unidade 1", outro endereço, qual fica mais perto), responda com naturalidade que hoje o ${companyName} fica só nesse endereço e siga a conversa. Nunca diga "esta unidade", nunca dê a entender que existe outra e não passe para a equipe por isso.\n\n` : ''}${ctx.recessNote ? `ATENÇÃO — ${ctx.recessNote}\n\n` : ''}${ctx.intentNote ? `ATENÇÃO — QUEM É O CONTATO: ${ctx.intentNote}\n\n` : ''}${ctx.corporateNote ? `ATENÇÃO — ${ctx.corporateNote}\n\n` : ''}${ctx.promoNote ? `${ctx.promoNote}\n\n` : ''}${ctx.materialsNote ? `ATENÇÃO — MATERIAIS NESTE TURNO: ${ctx.materialsNote}\n\n` : ''}MENSAGENS DA EQUIPE: no histórico, o que começa com "[Equipe]" foi escrito por uma pessoa da equipe, não por você. Respeite o que ela combinou (valores, condições, horários, visitas): não contradiga nem repita; se o cliente pedir algo além do que ela combinou, passe para a equipe. Nunca escreva "[Equipe]" nas suas respostas.
 
 SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até AGENDAR UMA VISITA ao buffet. A visita é o passo que mais fecha festas.
 
@@ -653,7 +678,9 @@ MATERIAIS (ferramenta enviar_materiais):
 - Já enviados nesta conversa: ${ctx.sentMaterialsText}.
 - Junto com as fotos pode sair uma imagem de avaliação de cliente (prova social). Não comente, não cite nem resuma essa avaliação: siga a conversa normalmente.
 
-OUTROS TIPOS DE EVENTO: você atende festas de aniversário. Se o cliente quiser formatura, festa escolar, confraternização, evento corporativo ou outro evento que não seja aniversário, NÃO passe valor nem compare pacotes: pergunte (o que ainda não souber) o tipo de evento, a data e a quantidade de pessoas, e então use transferir_para_atendente com o motivo no formato "Evento: … | Data: … | Pessoas: …".
+${settings.corporate_events_enabled ? `${corporatePromptBlock(companyName, settings.corporate_max_guests ?? null)}
+
+OUTROS TIPOS DE EVENTO: você atende festas de aniversário e confraternizações de empresas. Se o cliente quiser formatura, festa escolar ou outro evento que não seja nenhum dos dois, NÃO passe valor nem compare pacotes: pergunte (o que ainda não souber) o tipo de evento, a data e a quantidade de pessoas, e então use transferir_para_atendente com o motivo no formato "Evento: … | Data: … | Pessoas: …".` : `OUTROS TIPOS DE EVENTO: você atende festas de aniversário. Se o cliente quiser formatura, festa escolar, confraternização, evento corporativo ou outro evento que não seja aniversário, NÃO passe valor nem compare pacotes: pergunte (o que ainda não souber) o tipo de evento, a data e a quantidade de pessoas, e então use transferir_para_atendente com o motivo no formato "Evento: … | Data: … | Pessoas: …".`}
 
 DATAS DA FESTA (agenda):
 - Antes de listar datas, se o cliente ainda não disse, pergunte se ele prefere fim de semana ou dia de semana (e passe a preferência para a ferramenta).
@@ -718,6 +745,8 @@ const TOOLS: ToolDef[] = [
         aniversariante: { type: 'string', description: 'Nome do aniversariante, se o cliente disse' },
         mes: { type: 'string', description: 'Mês da festa, com o ano se o cliente disse (ex.: Novembro, abril de 2027)' },
         convidados: { type: 'string', description: 'Número de convidados, ex.: 80' },
+        confraternizacao: { type: 'boolean', description: 'true quando o evento é de EMPRESA (confraternização, fim de ano da equipe, colaboradores) e não aniversário' },
+        empresa: { type: 'string', description: 'Nome da empresa, se for confraternização e o cliente disse' },
         legenda_fotos: { type: 'string', description: 'Mensagem que vai ANTES das fotos e precisa ENCANTAR (não só "olha onde vai ser a festa"): 2 frases curtas — chame pelo nome, cite o aniversariante se souber (só nomes que o cliente disse — nunca invente) e desperte a imaginação do dia da festa (o castelo todinho deles, a criançada brincando, a carinha de quem faz aniversário chegando). 2–3 emojis. Ex.: "Aaah, [nome], olha só o castelo que vai ser todinho de vocês no dia da festa! 😍🏰 Já imaginou a carinha de [aniversariante] chegando e vendo tudo isso preparado? ✨"' },
         legenda_video: { type: 'string', description: 'Legenda curta e animada do vídeo, diferente da das fotos, mostrando a festa acontecendo. Ex.: "E agora olha o Castelo em dia de festa: brinquedos, monitores e muita diversão 🎬🎉"' },
         legenda_pdf: { type: 'string', description: 'Mensagem curta que vai ANTES do PDF de pacotes, com a quantidade de convidados. Ex.: "E aqui estão os nossos pacotes pra 80 convidados 📋✨". Sem valores. Se o cliente falou em menos convidados que o menor pacote, não cite o número dele.' },
@@ -1244,9 +1273,17 @@ async function toolRegistrarDados(
   phone: string,
   contactName: string | null,
   botSettings: any,
-  args: { nome?: string; aniversariante?: string; mes?: string; convidados?: string; legenda_fotos?: string; legenda_video?: string; legenda_pdf?: string },
+  args: { nome?: string; aniversariante?: string; mes?: string; convidados?: string; confraternizacao?: boolean; empresa?: string; legenda_fotos?: string; legenda_video?: string; legenda_pdf?: string },
 ): Promise<string> {
   const patch: Json = {};
+  // Confraternização de empresa (só nos buffets com a opção ligada)
+  const corporateNow = conv.__corporateEnabled === true && (args.confraternizacao === true || !!String(args.empresa || '').trim());
+  const wasCorporate = ((conv.bot_data || {}) as Json).tipo_evento === 'empresa';
+  if (corporateNow) {
+    patch.tipo_evento = 'empresa';
+    const empresa = String(args.empresa || '').trim().slice(0, 80);
+    if (empresa) patch.empresa = empresa;
+  }
   const nome = String(args.nome || '').trim();
   if (nome && firstNameOrEmpty(nome)) patch.nome = nome;
   const aniversariante = String(args.aniversariante || '').trim();
@@ -1258,6 +1295,7 @@ async function toolRegistrarDados(
   const bd = (conv.bot_data || {}) as Json;
   const leadId = await ensureLead(supabase, instance, conv, phone, contactName, patch.nome as string | undefined);
   if (patch.nome) await saveCustomerName(supabase, conv, patch.nome as string);
+  if (corporateNow && !wasCorporate) await markCorporateLead(supabase, instance, conv, leadId, phone);
   if (leadId && (patch.mes || patch.convidados)) {
     const leadPatch: Json = {};
     if (patch.mes) leadPatch.month = patch.mes;
@@ -1759,6 +1797,16 @@ async function materialTexts(
   // Menos convidados que o menor pacote: a legenda não fala "pacotes pra 30" mandando o PDF de 50
   const minGuests = smallestPackageGuests(await loadSalesMaterials(supabase, instance));
   const belowMin = !!(minGuests && guests && guests < minGuests);
+  if (bd.tipo_evento === 'empresa') {
+    // Empresa: legendas da IA só se não falarem de aniversário/criançada
+    const corp = corporateCaptions({ firstName: nome, companyName, guests: guests || null });
+    const ok = (t: unknown) => { const v = clean(t); return v && !birthdayFlavored(v) ? v : ''; };
+    return {
+      photosIntro: ok(args.legenda_fotos) || corp.photosIntro,
+      videoCaption: ok(args.legenda_video) || corp.videoCaption,
+      pdfIntro: belowMin ? `E aqui estão os nossos pacotes, a partir de ${minGuests} pessoas 📋✨` : ok(args.legenda_pdf) || corp.pdfIntro,
+    };
+  }
   return {
     photosIntro: clean(args.legenda_fotos)
       // "do Murilo" / "da Lívia" depende do gênero, que não sabemos: frase neutra
@@ -2309,6 +2357,7 @@ export async function maybeHandleWithAiAgent(
     }
     const isFirstReply = !chatMessages.some((m) => m.role === 'assistant' && !m.content.startsWith('🧪'));
     conv.__firstReply = isFirstReply;
+    conv.__corporateEnabled = settings.corporate_events_enabled === true;
     const { merged: mergedHistory, pendingUserMessages } = mergeConsecutiveTurns(chatMessages);
     const lastUserText = [...mergedHistory].reverse().find((m) => m.role === 'user')?.content || '';
 
@@ -2359,6 +2408,7 @@ export async function maybeHandleWithAiAgent(
       firstNameOrEmpty(bd.nome as string) ? `nome ${bd.nome}` : null,
       bd.mes ? `mês ${bd.mes}` : null,
       bd.convidados ? `${bd.convidados}` : null,
+      bd.tipo_evento === 'empresa' ? `EMPRESA — confraternização${bd.empresa ? ` da ${bd.empresa}` : ''} (não pergunte de aniversariante)` : null,
       typeof bd.data_festa === 'string' && bd.data_ocupada_avisada === bd.data_festa
         ? `data pedida ${formatDateLong(bd.data_festa)} (${bd.data_festa}) — JÁ RESERVADA: o cliente já foi avisado e recebeu outras datas livres; não trate como a data da festa e, quando ele escolher outra, consulte essa nova data`
         : typeof bd.data_festa === 'string' ? `data da festa ${formatDateLong(bd.data_festa)} (${bd.data_festa}) — use esta data em consultar_valor_pacote enquanto o cliente não mudar${
@@ -2407,6 +2457,12 @@ export async function maybeHandleWithAiAgent(
         if (intent === 'fornecedor') return 'a pessoa parece ser fornecedor ou querer vender algo. Não fale de festa: use transferir_para_atendente com assunto fornecedor.';
         if (intent === 'cliente_com_festa') return 'a pessoa parece já ter festa marcada com a gente. Não trate como orçamento: entenda a dúvida; se for sobre a festa contratada, use transferir_para_atendente com assunto cliente_com_festa.';
         if (intent === 'duvida_festa') return 'a pessoa disse que tem uma festa e quer tirar uma dúvida. Pergunte qual é a dúvida e se a festa já está marcada com a gente, antes de falar de orçamento, mês ou convidados.';
+        return null;
+      })(),
+      corporateNote: (() => {
+        if (!settings.corporate_events_enabled) return null;
+        if (bd.tipo_evento === 'empresa') return corporateLeadNote(bd.empresa as string);
+        if (mentionsCorporate(lastUserText)) return 'o cliente falou de empresa/confraternização: trate como CONFRATERNIZAÇÃO DE EMPRESAS — chame registrar_dados_festa com confraternizacao=true e siga o roteiro de empresa (sem aniversariante).';
         return null;
       })(),
       promoNote: (() => {

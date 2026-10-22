@@ -13,7 +13,7 @@ import { useChatNotificationToggle } from "@/hooks/useChatNotificationToggle";
 // mesmo tipo de notificação e continua só no sininho, como antes.
 // Também avisa candidato novo do "Trabalhe Conosco" (no sininho ninguém via).
 // + cliente respondeu a mensagem do pós-visita (a equipe conduz a negociação)
-const AI_REASONS = ["ai_handoff", "ai_handoff_unanswered", "post_visit_reply", "scheduled_return_reply"];
+const AI_REASONS = ["ai_handoff", "ai_handoff_unanswered", "post_visit_reply", "scheduled_return_reply", "company_lead"];
 // + número que parou de entregar mensagens (ninguém percebia até o cliente reclamar)
 // + cliente preencheu os dados do contrato (a equipe pode estar em outra conversa)
 const ALERT_TYPES = ["lead_needs_human", "new_candidate", "visit_scheduled", "delivery_stall", "client_data"];
@@ -151,6 +151,7 @@ export function AiHandoffAlertBanner({ userId, onOpenConversation }: AiHandoffAl
   const clientData = isClientDataDone(latest);
   const postVisitReply = latest.data.reason === "post_visit_reply";
   const returnReply = latest.data.reason === "scheduled_return_reply";
+  const companyLead = latest.data.reason === "company_lead";
   const remaining = alerts.length - 1;
   const title = latest.title.replace(/^[^\p{L}\p{N}]+/u, "");
 
@@ -166,7 +167,7 @@ export function AiHandoffAlertBanner({ userId, onOpenConversation }: AiHandoffAl
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm sm:text-base font-extrabold text-white truncate">
-              <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-[10px] sm:text-xs font-black tracking-wide mr-1.5 align-middle">{candidate ? "CANDIDATO" : visit ? "IA · VISITA" : clientData ? "DADOS RECEBIDOS" : postVisitReply ? "PÓS-VISITA" : returnReply ? "RETORNO" : stall ? "WHATSAPP" : "IA"}</span>
+              <span className="inline-flex items-center rounded-full bg-white/20 px-2 py-0.5 text-[10px] sm:text-xs font-black tracking-wide mr-1.5 align-middle">{candidate ? "CANDIDATO" : visit ? "IA · VISITA" : clientData ? "DADOS RECEBIDOS" : postVisitReply ? "PÓS-VISITA" : returnReply ? "RETORNO" : companyLead ? "EMPRESA" : stall ? "WHATSAPP" : "IA"}</span>
               {title}
             </p>
             <p className="text-xs sm:text-sm text-violet-100 truncate">

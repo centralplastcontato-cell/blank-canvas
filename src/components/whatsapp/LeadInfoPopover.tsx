@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { 
-  Info, MessageSquare, Clock, MapPin, Calendar, Users, 
+  Info, MessageSquare, Clock, MapPin, Calendar, Users, Building2, 
   ArrowRightLeft, Bot, Loader2, Pencil, Check, X, Trash2, UsersRound, Star, RotateCcw, PartyPopper, Package, AlertTriangle,
   Sparkles, UserCheck,
 } from "lucide-react";
@@ -390,6 +390,20 @@ export function LeadInfoPopover({
       .maybeSingle()
       .then(({ data, error }: any) => {
         if (!error && data?.return_status === "pending" && data.return_at) setReturnPlan({ return_at: data.return_at, return_note: data.return_note });
+      });
+  }, [linkedLead?.id]);
+  // Lead de empresa (confraternização), marcado pela IA (sem a coluna no banco: nada aparece)
+  const [isCompanyLead, setIsCompanyLead] = useState(false);
+  useEffect(() => {
+    setIsCompanyLead(false);
+    if (!linkedLead?.id) return;
+    (supabase as any)
+      .from("campaign_leads")
+      .select("lead_kind")
+      .eq("id", linkedLead.id)
+      .maybeSingle()
+      .then(({ data, error }: any) => {
+        if (!error && data?.lead_kind === "empresa") setIsCompanyLead(true);
       });
   }, [linkedLead?.id]);
   const cancelReturn = async () => {
@@ -813,6 +827,7 @@ export function LeadInfoPopover({
                   </Fact>
                 )}
                 {linkedLead.unit && <Fact icon={MapPin} label="Número" accent>{linkedLead.unit}</Fact>}
+                {isCompanyLead && <Fact icon={Building2} label="Tipo" accent>Empresa · confraternização</Fact>}
                 {(linkedLead.month || linkedLead.day_preference) && (
                   <Fact icon={Calendar} label="Festa">
                     {[linkedLead.month, linkedLead.day_of_month && `dia ${linkedLead.day_of_month}`, linkedLead.day_preference].filter(Boolean).join(' · ')}
