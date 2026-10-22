@@ -42,7 +42,7 @@ import { findPromotion, promoMentions, promoNote } from "../_shared/promo.ts";
 import { closedPeriodAt, closedPeriodsNote, formatClosedPeriod, isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
 import { dayWithArticle, nearestAlternativeDays, partyDateFreeNote, partyDateTakenMessage } from "../_shared/party-date-check.ts";
 import { birthdayFlavored, corporateCaptions, corporateLeadNote, corporatePromptBlock, mentionsCorporate } from "../_shared/corporate-event.ts";
-import { asksPartnership, clientAffirms, clientAskedPrice, PRICE_ASK_WINDOW_MS, closingAfterMaterials, visitInviteAfterMaterials, confirmsPartyInterest, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
+import { asksPartnership, clientAffirms, clientAskedPrice, PRICE_ASK_WINDOW_MS, askPartyDayAfterMaterials, closingAfterMaterials, needsPartyDay, visitInviteAfterMaterials, confirmsPartyInterest, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 import { askedForName, nameFromAnswer } from "../_shared/name-answer.ts";
 import { falseMaterialClaims, hasMaterialClaim, hasSubstance, refersToMaterial, stripFalseMaterialClaims } from "../_shared/material-claims.ts";
@@ -1411,7 +1411,13 @@ async function autoSendMaterials(
   const skipped = (['fotos', 'video', 'pacotes'] as MaterialTipo[]).filter((k) => already[k]).map((k) => MATERIAL_LABEL[k]);
   const skippedNote = skipped.length > 0 ? ` (${skipped.join(', ')} já tinha(m) sido enviado(s) antes e não foi reenviado.)` : '';
   const confirmedText = ack.confirmed.length > 0 ? ack.confirmed.map((t) => MATERIAL_LABEL[t]).join(', ') : 'nenhum ainda';
-  return `OK: dados salvos e os materiais foram enviados agora, automaticamente, com as legendas (confirmados pelo WhatsApp: ${confirmedText}).${skippedNote} Não reenvie nada: comente brevemente e, se você não convidou para visita nas últimas 3 respostas, convide oferecendo 2 horários concretos.${unconfirmedNote(ack.unconfirmed, ack.confirmed)}${minNote}${pdfNote}`;
+  // Ainda sem o DIA da festa: pergunta o dia (para conferir na agenda) antes do convite
+  const askDay = ack.confirmed.includes('pacotes') && needsPartyDay(bd);
+  if (askDay) await mergeBotData(supabase, conv, { dia_perguntado: new Date().toISOString() });
+  const nextStep = askDay
+    ? ` Não reenvie nada: comente brevemente e pergunte, de forma natural, se ele já tem um DIA em mente${bd.mes ? ` em ${String(bd.mes).toLowerCase()}` : ''}, para você conferir na agenda se está livre (ex.: "Vocês já têm um dia em mente em dezembro? Assim já confiro aqui na agenda se está livre 😊"). NESTA resposta NÃO convide para visita — o convite vem depois que ele responder o dia.`
+    : ' Não reenvie nada: comente brevemente e, se você não convidou para visita nas últimas 3 respostas, convide oferecendo 2 horários concretos.';
+  return `OK: dados salvos e os materiais foram enviados agora, automaticamente, com as legendas (confirmados pelo WhatsApp: ${confirmedText}).${skippedNote}${nextStep}${unconfirmedNote(ack.unconfirmed, ack.confirmed)}${minNote}${pdfNote}`;
 }
 
 const WEEKDAYS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
@@ -1624,7 +1630,7 @@ async function toolConsultarDatas(
     const busy = !perUnit.some((u) => u.free.some((f) => f.date === askedDate));
     const bd = (conv.bot_data || {}) as Json;
     // Data pedida estava reservada e ele olhou outra, livre: passa a ser a data da festa
-    if (!busy && bd.data_festa !== askedDate && bd.data_ocupada_avisada === bd.data_festa) {
+    if (!busy && bd.data_festa !== askedDate && (bd.data_ocupada_avisada === bd.data_festa || (!bd.data_festa && bd.dia_perguntado))) {
       await mergeBotData(supabase, conv, { data_festa: askedDate });
       conv.bot_data = { ...bd, data_festa: askedDate } as Json;
     }
@@ -2408,6 +2414,9 @@ export async function maybeHandleWithAiAgent(
       firstNameOrEmpty(bd.nome as string) ? `nome ${bd.nome}` : null,
       bd.mes ? `mês ${bd.mes}` : null,
       bd.convidados ? `${bd.convidados}` : null,
+      bd.dia_perguntado && !bd.data_festa && bd.mes
+        ? 'DIA DA FESTA: ainda não sabemos — você perguntou se ele já tem um dia em mente. Se ele disser um dia, use consultar_datas_livres com essa data e conte se está livre; se estiver, convide para conhecer o espaço com 2 horários. Se ele ainda não souber o dia, siga com o convite para a visita'
+        : null,
       bd.tipo_evento === 'empresa' ? `EMPRESA — confraternização${bd.empresa ? ` da ${bd.empresa}` : ''} (não pergunte de aniversariante)` : null,
       typeof bd.data_festa === 'string' && bd.data_ocupada_avisada === bd.data_festa
         ? `data pedida ${formatDateLong(bd.data_festa)} (${bd.data_festa}) — JÁ RESERVADA: o cliente já foi avisado e recebeu outras datas livres; não trate como a data da festa e, quando ele escolher outra, consulte essa nova data`
@@ -2750,7 +2759,14 @@ export async function maybeHandleWithAiAgent(
             const seed = Math.floor(Date.now() / 1000);
             const recentInvite = repliesSinceVisitInvite(chatMessages);
             const canInvite = !leadVisit && !(recentInvite !== null && recentInvite < 3) && !clientDeclined(lastUserText);
-            let closing = parts.after
+            // Sem o dia da festa (só o mês): pergunta o dia antes do convite
+            // (autoSendMaterials já marcou dia_perguntado quando o PDF saiu)
+            const bdAfter = (conv.bot_data || {}) as Json;
+            const askDay = !pendingPartyDate(conv) && typeof bdAfter.dia_perguntado === 'string' &&
+              Date.now() - Date.parse(bdAfter.dia_perguntado) < 10 * 60000 && !bdAfter.data_festa;
+            let closing = askDay
+              ? askPartyDayAfterMaterials(firstName, String(bdAfter.mes || ''), seed)
+              : parts.after
               || (canInvite ? visitInviteAfterMaterials(firstName, pickTwoOffers(available), ymdBR(Date.now()), seed) : null)
               || closingAfterMaterials(firstName, seed);
             // Data da festa pedida: livre → boa notícia junto do convite;

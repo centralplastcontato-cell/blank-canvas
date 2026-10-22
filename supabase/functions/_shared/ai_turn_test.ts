@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { clientAffirms, clientAskedPrice, closingAfterMaterials, friendlyVisitSlot, hasVisitInvite, visitInviteAfterMaterials, confirmsPartyInterest, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, priceRequestPending, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, teamRepliedAfter } from "./ai-turn.ts";
+import { askPartyDayAfterMaterials, needsPartyDay, clientAffirms, clientAskedPrice, closingAfterMaterials, friendlyVisitSlot, hasVisitInvite, visitInviteAfterMaterials, confirmsPartyInterest, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, priceRequestPending, pickLatestIncoming, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, teamRepliedAfter } from "./ai-turn.ts";
 
 Deno.test("pickLatestIncoming: a última mensagem do cliente responde por todas", () => {
   assertEquals(pickLatestIncoming([
@@ -272,4 +272,16 @@ Deno.test("visitInviteAfterMaterials: convite com 2 horários livres depois do P
   assertEquals(visitInviteAfterMaterials("Ana", offers.slice(0, 1), today, 0), null);
   assertEquals(hasVisitInvite(visitInviteAfterMaterials("Ana", offers, today, 0)!), true);
   assertEquals(hasVisitInvite(visitInviteAfterMaterials("Ana", offers, today, 1)!), true);
+});
+
+Deno.test("pergunta do dia depois do PDF", () => {
+  assertEquals(
+    askPartyDayAfterMaterials("Vitor", "Dezembro", 0),
+    "Já te mandei tudo pra vocês verem com calma, Vitor 🥳\n\nVocês já têm um dia em mente em dezembro? Assim já confiro aqui na agenda se está livre 😊",
+  );
+  assertEquals(askPartyDayAfterMaterials("", "abril de 2027", 1).includes("em abril?"), true);
+  assertEquals(needsPartyDay({ mes: "Dezembro" }), true);
+  assertEquals(needsPartyDay({ mes: "Dezembro", data_festa: "2026-12-12" }), false);
+  assertEquals(needsPartyDay({ mes: "Dezembro", dia_perguntado: "2026-10-22T17:00:00Z" }), false);
+  assertEquals(needsPartyDay({}), false);
 });
