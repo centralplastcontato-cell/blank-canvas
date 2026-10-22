@@ -297,7 +297,7 @@ function CardapioResponseCards({ responses, template, onDelete, company, allTemp
 
               {availablePdfChoices.length > 1 && (
                 <div className="pt-4 space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Template para o PDF</Label>
+                  <Label className="text-xs text-muted-foreground">Modelo para o PDF</Label>
                   <Select
                     value={pdfTemplateId ?? undefined}
                     onValueChange={(val) => {
@@ -309,7 +309,7 @@ function CardapioResponseCards({ responses, template, onDelete, company, allTemp
                     }}
                   >
                     <SelectTrigger className="h-9 text-sm">
-                      <SelectValue placeholder="Selecione o template" />
+                      <SelectValue placeholder="Selecione o modelo" />
                     </SelectTrigger>
                     <SelectContent>
                       {availablePdfChoices.map((c) => (
@@ -337,7 +337,7 @@ function CardapioResponseCards({ responses, template, onDelete, company, allTemp
                         eventResponses.find((r) => r.id === pdfResponseId) ||
                         (pdfResponseId === selectedResponse.id ? selectedResponse : selectedResponse);
                       if (!tpl || !resp) {
-                        toast({ title: "Template não encontrado", variant: "destructive" });
+                        toast({ title: "Modelo não encontrado", variant: "destructive" });
                         return;
                       }
                       setPrinting(true);
@@ -643,7 +643,7 @@ export function CardapioContent() {
       thank_you_message: t.thank_you_message,
     });
     if (error) { toast({ title: "Erro ao duplicar", variant: "destructive" }); return; }
-    toast({ title: "Template duplicado!" });
+    toast({ title: "Modelo duplicado!" });
     fetchTemplates();
   };
 
@@ -651,7 +651,7 @@ export function CardapioContent() {
     await supabase.from("cardapio_responses").delete().eq("template_id", id);
     const { error } = await supabase.from("cardapio_templates").delete().eq("id", id);
     if (error) { toast({ title: "Erro ao excluir", variant: "destructive" }); return; }
-    toast({ title: "Template excluído" });
+    toast({ title: "Modelo excluído" });
     if (expandedTemplateId === id) setExpandedTemplateId(null);
     fetchTemplates();
   };
@@ -677,11 +677,11 @@ export function CardapioContent() {
     if (editingTemplate) {
       const { error } = await supabase.from("cardapio_templates").update(payload).eq("id", editingTemplate.id);
       if (error) { toast({ title: "Erro ao salvar", variant: "destructive" }); setSaving(false); return; }
-      toast({ title: "Template atualizado!" });
+      toast({ title: "Modelo atualizado!" });
     } else {
       const { error } = await supabase.from("cardapio_templates").insert(payload);
       if (error) { toast({ title: "Erro ao criar", variant: "destructive" }); setSaving(false); return; }
-      toast({ title: "Template criado!" });
+      toast({ title: "Modelo criado!" });
     }
     setSaving(false);
     setDialogOpen(false);
@@ -753,7 +753,7 @@ export function CardapioContent() {
       <div className="max-w-6xl mx-auto space-y-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground hidden md:block">Crie formulários de cardápio para os clientes escolherem</p>
-          <Button onClick={openNew} size="sm"><Plus className="h-4 w-4 mr-1" /> Novo Template</Button>
+          <Button onClick={openNew} size="sm"><Plus className="h-4 w-4 mr-1" /> Novo Modelo</Button>
         </div>
 
         {loading ? (
@@ -762,8 +762,8 @@ export function CardapioContent() {
           <Card className="bg-card border-border">
             <CardContent className="p-8 text-center space-y-3">
               <UtensilsCrossed className="h-12 w-12 text-muted-foreground mx-auto" />
-              <p className="text-muted-foreground">Nenhum template de cardápio criado ainda.</p>
-              <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Criar Primeiro Template</Button>
+              <p className="text-muted-foreground">Nenhum modelo de cardápio criado ainda.</p>
+              <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Criar Primeiro Modelo</Button>
             </CardContent>
           </Card>
         ) : (
@@ -815,7 +815,7 @@ export function CardapioContent() {
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Excluir template?</AlertDialogTitle>
+                              <AlertDialogTitle>Excluir modelo?</AlertDialogTitle>
                               <AlertDialogDescription>Essa ação não pode ser desfeita. Todas as respostas vinculadas também serão excluídas.</AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -853,12 +853,12 @@ export function CardapioContent() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingTemplate ? "Editar Template" : "Novo Template de Cardápio"}</DialogTitle>
+            <DialogTitle>{editingTemplate ? "Editar Modelo" : "Novo Modelo de Cardápio"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid gap-3">
               <div>
-                <Label>Nome do template</Label>
+                <Label>Nome do modelo</Label>
                 <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Ex: Cardápio da Festa" />
               </div>
               <div>
@@ -933,7 +933,7 @@ export function CardapioContent() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saving || !formName.trim()}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {editingTemplate ? "Salvar" : "Criar Template"}
+              {editingTemplate ? "Salvar" : "Criar Modelo"}
             </Button>
           </DialogFooter>
         </DialogContent>

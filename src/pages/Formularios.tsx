@@ -1,5 +1,6 @@
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { useEffect, useState, useMemo } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,12 +10,10 @@ import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { FolderOpen, Menu, Loader2, ClipboardCheck, PartyPopper, FileSignature, UtensilsCrossed, ListChecks, FileText, Package, Users, Wrench, HardHat, ShieldAlert, LayoutTemplate, CreditCard, UserCheck, UserPlus, Landmark } from "lucide-react";
+import { FolderOpen, Menu, ClipboardCheck, PartyPopper, UtensilsCrossed, FileText, Package, PackagePlus, Users, Wrench, HardHat, ShieldAlert, CreditCard, UserCheck, UserPlus, Landmark, Star, Eye, Wallet, CalendarHeart, ClipboardList, Info } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { AvaliacoesContent } from "./Avaliacoes";
 import { PreFestaContent } from "./PreFesta";
-import { ContratoContent } from "./Contrato";
 import { CardapioContent } from "./Cardapio";
 import { EventStaffManager } from "@/components/agenda/EventStaffManager";
 import { AccessDeniedRedirect } from "@/components/AccessDeniedRedirect";
@@ -33,6 +32,43 @@ import { SellersManager } from "@/components/admin/SellersManager";
 import { BankAccountsManager } from "@/components/financial/BankAccountsManager";
 import { EventTypesConfig } from "@/components/admin/EventTypesConfig";
 import { GuiaOperacoesDialog } from "@/components/guias/GuiaOperacoesDialog";
+import { HubLayout, type HubGroup, type HubTone } from "@/components/settings/HubLayout";
+
+// Operações no mesmo formato de Configurações (22/10): 5 grupos empilhados no
+// lugar das duas fileiras de abas. As permissões de cada item são as mesmas de
+// antes. O formulário antigo de Contrato saiu da tela (respostas ficam no banco).
+const TONES: Record<string, HubTone> = {
+  cadastros: { chip: "bg-amber-500/15 text-amber-600", line: "border-amber-500/30", active: "bg-amber-500/10 text-amber-700 dark:text-amber-400" },
+  formularios: { chip: "bg-pink-500/15 text-pink-600", line: "border-pink-500/30", active: "bg-pink-500/10 text-pink-700 dark:text-pink-400" },
+  dia: { chip: "bg-violet-500/15 text-violet-600", line: "border-violet-500/30", active: "bg-violet-500/10 text-violet-700 dark:text-violet-400" },
+  freelancers: { chip: "bg-sky-500/15 text-sky-600", line: "border-sky-500/30", active: "bg-sky-500/10 text-sky-700 dark:text-sky-400" },
+  financeiro: { chip: "bg-emerald-500/15 text-emerald-600", line: "border-emerald-500/30", active: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" },
+};
+const toneOf = (id: string) => TONES[id] || TONES.cadastros;
+
+// Links antigos (?section= / ?tab= / ?sub=) continuam abrindo o lugar certo
+const LEGACY_SECTION: Record<string, string> = {
+  contratos: "pacotes",
+  opcionais: "opcionais",
+  tipos_festa: "tipos",
+  vendedores: "vendedores",
+  taxas_cartao: "taxas",
+  contas_bancarias: "contas",
+  checklist: "equipe",
+};
+const LEGACY_TAB: Record<string, string> = {
+  avaliacoes: "avaliacao",
+  avaliacao: "avaliacao",
+  prefesta: "prefesta",
+  cardapio: "cardapio",
+};
+
+function legacyItem(params: URLSearchParams): string | null {
+  const section = params.get("section");
+  if (section === "freelancer") return params.get("sub") === "candidatos" ? "fl-candidatos" : "fl-cadastro";
+  if (section && LEGACY_SECTION[section]) return LEGACY_SECTION[section];
+  return LEGACY_TAB[params.get("tab") || ""] || null;
+}
 
 export default function Formularios() {
   const navigate = useNavigate();
@@ -47,8 +83,7 @@ export default function Formularios() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [userPermissions, setUserPermissions] = useState<Record<string, boolean>>({});
 
-  const activeSection = searchParams.get("section") || "formularios";
-  const activeTab = searchParams.get("tab") || "avaliacoes";
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     async function check() {
@@ -84,38 +119,61 @@ export default function Formularios() {
   const canAvaliacoes = isOwnerOrAdmin || userPermissions['operacoes.avaliacoes'];
   const canBankAccounts = isOwnerOrAdmin || (userPermissions['financial.bank_accounts'] ?? true);
 
-  const visibleSections = useMemo(() => {
-    const sections: { value: string; label: string; icon: React.ElementType }[] = [];
-    if (canPacotes) sections.push({ value: "contratos", label: "Pacotes", icon: Package });
-    if (canPacotes) sections.push({ value: "opcionais", label: "Opcionais", icon: Package });
-    if (canFormularios) sections.push({ value: "formularios", label: "Formulários", icon: FileText });
-    if (canChecklist) sections.push({ value: "checklist", label: "Checklist", icon: ListChecks });
-    if (canFreelancer || canAvaliacoes) sections.push({ value: "freelancer", label: "Freelancer", icon: HardHat });
-    if (canPacotes) sections.push({ value: "taxas_cartao", label: "Taxas de Cartão", icon: CreditCard });
-    if (canPacotes) sections.push({ value: "vendedores", label: "Vendedores", icon: UserCheck });
-    if (canPacotes && canBankAccounts) sections.push({ value: "contas_bancarias", label: "Contas Bancárias", icon: Landmark });
-    if (canPacotes) sections.push({ value: "tipos_festa", label: "Tipos de Festa", icon: PartyPopper });
-    return sections;
-  }, [canFormularios, canChecklist, canPacotes, canFreelancer, canAvaliacoes, canBankAccounts]);
+  const groups: HubGroup[] = useMemo(() => [
+    {
+      id: "cadastros", title: "Cadastros", icon: Package, items: [
+        { id: "pacotes", title: "Pacotes", description: "Pacotes de festa com preços e o que inclui", icon: Package, visible: canPacotes, render: () => <PackagesManager /> },
+        { id: "opcionais", title: "Opcionais", description: "Itens extras que o cliente pode contratar", icon: PackagePlus, visible: canPacotes, render: () => <OptionalsManager /> },
+        { id: "tipos", title: "Tipos de festa", description: "Aniversário, confraternização, formatura…", icon: PartyPopper, visible: canPacotes, render: () => <EventTypesConfig /> },
+        { id: "vendedores", title: "Vendedores", description: "Quem vende, para marcar em cada festa", icon: UserCheck, visible: canPacotes, render: () => <SellersManager /> },
+      ],
+    },
+    {
+      id: "formularios", title: "Formulários do cliente", icon: FileText, items: [
+        { id: "prefesta", title: "Pré-Festa", description: "O que o cliente preenche antes da festa", icon: PartyPopper, visible: canFormularios, render: () => <PreFestaContent /> },
+        { id: "cardapio", title: "Cardápio", description: "Escolha do cardápio pelo cliente", icon: UtensilsCrossed, visible: canFormularios, render: () => <CardapioContent /> },
+        { id: "avaliacao", title: "Avaliação", description: "Pesquisa de satisfação depois da festa", icon: Star, visible: canFormularios, render: () => <AvaliacoesContent /> },
+      ],
+    },
+    {
+      id: "dia", title: "Dia da festa", icon: CalendarHeart, items: [
+        { id: "equipe", title: "Equipe da festa", description: "Quem trabalha em cada festa e as funções", icon: Users, visible: canChecklist, render: () => <EventStaffManager /> },
+        { id: "manutencao", title: "Manutenção", description: "Conferência do espaço antes e depois", icon: Wrench, visible: canChecklist, render: () => <MaintenanceManager /> },
+        { id: "acompanhamento", title: "Acompanhamento", description: "Andamento da festa, etapa por etapa", icon: Eye, visible: canChecklist, render: () => <PartyMonitoringManager /> },
+        { id: "presenca", title: "Presença de convidados", description: "Lista de quem chegou na festa", icon: ClipboardList, visible: canChecklist, render: () => <AttendanceManager /> },
+        { id: "informacoes", title: "Informações para a equipe", description: "Avisos e detalhes da festa para a equipe", icon: Info, visible: canChecklist, render: () => <EventInfoManager /> },
+      ],
+    },
+    {
+      id: "freelancers", title: "Freelancers", icon: HardHat, items: [
+        { id: "fl-cadastro", title: "Cadastro", description: "Freelancers cadastrados e o formulário", icon: HardHat, visible: canFreelancer, render: () => <FreelancerManagerContent /> },
+        { id: "fl-candidatos", title: "Candidatos", description: "Quem se candidatou pelo Trabalhe Conosco", icon: UserPlus, visible: canFreelancer, render: () => <FreelancerCandidatesTab /> },
+        { id: "fl-avaliacoes", title: "Avaliações", description: "Notas dos freelancers depois de cada festa", icon: ClipboardCheck, visible: canAvaliacoes, render: () => <FreelancerEvaluationsTab /> },
+      ],
+    },
+    {
+      id: "financeiro", title: "Financeiro", icon: Wallet, items: [
+        { id: "taxas", title: "Taxas de cartão", description: "Taxas da maquininha por parcela", icon: CreditCard, visible: canPacotes, render: () => <CardFeesManager /> },
+        { id: "contas", title: "Contas bancárias", description: "Contas para receber os pagamentos", icon: Landmark, visible: canPacotes && canBankAccounts, render: () => <BankAccountsManager /> },
+      ],
+    },
+  ].map((g) => ({ ...g, items: g.items.filter((i) => i.visible) })).filter((g) => g.items.length > 0),
+  [canFormularios, canChecklist, canPacotes, canFreelancer, canAvaliacoes, canBankAccounts]);
 
-  // Auto-select the first visible section if current is not visible
-  const effectiveSection = useMemo(() => {
-    if (visibleSections.find(s => s.value === activeSection)) return activeSection;
-    return visibleSections[0]?.value || "formularios";
-  }, [activeSection, visibleSections]);
+  const allItems = groups.flatMap((g) => g.items);
+  const requested = searchParams.get("item") || legacyItem(searchParams);
+  const current = allItems.find((i) => i.id === requested) || null;
+  // No computador sempre há um item aberto; no celular, sem item = a lista
+  const active = current || (isMobile ? null : allItems[0] || null);
+
+  const open = (id: string | null) => {
+    const next = new URLSearchParams();
+    if (id) next.set("item", id);
+    setSearchParams(next);
+  };
 
   const handleLogout = async () => { await supabase.auth.signOut({ scope: "local" }); navigate("/auth"); };
   const handleRefresh = () => { window.location.reload(); };
-
-  const handleSectionChange = (section: string) => {
-    const params: Record<string, string> = { section };
-    if (section === "formularios") params.tab = activeTab;
-    setSearchParams(params);
-  };
-
-  const handleTabChange = (tab: string) => {
-    setSearchParams({ section: "formularios", tab });
-  };
 
   if (permLoading) {
     return <LoadingScreen message="Carregando operações..." />;
@@ -127,7 +185,7 @@ export default function Formularios() {
     );
   }
 
-  if (visibleSections.length === 0) {
+  if (groups.length === 0) {
     return (
       <SidebarProvider defaultOpen={false}>
         <div className="min-h-screen flex w-full bg-background">
@@ -194,7 +252,7 @@ export default function Formularios() {
                       </div>
                       <div>
                         <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Operações</h1>
-                        <p className="text-sm text-muted-foreground/70 mt-0.5">Gerencie formulários, checklists e pacotes da sua empresa</p>
+                        <p className="text-sm text-muted-foreground/70 mt-0.5">Cadastros, formulários, dia da festa, freelancers e financeiro</p>
                       </div>
                     </div>
                     <GuiaOperacoesDialog />
@@ -203,198 +261,11 @@ export default function Formularios() {
               </div>
             </div>
 
-            {/* Top-level section tabs */}
-            <Tabs
-              value={effectiveSection}
-              onValueChange={handleSectionChange}
-              className="flex-1 flex flex-col overflow-hidden"
-            >
-              <div className="px-3 md:px-5 pt-3 md:pt-4">
-                <div className="max-w-7xl mx-auto">
-                  <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex-wrap">
-                    {visibleSections.map(s => (
-                      <TabsTrigger key={s.value} value={s.value} className="gap-2 rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground">
-                        <s.icon className="h-4 w-4" />
-                        {s.label}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
-                </div>
+            <div className="flex-1 overflow-y-auto p-3 md:p-5">
+              <div className="max-w-7xl mx-auto">
+                <HubLayout groups={groups} active={active} onOpen={open} isMobile={isMobile} backLabel="Operações" toneOf={toneOf} />
               </div>
-
-              {canFormularios && (
-                <TabsContent value="formularios" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
-                  <Tabs
-                    value={activeTab}
-                    onValueChange={handleTabChange}
-                    className="flex-1 flex flex-col overflow-hidden"
-                  >
-                    <div className="px-3 md:px-5 pt-2">
-                      <div className="max-w-7xl mx-auto">
-                      <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex-wrap">
-                        {[
-                          { value: "avaliacoes", icon: ClipboardCheck, label: "Avaliações" },
-                          { value: "prefesta", icon: PartyPopper, label: "Pré-Festa" },
-                          { value: "contrato", icon: FileSignature, label: "Contrato" },
-                          { value: "cardapio", icon: UtensilsCrossed, label: "Cardápio" },
-                        ].map(t => (
-                          <TabsTrigger key={t.value} value={t.value} className="gap-2 rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground" onClick={() => handleTabChange(t.value)}>
-                            <t.icon className="h-4 w-4" />
-                            {t.label}
-                          </TabsTrigger>
-                        ))}
-                      </TabsList>
-                      </div>
-                    </div>
-
-                    <TabsContent value="avaliacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <div className="max-w-7xl mx-auto"><AvaliacoesContent /></div>
-                    </TabsContent>
-                    <TabsContent value="prefesta" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <div className="max-w-7xl mx-auto"><PreFestaContent /></div>
-                    </TabsContent>
-                    <TabsContent value="contrato" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <div className="max-w-7xl mx-auto"><ContratoContent /></div>
-                    </TabsContent>
-                    <TabsContent value="cardapio" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <div className="max-w-7xl mx-auto"><CardapioContent /></div>
-                    </TabsContent>
-                  </Tabs>
-                </TabsContent>
-              )}
-
-              {canChecklist && (
-               <TabsContent value="checklist" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
-                  <Tabs defaultValue="equipe" className="flex-1 flex flex-col overflow-hidden">
-                     <div className="px-3 md:px-5 pt-2">
-                      <div className="max-w-7xl mx-auto">
-                      <TabsList className="bg-transparent p-0 h-auto gap-2 flex-wrap">
-                        {[
-                          { value: "equipe", icon: Users, label: "Equipe" },
-                          { value: "manutencao", icon: Wrench, label: "Manutenção" },
-                          { value: "acompanhamento", icon: ClipboardCheck, label: "Acompanhamento" },
-                          { value: "presenca", icon: Users, label: "Presença" },
-                          { value: "informacoes", icon: FileText, label: "Informações" },
-                          
-                        ].map(t => (
-                          <TabsTrigger key={t.value} value={t.value} className="gap-2.5 !rounded-xl !px-6 !py-2.5 !text-sm font-semibold border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-md data-[state=inactive]:bg-card data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground transition-all">
-                            <t.icon className="h-[18px] w-[18px]" />
-                            {t.label}
-                          </TabsTrigger>
-                        ))}
-                      </TabsList>
-                      </div>
-                    </div>
-                    <TabsContent value="equipe" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <div className="max-w-7xl mx-auto"><EventStaffManager /></div>
-                    </TabsContent>
-                    <TabsContent value="manutencao" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <div className="max-w-7xl mx-auto"><MaintenanceManager /></div>
-                    </TabsContent>
-                    <TabsContent value="acompanhamento" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <div className="max-w-7xl mx-auto"><PartyMonitoringManager /></div>
-                    </TabsContent>
-                    <TabsContent value="presenca" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <div className="max-w-7xl mx-auto"><AttendanceManager /></div>
-                    </TabsContent>
-                    <TabsContent value="informacoes" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                      <div className="max-w-7xl mx-auto"><EventInfoManager /></div>
-                    </TabsContent>
-                  </Tabs>
-                </TabsContent>
-              )}
-
-              {canPacotes && (
-                <TabsContent value="contratos" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                  <div className="max-w-7xl mx-auto"><PackagesManager /></div>
-                </TabsContent>
-              )}
-
-              {canPacotes && (
-                <TabsContent value="opcionais" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                  <div className="max-w-7xl mx-auto"><OptionalsManager /></div>
-                </TabsContent>
-              )}
-
-              {(canFreelancer || canAvaliacoes) && (
-                <TabsContent value="freelancer" className="flex-1 overflow-hidden mt-0 flex flex-col data-[state=inactive]:hidden">
-                  <Tabs defaultValue={canFreelancer ? (searchParams.get("sub") === "candidatos" ? "candidatos" : "cadastro") : "avaliacoes-fl"} className="flex-1 flex flex-col overflow-hidden">
-                    <div className="px-3 md:px-5 pt-2">
-                      <div className="max-w-7xl mx-auto">
-                      <TabsList className="bg-transparent p-0 h-auto gap-2 flex-wrap">
-                        {/* Escalas escondida (out/2026): sem uso desde abril */}
-                        {canFreelancer && (
-                          <TabsTrigger value="cadastro" className="gap-2.5 !rounded-xl !px-6 !py-2.5 !text-sm font-semibold border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-md data-[state=inactive]:bg-card data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground transition-all">
-                            <HardHat className="h-[18px] w-[18px]" />
-                            Cadastro
-                          </TabsTrigger>
-                        )}
-                        {canFreelancer && (
-                          <TabsTrigger value="candidatos" className="gap-2.5 !rounded-xl !px-6 !py-2.5 !text-sm font-semibold border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-md data-[state=inactive]:bg-card data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground transition-all">
-                            <UserPlus className="h-[18px] w-[18px]" />
-                            Candidatos
-                          </TabsTrigger>
-                        )}
-                        {canAvaliacoes && (
-                          <TabsTrigger value="avaliacoes-fl" className="gap-2.5 !rounded-xl !px-6 !py-2.5 !text-sm font-semibold border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-md data-[state=inactive]:bg-card data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none hover:bg-accent hover:text-foreground transition-all">
-                            <ClipboardCheck className="h-[18px] w-[18px]" />
-                            Avaliações
-                          </TabsTrigger>
-                        )}
-                      </TabsList>
-                      </div>
-                    </div>
-                    {canFreelancer && (
-                      <TabsContent value="cadastro" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                        <div className="max-w-7xl mx-auto"><FreelancerManagerContent /></div>
-                      </TabsContent>
-                    )}
-                    {canFreelancer && (
-                      <TabsContent value="candidatos" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                        <div className="max-w-7xl mx-auto"><FreelancerCandidatesTab /></div>
-                      </TabsContent>
-                    )}
-                    {canAvaliacoes && (
-                      <TabsContent value="avaliacoes-fl" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-3">
-                        <div className="max-w-7xl mx-auto"><FreelancerEvaluationsTab /></div>
-                      </TabsContent>
-                    )}
-                  </Tabs>
-                </TabsContent>
-              )}
-
-              {canPacotes && (
-                <TabsContent value="taxas_cartao" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-4">
-                  <div className="max-w-7xl mx-auto w-full">
-                    <CardFeesManager />
-                  </div>
-                </TabsContent>
-              )}
-
-              {canPacotes && (
-                <TabsContent value="vendedores" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-4">
-                  <div className="max-w-7xl mx-auto w-full">
-                    <SellersManager />
-                  </div>
-                </TabsContent>
-              )}
-
-              {canPacotes && canBankAccounts && (
-                <TabsContent value="contas_bancarias" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-4">
-                  <div className="max-w-7xl mx-auto w-full">
-                    <BankAccountsManager />
-                  </div>
-                </TabsContent>
-              )}
-
-              {canPacotes && (
-                <TabsContent value="tipos_festa" className="flex-1 overflow-y-auto mt-0 p-3 md:p-5 pt-4">
-                  <div className="max-w-7xl mx-auto w-full">
-                    <EventTypesConfig />
-                  </div>
-                </TabsContent>
-              )}
-            </Tabs>
+            </div>
           </div>
         </div>
       </div>
