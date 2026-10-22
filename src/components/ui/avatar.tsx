@@ -19,7 +19,16 @@ const AvatarImage = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Image>,
   React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image>
 >(({ className, ...props }, ref) => (
-  <AvatarPrimitive.Image ref={ref} className={cn("aspect-square h-full w-full", className)} {...props} />
+  <AvatarPrimitive.Image
+    ref={ref}
+    className={cn(
+      "aspect-square h-full w-full object-cover",
+      // Logotipo do buffet como foto: aparece inteiro, sem cortar nem esticar
+      typeof props.src === "string" && /logo/i.test(props.src) && "object-contain bg-white p-0.5",
+      className,
+    )}
+    {...props}
+  />
 ));
 AvatarImage.displayName = AvatarPrimitive.Image.displayName;
 
