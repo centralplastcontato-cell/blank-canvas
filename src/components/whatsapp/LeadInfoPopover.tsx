@@ -378,6 +378,32 @@ export function LeadInfoPopover({
       });
   }, [linkedLead?.id, visitRefreshKey]);
 
+  // "Vou agendar depois": data que o cliente combinou para retomar (sem a coluna no banco: nada aparece)
+  const [returnPlan, setReturnPlan] = useState<{ return_at: string; return_note: string | null } | null>(null);
+  useEffect(() => {
+    setReturnPlan(null);
+    if (!linkedLead?.id) return;
+    (supabase as any)
+      .from("campaign_leads")
+      .select("return_at, return_note, return_status")
+      .eq("id", linkedLead.id)
+      .maybeSingle()
+      .then(({ data, error }: any) => {
+        if (!error && data?.return_status === "pending" && data.return_at) setReturnPlan({ return_at: data.return_at, return_note: data.return_note });
+      });
+  }, [linkedLead?.id]);
+  const cancelReturn = async () => {
+    if (!linkedLead) return;
+    const { error } = await (supabase as any).from("campaign_leads").update({ return_status: "cancelled" }).eq("id", linkedLead.id);
+    if (error) {
+      toast({ title: "Não consegui cancelar", description: error.message, variant: "destructive" });
+      return;
+    }
+    await supabase.from("lead_history").insert({ lead_id: linkedLead.id, user_id: userId, user_name: currentUserName, action: "Retorno combinado cancelado", old_value: returnPlan?.return_at || null, new_value: null });
+    setReturnPlan(null);
+    toast({ title: "Retorno cancelado" });
+  };
+
   const isGroup = selectedConversation.remote_jid.includes('@g.us');
 
   const startEditingName = () => {
@@ -806,6 +832,21 @@ export function LeadInfoPopover({
                      latestVisit.status_visita === "cancelada" ? "Cancelada" :
                      latestVisit.status_visita}
                   </Fact>
+                )}
+                {returnPlan && (
+                  <div className="col-span-2 flex items-start gap-2 min-w-0">
+                    <div className="flex-1 min-w-0">
+                      <Fact icon={Clock} label="Retomar em" accent>
+                        {returnPlan.return_at.split("-").reverse().join("/")}
+                        {returnPlan.return_note && ` · disse: "${returnPlan.return_note}"`}
+                      </Fact>
+                    </div>
+                    {canEditLead && (
+                      <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px] text-muted-foreground shrink-0" onClick={cancelReturn} title="Cancelar o retorno automático">
+                        Cancelar
+                      </Button>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
