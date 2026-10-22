@@ -246,8 +246,8 @@ export function ProfileContent({ userId, userEmail }: ProfileContentProps) {
           <CardDescription>Defina uma nova senha para sua conta</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2 sm:max-w-[calc(50%-0.5rem)]">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-2">
               <Label htmlFor="currentPassword">Senha atual</Label>
               <Input id="currentPassword" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="••••••••" />
             </div>
