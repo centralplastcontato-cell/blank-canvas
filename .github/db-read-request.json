@@ -1,1 +1,1 @@
-{"sql": "SELECT 'summary' AS k, created_at::text || ' | ' || coalesce(model, '') || ' | ' || left(content, 1500) AS txt FROM hub_weekly_summaries ORDER BY created_at DESC LIMIT 3"}
+{"sql": "SELECT 'summary' AS k, created_at::text || ' | ' || coalesce(model, '') || ' | ' || left(content, 1500) AS txt FROM hub_weekly_summaries ORDER BY created_at DESC LIMIT 2"}
