@@ -52,7 +52,11 @@ export function CompanyDataSection() {
         .getPublicUrl(path);
 
       setLogoUrl(`${publicUrl}?t=${Date.now()}`);
-      toast({ title: "Logo enviado!" });
+      // Salva o logo na hora (antes só ia com "Salvar alterações" e se perdia ao sair da tela)
+      const { error: saveError } = await supabase.from("companies").update({ logo_url: publicUrl }).eq("id", currentCompany.id);
+      if (saveError) throw saveError;
+      await refreshCompanies();
+      toast({ title: "Logo atualizado!" });
     } catch (err: any) {
       toast({ title: "Erro ao enviar logo", description: err.message, variant: "destructive" });
     } finally {

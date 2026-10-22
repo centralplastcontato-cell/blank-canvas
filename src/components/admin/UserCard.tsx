@@ -280,9 +280,9 @@ export function UserCard({
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
+                    <AlertDialogTitle>Remover deste buffet?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Esta ação não pode ser desfeita. O usuário <strong>{user.full_name}</strong> será removido permanentemente do sistema.
+                      <strong>{user.full_name}</strong> perde o acesso a este buffet. Se a pessoa também trabalha em outro buffet da plataforma, continua com acesso lá.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -291,7 +291,7 @@ export function UserCard({
                       onClick={handleDelete}
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
-                      Excluir
+                      Remover
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>

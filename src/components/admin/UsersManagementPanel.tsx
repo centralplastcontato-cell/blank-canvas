@@ -209,11 +209,13 @@ export function UsersManagementPanel({ userId, isAdmin }: UsersManagementPanelPr
   const handleDeleteUser = async (targetUserId: string) => {
     try {
       const { data, error } = await supabase.functions.invoke("manage-user", {
-        body: { action: "delete", user_id: targetUserId },
+        body: { action: "delete", user_id: targetUserId, company_id: currentCompanyId },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast({ title: "Usuário excluído", description: "O usuário foi removido permanentemente." });
+      toast(data?.removed_from_company
+        ? { title: "Removido deste buffet", description: "A pessoa continua com acesso aos outros buffets dela." }
+        : { title: "Usuário removido", description: "O acesso desta pessoa foi apagado." });
       fetchUsers();
     } catch (error: any) {
       toast({ title: "Erro ao excluir usuário", description: error.message || "Tente novamente.", variant: "destructive" });
@@ -423,10 +425,10 @@ export function UsersManagementPanel({ userId, isAdmin }: UsersManagementPanelPr
                         <AlertDialog>
                           <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"><Trash2 className="w-4 h-4" /></Button></AlertDialogTrigger>
                           <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>Excluir usuário?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita. O usuário <strong>{u.full_name}</strong> será removido permanentemente.</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogHeader><AlertDialogTitle>Remover deste buffet?</AlertDialogTitle><AlertDialogDescription><strong>{u.full_name}</strong> perde o acesso a este buffet. Se a pessoa também trabalha em outro buffet da plataforma, continua com acesso lá.</AlertDialogDescription></AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteUser(u.user_id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
+                              <AlertDialogAction onClick={() => handleDeleteUser(u.user_id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Remover</AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
