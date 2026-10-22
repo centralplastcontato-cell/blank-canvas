@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
+import { useUserRole } from "@/hooks/useUserRole";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -104,6 +105,8 @@ export function PermissionsPanel({
   const { allUnits: companyUnits } = useCompanyUnits(targetCompanyId);
   const modules = useCompanyModules();
   const { definitions, isLoading: isLoadingDefs, getPermissionsByCategory } = usePermissions(currentUserId);
+  // Modelos de permissões são da Celebrei: só administrador cria, edita ou apaga (o banco só deixa admin gravar)
+  const { isAdmin: canEditPresets } = useUserRole(currentUserId);
   const [userPermissions, setUserPermissions] = useState<Record<string, boolean>>({});
   const [isLoadingPerms, setIsLoadingPerms] = useState(true);
   const [isSaving, setIsSaving] = useState<string | null>(null);
@@ -278,7 +281,7 @@ export function PermissionsPanel({
       }));
 
       toast({
-        title: "Preset aplicado",
+        title: "Modelo aplicado",
         description: `O preset "${preset.name}" foi aplicado para ${targetUserName}.`,
       });
     } catch (error: any) {
@@ -344,7 +347,7 @@ export function PermissionsPanel({
         ));
 
         toast({
-          title: "Preset atualizado",
+          title: "Modelo atualizado",
           description: `O preset "${presetName}" foi atualizado com as permissões atuais.`,
         });
       } else {
@@ -370,7 +373,7 @@ export function PermissionsPanel({
         }]);
 
         toast({
-          title: "Preset criado",
+          title: "Modelo criado",
           description: `O preset "${presetName}" foi criado com as permissões atuais.`,
         });
       }
@@ -497,23 +500,24 @@ export function PermissionsPanel({
             <div>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Shield className="h-5 w-5 text-primary" />
-                Presets rápidos
+                Modelos de permissões
               </CardTitle>
               <CardDescription>
-                Aplique um conjunto predefinido de permissões
+                Um toque liga as permissões de uma função de uma vez
               </CardDescription>
             </div>
+            {canEditPresets && (
             <Dialog open={isPresetDialogOpen} onOpenChange={setIsPresetDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" onClick={openCreatePresetDialog}>
                   <Plus className="h-4 w-4 mr-1" />
-                  Novo Preset
+                  Novo modelo
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>
-                    {editingPreset ? 'Editar Preset' : 'Criar Novo Preset'}
+                    {editingPreset ? 'Editar modelo' : 'Novo modelo de permissões'}
                   </DialogTitle>
                   <DialogDescription>
                     {editingPreset 
@@ -576,6 +580,7 @@ export function PermissionsPanel({
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -602,6 +607,7 @@ export function PermissionsPanel({
                     )}
                     {preset.name}
                   </Button>
+                  {canEditPresets && (<>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -624,6 +630,7 @@ export function PermissionsPanel({
                       <Trash2 className="h-3 w-3" />
                     )}
                   </Button>
+                  </>)}
                 </div>
               );
             })}

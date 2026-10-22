@@ -27,9 +27,9 @@ const MODULE_DEFINITIONS = [
   { key: "monitoring",  label: "Acompanhamento",        description: "Monitoramento em tempo real da festa",      icon: ClipboardCheck, color: "#a78bfa", essential: true },
   { key: "attendance",  label: "Presença de Convidados",description: "Controle de entrada e número de presentes", icon: UserCheck,      color: "#06b6d4", essential: true },
   { key: "info",        label: "Informações da Festa",  description: "Blocos de orientação para a equipe",        icon: Info,           color: "#ec4899", essential: true },
-  { key: "prefesta",    label: "Pré-Festa",             description: "Formulário de checklist pré-evento",        icon: PartyPopper,    color: "#f97316", essential: false },
+  { key: "prefesta",    label: "Pré-Festa",             description: "Formulário que o cliente preenche antes da festa",        icon: PartyPopper,    color: "#f97316", essential: false },
   { key: "cardapio",    label: "Cardápio",              description: "Escolhas de cardápio do cliente",           icon: UtensilsCrossed,color: "#84cc16", essential: false },
-  { key: "avaliacao",   label: "Avaliação",             description: "Link para avaliação pós-festa",             icon: Star,           color: "#fbbf24", essential: false },
+  { key: "avaliacao",   label: "Avaliação",             description: "Link para o cliente avaliar a festa depois",             icon: Star,           color: "#fbbf24", essential: false },
 ] as const;
 
 const DEFAULTS: PartyControlModules = {
@@ -117,6 +117,11 @@ export function PartyControlConfig() {
 
   return (
     <div className="space-y-6">
+      {/* O que esta tela controla (antes não dizia, e o nome prometia "checklists") */}
+      <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 text-xs sm:text-sm text-muted-foreground leading-relaxed">
+        Escolha o que aparece na <strong className="text-foreground">página do dia da festa</strong>: o link que a equipe abre pela Agenda
+        (botão da festa) para acompanhar tudo no dia. Ligou, aparece; desligou, some da página. Vale para todas as festas e salva na hora.
+      </div>
       {saving && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Loader2 className="h-3 w-3 animate-spin" /> Salvando...
@@ -126,7 +131,7 @@ export function PartyControlConfig() {
       {/* Essential modules */}
       <div>
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          Módulos principais
+          Partes principais
         </p>
         <div className="space-y-2">
           {essential.map(mod => {
@@ -141,7 +146,7 @@ export function PartyControlConfig() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-medium leading-tight">{mod.label}</p>
-                    <p className="text-xs text-muted-foreground truncate">{mod.description}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-2">{mod.description}</p>
                   </div>
                 </div>
                 <Switch
@@ -157,7 +162,7 @@ export function PartyControlConfig() {
       {/* Optional modules */}
       <div>
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          Módulos opcionais
+          Extras (opcionais)
         </p>
         <div className="space-y-2">
           {optional.map(mod => {
@@ -172,7 +177,7 @@ export function PartyControlConfig() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-medium leading-tight">{mod.label}</p>
-                    <p className="text-xs text-muted-foreground truncate">{mod.description}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-2">{mod.description}</p>
                   </div>
                 </div>
                 <Switch

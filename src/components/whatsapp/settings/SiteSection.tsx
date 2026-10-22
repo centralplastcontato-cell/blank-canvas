@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle2, ExternalLink, Globe, ImagePlus, Loader2, RefreshCw, Save, Sparkles, Star, Trash2, XCircle } from "lucide-react";
@@ -170,6 +171,20 @@ export function SiteSection() {
       hero: { ...c.hero, background_image_url: photos[0] || null, background_images: photos.slice(0, 3) },
     } : c));
 
+  // Alterações não salvas: compara com o que veio do banco (ou o último salvar)
+  const currentKey = content ? JSON.stringify({ content, price }) : null;
+  const [savedKey, setSavedKey] = useState<string | null>(null);
+  useEffect(() => {
+    if (currentKey && savedKey === null) setSavedKey(currentKey);
+  }, [currentKey, savedKey]);
+  const dirty = savedKey !== null && currentKey !== savedKey;
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
   const save = async (silent = false): Promise<boolean> => {
     if (!content) return false;
     if (!onlyDigits(content.hero.whatsapp_number)) {
@@ -188,6 +203,7 @@ export function SiteSection() {
         theme: paletteTheme(content.hero.palette),
       } as never).eq("company_id", companyId);
       if (error) throw error;
+      setSavedKey(currentKey);
       if (!silent) toast({ title: "Site salvo!", description: published ? "As mudanças já estão no ar." : "Quando estiver pronto, clique em Publicar." });
       return true;
     } catch (e) {
@@ -359,6 +375,17 @@ export function SiteSection() {
         </CardContent>
       </Card>
 
+      {/* Partes do site em abas curtas (antes era uma página só, muito comprida) */}
+      <Tabs defaultValue="topo" className="w-full">
+        <TabsList className="h-auto w-full flex-nowrap justify-start gap-1 overflow-x-auto bg-transparent p-0 [&>*]:shrink-0">
+          {[["topo", "Topo"], ["fotos", `Fotos (${photos.length})`], ["destaques", "Destaques"], ["pacotes", "Pacotes"], ["visual", "Endereço e cores"], ["dominio", "Domínio"]].map(([v, l]) => (
+            <TabsTrigger key={v} value={v} className="rounded-full border px-3 py-1.5 text-xs sm:text-sm data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              {l}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+      <TabsContent value="topo" className="mt-4">
       {/* Textos */}
       <Card>
         <CardContent className="pt-6 space-y-4">
@@ -409,6 +436,9 @@ export function SiteSection() {
         </CardContent>
       </Card>
 
+      </TabsContent>
+
+      <TabsContent value="fotos" className="mt-4">
       {/* Fotos */}
       <Card>
         <CardContent className="pt-6 space-y-4">
@@ -448,6 +478,9 @@ export function SiteSection() {
         </CardContent>
       </Card>
 
+      </TabsContent>
+
+      <TabsContent value="destaques" className="mt-4">
       {/* Diferenciais */}
       <Card>
         <CardContent className="pt-6 space-y-4">
@@ -464,6 +497,9 @@ export function SiteSection() {
         </CardContent>
       </Card>
 
+      </TabsContent>
+
+      <TabsContent value="pacotes" className="mt-4">
       {/* Pacote */}
       <Card>
         <CardContent className="pt-6 space-y-4">
@@ -500,6 +536,9 @@ export function SiteSection() {
         </CardContent>
       </Card>
 
+      </TabsContent>
+
+      <TabsContent value="visual" className="mt-4">
       {/* Endereço e cores */}
       <Card>
         <CardContent className="pt-6 space-y-4">
@@ -525,12 +564,10 @@ export function SiteSection() {
         </CardContent>
       </Card>
 
-      <Button onClick={() => save()} disabled={!!busy} className="w-full sm:w-auto">
-        {busy === "save" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-        Salvar alterações
-      </Button>
+      </TabsContent>
 
-      {/* Domínio próprio */}
+      <TabsContent value="dominio" className="mt-4">
+      {/* Domínio próprio (salva sozinho, pelo botão Conectar) */}
       <Card>
         <CardContent className="pt-6 space-y-4">
           <div>
@@ -589,6 +626,19 @@ export function SiteSection() {
           )}
         </CardContent>
       </Card>
+      </TabsContent>
+      </Tabs>
+
+      {/* Salvar fixo embaixo: sempre à vista, avisa quando há mudanças */}
+      <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-background/95 px-3 py-2.5 shadow-lg backdrop-blur">
+        <span className={cn("text-xs sm:text-sm", dirty ? "font-medium text-amber-700 dark:text-amber-400" : "text-muted-foreground")}>
+          {dirty ? "Você tem alterações não salvas" : "Tudo salvo"}
+        </span>
+        <Button onClick={() => save()} disabled={!!busy || !dirty} size="sm">
+          {busy === "save" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+          Salvar alterações
+        </Button>
+      </div>
     </div>
   );
 }

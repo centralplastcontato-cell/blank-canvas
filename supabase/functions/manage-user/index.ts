@@ -98,6 +98,7 @@ Deno.serve(async (req) => {
         if (body.company_role === 'owner') return deny('Só a Celebrei pode definir o dono da empresa.')
       } else {
         if (!body.user_id) return deny('Usuário não informado.')
+        if (body.company_id && !managed.has(body.company_id)) return deny('Você só pode mexer nos usuários das empresas que administra.')
         const { data: targetIsAdmin } = await supabaseAdmin.rpc('is_admin', { _user_id: body.user_id })
         if (targetIsAdmin === true) return deny('Esse usuário só pode ser alterado pela Celebrei.')
         const { data: links } = await supabaseAdmin.from('user_companies').select('company_id').eq('user_id', body.user_id)
@@ -339,6 +340,35 @@ Deno.serve(async (req) => {
         )
       }
 
+      // Pessoa em mais de um buffet: sai só deste buffet (a conta, a senha e os
+      // outros buffets continuam). Antes, excluir apagava a conta em todos.
+      const { data: allLinks } = await supabaseAdmin.from('user_companies').select('company_id').eq('user_id', body.user_id)
+      const otherLinks = (allLinks || []).filter((l: { company_id: string }) => l.company_id !== body.company_id)
+      if (body.company_id && otherLinks.length > 0) {
+        const { error: unlinkError } = await supabaseAdmin
+          .from('user_companies')
+          .delete()
+          .eq('user_id', body.user_id)
+          .eq('company_id', body.company_id)
+        if (unlinkError) {
+          return new Response(
+            JSON.stringify({ error: 'Erro ao remover do buffet: ' + unlinkError.message }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+        return new Response(
+          JSON.stringify({ success: true, removed_from_company: true, message: 'Usuário removido deste buffet (ele continua nos outros)' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      // Dono de buffet só apaga de vez quem é só do buffet dele
+      if (roleData.role !== 'admin' && !body.company_id && otherLinks.length > 1) {
+        return new Response(
+          JSON.stringify({ error: 'Esse usuário também está em outro buffet. Remova pelo buffet certo.' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       // Delete user permissions first
       const { error: permDeleteError } = await supabaseAdmin
         .from('user_permissions')
@@ -541,6 +571,43 @@ function getDefaultPermissionsForRole(role: string): string[] {
         'leads.delete',
         'leads.export',
         'leads.assign',
+        'users.view',
+        'users.manage',
+        'permissions.manage',
+      ]
+    // Dono / gestor do buffet: começa com o atendimento, os leads, a operação e o financeiro liberados
+    case 'gestor':
+      return [
+        'leads.view',
+        'leads.edit',
+        'leads.edit.name',
+        'leads.edit.description',
+        'leads.delete',
+        'leads.export',
+        'leads.assign',
+        'leads.transfer',
+        'leads.contact.view',
+        'leads.unit.all',
+        'whatsapp.send',
+        'whatsapp.materials',
+        'whatsapp.audio',
+        'whatsapp.close',
+        'whatsapp.favorite',
+        'whatsapp.bot.toggle',
+        'whatsapp.share.group',
+        'agenda.faturamento',
+        'financial.view',
+        'financial.values',
+        'financial.edit',
+        'financial.payments',
+        'operacoes.view',
+        'operacoes.formularios',
+        'operacoes.checklist',
+        'operacoes.pacotes',
+        'operacoes.freelancer',
+        'operacoes.avaliacoes',
+        'ic.view',
+        'config.view',
         'users.view',
         'users.manage',
         'permissions.manage',

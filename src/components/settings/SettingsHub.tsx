@@ -111,7 +111,7 @@ export function SettingsHub({ userId, userEmail, isAdmin, isGestor, canManageUse
       id: "buffet", title: "Meu buffet", icon: Building2, items: [
         { id: "company", title: "Dados da empresa", description: "Logo, nome e dados do buffet", icon: Building2, visible: companyAdmin, render: () => <CompanyDataSection /> },
         { id: "site", title: "Meu site", description: "Página do buffet e botões do WhatsApp", icon: Globe, visible: companyAdmin, render: () => <SiteSection /> },
-        { id: "festa", title: "Controle da festa", description: "Checklists e operação do dia da festa", icon: PartyPopper, visible: showOperacoes, render: () => <PartyControlConfig /> },
+        { id: "festa", title: "Página do dia da festa", description: "O que aparece no link da festa para a equipe", icon: PartyPopper, visible: showOperacoes, render: () => <PartyControlConfig /> },
         { id: "usuarios", title: "Usuários", description: "Equipe, senhas e permissões", icon: Users, visible: canManageUsers, render: () => <UsersManagementPanel userId={userId} isAdmin={isAdmin} /> },
         { id: "unit-colors", title: "Cores dos números", description: "Cor de cada número (VENDAS 1, 2, 3) nas etiquetas", icon: Palette, visible: isAdmin, render: () => <UnitColorManager /> },
       ],
