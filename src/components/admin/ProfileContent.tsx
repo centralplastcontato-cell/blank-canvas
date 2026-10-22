@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Camera, Save, KeyRound, User as UserIcon } from "lucide-react";
 import { z } from "zod";
@@ -27,9 +26,11 @@ const getInitials = (name: string) => {
 export function ProfileContent({ userId, userEmail }: ProfileContentProps) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState(userEmail);
-  const [bio, setBio] = useState("");
+  // E-mail novo esperando o clique no link de confirmação
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSavingPassword, setIsSavingPassword] = useState(false);
@@ -41,17 +42,21 @@ export function ProfileContent({ userId, userEmail }: ProfileContentProps) {
   useState(() => {
     supabase
       .from("profiles")
-      .select("full_name, avatar_url, bio")
+      .select("full_name, avatar_url, email")
       .eq("user_id", userId)
       .single()
       .then(({ data }) => {
         if (data) {
           setFullName(data.full_name || "");
           setAvatarUrl(data.avatar_url);
-          setBio((data as any).bio || "");
+          // O e-mail do perfil só acompanha o login depois de confirmado
+          if (userEmail && (data as any).email !== userEmail) {
+            void supabase.from("profiles").update({ email: userEmail } as any).eq("user_id", userId);
+          }
         }
         setLoaded(true);
       });
+    supabase.auth.getUser().then(({ data }) => setPendingEmail(data.user?.new_email || null));
   });
 
   const handleSaveProfile = async () => {
@@ -71,13 +76,18 @@ export function ProfileContent({ userId, userEmail }: ProfileContentProps) {
       setIsSavingProfile(true);
       const { error: profileError } = await supabase
         .from("profiles")
-        .update({ full_name: nameResult.data, email: email.trim(), bio: bio.trim() || null } as any)
+        .update({ full_name: nameResult.data } as any)
         .eq("user_id", userId);
       if (profileError) throw profileError;
       if (email !== userEmail) {
         const { error: emailError } = await supabase.auth.updateUser({ email: email.trim() });
         if (emailError) throw emailError;
-        toast({ title: "Perfil atualizado", description: "Um email de confirmação foi enviado para o novo endereço." });
+        setPendingEmail(email.trim());
+        setEmail(userEmail);
+        toast({
+          title: "Confirme o novo e-mail",
+          description: "Enviamos um link para o novo endereço. O e-mail só muda depois que você clicar nele.",
+        });
       } else {
         toast({ title: "Perfil atualizado", description: "Suas informações foram salvas com sucesso." });
       }
@@ -99,10 +109,21 @@ export function ProfileContent({ userId, userEmail }: ProfileContentProps) {
         toast({ title: "Erro", description: "As senhas não coincidem.", variant: "destructive" });
         return;
       }
+      if (!currentPassword) {
+        toast({ title: "Erro", description: "Digite a sua senha atual.", variant: "destructive" });
+        return;
+      }
       setIsSavingPassword(true);
+      // Confere a senha atual: quem pegar o computador com o Celebrei aberto não troca a senha
+      const { error: checkError } = await supabase.auth.signInWithPassword({ email: userEmail, password: currentPassword });
+      if (checkError) {
+        toast({ title: "Senha atual incorreta", description: "Confira a senha atual e tente de novo.", variant: "destructive" });
+        return;
+      }
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
       void logPasswordChange("perfil");
+      setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       toast({ title: "Senha alterada", description: "Sua senha foi atualizada com sucesso." });
@@ -187,7 +208,7 @@ export function ProfileContent({ userId, userEmail }: ProfileContentProps) {
       <Card>
         <CardHeader>
           <CardTitle>Informações Pessoais</CardTitle>
-          <CardDescription>Atualize seu nome e endereço de email</CardDescription>
+          <CardDescription>Seu nome aparece para a equipe e na Auditoria</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -198,11 +219,12 @@ export function ProfileContent({ userId, userEmail }: ProfileContentProps) {
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="bio">Bio</Label>
-              <Textarea id="bio" value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Conte um pouco sobre você..." className="resize-none" rows={3} maxLength={300} />
-              <p className="text-xs text-muted-foreground text-right">{bio.length}/300</p>
+              {pendingEmail && pendingEmail !== userEmail && (
+                <p className="text-xs text-amber-600">
+                  Esperando confirmação de <strong>{pendingEmail}</strong>: clique no link que chegou nesse e-mail.
+                  Até lá, o login continua com {userEmail}.
+                </p>
+              )}
             </div>
           </div>
           <div className="flex justify-end">
@@ -225,17 +247,21 @@ export function ProfileContent({ userId, userEmail }: ProfileContentProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2 sm:max-w-[calc(50%-0.5rem)]">
+              <Label htmlFor="currentPassword">Senha atual</Label>
+              <Input id="currentPassword" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="••••••••" />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="newPassword">Nova Senha</Label>
-              <Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" />
+              <Input id="newPassword" type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-              <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" />
+              <Input id="confirmPassword" type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" />
             </div>
           </div>
           <div className="flex justify-end">
-            <Button onClick={handleChangePassword} disabled={isSavingPassword || !newPassword || !confirmPassword} variant="secondary">
+            <Button onClick={handleChangePassword} disabled={isSavingPassword || !currentPassword || !newPassword || !confirmPassword} variant="secondary">
               {isSavingPassword ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <KeyRound className="h-4 w-4 mr-2" />}
               Alterar Senha
             </Button>
