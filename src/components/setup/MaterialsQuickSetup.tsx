@@ -141,7 +141,7 @@ export function MaterialsQuickSetup({ companyId, unit, sitePhotos }: Props) {
       <AiImagesEditor companyId={companyId} />
 
       <p className="text-xs text-muted-foreground">
-        Pode pular e enviar depois em Configurações → Empresa e WhatsApp → Conteúdo → Materiais (a imagem da primeira mensagem fica em Minha IA).
+        Pode pular e enviar depois em Configurações → Inteligência Artificial → Materiais (a imagem da primeira mensagem fica em Testar e ensinar).
       </p>
     </div>
   );

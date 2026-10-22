@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -253,7 +254,10 @@ function SortableQuestionItem({ question, index, getStepLabel, updateQuestion }:
   );
 }
 
-export function AutomationsSection() {
+// tabs: quais abas mostrar (Configurações → "Mensagens automáticas" ou "Robô");
+// hideAi: a configuração da IA tem lugar próprio (Configurações → IA)
+export function AutomationsSection({ tabs, hideAi = false }: { tabs?: string[]; hideAi?: boolean } = {}) {
+  const show = (tab: string) => !tabs || tabs.includes(tab);
   const modules = useCompanyModules();
   const { currentCompanyId } = useCompany();
   const [instances, setInstances] = useState<WapiInstance[]>([]);
@@ -792,61 +796,61 @@ export function AutomationsSection() {
       )}
 
       {/* Tabs */}
-      <Tabs defaultValue="geral" className="w-full">
-        <TabsList className="bg-transparent p-0 h-auto gap-1.5 flex flex-nowrap overflow-x-auto md:flex-wrap md:overflow-x-visible [&>*]:shrink-0">
-          <TabsTrigger value="geral" className="rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
+      <Tabs defaultValue={tabs?.[0] ?? "geral"} className="w-full">
+        <TabsList className={cn("bg-transparent p-0 h-auto gap-1.5 flex flex-nowrap overflow-x-auto md:flex-wrap md:overflow-x-visible [&>*]:shrink-0", tabs?.length === 1 && "hidden")}>
+          <TabsTrigger value="geral" className={cn(!show("geral") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
             <Power className="w-3.5 h-3.5" />
             <span>Geral</span>
           </TabsTrigger>
-          <TabsTrigger value="perguntas" className="rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
+          <TabsTrigger value="perguntas" className={cn(!show("perguntas") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
             <MessageSquare className="w-3.5 h-3.5" />
             <span>Perguntas</span>
           </TabsTrigger>
-          <TabsTrigger value="followups" className="rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
+          <TabsTrigger value="followups" className={cn(!show("followups") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Follow-ups</span>
           </TabsTrigger>
-          <TabsTrigger value="bot-lp" className="rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
+          <TabsTrigger value="bot-lp" className={cn(!show("bot-lp") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
             <Globe2 className="w-3.5 h-3.5" />
             <span>Bot LP</span>
           </TabsTrigger>
           {modules.bot_festa && (
-            <TabsTrigger value="festa" className="rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
+            <TabsTrigger value="festa" className={cn(!show("festa") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
               <Send className="w-3.5 h-3.5" />
               <span>Bot Festa</span>
             </TabsTrigger>
           )}
-          <TabsTrigger value="vip" className="rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
+          <TabsTrigger value="vip" className={cn(!show("vip") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
             <Shield className="w-3.5 h-3.5" />
             <span>VIP</span>
           </TabsTrigger>
-          <TabsTrigger value="gatilhos" className="rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
+          <TabsTrigger value="gatilhos" className={cn(!show("gatilhos") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
             <Workflow className="w-3.5 h-3.5" />
             <span>Gatilhos</span>
           </TabsTrigger>
           {modules.flow_builder && (
-            <TabsTrigger value="fluxos" className="rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
+            <TabsTrigger value="fluxos" className={cn(!show("fluxos") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
               <GitBranch className="w-3.5 h-3.5" />
               <span>Fluxos</span>
             </TabsTrigger>
           )}
-          <TabsTrigger value="reativacao" className="rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
+          <TabsTrigger value="reativacao" className={cn(!show("reativacao") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
             <Sparkles className="w-3.5 h-3.5" />
             <span>Reativação</span>
           </TabsTrigger>
-          <TabsTrigger value="visitas" className="rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
+          <TabsTrigger value="visitas" className={cn(!show("visitas") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
             <Map className="w-3.5 h-3.5" />
             <span>Visitas</span>
           </TabsTrigger>
-          <TabsTrigger value="prereserva" className="rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
+          <TabsTrigger value="prereserva" className={cn(!show("prereserva") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
             <CalendarClock className="w-3.5 h-3.5" />
             <span>Pré-reserva</span>
           </TabsTrigger>
-          <TabsTrigger value="formularios" className="rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
+          <TabsTrigger value="formularios" className={cn(!show("formularios") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
             <ClipboardList className="w-3.5 h-3.5" />
             <span>Formulários</span>
           </TabsTrigger>
-          <TabsTrigger value="campanhas" className="rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5">
+          <TabsTrigger value="campanhas" className={cn(!show("campanhas") && "hidden", "rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5")}>
             <Megaphone className="w-3.5 h-3.5" />
             <span>Campanhas</span>
           </TabsTrigger>
@@ -907,7 +911,7 @@ export function AutomationsSection() {
               </div>
 
               {/* IA Conversacional (beta) — só com o módulo ligado no Hub */}
-              {modules.ia_conversacional && <AiAgentSection />}
+              {modules.ia_conversacional && !hideAi && <AiAgentSection />}
               {/* Sem a IA ainda: o buffet só responde o questionário (liberado por empresa) */}
               {!modules.ia_conversacional && currentCompanyId && QUESTIONNAIRE_COMPANY_IDS.includes(currentCompanyId) && (
                 <AiQuestionnaireCard companyId={currentCompanyId} />
