@@ -167,7 +167,7 @@ export function ProfileContent({ userId, userEmail }: ProfileContentProps) {
   };
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="space-y-6">
       {/* Avatar Section */}
       <Card>
         <CardHeader>
