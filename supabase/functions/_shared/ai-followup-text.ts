@@ -27,6 +27,7 @@ export interface FollowUpContext {
   valuesAlreadyGiven: boolean;
   materialsSent: MaterialKind[]; // confirmados pelo WhatsApp nesta conversa
   withImage?: boolean; // a mensagem vai como legenda de uma arte do buffet
+  corporate?: string | null; // confraternização de empresa ("" = empresa sem nome)
 }
 
 const MATERIAL_NAME: Record<MaterialKind, string> = { fotos: "as fotos do espaço", video: "o vídeo", pacotes: "o PDF dos pacotes" };
@@ -43,7 +44,8 @@ const silenceText = (ms: number): string => {
 export function followUpInstruction(c: FollowUpContext): string {
   const who = [
     c.clientName ? `cliente: ${c.clientName}` : null,
-    c.birthdayName ? `aniversariante: ${c.birthdayName}` : null,
+    c.corporate != null ? `EMPRESA — confraternização${c.corporate ? ` da ${c.corporate}` : ""} (fale de equipe e colaboradores; nada de aniversariante ou criançada)` : null,
+    c.birthdayName && c.corporate == null ? `aniversariante: ${c.birthdayName}` : null,
     c.partyYmd ? `data da festa pedida: ${formatDateLong(c.partyYmd)}` : c.partyMonth ? `mês da festa: ${c.partyMonth}` : null,
     c.guests ? `convidados: ${c.guests}` : null,
   ].filter(Boolean).join("; ");
