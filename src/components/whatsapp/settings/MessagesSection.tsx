@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { MessageSquare, Plus, Pencil, Trash2, GripVertical, Loader2, Copy, ImagePlus, X } from "lucide-react";
+import { MessageSquare, Plus, Pencil, Trash2, Loader2, Copy, ImagePlus, X } from "lucide-react";
 import { useRef } from "react";
 import { CaptionsCard } from "./CaptionsCard";
 import { signupStatus } from "@/lib/selfSetup";
@@ -235,7 +235,7 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
     try {
       const seeded = await seedDefaultTemplates(currentCompanyId);
       setTemplates(seeded);
-      toast({ title: "Sucesso", description: "Templates padrão carregados com sucesso!" });
+      toast({ title: "Sucesso", description: "Respostas sugeridas carregadas!" });
     } catch {
       toast({ title: "Erro", description: "Erro ao carregar templates padrão.", variant: "destructive" });
     }
@@ -301,24 +301,23 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
 
   return (
     <div className="space-y-6">
-      {/* Templates de Resposta Rápida */}
+      {/* Respostas prontas da equipe (botão 💬 do chat) */}
       <Card>
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-lg sm:text-2xl">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="min-w-0">
+            <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
               <MessageSquare className="w-5 h-5" />
-              {aiOnly ? "Respostas prontas da equipe" : <>Templates<span className="hidden sm:inline"> de Resposta Rápida</span></>}
+              Respostas prontas
             </CardTitle>
-            <CardDescription className={aiOnly ? undefined : "hidden sm:block"}>
-              {aiOnly
-                ? "Mensagens prontas para quem atende pela Central de Atendimento: toque e a mensagem já vem escrita. A IA não usa estas mensagens."
-                : "Crie mensagens pré-definidas para agilizar o atendimento"}
+            <CardDescription className="mt-1">
+              No chat, toque no botão 💬 ao lado do campo de mensagem e a resposta já vem escrita. {"{{nome}}"} vira o nome do cliente e {"{{empresa}}"} o nome do buffet.
+              {aiOnly ? " A IA não usa estas mensagens." : ""}
             </CardDescription>
           </div>
           {canManage && (
-            <Button onClick={() => handleOpenDialog()} size="sm" className="w-full sm:w-auto sm:size-default">
-              <Plus className="w-4 h-4 sm:mr-2" />
-              <span className="sm:inline hidden">Novo Template</span>
+            <Button onClick={() => handleOpenDialog()} size="sm" className="w-full sm:w-auto shrink-0 gap-1.5">
+              <Plus className="w-4 h-4" />
+              Nova resposta
             </Button>
           )}
         </CardHeader>
@@ -328,9 +327,9 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
               <div className="bg-muted rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
                 <MessageSquare className="w-8 h-8 text-muted-foreground" />
               </div>
-              <h3 className="font-semibold mb-2">Nenhum template criado</h3>
+              <h3 className="font-semibold mb-2">Nenhuma resposta pronta ainda</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Crie templates para enviar mensagens rapidamente.
+                Crie mensagens que a equipe usa muito para responder mais rápido.
               </p>
                 {canManage && (
                 <div className="flex flex-col sm:flex-row gap-2 justify-center">
@@ -340,68 +339,42 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
                     ) : (
                       <Copy className="w-4 h-4 mr-2" />
                     )}
-                    Carregar Templates Padrão
+                    Usar as respostas sugeridas
                   </Button>
                   <Button variant="outline" onClick={() => handleOpenDialog()}>
                     <Plus className="w-4 h-4 mr-2" />
-                    Criar do Zero
+                    Criar do zero
                   </Button>
                 </div>
               )}
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="divide-y rounded-xl border">
               {templates.map((template) => (
-                <div 
-                  key={template.id} 
-                  className={`p-3 sm:p-4 border rounded-lg ${!template.is_active ? 'opacity-60' : ''}`}
-                >
-                  <div className="flex items-start gap-2 sm:gap-3">
-                    <div className="text-muted-foreground cursor-grab hidden sm:block">
-                      <GripVertical className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-medium text-sm sm:text-base">{template.name}</p>
-                        {!template.is_active && (
-                          <span className="text-xs bg-muted px-2 py-0.5 rounded">Inativo</span>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground line-clamp-1 sm:line-clamp-2">
-                        {template.template}
-                      </p>
-                    </div>
-                    {/* Desktop: actions inline */}
+                <div key={template.id} className={`px-3 py-2.5 sm:px-4 sm:py-3 ${!template.is_active ? "opacity-60" : ""}`}>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-sm sm:text-base flex-1 min-w-0 truncate">
+                      {template.name}
+                      {!template.is_active && <span className="ml-2 text-[10px] font-normal bg-muted px-1.5 py-0.5 rounded align-middle">desligada</span>}
+                    </p>
                     {canManage && (
-                      <div className="hidden sm:flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-0.5 shrink-0">
                         <Switch
                           checked={template.is_active}
                           onCheckedChange={() => handleToggleActive(template)}
+                          aria-label={template.is_active ? "Desligar resposta" : "Ligar resposta"}
+                          className="scale-90"
                         />
-                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(template)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(template)} aria-label="Editar">
                           <Pencil className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteTemplate(template)} className="text-destructive hover:text-destructive">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteTemplate(template)} aria-label="Excluir">
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     )}
                   </div>
-                  {/* Mobile: actions below */}
-                  {canManage && (
-                    <div className="flex sm:hidden items-center justify-end gap-1.5 mt-2 pt-2 border-t">
-                      <Switch
-                        checked={template.is_active}
-                        onCheckedChange={() => handleToggleActive(template)}
-                      />
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleOpenDialog(template)}>
-                        <Pencil className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => handleDeleteTemplate(template)}>
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  )}
+                  <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mt-0.5">{template.template}</p>
                 </div>
               ))}
             </div>
@@ -417,7 +390,7 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
         <CardHeader>
           <CardTitle className="text-base">Variáveis Disponíveis</CardTitle>
           <CardDescription>
-            Use estas variáveis nos seus templates para personalizar as mensagens
+            Use nas respostas prontas: cada uma vira o dado do cliente
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -438,12 +411,12 @@ export function MessagesSection({ userId, isAdmin }: MessagesSectionProps) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingTemplate ? "Editar Template" : "Novo Template"}
+              {editingTemplate ? "Editar resposta" : "Nova resposta"}
             </DialogTitle>
             <DialogDescription>
               {editingTemplate 
-                ? "Edite o template de resposta rápida." 
-                : "Crie um novo template para agilizar suas respostas."}
+                ? "Edite a resposta pronta." 
+                : "Crie uma resposta pronta para agilizar o atendimento."}
             </DialogDescription>
           </DialogHeader>
 

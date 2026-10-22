@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatPhoneBR } from "@/lib/mask-utils";
 import { Badge } from "@/components/ui/badge";
 import { ConnectionDialog } from "@/components/whatsapp/ConnectionDialog";
 import {
@@ -1103,10 +1104,10 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Settings2 className="w-5 h-5" />
-                Status das Instâncias
+                Seus números de WhatsApp
               </CardTitle>
               <CardDescription>
-                Clique em "Conectar" para escanear o QR Code e conectar o WhatsApp.
+                Número desconectado? Toque em "Conectar" e leia o QR Code no WhatsApp do celular.
               </CardDescription>
             </div>
             {filteredInstances.length > 0 && (
@@ -1117,7 +1118,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                 className="w-full sm:w-auto"
               >
                 <RefreshCw className={`w-4 h-4 mr-2 ${isSyncingAll ? 'animate-spin' : ''}`} />
-                {isSyncingAll ? 'Sincronizando...' : 'Atualizar Status'}
+                {isSyncingAll ? 'Conferindo...' : 'Conferir agora'}
               </Button>
             )}
           </CardHeader>
@@ -1129,65 +1130,44 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                 Nenhuma instância configurada pelo administrador.
               </p>
             ) : (
-              filteredInstances.map((instance) => (
-                <div key={instance.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-lg">
+              filteredInstances.map((instance) => {
+                const st = numberStatus(instance, evoLive[instance.id]);
+                return (
+                <div key={instance.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border rounded-xl">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className={`p-2 rounded-lg shrink-0 ${instance.status === 'connected' ? 'bg-primary/10' : 'bg-muted'}`}>
-                      {instance.status === 'connected' ? (
-                        <Wifi className="w-5 h-5 text-primary" />
-                      ) : (
-                        <WifiOff className="w-5 h-5 text-muted-foreground" />
-                      )}
+                    <div className={`p-2 rounded-lg shrink-0 ${st.ok ? 'bg-emerald-500/10' : 'bg-muted'}`}>
+                      {st.ok ? <Wifi className="w-5 h-5 text-emerald-600" /> : <WifiOff className="w-5 h-5 text-muted-foreground" />}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-medium flex items-center gap-2 flex-wrap">
-                        <Building2 className="w-4 h-4 shrink-0" />
-                        <span className="break-words">{instance.unit}</span>
-                        {instance.provider === 'zapi' ? (
-                          <Badge className="bg-blue-600 hover:bg-blue-600 text-white border-0 text-[10px] px-2 py-0.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-white mr-1.5 inline-block" />
-                            Z-API
-                          </Badge>
-                        ) : instance.provider === 'evolution' ? (
-                          <>
-                            <Badge className="bg-violet-600 hover:bg-violet-600 text-white border-0 text-[10px] px-2 py-0.5">
-                              <span className="w-1.5 h-1.5 rounded-full bg-white mr-1.5 inline-block" />
-                              Evolution Go
-                            </Badge>
-                            <EvolutionLiveChip live={evoLive[instance.id]} />
-                          </>
-                        ) : (
-                          <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white border-0 text-[10px] px-2 py-0.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-white mr-1.5 inline-block" />
-                            W-API
-                          </Badge>
-                        )}
+                      <p className="font-semibold break-words">{instance.unit}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {instance.phone_number ? formatPhoneBR(instance.phone_number) : "Número não informado"}
                       </p>
-                      <p className="text-sm text-muted-foreground break-all">
-                        {instance.status === 'connected' ? 'Conectado' : 'Desconectado'}
-                        {instance.phone_number && ` • ${instance.phone_number}`}
+                      <p className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${st.className}`}>
+                          <span className={`w-2 h-2 rounded-full ${st.dot}`} />
+                          {st.label}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground/70">
+                          · {instance.provider === 'zapi' ? 'Z-API' : instance.provider === 'evolution' ? 'Evolution' : 'W-API'}
+                        </span>
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap sm:shrink-0 sm:justify-end">
-                    {instance.status !== 'connected' && (
-                      <Button 
-                        size="sm" 
-                        onClick={() => connection.openDialog(instance)}
-                      >
+                    {!st.ok && (
+                      <Button size="sm" onClick={() => connection.openDialog(instance)}>
                         <QrCode className="w-4 h-4 mr-2" />
                         Conectar
                       </Button>
                     )}
-                    <Badge variant={instance.status === 'connected' ? 'default' : 'secondary'}>
-                      {instance.status === 'connected' ? 'Online' : 'Offline'}
-                    </Badge>
                     {(instance as WapiInstance & { managed_by_celebrei?: boolean }).managed_by_celebrei && (
                       <DisconnectManagedButton companyId={(instance as WapiInstance & { company_id: string }).company_id} onDone={fetchInstances} />
                     )}
                   </div>
                 </div>
-              ))
+                );
+              })
             )}
           </CardContent>
         </Card>
@@ -1240,7 +1220,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
                 className="flex-1 sm:flex-none"
               >
                 <RefreshCw className={`w-4 h-4 mr-2 ${isSyncingAll ? 'animate-spin' : ''}`} />
-                {isSyncingAll ? 'Sincronizando...' : 'Atualizar Status'}
+                {isSyncingAll ? 'Conferindo...' : 'Conferir agora'}
               </Button>
             )}
             {getAvailableUnits().length > 0 && (
@@ -1648,6 +1628,19 @@ const EVO_LIVE: Record<string, { label: string; className: string }> = {
   needs_qr: { label: "Precisa ler o QR Code", className: "bg-red-500/15 text-red-700 dark:text-red-400" },
   unreachable: { label: "Evolution sem resposta", className: "bg-red-500/15 text-red-700 dark:text-red-400" },
 };
+
+// Um status só por número (antes: "Conectado de verdade" + "Conectado" + "Online")
+function numberStatus(instance: { status: string; provider?: string | null }, live?: { state: string }) {
+  const green = { ok: true, className: "text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" };
+  const red = { ok: false, className: "text-red-700 dark:text-red-400", dot: "bg-red-500" };
+  if (instance.provider === "evolution" && live) {
+    if (live.state === "online") return { ...green, label: "Conectado" };
+    if (live.state === "reconnecting") return { ok: true, label: "Reconectando…", className: "text-amber-700 dark:text-amber-400", dot: "bg-amber-500" };
+    if (live.state === "needs_qr") return { ...red, label: "Desconectado — precisa ler o QR Code" };
+    if (live.state === "unreachable") return { ...red, label: "Sem resposta do servidor" };
+  }
+  return instance.status === "connected" ? { ...green, label: "Conectado" } : { ...red, label: "Desconectado" };
+}
 
 function EvolutionLiveChip({ live }: { live?: { state: string; checkedAt: number } }) {
   if (!live) {
