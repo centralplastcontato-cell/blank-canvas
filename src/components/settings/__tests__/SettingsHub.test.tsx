@@ -47,9 +47,9 @@ describe("SettingsHub", () => {
     Element.prototype.scrollIntoView = vi.fn();
     render(<MemoryRouter initialEntries={["/configuracoes?secao=content"]}><SettingsHub {...props} isMobile={false} /></MemoryRouter>);
     expect(screen.getByText("conteúdo materiais")).toBeTruthy();
-    fireEvent.click(screen.getByText("Robô e fluxos"));
+    fireEvent.click(screen.getByText("Robô de atendimento"));
     expect(screen.getByText(/automações geral,perguntas/)).toBeTruthy();
-    fireEvent.click(screen.getAllByText("Mensagens automáticas")[1]);
+    fireEvent.click(screen.getAllByText("Mensagens automáticas")[0]);
     expect(screen.getByText(/automações visitas,followups/)).toBeTruthy();
   });
 });

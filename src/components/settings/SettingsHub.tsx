@@ -50,6 +50,18 @@ interface Group {
   items: Item[];
 }
 
+// Cor de cada grupo: o grupo (tópico) tem ícone colorido e título forte; as
+// funções ficam recuadas embaixo, na mesma cor quando abertas
+const TONES: Record<string, { chip: string; line: string; active: string }> = {
+  buffet: { chip: "bg-amber-500/15 text-amber-600", line: "border-amber-500/30", active: "bg-amber-500/10 text-amber-700 dark:text-amber-400" },
+  whatsapp: { chip: "bg-emerald-500/15 text-emerald-600", line: "border-emerald-500/30", active: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" },
+  ia: { chip: "bg-violet-500/15 text-violet-600", line: "border-violet-500/30", active: "bg-violet-500/10 text-violet-700 dark:text-violet-400" },
+  auto: { chip: "bg-sky-500/15 text-sky-600", line: "border-sky-500/30", active: "bg-sky-500/10 text-sky-700 dark:text-sky-400" },
+  robot: { chip: "bg-slate-500/15 text-slate-600", line: "border-slate-500/30", active: "bg-slate-500/10 text-slate-700 dark:text-slate-300" },
+  sistema: { chip: "bg-zinc-500/15 text-zinc-600", line: "border-zinc-500/30", active: "bg-zinc-500/10 text-zinc-700 dark:text-zinc-300" },
+};
+const toneOf = (id: string) => TONES[id] || TONES.sistema;
+
 // Links antigos (?tab= / ?secao=) continuam abrindo o lugar certo
 const LEGACY: Record<string, string> = {
   perfil: "perfil",
@@ -168,13 +180,14 @@ export function SettingsHub({ userId, userEmail, isAdmin, isGestor, canManageUse
         <div className="space-y-5 pb-6">
           {groups.map((g) => (
             <section key={g.id} className="space-y-2">
-              <h2 className="flex items-center gap-2 px-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                <g.icon className="h-3.5 w-3.5" /> {g.title}
+              <h2 className="flex items-center gap-2 px-1 text-sm font-bold text-foreground">
+                <span className={cn("flex h-7 w-7 items-center justify-center rounded-lg", toneOf(g.id).chip)}><g.icon className="h-4 w-4" /></span>
+                {g.title}
               </h2>
               <div className="overflow-hidden rounded-2xl border border-border/50 bg-card divide-y divide-border/50">
                 {g.items.map((i) => (
                   <button key={i.id} type="button" onClick={() => open(i.id)} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-muted/60">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10"><i.icon className="h-4 w-4 text-primary" /></span>
+                    <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", toneOf(g.id).chip)}><i.icon className="h-4 w-4" /></span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-semibold text-foreground">{i.title}</span>
                       <span className="block text-xs text-muted-foreground truncate">{i.description}</span>
@@ -207,35 +220,57 @@ export function SettingsHub({ userId, userEmail, isAdmin, isGestor, canManageUse
   // Computador: menu à esquerda, conteúdo à direita
   return (
     <div className="flex gap-6 items-start">
-      <nav className="w-64 shrink-0 sticky top-0 space-y-4 rounded-2xl border border-border/40 bg-card p-3 shadow-sm">
-        {groups.map((g) => (
-          <div key={g.id} className="space-y-1">
-            <p className="flex items-center gap-2 px-2 pt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              <g.icon className="h-3.5 w-3.5" /> {g.title}
-            </p>
-            {g.items.map((i) => (
-              <button
-                key={i.id}
-                type="button"
-                onClick={() => open(i.id)}
-                className={cn(
-                  "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors",
-                  active?.id === i.id ? "bg-primary text-primary-foreground font-semibold shadow-sm" : "text-foreground/80 hover:bg-muted",
-                )}
-              >
-                <i.icon className="h-4 w-4 shrink-0" />
-                <span className="truncate">{i.title}</span>
-              </button>
-            ))}
-          </div>
-        ))}
+      <nav className="w-64 shrink-0 sticky top-0 divide-y divide-border/50 rounded-2xl border border-border/40 bg-card px-3 py-1 shadow-sm">
+        {groups.map((g) => {
+          const tone = toneOf(g.id);
+          const single = g.items.length === 1 ? g.items[0] : null;
+          const header = (
+            <>
+              <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg", tone.chip)}><g.icon className="h-4 w-4" /></span>
+              <span className="truncate text-sm font-bold text-foreground">{g.title}</span>
+            </>
+          );
+          return (
+            <div key={g.id} className="py-2.5">
+              {single ? (
+                // Grupo com uma função só: o próprio título abre
+                <button
+                  type="button"
+                  onClick={() => open(single.id)}
+                  className={cn("flex w-full items-center gap-2.5 rounded-xl px-2 py-1.5 text-left transition-colors", active?.id === single.id ? tone.active : "hover:bg-muted")}
+                >
+                  {header}
+                </button>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2.5 px-2 py-1.5">{header}</div>
+                  <div className={cn("ml-5 mt-1 space-y-0.5 border-l-2 pl-3", tone.line)}>
+                    {g.items.map((i) => (
+                      <button
+                        key={i.id}
+                        type="button"
+                        onClick={() => open(i.id)}
+                        className={cn(
+                          "flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-[13px] transition-colors",
+                          active?.id === i.id ? cn(tone.active, "font-semibold") : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                        )}
+                      >
+                        <span className="truncate">{i.title}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
       </nav>
       <div className="min-w-0 flex-1">
         <div id="settings-content-top" />
         {active && (
           <>
             <div className="mb-5 flex items-center gap-3 border-b border-border pb-3">
-              <div className="rounded-xl bg-primary/10 p-2.5"><active.icon className="h-5 w-5 text-primary" /></div>
+              <div className={cn("rounded-xl p-2.5", toneOf(groupOf(active.id)?.id || "").chip)}><active.icon className="h-5 w-5" /></div>
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{groupOf(active.id)?.title}</p>
                 <h2 className="font-display text-lg font-bold tracking-tight">{active.title}</h2>
