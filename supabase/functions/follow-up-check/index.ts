@@ -16,6 +16,9 @@ import { isAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { evolutionSendMedia, evolutionSendText, extractEvolutionMessageId } from "../_shared/evolution.ts";
 import { type AiTarget, freeSlotsBetween, journeyOwnsConversation, type JourneyScope, journeyScopes, loadAiJourneyTargets, runAiJourney } from "./ai-journey.ts";
 import { firstNameOf, partyYmdFromLead, postVisitDue, postVisitMessage } from "../_shared/post-visit.ts";
+import { mentionsLaterTime, parseReturnJson, RETURN_HOUR, RETURN_STALE_REPLY_MS, returnDue, returnMessage, returnPrompt } from "../_shared/scheduled-return.ts";
+import { createLlmSession } from "../wapi-webhook/ai-llm.ts";
+import { DEFAULT_AI_MODEL, estimateChatCostUsd, providerForModel } from "../_shared/ai-models.ts";
 import { visitStartMs } from "../_shared/visit-confirm.ts";
 import { findPromotion } from "../_shared/promo.ts";
 import { friendlyVisitSlot } from "../_shared/ai-turn.ts";
@@ -441,6 +444,14 @@ Deno.serve(async (req) => {
 
     // Dados do contratante: link ao fechar, cobranças e avisos (se ligado)
     const clientDataResult = await processClientDataRequests({ supabase });
+    // "Vou agendar depois": data combinada pelo cliente
+    try {
+      const returns = await processScheduledReturns({ supabase });
+      if (returns.found > 0 || returns.sent > 0) console.log(`[follow-up-check] Retornos combinados: ${returns.found} novo(s), ${returns.sent} enviado(s)`);
+      if (returns.errors.length > 0) console.error("[follow-up-check] Erros nos retornos combinados:", returns.errors);
+    } catch (err) {
+      console.error("[follow-up-check] Erro nos retornos combinados:", err);
+    }
     // Pós-visita (Automações → Visitas): dia seguinte à visita
     try {
       const postVisit = await processPostVisit({ supabase });
@@ -2993,6 +3004,194 @@ async function processClientDataRequests({
 // diferente do que atende a conversa (para não misturar com o atendimento)
 // e Z-API primeiro. Grava a mensagem antes do eco para o webhook não achar
 // que alguém digitou no celular.
+// 2 horários livres de visita, em texto ("quinta (23/10) às 15h"), pelos
+// horários de visita da IA, tirando os já marcados e o recesso
+async function visitOffers(supabase: SupabaseAdmin, companyId: string, ai: Record<string, any>, nowMs: number, todayYmd: string): Promise<string[]> {
+  const { data: booked } = await supabase.from("lead_visits").select("data_visita, horario_visita")
+    .eq("company_id", companyId).gte("data_visita", todayYmd).in("status_visita", ["agendada", "confirmada", "remarcada"]).limit(1000);
+  const keys = new Set<string>();
+  for (const b of (booked || []) as Array<{ data_visita: string; horario_visita: string | null }>) {
+    const t = normalizeTime(b.horario_visita || "");
+    if (t) keys.add(slotKey({ date: String(b.data_visita).slice(0, 10), time: t }));
+  }
+  const closed = parseClosedPeriods(ai.closed_periods);
+  const free = listAvailableSlots(parseVisitHours(ai.visit_hours), nowMs, keys, { days: 14, minLeadMinutes: 120, max: 60 })
+    .filter((sl) => !isClosedDay(sl.date, closed));
+  return pickTwoOffers(free).map((sl) => friendlyVisitSlot(sl, todayYmd));
+}
+
+// "Vou agendar depois" (Automações → Visitas, Castelo 22/10):
+// 1) cliente escreveu quando quer retomar ("início de novembro", "semana que
+//    vem"): a IA lê a frase e devolve a data; fica no lead ("Retomar em …");
+// 2) no dia, a partir das 10h e no horário da equipe (nunca depois das 20h),
+//    sai a mensagem com 2 horários de visita (quem já visitou: "seguir com a
+//    festa"). Cancela se o lead fechou/perdeu, marcou visita ou voltou a
+//    conversar depois de combinar. Conversa com a equipe: a resposta do
+//    cliente vira aviso grande na Central.
+async function processScheduledReturns({ supabase }: { supabase: SupabaseAdmin }): Promise<{ found: number; sent: number; errors: string[] }> {
+  const errors: string[] = [];
+  let found = 0;
+  let sent = 0;
+  const { data: cfgs, error } = await supabase.from("visit_confirmation_settings").select("company_id").eq("scheduled_return_enabled", true);
+  if (error) return { found, sent, errors: /scheduled_return/.test(String(error.message)) ? [] : [String(error.message)] };
+  if (!cfgs || cfgs.length === 0) return { found, sent, errors };
+
+  const nowMs = Date.now();
+  const todayYmd = new Date(nowMs - 3 * 3600000).toISOString().slice(0, 10);
+  const localHour = Number(new Date(nowMs).toLocaleString("en-US", { timeZone: "America/Sao_Paulo", hour: "2-digit", hour12: false })) % 24;
+  const weekday = new Date(nowMs).toLocaleDateString("pt-BR", { weekday: "long", timeZone: "America/Sao_Paulo" });
+  const openaiKey = Deno.env.get("OPENAI_API_KEY") || null;
+  const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY") || null;
+  const isBlocked = await loadBlockedContacts(supabase);
+
+  for (const cfg of cfgs as Array<{ company_id: string }>) {
+    const companyId = cfg.company_id;
+    try {
+      const [{ data: company }, { data: ai }] = await Promise.all([
+        supabase.from("companies").select("name").eq("id", companyId).maybeSingle(),
+        supabase.from("ai_agent_settings").select("model, team_hours, closed_periods, visit_hours").eq("company_id", companyId).maybeSingle(),
+      ]);
+
+      // 1) Mensagens novas do cliente que falam em retomar numa data
+      const { data: msgs } = await supabase.from("wapi_messages")
+        .select("id, conversation_id, content, timestamp, metadata")
+        .eq("company_id", companyId).eq("from_me", false).eq("message_type", "text")
+        .gte("timestamp", new Date(nowMs - 20 * 60000).toISOString()).limit(300);
+      for (const m of (msgs || []) as any[]) {
+        if ((m.metadata as Record<string, unknown> | null)?.return_checked || !mentionsLaterTime(m.content)) continue;
+        await supabase.from("wapi_messages").update({ metadata: { ...((m.metadata as Record<string, unknown>) || {}), return_checked: true } }).eq("id", m.id);
+        const { data: conv } = await supabase.from("wapi_conversations").select("id, lead_id, remote_jid").eq("id", m.conversation_id).maybeSingle();
+        if (!conv?.lead_id || String(conv.remote_jid || "").includes("@g.us")) continue;
+        const { data: lead } = await supabase.from("campaign_leads").select("id, status").eq("id", conv.lead_id).maybeSingle();
+        if (!lead || ["fechado", "perdido"].includes(lead.status)) continue;
+        const { data: ctx } = await supabase.from("wapi_messages").select("from_me, content").eq("conversation_id", conv.id)
+          .lte("timestamp", m.timestamp).order("timestamp", { ascending: false }).limit(6);
+        const context = ((ctx || []) as Array<{ from_me: boolean; content: string | null }>).reverse()
+          .map((c) => `${c.from_me ? "Buffet" : "Cliente"}: ${String(c.content || "").slice(0, 300)}`).join("\n");
+        const model = ai?.model || DEFAULT_AI_MODEL;
+        const session = createLlmSession({ model, system: returnPrompt(todayYmd, weekday), history: [{ role: "user", content: `Conversa (a última mensagem é a que importa):\n${context}` }], tools: [], openaiKey, anthropicKey });
+        if (!session) continue;
+        const step = await session.step();
+        await supabase.from("ai_agent_usage").insert({
+          company_id: companyId, conversation_id: conv.id, lead_id: lead.id,
+          provider: providerForModel(step.servedModel || model), model: step.servedModel || model, kind: "chat",
+          input_tokens: step.usage.inputTokens, cached_input_tokens: step.usage.cachedInputTokens, cache_write_tokens: step.usage.cacheWriteTokens,
+          output_tokens: step.usage.outputTokens, cost_usd: estimateChatCostUsd(step.servedModel || model, step.usage), is_test: false,
+        });
+        const plan = parseReturnJson(step.text, todayYmd);
+        if (!plan) continue;
+        await supabase.from("campaign_leads").update({
+          return_at: plan.date, return_when_text: plan.whenText || null, return_note: plan.note || String(m.content || "").slice(0, 140),
+          return_status: "pending", return_set_at: new Date().toISOString(), return_sent_at: null,
+        }).eq("id", lead.id);
+        await supabase.from("lead_history").insert({
+          lead_id: lead.id, company_id: companyId, user_name: "IA",
+          action: "Retorno combinado", new_value: `${plan.date.split("-").reverse().join("/")} · disse: ${plan.note || String(m.content || "").slice(0, 100)}`,
+        });
+        found++;
+      }
+
+      // 2) Respostas a retornos já enviados (conversa com a equipe → aviso grande)
+      const { data: sentLeads } = await supabase.from("campaign_leads").select("id, name, unit, return_sent_at")
+        .eq("company_id", companyId).eq("return_status", "sent").gte("return_sent_at", new Date(nowMs - 7 * 86400000).toISOString()).limit(200);
+      for (const l of (sentLeads || []) as any[]) {
+        const { data: convs } = await supabase.from("wapi_conversations").select("id, contact_phone, remote_jid, bot_step")
+          .eq("lead_id", l.id).not("remote_jid", "like", "%@g.us%").order("last_message_at", { ascending: false }).limit(1);
+        const conv = ((convs || []) as any[])[0];
+        if (!conv) continue;
+        const { data: reply } = await supabase.from("wapi_messages").select("content").eq("conversation_id", conv.id).eq("from_me", false)
+          .gt("timestamp", l.return_sent_at).order("timestamp", { ascending: true }).limit(1);
+        const first = ((reply || []) as Array<{ content: string | null }>)[0];
+        if (!first) continue;
+        const { data: marked } = await supabase.from("campaign_leads").update({ return_status: "replied" }).eq("id", l.id).eq("return_status", "sent").select("id");
+        if (!marked || marked.length === 0 || conv.bot_step === "ai_agent") continue; // com a IA: ela mesma responde
+        const targets = await resolveUnitNotificationTargets(supabase, companyId, l.unit || null);
+        if (targets.length > 0) {
+          await supabase.from("notifications").insert(targets.map((uid: string) => ({
+            user_id: uid, company_id: companyId, type: "lead_needs_human",
+            title: `💬 ${firstNameOf(l.name) || "Cliente"} respondeu o retorno combinado`,
+            message: String(first.content || "").slice(0, 120) || "Abra a conversa para responder.",
+            data: { reason: "scheduled_return_reply", conversation_id: conv.id, contact_phone: String(conv.contact_phone || conv.remote_jid || "").replace(/@.*/, ""), lead_id: l.id },
+            read: false,
+          })));
+        }
+      }
+
+      // 3) Retornos do dia
+      const canSend = isOpenAt(parseVisitHours(teamHoursText(ai?.team_hours)), nowMs) && localHour < 20 && localHour >= RETURN_HOUR;
+      if (!canSend) continue;
+      const { data: due } = await supabase.from("campaign_leads")
+        .select("id, name, status, unit, return_at, return_when_text, return_status, return_set_at")
+        .eq("company_id", companyId).eq("return_status", "pending").lte("return_at", todayYmd).limit(100);
+      for (const l of (due || []) as any[]) {
+        if (!returnDue(l.return_at, l.return_status, todayYmd, localHour)) continue;
+        const cancel = async (why: string) => {
+          await supabase.from("campaign_leads").update({ return_status: "cancelled" }).eq("id", l.id);
+          console.log(`[follow-up-check] Retorno do lead ${l.id} cancelado: ${why}`);
+        };
+        if (["fechado", "perdido"].includes(l.status)) { await cancel("lead fechado/perdido"); continue; }
+        const { data: visitAhead } = await supabase.from("lead_visits").select("id").eq("lead_id", l.id).gte("data_visita", todayYmd)
+          .in("status_visita", ["agendada", "confirmada", "remarcada"]).limit(1);
+        if ((visitAhead || []).length > 0) { await cancel("visita marcada"); continue; }
+        const { data: convs } = await supabase.from("wapi_conversations")
+          .select("id, instance_id, remote_jid, contact_phone, contact_name, bot_step, bot_data")
+          .eq("lead_id", l.id).not("remote_jid", "like", "%@g.us%").order("last_message_at", { ascending: false }).limit(1);
+        const conv = ((convs || []) as any[])[0];
+        if (!conv) continue;
+        if (isBlocked(companyId, conv.remote_jid)) { await cancel("contato bloqueado"); continue; }
+        const setMs = l.return_set_at ? Date.parse(l.return_set_at) : 0;
+        const { data: later } = await supabase.from("wapi_messages").select("id").eq("conversation_id", conv.id).eq("from_me", false)
+          .gt("timestamp", new Date(setMs + RETURN_STALE_REPLY_MS).toISOString()).limit(1);
+        if ((later || []).length > 0) { await cancel("cliente voltou a conversar"); continue; }
+        // Uma mensagem automática por dia / janela do pós-visita: espera
+        if ((await pacingHeldLeads(supabase, companyId, [l.id])).has(l.id)) continue;
+
+        const { data: inst } = await supabase.from("wapi_instances")
+          .select("id, instance_id, instance_token, client_token, provider, company_id, unit, status, is_active")
+          .eq("id", conv.instance_id).maybeSingle();
+        if (!inst || inst.is_active === false || inst.status !== "connected") continue;
+        const phone = String(conv.contact_phone || conv.remote_jid || "").replace(/@.*/, "").replace(/\D/g, "");
+        if (phone.length < 10) continue;
+        const { data: pastVisit } = await supabase.from("lead_visits").select("id").eq("lead_id", l.id).eq("status_visita", "realizada").limit(1);
+        const visited = (pastVisit || []).length > 0;
+        const offers = !visited && ai ? await visitOffers(supabase, companyId, ai, nowMs, todayYmd) : [];
+        const text = returnMessage({
+          firstName: firstNameOf(l.name || conv.contact_name),
+          companyName: String(company?.name || "buffet"),
+          whenText: l.return_when_text,
+          offers,
+          visited,
+          childName: firstNameOf((conv.bot_data as Record<string, any> | null)?.aniversariante) || null,
+        });
+
+        const { data: claimed } = await supabase.from("campaign_leads").update({ return_status: "sending" }).eq("id", l.id).eq("return_status", "pending").select("id");
+        if (!claimed || claimed.length === 0) continue;
+        const slot = await claimSystemSendSlot(supabase, { id: inst.id, provider: inst.provider });
+        if (!slot.ok) { await supabase.from("campaign_leads").update({ return_status: "pending" }).eq("id", l.id); continue; }
+        const res = await providerSendText(inst as any, phone, text);
+        if (!res.ok) {
+          await supabase.from("campaign_leads").update({ return_status: "pending" }).eq("id", l.id);
+          errors.push(`retorno (${l.id}): ${res.error}`);
+          continue;
+        }
+        const nowIso = new Date().toISOString();
+        await supabase.from("wapi_messages").upsert({
+          conversation_id: conv.id, message_id: res.messageId || `scheduled_return_${Date.now()}`,
+          from_me: true, message_type: "text", content: text, status: "sent", timestamp: nowIso, company_id: companyId,
+          metadata: { source: "scheduled_return" },
+        }, { onConflict: "conversation_id,message_id", ignoreDuplicates: true });
+        await supabase.from("wapi_conversations").update({ last_message_at: nowIso, last_message_content: text.substring(0, 100), last_message_from_me: true }).eq("id", conv.id);
+        await supabase.from("campaign_leads").update({ return_status: "sent", return_sent_at: nowIso }).eq("id", l.id);
+        await supabase.from("lead_history").insert({ lead_id: l.id, company_id: companyId, user_name: "Sistema", action: "Retorno combinado enviado", new_value: text.slice(0, 200) });
+        sent++;
+      }
+    } catch (err) {
+      errors.push(`empresa ${companyId}: ${String(err)}`);
+    }
+  }
+  return { found, sent, errors };
+}
+
 // Pós-visita (Automações → Visitas, Castelo 22/10): no dia seguinte à visita,
 // a partir das 10h e no horário da equipe (nunca depois das 20h):
 // - visitou (Realizada) e não fechou → mensagem; sem resposta, outra 3 dias depois;
@@ -3108,20 +3307,7 @@ async function processPostVisit({ supabase }: { supabase: SupabaseAdmin }): Prom
         if (step === "first" && partyYmd && ai) {
           partyFree = (await freeSlotsBetween(supabase, ai, companyId, partyYmd, partyYmd)).length > 0;
         }
-        let offers: string[] = [];
-        if (step === "no_show" && ai) {
-          const { data: booked } = await supabase.from("lead_visits").select("data_visita, horario_visita")
-            .eq("company_id", companyId).gte("data_visita", todayYmd).in("status_visita", ["agendada", "confirmada", "remarcada"]).limit(1000);
-          const keys = new Set<string>();
-          for (const b of (booked || []) as Array<{ data_visita: string; horario_visita: string | null }>) {
-            const t = normalizeTime(b.horario_visita || "");
-            if (t) keys.add(slotKey({ date: String(b.data_visita).slice(0, 10), time: t }));
-          }
-          const closed = parseClosedPeriods(ai.closed_periods);
-          const free = listAvailableSlots(parseVisitHours(ai.visit_hours), nowMs, keys, { days: 14, minLeadMinutes: 120, max: 60 })
-            .filter((sl) => !isClosedDay(sl.date, closed));
-          offers = pickTwoOffers(free).map((sl) => friendlyVisitSlot(sl, todayYmd));
-        }
+        const offers = step === "no_show" && ai ? await visitOffers(supabase, companyId, ai, nowMs, todayYmd) : [];
         const promo = findPromotion(ai?.extra_instructions, todayYmd);
         const text = postVisitMessage(step, {
           firstName: firstNameOf(lead.name || conv.contact_name),
