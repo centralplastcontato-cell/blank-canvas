@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ComponentType, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, type ComponentType, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Activity, Bell, Bot, Building2, ChevronLeft, ChevronRight, Database, FileText, FolderOpen, Globe,
@@ -220,7 +220,7 @@ export function SettingsHub({ userId, userEmail, isAdmin, isGestor, canManageUse
           <h2 className="text-lg font-bold text-foreground">{active.title}</h2>
           <p className="text-xs text-muted-foreground">{active.description}</p>
         </div>
-        <div className="min-w-0">{active.render()}</div>
+        <div className="min-w-0"><Fragment key={active.id}>{active.render()}</Fragment></div>
       </div>
     );
   }
@@ -285,7 +285,7 @@ export function SettingsHub({ userId, userEmail, isAdmin, isGestor, canManageUse
                 <p className="text-sm text-muted-foreground">{active.description}</p>
               </div>
             </div>
-            {active.render()}
+            <Fragment key={active.id}>{active.render()}</Fragment>
           </>
         )}
       </div>

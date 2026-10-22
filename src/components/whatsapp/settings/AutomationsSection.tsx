@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -263,6 +264,10 @@ export function AutomationsSection({ tabs, hideAi = false }: { tabs?: string[]; 
   const available = (tab: string) => (tab === "festa" ? !!modules.bot_festa : tab === "fluxos" ? !!modules.flow_builder : true);
   const visible = (tab: string) => show(tab) && available(tab);
   const visibleTabs = (tabs ?? ["geral"]).filter(visible);
+  // ?aba=followups abre direto a aba pedida (atalho do Robô fixo)
+  const [searchParams] = useSearchParams();
+  const askedTab = searchParams.get("aba");
+  const firstTab = askedTab && visibleTabs.includes(askedTab) ? askedTab : visibleTabs[0];
   const { currentCompanyId } = useCompany();
   // Números atendidos pela IA (Configurar a IA): neles o bot fixo não responde
   const [aiUnits, setAiUnits] = useState<string[]>([]);
@@ -816,7 +821,7 @@ export function AutomationsSection({ tabs, hideAi = false }: { tabs?: string[]; 
       )}
 
       {/* Tabs */}
-      <Tabs defaultValue={visibleTabs[0] ?? "geral"} className="w-full">
+      <Tabs defaultValue={firstTab ?? "geral"} className="w-full">
         <TabsList className={cn("bg-transparent p-0 h-auto gap-1.5 flex flex-nowrap overflow-x-auto md:flex-wrap md:overflow-x-visible [&>*]:shrink-0", tabs && visibleTabs.length <= 1 && "hidden")}>
           <TabsTrigger value="geral" className={cn("rounded-xl px-5 py-2 text-sm font-medium border border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground hover:bg-accent flex items-center gap-1.5", !visible("geral") && "hidden")}>
             <Power className="w-3.5 h-3.5" />
@@ -978,6 +983,18 @@ export function AutomationsSection({ tabs, hideAi = false }: { tabs?: string[]; 
               )}
             </div>
           </div>
+
+          {/* Os follow-ups do robô ficam em Mensagens automáticas: atalho para lá */}
+          {tabs && !show("followups") && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/30 px-4 py-3">
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Os lembretes e follow-ups do robô ficam em <strong className="text-foreground">Mensagens automáticas → Follow-ups</strong>.
+              </p>
+              <Button asChild size="sm" variant="outline" className="h-8">
+                <Link to="/configuracoes?item=automations&aba=followups">Abrir</Link>
+              </Button>
+            </div>
+          )}
 
           {/* Largura total nos dois cartões: "Modo de Teste" é um toggle curto e
               "Ajustes do bot" é bem alto — lado a lado deixava metade da tela vazia */}
