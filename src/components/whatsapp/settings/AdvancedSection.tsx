@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { RefreshCw, Trash2, FileText, AlertTriangle, Database, Copy, Loader2, Brain, Save } from "lucide-react";
+import { RefreshCw, Trash2, FileText, AlertTriangle, Database, Copy, Loader2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,10 +17,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 import { DataImportSection } from "@/components/admin/DataImportSection";
 import { UnitColorManager } from "@/components/admin/UnitColorManager";
-import { useCurrentCompanyId } from "@/hooks/useCurrentCompanyId";
 
 interface AdvancedSectionProps {
   userId: string;
@@ -46,10 +44,6 @@ export function AdvancedSection({ userId, isAdmin }: AdvancedSectionProps) {
   const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([]);
   const [hasScanned, setHasScanned] = useState(false);
   const [fuzzyMode, setFuzzyMode] = useState(false);
-  const [aiContext, setAiContext] = useState("");
-  const [aiContextLoading, setAiContextLoading] = useState(false);
-  const [aiContextSaving, setAiContextSaving] = useState(false);
-  const companyId = useCurrentCompanyId();
 
   // Canonicaliza número BR: remove o "9" extra de celulares e força DDI 55
   // Resultado estável para variações 8 vs 9 dígitos e com/sem 55
@@ -67,43 +61,6 @@ export function AdvancedSection({ userId, isAdmin }: AdvancedSectionProps) {
     if (d.length === 10) return "55" + d;
     if (d.length >= 8 && d.length <= 9) return d;
     return d.startsWith("55") ? d : "55" + d;
-  };
-
-  // Load ai_context from all company bot settings
-  useEffect(() => {
-    if (!companyId) return;
-    setAiContextLoading(true);
-    supabase
-      .from("wapi_bot_settings")
-      .select("ai_context")
-      .eq("company_id", companyId)
-      .order("created_at", { ascending: true })
-      .then(({ data }) => {
-        const firstFilledContext = data?.find((item) => item.ai_context?.trim())?.ai_context;
-        if (firstFilledContext) {
-          setAiContext(firstFilledContext);
-        } else {
-          setAiContext("");
-        }
-        setAiContextLoading(false);
-      });
-  }, [companyId]);
-
-  const saveAiContext = async () => {
-    if (!companyId) return;
-    setAiContextSaving(true);
-    try {
-      const { error } = await supabase
-        .from("wapi_bot_settings")
-        .update({ ai_context: aiContext || null } as any)
-        .eq("company_id", companyId);
-
-      if (error) throw error;
-      toast({ title: "Contexto salvo", description: "O contexto da IA foi atualizado com sucesso." });
-    } catch (err: any) {
-      toast({ title: "Erro", description: err.message, variant: "destructive" });
-    }
-    setAiContextSaving(false);
   };
 
   const scanForDuplicates = async () => {
@@ -397,42 +354,6 @@ export function AdvancedSection({ userId, isAdmin }: AdvancedSectionProps) {
 
   return (
     <div className="space-y-6">
-      {/* Contexto para a IA */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Brain className="w-5 h-5" />
-            Contexto para a IA
-          </CardTitle>
-          <CardDescription>
-            Personalize o que a IA sabe sobre seu buffet para gerar análises mais precisas
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Adicione informações específicas do seu negócio. Exemplos: "Nossa taxa média de conversão é 10%", 
-            "Temos 2 unidades", "Nosso ticket médio é R$4.000", "Atendemos em média 80 festas/mês".
-          </p>
-          <Textarea
-            placeholder="Ex: Nossa taxa média de conversão é 10%. Temos 2 unidades e atendemos em média 80 festas por mês. Nosso ticket médio é R$4.000."
-            value={aiContext}
-            onChange={(e) => setAiContext(e.target.value)}
-            rows={4}
-            disabled={aiContextLoading}
-          />
-          <Button
-            onClick={saveAiContext}
-            disabled={aiContextSaving || aiContextLoading}
-          >
-            {aiContextSaving ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4 mr-2" />
-            )}
-            {aiContextSaving ? "Salvando..." : "Salvar Contexto"}
-          </Button>
-        </CardContent>
-      </Card>
 
       {/* Sincronizar Contatos */}
       <Card>
