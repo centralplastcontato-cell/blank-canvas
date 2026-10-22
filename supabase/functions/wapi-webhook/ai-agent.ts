@@ -127,7 +127,7 @@ export interface AgentMedia {
 const AI_STEP = 'ai_agent';
 
 /** "Como posso te ajudar?": as opções uma por linha, cada uma com um emoji (fica mais bonito que tudo numa frase) */
-const HELP_OPTIONS_FORMAT = 'Mostre as opções em linhas separadas, uma por linha, cada uma começando com um emoji (sem números e sem hífen), depois de uma linha em branco, e NÃO repita a pergunta depois da lista. Exemplo:\n"Me conta, como posso te ajudar? 😊\n\n🎈 Orçamento para uma festa\n🏰 Já tenho festa marcada\n💬 Outro assunto"';
+const helpOptionsFormat = (corporate = false) => `Mostre as opções em linhas separadas, uma por linha, cada uma começando com um emoji (sem números e sem hífen), depois de uma linha em branco, e NÃO repita a pergunta depois da lista. Exemplo:\n"Me conta, como posso te ajudar? 😊\n\n🎈 Orçamento para uma festa\n${corporate ? '🏢 Confraternização de empresa\n' : ''}🏰 Já tenho festa marcada\n💬 Outro assunto"`;
 
 // Arte de apresentação da Bia (só link https do nosso storage ou outro https)
 function introImageUrl(settings: AiSettings): string | null {
@@ -622,7 +622,7 @@ COMO CONVERSAR:
 - Descubra naturalmente: nome da pessoa, mês/data desejada da festa e número de convidados, se ainda não souber — mas só depois de saber que a pessoa quer orçamento (veja QUEM É O CONTATO).
 
 QUEM É O CONTATO (nem todo mundo quer orçamento):
-- Se a pessoa só cumprimentou ("oi", "bom dia") ou mandou algo solto (uma foto, "quem é?"), não suponha que é orçamento: cumprimente e pergunte como pode ajudar — se é orçamento de festa, se ela já tem festa com a gente ou se é outro assunto. ${HELP_OPTIONS_FORMAT} (Na primeira resposta, se ainda não souber o nome, pergunte só o nome e deixe esta lista para a resposta seguinte.)
+- Se a pessoa só cumprimentou ("oi", "bom dia") ou mandou algo solto (uma foto, "quem é?"), não suponha que é orçamento: cumprimente e pergunte como pode ajudar — se é orçamento de festa, se ela já tem festa com a gente ou se é outro assunto. ${helpOptionsFormat(settings.corporate_events_enabled === true)} (Na primeira resposta, se ainda não souber o nome, pergunte só o nome e deixe esta lista para a resposta seguinte.)
 - Depois da lista de "como posso te ajudar", se a pessoa responder com um tipo de festa ("aniversário", "festa", "festa infantil", "15 anos", "orçamento"), ISSO JÁ É ORÇAMENTO: não pergunte de novo se é orçamento ou festa marcada — comemore e siga direto para o próximo passo (mês/data e número de convidados). Só trate como festa marcada se ela disser que já tem festa/contrato com a gente.
 - Se não estiver claro o que a pessoa quer, pergunte com gentileza qual é a dúvida — e, se ela disser que "tem uma festa" sem deixar claro, se a festa já está marcada com a gente ou se ela está procurando orçamento — ANTES de falar de pacotes, mês ou convidados.
 - Pediu para NÃO RECEBER MAIS MENSAGENS ("sair da lista", "não quero mais receber", "para de me mandar"): responda UMA mensagem curta e gentil, chamando pelo nome se souber, dizendo que entendeu e que a equipe já foi avisada para tirar o número da lista (ex.: "Tudo bem, [nome]! Já avisei a equipe para não te mandarmos mais mensagens 😊 Se um dia precisar, é só chamar."). Não ofereça nada, não convide para visita, não faça pergunta e não chame ferramentas.
@@ -2404,7 +2404,7 @@ export async function maybeHandleWithAiAgent(
         // (só "oi", uma foto solta, outro assunto): pergunta antes de mandar
         console.log(`[AI Agent] Dados da festa conhecidos, mas a mensagem não confirma que é sobre a festa — materiais seguram (conv ${conv.id})`);
         conv.__holdMaterials = true;
-        materialsNote = 'a data e os convidados já estão anotados (vieram do formulário do site ou da conversa), mas a mensagem do cliente ainda NÃO deixa claro que é sobre a festa (pode ser só um oi, uma foto solta ou outro assunto). Ainda NÃO mande fotos, vídeo, PDF nem valores, e não diga que vai mandar. Responda com simpatia ao que ele mandou e pergunte como pode ajudar — se é sobre a festa do pedido, se ele já tem festa com a gente ou se é outro assunto. ' + HELP_OPTIONS_FORMAT;
+        materialsNote = 'a data e os convidados já estão anotados (vieram do formulário do site ou da conversa), mas a mensagem do cliente ainda NÃO deixa claro que é sobre a festa (pode ser só um oi, uma foto solta ou outro assunto). Ainda NÃO mande fotos, vídeo, PDF nem valores, e não diga que vai mandar. Responda com simpatia ao que ele mandou e pergunte como pode ajudar — se é sobre a festa do pedido, se ele já tem festa com a gente ou se é outro assunto. ' + helpOptionsFormat(settings.corporate_events_enabled === true);
       }
     }
     const sent = sentMaterials(conv);

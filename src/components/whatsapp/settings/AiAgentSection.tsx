@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sparkles, Loader2, Save, Pencil, Check, FlaskConical, Cpu, Wallet, BellRing, CalendarOff, Plus, Trash2, MessageCircleHeart } from "lucide-react";
+import { Sparkles, Loader2, Save, Pencil, Check, FlaskConical, Cpu, Wallet, BellRing, CalendarOff, Building2, Plus, Trash2, MessageCircleHeart } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -85,6 +85,9 @@ interface AiAgentSettings {
   extra_units?: ExtraUnit[] | null;
   // Alerta de cliente com festa nos próximos 60 dias (sininho + WhatsApp do alerta)
   party_soon_alert?: boolean | null;
+  // Confraternização de empresas: roteiro próprio da IA + opção na lista do começo
+  corporate_events_enabled?: boolean | null;
+  corporate_max_guests?: number | null;
 }
 
 interface ExtraUnit {
@@ -224,6 +227,8 @@ export function AiAgentSection() {
   const [alertMinutes, setAlertMinutes] = useState(10);
   const [alertPhone, setAlertPhone] = useState("");
   const [partySoonAlert, setPartySoonAlert] = useState(false);
+  const [corporateOn, setCorporateOn] = useState(false);
+  const [corporateMax, setCorporateMax] = useState("");
   const [partySlots, setPartySlots] = useState(DEFAULT_PARTY_SLOTS);
   const [closedPeriods, setClosedPeriods] = useState<ClosedPeriod[]>([]);
   const [fuEnabled, setFuEnabled] = useState(false);
@@ -324,6 +329,9 @@ export function AiAgentSection() {
       // Só manda quando o banco já tem a coluna (veio na leitura)
       ...(next.extra_units !== undefined ? { extra_units: next.extra_units ?? [] } : {}),
       ...(next.party_soon_alert !== undefined ? { party_soon_alert: next.party_soon_alert === true } : {}),
+      ...(next.corporate_events_enabled !== undefined
+        ? { corporate_events_enabled: next.corporate_events_enabled === true, corporate_max_guests: next.corporate_max_guests ?? null }
+        : {}),
       updated_at: new Date().toISOString(),
     };
     const save = (body: Record<string, unknown>, columns: string) => (supabase as any)
@@ -430,6 +438,8 @@ export function AiAgentSection() {
     setAlertMinutes(settings.handoff_alert_minutes || 10);
     setAlertPhone(settings.handoff_alert_phone || "");
     setPartySoonAlert(settings.party_soon_alert === true);
+    setCorporateOn(settings.corporate_events_enabled === true);
+    setCorporateMax(settings.corporate_max_guests ? String(settings.corporate_max_guests) : "");
     setPartySlots(settings.party_slots || DEFAULT_PARTY_SLOTS);
     setClosedPeriods(Array.isArray(settings.closed_periods) ? settings.closed_periods : []);
     const fu = normalizeFollowUpConfig(settings.followup_config);
@@ -530,6 +540,12 @@ export function AiAgentSection() {
       handoff_alert_phone: alertPhone.trim() || null,
       // Só quando o banco já tem a coluna (veio na leitura)
       ...(settings.party_soon_alert !== undefined ? { party_soon_alert: partySoonAlert } : {}),
+      ...(settings.corporate_events_enabled !== undefined
+        ? {
+            corporate_events_enabled: corporateOn,
+            corporate_max_guests: parseInt(corporateMax.replace(/\D/g, ""), 10) > 0 ? parseInt(corporateMax.replace(/\D/g, ""), 10) : null,
+          }
+        : {}),
       party_slots: partySlots.trim() && partySlots.trim() !== DEFAULT_PARTY_SLOTS ? partySlots.trim() : null,
       closed_periods: [...periods].sort((a, b) => a.start.localeCompare(b.start)),
       followup_config: followUp,
@@ -940,6 +956,36 @@ export function AiAgentSection() {
                     </div>
                   )}
                 </div>
+
+                {/* Confraternização de empresas: a IA reconhece empresa, não pergunta de
+                    aniversariante e a lista do começo ganha a opção (só com a coluna no banco) */}
+                {settings.corporate_events_enabled !== undefined && (
+                  <div className="rounded-xl border border-border bg-card p-3.5 space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label className="text-xs font-bold flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-sky-600" />
+                        Atender confraternização de empresas
+                      </Label>
+                      <Switch checked={corporateOn} onCheckedChange={setCorporateOn} aria-label="Atender confraternização de empresas" />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      A IA reconhece quando é empresa (confraternização, colaboradores, fim de ano da equipe), não pergunta de aniversariante e usa o mesmo pacote, PDF e agenda. A lista "Como posso te ajudar?" ganha a opção 🏢 Confraternização de empresa, o lead fica marcado como Empresa e a equipe recebe um aviso.
+                    </p>
+                    {corporateOn && (
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs whitespace-nowrap">Capacidade máxima</Label>
+                        <Input
+                          inputMode="numeric"
+                          value={corporateMax}
+                          onChange={(e) => setCorporateMax(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                          className="h-9 w-24 text-base sm:text-sm bg-card border-border shadow-sm"
+                          placeholder="120"
+                        />
+                        <span className="text-xs text-muted-foreground">pessoas</span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Recesso / dias fechados: a IA não oferece festa nem visita
                     nesses dias e avisa quando a equipe volta; o site bloqueia os dias */}
