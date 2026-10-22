@@ -13,7 +13,6 @@ interface CompanyMetrics {
   leadsNew: number;
   totalConversations: number;
   activeConversations: number;
-  totalMessages: number;
 }
 
 interface HubUnitRankingProps {
@@ -54,11 +53,11 @@ export function HubUnitRanking({ metrics, followUpsByCompany, closedByCompany }:
           {ranked.map((unit, i) => (
             <div
               key={unit.companyId}
-              className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+              className={`flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-lg border transition-colors min-w-0 ${
                 i === 0 ? "bg-amber-500/5 border-amber-500/20" : "border-border/50"
               }`}
             >
-              <span className={`text-lg font-bold w-6 text-center ${MEDAL_COLORS[i] || "text-muted-foreground"}`}>
+              <span className={`text-base sm:text-lg font-bold w-6 text-center shrink-0 ${MEDAL_COLORS[i] || "text-muted-foreground"}`}>
                 {i + 1}º
               </span>
 
@@ -72,26 +71,26 @@ export function HubUnitRanking({ metrics, followUpsByCompany, closedByCompany }:
 
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold truncate">{unit.companyName}</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground truncate">
                   {unit.totalLeads} leads · {unit.totalConversations} conversas
                 </p>
               </div>
 
-              <div className="flex items-center gap-3 shrink-0">
+              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                 <div className="text-center">
-                  <p className="text-xs text-muted-foreground">Conversão</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">Conversão</p>
                   <Badge
                     variant={unit.conversionRate > 20 ? "default" : "secondary"}
                     className="text-xs"
                   >
-                    {unit.conversionRate.toFixed(1)}%
+                    {unit.conversionRate.toFixed(1).replace(".", ",")}%
                   </Badge>
                 </div>
                 <div className="text-center">
-                  <p className="text-xs text-muted-foreground">Fechados</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">Fechados</p>
                   <p className="text-sm font-bold text-emerald-600">{unit.leadsClosed}</p>
                 </div>
-                <div className="text-center">
+                <div className="text-center hidden sm:block">
                   <p className="text-xs text-muted-foreground">Follow-ups</p>
                   <p className="text-sm font-bold text-indigo-600">{followUpsByCompany?.get(unit.companyId) || 0}</p>
                 </div>
