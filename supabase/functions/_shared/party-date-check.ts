@@ -29,9 +29,22 @@ export function nearestAlternativeDays(free: FreeSlot[], askedYmd: string, max =
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+// "o domingo / o sábado", mas "a quinta" (dias da semana são femininos)
+function weekdayMasculine(ymd: string): boolean {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const dow = new Date(Date.UTC(y, m - 1, d, 12)).getUTCDay();
+  return dow === 0 || dow === 6;
+}
+
+/** "a quinta, 22 de abril" / "o sábado, 12 de dezembro" */
+export function dayWithArticle(ymd: string): string {
+  return `${weekdayMasculine(ymd) ? "o" : "a"} ${formatDateLong(ymd)}`;
+}
+
 /** "Ah, e uma notícia boa: o domingo, 13 de dezembro, ainda está livre na agenda ✅" */
 export function partyDateFreeNote(ymd: string): string {
-  return `Ah, e uma notícia boa: o ${formatDateLong(ymd)}, ainda está livre na agenda ✅`;
+  const art = weekdayMasculine(ymd) ? "o" : "a";
+  return `Ah, e uma notícia boa: ${art} ${formatDateLong(ymd)}, ainda está livre na agenda ✅`;
 }
 
 /**
@@ -48,9 +61,10 @@ export function partyDateTakenMessage(opts: {
 }): string {
   const name = opts.firstName ? `${opts.firstName}, ` : "";
   const day = formatDateLong(opts.ymd);
+  const masc = weekdayMasculine(opts.ymd);
   const what = opts.recess
-    ? `${name}uma coisa importante: no ${day}, o buffet vai estar em recesso, sem festas 😕`
-    : `${name}uma coisa importante: o ${day}, já foi reservado 😕`;
+    ? `${name}uma coisa importante: ${masc ? "no" : "na"} ${day}, o buffet vai estar em recesso, sem festas 😕`
+    : `${name}uma coisa importante: ${masc ? "o" : "a"} ${day}, já foi ${masc ? "reservado" : "reservada"} 😕`;
   if (!opts.alternatives) {
     return `${what}\n\nVou ver aqui com a equipe as melhores opções de data pra vocês e já te retorno por aqui 💜`;
   }

@@ -40,7 +40,7 @@ import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
 import { buildCandidateLink, candidateName, inviteCode, shortCandidateLink, withCandidateLink } from "../_shared/ai-candidate.ts";
 import { findPromotion, promoMentions, promoNote } from "../_shared/promo.ts";
 import { closedPeriodAt, closedPeriodsNote, formatClosedPeriod, isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
-import { nearestAlternativeDays, partyDateFreeNote, partyDateTakenMessage } from "../_shared/party-date-check.ts";
+import { dayWithArticle, nearestAlternativeDays, partyDateFreeNote, partyDateTakenMessage } from "../_shared/party-date-check.ts";
 import { asksPartnership, clientAffirms, clientAskedPrice, PRICE_ASK_WINDOW_MS, closingAfterMaterials, visitInviteAfterMaterials, confirmsPartyInterest, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 import { askedForName, nameFromAnswer } from "../_shared/name-answer.ts";
@@ -2499,9 +2499,9 @@ export async function maybeHandleWithAiAgent(
               await markPartyDateChecked(supabase, conv, pd);
               const day = formatDateLong(pd.date);
               toolResult += pd.status === 'free'
-                ? ` DATA DA FESTA: ${day} está disponível neste momento — conte isso junto do convite para visita (ex.: "e uma notícia boa: o ${day} ainda está livre na agenda ✅"). Não diga que reservou ou segurou a data.`
+                ? ` DATA DA FESTA: ${day} está disponível neste momento — conte isso junto do convite para visita (ex.: "e uma notícia boa: ${dayWithArticle(pd.date)} ainda está livre na agenda ✅"). Não diga que reservou ou segurou a data.`
                 : pd.alternatives
-                ? ` DATA DA FESTA: ${day} ${pd.status === 'recess' ? 'cai no RECESSO do buffet (sem festas)' : 'JÁ FOI RESERVADA'}. Nesta resposta NÃO convide para visita: avise com gentileza (ex.: "o ${day} já foi reservado 😕") e ofereça estas datas livres — linhas prontas, copie como estão:\n${pd.alternatives}\nTermine perguntando se alguma delas funciona, e no fim, entre parênteses: "(A data fica garantida com contrato e sinal ✨)".`
+                ? ` DATA DA FESTA: ${day} ${pd.status === 'recess' ? 'cai no RECESSO do buffet (sem festas)' : 'JÁ FOI RESERVADA'}. Nesta resposta NÃO convide para visita: avise com gentileza (ex.: "${dayWithArticle(pd.date)} já está reservad${/^o /.test(dayWithArticle(pd.date)) ? 'o' : 'a'} 😕") e ofereça estas datas livres — linhas prontas, copie como estão:\n${pd.alternatives}\nTermine perguntando se alguma delas funciona, e no fim, entre parênteses: "(A data fica garantida com contrato e sinal ✨)".`
                 : ` DATA DA FESTA: ${day} ${pd.status === 'recess' ? 'cai no RECESSO do buffet (sem festas)' : 'JÁ FOI RESERVADA'} e não há datas livres por perto. Avise com gentileza, diga que vai ver com a equipe as melhores opções de data e use transferir_para_atendente (motivo: "data pedida (${day}) já reservada, sem datas livres por perto — ofereça opções").`;
             }
           } else if (call.name === 'agendar_visita') {
