@@ -12,6 +12,7 @@ import { decideUnconfirmedMedia, MEDIA_ACK_TIMEOUT_MS, type MediaAckMeta } from 
 import { BOT_STEPS_WAITING_ANSWER, botShouldHaveAnswered, UNANSWERED_MAX_AGE_HOURS, UNANSWERED_MINUTES } from "../_shared/unanswered-bot.ts";
 import { resolveUnitNotificationTargets } from "../_shared/notification-targets.ts";
 import { decideDeliveryStall, type OutgoingRow, STALL_LOOKBACK_MS } from "../_shared/delivery-stall.ts";
+import { LOST_RESEND_AFTER_MS, LOST_RESEND_MAX_AGE_MS, LOST_RESEND_SOURCES, shouldResendLost } from "../_shared/lost-first-message.ts";
 import { isAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { evolutionSendMedia, evolutionSendText, extractEvolutionMessageId } from "../_shared/evolution.ts";
 import { type AiTarget, freeSlotsBetween, journeyOwnsConversation, type JourneyScope, journeyScopes, loadAiJourneyTargets, runAiJourney } from "./ai-journey.ts";
@@ -422,6 +423,15 @@ Deno.serve(async (req) => {
     const mediaResult = await processUnconfirmedMedia({ supabase });
     if (mediaResult.errors.length > 0) {
       console.error("[follow-up-check] Erros ao conferir mídias sem confirmação:", mediaResult.errors);
+    }
+
+    // Mensagem automática que a Evolution perdeu em silêncio (1 tique para
+    // sempre): reenvia uma vez
+    try {
+      const lost = await processLostAutoMessages({ supabase });
+      if (lost.errors.length > 0) console.error("[follow-up-check] Erros ao reenviar mensagens perdidas:", lost.errors);
+    } catch (err) {
+      console.error("[follow-up-check] Erro ao reenviar mensagens perdidas:", err);
     }
 
     // Cliente respondeu e o robô não continuou: pausa e avisa a equipe
@@ -3526,6 +3536,127 @@ type OwnerAlertKind = "silent" | "disconnected" | "degraded" | "not_delivering" 
  * (pop-up e sininho) e o dono no WhatsApp, por outro número. Uma vez a cada 3h
  * por número, só das 8h às 22h (de madrugada cliente não lê e daria alarme falso).
  */
+// Regras e motivo em _shared/lost-first-message.ts
+async function processLostAutoMessages({
+  supabase,
+}: { supabase: SupabaseAdmin }): Promise<{ successCount: number; errors: string[] }> {
+  const errors: string[] = [];
+  let successCount = 0;
+  const nowMs = Date.now();
+  const { data: rows, error } = await supabase
+    .from("wapi_messages")
+    .select("id, conversation_id, content, message_type, status, timestamp, metadata, company_id")
+    .eq("from_me", true)
+    .eq("status", "sent")
+    .eq("message_type", "text")
+    .in("metadata->>source", LOST_RESEND_SOURCES)
+    .lte("timestamp", new Date(nowMs - LOST_RESEND_AFTER_MS).toISOString())
+    .gte("timestamp", new Date(nowMs - LOST_RESEND_MAX_AGE_MS).toISOString())
+    .order("timestamp", { ascending: true })
+    .limit(100);
+  if (error) return { successCount: 0, errors: [String(error.message || error)] };
+  const candidates = ((rows || []) as any[]).filter((r) => {
+    const meta = (r.metadata || {}) as Record<string, unknown>;
+    return !meta.lost_resend && !meta.retry_of && String(r.content || "").trim();
+  });
+  if (candidates.length === 0) return { successCount: 0, errors: [] };
+
+  const convIds = Array.from(new Set(candidates.map((r) => r.conversation_id)));
+  const { data: convs } = await supabase
+    .from("wapi_conversations")
+    .select("id, remote_jid, contact_name, instance_id, company_id")
+    .in("id", convIds);
+  const convById = new Map((convs || []).map((c: any) => [c.id, c]));
+  const instIds = Array.from(new Set((convs || []).map((c: any) => c.instance_id).filter(Boolean)));
+  const { data: insts } = instIds.length
+    ? await supabase.from("wapi_instances").select("id, instance_token, unit, provider, company_id").in("id", instIds).eq("provider", "evolution")
+    : { data: [] as any[] };
+  const instById = new Map((insts || []).map((i: any) => [i.id, i]));
+  if (instById.size === 0) return { successCount: 0, errors: [] };
+
+  const sinceIso = candidates[0].timestamp;
+  // Conversa andou: qualquer mensagem (dos dois lados) depois da candidata
+  const { data: laterRows } = await supabase
+    .from("wapi_messages")
+    .select("id, conversation_id, timestamp")
+    .in("conversation_id", convIds)
+    .gt("timestamp", sinceIso)
+    .limit(2000);
+  // Número entregando: alguma mensagem nossa entregue/lida depois da candidata
+  const companyIds = Array.from(new Set((insts || []).map((i: any) => i.company_id)));
+  const { data: deliveredRows } = await supabase
+    .from("wapi_messages")
+    .select("conversation_id, timestamp")
+    .in("company_id", companyIds)
+    .eq("from_me", true)
+    .in("status", ["delivered", "read"])
+    .gt("timestamp", sinceIso)
+    .order("timestamp", { ascending: false })
+    .limit(1000);
+  const deliveredConvIds = Array.from(new Set(((deliveredRows || []) as any[]).map((r) => r.conversation_id)));
+  const { data: deliveredConvs } = deliveredConvIds.length
+    ? await supabase.from("wapi_conversations").select("id, instance_id").in("id", deliveredConvIds)
+    : { data: [] as any[] };
+  const instOfConv = new Map<string, string>((deliveredConvs || []).map((c: any) => [c.id, c.instance_id]));
+  const lastDeliveredByInst = new Map<string, number>();
+  for (const r of (deliveredRows || []) as any[]) {
+    const instId = instOfConv.get(r.conversation_id);
+    if (!instId) continue;
+    lastDeliveredByInst.set(instId, Math.max(lastDeliveredByInst.get(instId) || 0, Date.parse(r.timestamp)));
+  }
+
+  for (const row of candidates) {
+    try {
+      const conv = convById.get(row.conversation_id) as any;
+      const inst = conv ? instById.get(conv.instance_id) as any : null;
+      if (!conv || !inst) continue;
+      const ts = Date.parse(row.timestamp);
+      const conversationMovedOn = ((laterRows || []) as any[]).some((m) => m.conversation_id === conv.id && m.id !== row.id && Date.parse(m.timestamp) > ts);
+      const instanceDeliveredSince = (lastDeliveredByInst.get(inst.id) || 0) > ts;
+      if (!shouldResendLost(row, { conversationMovedOn, instanceDeliveredSince }, nowMs)) continue;
+
+      const phone = String(conv.remote_jid || "").replace("@s.whatsapp.net", "").replace("@c.us", "").replace(/\D/g, "");
+      if (!phone || String(conv.remote_jid || "").endsWith("@g.us")) continue;
+      if (isBlockedContact(inst.company_id, phone)) continue;
+      if (await isConversationPaused(supabase, conv.id)) continue;
+      const slot = await claimSystemSendSlot(supabase, inst);
+      if (!slot.ok) {
+        console.log(`[lost-resend] ${inst.unit}: ritmo do sistema (${slot.reason}) — fica para a próxima rodada`);
+        continue;
+      }
+
+      const meta = (row.metadata || {}) as Record<string, unknown>;
+      const res = await evolutionSendText(inst.instance_token, phone, row.content);
+      const newId = res.ok ? extractEvolutionMessageId(res.data) : null;
+      const sentAt = new Date().toISOString();
+      // Marca a original de qualquer jeito: uma tentativa só
+      await supabase.from("wapi_messages").update({
+        metadata: { ...meta, lost_resend: { at: sentAt, ok: res.ok, message_id: newId, error: res.ok ? null : String(res.error || "").slice(0, 200) } },
+      }).eq("id", row.id);
+      if (!res.ok) {
+        errors.push(`reenvio falhou (conv ${conv.id}): ${String(res.error || "").slice(0, 200)}`);
+        continue;
+      }
+      await supabase.from("wapi_messages").insert({
+        conversation_id: conv.id,
+        content: row.content,
+        from_me: true,
+        message_type: "text",
+        message_id: newId,
+        status: "sent",
+        timestamp: sentAt,
+        metadata: { ...meta, retry_of: row.id, lost_resend: undefined },
+        company_id: row.company_id || inst.company_id,
+      });
+      successCount++;
+      console.warn(`[lost-resend] 🔁 ${inst.unit}: ${meta.source} para ${conv.contact_name || phone} ficou só "enviada" desde ${row.timestamp} — reenviada (${newId})`);
+    } catch (err) {
+      errors.push(String((err as Error)?.message || err));
+    }
+  }
+  return { successCount, errors };
+}
+
 async function processDeliveryStallAlerts(supabase: SupabaseAdmin): Promise<void> {
   const nowMs = Date.now();
   const hourBR = new Date(nowMs - 3 * 3600000).getUTCHours();
