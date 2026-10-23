@@ -271,7 +271,7 @@ export function closingAfterMaterials(firstName: string, seed: number): string {
   const name = firstName ? `, ${firstName}` : "";
   const options = [
     `E aí${name}, o que achou do nosso espaço? 😍✨`,
-    `Dá uma olhadinha com calma e me conta${name}: o que achou? 😊🏰`,
+    `Dá uma olhadinha com calma e me conta${name}: o que achou? 😊✨`,
     `Me conta${name}: curtiu o espaço? 🥰🎈`,
   ];
   return options[Math.abs(seed) % options.length];
@@ -323,7 +323,7 @@ export function visitInviteAfterMaterials(firstName: string, offers: Array<{ dat
   const name = firstName ? `, ${firstName}` : "";
   const options = [
     `Se fizer sentido pra vocês${name}, te recebo pra conhecer o espaço: ${a} ou ${b}. Qual fica melhor? 😊`,
-    `Que tal vir conhecer o espaço de pertinho${name}? Tenho ${a} ou ${b}. Qual fica melhor pra vocês? 🏰✨`,
+    `Que tal vir conhecer o espaço de pertinho${name}? Tenho ${a} ou ${b}. Qual fica melhor pra vocês? 🎈✨`,
   ];
   return options[Math.abs(seed) % options.length];
 }

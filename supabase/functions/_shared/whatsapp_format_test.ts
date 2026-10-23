@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
-import { airyParagraphs, spaceHighlightList, formatBRLShort, hoursForWhatsApp, moneyWithCents, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "./whatsapp-format.ts";
+import { airyParagraphs, spaceHighlightList, formatBRLShort, hoursForWhatsApp, moneyWithCents, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName, venueEmoji } from "./whatsapp-format.ts";
 
 Deno.test("formatDateLong: data por extenso", () => {
   assertEquals(formatDateLong("2026-12-26"), "sábado, 26 de dezembro");
@@ -129,4 +129,10 @@ Deno.test("data de amanhã depois de palavra com acento: não come a última let
   // corrigir o dia da semana também não mexe na palavra de antes
   assertEquals(fixWeekdays("Opção sexta, 17 de outubro", today), "Opção sábado, 17 de outubro");
   assertEquals(fixWeekdays("Tenho a sexta-feira, 17 de outubro", today), "Tenho o sábado, 17 de outubro");
+});
+
+Deno.test("venueEmoji: castelo só para buffet Castelo", () => {
+  assertEquals(venueEmoji("Castelo da Diversão"), "🏰");
+  assertEquals(venueEmoji("Mega Magic"), "🎈");
+  assertEquals(venueEmoji(null), "🎈");
 });

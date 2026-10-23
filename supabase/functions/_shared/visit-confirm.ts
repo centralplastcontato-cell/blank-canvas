@@ -6,6 +6,8 @@
 // - Visita remarcada também recebe confirmação da data nova: uma confirmação
 //   antiga só conta se foi enviada perto da data atual da visita.
 
+import { venueEmoji } from "./whatsapp-format.ts";
+
 const HOUR = 3600000;
 const WEEKDAYS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 
@@ -77,7 +79,7 @@ export function buildAiVisitConfirmation(p: {
   const n = firstName(p.name);
   const hi = n ? `Oi, ${n}! 😊` : "Oi! 😊";
   const when = visitWhenText(p.dateYmd, p.time, p.todayYmd);
-  return `${hi} Passando pra lembrar da sua visita ${when} aqui no ${p.companyName} 🏰✨\n\nPosso confirmar sua presença?`;
+  return `${hi} Passando pra lembrar da sua visita ${when} aqui no ${p.companyName} ${venueEmoji(p.companyName)}✨\n\nPosso confirmar sua presença?`;
 }
 
 const strip = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
