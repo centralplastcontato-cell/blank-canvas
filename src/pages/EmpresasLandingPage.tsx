@@ -24,6 +24,9 @@ const CASTELO_META_PIXEL_ID = "2893092977682985";
 const WHATSAPP = "5515974034646";
 const MESSAGE = "Olá! Quero um orçamento de confraternização para minha empresa.";
 const MAX_GUESTS = 120;
+// Mesmos textos da prévia de link para WhatsApp/Facebook (api/og.ts)
+const OG_TITLE = "Confraternização de Empresas em Sorocaba | Castelo da Diversão";
+const DESCRIPTION = "Confraternização de fim de ano para empresas em Sorocaba. Comida, refrigerante e água, equipe, espaço climatizado e estacionamento próprio para até 120 pessoas.";
 
 const STORAGE = "https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/object/public/sales-materials/a0000000-0000-0000-0000-000000000001/Trujillo";
 const PHOTOS = [
@@ -82,7 +85,7 @@ function SectionTitle({ eyebrow, title, subtitle, light }: { eyebrow: string; ti
 
 const INCLUDED = [
   { icon: UtensilsCrossed, title: "Cardápio completo", text: "Salgados, doces e muito mais, servidos pela nossa equipe durante a festa." },
-  { icon: GlassWater, title: "Bebidas inclusas", text: "Bebidas servidas durante todo o evento, sem você se preocupar." },
+  { icon: GlassWater, title: "Bebidas inclusas", text: "Refrigerante e água servidos durante todo o evento." },
   { icon: Users, title: "Equipe completa", text: "Atendimento, cozinha e monitores cuidando de tudo para vocês." },
   { icon: Snowflake, title: "Espaço climatizado", text: "Salão amplo e confortável, pronto para receber sua equipe." },
   { icon: Car, title: "Estacionamento próprio", text: "Mais praticidade para os colaboradores e as famílias." },
@@ -105,7 +108,7 @@ const STEPS = [
 const FAQ = [
   { q: "Quantas pessoas o espaço comporta?", a: `Recebemos até ${MAX_GUESTS} pessoas. Os pacotes vão até 100 convidados; acima disso há um valor adicional por pessoa.` },
   { q: "Pode ser só para adultos?", a: "Pode, sim. O formato é livre: só a equipe, ou com a família e as crianças dos colaboradores." },
-  { q: "O que está incluído?", a: "Cardápio completo, bebidas, equipe de atendimento, espaço climatizado e estacionamento próprio. Você recebe a proposta detalhada pelo WhatsApp." },
+  { q: "O que está incluído?", a: "Cardápio completo, equipe de atendimento, espaço climatizado e estacionamento próprio. Bebidas: refrigerante e água. Bebidas alcoólicas não estão inclusas. Você recebe a proposta detalhada pelo WhatsApp." },
   { q: "Vocês fazem no almoço ou só à noite?", a: "Os dois. Você escolhe o período que funciona melhor para a sua empresa." },
   { q: "Como funciona o orçamento?", a: "É só chamar no WhatsApp com a quantidade de pessoas e a data ou o período. Respondemos com os pacotes e o convite para conhecer o espaço." },
   { q: "Ainda tem data em dezembro?", a: "Dezembro é o mês mais procurado e as datas acabam rápido. Quanto antes você chamar, mais opções de data." },
@@ -122,10 +125,10 @@ export default function EmpresasLandingPage() {
   return (
     <div className="min-h-screen bg-white text-[#2B1B4A] font-['Nunito']">
       <Helmet>
-        <title>Confraternização de Empresas em Sorocaba | Castelo da Diversão</title>
-        <meta name="description" content={`Confraternização de fim de ano para a sua empresa: cardápio, bebidas, equipe, espaço climatizado e estacionamento, para até ${MAX_GUESTS} pessoas. Peça seu orçamento pelo WhatsApp.`} />
-        <meta property="og:title" content="Confraternização de Empresas | Castelo da Diversão" />
-        <meta property="og:description" content={`Tudo num lugar só, para até ${MAX_GUESTS} pessoas. Almoço ou noite, só adultos ou com as famílias.`} />
+        <title>{OG_TITLE}</title>
+        <meta name="description" content={DESCRIPTION} />
+        <meta property="og:title" content={OG_TITLE} />
+        <meta property="og:description" content={DESCRIPTION} />
         <meta property="og:url" content="https://www.castelodadiversao.com.br/empresas" />
       </Helmet>
 
@@ -160,7 +163,7 @@ export default function EmpresasLandingPage() {
               <span style={{ color: PINK }}>sem dor de cabeça.</span>
             </h1>
             <p className="mt-5 max-w-xl text-lg md:text-xl text-slate-600 leading-relaxed">
-              Comida, bebida, equipe, espaço climatizado e estacionamento num lugar só, para até {MAX_GUESTS} pessoas. Vocês só chegam e aproveitam.
+              Comida, refrigerante e água, equipe, espaço climatizado e estacionamento num lugar só, para até {MAX_GUESTS} pessoas. Vocês só chegam e aproveitam.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-3 sm:items-center">
               <CtaButton origin="hero">Quero um orçamento</CtaButton>

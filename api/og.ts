@@ -33,10 +33,52 @@ function applyImageOverride(html: string, host: string): string {
     .replace(/(name="twitter:image" content=")[^"]*(")/g, `$1${img}$2`);
 }
 
+/**
+ * Páginas com prévia própria (não a do buffet): a /empresas do Castelo é para
+ * confraternização de empresas, e a prévia padrão ("O melhor buffet infantil…")
+ * não serve para o RH.
+ */
+const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+
+function pageOverride(host: string, path: string): string | null {
+  const h = host.toLowerCase().replace(/^www\./, "");
+  const p = path.replace(/\/+$/, "") || "/";
+  if (!/^castelodadiversao\.(com\.br|online)$/.test(h) || p !== "/empresas") return null;
+  const url = `https://www.${h}/empresas`;
+  const title = "Confraternização de Empresas em Sorocaba | Castelo da Diversão";
+  const desc = "Confraternização de fim de ano para empresas em Sorocaba. Comida, refrigerante e água, equipe, espaço climatizado e estacionamento próprio para até 120 pessoas.";
+  const img = `https://www.${h}/empresas/capa.jpg`;
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<title>${esc(title)}</title>
+<meta name="description" content="${esc(desc)}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="${esc(url)}">
+<meta property="og:title" content="${esc(title)}">
+<meta property="og:description" content="${esc(desc)}">
+<meta property="og:image" content="${esc(img)}">
+<meta property="og:image:secure_url" content="${esc(img)}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:type" content="image/jpeg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${esc(title)}">
+<meta name="twitter:description" content="${esc(desc)}">
+<meta name="twitter:image" content="${esc(img)}">
+</head><body><a href="${esc(url)}">${esc(title)}</a></body></html>`;
+}
+
 export default async function handler(req: Request): Promise<Response> {
   const reqUrl = new URL(req.url);
   const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
   const path = reqUrl.searchParams.get("path") || "/";
+
+  const page = pageOverride(host, path);
+  if (page) {
+    return new Response(page, {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=300, s-maxage=600" },
+    });
+  }
 
   const upstream = `${OG_PREVIEW}?domain=${encodeURIComponent(host)}&path=${encodeURIComponent(path)}`;
 
