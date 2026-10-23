@@ -1,24 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { pickCardapioForPackage } from "@/lib/cardapioForPackage";
+import { buildTimeline, parseSchedule, partyPhase, readiness } from "@/lib/partyDay";
 import { supabase } from "@/integrations/supabase/client";
 import { buildPublicFormPath } from "@/lib/publicFormRoutes";
+import { cn } from "@/lib/utils";
 import {
-  Loader2, Check, AlertTriangle, PartyPopper,
-  ChevronRight, Shield, Zap, ArrowRight, ExternalLink
+  Loader2, Check, AlertTriangle, PartyPopper, ChevronRight, ChevronDown, Shield, ExternalLink,
+  ClipboardList, UtensilsCrossed, Star, Users, ListChecks, UserCheck, Wrench, Eye, Info, Copy,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-interface BirthdayChild {
-  name?: string;
-  age?: string;
-}
+// Página do dia da festa (/festa/:id), aberta pela equipe sem login.
+// Redesenhada em 22/10: visual claro como o resto do Celebrei, dados da festa
+// legíveis, o que o cliente já respondeu, roteiro do dia e a equipe. Alerta só
+// quando há algo de verdade (ex.: Pré-Festa sem resposta perto da festa);
+// ficha do dia que não foi criada não é alerta.
 
-interface EventOptional {
-  name?: string;
-  value?: number;
-}
+interface BirthdayChild { name?: string; age?: string }
+interface EventOptional { name?: string; value?: number }
 
 interface PartyEvent {
   id: string;
@@ -27,12 +28,10 @@ interface PartyEvent {
   event_date: string;
   start_time: string | null;
   end_time: string | null;
-  event_type: string | null;
   guest_count: number | null;
   unit: string | null;
   status: string;
   package_name: string | null;
-  total_value: number | null;
   child_name: string | null;
   child_age: string | null;
   birthday_children: BirthdayChild[] | null;
@@ -42,42 +41,36 @@ interface PartyEvent {
 }
 
 interface PartyControlModules {
-  checklist: boolean;
-  staff: boolean;
-  maintenance: boolean;
-  monitoring: boolean;
-  attendance: boolean;
-  info: boolean;
-  prefesta: boolean;
-  cardapio: boolean;
-  avaliacao: boolean;
+  checklist: boolean; staff: boolean; maintenance: boolean; monitoring: boolean;
+  attendance: boolean; info: boolean; prefesta: boolean; cardapio: boolean; avaliacao: boolean;
 }
 
-interface ModuleStatus {
-  checklist: { total: number; completed: number };
-  staff: { id: string | null };
-  maintenance: { id: string | null };
-  monitoring: { id: string | null };
-  attendance: { id: string | null; guestCount: number };
-  info: { id: string | null; blockCount: number };
+interface CompanyInfo { name: string; logo_url: string | null; slug: string; settings: Record<string, unknown> | null }
+interface ChecklistItem { id: string; title: string; is_completed: boolean; sort_order: number }
+interface Template { id: string; name: string; slug: string | null }
+
+interface DayDetails {
+  prefesta: { responded_at: string } | null;
+  cardapio: { responded_at: string; template_name: string | null; items: string[] } | null;
+  avaliacao: { responded_at: string; score: number | null } | null;
+  staff: { name: string; role: string | null }[];
+  staff_id: string | null;
+  maintenance_id: string | null;
+  monitoring_id: string | null;
+  attendance_id: string | null;
 }
 
-interface CompanyInfo {
-  name: string;
-  logo_url: string | null;
-  slug: string;
-  settings: Record<string, unknown> | null;
-}
-
-type TabType = "home" | "summary" | "pending" | "checklist";
+const EMPTY_DETAILS: DayDetails = {
+  prefesta: null, cardapio: null, avaliacao: null, staff: [],
+  staff_id: null, maintenance_id: null, monitoring_id: null, attendance_id: null,
+};
 
 function parsePartyControlModules(settings: Record<string, unknown> | null): PartyControlModules {
   const defaults: PartyControlModules = {
     checklist: true, staff: true, maintenance: true, monitoring: true,
     attendance: true, info: true, prefesta: false, cardapio: false, avaliacao: false,
   };
-  if (!settings) return defaults;
-  const pcm = settings.party_control_modules;
+  const pcm = settings?.party_control_modules;
   if (!pcm || typeof pcm !== "object" || Array.isArray(pcm)) return defaults;
   const m = pcm as Record<string, unknown>;
   return {
@@ -88,14 +81,29 @@ function parsePartyControlModules(settings: Record<string, unknown> | null): Par
   };
 }
 
-interface ChecklistItem {
-  id: string;
-  title: string;
-  is_completed: boolean;
-  sort_order: number;
+function parentsText(raw: string | null): string | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((p) => p?.name).map((p) => [p.name, p.relation && `(${p.relation})`, p.phone && `· ${p.phone}`].filter(Boolean).join(" ")).join("\n") || null;
+    }
+    if (parsed && typeof parsed === "object" && parsed.name) return parsed.name;
+  } catch { /* texto simples */ }
+  return raw;
 }
 
+// Funções do banco ainda fora dos tipos gerados
+type LooseRpc = (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
+const looseRpc: LooseRpc = (fn, args) => (supabase.rpc as unknown as LooseRpc).call(supabase, fn, args);
+
 const POLL_INTERVAL = 30_000;
+const CHILD_TONES = [
+  "bg-pink-50 text-pink-900 border-pink-100",
+  "bg-sky-50 text-sky-900 border-sky-100",
+  "bg-amber-50 text-amber-900 border-amber-100",
+  "bg-emerald-50 text-emerald-900 border-emerald-100",
+];
 
 export default function PublicPartyControl() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -103,178 +111,89 @@ export default function PublicPartyControl() {
   const [notFound, setNotFound] = useState(false);
   const [event, setEvent] = useState<PartyEvent | null>(null);
   const [company, setCompany] = useState<CompanyInfo | null>(null);
-  const [modules, setModules] = useState<PartyControlModules | null>(null);
-  const [status, setStatus] = useState<ModuleStatus>({
-    checklist: { total: 0, completed: 0 },
-    staff: { id: null }, maintenance: { id: null }, monitoring: { id: null },
-    attendance: { id: null, guestCount: 0 }, info: { id: null, blockCount: 0 },
-  });
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
-  const [activeTab, setActiveTab] = useState<TabType>("home");
-  const [_copied, _setCopied] = useState(false);
-  const [_checklistTemplates, _setChecklistTemplates] = useState<{ id: string; name: string; slug: string | null }[]>([]);
-  const [evalTemplates, setEvalTemplates] = useState<{ id: string; name: string; slug: string | null }[]>([]);
-  const [prefestTemplates, setPrefestTemplates] = useState<{ id: string; name: string; slug: string | null }[]>([]);
-  const [cardapioTemplates, setCardapioTemplates] = useState<{ id: string; name: string; slug: string | null }[]>([]);
+  const [infoId, setInfoId] = useState<string | null>(null);
+  const [attendanceCount, setAttendanceCount] = useState(0);
+  const [details, setDetails] = useState<DayDetails>(EMPTY_DETAILS);
+  // false enquanto a função get_party_day_details não existir no banco: aí não
+  // dá para afirmar que o cliente não respondeu
+  const [detailsKnown, setDetailsKnown] = useState(false);
+  const [templates, setTemplates] = useState<{ avaliacao: Template[]; prefesta: Template[]; cardapio: Template[] }>({ avaliacao: [], prefesta: [], cardapio: [] });
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [countdown, setCountdown] = useState(POLL_INTERVAL / 1000);
+  const [now, setNow] = useState(() => new Date());
+  const [showAllChecklist, setShowAllChecklist] = useState(false);
+  const [showMoreTools, setShowMoreTools] = useState(false);
+  const [showAllMenu, setShowAllMenu] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
 
-  const fetchModuleStatus = async (_companyId: string) => {
-    const [checklistRes, infoRes, statusRes] = await Promise.all([
+  const fetchStatus = async () => {
+    const [checklistRes, infoRes, statusRes, detailsRes] = await Promise.all([
       supabase.from("event_checklist_items").select("id, title, is_completed, sort_order").eq("event_id", eventId!).order("sort_order"),
       supabase.rpc("get_event_info_entries_by_event_public", { _event_id: eventId! }),
       supabase.rpc("get_party_control_module_status", { _event_id: eventId! }),
+      looseRpc("get_party_day_details", { _event_id: eventId! }),
     ]);
-
-    const items = (checklistRes.data || []) as ChecklistItem[];
-    setChecklistItems(items);
-    const status = (statusRes.data && (statusRes.data as any[])[0]) || {};
-    const guestCount = (status.attendance_guest_count as number) || 0;
-    const infoItems = infoRes.data?.[0]?.items;
-    const blockCount = Array.isArray(infoItems) ? infoItems.length : 0;
-
-    setStatus({
-      checklist: { total: items.length, completed: items.filter(i => i.is_completed).length },
-      staff: { id: status.has_staff ? "1" : null },
-      maintenance: { id: status.has_maintenance ? "1" : null },
-      monitoring: { id: status.has_monitoring ? "1" : null },
-      attendance: { id: guestCount > 0 ? "1" : null, guestCount },
-      info: { id: infoRes.data?.[0]?.id || null, blockCount },
-    });
+    setChecklistItems((checklistRes.data || []) as ChecklistItem[]);
+    setInfoId(infoRes.data?.[0]?.id || null);
+    const status = (Array.isArray(statusRes.data) ? statusRes.data[0] : null) as { attendance_guest_count?: number } | null;
+    setAttendanceCount(status?.attendance_guest_count || 0);
+    if (!detailsRes.error && detailsRes.data) {
+      setDetailsKnown(true);
+      const d = detailsRes.data as Partial<DayDetails>;
+      setDetails({
+        ...EMPTY_DETAILS,
+        ...d,
+        staff: Array.isArray(d.staff) ? d.staff : [],
+        cardapio: d.cardapio ? { ...d.cardapio, items: Array.isArray(d.cardapio.items) ? d.cardapio.items : [] } : null,
+      });
+    }
     setLastUpdated(new Date());
   };
 
   useEffect(() => {
     if (!eventId) return;
-    let companyIdRef: string | null = null;
-
     const initialLoad = async () => {
-      // Use RPCs instead of direct table access
       const { data: evArr } = await supabase.rpc("get_event_public_info", { _event_id: eventId });
-      const evData = evArr && (evArr as any[])[0];
+      const evData = Array.isArray(evArr) ? (evArr[0] as unknown as PartyEvent | undefined) : undefined;
       if (!evData) { setNotFound(true); setLoading(false); return; }
-      setEvent(evData as PartyEvent);
-      companyIdRef = evData.company_id;
+      setEvent(evData);
+      const companyId = evData.company_id;
 
       const [companyRes, tmplRes] = await Promise.all([
-        supabase.rpc("get_company_public_with_settings", { _company_id: companyIdRef }),
-        (supabase as any).rpc("get_party_form_templates", { _event_id: eventId }),
+        supabase.rpc("get_company_public_with_settings", { _company_id: companyId }),
+        looseRpc("get_party_form_templates", { _event_id: eventId }),
       ]);
-      // Modelos pela função pública (funciona sem login). Se a função ainda não
-      // existir no banco, lê direto das tabelas (só funciona para a equipe logada).
-      let evalList: any[] = [], prefestList: any[] = [], cardapioList: any[] = [];
+      const c = Array.isArray(companyRes.data) ? (companyRes.data[0] as { name: string; logo_url: string | null; slug: string; settings: unknown } | undefined) : undefined;
+      if (c) {
+        const settings = (c.settings && typeof c.settings === "object" && !Array.isArray(c.settings)) ? c.settings as Record<string, unknown> : null;
+        setCompany({ name: c.name, logo_url: c.logo_url, slug: c.slug, settings });
+      }
       if (!tmplRes.error && Array.isArray(tmplRes.data)) {
-        const rows = tmplRes.data as { form_type: string; id: string; name: string; slug: string | null }[];
-        evalList = rows.filter((r) => r.form_type === "avaliacao");
-        prefestList = rows.filter((r) => r.form_type === "prefesta");
-        cardapioList = rows.filter((r) => r.form_type === "cardapio");
-      } else {
-        const [e, p, c] = await Promise.all([
-          supabase.from("evaluation_templates").select("id, name, slug").eq("company_id", companyIdRef).eq("is_active", true),
-          supabase.from("prefesta_templates").select("id, name, slug").eq("company_id", companyIdRef).eq("is_active", true),
-          supabase.from("cardapio_templates").select("id, name, slug").eq("company_id", companyIdRef).eq("is_active", true),
-        ]);
-        evalList = e.data || []; prefestList = p.data || []; cardapioList = c.data || [];
+        const rows = tmplRes.data as (Template & { form_type: string })[];
+        setTemplates({
+          avaliacao: rows.filter((r) => r.form_type === "avaliacao"),
+          prefesta: rows.filter((r) => r.form_type === "prefesta"),
+          cardapio: rows.filter((r) => r.form_type === "cardapio"),
+        });
       }
-
-      if (companyRes.data) {
-        const cArr = companyRes.data as any[];
-        const c = cArr[0];
-        if (c) {
-          const settings = (c.settings && typeof c.settings === "object" && !Array.isArray(c.settings)) ? c.settings as Record<string, unknown> : null;
-          setCompany({ name: c.name, logo_url: c.logo_url, slug: c.slug, settings });
-          setModules(parsePartyControlModules(settings));
-        }
-      }
-
-      setEvalTemplates(evalList);
-      setPrefestTemplates(prefestList);
-      setCardapioTemplates(cardapioList);
-      await fetchModuleStatus(companyIdRef);
+      await fetchStatus();
       setLoading(false);
     };
-
     initialLoad();
-
-    const pollTimer = setInterval(async () => {
-      if (!companyIdRef) return;
-      setRefreshing(true);
-      setCountdown(POLL_INTERVAL / 1000);
-      await fetchModuleStatus(companyIdRef);
-      setRefreshing(false);
-    }, POLL_INTERVAL);
-
-    const countdownTimer = setInterval(() => {
-      setCountdown(prev => (prev <= 1 ? POLL_INTERVAL / 1000 : prev - 1));
-    }, 1000);
-
-    return () => { clearInterval(pollTimer); clearInterval(countdownTimer); };
+    const poll = setInterval(fetchStatus, POLL_INTERVAL);
+    const clock = setInterval(() => setNow(new Date()), 60_000);
+    return () => { clearInterval(poll); clearInterval(clock); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
 
-  const _handleCopyLink = () => {
-    const url = `${window.location.origin}/festa/${eventId}`;
-    navigator.clipboard.writeText(url);
-    _setCopied(true);
-    setTimeout(() => _setCopied(false), 2000);
-  };
-
-  const _handleShareWhatsApp = () => {
-    if (!event) return;
-    const url = `${window.location.origin}/festa/${eventId}`;
-    const dateStr = format(new Date(event.event_date + "T12:00:00"), "EEEE, dd/MM", { locale: ptBR });
-    const timeStr = event.start_time ? `${event.start_time.slice(0, 5)}${event.end_time ? ` às ${event.end_time.slice(0, 5)}` : ""}` : "";
-    const unitStr = event.unit ? ` • ${event.unit}` : "";
-    const lines = [`🎉 *${event.title}*`, `📅 ${dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}${timeStr ? ` • ${timeStr}` : ""}${unitStr}`, ``, `🎮 *Painel de Controle da Festa:*`, url];
-    window.open(`https://wa.me/?text=${encodeURIComponent(lines.join("\n"))}`, "_blank");
-  };
-
-  const openModule = (url: string) => window.open(url, "_blank");
-
-  const getModuleUrl = (key: string): string | null => {
-    const companySlug = company?.slug || "";
-    switch (key) {
-      case "staff": return status.staff.id ? `/equipe/${status.staff.id}` : null;
-      case "maintenance": return status.maintenance.id ? `/manutencao/${status.maintenance.id}` : null;
-      case "monitoring": return status.monitoring.id ? `/acompanhamento/${status.monitoring.id}` : null;
-      case "attendance": return status.attendance.id ? `/lista-presenca/${status.attendance.id}` : null;
-      case "info": return status.info.id ? `/informacoes/${status.info.id}` : null;
-      case "avaliacao": return evalTemplates[0] ? buildPublicFormPath({ type: "avaliacao", templateId: evalTemplates[0].id, templateSlug: evalTemplates[0].slug, companySlug }) : null;
-      case "prefesta": return prefestTemplates[0] ? buildPublicFormPath({ type: "prefesta", templateId: prefestTemplates[0].id, templateSlug: prefestTemplates[0].slug, companySlug }) : null;
-      case "cardapio": {
-        const t = pickCardapioForPackage(cardapioTemplates, event?.package_name, company?.name);
-        return t ? buildPublicFormPath({ type: "cardapio", templateId: t.id, templateSlug: t.slug, companySlug }) : null;
-      }
-      default: return null;
-    }
-  };
-
-  const pendingChecklistItems = checklistItems.filter(i => !i.is_completed);
-  const pendingCount = pendingChecklistItems.length;
-
-  const modulesMissing = (() => {
-    if (!modules) return 0;
-    let count = 0;
-    if (modules.staff && !status.staff.id) count++;
-    if (modules.maintenance && !status.maintenance.id) count++;
-    if (modules.monitoring && !status.monitoring.id) count++;
-    if (modules.attendance && !status.attendance.id) count++;
-    if (modules.info && !status.info.id) count++;
-    return count;
-  })();
+  const modules = useMemo(() => parsePartyControlModules(company?.settings ?? null), [company]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "radial-gradient(ellipse 80% 60% at 50% 30%, #12174a 0%, #060810 100%)" }}>
-        <div className="text-center space-y-4">
-          <div className="relative mx-auto w-16 h-16">
-            <div className="absolute inset-0 rounded-full" style={{ background: "rgba(139,92,246,0.2)", animation: "ping 1.5s ease-in-out infinite" }} />
-            <div className="relative flex items-center justify-center w-16 h-16 rounded-full" style={{ background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.4)", boxShadow: "0 0 30px rgba(139,92,246,0.3)" }}>
-              <Loader2 className="h-7 w-7 animate-spin" style={{ color: "#a78bfa" }} />
-            </div>
-          </div>
-          <p className="text-slate-400 text-sm font-medium tracking-wide">Carregando central...</p>
+      <div className="min-h-screen flex items-center justify-center bg-[#F4F2FA]">
+        <div className="text-center space-y-3">
+          <Loader2 className="h-7 w-7 animate-spin text-violet-600 mx-auto" />
+          <p className="text-sm text-slate-600">Carregando a festa…</p>
         </div>
       </div>
     );
@@ -282,579 +201,461 @@ export default function PublicPartyControl() {
 
   if (notFound || !event || !company) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "radial-gradient(ellipse 80% 60% at 50% 30%, #0d1020 0%, #020305 100%)" }}>
-        <div className="text-center space-y-4">
-          <Shield className="h-16 w-16 mx-auto" style={{ color: "#334155" }} />
-          <h1 className="text-xl font-bold text-white">Evento não encontrado</h1>
-          <p className="text-slate-500 text-sm">Este link pode estar incorreto ou o evento foi removido.</p>
+      <div className="min-h-screen flex items-center justify-center p-4 bg-[#F4F2FA]">
+        <div className="text-center space-y-3">
+          <Shield className="h-14 w-14 mx-auto text-slate-400" />
+          <h1 className="text-xl font-bold text-slate-900">Festa não encontrada</h1>
+          <p className="text-slate-600 text-sm">Este link pode estar incorreto ou a festa foi removida.</p>
         </div>
       </div>
     );
   }
 
-  const dateFormatted = format(new Date(event.event_date + "T12:00:00"), "EEE, dd/MM", { locale: ptBR });
-  const timeStr = event.start_time ? `${event.start_time.slice(0, 5)}${event.end_time ? `–${event.end_time.slice(0, 5)}` : ""}` : null;
-
-  const moduleDefinitions = [
-    { key: "summary", label: "Resumo", emoji: "📋", glow: "rgba(99,102,241,0.38)", border: "rgba(129,140,248,0.60)", bg: "linear-gradient(160deg, rgba(99,102,241,0.32) 0%, rgba(67,56,202,0.12) 50%, rgba(20,10,80,0.08) 100%)", enabled: true, statusText: "Ver detalhes", isOk: true, isWarning: false, isEmpty: false },
-    { key: "checklist", label: "Checklist", emoji: "✅", glow: "rgba(16,185,129,0.38)", border: "rgba(52,211,153,0.60)", bg: "linear-gradient(160deg, rgba(16,185,129,0.32) 0%, rgba(5,150,105,0.12) 50%, rgba(1,28,18,0.08) 100%)", enabled: modules?.checklist ?? true, statusText: status.checklist.total === 0 ? "Sem itens" : `${status.checklist.completed}/${status.checklist.total} itens`, isOk: status.checklist.total > 0 && status.checklist.completed === status.checklist.total, isWarning: status.checklist.total > 0 && status.checklist.completed < status.checklist.total, isEmpty: status.checklist.total === 0 },
-    { key: "staff", label: "Equipe", emoji: "👥", glow: "rgba(59,130,246,0.38)", border: "rgba(99,155,255,0.60)", bg: "linear-gradient(160deg, rgba(59,130,246,0.32) 0%, rgba(37,99,235,0.12) 50%, rgba(8,20,60,0.08) 100%)", enabled: modules?.staff ?? true, statusText: status.staff.id ? "Registrado" : "Não criado", isOk: !!status.staff.id, isWarning: !status.staff.id, isEmpty: false, url: getModuleUrl("staff") },
-    { key: "maintenance", label: "Manutenção", emoji: "🔧", glow: "rgba(139,92,246,0.38)", border: "rgba(167,139,250,0.60)", bg: "linear-gradient(160deg, rgba(139,92,246,0.32) 0%, rgba(109,40,217,0.12) 50%, rgba(30,8,70,0.08) 100%)", enabled: modules?.maintenance ?? true, statusText: status.maintenance.id ? "Registrado" : "Não criado", isOk: !!status.maintenance.id, isWarning: !status.maintenance.id, isEmpty: false, url: getModuleUrl("maintenance") },
-    { key: "monitoring", label: "Acompanhamento", emoji: "📋", glow: "rgba(245,158,11,0.38)", border: "rgba(251,191,36,0.60)", bg: "linear-gradient(160deg, rgba(245,158,11,0.32) 0%, rgba(180,83,9,0.12) 50%, rgba(70,28,0,0.08) 100%)", enabled: modules?.monitoring ?? true, statusText: status.monitoring.id ? "Registrado" : "Não criado", isOk: !!status.monitoring.id, isWarning: !status.monitoring.id, isEmpty: false, url: getModuleUrl("monitoring") },
-    { key: "attendance", label: "Presença", emoji: "🎟️", glow: "rgba(249,115,22,0.38)", border: "rgba(251,146,60,0.60)", bg: "linear-gradient(160deg, rgba(249,115,22,0.32) 0%, rgba(194,65,12,0.12) 50%, rgba(80,20,0,0.08) 100%)", enabled: modules?.attendance ?? true, statusText: status.attendance.id ? `${status.attendance.guestCount} convidados` : "Não criado", isOk: !!status.attendance.id, isWarning: !status.attendance.id, isEmpty: false, url: getModuleUrl("attendance") },
-    { key: "info", label: "Informações", emoji: "📌", glow: "rgba(6,182,212,0.38)", border: "rgba(34,211,238,0.60)", bg: "linear-gradient(160deg, rgba(6,182,212,0.32) 0%, rgba(8,145,178,0.12) 50%, rgba(0,40,60,0.08) 100%)", enabled: modules?.info ?? true, statusText: status.info.id ? `${status.info.blockCount} blocos` : "Não criado", isOk: !!status.info.id, isWarning: !status.info.id, isEmpty: false, url: getModuleUrl("info") },
-    { key: "prefesta", label: "Pré-Festa", emoji: "🎀", glow: "rgba(236,72,153,0.38)", border: "rgba(244,114,182,0.60)", bg: "linear-gradient(160deg, rgba(236,72,153,0.32) 0%, rgba(190,24,93,0.12) 50%, rgba(70,0,35,0.08) 100%)", enabled: modules?.prefesta ?? false, statusText: getModuleUrl("prefesta") ? "Disponível" : "Sem modelo", isOk: !!getModuleUrl("prefesta"), isWarning: !getModuleUrl("prefesta"), isEmpty: false, url: getModuleUrl("prefesta") },
-    { key: "cardapio", label: "Cardápio", emoji: "🍽️", glow: "rgba(234,179,8,0.38)", border: "rgba(250,204,21,0.60)", bg: "linear-gradient(160deg, rgba(234,179,8,0.32) 0%, rgba(161,98,7,0.12) 50%, rgba(60,35,0,0.08) 100%)", enabled: modules?.cardapio ?? false, statusText: getModuleUrl("cardapio") ? "Disponível" : "Sem modelo", isOk: !!getModuleUrl("cardapio"), isWarning: !getModuleUrl("cardapio"), isEmpty: false, url: getModuleUrl("cardapio") },
-    { key: "avaliacao", label: "Avaliação", emoji: "⭐", glow: "rgba(20,184,166,0.38)", border: "rgba(45,212,191,0.60)", bg: "linear-gradient(160deg, rgba(20,184,166,0.32) 0%, rgba(15,118,110,0.12) 50%, rgba(0,40,36,0.08) 100%)", enabled: modules?.avaliacao ?? false, statusText: getModuleUrl("avaliacao") ? "Disponível" : "Sem modelo", isOk: !!getModuleUrl("avaliacao"), isWarning: !getModuleUrl("avaliacao"), isEmpty: false, url: getModuleUrl("avaliacao") },
-  ].filter(m => m.enabled);
-
-  const checklistProgress = status.checklist.total > 0
-    ? Math.round((status.checklist.completed / status.checklist.total) * 100)
-    : 0;
-
-  const statusColors = {
-    confirmado: { bg: "linear-gradient(90deg,rgba(16,185,129,0.32),rgba(5,150,105,0.20))", color: "#34d399", border: "rgba(52,211,153,0.65)", glow: "rgba(16,185,129,0.45)" },
-    cancelado:  { bg: "linear-gradient(90deg,rgba(239,68,68,0.32),rgba(185,28,28,0.20))",   color: "#f87171", border: "rgba(239,68,68,0.65)",   glow: "rgba(239,68,68,0.45)" },
-    default:    { bg: "linear-gradient(90deg,rgba(251,191,36,0.32),rgba(180,83,9,0.20))",   color: "#fbbf24", border: "rgba(251,191,36,0.65)",   glow: "rgba(251,191,36,0.45)" },
+  const companySlug = company.slug || "";
+  const formUrl = (type: "avaliacao" | "prefesta" | "cardapio") => {
+    const t = type === "cardapio"
+      ? pickCardapioForPackage(templates.cardapio, event.package_name, company.name)
+      : templates[type][0];
+    return t ? buildPublicFormPath({ type, templateId: t.id, templateSlug: t.slug, companySlug }) : null;
   };
-  const sc = event.status === "confirmado" ? statusColors.confirmado : event.status === "cancelado" ? statusColors.cancelado : statusColors.default;
+  const copyLink = async (key: string, path: string) => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}${path}`);
+      setCopied(key);
+      setTimeout(() => setCopied(null), 2000);
+    } catch { /* sem permissão de copiar */ }
+  };
+
+  const children: { name: string; age: string }[] = [];
+  if (Array.isArray(event.birthday_children) && event.birthday_children.length) {
+    event.birthday_children.forEach((c) => c?.name && children.push({ name: c.name, age: c.age || "" }));
+  } else if (event.child_name) {
+    children.push({ name: event.child_name, age: event.child_age || "" });
+  }
+  const optionals = Array.isArray(event.event_optionals) ? event.event_optionals.filter((o) => o?.name) : [];
+  const parents = parentsText(event.parent_names);
+
+  const dateLong = format(new Date(event.event_date + "T12:00:00"), "EEEE, d 'de' MMMM", { locale: ptBR });
+  const timeStr = event.start_time ? `${event.start_time.slice(0, 5)}${event.end_time ? ` às ${event.end_time.slice(0, 5)}` : ""}` : null;
+  const phase = partyPhase(event.event_date, event.start_time, event.end_time, now);
+  const timeline = buildTimeline(parseSchedule(company.settings), event.start_time, event.end_time, event.event_date, now);
+
+  const checklistDone = checklistItems.filter((i) => i.is_completed).length;
+  const checklistTotal = checklistItems.length;
+  const clientForms = [
+    ...(modules.prefesta ? [!!details.prefesta] : []),
+    ...(modules.cardapio ? [!!details.cardapio] : []),
+  ];
+  const ready = !detailsKnown ? null : readiness(modules.checklist ? { total: checklistTotal, completed: checklistDone } : { total: 0, completed: 0 }, clientForms);
+
+  // Avisos de verdade: formulário do cliente sem resposta a até 3 dias da festa
+  const daysToParty = Math.round((new Date(event.event_date + "T00:00:00").getTime() - new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()) / 86400000);
+  const alerts: { key: string; title: string; text: string; link: string | null }[] = [];
+  if (detailsKnown && phase.kind === "before" && daysToParty <= 3) {
+    const when = daysToParty <= 0 ? "A festa é hoje." : daysToParty === 1 ? "A festa é amanhã." : `A festa é em ${daysToParty} dias.`;
+    if (modules.prefesta && !details.prefesta) alerts.push({ key: "prefesta", title: "Pré-Festa ainda não respondida", text: `${when} Mande o link de novo para o cliente.`, link: formUrl("prefesta") });
+    if (modules.cardapio && !details.cardapio) alerts.push({ key: "cardapio", title: "Cardápio ainda não escolhido", text: `${when} Mande o link de novo para o cliente.`, link: formUrl("cardapio") });
+  }
+  if (event.status === "cancelado") alerts.unshift({ key: "cancelada", title: "Festa cancelada", text: "Esta festa está marcada como cancelada na Agenda.", link: null });
+
+  const staffLink = details.staff_id ? `/equipe/${details.staff_id}` : null;
+  const moreTools = [
+    { key: "maintenance", on: modules.maintenance, label: "Manutenção", icon: Wrench, link: details.maintenance_id ? `/manutencao/${details.maintenance_id}` : null, item: "manutencao" },
+    { key: "monitoring", on: modules.monitoring, label: "Acompanhamento", icon: Eye, link: details.monitoring_id ? `/acompanhamento/${details.monitoring_id}` : null, item: "acompanhamento" },
+    { key: "info", on: modules.info, label: "Informações para a equipe", icon: Info, link: infoId ? `/informacoes/${infoId}` : null, item: "informacoes" },
+  ].filter((t) => t.on);
+  const respondedOn = (iso: string) => format(new Date(iso), "dd/MM");
+  const statusLabel = event.status === "confirmado" ? "Confirmada" : event.status === "cancelado" ? "Cancelada" : "Pendente";
+  const pendingChecklist = checklistItems.filter((i) => !i.is_completed);
+  const checklistShown = showAllChecklist ? checklistItems : pendingChecklist.slice(0, 4);
+  const menuItems = details.cardapio?.items || [];
 
   return (
-    <div
-      className="flex flex-col overflow-hidden relative"
-      style={{
-        background: "radial-gradient(ellipse 75% 50% at 50% 18%, #1a2158 0%, #070a18 48%, #010203 100%)",
-        height: "100dvh",
-      }}
-    >
-      {/* Noise */}
-      <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.07'/%3E%3C/svg%3E")`, zIndex: 0 }} />
-      {/* Vignette forte */}
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 90% 90% at 50% 45%, transparent 20%, rgba(0,0,0,0.50) 60%, rgba(0,0,0,0.92) 100%)", zIndex: 0 }} />
+    <div className="min-h-screen bg-[#F4F2FA] text-slate-900 pb-10">
+      <div className="mx-auto max-w-xl">
+        {/* Topo na cor da festa */}
+        <header className="bg-violet-700 text-white px-5 pt-4 pb-20 rounded-b-[32px] space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              {company.logo_url ? (
+                <img src={company.logo_url} alt="" className="h-10 w-10 rounded-xl bg-white object-contain p-0.5" />
+              ) : (
+                <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center"><PartyPopper className="h-5 w-5" /></div>
+              )}
+              <span className="font-bold text-sm truncate">{company.name}</span>
+            </div>
+            <span className="shrink-0 text-xs font-semibold bg-white/15 rounded-full px-2.5 py-1">
+              {lastUpdated ? `Atualizado ${lastUpdated.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : "Ao vivo"}
+            </span>
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-violet-100 first-letter:uppercase">{dateLong}{timeStr ? ` · ${timeStr}` : ""}</p>
+            <h1 className="font-display text-[30px] leading-[1.1] font-extrabold tracking-tight">{event.title.trim()}</h1>
+          </div>
+          <div className="flex flex-wrap gap-2 text-[13px] font-semibold">
+            {event.guest_count ? <span className="bg-white/15 rounded-full px-3 py-1.5">{event.guest_count} convidados</span> : null}
+            {event.package_name ? <span className="bg-white/15 rounded-full px-3 py-1.5">{event.package_name}</span> : null}
+            {event.unit ? <span className="bg-white/15 rounded-full px-3 py-1.5">{event.unit}</span> : null}
+            <span className="bg-white/15 rounded-full px-3 py-1.5">{statusLabel}</span>
+          </div>
+        </header>
 
-      {/* ══════════════ HEADER ══════════════ */}
-      <div
-        className="shrink-0 px-3 pt-2 pb-2.5 relative z-10"
-        style={{
-          background: "linear-gradient(180deg, rgba(44,54,108,0.99) 0%, rgba(20,26,58,0.98) 60%, rgba(10,13,30,0.96) 100%)",
-          borderBottom: "1px solid rgba(139,92,246,0.60)",
-          borderLeft: "1px solid rgba(139,92,246,0.15)",
-          borderRight: "1px solid rgba(139,92,246,0.15)",
-          boxShadow: [
-            "0 24px 64px rgba(0,0,0,0.95)",
-            "0 10px 28px rgba(0,0,0,0.75)",
-            "inset 0 2px 0 rgba(255,255,255,0.16)",
-            "inset 0 -1px 0 rgba(139,92,246,0.30)",
-            "0 4px 24px rgba(139,92,246,0.45)",
-          ].join(", "),
-        }}
-      >
-        {/* Top highlight — linha brilhante */}
-        <div className="absolute top-0 left-0 right-0 h-px" style={{ background: "linear-gradient(90deg, transparent 3%, rgba(167,139,250,0.7) 25%, rgba(221,214,254,1) 50%, rgba(167,139,250,0.7) 75%, transparent 97%)", boxShadow: "0 0 12px rgba(167,139,250,0.6)" }} />
-        {/* Brilho lateral esquerdo */}
-        <div className="absolute top-0 bottom-0 left-0 w-px" style={{ background: "linear-gradient(180deg, rgba(167,139,250,0.7) 0%, rgba(139,92,246,0.2) 60%, transparent 100%)" }} />
-        {/* Brilho lateral direito */}
-        <div className="absolute top-0 bottom-0 right-0 w-px" style={{ background: "linear-gradient(180deg, rgba(167,139,250,0.7) 0%, rgba(139,92,246,0.2) 60%, transparent 100%)" }} />
-
-        {/* Company bar */}
-        <div className="flex items-center justify-between mb-1.5">
-          <div className="flex items-center gap-1.5">
-            {company.logo_url ? (
-              <img src={company.logo_url} alt={company.name} className="h-5 w-5 rounded-md object-cover" style={{ border: "1px solid rgba(167,139,250,0.55)", boxShadow: "0 0 10px rgba(139,92,246,0.45)" }} />
-            ) : (
-              <div className="h-5 w-5 rounded-md flex items-center justify-center" style={{ background: "rgba(139,92,246,0.40)", border: "1px solid rgba(167,139,250,0.65)", boxShadow: "0 0 10px rgba(139,92,246,0.5)" }}>
-                <PartyPopper className="h-2.5 w-2.5" style={{ color: "#ddd6fe" }} />
+        {/* Contagem e quanto está pronto */}
+        <section className="-mt-14 mx-4 bg-white rounded-3xl shadow-[0_10px_30px_rgba(40,20,90,0.12)] p-5 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                {phase.kind === "live" ? "Festa em andamento" : phase.kind === "after" ? "Festa" : "Contagem"}
+              </p>
+              <p className={cn("font-display text-2xl font-extrabold leading-tight", phase.kind === "live" ? "text-emerald-700" : "text-violet-700")}>{phase.text}</p>
+            </div>
+            {ready !== null && (
+              <div
+                className="h-[76px] w-[76px] shrink-0 rounded-full flex items-center justify-center"
+                style={{ background: `conic-gradient(#6D28D9 0 ${ready}%, #ECE8F8 ${ready}% 100%)` }}
+                role="img"
+                aria-label={`${ready}% pronto`}
+              >
+                <div className="h-[58px] w-[58px] rounded-full bg-white flex flex-col items-center justify-center">
+                  <span className="text-[17px] font-extrabold leading-none">{ready}%</span>
+                  <span className="text-[10px] font-bold text-slate-500">pronto</span>
+                </div>
               </div>
             )}
-            <span className="text-[9px] font-black tracking-widest uppercase" style={{ color: "#c4b5fd", letterSpacing: "0.14em" }}>{company.name}</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            {refreshing ? (
-              <Loader2 className="h-2.5 w-2.5 animate-spin" style={{ color: "#a78bfa" }} />
-            ) : (
-              <span className="inline-block h-2 w-2 rounded-full animate-pulse" style={{ background: "#22c55e", boxShadow: "0 0 10px rgba(34,197,94,1), 0 0 20px rgba(34,197,94,0.5)" }} />
+          <div className="grid grid-cols-3 gap-2 text-center">
+            {modules.checklist && (
+              <div className="rounded-2xl bg-[#F4F2FA] py-2.5">
+                <p className="text-lg font-extrabold">{checklistTotal ? `${checklistDone}/${checklistTotal}` : "—"}</p>
+                <p className="text-[11px] font-bold text-slate-600">Checklist</p>
+              </div>
             )}
-            <span className="font-mono text-[8px]" style={{ color: "#6b7280" }}>
-              {refreshing ? "Sincronizando..." : lastUpdated ? `${lastUpdated.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · ${countdown}s` : "Ao vivo"}
-            </span>
+            {modules.staff && (
+              <div className="rounded-2xl bg-[#F4F2FA] py-2.5">
+                <p className="text-lg font-extrabold">{details.staff.length || "—"}</p>
+                <p className="text-[11px] font-bold text-slate-600">Na equipe</p>
+              </div>
+            )}
+            {modules.attendance && (
+              <div className="rounded-2xl bg-[#F4F2FA] py-2.5">
+                <p className="text-lg font-extrabold">{attendanceCount}{event.guest_count ? `/${event.guest_count}` : ""}</p>
+                <p className="text-[11px] font-bold text-slate-600">Chegaram</p>
+              </div>
+            )}
           </div>
-        </div>
+        </section>
 
-        {/* Event info */}
-        <div className="text-center mb-2">
-          <div className="inline-flex items-center gap-1 mb-1 px-2.5 py-0.5 rounded-full" style={{ background: "linear-gradient(90deg, rgba(109,40,217,0.45), rgba(139,92,246,0.30), rgba(109,40,217,0.45))", border: "1px solid rgba(196,181,253,0.55)", boxShadow: "0 0 24px rgba(139,92,246,0.45), inset 0 1px 0 rgba(255,255,255,0.15)" }}>
-            <Zap className="h-2.5 w-2.5" style={{ color: "#f3e8ff", filter: "drop-shadow(0 0 4px rgba(167,139,250,0.8))" }} />
-            <span className="text-[9px] font-black tracking-widest uppercase" style={{ color: "#f3e8ff" }}>Central de Controle</span>
-          </div>
-          <h1 className="font-black text-lg leading-tight text-white mb-0.5" style={{ textShadow: "0 0 30px rgba(167,139,250,0.60), 0 0 60px rgba(139,92,246,0.25), 0 2px 8px rgba(0,0,0,0.7)" }}>
-            {event.title}
-          </h1>
-          <p className="text-[10px] font-semibold leading-tight" style={{ color: "#475569" }}>
-            <span className="capitalize">{dateFormatted}</span>
-            {timeStr && <span> • {timeStr}</span>}
-            {event.unit && <span> • {event.unit}</span>}
-            {event.guest_count && <span> • {event.guest_count} conv.</span>}
-          </p>
-          <div className="mt-1 flex justify-center">
-            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[9px] font-black"
-              style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, boxShadow: `0 0 18px ${sc.glow}, inset 0 1px 0 rgba(255,255,255,0.12)` }}>
-              <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: sc.color, boxShadow: `0 0 8px ${sc.color}` }} />
-              {event.status === "confirmado" ? "🎉 Confirmado" : event.status === "cancelado" ? "Cancelado" : "Pendente"}
-            </span>
-          </div>
-        </div>
-
-        {/* ── KPI CARDS ── */}
-        <div className="grid grid-cols-3 gap-2 mb-2">
-          {/* OK */}
-          <div className="rounded-xl py-3 px-1 text-center relative overflow-hidden" style={{ background: "linear-gradient(160deg, rgba(16,185,129,0.45) 0%, rgba(5,150,105,0.18) 45%, rgba(1,25,16,0.12) 100%)", border: "1px solid rgba(52,211,153,0.70)", boxShadow: ["0 20px 48px rgba(16,185,129,0.40)", "0 8px 20px rgba(0,0,0,0.75)", "inset 0 3px 0 rgba(255,255,255,0.20)", "inset 0 -2px 0 rgba(0,0,0,0.45)", "inset 0 0 20px rgba(16,185,129,0.08)"].join(", ") }}>
-            <div className="absolute top-0 left-2 right-2 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(110,231,183,1), transparent)", boxShadow: "0 0 6px rgba(110,231,183,0.8)" }} />
-            <div style={{ fontSize: "28px", lineHeight: 1, marginBottom: "4px", filter: "drop-shadow(0 3px 8px rgba(16,185,129,0.7))" }}>✅</div>
-            <div className="font-black leading-none" style={{ fontSize: "32px", color: "#34d399", textShadow: "0 0 24px rgba(52,211,153,1), 0 0 48px rgba(52,211,153,0.6), 0 2px 6px rgba(0,0,0,0.6)" }}>
-              {status.checklist.completed}
-            </div>
-            <div className="text-[8px] font-black uppercase mt-1" style={{ color: "#6ee7b7", letterSpacing: "0.18em" }}>OK</div>
-          </div>
-
-          {/* Pendentes */}
-          <div className="rounded-xl py-3 px-1 text-center relative overflow-hidden" style={{ background: "linear-gradient(160deg, rgba(251,191,36,0.45) 0%, rgba(180,83,9,0.18) 45%, rgba(55,22,0,0.12) 100%)", border: "1px solid rgba(251,191,36,0.70)", boxShadow: ["0 20px 48px rgba(251,191,36,0.40)", "0 8px 20px rgba(0,0,0,0.75)", "inset 0 3px 0 rgba(255,255,255,0.20)", "inset 0 -2px 0 rgba(0,0,0,0.45)", "inset 0 0 20px rgba(251,191,36,0.08)"].join(", ") }}>
-            <div className="absolute top-0 left-2 right-2 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(253,230,138,1), transparent)", boxShadow: "0 0 6px rgba(253,230,138,0.8)" }} />
-            <div style={{ fontSize: "28px", lineHeight: 1, marginBottom: "4px", filter: "drop-shadow(0 3px 8px rgba(251,191,36,0.7))" }}>⏳</div>
-            <div className="font-black leading-none" style={{ fontSize: "32px", color: "#fbbf24", textShadow: "0 0 24px rgba(251,191,36,1), 0 0 48px rgba(251,191,36,0.6), 0 2px 6px rgba(0,0,0,0.6)" }}>
-              {pendingCount}
-            </div>
-            <div className="text-[8px] font-black uppercase mt-1" style={{ color: "#fde68a", letterSpacing: "0.18em" }}>Pendentes</div>
-          </div>
-
-          {/* Alertas */}
-          <div className="rounded-xl py-3 px-1 text-center relative overflow-hidden"
-            style={{
-              background: modulesMissing > 0
-                ? "linear-gradient(160deg, rgba(239,68,68,0.48) 0%, rgba(185,28,28,0.20) 45%, rgba(65,5,5,0.14) 100%)"
-                : "linear-gradient(160deg, rgba(16,185,129,0.35) 0%, rgba(5,150,105,0.12) 45%, rgba(1,25,16,0.08) 100%)",
-              border: modulesMissing > 0 ? "1px solid rgba(239,68,68,0.72)" : "1px solid rgba(52,211,153,0.60)",
-              boxShadow: modulesMissing > 0
-                ? ["0 20px 48px rgba(239,68,68,0.45)", "0 8px 20px rgba(0,0,0,0.75)", "inset 0 3px 0 rgba(255,255,255,0.20)", "inset 0 -2px 0 rgba(0,0,0,0.45)", "inset 0 0 20px rgba(239,68,68,0.10)"].join(", ")
-                : ["0 20px 48px rgba(16,185,129,0.28)", "0 8px 20px rgba(0,0,0,0.75)", "inset 0 3px 0 rgba(255,255,255,0.20)", "inset 0 -2px 0 rgba(0,0,0,0.45)"].join(", "),
-            }}>
-            <div className="absolute top-0 left-2 right-2 h-px" style={{ background: modulesMissing > 0 ? "linear-gradient(90deg, transparent, rgba(252,165,165,1), transparent)" : "linear-gradient(90deg, transparent, rgba(110,231,183,0.9), transparent)", boxShadow: modulesMissing > 0 ? "0 0 6px rgba(252,165,165,0.7)" : "0 0 6px rgba(110,231,183,0.7)" }} />
-            <div style={{ fontSize: "28px", lineHeight: 1, marginBottom: "4px", filter: modulesMissing > 0 ? "drop-shadow(0 3px 8px rgba(239,68,68,0.8))" : "drop-shadow(0 3px 8px rgba(16,185,129,0.6))" }}>{modulesMissing > 0 ? "🚨" : "🟢"}</div>
-            <div className="font-black leading-none" style={{ fontSize: "32px", color: modulesMissing > 0 ? "#f87171" : "#34d399", textShadow: modulesMissing > 0 ? "0 0 24px rgba(239,68,68,1), 0 0 48px rgba(239,68,68,0.6), 0 2px 6px rgba(0,0,0,0.6)" : "0 0 24px rgba(52,211,153,1), 0 0 48px rgba(52,211,153,0.5), 0 2px 6px rgba(0,0,0,0.6)" }}>
-              {modulesMissing}
-            </div>
-            <div className="text-[8px] font-black uppercase mt-1" style={{ color: modulesMissing > 0 ? "#fca5a5" : "#6ee7b7", letterSpacing: "0.18em" }}>Alertas</div>
-          </div>
-        </div>
-
-        {/* Progress bar */}
-        {status.checklist.total > 0 && (
-          <div className="mb-2">
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "#334155" }}>Checklist</span>
-              <span className="text-[9px] font-black font-mono" style={{ color: checklistProgress === 100 ? "#34d399" : "#64748b" }}>{checklistProgress}%</span>
-            </div>
-            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)", boxShadow: "inset 0 2px 6px rgba(0,0,0,0.6)" }}>
-              <div className="h-full rounded-full transition-all duration-700"
-                style={{
-                  width: `${checklistProgress}%`,
-                  background: checklistProgress === 100 ? "linear-gradient(90deg, #059669, #10b981, #34d399)" : "linear-gradient(90deg, #92400e, #d97706, #fbbf24)",
-                  boxShadow: checklistProgress === 100 ? "0 0 12px rgba(52,211,153,0.9), 0 0 24px rgba(52,211,153,0.4)" : "0 0 12px rgba(251,191,36,0.9), 0 0 24px rgba(251,191,36,0.4)",
-                }} />
-            </div>
-          </div>
-        )}
-
-        {/* Alert banner */}
-        {modulesMissing > 0 && (
-          <div className="rounded-xl px-3 py-2 flex items-center gap-2.5 relative overflow-hidden"
-            style={{
-              background: "linear-gradient(135deg, rgba(185,28,28,0.55) 0%, rgba(239,68,68,0.25) 50%, rgba(127,29,29,0.40) 100%)",
-              border: "1px solid rgba(239,68,68,0.68)",
-              boxShadow: ["0 12px 32px rgba(239,68,68,0.45)", "0 4px 14px rgba(0,0,0,0.6)", "inset 0 2px 0 rgba(255,255,255,0.12)", "inset 0 0 30px rgba(239,68,68,0.12)"].join(", "),
-            }}>
-            <div className="absolute top-0 left-3 right-3 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(252,165,165,0.9), transparent)" }} />
-            <AlertTriangle className="h-4 w-4 shrink-0" style={{ color: "#fca5a5", filter: "drop-shadow(0 0 8px rgba(239,68,68,1))" }} />
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black leading-tight" style={{ color: "#fecaca" }}>Atenção necessária</p>
-              <p className="text-[9px] font-semibold leading-tight mt-0.5" style={{ color: "#fca5a5" }}>
-                {modulesMissing} módulo{modulesMissing > 1 ? "s" : ""} não {modulesMissing > 1 ? "criados" : "criado"}
-              </p>
-            </div>
-            <button
-              onClick={() => setActiveTab("home")}
-              className="flex items-center gap-1 text-[9px] font-black px-2 py-1.5 rounded-lg shrink-0 transition-all active:scale-95"
-              style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.7), rgba(220,38,38,0.5))", color: "#fef2f2", border: "1px solid rgba(252,165,165,0.55)", boxShadow: "0 4px 14px rgba(239,68,68,0.5), inset 0 1px 0 rgba(255,255,255,0.18)" }}>
-              Ver <ArrowRight className="h-2.5 w-2.5" />
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Luminous separator */}
-      <div className="shrink-0 relative z-10 h-px" style={{ background: "linear-gradient(90deg, transparent 0%, rgba(109,40,217,0.5) 15%, rgba(167,139,250,1) 50%, rgba(109,40,217,0.5) 85%, transparent 100%)", boxShadow: "0 0 20px rgba(139,92,246,0.7), 0 0 40px rgba(139,92,246,0.25)" }} />
-
-      {/* ══════════════ CONTENT ══════════════ */}
-      <div className="flex-1 overflow-y-auto py-3 relative z-10">
-
-        {/* HOME TAB */}
-        {activeTab === "home" && (
-          <div className="px-3">
-            <div className="grid grid-cols-2 gap-3">
-              {moduleDefinitions.map(mod => {
-                const isClickable = mod.key === "checklist" || mod.key === "summary" || !!(mod as any).url;
-                return (
-                  <button
-                    key={mod.key}
-                    onClick={() => {
-                      if (mod.key === "checklist") setActiveTab("checklist");
-                      else if (mod.key === "summary") setActiveTab("summary");
-                      else if ((mod as any).url) openModule((mod as any).url);
-                    }}
-                    disabled={!isClickable}
-                    className="relative rounded-2xl text-left transition-all duration-200 hover:scale-[1.04] active:scale-[0.97] disabled:opacity-15 overflow-hidden"
-                    style={{
-                      padding: "16px 13px 14px",
-                      background: isClickable ? mod.bg : "linear-gradient(160deg, rgba(15,18,38,0.80) 0%, rgba(8,10,22,0.60) 100%)",
-                      border: isClickable ? `1px solid ${mod.border}` : "1px solid rgba(255,255,255,0.06)",
-                      boxShadow: isClickable
-                        ? [
-                            `0 20px 45px ${mod.glow}`,
-                            "0 8px 20px rgba(0,0,0,0.80)",
-                            "inset 0 2px 0 rgba(255,255,255,0.20)",
-                            "inset 0 -3px 0 rgba(0,0,0,0.50)",
-                            "inset 1px 0 0 rgba(255,255,255,0.06)",
-                          ].join(", ")
-                        : "0 4px 14px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)",
-                    }}
-                  >
-                    {/* Top highlight shimmer */}
-                    {isClickable && (
-                      <div className="absolute top-0 left-4 right-4 h-px"
-                        style={{ background: `linear-gradient(90deg, transparent, ${mod.border.replace(/[\d.]+\)$/, "1.0)")}, transparent)`, boxShadow: `0 0 6px ${mod.border}` }} />
-                    )}
-                    {/* Inner top glow */}
-                    {isClickable && (
-                      <div className="absolute top-0 left-0 right-0 h-12 pointer-events-none"
-                        style={{ background: `linear-gradient(180deg, ${mod.glow.replace(/[\d.]+\)$/, "0.22)")}, transparent)` }} />
-                    )}
-
-                    {/* Status dot */}
-                    <div className="absolute top-3 right-3">
-                      <div
-                        className={!mod.isEmpty ? "animate-pulse" : ""}
-                        style={{
-                          width: "10px", height: "10px", borderRadius: "50%",
-                          background: mod.isOk ? "#34d399" : mod.isEmpty ? "#1a2035" : "#fbbf24",
-                          boxShadow: mod.isOk
-                            ? "0 0 12px rgba(52,211,153,1), 0 0 24px rgba(52,211,153,0.65)"
-                            : mod.isEmpty ? "none"
-                            : "0 0 14px rgba(251,191,36,1), 0 0 28px rgba(251,191,36,0.65)",
-                          border: "1px solid rgba(255,255,255,0.25)",
-                        }} />
-                    </div>
-
-                    {/* Emoji — 48px */}
-                    <div style={{
-                      fontSize: "38px",
-                      lineHeight: 1,
-                      marginBottom: "10px",
-                      filter: isClickable
-                        ? `drop-shadow(0 4px 10px ${mod.glow}) drop-shadow(0 1px 3px rgba(0,0,0,0.7))`
-                        : "grayscale(1) opacity(0.25)",
-                    }}>
-                      {mod.emoji}
-                    </div>
-
-                    {/* Label */}
-                    <div className="font-black text-sm leading-tight mb-1" style={{ color: isClickable ? "#f8fafc" : "#1e293b", textShadow: "0 1px 8px rgba(0,0,0,0.9)" }}>
-                      {mod.label}
-                    </div>
-
-                    {/* Status */}
-                    <div className="text-[10px] font-bold" style={{ color: mod.isOk ? "#6ee7b7" : mod.isEmpty ? "#1e293b" : "#fde68a" }}>
-                      {mod.statusText}
-                    </div>
-
-                    {/* Arrow */}
-                    {isClickable && (
-                      <div className="absolute bottom-3 right-3 h-5 w-5 rounded-lg flex items-center justify-center"
-                        style={{ background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.25)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.22), 0 2px 6px rgba(0,0,0,0.4)" }}>
-                        <ChevronRight className="h-3 w-3" style={{ color: "rgba(255,255,255,0.85)" }} />
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* SUMMARY TAB */}
-        {activeTab === "summary" && (
-          <div className="px-4 space-y-3">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg">📋</span>
-              <h2 className="text-white font-bold text-base">Resumo da Festa</h2>
-            </div>
-
-            {(() => {
-              const children: { name: string; age: string }[] = [];
-              if (event.birthday_children && Array.isArray(event.birthday_children) && event.birthday_children.length > 0) {
-                for (const c of event.birthday_children) {
-                  if (c.name) children.push({ name: c.name, age: c.age || "" });
-                }
-              } else if (event.child_name) {
-                children.push({ name: event.child_name, age: event.child_age || "" });
-              }
-              const optionals = Array.isArray(event.event_optionals) ? event.event_optionals.filter(o => o?.name) : [];
-
-              const SummaryRow = ({ emoji, label, children: content }: { emoji: string; label: string; children: React.ReactNode }) => (
-                <div className="rounded-xl px-3 sm:px-4 py-3 flex items-start gap-2.5 sm:gap-3"
-                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)" }}>
-                  <span className="text-base sm:text-lg shrink-0 mt-0.5 w-6 sm:w-7 text-center">{emoji}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] sm:text-[9px] font-bold uppercase tracking-wider sm:tracking-widest mb-0.5" style={{ color: "#64748b" }}>{label}</p>
-                    <div className="text-[13px] sm:text-sm font-medium break-words" style={{ color: "#e2e8f0" }}>{content}</div>
-                  </div>
+        <div className="px-4 pt-5 space-y-6">
+          {/* Avisos de verdade */}
+          {alerts.map((a) => (
+            <div key={a.key} className="rounded-2xl border border-amber-300 bg-amber-50 p-4 space-y-3">
+              <div className="flex gap-3">
+                <AlertTriangle className="h-5 w-5 shrink-0 text-amber-700 mt-0.5" />
+                <div>
+                  <p className="font-bold text-sm text-amber-900">{a.title}</p>
+                  <p className="text-[13px] text-amber-900">{a.text}</p>
                 </div>
-              );
-
-              return (
-                <>
-                  {children.length > 0 && (
-                    <SummaryRow emoji="🎂" label={children.length > 1 ? "Aniversariantes" : "Aniversariante"}>
-                      {children.map((c, i) => (
-                        <p key={i}>{c.name}{c.age ? ` — ${c.age} anos` : ""}</p>
-                      ))}
-                    </SummaryRow>
-                  )}
-
-                  {(() => {
-                    const raw = event.parent_names;
-                    if (!raw) return null;
-                    let display = raw;
-                    try {
-                      const parsed = JSON.parse(raw);
-                      if (Array.isArray(parsed)) {
-                        display = parsed
-                          .filter((p: any) => p?.name)
-                          .map((p: any) => {
-                            const parts = [p.name];
-                            if (p.relation) parts.push(`(${p.relation})`);
-                            if (p.phone) parts.push(`— ${p.phone}`);
-                            return parts.join(" ");
-                          })
-                          .join("\n");
-                      } else if (typeof parsed === "object" && parsed?.name) {
-                        display = parsed.name;
-                      }
-                    } catch { /* plain text */ }
-                    if (!display) return null;
-                    return (
-                      <SummaryRow emoji="👨‍👩‍👧" label="Pais / Contratante">
-                        <p className="whitespace-pre-wrap">{display}</p>
-                      </SummaryRow>
-                    );
-                  })()}
-
-                  {event.package_name && (
-                    <SummaryRow emoji="📦" label="Pacote">
-                      <p>{event.package_name}</p>
-                    </SummaryRow>
-                  )}
-
-                  {event.guest_count && (
-                    <SummaryRow emoji="👥" label="Convidados">
-                      <p>{event.guest_count} pessoas</p>
-                    </SummaryRow>
-                  )}
-
-                  {(event.start_time || event.end_time) && (
-                    <SummaryRow emoji="🕐" label="Horário">
-                      <p>{event.start_time?.slice(0, 5) || "–"} até {event.end_time?.slice(0, 5) || "–"}</p>
-                    </SummaryRow>
-                  )}
-
-                  {event.unit && (
-                    <SummaryRow emoji="📍" label="Unidade">
-                      <p>{event.unit}</p>
-                    </SummaryRow>
-                  )}
-
-                  {optionals.length > 0 && (
-                    <SummaryRow emoji="⭐" label={`Opcionais (${optionals.length})`}>
-                      <div className="space-y-1">
-                        {optionals.map((opt, i) => {
-                          const val = opt.value ? Number(opt.value) : 0;
-                          return (
-                            <div key={i} className="flex items-center justify-between gap-2">
-                              <span className="truncate">• {opt.name}</span>
-                              {val > 0 && (
-                                <span className="shrink-0 tabular-nums opacity-70">
-                                  {val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </SummaryRow>
-                  )}
-
-                  {event.notes && (
-                    <SummaryRow emoji="📝" label="Observações">
-                      <p className="whitespace-pre-wrap" style={{ color: "#cbd5e1" }}>{event.notes}</p>
-                    </SummaryRow>
-                  )}
-
-                  {/* Botão editar evento */}
-                  <button
-                    onClick={() => {
-                      const baseUrl = window.location.origin;
-                      window.open(`${baseUrl}/agenda?event_id=${event.id}`, "_blank");
-                    }}
-                    className="w-full mt-2 flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all active:scale-[0.97]"
-                    style={{
-                      background: "linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15))",
-                      border: "1px solid rgba(99,102,241,0.3)",
-                      color: "#a5b4fc",
-                    }}
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    Editar Evento no Painel
-                  </button>
-
-                  {children.length === 0 && !event.parent_names && !event.package_name && !event.guest_count && !event.notes && optionals.length === 0 && (
-                    <div className="text-center py-16">
-                      <div className="text-5xl mb-4">📋</div>
-                      <p className="text-slate-500 text-sm">Nenhuma informação registrada</p>
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-          </div>
-        )}
-
-        {/* PENDING TAB */}
-        {activeTab === "pending" && (
-          <div className="px-4 space-y-2">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-lg">⏳</span>
-              <h2 className="text-white font-bold text-base">Itens pendentes</h2>
-              {pendingCount > 0 && (
-                <span className="ml-auto px-2 py-0.5 rounded-full text-xs font-bold"
-                  style={{ background: "rgba(251,191,36,0.22)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.55)", boxShadow: "0 0 12px rgba(251,191,36,0.35)" }}>
-                  {pendingCount}
-                </span>
+              </div>
+              {a.link && (
+                <button type="button" onClick={() => copyLink(a.key, a.link!)} className="inline-flex items-center gap-2 rounded-xl bg-amber-800 text-white text-sm font-bold px-4 py-2.5 active:scale-[0.98]">
+                  <Copy className="h-4 w-4" /> {copied === a.key ? "Link copiado" : "Copiar link para o cliente"}
+                </button>
               )}
             </div>
-            {pendingChecklistItems.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="text-5xl mb-4">🎉</div>
-                <p className="text-white font-bold text-lg">Tudo em dia!</p>
-                <p className="text-slate-500 text-sm mt-1">Nenhum item pendente no checklist</p>
-              </div>
-            ) : (
-              pendingChecklistItems.map((item, idx) => (
-                <div key={item.id} className="rounded-xl px-4 py-3 flex items-center gap-3"
-                  style={{ background: "linear-gradient(135deg, rgba(251,191,36,0.14) 0%, rgba(180,83,9,0.07) 100%)", border: "1px solid rgba(251,191,36,0.30)", boxShadow: "0 6px 18px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.07)" }}>
-                  <div className="h-7 w-7 rounded-lg flex items-center justify-center shrink-0 font-black text-xs"
-                    style={{ background: "rgba(251,191,36,0.28)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.50)", boxShadow: "0 0 10px rgba(251,191,36,0.45)" }}>
-                    {idx + 1}
-                  </div>
-                  <span className="text-slate-200 text-sm font-medium">{item.title}</span>
-                </div>
-              ))
-            )}
-          </div>
-        )}
+          ))}
 
-        {/* CHECKLIST TAB */}
-        {activeTab === "checklist" && (
-          <div className="px-4 space-y-2">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg">✅</span>
-              <h2 className="text-white font-bold text-base">Checklist da Festa</h2>
-              <span className="ml-auto text-sm font-bold" style={{ color: "#475569" }}>{status.checklist.completed}/{status.checklist.total}</span>
-            </div>
-            {status.checklist.total > 0 && (
-              <div className="mb-4">
-                <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)", boxShadow: "inset 0 2px 6px rgba(0,0,0,0.6)" }}>
-                  <div className="h-full rounded-full transition-all duration-700"
-                    style={{ width: `${checklistProgress}%`, background: checklistProgress === 100 ? "linear-gradient(90deg, #059669, #10b981, #34d399)" : "linear-gradient(90deg, #92400e, #d97706, #fbbf24)", boxShadow: checklistProgress === 100 ? "0 0 12px rgba(52,211,153,0.9)" : "0 0 12px rgba(251,191,36,0.9)" }} />
-                </div>
-              </div>
-            )}
-            {checklistItems.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="text-5xl mb-4">📋</div>
-                <p className="text-slate-500 text-sm">Nenhum item no checklist</p>
-              </div>
-            ) : (
-              checklistItems.map(item => (
-                <div key={item.id} className="rounded-xl px-4 py-3 flex items-center gap-3"
-                  style={{
-                    background: item.is_completed ? "linear-gradient(135deg, rgba(16,185,129,0.18) 0%, rgba(5,150,105,0.06) 100%)" : "rgba(255,255,255,0.03)",
-                    border: item.is_completed ? "1px solid rgba(52,211,153,0.40)" : "1px solid rgba(255,255,255,0.07)",
-                    boxShadow: item.is_completed ? "0 4px 16px rgba(16,185,129,0.18), inset 0 1px 0 rgba(255,255,255,0.09)" : "inset 0 1px 0 rgba(255,255,255,0.04)",
-                  }}>
-                  <div className="h-5 w-5 rounded-md shrink-0 flex items-center justify-center"
-                    style={{ background: item.is_completed ? "linear-gradient(135deg, #059669, #10b981, #34d399)" : "transparent", border: item.is_completed ? "none" : "2px solid rgba(255,255,255,0.16)", boxShadow: item.is_completed ? "0 0 12px rgba(52,211,153,0.65)" : "none" }}>
-                    {item.is_completed && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
+          {/* Aniversariantes */}
+          {children.length > 0 && (
+            <Section title={children.length > 1 ? "Aniversariantes" : "Aniversariante"}>
+              <div className={cn("grid gap-2.5", children.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+                {children.map((c, i) => (
+                  <div key={i} className={cn("rounded-2xl border p-4", CHILD_TONES[i % CHILD_TONES.length])}>
+                    <p className="font-display text-xl font-extrabold leading-tight">{c.name}</p>
+                    {c.age && <p className="text-sm font-bold">{/\D/.test(c.age) ? c.age : `${c.age} ${c.age === "1" ? "ano" : "anos"}`}</p>}
                   </div>
-                  <span className="text-sm font-medium" style={{ color: item.is_completed ? "#6ee7b7" : "#cbd5e1", textDecoration: item.is_completed ? "line-through" : "none" }}>
-                    {item.title}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-      </div>
+                ))}
+              </div>
+            </Section>
+          )}
 
-      {/* ══════════════ BOTTOM NAV ══════════════ */}
-      <div className="shrink-0 relative z-10"
-        style={{ background: "linear-gradient(180deg, rgba(5,7,18,1) 0%, rgba(2,3,10,1) 100%)", borderTop: "1px solid rgba(139,92,246,0.40)", boxShadow: "0 -16px 48px rgba(0,0,0,0.90), 0 -2px 20px rgba(139,92,246,0.20), inset 0 1px 0 rgba(167,139,250,0.35)", backdropFilter: "blur(24px)", paddingBottom: "env(safe-area-inset-bottom)" }}>
-        <div className="absolute top-0 left-0 right-0 h-px" style={{ background: "linear-gradient(90deg, transparent 3%, rgba(139,92,246,0.6) 25%, rgba(196,181,253,0.95) 50%, rgba(139,92,246,0.6) 75%, transparent 97%)", boxShadow: "0 0 10px rgba(167,139,250,0.5)" }} />
-        <div className="flex items-stretch">
-          {[
-            { id: "home" as TabType, label: "Início", emoji: "🏠", badge: null },
-            { id: "summary" as TabType, label: "Resumo", emoji: "📋", badge: null },
-            { id: "pending" as TabType, label: "Pendentes", emoji: "⏳", badge: pendingCount > 0 ? pendingCount : null },
-            { id: "checklist" as TabType, label: "Checklist", emoji: "✅", badge: null },
-          ].map(tab => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className="flex-1 flex flex-col items-center gap-0.5 py-2 px-2 relative transition-all duration-200"
-                style={{ color: isActive ? "#ddd6fe" : "#2d3a55" }}
-              >
-                {isActive && (
-                  <div className="absolute inset-x-1.5 top-1 bottom-1 rounded-xl"
-                    style={{ background: "linear-gradient(160deg, rgba(109,40,217,0.38) 0%, rgba(139,92,246,0.18) 100%)", border: "1px solid rgba(167,139,250,0.45)", boxShadow: "0 4px 18px rgba(139,92,246,0.30), inset 0 1px 0 rgba(255,255,255,0.12)" }} />
-                )}
-                <div className="relative z-10">
-                  <span className="text-lg" style={{ filter: isActive ? "drop-shadow(0 0 8px rgba(196,181,253,0.8))" : "none" }}>{tab.emoji}</span>
-                  {tab.badge !== null && (
-                    <span className="absolute -top-1 -right-2 h-4 min-w-4 px-0.5 rounded-full text-[9px] font-black flex items-center justify-center"
-                      style={{ background: "linear-gradient(135deg, #dc2626, #ef4444)", color: "#fff", boxShadow: "0 0 12px rgba(239,68,68,0.9), 0 0 24px rgba(239,68,68,0.4)" }}>
-                      {tab.badge}
-                    </span>
+          {/* Roteiro */}
+          {timeline.length > 0 && (
+            <Section title="Roteiro da festa">
+              <ol className="rounded-2xl bg-white p-4">
+                {timeline.map((t, i) => (
+                  <li key={i} className="flex gap-3">
+                    <div className="flex flex-col items-center">
+                      <span className={cn(
+                        "h-3.5 w-3.5 rounded-full shrink-0 mt-1",
+                        t.state === "done" ? "bg-emerald-600" : t.state === "next" ? "border-[3px] border-violet-700 bg-white" : "bg-slate-200",
+                      )} />
+                      {i < timeline.length - 1 && <span className="w-0.5 flex-1 bg-slate-200" />}
+                    </div>
+                    <div className={cn(i < timeline.length - 1 && "pb-4")}>
+                      <p className="font-extrabold text-sm">{t.time} · {t.label}</p>
+                      {t.state !== "later" && (
+                        <p className={cn("text-[13px] font-semibold", t.state === "done" ? "text-emerald-700" : "text-violet-700")}>{t.state === "done" ? "Feito" : "Próximo"}</p>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </Section>
+          )}
+
+          {/* O que o cliente escolheu */}
+          {(modules.prefesta || modules.cardapio || modules.avaliacao || optionals.length > 0) && (
+            <Section title="Do cliente">
+              {modules.cardapio && (
+                <FormCard
+                  icon={UtensilsCrossed}
+                  tone="bg-amber-50 text-amber-800"
+                  title={details.cardapio?.template_name || "Cardápio"}
+                  status={details.cardapio ? `Respondido ${respondedOn(details.cardapio.responded_at)}` : detailsKnown ? "Ainda não escolhido" : "Link do formulário"}
+                  done={!!details.cardapio}
+                  neutral={!detailsKnown}
+                  action={formUrl("cardapio")}
+                >
+                  {menuItems.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap gap-1.5">
+                        {(showAllMenu ? menuItems : menuItems.slice(0, 8)).map((m, i) => (
+                          <span key={i} className="rounded-full bg-amber-50 text-amber-900 px-2.5 py-1 text-xs font-bold">{m}</span>
+                        ))}
+                      </div>
+                      {menuItems.length > 8 && (
+                        <button type="button" onClick={() => setShowAllMenu((v) => !v)} className="text-[13px] font-bold text-violet-700">
+                          {showAllMenu ? "Mostrar menos" : `Ver todos (${menuItems.length})`}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </FormCard>
+              )}
+              {modules.prefesta && (
+                <FormCard
+                  icon={ClipboardList}
+                  tone="bg-pink-50 text-pink-800"
+                  title="Pré-Festa"
+                  status={details.prefesta ? `Respondida ${respondedOn(details.prefesta.responded_at)}` : detailsKnown ? "Ainda não respondida" : "Link do formulário"}
+                  done={!!details.prefesta}
+                  neutral={!detailsKnown}
+                  action={formUrl("prefesta")}
+                />
+              )}
+              {modules.avaliacao && (
+                <FormCard
+                  icon={Star}
+                  tone="bg-teal-50 text-teal-800"
+                  title="Avaliação"
+                  status={details.avaliacao ? `Respondida ${respondedOn(details.avaliacao.responded_at)}${details.avaliacao.score != null ? ` · nota ${Number(details.avaliacao.score).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}` : ""}` : "Vai para o cliente depois da festa"}
+                  done={!!details.avaliacao}
+                  neutral={!details.avaliacao}
+                  action={formUrl("avaliacao")}
+                />
+              )}
+              {optionals.length > 0 && (
+                <div className="rounded-2xl bg-white p-4">
+                  <p className="font-extrabold text-[15px] mb-1.5">Opcionais</p>
+                  <ul className="space-y-1 text-sm text-slate-700">
+                    {optionals.map((o, i) => <li key={i}>• {o.name}</li>)}
+                  </ul>
+                </div>
+              )}
+            </Section>
+          )}
+
+          {/* Equipe do dia */}
+          {(modules.staff || modules.checklist || modules.attendance) && (
+            <Section title="Equipe do dia">
+              {modules.staff && (
+                details.staff.length > 0 ? (
+                  <LinkCard href={staffLink}>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+                      {details.staff.slice(0, 8).map((s, i) => (
+                        <div key={i} className="flex items-center gap-2 min-w-0">
+                          <span className="h-9 w-9 shrink-0 rounded-full bg-violet-100 text-violet-800 flex items-center justify-center text-sm font-extrabold">{s.name.trim().charAt(0).toUpperCase()}</span>
+                          <span className="min-w-0">
+                            <span className="block text-[13px] font-bold truncate">{s.name}</span>
+                            {s.role && <span className="block text-xs text-slate-600 truncate">{s.role}</span>}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    {details.staff.length > 8 && <p className="text-[13px] font-bold text-violet-700 mt-3">+ {details.staff.length - 8} na equipe</p>}
+                  </LinkCard>
+                ) : (
+                  <EmptyCard icon={Users} title="Equipe da festa" text="Ninguém escalado ainda." createItem="equipe" />
+                )
+              )}
+
+              {modules.checklist && (
+                checklistTotal > 0 ? (
+                  <div className="rounded-2xl bg-white p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="font-extrabold text-[15px] flex items-center gap-2"><ListChecks className="h-4 w-4 text-violet-700" /> Checklist</p>
+                      <span className="text-sm font-bold text-slate-600">{checklistDone} de {checklistTotal}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-[#ECE8F8] overflow-hidden">
+                      <div className={cn("h-full rounded-full", checklistDone === checklistTotal ? "bg-emerald-600" : "bg-violet-700")} style={{ width: `${Math.round((checklistDone / checklistTotal) * 100)}%` }} />
+                    </div>
+                    {checklistShown.length > 0 ? (
+                      <ul className="space-y-1.5">
+                        {checklistShown.map((it) => (
+                          <li key={it.id} className="flex items-start gap-2 text-sm">
+                            <span className={cn("mt-0.5 h-4 w-4 shrink-0 rounded border flex items-center justify-center", it.is_completed ? "bg-emerald-600 border-emerald-600" : "border-slate-300")}>
+                              {it.is_completed && <Check className="h-3 w-3 text-white" />}
+                            </span>
+                            <span className={cn(it.is_completed && "text-slate-500 line-through")}>{it.title}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm font-semibold text-emerald-700">Tudo feito</p>
+                    )}
+                    {(checklistItems.length > checklistShown.length || showAllChecklist) && (
+                      <button type="button" onClick={() => setShowAllChecklist((v) => !v)} className="text-[13px] font-bold text-violet-700">
+                        {showAllChecklist ? "Mostrar só o que falta" : "Ver checklist completo"}
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <EmptyCard icon={ListChecks} title="Checklist" text="Nenhum item para esta festa." />
+                )
+              )}
+
+              {modules.attendance && (
+                details.attendance_id ? (
+                  <LinkCard href={`/lista-presenca/${details.attendance_id}`}>
+                    <div className="flex items-center justify-between">
+                      <p className="font-extrabold text-[15px] flex items-center gap-2"><UserCheck className="h-4 w-4 text-violet-700" /> Presença de convidados</p>
+                      <ChevronRight className="h-4 w-4 text-slate-400" />
+                    </div>
+                    <p className="text-sm text-slate-700 mt-1">{attendanceCount} {attendanceCount === 1 ? "chegou" : "chegaram"}{event.guest_count ? ` de ${event.guest_count}` : ""}</p>
+                    {event.guest_count ? (
+                      <div className="h-2 rounded-full bg-[#ECE8F8] overflow-hidden mt-2.5">
+                        <div className="h-full rounded-full bg-emerald-600" style={{ width: `${Math.min(100, Math.round((attendanceCount / event.guest_count) * 100))}%` }} />
+                      </div>
+                    ) : null}
+                  </LinkCard>
+                ) : (
+                  <EmptyCard icon={UserCheck} title="Presença de convidados" text="A lista de presença não foi aberta." createItem="presenca" />
+                )
+              )}
+
+              {moreTools.length > 0 && (
+                <div className="rounded-2xl border border-dashed border-slate-300">
+                  <button type="button" onClick={() => setShowMoreTools((v) => !v)} className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-slate-700" aria-expanded={showMoreTools}>
+                    <span>Mais: {moreTools.map((t) => t.label).join(", ")}</span>
+                    <ChevronDown className={cn("h-4 w-4 transition-transform", showMoreTools && "rotate-180")} />
+                  </button>
+                  {showMoreTools && (
+                    <div className="divide-y divide-slate-200 border-t border-slate-200">
+                      {moreTools.map((t) => (
+                        <a
+                          key={t.key}
+                          href={t.link || `/formularios?item=${t.item}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-3 px-4 py-3 text-sm"
+                        >
+                          <t.icon className="h-4 w-4 text-violet-700" />
+                          <span className="flex-1 font-semibold">{t.label}</span>
+                          <span className="text-[13px] font-bold text-violet-700">{t.link ? "Abrir" : "Criar"}</span>
+                        </a>
+                      ))}
+                    </div>
                   )}
                 </div>
-                <span className="text-[9px] font-bold leading-none relative z-10" style={{ letterSpacing: "0.06em" }}>{tab.label}</span>
-                {isActive && (
-                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-0.5 w-12 rounded-full"
-                    style={{ background: "linear-gradient(90deg, #6d28d9, #a78bfa, #6d28d9)", boxShadow: "0 0 12px rgba(139,92,246,1), 0 0 24px rgba(139,92,246,0.5)" }} />
+              )}
+            </Section>
+          )}
+
+          {/* Detalhes */}
+          {(parents || event.notes) && (
+            <Section title="Detalhes da festa">
+              <div className="rounded-2xl bg-white p-4 space-y-3 text-sm">
+                {parents && (
+                  <div>
+                    <p className="text-xs font-bold text-slate-600">Responsáveis</p>
+                    <p className="font-semibold whitespace-pre-wrap">{parents}</p>
+                  </div>
                 )}
-              </button>
-            );
-          })}
+                {event.notes && (
+                  <div>
+                    <p className="text-xs font-bold text-slate-600">Observações</p>
+                    <p className="whitespace-pre-wrap text-slate-800">{event.notes}</p>
+                  </div>
+                )}
+              </div>
+            </Section>
+          )}
+
+          <a
+            href={`/agenda?event_id=${event.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-center gap-2 rounded-2xl border border-violet-200 bg-white px-4 py-3 text-sm font-bold text-violet-700"
+          >
+            <ExternalLink className="h-4 w-4" /> Editar a festa no Celebrei
+          </a>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="space-y-2.5">
+      <h2 className="px-1 text-[17px] font-extrabold">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function LinkCard({ href, children }: { href: string | null; children: ReactNode }) {
+  if (!href) return <div className="rounded-2xl bg-white p-4">{children}</div>;
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className="block rounded-2xl bg-white p-4 active:scale-[0.99] transition-transform">
+      {children}
+    </a>
+  );
+}
+
+function FormCard({ icon: Icon, tone, title, status, done, neutral, action, children }: {
+  icon: typeof Star; tone: string; title: string; status: string; done: boolean; neutral?: boolean; action: string | null; children?: ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl bg-white p-4 space-y-3">
+      <div className="flex items-center gap-3">
+        <span className={cn("h-10 w-10 shrink-0 rounded-xl flex items-center justify-center", tone)}><Icon className="h-5 w-5" /></span>
+        <div className="min-w-0 flex-1">
+          <p className="font-extrabold text-[15px] truncate">{title}</p>
+          <p className={cn("text-[13px] font-semibold flex items-center gap-1", done ? "text-emerald-700" : neutral ? "text-slate-600" : "text-amber-800")}>
+            {done && <Check className="h-3.5 w-3.5" />} {status}
+          </p>
+        </div>
+        {action && (
+          <a href={action} target="_blank" rel="noreferrer" className="shrink-0 text-[13px] font-bold text-violet-700">Abrir</a>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function EmptyCard({ icon: Icon, title, text, createItem }: { icon: typeof Star; title: string; text: string; createItem?: string }) {
+  return (
+    <div className="rounded-2xl bg-white p-4 flex items-center gap-3">
+      <span className="h-10 w-10 shrink-0 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center"><Icon className="h-5 w-5" /></span>
+      <div className="min-w-0 flex-1">
+        <p className="font-extrabold text-[15px]">{title}</p>
+        <p className="text-[13px] text-slate-600">{text}</p>
+      </div>
+      {createItem && (
+        <a href={`/formularios?item=${createItem}`} target="_blank" rel="noreferrer" className="shrink-0 text-[13px] font-bold text-violet-700">Criar</a>
+      )}
     </div>
   );
 }

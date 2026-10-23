@@ -2,10 +2,13 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentCompanyId } from "@/hooks/useCurrentCompanyId";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { DEFAULT_SCHEDULE, parseSchedule, type ScheduleStep } from "@/lib/partyDay";
 import { toast } from "@/hooks/use-toast";
 import {
   CheckSquare, Users, Wrench, ClipboardCheck,
-  UserCheck, Info, Star, UtensilsCrossed, PartyPopper, Loader2
+  UserCheck, Info, Star, UtensilsCrossed, PartyPopper, Loader2, Plus, Trash2, Clock
 } from "lucide-react";
 
 interface PartyControlModules {
@@ -42,6 +45,9 @@ export function PartyControlConfig() {
   const [modules, setModules] = useState<PartyControlModules>(DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [schedule, setSchedule] = useState<ScheduleStep[]>(DEFAULT_SCHEDULE);
+  const [scheduleDirty, setScheduleDirty] = useState(false);
+  const [savingSchedule, setSavingSchedule] = useState(false);
 
   useEffect(() => {
     if (!companyId) return;
@@ -53,6 +59,7 @@ export function PartyControlConfig() {
         .single();
       if (data?.settings && typeof data.settings === "object" && !Array.isArray(data.settings)) {
         const s = data.settings as Record<string, unknown>;
+        setSchedule(parseSchedule(s));
         const pcm = s.party_control_modules;
         if (pcm && typeof pcm === "object" && !Array.isArray(pcm)) {
           const m = pcm as Record<string, unknown>;
@@ -102,6 +109,33 @@ export function PartyControlConfig() {
     } else {
       toast({ title: "Configuração salva!", description: `Módulo "${MODULE_DEFINITIONS.find(m => m.key === key)?.label}" ${value ? "ativado" : "desativado"}.` });
     }
+  };
+
+  const saveSchedule = async () => {
+    if (!companyId) return;
+    const clean = schedule.map((st) => ({ ...st, label: st.label.trim() })).filter((st) => st.label);
+    setSavingSchedule(true);
+    const { data: current } = await supabase.from("companies").select("settings").eq("id", companyId).single();
+    const existingSettings = (current?.settings && typeof current.settings === "object" && !Array.isArray(current.settings))
+      ? current.settings as Record<string, unknown>
+      : {};
+    const { error } = await supabase
+      .from("companies")
+      .update({ settings: { ...existingSettings, party_schedule: clean } })
+      .eq("id", companyId);
+    setSavingSchedule(false);
+    if (error) {
+      toast({ title: "Erro ao salvar o roteiro", description: error.message, variant: "destructive" });
+    } else {
+      setSchedule(clean.length ? clean : DEFAULT_SCHEDULE);
+      setScheduleDirty(false);
+      toast({ title: "Roteiro salvo", description: "Vale para a página de todas as festas." });
+    }
+  };
+
+  const editStep = (i: number, patch: Partial<ScheduleStep>) => {
+    setSchedule((prev) => prev.map((st, idx) => (idx === i ? { ...st, ...patch } : st)));
+    setScheduleDirty(true);
   };
 
   if (loading) {
@@ -187,6 +221,95 @@ export function PartyControlConfig() {
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* Roteiro da festa (aparece na página com os horários de cada festa) */}
+      <div>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+          <Clock className="h-3.5 w-3.5" /> Roteiro da festa
+        </p>
+        <p className="text-xs text-muted-foreground mb-3">
+          Os momentos do dia, contados a partir do horário de cada festa. Ex.: "Equipe chega" 60 min antes do início; "Parabéns" 60 min antes do fim.
+        </p>
+        <div className="space-y-2">
+          {schedule.map((st, i) => {
+            const when = st.anchor === "end" ? (st.offset < 0 ? "before_end" : "at_end") : st.offset < 0 ? "before_start" : "after_start";
+            return (
+              <div key={i} className="rounded-xl border border-border bg-card p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={st.label}
+                    onChange={(e) => editStep(i, { label: e.target.value })}
+                    placeholder="Nome do momento"
+                    aria-label="Nome do momento"
+                    className="h-9"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 shrink-0 text-muted-foreground"
+                    aria-label="Remover momento"
+                    onClick={() => { setSchedule((prev) => prev.filter((_, idx) => idx !== i)); setScheduleDirty(true); }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  {when !== "at_end" && (
+                    <>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={5}
+                        value={Math.abs(st.offset)}
+                        onChange={(e) => {
+                          const n = Math.max(0, Math.round(Number(e.target.value) || 0));
+                          editStep(i, { offset: when === "after_start" ? n : -n });
+                        }}
+                        aria-label="Minutos"
+                        className="h-9 w-20"
+                      />
+                      <span className="text-muted-foreground">min</span>
+                    </>
+                  )}
+                  <select
+                    value={when}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      const n = Math.abs(st.offset);
+                      if (v === "before_start") editStep(i, { anchor: "start", offset: -n });
+                      else if (v === "after_start") editStep(i, { anchor: "start", offset: n });
+                      else if (v === "before_end") editStep(i, { anchor: "end", offset: -(n || 30) });
+                      else editStep(i, { anchor: "end", offset: 0 });
+                    }}
+                    aria-label="Quando"
+                    className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                  >
+                    <option value="before_start">antes do início</option>
+                    <option value="after_start">depois do início</option>
+                    <option value="before_end">antes do fim</option>
+                    <option value="at_end">no fim da festa</option>
+                  </select>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex flex-wrap items-center gap-2 mt-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => { setSchedule((prev) => [...prev, { label: "", anchor: "start", offset: 0 }]); setScheduleDirty(true); }}
+          >
+            <Plus className="h-4 w-4" /> Adicionar momento
+          </Button>
+          <Button type="button" size="sm" disabled={!scheduleDirty || savingSchedule} onClick={saveSchedule} className="gap-1.5">
+            {savingSchedule && <Loader2 className="h-4 w-4 animate-spin" />} Salvar roteiro
+          </Button>
         </div>
       </div>
     </div>
