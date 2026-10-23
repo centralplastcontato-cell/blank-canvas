@@ -1201,8 +1201,8 @@ function shouldRecoverAccidentalHumanTakeover(
 // Default questions fallback with numbered menus
 const DEFAULT_QUESTIONS: Record<string, { question: string; confirmation: string | null; next: string }> = {
   nome: { 
-    question: 'Para começar, me conta: qual é o seu nome? 👑', 
-    confirmation: 'Muito prazer, {nome}! 👑✨', 
+    question: 'Para começar, me conta: qual é o seu nome? 😊', 
+    confirmation: 'Muito prazer, {nome}! 🥰✨', 
     next: 'tipo' 
   },
   tipo: {
@@ -3690,7 +3690,7 @@ async function processBotQualification(
           console.log(`[Bot] User ${contactPhone} is already a client. Transferring to commercial team.`);
           
           // Use configurable transfer message or default
-          const defaultTransfer = `Entendido, {nome}! 🏰\n\nVou transferir sua conversa para nossa equipe comercial que vai te ajudar com sua festa.\n\nAguarde um momento, por favor! 👑`;
+          const defaultTransfer = `Entendido, {nome}! 😊\n\nVou transferir sua conversa para nossa equipe comercial que vai te ajudar com sua festa.\n\nAguarde um momento, por favor! 💜`;
           const transferTemplate = settings.transfer_message || defaultTransfer;
           msg = replaceVariables(transferTemplate, updated);
           nextStep = 'transferred';
@@ -3976,7 +3976,7 @@ async function processBotQualification(
         nextStep = 'sending_materials'; // New intermediate step
         
         // Build completion message from settings or use default
-        const defaultCompletion = `Perfeito, {nome}! 🏰✨\n\nAnotei tudo aqui:\n\n📅 Mês: {mes}\n🗓️ Dia: {dia}\n👥 Convidados: {convidados}`;
+        const defaultCompletion = `Perfeito, {nome}! 🎉✨\n\nAnotei tudo aqui:\n\n📅 Mês: {mes}\n🗓️ Dia: {dia}\n👥 Convidados: {convidados}`;
         const completionTemplate = settings.completion_message || defaultCompletion;
         let completionMsg = replaceVariables(completionTemplate, updated);
         
@@ -4040,8 +4040,8 @@ async function processBotQualification(
         
         // Default responses
         const defaultVisitResponse = `Ótima escolha! 🎉✨\n\nNossa equipe vai entrar em contato para agendar sua visita ao buffet!\n\nAguarde um momento que já vamos te chamar! 😊`;
-        const defaultQuestionsResponse = `Claro! 💬\n\nPode mandar sua dúvida aqui que nossa equipe vai te responder rapidinho!\n\nEstamos à disposição! 👑`;
-        const defaultAnalyzeResponse = `Sem problemas! 📋\n\nVou enviar nossos materiais para você analisar com calma. Quando estiver pronto, é só chamar aqui!\n\nEstamos à disposição! 👑✨`;
+        const defaultQuestionsResponse = `Claro! 💬\n\nPode mandar sua dúvida aqui que nossa equipe vai te responder rapidinho!\n\nEstamos à disposição! 💜`;
+        const defaultAnalyzeResponse = `Sem problemas! 📋\n\nVou enviar nossos materiais para você analisar com calma. Quando estiver pronto, é só chamar aqui!\n\nEstamos à disposição! 💜✨`;
         
         const leadName = updated.nome || contactName || contactPhone;
         
