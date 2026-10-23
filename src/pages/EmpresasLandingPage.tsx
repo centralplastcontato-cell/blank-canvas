@@ -29,6 +29,7 @@ const STORAGE = "https://rsezgnkfhodltrsewlhz.supabase.co/storage/v1/object/publ
 const PHOTOS = [
   "1772397433865-ks2d8aotn8", "1772397434726-7istdpq1jfo", "1772397435228-t98o450962", "1772397436004-o3kwqcwjud",
   "1772397436722-g0tuzr72n4", "1772397437514-qfhwloe10s", "1772397438554-i1048mkjnaf", "1772397439754-663ozv8ocie",
+  "1772397440533-70eyl884dx3",
 ].map((id) => `${STORAGE}/${id}.jpeg`);
 
 const GOLD = "#F5B83D";
@@ -241,8 +242,16 @@ export default function EmpresasLandingPage() {
               </button>
             ))}
           </div>
-          <div className="mt-6 overflow-hidden rounded-3xl border border-white/10">
-            <video src={videoTrujillo} poster={thumbTrujillo} controls playsInline preload="none" className="w-full aspect-video bg-black" />
+          {/* Tour em vídeo: bloco separado das fotos */}
+          <div className="mt-14 grid items-center gap-8 md:grid-cols-2">
+            <div className="text-center md:text-left">
+              <span className="block text-xs font-extrabold tracking-[0.25em] uppercase" style={{ color: GOLD }}>Tour em vídeo</span>
+              <h3 className="mt-3 text-2xl md:text-3xl font-black text-white">Dá o play e conheça o Castelo por dentro</h3>
+              <p className="mt-3 text-white/75">Um passeio rápido pelo espaço que vai receber a confraternização da sua equipe.</p>
+            </div>
+            <div className="mx-auto w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-black shadow-2xl">
+              <video src={videoTrujillo} poster={thumbTrujillo} controls playsInline preload="none" className="block h-auto w-full max-h-[70vh] object-contain" />
+            </div>
           </div>
           <div className="mt-10 text-center">
             <CtaButton origin="espaco">Quero conhecer o espaço</CtaButton>
