@@ -37,6 +37,9 @@ describe("SettingsHub", () => {
     render(<MemoryRouter initialEntries={["/configuracoes"]}><SettingsHub {...props} isMobile /></MemoryRouter>);
     expect(screen.getByText("Meu buffet")).toBeTruthy();
     expect(screen.getByText("Inteligência Artificial")).toBeTruthy();
+    // Robô, mensagens automáticas e modelos no mesmo grupo
+    expect(screen.getByText("Mensagens e robô")).toBeTruthy();
+    expect(screen.queryByText("Robô fixo")).toBeNull();
     expect(screen.queryByText("Importar dados")).toBeNull(); // só administrador
     fireEvent.click(screen.getByText("Configurar a IA"));
     expect(screen.getByText("conteúdo ia-config")).toBeTruthy();

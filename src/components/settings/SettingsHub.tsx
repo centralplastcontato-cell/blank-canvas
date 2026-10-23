@@ -117,14 +117,11 @@ export function SettingsHub({ userId, userEmail, isAdmin, isGestor, canManageUse
       ],
     },
     {
-      id: "auto", title: "Mensagens automáticas", icon: Send, items: [
+      // Robô, envios automáticos e modelos num grupo só: tudo é mensagem que sai sozinha
+      id: "auto", title: "Mensagens e robô", icon: Send, items: [
+        { id: "robot", title: "Robô de atendimento", description: "Responde o cliente: atendimento, perguntas e robô do site", icon: Bot, visible: automationsOn, render: () => <AutomationsSection tabs={ROBOT_TABS} hideAi /> },
         { id: "automations", title: "Mensagens automáticas", description: "Visitas e pós-visita, follow-ups, reativação, pré-reserva e dados do contrato", icon: Send, visible: automationsOn, render: () => <AutomationsSection tabs={MESSAGE_TABS} hideAi /> },
         { id: "modelos", title: "Modelos de mensagem", description: "Convidados das festas (Bot Festa) e freelancers (aprovação e escala)", icon: MessagesSquare, visible: automationsOn, render: () => <AutomationsSection tabs={TEMPLATE_TABS} hideAi /> },
-      ],
-    },
-    {
-      id: "robot", title: "Robô de atendimento", icon: Bot, items: [
-        { id: "robot", title: "Robô fixo", description: "Atendimento, perguntas e robô do site", icon: Bot, visible: automationsOn, render: () => <AutomationsSection tabs={ROBOT_TABS} hideAi /> },
       ],
     },
     {
