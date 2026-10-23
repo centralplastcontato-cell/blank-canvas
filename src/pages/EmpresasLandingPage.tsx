@@ -33,6 +33,8 @@ const PHOTOS = [
 ].map((id) => `${STORAGE}/${id}.jpeg`);
 
 const GOLD = "#F5B83D";
+// Paleta clara do Castelo (pedido do Victor: nada de fundo escuro)
+const PINK = "#E91E63";
 
 function useWhatsApp(origin: string) {
   return {
@@ -71,8 +73,8 @@ const fadeUp = {
 function SectionTitle({ eyebrow, title, subtitle, light }: { eyebrow: string; title: ReactNode; subtitle?: string; light?: boolean }) {
   return (
     <motion.div {...fadeUp} className="mx-auto max-w-2xl text-center mb-10 md:mb-14">
-      <span className="block text-xs md:text-sm font-extrabold tracking-[0.25em] uppercase mb-3" style={{ color: GOLD }}>{eyebrow}</span>
-      <h2 className={cn("font-['Nunito'] text-3xl md:text-[44px] leading-[1.1] font-black", light ? "text-white" : "text-[#0B1026]")}>{title}</h2>
+      <span className="block text-xs md:text-sm font-extrabold tracking-[0.25em] uppercase mb-3" style={{ color: light ? GOLD : PINK }}>{eyebrow}</span>
+      <h2 className={cn("font-['Nunito'] text-3xl md:text-[44px] leading-[1.1] font-black", light ? "text-white" : "text-[#2B1B4A]")}>{title}</h2>
       {subtitle && <p className={cn("mt-4 text-base md:text-lg", light ? "text-white/75" : "text-slate-600")}>{subtitle}</p>}
     </motion.div>
   );
@@ -118,7 +120,7 @@ export default function EmpresasLandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white text-[#0B1026] font-['Nunito']">
+    <div className="min-h-screen bg-white text-[#2B1B4A] font-['Nunito']">
       <Helmet>
         <title>Confraternização de Empresas em Sorocaba | Castelo da Diversão</title>
         <meta name="description" content={`Confraternização de fim de ano para a sua empresa: cardápio, bebidas, equipe, espaço climatizado e estacionamento, para até ${MAX_GUESTS} pessoas. Peça seu orçamento pelo WhatsApp.`} />
@@ -128,9 +130,9 @@ export default function EmpresasLandingPage() {
       </Helmet>
 
       {/* Cabeçalho */}
-      <header className="fixed inset-x-0 top-0 z-40 bg-[#0B1026]/85 backdrop-blur-md border-b border-white/10">
+      <header className="fixed inset-x-0 top-0 z-40 bg-white/90 backdrop-blur-md border-b border-pink-100 shadow-sm">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white p-1 shadow"><img src={logoCastelo} alt="Castelo da Diversão" className="h-full w-full object-contain" /></span>
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white p-1"><img src={logoCastelo} alt="Castelo da Diversão" className="h-full w-full object-contain" /></span>
           <CtaButton origin="cabecalho" size="md" className="hidden sm:inline-flex">Pedir orçamento</CtaButton>
           <a
             href={whatsappLink(WHATSAPP, MESSAGE)}
@@ -144,51 +146,59 @@ export default function EmpresasLandingPage() {
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="relative min-h-[92vh] flex items-end md:items-center overflow-hidden bg-[#0B1026] pt-16">
-        <img src={fachada} alt="Fachada do Castelo da Diversão em Sorocaba" className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0B1026] via-[#0B1026]/80 to-[#0B1026]/40 md:bg-gradient-to-r md:from-[#0B1026] md:via-[#0B1026]/85 md:to-[#0B1026]/20" />
-        <div className="relative mx-auto w-full max-w-6xl px-4 pb-14 pt-24 md:py-24">
-          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }} className="max-w-2xl">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-[0.18em] text-white">
-              <Sparkles className="h-3.5 w-3.5" style={{ color: GOLD }} /> Confraternização de empresas · Sorocaba
+      {/* Hero: claro, texto de um lado e a fachada do outro */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-[#FFF0F6] via-white to-[#FFF8E1] pt-20 md:pt-24">
+        <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full bg-[#FFC107]/25 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-[#E91E63]/15 blur-3xl" />
+        <div className="relative mx-auto grid max-w-6xl items-center gap-8 px-4 pb-14 pt-6 md:grid-cols-2 md:gap-12 md:pb-20">
+          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
+            <span className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-[0.16em] text-[#E91E63] shadow-sm">
+              <Sparkles className="h-3.5 w-3.5" /> Confraternização de empresas · Sorocaba
             </span>
-            <h1 className="mt-5 text-[40px] md:text-[64px] font-black leading-[1.02] text-white">
+            <h1 className="mt-5 text-[38px] md:text-[58px] font-black leading-[1.04] text-[#2B1B4A]">
               A festa de fim de ano da sua equipe,{" "}
-              <span style={{ color: GOLD }}>sem dor de cabeça.</span>
+              <span style={{ color: PINK }}>sem dor de cabeça.</span>
             </h1>
-            <p className="mt-5 max-w-xl text-lg md:text-xl text-white/80 leading-relaxed">
+            <p className="mt-5 max-w-xl text-lg md:text-xl text-slate-600 leading-relaxed">
               Comida, bebida, equipe, espaço climatizado e estacionamento num lugar só, para até {MAX_GUESTS} pessoas. Vocês só chegam e aproveitam.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-3 sm:items-center">
               <CtaButton origin="hero">Quero um orçamento</CtaButton>
-              <a href="#espaco" className="inline-flex items-center justify-center gap-2 rounded-full border border-white/30 px-6 py-4 font-bold text-white hover:bg-white/10 transition-colors">
+              <a href="#espaco" className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#2B1B4A]/15 bg-white px-6 py-3.5 font-bold text-[#2B1B4A] hover:border-[#E91E63]/40 transition-colors">
                 Ver o espaço <ChevronDown className="h-4 w-4" />
               </a>
             </div>
-            <ul className="mt-8 grid grid-cols-2 sm:flex sm:flex-wrap gap-x-6 gap-y-2 text-sm font-semibold text-white/85">
+            <ul className="mt-8 grid grid-cols-2 sm:flex sm:flex-wrap gap-x-6 gap-y-2 text-sm font-bold text-[#2B1B4A]">
               {[`Até ${MAX_GUESTS} pessoas`, "Almoço ou noite", "Só adultos ou com as famílias", "Estacionamento próprio"].map((t) => (
-                <li key={t} className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0" style={{ color: GOLD }} /> {t}</li>
+                <li key={t} className="flex items-center gap-2"><Check className="h-4 w-4 shrink-0 text-[#E91E63]" /> {t}</li>
               ))}
             </ul>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.7, delay: 0.1 }} className="relative">
+            <div className="absolute -inset-3 rotate-2 rounded-[2rem] bg-gradient-to-br from-[#E91E63] to-[#FFC107] opacity-80" />
+            <img src={fachada} alt="Fachada do Castelo da Diversão em Sorocaba" className="relative aspect-[4/3] w-full rounded-[1.75rem] object-cover shadow-2xl" />
+            <div className="absolute -bottom-5 left-5 rounded-2xl bg-white px-4 py-3 shadow-xl">
+              <p className="text-2xl font-black text-[#E91E63] leading-none">{MAX_GUESTS}</p>
+              <p className="text-xs font-bold text-slate-600">pessoas de capacidade</p>
+            </div>
           </motion.div>
         </div>
       </section>
 
       {/* Números */}
-      <section className="bg-[#0B1026] border-t border-white/10">
-        <div className="mx-auto grid max-w-6xl grid-cols-3 divide-x divide-white/10 px-4 py-7 text-center text-white">
+      <section className="bg-[#E91E63]">
+        <div className="mx-auto grid max-w-6xl grid-cols-3 divide-x divide-white/25 px-4 py-7 text-center text-white">
           {[["+4.000", "festas realizadas"], [`${MAX_GUESTS}`, "pessoas de capacidade"], ["9 anos", "de experiência"]].map(([n, l]) => (
             <div key={l} className="px-2">
-              <p className="text-2xl md:text-4xl font-black" style={{ color: GOLD }}>{n}</p>
-              <p className="text-xs md:text-sm text-white/70 font-semibold">{l}</p>
+              <p className="text-2xl md:text-4xl font-black text-[#FFE082]">{n}</p>
+              <p className="text-xs md:text-sm text-white/90 font-semibold">{l}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* Tudo incluso */}
-      <section className="py-20 md:py-28 bg-[#F7F5FB]">
+      <section className="py-20 md:py-28 bg-[#FFF7FB]">
         <div className="mx-auto max-w-6xl px-4">
           <SectionTitle
             eyebrow="Tudo resolvido num lugar só"
@@ -197,9 +207,9 @@ export default function EmpresasLandingPage() {
           />
           <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-3">
             {INCLUDED.map((it, i) => (
-              <motion.div key={it.title} {...fadeUp} transition={{ duration: 0.5, delay: i * 0.06 }} className="rounded-3xl bg-white p-4 md:p-6 shadow-[0_8px_30px_rgba(11,16,38,0.06)] border border-slate-100">
-                <div className="mb-3 md:mb-4 flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-2xl bg-[#0B1026] text-white">
-                  <it.icon className="h-5 w-5 md:h-6 md:w-6" style={{ color: GOLD }} />
+              <motion.div key={it.title} {...fadeUp} transition={{ duration: 0.5, delay: i * 0.06 }} className="rounded-3xl bg-white p-4 md:p-6 shadow-[0_8px_30px_rgba(233,30,99,0.07)] border border-pink-100">
+                <div className="mb-3 md:mb-4 flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#E91E63] to-[#FF6F91] text-white shadow-md shadow-pink-200">
+                  <it.icon className="h-5 w-5 md:h-6 md:w-6" />
                 </div>
                 <h3 className="text-base md:text-lg font-extrabold leading-tight">{it.title}</h3>
                 <p className="mt-1.5 text-sm md:text-base text-slate-600 leading-relaxed">{it.text}</p>
@@ -226,16 +236,16 @@ export default function EmpresasLandingPage() {
       </section>
 
       {/* Espaço */}
-      <section id="espaco" className="py-20 md:py-28 bg-[#0B1026] scroll-mt-16">
+      <section id="espaco" className="py-20 md:py-28 bg-[#FFF8E1] scroll-mt-16">
         <div className="mx-auto max-w-6xl px-4">
-          <SectionTitle light eyebrow="Conheça o espaço" title="Pronto para receber a sua equipe" subtitle={`Salão climatizado para até ${MAX_GUESTS} pessoas, com estrutura completa e estacionamento próprio.`} />
+          <SectionTitle eyebrow="Conheça o espaço" title="Pronto para receber a sua equipe" subtitle={`Salão climatizado para até ${MAX_GUESTS} pessoas, com estrutura completa e estacionamento próprio.`} />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {PHOTOS.map((src, i) => (
               <button
                 key={src}
                 type="button"
                 onClick={() => setLightbox(i)}
-                className={cn("group relative overflow-hidden rounded-2xl bg-white/5", i === 0 ? "col-span-2 row-span-2 aspect-square" : "aspect-square")}
+                className={cn("group relative overflow-hidden rounded-2xl bg-white shadow-sm", i === 0 ? "col-span-2 row-span-2 aspect-square" : "aspect-square")}
                 aria-label={`Ampliar foto ${i + 1} do espaço`}
               >
                 <img src={src} alt={`Espaço do Castelo da Diversão, foto ${i + 1}`} loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -245,11 +255,11 @@ export default function EmpresasLandingPage() {
           {/* Tour em vídeo: bloco separado das fotos */}
           <div className="mt-14 grid items-center gap-8 md:grid-cols-2">
             <div className="text-center md:text-left">
-              <span className="block text-xs font-extrabold tracking-[0.25em] uppercase" style={{ color: GOLD }}>Tour em vídeo</span>
-              <h3 className="mt-3 text-2xl md:text-3xl font-black text-white">Dá o play e conheça o Castelo por dentro</h3>
-              <p className="mt-3 text-white/75">Um passeio rápido pelo espaço que vai receber a confraternização da sua equipe.</p>
+              <span className="block text-xs font-extrabold tracking-[0.25em] uppercase" style={{ color: PINK }}>Tour em vídeo</span>
+              <h3 className="mt-3 text-2xl md:text-3xl font-black text-[#2B1B4A]">Dá o play e conheça o Castelo por dentro</h3>
+              <p className="mt-3 text-slate-600">Um passeio rápido pelo espaço que vai receber a confraternização da sua equipe.</p>
             </div>
-            <div className="mx-auto w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-black shadow-2xl">
+            <div className="mx-auto w-full max-w-md overflow-hidden rounded-3xl border-4 border-white bg-black shadow-2xl">
               <video src={videoTrujillo} poster={thumbTrujillo} controls playsInline preload="none" className="block h-auto w-full max-h-[70vh] object-contain" />
             </div>
           </div>
@@ -265,9 +275,9 @@ export default function EmpresasLandingPage() {
           <SectionTitle eyebrow="Simples assim" title="Como funciona" />
           <div className="grid gap-6 md:grid-cols-3">
             {STEPS.map((s, i) => (
-              <motion.div key={s.title} {...fadeUp} transition={{ duration: 0.5, delay: i * 0.08 }} className="relative rounded-3xl bg-[#F7F5FB] p-6 pt-10">
+              <motion.div key={s.title} {...fadeUp} transition={{ duration: 0.5, delay: i * 0.08 }} className="relative rounded-3xl bg-[#FFF7FB] border border-pink-100 p-6 pt-10">
                 <span className="absolute -top-5 left-6 flex h-10 w-10 items-center justify-center rounded-full bg-[#E91E63] text-lg font-black text-white shadow-lg">{i + 1}</span>
-                <s.icon className="h-7 w-7 text-[#0B1026]" />
+                <s.icon className="h-7 w-7 text-[#E91E63]" />
                 <h3 className="mt-3 text-lg font-extrabold">{s.title}</h3>
                 <p className="mt-1.5 text-slate-600 leading-relaxed">{s.text}</p>
               </motion.div>
@@ -277,7 +287,7 @@ export default function EmpresasLandingPage() {
       </section>
 
       {/* Avaliações */}
-      <section className="py-16 md:py-20 bg-[#F7F5FB]">
+      <section className="py-16 md:py-20 bg-[#FFF8E1]">
         <motion.div {...fadeUp} className="mx-auto max-w-3xl px-4 text-center">
           <div className="flex justify-center gap-1">
             {Array.from({ length: 5 }).map((_, i) => <Star key={i} className="h-7 w-7 fill-[#F5B83D] text-[#F5B83D]" />)}
@@ -288,7 +298,7 @@ export default function EmpresasLandingPage() {
             href="https://www.google.com/search?q=castelo+da+divers%C3%A3o+sorocaba"
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-6 inline-flex items-center gap-2 rounded-full border-2 border-[#0B1026] px-6 py-3 font-extrabold hover:bg-[#0B1026] hover:text-white transition-colors"
+            className="mt-6 inline-flex items-center gap-2 rounded-full border-2 border-[#E91E63] px-6 py-3 font-extrabold text-[#E91E63] hover:bg-[#E91E63] hover:text-white transition-colors"
           >
             Ver avaliações no Google
           </a>
@@ -331,19 +341,19 @@ export default function EmpresasLandingPage() {
       </section>
 
       {/* Onde estamos + rodapé */}
-      <footer className="bg-[#0B1026] text-white pt-16 pb-28 md:pb-16">
+      <footer className="bg-[#FFF7FB] text-[#2B1B4A] pt-16 pb-28 md:pb-16 border-t border-pink-100">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 md:grid-cols-2 md:items-center">
           <div>
-            <span className="flex h-24 w-24 items-center justify-center rounded-3xl bg-white p-2"><img src={logoCastelo} alt="Castelo da Diversão" className="h-full w-full object-contain" /></span>
+            <span className="flex h-24 w-24 items-center justify-center rounded-3xl bg-white p-2 shadow-sm"><img src={logoCastelo} alt="Castelo da Diversão" className="h-full w-full object-contain" /></span>
             <h2 className="mt-6 text-3xl md:text-4xl font-black leading-tight">Vamos planejar a confraternização da sua equipe?</h2>
-            <p className="mt-3 text-white/75">Chame no WhatsApp e receba a proposta. Sem compromisso.</p>
+            <p className="mt-3 text-slate-600">Chame no WhatsApp e receba a proposta. Sem compromisso.</p>
             <div className="mt-6"><CtaButton origin="rodape">Quero um orçamento</CtaButton></div>
           </div>
-          <div className="space-y-4 text-white/80">
-            <p className="flex items-start gap-3"><MapPin className="mt-0.5 h-5 w-5 shrink-0" style={{ color: GOLD }} /> Avenida General Osório, 1442 · Trujillo, Sorocaba/SP</p>
-            <p className="flex items-start gap-3"><Clock className="mt-0.5 h-5 w-5 shrink-0" style={{ color: GOLD }} /> Atendimento: segunda a sexta, 9h às 18h · sábado, 9h às 13h</p>
-            <p className="flex items-start gap-3"><MessageCircle className="mt-0.5 h-5 w-5 shrink-0" style={{ color: GOLD }} /> WhatsApp (15) 97403-4646</p>
-            <div className="overflow-hidden rounded-2xl border border-white/10">
+          <div className="space-y-4 text-slate-700">
+            <p className="flex items-start gap-3"><MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[#E91E63]" /> Avenida General Osório, 1442 · Trujillo, Sorocaba/SP</p>
+            <p className="flex items-start gap-3"><Clock className="mt-0.5 h-5 w-5 shrink-0 text-[#E91E63]" /> Atendimento: segunda a sexta, 9h às 18h · sábado, 9h às 13h</p>
+            <p className="flex items-start gap-3"><MessageCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#E91E63]" /> WhatsApp (15) 97403-4646</p>
+            <div className="overflow-hidden rounded-2xl border border-pink-100 bg-white">
               <iframe
                 title="Mapa do Castelo da Diversão"
                 src={`https://www.google.com/maps?q=${encodeURIComponent("Avenida General Osório, 1442, Trujillo, Sorocaba - SP")}&output=embed`}
@@ -353,11 +363,11 @@ export default function EmpresasLandingPage() {
             </div>
           </div>
         </div>
-        <p className="mt-12 text-center text-xs text-white/50">© {new Date().getFullYear()} Castelo da Diversão · Sorocaba/SP</p>
+        <p className="mt-12 text-center text-xs text-slate-500">© {new Date().getFullYear()} Castelo da Diversão · Sorocaba/SP</p>
       </footer>
 
       {/* Botão fixo no celular */}
-      <div className="fixed inset-x-0 bottom-0 z-40 p-3 md:hidden bg-gradient-to-t from-[#0B1026]/90 to-transparent">
+      <div className="fixed inset-x-0 bottom-0 z-40 p-3 md:hidden bg-gradient-to-t from-white via-white/90 to-transparent">
         <CtaButton origin="botao-fixo" className="w-full">Pedir orçamento pelo WhatsApp</CtaButton>
       </div>
 
