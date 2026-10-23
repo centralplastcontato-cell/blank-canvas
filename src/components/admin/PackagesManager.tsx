@@ -8,7 +8,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Trash2, Pencil, Package, Loader2, Settings2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Package, Loader2, Settings2, ChevronUp, ChevronDown, AlertTriangle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { moveItem, readPackageEventTypes, sortOrderChanges } from "@/lib/catalogOrder";
+import { DEFAULT_EVENT_TYPES, type EventTypeConfig } from "./EventTypesConfig";
 import { toast } from "@/hooks/use-toast";
 import { PackagePriceGrid, type PackagePriceGridHandle } from "./PackagePriceGrid";
 import { PriceGridConfigDialog } from "./PriceGridConfigDialog";
@@ -44,6 +47,8 @@ function formatCurrency(value: string): string {
   });
   return formatted;
 }
+
+const money = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: v % 1 ? 2 : 0 });
 
 function parseCurrency(formatted: string): number | null {
   if (!formatted.trim()) return null;
@@ -87,6 +92,16 @@ export function PackagesManager() {
   const [configOpen, setConfigOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CompanyPackage | null>(null);
   const priceGridRef = useRef<PackagePriceGridHandle>(null);
+  // Faixa de preço da grade de cada pacote (o que a IA usa para passar valor)
+  const [ranges, setRanges] = useState<Record<string, { min: number; max: number }>>({});
+  const [eventType, setEventType] = useState<string>("none");
+
+  const settings = (currentCompany?.settings || null) as Record<string, unknown> | null;
+  const typeLinks = readPackageEventTypes(settings);
+  const eventTypes: EventTypeConfig[] = (Array.isArray(settings?.event_types) && (settings?.event_types as unknown[]).length
+    ? (settings?.event_types as EventTypeConfig[])
+    : DEFAULT_EVENT_TYPES);
+  const typeLabel = (v: string) => eventTypes.find((t) => t.value === v)?.label;
 
   const fetchPackages = async () => {
     if (!currentCompany?.id) return;
@@ -98,6 +113,44 @@ export function PackagesManager() {
       .order("created_at");
     setPackages((data as unknown as CompanyPackage[]) || []);
     setLoading(false);
+    const { data: tiers } = await supabase
+      .from("package_price_tiers" as any)
+      .select("package_id, price")
+      .eq("company_id", currentCompany.id);
+    const r: Record<string, { min: number; max: number }> = {};
+    ((tiers || []) as unknown as { package_id: string; price: number }[]).forEach((t) => {
+      const price = Number(t.price);
+      if (!(price > 0)) return;
+      const cur = r[t.package_id];
+      r[t.package_id] = cur ? { min: Math.min(cur.min, price), max: Math.max(cur.max, price) } : { min: price, max: price };
+    });
+    setRanges(r);
+  };
+
+  const move = async (index: number, direction: -1 | 1) => {
+    const next = moveItem(packages, index, direction);
+    if (next === packages) return;
+    const changes = sortOrderChanges(next);
+    setPackages(next.map((p, i) => ({ ...p, sort_order: i })));
+    const results = await Promise.all(changes.map((c) => supabase.from("company_packages").update({ sort_order: c.sort_order }).eq("id", c.id)));
+    if (results.some((r) => r.error)) {
+      toast({ title: "Não foi possível mudar a ordem", variant: "destructive" });
+      fetchPackages();
+    }
+  };
+
+  // Liga o pacote a um tipo de festa (a ficha da festa sugere o pacote certo)
+  const saveTypeLink = async (packageId: string, value: string) => {
+    if (!currentCompany?.id) return true;
+    const current = typeLinks[packageId] || "none";
+    if (current === value) return true;
+    const { data } = await supabase.from("companies").select("settings").eq("id", currentCompany.id).single();
+    const base = (data?.settings && typeof data.settings === "object" && !Array.isArray(data.settings)) ? data.settings as Record<string, unknown> : {};
+    const links = { ...readPackageEventTypes(base) };
+    if (value === "none") delete links[packageId]; else links[packageId] = value;
+    const { error } = await supabase.from("companies").update({ settings: { ...base, package_event_types: links } }).eq("id", currentCompany.id);
+    if (!error) void refreshCompanies();
+    return !error;
   };
 
   useEffect(() => {
@@ -119,6 +172,7 @@ export function PackagesManager() {
     setValorAdulto("");
     setValorAntecipado("");
     setValorNoDia("");
+    setEventType("none");
     setDialogOpen(true);
   };
 
@@ -134,6 +188,7 @@ export function PackagesManager() {
     setValorAdulto(numToDisplay(pkg.valor_pessoa_adicional_adulto));
     setValorAntecipado(numToDisplay(pkg.valor_adicional_antecipado));
     setValorNoDia(numToDisplay(pkg.valor_adicional_no_dia));
+    setEventType(typeLinks[pkg.id] || "none");
     setDialogOpen(true);
   };
 
@@ -198,6 +253,10 @@ export function PackagesManager() {
     if (!failed && targetId && priceGridRef.current) {
       const ok = await priceGridRef.current.saveTiers(targetId);
       if (!ok) failed = "a grade de preços não foi gravada (a anterior foi mantida)";
+    }
+    if (!failed && targetId) {
+      const ok = await saveTypeLink(targetId, eventType);
+      if (!ok) failed = "o tipo de festa do pacote não foi salvo";
     }
 
     setSaving(false);
@@ -271,76 +330,71 @@ export function PackagesManager() {
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">
-        {packages.map((pkg) => (
-          <Card key={pkg.id} className={cn("group border-border/50 bg-gradient-to-br from-card to-muted/30 hover:border-primary/20 hover:shadow-lg transition-all duration-300", !pkg.is_active && "opacity-60")}>
-            <CardContent className="p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
-                    <Package className="h-4 w-4 text-primary" />
-                  </div>
-                  <span className="font-semibold text-sm text-foreground">{pkg.name}</span>
-                  {!pkg.is_active && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Pausado</span>}
-                </div>
-                <div className="flex items-center gap-0.5">
-                  <Switch checked={pkg.is_active} onCheckedChange={() => toggleActive(pkg)} aria-label={pkg.is_active ? "Pausar pacote" : "Ativar pacote"} className="scale-75" />
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(pkg)} aria-label="Editar pacote">
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteTarget(pkg)} aria-label="Excluir pacote">
-                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                  </Button>
-                </div>
-              </div>
-              {pkg.description && (
-                <p className="text-xs text-muted-foreground line-clamp-2 pl-[46px]">{pkg.description}</p>
-              )}
-              <div className="ml-[46px] flex flex-wrap gap-2">
-                {pkg.preco_separado ? (
-                  <>
-                    {pkg.valor_pessoa_adicional_crianca != null && (
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-500/5 border border-blue-500/10">
-                        <span className="text-[11px] font-semibold text-blue-600 tracking-wide">
-                          🧒 Criança: R$ {pkg.valor_pessoa_adicional_crianca.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                    )}
-                    {pkg.valor_pessoa_adicional_adulto != null && (
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-500/5 border border-orange-500/10">
-                        <span className="text-[11px] font-semibold text-orange-600 tracking-wide">
-                          🧑 Adulto: R$ {pkg.valor_pessoa_adicional_adulto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  pkg.valor_pessoa_adicional != null && (
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/5 border border-primary/10">
-                      <span className="text-[11px] font-semibold text-primary tracking-wide uppercase">
-                        Pessoa adicional: R$ {pkg.valor_pessoa_adicional.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </span>
+        {packages.map((pkg, index) => {
+          const range = ranges[pkg.id];
+          const includesCount = (pkg.includes || "").split("\n").map((l) => l.trim()).filter(Boolean).length;
+          const extra = pkg.preco_separado
+            ? [pkg.valor_pessoa_adicional_crianca != null && `criança ${money(pkg.valor_pessoa_adicional_crianca)}`, pkg.valor_pessoa_adicional_adulto != null && `adulto ${money(pkg.valor_pessoa_adicional_adulto)}`].filter(Boolean).join(" · ")
+            : pkg.valor_adicional_antecipado != null || pkg.valor_adicional_no_dia != null
+              ? [pkg.valor_adicional_antecipado != null && `${money(pkg.valor_adicional_antecipado)} antecipado`, pkg.valor_adicional_no_dia != null && `${money(pkg.valor_adicional_no_dia)} no dia`].filter(Boolean).join(" · ")
+              : pkg.valor_pessoa_adicional != null ? `${money(pkg.valor_pessoa_adicional)} por pessoa` : "";
+          const linkedType = typeLinks[pkg.id] ? typeLabel(typeLinks[pkg.id]) : null;
+          return (
+            <Card key={pkg.id} className={cn("border-border/60", !pkg.is_active && "opacity-60")}>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="font-bold text-[15px] text-foreground">{pkg.name}</span>
+                      {!pkg.is_active && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Pausado</span>}
+                      {linkedType && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">{linkedType}</span>}
                     </div>
-                  )
-                )}
-                {pkg.valor_adicional_antecipado != null && (
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-                    <span className="text-[11px] font-semibold text-emerald-600 tracking-wide">
-                      📋 Antecipado: R$ {pkg.valor_adicional_antecipado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
+                    {pkg.description && <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{pkg.description}</p>}
                   </div>
-                )}
-                {pkg.valor_adicional_no_dia != null && (
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/5 border border-amber-500/10">
-                    <span className="text-[11px] font-semibold text-amber-600 tracking-wide">
-                      🎉 No dia: R$ {pkg.valor_adicional_no_dia.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
+                  <Switch checked={pkg.is_active} onCheckedChange={() => toggleActive(pkg)} aria-label={pkg.is_active ? "Pausar pacote" : "Ativar pacote"} />
+                </div>
+
+                <div className="rounded-xl bg-muted/50 px-3 py-2.5 space-y-1">
+                  {range ? (
+                    <p className="text-sm">
+                      <span className="font-bold text-foreground">{range.min === range.max ? money(range.min) : `${money(range.min)} a ${money(range.max)}`}</span>
+                      <span className="text-xs text-muted-foreground"> conforme convidados e dia</span>
+                    </p>
+                  ) : (
+                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                      <AlertTriangle className="h-3.5 w-3.5" /> Sem grade de preços{aiModule && pkg.ai_quote !== false ? ": a IA não consegue passar valor" : ""}
+                    </p>
+                  )}
+                  {extra && <p className="text-xs text-muted-foreground">Convidado extra: {extra}</p>}
+                  <p className="text-xs text-muted-foreground">{includesCount ? `Inclui ${includesCount} ${includesCount === 1 ? "item" : "itens"}` : "\"O que inclui\" não preenchido"}</p>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" disabled={index === 0} onClick={() => move(index, -1)} aria-label="Subir na ordem">
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" disabled={index === packages.length - 1} onClick={() => move(index, 1)} aria-label="Descer na ordem">
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
                   </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => openEdit(pkg)}>
+                      <Pencil className="h-3.5 w-3.5" /> Editar
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteTarget(pkg)} aria-label="Excluir pacote">
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
+      {packages.length > 1 && (
+        <p className="text-[11px] text-muted-foreground">A ordem aqui é a que aparece na ficha da festa, no formulário do cliente e para a IA.</p>
+      )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-3xl max-w-[calc(100vw-2rem)] p-0 gap-0 overflow-hidden bg-background border-border/60 shadow-xl max-h-[90vh] overflow-y-auto">
@@ -370,6 +424,19 @@ export function PackagesManager() {
                   placeholder="Descrição do pacote (opcional)"
                   rows={3}
                 />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Tipo de festa</Label>
+                <Select value={eventType} onValueChange={setEventType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Qualquer tipo</SelectItem>
+                    {eventTypes.filter((t) => !t.hidden || t.value === eventType).map((t) => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">Ao escolher esse tipo na ficha da festa, este pacote aparece primeiro como sugestão.</p>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">O que inclui (um item por linha)</Label>
