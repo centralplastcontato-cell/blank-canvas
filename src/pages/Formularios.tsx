@@ -242,7 +242,7 @@ export default function Formularios() {
           <div className="flex-1 flex flex-col overflow-hidden min-w-0">
             {/* Desktop header */}
             <div className="hidden md:block px-3 md:px-5 pt-3 md:pt-4 pb-0">
-              <div className="max-w-7xl mx-auto">
+              <div className="max-w-7xl">
                 <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
                   <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
                   <div className="relative flex items-center justify-between gap-4 p-5 md:p-6">
@@ -262,7 +262,7 @@ export default function Formularios() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-3 md:p-5">
-              <div className="max-w-7xl mx-auto">
+              <div className="max-w-7xl">
                 <HubLayout groups={groups} active={active} onOpen={open} isMobile={isMobile} backLabel="Operações" toneOf={toneOf} />
               </div>
             </div>

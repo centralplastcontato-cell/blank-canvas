@@ -183,7 +183,7 @@ export default function Inteligencia() {
           </header>
 
           <PullToRefresh onRefresh={async () => { await refetch(); }} className="flex-1 p-3 md:p-5 overflow-x-hidden overflow-y-auto">
-            <div className="mx-auto space-y-4 max-w-7xl">
+            <div className="space-y-4 max-w-7xl">
               {/* Desktop header */}
               <div className="hidden md:block">
                 <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">

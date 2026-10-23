@@ -1020,7 +1020,7 @@ export default function Agenda() {
           {/* Tab: Tarefas */}
           {centralTab === "tarefas" && (
             <div className="flex-1 p-3 md:p-6 lg:p-8 overflow-y-auto">
-              <div className="max-w-7xl mx-auto space-y-6">
+              <div className="max-w-7xl space-y-6">
                 <div className="hidden md:block">
                   <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
                     <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
@@ -1045,7 +1045,7 @@ export default function Agenda() {
           {/* Tab: Tudo */}
           {centralTab === "tudo" && (
             <div className="flex-1 p-3 md:p-6 lg:p-8 overflow-y-auto">
-              <div className="max-w-7xl mx-auto space-y-6">
+              <div className="max-w-7xl space-y-6">
                 <div className="hidden md:block">
                   <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
                     <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
@@ -1079,7 +1079,7 @@ export default function Agenda() {
           {/* Tab: Visitas */}
           {centralTab === "visitas" && (
             <div className="flex-1 p-3 pb-28 md:p-6 lg:p-8 overflow-y-auto">
-              <div className="max-w-7xl mx-auto space-y-6">
+              <div className="max-w-7xl space-y-6">
                 <div className="hidden md:block">
                   <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
                     <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
@@ -1105,7 +1105,7 @@ export default function Agenda() {
           {centralTab === "festas" && (<>
 
           <PullToRefresh onRefresh={async () => { await fetchEvents(); }} className="flex-1 p-3 pb-28 md:p-6 lg:p-8 overflow-x-hidden overflow-y-auto">
-            <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
+            <div className="max-w-7xl space-y-4 md:space-y-6">
               {/* Celular: sub-abas, botões, unidade e busca rolam junto com a página
                   (antes ficavam presos no topo e tomavam quase metade da tela) */}
               <div className="md:hidden space-y-2.5">
