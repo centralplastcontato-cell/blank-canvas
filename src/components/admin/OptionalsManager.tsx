@@ -9,6 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, Trash2, Pencil, Package, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch";
+import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
+import { cn } from "@/lib/utils";
 
 interface CompanyOptional {
   id: string;
@@ -61,6 +64,7 @@ export function OptionalsManager() {
   const [valor, setValor] = useState("");
   const [valorPorPessoa, setValorPorPessoa] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<CompanyOptional | null>(null);
 
   const fetchOptionals = async () => {
     if (!currentCompany?.id) return;
@@ -110,23 +114,43 @@ export function OptionalsManager() {
       valor_por_pessoa: parseCurrency(valorPorPessoa),
     };
 
-    if (editing) {
-      await supabase.from("company_optionals" as any).update(payload).eq("id", editing.id);
-      toast({ title: "Opcional atualizado!" });
-    } else {
-      await supabase.from("company_optionals" as any).insert({ ...payload, company_id: currentCompany.id } as any);
-      toast({ title: "Opcional criado!" });
-    }
+    const { error } = editing
+      ? await supabase.from("company_optionals" as any).update(payload).eq("id", editing.id)
+      : await supabase.from("company_optionals" as any).insert({ ...payload, company_id: currentCompany.id, sort_order: optionals.length } as any);
 
     setSaving(false);
+    if (error) {
+      // A janela fica aberta para tentar de novo sem perder o que foi digitado
+      toast({ title: "Não foi possível salvar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: editing ? "Opcional atualizado!" : "Opcional criado!" });
     setDialogOpen(false);
     fetchOptionals();
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from("company_optionals" as any).delete().eq("id", id);
+    const { error } = await supabase.from("company_optionals" as any).delete().eq("id", id);
+    setDeleteTarget(null);
+    if (error) {
+      toast({ title: "Não foi possível excluir", description: error.message, variant: "destructive" });
+      return;
+    }
     toast({ title: "Opcional excluído" });
     fetchOptionals();
+  };
+
+  // Pausado = some da lista ao montar a festa, sem perder nada
+  const toggleActive = async (opt: CompanyOptional) => {
+    const next = !opt.is_active;
+    setOptionals((prev) => prev.map((o) => (o.id === opt.id ? { ...o, is_active: next } : o)));
+    const { error } = await supabase.from("company_optionals" as any).update({ is_active: next } as any).eq("id", opt.id);
+    if (error) {
+      setOptionals((prev) => prev.map((o) => (o.id === opt.id ? { ...o, is_active: !next } : o)));
+      toast({ title: "Não foi possível mudar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: next ? `"${opt.name}" ativo` : `"${opt.name}" pausado`, description: next ? "Volta a aparecer ao montar a festa." : "Não aparece mais ao montar festas novas. Nada foi apagado." });
   };
 
   if (loading) {
@@ -160,7 +184,7 @@ export function OptionalsManager() {
 
       <div className="grid gap-3 sm:grid-cols-2">
         {optionals.map((opt) => (
-          <Card key={opt.id} className="group border-border/50 bg-gradient-to-br from-card to-muted/30 hover:border-primary/20 hover:shadow-lg transition-all duration-300">
+          <Card key={opt.id} className={cn("group border-border/50 bg-gradient-to-br from-card to-muted/30 hover:border-primary/20 hover:shadow-lg transition-all duration-300", !opt.is_active && "opacity-60")}>
             <CardContent className="p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -168,12 +192,14 @@ export function OptionalsManager() {
                     <Package className="h-4 w-4 text-primary" />
                   </div>
                   <span className="font-semibold text-sm text-foreground">{opt.name}</span>
+                  {!opt.is_active && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Pausado</span>}
                 </div>
-                <div className="flex gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(opt)}>
+                <div className="flex items-center gap-0.5">
+                  <Switch checked={opt.is_active} onCheckedChange={() => toggleActive(opt)} aria-label={opt.is_active ? "Pausar opcional" : "Ativar opcional"} className="scale-75" />
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(opt)} aria-label="Editar opcional">
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(opt.id)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteTarget(opt)} aria-label="Excluir opcional">
                     <Trash2 className="h-3.5 w-3.5 text-destructive" />
                   </Button>
                 </div>
@@ -253,6 +279,19 @@ export function OptionalsManager() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        title={`Excluir o opcional "${deleteTarget?.name ?? ""}"?`}
+        description={
+          <>
+            <p>Festas que já têm esse opcional continuam com ele. Ele só sai da lista para festas novas. Não dá para desfazer.</p>
+            <p>Se for só por um tempo, use o botão de <strong>pausar</strong> no cartão.</p>
+          </>
+        }
+        onConfirm={() => deleteTarget && handleDelete(deleteTarget.id)}
+      />
     </div>
   );
 }

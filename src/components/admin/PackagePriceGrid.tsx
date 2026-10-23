@@ -17,7 +17,8 @@ interface PackagePriceGridProps {
 }
 
 export interface PackagePriceGridHandle {
-  saveTiers: (packageId: string) => Promise<void>;
+  /** false se não conseguiu gravar (a grade antiga é devolvida) */
+  saveTiers: (packageId: string) => Promise<boolean>;
   hasTiers: () => boolean;
 }
 
@@ -72,13 +73,7 @@ export const PackagePriceGrid = forwardRef<PackagePriceGridHandle, PackagePriceG
         return Array.from(tiers.values()).some((v) => parseCurrency(v) > 0);
       },
       saveTiers: async (targetPackageId: string) => {
-        // Delete existing tiers
-        await supabase
-          .from("package_price_tiers" as any)
-          .delete()
-          .eq("package_id", targetPackageId);
-
-        // Build rows to insert
+        // Monta a grade nova antes de mexer no banco
         const rows: Array<{ package_id: string; company_id: string; guest_count: number; day_type: string; price: number }> = [];
         tiers.forEach((val, k) => {
           const price = parseCurrency(val);
@@ -90,9 +85,29 @@ export const PackagePriceGrid = forwardRef<PackagePriceGridHandle, PackagePriceG
           }
         });
 
-        if (rows.length > 0) {
-          await supabase.from("package_price_tiers" as any).insert(rows as any);
+        // Guarda a grade atual: se gravar a nova falhar, ela volta (antes os
+        // preços sumiam e a IA ficava sem valor para passar)
+        const { data: previous, error: readError } = await supabase
+          .from("package_price_tiers" as any)
+          .select("package_id, company_id, guest_count, day_type, price")
+          .eq("package_id", targetPackageId);
+        if (readError) return false;
+
+        const { error: deleteError } = await supabase
+          .from("package_price_tiers" as any)
+          .delete()
+          .eq("package_id", targetPackageId);
+        if (deleteError) return false;
+
+        if (rows.length === 0) return true;
+        const { error: insertError } = await supabase.from("package_price_tiers" as any).insert(rows as any);
+        if (insertError) {
+          if (previous && (previous as unknown[]).length) {
+            await supabase.from("package_price_tiers" as any).insert(previous as any);
+          }
+          return false;
         }
+        return true;
       },
     }));
 
