@@ -1,5 +1,5 @@
 import {
-  Activity, BarChart3, BookOpen, Brain, Building2, Contact, Database, GraduationCap,
+  Activity, BarChart3, BookOpen, Brain, Building2, Contact, Database, PlayCircle,
   Headset, Instagram, Package, Presentation, Smartphone, Target, UserCog, UserSearch, Rocket,
   type LucideIcon,
 } from "lucide-react";
@@ -55,7 +55,7 @@ export const hubNavGroups: HubNavGroup[] = [
   {
     label: "Equipe e conteúdo",
     items: [
-      { id: "treinamento", label: "Treinamento", path: "/hub/treinamento", icon: GraduationCap, color: "bg-indigo-500/15 text-indigo-600", keywords: ["aulas", "cursos"] },
+      { id: "treinamento", label: "Aprenda a usar", path: "/hub/treinamento", icon: PlayCircle, color: "bg-indigo-500/15 text-indigo-600", keywords: ["aulas", "cursos", "treinamento", "vídeos", "tutoriais"] },
       { id: "materiais", label: "Materiais", path: "/hub/materiais", icon: Package, color: "bg-emerald-500/15 text-emerald-600", keywords: ["arquivos", "vendas"] },
       { id: "recrutamento", label: "Recrutamento", path: "/hub/recrutamento", icon: UserSearch, color: "bg-orange-500/15 text-orange-600", keywords: ["vagas", "candidatos"] },
     ],

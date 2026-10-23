@@ -13,9 +13,11 @@ import {
   FileSignature,
   DollarSign,
   Handshake,
+  PlayCircle,
   type LucideIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchPublishedLessonRefs } from "@/lib/lessons";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
 import { useMenuBadges } from "@/hooks/useMenuBadges";
 
@@ -75,6 +77,14 @@ export function useMenuItems({ isAdmin, canViewFinanceiro, badgesEnabled }: Opti
   const modules = useCompanyModules();
   const [finViewAllowed, setFinViewAllowed] = useState(true);
   const [authName, setAuthName] = useState("");
+  const [hasLessons, setHasLessons] = useState(false);
+
+  useEffect(() => {
+    if (!modules.treinamento) return;
+    let alive = true;
+    fetchPublishedLessonRefs().then((refs) => { if (alive) setHasLessons(refs.length > 0); });
+    return () => { alive = false; };
+  }, [modules.treinamento]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -104,9 +114,10 @@ export function useMenuItems({ isAdmin, canViewFinanceiro, badgesEnabled }: Opti
     { id: "formularios", group: "festas", label: "Operações", icon: FolderOpen, color: "bg-amber-500/15 text-amber-600", path: "/formularios", show: !!modules.operacoes },
     { id: "contratos", group: "festas", label: "Contratos", icon: FileSignature, color: "bg-sky-500/15 text-sky-600", path: "/contratos", show: !!modules.contrato },
     { id: "financeiro", group: "festas", label: "Financeiro", icon: DollarSign, color: "bg-green-500/15 text-green-700", path: "/financeiro", show: showFinanceiro },
+    // Só aparece quando já tem vídeo publicado (sem vídeo a página ficaria vazia)
+    { id: "treinamento", group: "mais", label: "Aprenda a usar", icon: PlayCircle, color: "bg-indigo-500/15 text-indigo-600", path: "/aprenda", show: !!modules.treinamento && hasLessons },
     { id: "configuracoes", group: "mais", label: "Configurações Gerais", icon: Settings, color: "bg-slate-500/15 text-slate-600", path: "/configuracoes", show: !!modules.config },
     { id: "empresas", group: "mais", label: "Empresas", icon: Building2, color: "bg-slate-500/15 text-slate-600", path: "/hub/empresas", show: !!isAdmin },
-    // Treinamento escondido (out/2026): nenhuma aula cadastrada
     { id: "parceiro", group: "mais", label: "Empresa Parceira", icon: Handshake, color: "bg-orange-500/15 text-orange-600", path: "/parceiro", show: !!modules.empresa_parceira },
   ];
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { getCompanyLogoOverride } from "@/lib/companyAssetOverrides";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -9,14 +9,12 @@ import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { MobileMenu } from "@/components/admin/MobileMenu";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-} from "@/components/ui/dialog";
-import { GraduationCap, Loader2, Play, Video, Download, BookOpen, Clock, Menu } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { PlayCircle, Loader2, Play, Download, Menu, Clock, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { generateManualPDF } from "@/lib/generateManualPDF";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
+import { LESSON_CATEGORIES, LESSON_CATEGORY_COLORS, formatLessonDuration, lessonCategory } from "@/lib/lessons";
 
 interface TrainingLesson {
   id: string;
@@ -28,40 +26,65 @@ interface TrainingLesson {
   sort_order: number;
 }
 
-const CATEGORIES = [
-  "Geral",
-  "WhatsApp",
-  "CRM",
-  "Agenda",
-  "Operações",
-  "Configurações",
-  "Inteligência",
-  "Landing Page",
-];
+/** Capa do vídeo: a imagem cadastrada ou um quadro do próprio vídeo */
+function LessonCover({ lesson, duration, onDuration, big }: {
+  lesson: TrainingLesson;
+  duration: number | undefined;
+  onDuration: (seconds: number) => void;
+  big?: boolean;
+}) {
+  const time = formatLessonDuration(duration);
+  return (
+    <div className="relative aspect-video overflow-hidden bg-muted">
+      {lesson.thumbnail_url ? (
+        <img src={lesson.thumbnail_url} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
+      ) : null}
+      <video
+        src={`${lesson.video_url}#t=2`}
+        preload="metadata"
+        muted
+        playsInline
+        aria-hidden
+        onLoadedMetadata={(e) => onDuration(e.currentTarget.duration)}
+        className={cn("h-full w-full object-cover", lesson.thumbnail_url && "hidden")}
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-black/0 to-black/0" />
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className={cn(
+          "flex items-center justify-center rounded-full bg-white/95 text-primary shadow-lg transition-transform duration-300 group-hover:scale-110",
+          big ? "h-16 w-16" : "h-12 w-12",
+        )}>
+          <Play className={cn("ml-0.5", big ? "h-7 w-7" : "h-5 w-5")} fill="currentColor" />
+        </span>
+      </div>
+      {time && (
+        <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[11px] font-semibold text-white">
+          <Clock className="h-3 w-3" /> {time}
+        </span>
+      )}
+    </div>
+  );
+}
 
-const CATEGORY_COLORS: Record<string, string> = {
-  Geral: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-  WhatsApp: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
-  CRM: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
-  Agenda: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
-  "Operações": "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
-  "Configurações": "bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-300",
-  "Inteligência": "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-  "Landing Page": "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300",
-};
+function CategoryBadge({ category, className }: { category: string; className?: string }) {
+  return (
+    <Badge className={cn("border-0 px-2 py-0.5 text-[10px] font-semibold", LESSON_CATEGORY_COLORS[category] || "bg-muted text-muted-foreground", className)}>
+      {category}
+    </Badge>
+  );
+}
 
 export default function Treinamento() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { currentCompany } = useCompany();
   const [user, setUser] = useState<{ id: string; name: string; email: string; avatar?: string | null } | null>(null);
   const { isAdmin } = useUserRole(user?.id);
-  const isMobile = useIsMobile();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [lessons, setLessons] = useState<TrainingLesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterCategory, setFilterCategory] = useState<string>("all");
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [previewTitle, setPreviewTitle] = useState("");
+  const [durations, setDurations] = useState<Record<string, number>>({});
   const [generatingPDF, setGeneratingPDF] = useState(false);
 
   useEffect(() => {
@@ -75,6 +98,20 @@ export default function Treinamento() {
         });
       }
     });
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from("training_lessons")
+        .select("id, title, description, video_url, thumbnail_url, category, sort_order")
+        .eq("is_published", true)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: false });
+      setLessons(((data || []) as TrainingLesson[]).map((l) => ({ ...l, category: lessonCategory(l.category) })));
+      setLoading(false);
+    })();
   }, []);
 
   const handleLogout = async () => {
@@ -91,35 +128,21 @@ export default function Treinamento() {
     }
   };
 
-  useEffect(() => {
-    const fetchLessons = async () => {
-      setLoading(true);
-      const { data } = await supabase
-        .from("training_lessons")
-        .select("id, title, description, video_url, thumbnail_url, category, sort_order")
-        .eq("is_published", true)
-        .order("sort_order", { ascending: true })
-        .order("created_at", { ascending: false });
-
-      if (data) setLessons(data as TrainingLesson[]);
-      setLoading(false);
-    };
-    fetchLessons();
-  }, []);
-
-  const filtered = filterCategory === "all"
-    ? lessons
-    : lessons.filter((l) => l.category === filterCategory);
-
-  const categoryCounts = CATEGORIES.reduce((acc, cat) => {
-    acc[cat] = lessons.filter((l) => l.category === cat).length;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const openPreview = (lesson: TrainingLesson) => {
-    setPreviewUrl(lesson.video_url);
-    setPreviewTitle(lesson.title);
+  // ?aula=<id> abre o vídeo direto (botões "Ver vídeo" das outras telas)
+  const playingId = searchParams.get("aula");
+  const playing = lessons.find((l) => l.id === playingId) || null;
+  const play = (id: string | null) => {
+    const next = new URLSearchParams(searchParams);
+    if (id) next.set("aula", id); else next.delete("aula");
+    setSearchParams(next, { replace: !id });
   };
+
+  const setDuration = (id: string) => (seconds: number) =>
+    setDurations((d) => (d[id] === seconds ? d : { ...d, [id]: seconds }));
+
+  const categories = LESSON_CATEGORIES.filter((c) => lessons.some((l) => l.category === c));
+  const featured = filterCategory === "all" ? lessons[0] : undefined;
+  const list = lessons.filter((l) => l !== featured && (filterCategory === "all" || l.category === filterCategory));
 
   return (
     <SidebarProvider defaultOpen={false}>
@@ -151,9 +174,9 @@ export default function Treinamento() {
                   />
                   <div className="flex items-center gap-2 min-w-0">
                     {getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url) && (
-                      <img src={getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url)!} alt={currentCompany.name || 'Logo'} className="h-8 w-auto shrink-0" />
+                      <img src={getCompanyLogoOverride(currentCompany?.slug, currentCompany?.logo_url)!} alt={currentCompany?.name || "Logo"} className="h-8 w-auto shrink-0" />
                     )}
-                    <h1 className="font-bold text-foreground text-sm truncate">Treinamento</h1>
+                    <h1 className="font-display font-bold text-foreground text-sm truncate">Aprenda a usar</h1>
                   </div>
                 </div>
                 <NotificationBell />
@@ -161,151 +184,138 @@ export default function Treinamento() {
             </div>
           </header>
 
-          {/* Page content */}
           <div className="flex-1 overflow-y-auto">
-            <div className="max-w-7xl px-3 md:px-6 py-4 md:py-8">
-              {/* Hero Header */}
-              <div className="relative overflow-hidden rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] p-5 md:p-8 mb-5">
+            <div className="max-w-7xl px-3 md:px-5 py-3 md:py-4 space-y-5">
+              {/* Desktop header (mesmo padrão de Operações e Configurações) */}
+              <div className="hidden md:block relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
-                <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="relative flex items-center justify-between gap-4 p-5 md:p-6">
                   <div className="flex items-center gap-4">
-                    <div className="hidden md:flex p-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20">
-                      <GraduationCap className="h-7 w-7 text-primary-foreground" />
+                    <div className="p-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20">
+                      <PlayCircle className="h-7 w-7 text-primary-foreground" />
                     </div>
                     <div>
-                      <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Treinamento</h1>
-                      <p className="text-sm text-muted-foreground/70 mt-0.5">Videoaulas para aprender a usar a plataforma</p>
+                      <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-foreground">Aprenda a usar</h1>
+                      <p className="text-sm text-muted-foreground/70 mt-0.5">Vídeos curtos, passo a passo, para usar a plataforma no dia a dia</p>
                     </div>
                   </div>
-                  <Button variant="outline" onClick={handleDownloadManual} disabled={generatingPDF} className="shrink-0 gap-2 rounded-xl">
+                  <Button variant="ghost" size="sm" onClick={handleDownloadManual} disabled={generatingPDF} className="shrink-0 gap-2 text-muted-foreground">
                     {generatingPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                    Baixar Manual PDF
+                    Manual em PDF
                   </Button>
                 </div>
-
-                {lessons.length > 0 && (
-                  <div className="flex items-center gap-4 mt-5 pt-5 border-t border-primary/10">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <BookOpen className="h-4 w-4" />
-                      <span className="font-medium text-foreground">{lessons.length}</span> aulas
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Clock className="h-4 w-4" />
-                      <span>{new Set(lessons.map(l => l.category).filter(Boolean)).size} categorias</span>
-                    </div>
-                  </div>
-                )}
               </div>
 
-              {/* Category filter chips */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 mb-5 scrollbar-none">
-                <button
-                  onClick={() => setFilterCategory("all")}
-                  className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
-                    filterCategory === "all"
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
-                  }`}
-                >
-                  Todas ({lessons.length})
-                </button>
-                {CATEGORIES.filter(c => categoryCounts[c] > 0).map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setFilterCategory(cat)}
-                    className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
-                      filterCategory === cat
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80"
-                    }`}
-                  >
-                    {cat} ({categoryCounts[cat]})
-                  </button>
-                ))}
-              </div>
-
-              {/* Content */}
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-3">
                   <Loader2 className="h-8 w-8 animate-spin text-primary/60" />
-                  <p className="text-sm text-muted-foreground">Carregando aulas...</p>
+                  <p className="text-sm text-muted-foreground">Carregando vídeos...</p>
                 </div>
-              ) : filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 md:py-16 gap-4">
-                  <div className="h-16 w-16 md:h-20 md:w-20 rounded-full bg-muted/50 flex items-center justify-center">
-                    <Video className="h-8 w-8 md:h-10 md:w-10 text-muted-foreground/40" />
+              ) : lessons.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-14 gap-4 text-center">
+                  <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+                    <PlayCircle className="h-8 w-8 text-primary/70" />
                   </div>
-                  <div className="text-center">
-                    <p className="font-medium text-foreground text-sm md:text-base">Nenhuma aula disponível</p>
-                    <p className="text-xs md:text-sm text-muted-foreground mt-1">
-                      {filterCategory !== "all"
-                        ? "Tente selecionar outra categoria."
-                        : "As aulas serão publicadas em breve."}
-                    </p>
+                  <div>
+                    <p className="font-semibold text-foreground">Os vídeos estão chegando</p>
+                    <p className="text-sm text-muted-foreground mt-1">Enquanto isso, o manual em PDF explica cada parte da plataforma.</p>
                   </div>
-                  <div className="mt-1 p-4 rounded-2xl border border-primary/15 bg-primary/5 w-full max-w-sm text-center space-y-2.5">
-                    <BookOpen className="h-7 w-7 text-primary/70 mx-auto" />
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">Enquanto isso, baixe o Manual</p>
-                      <p className="text-xs text-muted-foreground mt-1">Todas as informações e explicações sobre a plataforma em um PDF completo.</p>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={handleDownloadManual} disabled={generatingPDF} className="gap-2 rounded-xl">
-                      {generatingPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                      Baixar Manual PDF
-                    </Button>
-                  </div>
+                  <Button variant="outline" size="sm" onClick={handleDownloadManual} disabled={generatingPDF} className="gap-2 rounded-xl">
+                    {generatingPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                    Baixar manual em PDF
+                  </Button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
-                  {filtered.map((lesson) => (
-                    <div
-                      key={lesson.id}
-                      className="group cursor-pointer rounded-2xl border border-border/60 bg-card overflow-hidden hover:shadow-xl hover:border-primary/20 hover:-translate-y-0.5 transition-all duration-300"
-                      onClick={() => openPreview(lesson)}
+                <>
+                  {/* Destaque: o primeiro vídeo */}
+                  {featured && (
+                    <button
+                      type="button"
+                      onClick={() => play(featured.id)}
+                      className="group grid w-full overflow-hidden rounded-2xl border border-border/60 bg-card text-left shadow-[0_4px_24px_rgba(0,0,0,0.04)] transition-all hover:border-primary/30 hover:shadow-xl md:grid-cols-[1.35fr_1fr]"
                     >
-                      <div className="relative aspect-video bg-muted flex items-center justify-center overflow-hidden">
-                        {lesson.thumbnail_url ? (
-                          <img src={lesson.thumbnail_url} alt={lesson.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        ) : (
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
-                              <Play className="h-6 w-6 text-primary/60 ml-0.5" />
-                            </div>
-                          </div>
-                        )}
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 flex items-center justify-center transition-all duration-300">
-                          <div className="h-12 w-12 rounded-full bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg">
-                            <Play className="h-5 w-5 text-primary ml-0.5" fill="currentColor" />
-                          </div>
+                      <LessonCover lesson={featured} duration={durations[featured.id]} onDuration={setDuration(featured.id)} big />
+                      <div className="flex flex-col justify-center gap-3 p-5 md:p-7">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-primary">
+                            <Sparkles className="h-3 w-3" /> Comece por aqui
+                          </span>
+                          {featured.category && <CategoryBadge category={featured.category} />}
                         </div>
-                        {lesson.category && (
-                          <Badge className={`absolute top-2 left-2 text-[10px] px-2 py-0.5 border-0 ${CATEGORY_COLORS[lesson.category] || "bg-muted text-muted-foreground"}`}>
-                            {lesson.category}
-                          </Badge>
-                        )}
+                        <h2 className="text-xl md:text-2xl font-extrabold leading-tight tracking-tight text-foreground group-hover:text-primary transition-colors">
+                          {featured.title}
+                        </h2>
+                        {featured.description && <p className="text-sm leading-relaxed text-muted-foreground">{featured.description}</p>}
+                        <span className="mt-1 inline-flex w-fit items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm">
+                          <Play className="h-4 w-4" fill="currentColor" /> Assistir
+                          {formatLessonDuration(durations[featured.id]) && <span className="font-normal opacity-80">· {formatLessonDuration(durations[featured.id])}</span>}
+                        </span>
                       </div>
-                      <div className="p-4">
-                        <h3 className="font-semibold text-sm line-clamp-2 text-foreground group-hover:text-primary transition-colors">{lesson.title}</h3>
-                        {lesson.description && (
-                          <p className="text-xs text-muted-foreground line-clamp-2 mt-1.5 leading-relaxed">
-                            {lesson.description}
-                          </p>
-                        )}
-                      </div>
+                    </button>
+                  )}
+
+                  {/* Filtro por assunto (só quando há mais de um) */}
+                  {categories.length > 1 && (
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+                      {["all", ...categories].map((cat) => (
+                        <button
+                          key={cat}
+                          onClick={() => setFilterCategory(cat)}
+                          className={cn(
+                            "shrink-0 rounded-xl px-3 py-1.5 text-xs font-medium transition-colors",
+                            filterCategory === cat ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted text-muted-foreground hover:bg-muted/80",
+                          )}
+                        >
+                          {cat === "all" ? `Todos (${lessons.length})` : `${cat} (${lessons.filter((l) => l.category === cat).length})`}
+                        </button>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  )}
+
+                  {list.length > 0 && (
+                    <section className="space-y-3">
+                      {featured && <h2 className="px-1 text-sm font-bold text-foreground">Mais vídeos</h2>}
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 md:gap-5">
+                        {list.map((lesson) => (
+                          <button
+                            type="button"
+                            key={lesson.id}
+                            onClick={() => play(lesson.id)}
+                            className="group overflow-hidden rounded-2xl border border-border/60 bg-card text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/20 hover:shadow-xl"
+                          >
+                            <LessonCover lesson={lesson} duration={durations[lesson.id]} onDuration={setDuration(lesson.id)} />
+                            <div className="space-y-1.5 p-4">
+                              {lesson.category && <CategoryBadge category={lesson.category} />}
+                              <h3 className="line-clamp-2 text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{lesson.title}</h3>
+                              {lesson.description && <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{lesson.description}</p>}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </>
               )}
             </div>
           </div>
 
-          {/* Video player dialog */}
-          <Dialog open={!!previewUrl} onOpenChange={() => setPreviewUrl(null)}>
-            <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-2xl">
-              <div className="p-4 pb-2">
-                <h2 className="font-semibold text-lg">{previewTitle}</h2>
-              </div>
-              <video src={previewUrl || ""} controls autoPlay className="w-full" />
+          {/* Player */}
+          <Dialog open={!!playing} onOpenChange={(o) => !o && play(null)}>
+            <DialogContent className="max-w-4xl gap-0 overflow-hidden rounded-2xl p-0">
+              {playing && (
+                <>
+                  <video key={playing.id} src={playing.video_url} poster={playing.thumbnail_url || undefined} controls autoPlay playsInline className="aspect-video w-full bg-black" />
+                  <div className="space-y-1.5 p-4 md:p-5">
+                    {playing.category && <CategoryBadge category={playing.category} />}
+                    <DialogTitle className="text-base md:text-lg font-bold leading-snug">{playing.title}</DialogTitle>
+                    {playing.description ? (
+                      <DialogDescription className="text-sm leading-relaxed">{playing.description}</DialogDescription>
+                    ) : (
+                      <DialogDescription className="sr-only">Vídeo</DialogDescription>
+                    )}
+                  </div>
+                </>
+              )}
             </DialogContent>
           </Dialog>
         </div>
