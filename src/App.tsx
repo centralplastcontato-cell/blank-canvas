@@ -10,7 +10,7 @@ import { LoadingScreen } from "@/components/ui/loading-screen";
 
 // Eager: root-level routing (tiny, always needed)
 import RootPage from "./pages/RootPage";
-import { isPreviewDomain } from "@/hooks/useDomainDetection";
+import { isPreviewDomain, getCanonicalHost } from "@/hooks/useDomainDetection";
 import { SetupGate } from "@/components/SetupGate";
 import NotFound from "./pages/NotFound";
 
@@ -89,6 +89,15 @@ const HubLogin = lazy(lazyImports["/hub-login"]);
 const HubLandingPage = lazy(lazyImports["/hub-landing"]);
 const HubDashboard = lazy(lazyImports["/hub"]);
 const HubEmpresas = lazy(lazyImports["/hub/empresas"]);
+const EmpresasLandingPage = lazy(() => import("./pages/EmpresasLandingPage"));
+
+// /empresas: no site do Castelo é a página de confraternização de empresas
+// (campanha de fim de ano); nos outros domínios continua indo para o Hub
+const EMPRESAS_LP_DOMAINS = ["castelodadiversao.com.br", "castelodadiversao.online"];
+function EmpresasRoute() {
+  if (EMPRESAS_LP_DOMAINS.includes(getCanonicalHost()) || isPreviewDomain()) return <EmpresasLandingPage />;
+  return <Navigate to="/hub/empresas" replace />;
+}
 const HubUsers = lazy(lazyImports["/hub/users"]);
 const HubWhatsApp = lazy(lazyImports["/hub/whatsapp"]);
 const HubOnboarding = lazy(lazyImports["/hub/onboarding"]);
@@ -278,7 +287,7 @@ const App = () => (
               {/* Redirects for old routes */}
               <Route path="/admin" element={<Navigate to="/atendimento" replace />} />
               <Route path="/whatsapp" element={<Navigate to="/atendimento" replace />} />
-              <Route path="/empresas" element={<Navigate to="/hub/empresas" replace />} />
+              <Route path="/empresas" element={<EmpresasRoute />} />
               <Route path="/comercial-b2b" element={<Navigate to="/hub/comercial-b2b" replace />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
