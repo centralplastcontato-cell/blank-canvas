@@ -60,7 +60,7 @@ interface Props {
 
 export function EventFinancialTab({ eventId, companyId, baseValue, canEdit = true, canPay = true, showValues = true, onAddOptional: _onAddOptional, onConsentSubmit }: Props) {
   const financial = useEventFinancial(eventId, companyId, baseValue);
-  const { activeAccounts } = useBankAccounts();
+  const { activeAccounts } = useBankAccounts({ withBalances: false });
   const bankAccountMap = useMemo(() => {
     const map: Record<string, string> = {};
     activeAccounts.forEach(a => { map[a.id] = a.name; });

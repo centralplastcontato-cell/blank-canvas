@@ -34,13 +34,18 @@ export interface BankAccountFormData {
   is_default?: boolean;
 }
 
-export function useBankAccounts() {
+/**
+ * `withBalances: false` só lista as contas (rápido). Para escolher "de qual conta
+ * saiu" não precisa somar todos os pagamentos, despesas e receitas de cada conta
+ * — essa soma deixava a lista em "Carregando..." por muito tempo (out/2026).
+ */
+export function useBankAccounts({ withBalances = true }: { withBalances?: boolean } = {}) {
   const { currentCompanyId } = useCompany();
   const [accounts, setAccounts] = useState<BankAccountBalance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchAccounts = useCallback(async () => {
-    if (!currentCompanyId) return;
+    if (!currentCompanyId) { setIsLoading(false); return; }
     setIsLoading(true);
     try {
       const { data: accs, error } = await supabase
@@ -51,6 +56,17 @@ export function useBankAccounts() {
         .order('name');
 
       if (error) throw error;
+
+      if (!withBalances) {
+        setAccounts((accs || []).map((acc) => ({
+          ...acc,
+          initial_balance: Number(acc.initial_balance),
+          current_balance: 0,
+          total_entries: 0,
+          total_exits: 0,
+        }) as BankAccountBalance));
+        return;
+      }
 
       // Calculate balances for each account
       const balances: BankAccountBalance[] = await Promise.all(
@@ -105,7 +121,7 @@ export function useBankAccounts() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentCompanyId]);
+  }, [currentCompanyId, withBalances]);
 
   useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
 
