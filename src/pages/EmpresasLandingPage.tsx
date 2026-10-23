@@ -5,8 +5,6 @@ import {
   Users, UtensilsCrossed, GlassWater, Snowflake, Car, Sparkles, Sun, Moon, Baby, Briefcase,
   MessageCircle, FileText, MapPin, CalendarCheck, ChevronDown, Star, Clock, Check,
 } from "lucide-react";
-// Fachada da unidade Trujillo (a unidade 1 não existe mais)
-import fachada from "@/assets/fachada-unidade-2.jpg";
 import logoCastelo from "@/assets/logo-castelo-transparent.png";
 import videoTrujillo from "@/assets/video-trujillo.mp4";
 import thumbTrujillo from "@/assets/thumb-trujillo.jpg";
@@ -34,6 +32,12 @@ const PHOTOS = [
   "1772397436722-g0tuzr72n4", "1772397437514-qfhwloe10s", "1772397438554-i1048mkjnaf", "1772397439754-663ozv8ocie",
   "1772397440533-70eyl884dx3",
 ].map((id) => `${STORAGE}/${id}.jpeg`);
+
+// Fotos do salão: arquivos da própria página (public/empresas), FORA de
+// Materiais — a IA usa Materiais no atendimento e não deve enviar estas
+const SALAO = { topo: "/empresas/salao.jpg", cheio: "/empresas/salao-2.jpg", equipe: "/empresas/salao-3.jpg" };
+const SALAO_PHOTOS = [SALAO.cheio, SALAO.equipe, SALAO.topo];
+const ALL_PHOTOS = [...SALAO_PHOTOS, ...PHOTOS];
 
 const GOLD = "#F5B83D";
 // Paleta clara do Castelo (pedido do Victor: nada de fundo escuro)
@@ -149,7 +153,7 @@ export default function EmpresasLandingPage() {
         </div>
       </header>
 
-      {/* Hero: claro, texto de um lado e a fachada do outro */}
+      {/* Hero: claro, texto de um lado e o salão do outro */}
       <section className="relative overflow-hidden bg-gradient-to-br from-[#FFF0F6] via-white to-[#FFF8E1] pt-20 md:pt-24">
         <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full bg-[#FFC107]/25 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-[#E91E63]/15 blur-3xl" />
@@ -179,7 +183,7 @@ export default function EmpresasLandingPage() {
           </motion.div>
           <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.7, delay: 0.1 }} className="relative">
             <div className="absolute -inset-3 rotate-2 rounded-[2rem] bg-gradient-to-br from-[#E91E63] to-[#FFC107] opacity-80" />
-            <img src={fachada} alt="Fachada do Castelo da Diversão em Sorocaba" className="relative aspect-[4/3] w-full rounded-[1.75rem] object-cover shadow-2xl" />
+            <img src={SALAO.topo} alt="Salão do Castelo da Diversão com as mesas montadas" className="relative aspect-[4/3] w-full rounded-[1.75rem] object-cover shadow-2xl" />
             <div className="absolute -bottom-5 left-5 rounded-2xl bg-white px-4 py-3 shadow-xl">
               <p className="text-2xl font-black text-[#E91E63] leading-none">{MAX_GUESTS}</p>
               <p className="text-xs font-bold text-slate-600">pessoas de capacidade</p>
@@ -242,12 +246,29 @@ export default function EmpresasLandingPage() {
       <section id="espaco" className="py-20 md:py-28 bg-[#FFF8E1] scroll-mt-16">
         <div className="mx-auto max-w-6xl px-4">
           <SectionTitle eyebrow="Conheça o espaço" title="Pronto para receber a sua equipe" subtitle={`Salão climatizado para até ${MAX_GUESTS} pessoas, com estrutura completa e estacionamento próprio.`} />
+          {/* Primeiro o salão: onde os adultos ficam */}
+          <div className="grid grid-cols-2 grid-rows-2 gap-3 aspect-[4/5] sm:aspect-[16/11]">
+            {SALAO_PHOTOS.map((src, i) => (
+              <button
+                key={src}
+                type="button"
+                onClick={() => setLightbox(i)}
+                className={cn("group relative overflow-hidden rounded-2xl bg-white shadow-sm", i === 0 ? "row-span-2" : "")}
+                aria-label={`Ampliar foto ${i + 1} do salão`}
+              >
+                <img src={src} alt={["Salão cheio, com os convidados nas mesas", "Equipe de monitores animando a festa no salão", "Salão visto de cima, com as mesas montadas"][i]} loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              </button>
+            ))}
+          </div>
+
+          <h3 className="mt-14 mb-2 text-center text-2xl md:text-3xl font-black text-[#2B1B4A]">E para as crianças das famílias…</h3>
+          <p className="mb-8 text-center text-slate-600">Brinquedos, games e área baby, com monitores cuidando de tudo.</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {PHOTOS.map((src, i) => (
               <button
                 key={src}
                 type="button"
-                onClick={() => setLightbox(i)}
+                onClick={() => setLightbox(SALAO_PHOTOS.length + i)}
                 className={cn("group relative overflow-hidden rounded-2xl bg-white shadow-sm", i === 0 ? "col-span-2 row-span-2 aspect-square" : "aspect-square")}
                 aria-label={`Ampliar foto ${i + 1} do espaço`}
               >
@@ -375,7 +396,7 @@ export default function EmpresasLandingPage() {
       </div>
 
       {lightbox !== null && (
-        <ImageLightbox images={PHOTOS} currentIndex={lightbox} onClose={() => setLightbox(null)} onNavigate={setLightbox} />
+        <ImageLightbox images={ALL_PHOTOS} currentIndex={lightbox} onClose={() => setLightbox(null)} onNavigate={setLightbox} />
       )}
     </div>
   );
