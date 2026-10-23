@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { packagesForEventType, readPackageEventTypes } from "@/lib/catalogOrder";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
@@ -1815,7 +1816,27 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Sem pacote</SelectItem>
-                      {packages.map((p) => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
+                      {(() => {
+                        // Pacotes ligados ao tipo de festa escolhido vêm primeiro (Operações → Pacotes)
+                        const links = readPackageEventTypes((currentCompany?.settings || null) as Record<string, unknown> | null);
+                        const { suggested, others } = packagesForEventType(packages, links, form.event_type);
+                        if (!suggested.length) return packages.map((p) => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>);
+                        const label = EVENT_TYPES.find((t) => t.value === form.event_type)?.label || "este tipo";
+                        return (
+                          <>
+                            <SelectGroup>
+                              <SelectLabel className="text-xs text-primary">Sugeridos para {label}</SelectLabel>
+                              {suggested.map((p) => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
+                            </SelectGroup>
+                            {others.length > 0 && (
+                              <SelectGroup>
+                                <SelectLabel className="text-xs text-muted-foreground">Outros pacotes</SelectLabel>
+                                {others.map((p) => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
+                              </SelectGroup>
+                            )}
+                          </>
+                        );
+                      })()}
                     </SelectContent>
                   </Select>
                 ) : (

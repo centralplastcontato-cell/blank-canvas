@@ -4,7 +4,7 @@ import { useCurrentCompanyId } from "@/hooks/useCurrentCompanyId";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Loader2, PartyPopper, RotateCcw, EyeOff, Eye } from "lucide-react";
+import { Plus, Trash2, Loader2, PartyPopper, RotateCcw, EyeOff, Eye, ChevronUp, ChevronDown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 
@@ -77,6 +77,15 @@ export function EventTypesConfig() {
 
   const addType = () => setTypes([...types, { value: `custom_${Date.now()}`, label: "" }]);
   const updateLabel = (idx: number, label: string) => setTypes(types.map((t, i) => (i === idx ? { ...t, label } : t)));
+  // Troca de lugar com o tipo visível de cima/baixo (a ordem é a da ficha da festa)
+  const moveVisible = (pos: number, direction: -1 | 1) => {
+    const a = visible[pos]?.idx;
+    const b = visible[pos + direction]?.idx;
+    if (a === undefined || b === undefined) return;
+    const next = [...types];
+    [next[a], next[b]] = [next[b], next[a]];
+    setTypes(next);
+  };
   const setHidden = (idx: number, value: boolean) => setTypes(types.map((t, i) => (i === idx ? { ...t, hidden: value } : t)));
 
   const askRemove = (idx: number) => {
@@ -144,8 +153,16 @@ export function EventTypesConfig() {
       </div>
 
       <div className="space-y-2">
-        {visible.map(({ t, idx }) => (
-          <div key={t.value} className="flex items-center gap-2">
+        {visible.map(({ t, idx }, pos) => (
+          <div key={t.value} className="flex items-center gap-1.5">
+            <div className="flex flex-col">
+              <Button variant="ghost" size="icon" className="h-5 w-7" disabled={pos === 0} onClick={() => moveVisible(pos, -1)} aria-label="Subir na ordem">
+                <ChevronUp className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-5 w-7" disabled={pos === visible.length - 1} onClick={() => moveVisible(pos, 1)} aria-label="Descer na ordem">
+                <ChevronDown className="h-3.5 w-3.5" />
+              </Button>
+            </div>
             <div className="relative flex-1">
               <Input
                 className="h-9 text-sm pr-24"

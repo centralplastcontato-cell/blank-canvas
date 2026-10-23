@@ -4,10 +4,10 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Trash2, Pencil, Package, Loader2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Package, Loader2, ChevronUp, ChevronDown, Search } from "lucide-react";
+import { moveItem, sortOrderChanges } from "@/lib/catalogOrder";
 import { toast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
@@ -29,6 +29,9 @@ function formatCurrency(value: string): string {
   const num = parseInt(digits, 10);
   return (num / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+
+const money = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const norm = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
 function parseCurrency(formatted: string): number | null {
   if (!formatted.trim()) return null;
@@ -63,6 +66,10 @@ export function OptionalsManager() {
   const [description, setDescription] = useState("");
   const [valor, setValor] = useState("");
   const [valorPorPessoa, setValorPorPessoa] = useState("");
+  // Um opcional custa um valor fixo OU um valor por pessoa (antes dava para preencher os dois)
+  const [mode, setMode] = useState<"fixed" | "per_person">("fixed");
+  const [hadBoth, setHadBoth] = useState(false);
+  const [search, setSearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CompanyOptional | null>(null);
 
@@ -91,6 +98,8 @@ export function OptionalsManager() {
     setDescription("");
     setValor("");
     setValorPorPessoa("");
+    setMode("fixed");
+    setHadBoth(false);
     setDialogOpen(true);
   };
 
@@ -100,6 +109,9 @@ export function OptionalsManager() {
     setDescription(opt.description || "");
     setValor(numToDisplay(opt.value));
     setValorPorPessoa(numToDisplay(opt.valor_por_pessoa));
+    const perPerson = (opt.valor_por_pessoa ?? 0) > 0;
+    setMode(perPerson ? "per_person" : "fixed");
+    setHadBoth(perPerson && (opt.value ?? 0) > 0);
     setDialogOpen(true);
   };
 
@@ -110,8 +122,8 @@ export function OptionalsManager() {
     const payload: Record<string, unknown> = {
       name: name.trim(),
       description: description.trim() || null,
-      value: parseCurrency(valor),
-      valor_por_pessoa: parseCurrency(valorPorPessoa),
+      value: mode === "fixed" ? parseCurrency(valor) : null,
+      valor_por_pessoa: mode === "per_person" ? parseCurrency(valorPorPessoa) : null,
     };
 
     const { error } = editing
@@ -127,6 +139,18 @@ export function OptionalsManager() {
     toast({ title: editing ? "Opcional atualizado!" : "Opcional criado!" });
     setDialogOpen(false);
     fetchOptionals();
+  };
+
+  const move = async (index: number, direction: -1 | 1) => {
+    const next = moveItem(optionals, index, direction);
+    if (next === optionals) return;
+    const changes = sortOrderChanges(next);
+    setOptionals(next.map((o, i) => ({ ...o, sort_order: i })));
+    const results = await Promise.all(changes.map((c) => supabase.from("company_optionals" as any).update({ sort_order: c.sort_order } as any).eq("id", c.id)));
+    if (results.some((r) => r.error)) {
+      toast({ title: "Não foi possível mudar a ordem", variant: "destructive" });
+      fetchOptionals();
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -182,53 +206,57 @@ export function OptionalsManager() {
         </p>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        {optionals.map((opt) => (
-          <Card key={opt.id} className={cn("group border-border/50 bg-gradient-to-br from-card to-muted/30 hover:border-primary/20 hover:shadow-lg transition-all duration-300", !opt.is_active && "opacity-60")}>
-            <CardContent className="p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
-                    <Package className="h-4 w-4 text-primary" />
-                  </div>
-                  <span className="font-semibold text-sm text-foreground">{opt.name}</span>
-                  {!opt.is_active && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Pausado</span>}
-                </div>
-                <div className="flex items-center gap-0.5">
-                  <Switch checked={opt.is_active} onCheckedChange={() => toggleActive(opt)} aria-label={opt.is_active ? "Pausar opcional" : "Ativar opcional"} className="scale-75" />
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(opt)} aria-label="Editar opcional">
+      {optionals.length > 6 && (
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar opcional" className="pl-9" aria-label="Buscar opcional" />
+        </div>
+      )}
+
+      {optionals.length > 0 && (
+        <div className="overflow-hidden rounded-2xl border border-border/60 bg-card divide-y divide-border/60">
+          {optionals
+            .map((opt, index) => ({ opt, index }))
+            .filter(({ opt }) => !search.trim() || norm(opt.name + " " + (opt.description || "")).includes(norm(search)))
+            .map(({ opt, index }) => {
+              const price = (opt.valor_por_pessoa ?? 0) > 0
+                ? `${money(opt.valor_por_pessoa as number)} por pessoa`
+                : (opt.value ?? 0) > 0 ? money(opt.value as number) : "Sem valor";
+              return (
+                <div key={opt.id} className={cn("flex items-center gap-2 px-3 py-2.5", !opt.is_active && "opacity-60")}>
+                  {!search.trim() && (
+                    <div className="flex flex-col">
+                      <Button variant="ghost" size="icon" className="h-6 w-7" disabled={index === 0} onClick={() => move(index, -1)} aria-label="Subir na ordem">
+                        <ChevronUp className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-6 w-7" disabled={index === optionals.length - 1} onClick={() => move(index, 1)} aria-label="Descer na ordem">
+                        <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                  <button type="button" onClick={() => openEdit(opt)} className="min-w-0 flex-1 text-left">
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      <span className="font-semibold text-sm text-foreground">{opt.name}</span>
+                      {!opt.is_active && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Pausado</span>}
+                    </span>
+                    {opt.description && <span className="block text-xs text-muted-foreground truncate">{opt.description}</span>}
+                    <span className={cn("block text-xs font-semibold", price === "Sem valor" ? "text-muted-foreground" : "text-primary")}>{price}</span>
+                  </button>
+                  <Switch checked={opt.is_active} onCheckedChange={() => toggleActive(opt)} aria-label={opt.is_active ? "Pausar opcional" : "Ativar opcional"} className="scale-90" />
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(opt)} aria-label="Editar opcional">
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteTarget(opt)} aria-label="Excluir opcional">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteTarget(opt)} aria-label="Excluir opcional">
                     <Trash2 className="h-3.5 w-3.5 text-destructive" />
                   </Button>
                 </div>
-              </div>
-              {opt.description && (
-                <p className="text-xs text-muted-foreground line-clamp-2 pl-[46px]">{opt.description}</p>
-              )}
-              {(opt.value != null && opt.value > 0 || opt.valor_por_pessoa != null && opt.valor_por_pessoa > 0) && (
-                <div className="ml-[46px] flex flex-wrap gap-1.5">
-                  {opt.value != null && opt.value > 0 && (
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/5 border border-primary/10">
-                      <span className="text-[11px] font-semibold text-primary tracking-wide uppercase">
-                        R$ {opt.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  )}
-                  {opt.valor_por_pessoa != null && opt.valor_por_pessoa > 0 && (
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent/50 border border-border/50">
-                      <span className="text-[11px] font-semibold text-muted-foreground tracking-wide">
-                        R$ {opt.valor_por_pessoa.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}/pessoa
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              );
+            })}
+        </div>
+      )}
+      {optionals.length > 1 && !search.trim() && (
+        <p className="text-[11px] text-muted-foreground">A ordem aqui é a que aparece ao montar a festa.</p>
+      )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md p-0 gap-0 overflow-hidden bg-background border-border/60 shadow-xl">
@@ -258,14 +286,33 @@ export function OptionalsManager() {
                   rows={3}
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Valor fixo (R$)</Label>
-                <CurrencyInput value={valor} onChange={setValor} placeholder="R$ 0,00" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Valor por pessoa (R$)</Label>
-                <CurrencyInput value={valorPorPessoa} onChange={setValorPorPessoa} placeholder="R$ 0,00" />
-                <p className="text-[10px] text-muted-foreground">Se preenchido, será multiplicado pela qtde de convidados ao adicionar na festa.</p>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Como cobra</Label>
+                <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Como cobra">
+                  {([["fixed", "Valor fixo", "Ex.: taxa do bar"], ["per_person", "Por pessoa", "Multiplica pelos convidados"]] as const).map(([v, label, hint]) => (
+                    <button
+                      key={v}
+                      type="button"
+                      role="radio"
+                      aria-checked={mode === v}
+                      onClick={() => setMode(v)}
+                      className={cn("rounded-xl border p-2.5 text-left transition-colors", mode === v ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50")}
+                    >
+                      <span className="block text-sm font-semibold">{label}</span>
+                      <span className="block text-[11px] text-muted-foreground">{hint}</span>
+                    </button>
+                  ))}
+                </div>
+                {mode === "fixed" ? (
+                  <CurrencyInput value={valor} onChange={setValor} placeholder="R$ 0,00" />
+                ) : (
+                  <CurrencyInput value={valorPorPessoa} onChange={setValorPorPessoa} placeholder="R$ 0,00 por pessoa" />
+                )}
+                {hadBoth && (
+                  <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                    Este opcional tinha os dois valores preenchidos. Ao salvar, fica só o que estiver escolhido acima.
+                  </p>
+                )}
               </div>
             </div>
 

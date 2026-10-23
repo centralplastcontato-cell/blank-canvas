@@ -35,6 +35,8 @@ export function SellersManager() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  // Festas marcadas com cada vendedor (total e fechadas neste mês)
+  const [counts, setCounts] = useState<Record<string, { total: number; month: number }>>({});
 
   const fetchSellers = async () => {
     if (!currentCompany) return;
@@ -45,6 +47,18 @@ export function SellersManager() {
       .order("name");
     if (!error && data) setSellers(data as Seller[]);
     setLoading(false);
+    if (!error && data) {
+      const now = new Date();
+      const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      const entries = await Promise.all((data as Seller[]).map(async (s) => {
+        const [total, month] = await Promise.all([
+          supabase.from("company_events").select("id", { count: "exact", head: true }).eq("company_id", currentCompany.id).eq("vendedor_responsavel_id", s.id),
+          supabase.from("company_events").select("id", { count: "exact", head: true }).eq("company_id", currentCompany.id).eq("vendedor_responsavel_id", s.id).gte("data_fechamento_venda", monthStart),
+        ]);
+        return [s.id, { total: total.count || 0, month: month.count || 0 }] as const;
+      }));
+      setCounts(Object.fromEntries(entries));
+    }
   };
 
   useEffect(() => { fetchSellers(); }, [currentCompany?.id]);
@@ -158,9 +172,18 @@ export function SellersManager() {
                   </div>
                 ) : (
                   <>
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="font-medium truncate">{seller.name}</span>
-                      {!seller.is_active && <Badge variant="secondary" className="text-[10px]">Inativo</Badge>}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-medium truncate">{seller.name}</span>
+                        {!seller.is_active && <Badge variant="secondary" className="text-[10px]">Inativo</Badge>}
+                      </div>
+                      {counts[seller.id] && (
+                        <p className="text-xs text-muted-foreground">
+                          {counts[seller.id].total === 0
+                            ? "Nenhuma festa marcada ainda"
+                            : `${counts[seller.id].total} ${counts[seller.id].total === 1 ? "festa" : "festas"} · ${counts[seller.id].month} fechada${counts[seller.id].month === 1 ? "" : "s"} este mês`}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <Switch
