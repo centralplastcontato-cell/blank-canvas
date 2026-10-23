@@ -231,7 +231,7 @@ export const MODULE_LABELS: Record<keyof CompanyModules, { label: string; descri
   contrato: { label: 'Contrato', description: 'Templates de contrato digital para clientes' },
   financeiro: { label: 'Financeiro', description: 'Controle financeiro integrado aos eventos' },
   // --- Outros ---
-  treinamento: { label: 'Treinamento', description: 'Videoaulas de treinamento da plataforma' },
+  treinamento: { label: 'Aprenda a usar', description: 'Vídeos passo a passo da plataforma (aparece no menu quando há vídeo publicado)' },
   onboarding_checklist: { label: 'Onboarding Guiado', description: 'Checklist interativo de primeiros passos no painel' },
   empresa_parceira: { label: 'Empresa Parceira', description: 'Catálogo de produtos e pedidos de fornecedores parceiros' },
   // --- Inteligência Artificial ---

@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { firstLessonOf } from "@/lib/lessons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sparkles, Loader2, Save, Pencil, Check, FlaskConical, Cpu, Wallet, BellRing, CalendarOff, Building2, Plus, Trash2, MessageCircleHeart } from "lucide-react";
+import { Sparkles, Loader2, Save, Pencil, Check, FlaskConical, Cpu, Wallet, BellRing, CalendarOff, Building2, Plus, Trash2, MessageCircleHeart, PlayCircle } from "lucide-react";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -248,6 +250,9 @@ export function AiAgentSection() {
   // Imagens subindo agora: o "Salvar tudo" espera (senão o link da imagem se perde)
   const [uploadsBusy, setUploadsBusy] = useState(0);
   const trackUpload = (busy: boolean) => setUploadsBusy((n) => Math.max(0, n + (busy ? 1 : -1)));
+  // Vídeo "como configurar" (Aprenda a usar), quando já estiver publicado
+  const [howToLessonId, setHowToLessonId] = useState<string | null>(null);
+  useEffect(() => { firstLessonOf("Inteligência Artificial").then(setHowToLessonId); }, []);
 
   useEffect(() => {
     if (!currentCompany?.id) return;
@@ -606,10 +611,20 @@ export function AiAgentSection() {
           ) : (
             <span className="text-[11px] font-extrabold tracking-wide text-muted-foreground bg-muted rounded-full px-3 py-1">DESLIGADA</span>
           )}
-          <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-primary hover:text-primary" onClick={openConfig}>
-            <Pencil className="w-3 h-3" />
-            Configurar
-          </Button>
+          <div className="flex items-center gap-1">
+            {howToLessonId && (
+              <Button asChild size="sm" variant="ghost" className="h-7 text-xs gap-1 text-muted-foreground">
+                <Link to={`/aprenda?aula=${howToLessonId}`}>
+                  <PlayCircle className="w-3.5 h-3.5" />
+                  Ver vídeo
+                </Link>
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-primary hover:text-primary" onClick={openConfig}>
+              <Pencil className="w-3 h-3" />
+              Configurar
+            </Button>
+          </div>
         </div>
       </div>
 

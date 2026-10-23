@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
-  GraduationCap,
+  PlayCircle,
   Plus,
   Pencil,
   Trash2,
@@ -47,6 +47,9 @@ import {
   Download,
 } from "lucide-react";
 import { generateManualPDF } from "@/lib/generateManualPDF";
+import { LESSON_CATEGORIES, lessonCategory } from "@/lib/lessons";
+
+const CATEGORIES = LESSON_CATEGORIES;
 
 interface TrainingLesson {
   id: string;
@@ -60,16 +63,6 @@ interface TrainingLesson {
   created_at: string;
 }
 
-const CATEGORIES = [
-  "Geral",
-  "WhatsApp",
-  "CRM",
-  "Agenda",
-  "Operações",
-  "Configurações",
-  "Inteligência",
-  "Landing Page",
-];
 
 export default function HubTreinamento() {
   const [lessons, setLessons] = useState<TrainingLesson[]>([]);
@@ -121,7 +114,7 @@ export default function HubTreinamento() {
     setEditingLesson(null);
     setFormTitle("");
     setFormDescription("");
-    setFormCategory("Geral");
+    setFormCategory("Primeiros passos");
     setFormPublished(false);
     setFormVideoUrl("");
     setDialogOpen(true);
@@ -131,7 +124,7 @@ export default function HubTreinamento() {
     setEditingLesson(lesson);
     setFormTitle(lesson.title);
     setFormDescription(lesson.description || "");
-    setFormCategory(lesson.category || "Geral");
+    setFormCategory(lessonCategory(lesson.category));
     setFormPublished(lesson.is_published);
     setFormVideoUrl(lesson.video_url);
     setDialogOpen(true);
@@ -201,10 +194,10 @@ export default function HubTreinamento() {
         .eq("id", editingLesson.id);
 
       if (error) {
-        toast.error("Erro ao atualizar aula.");
+        toast.error("Erro ao atualizar o vídeo.");
         console.error(error);
       } else {
-        toast.success("Aula atualizada!");
+        toast.success("Vídeo atualizado!");
         setDialogOpen(false);
         fetchLessons();
       }
@@ -215,10 +208,10 @@ export default function HubTreinamento() {
         .insert({ ...payload, sort_order: nextOrder });
 
       if (error) {
-        toast.error("Erro ao criar aula.");
+        toast.error("Erro ao salvar o vídeo.");
         console.error(error);
       } else {
-        toast.success("Aula criada!");
+        toast.success("Vídeo salvo!");
         setDialogOpen(false);
         fetchLessons();
       }
@@ -231,9 +224,9 @@ export default function HubTreinamento() {
     if (!deletingId) return;
     const { error } = await supabase.from("training_lessons").delete().eq("id", deletingId);
     if (error) {
-      toast.error("Erro ao excluir aula.");
+      toast.error("Erro ao excluir o vídeo.");
     } else {
-      toast.success("Aula excluída!");
+      toast.success("Vídeo excluído!");
       fetchLessons();
     }
     setDeleteDialogOpen(false);
@@ -247,20 +240,21 @@ export default function HubTreinamento() {
       .eq("id", lesson.id);
 
     if (!error) {
-      toast.success(lesson.is_published ? "Aula despublicada" : "Aula publicada!");
+      toast.success(lesson.is_published ? "Vídeo escondido" : "Vídeo publicado!");
       fetchLessons();
     }
   };
 
   const filteredLessons = filterCategory === "all"
     ? lessons
-    : lessons.filter((l) => l.category === filterCategory);
+    : lessons.filter((l) => lessonCategory(l.category) === filterCategory);
 
   return (
     <HubLayout currentPage="treinamento" header={
       <div className="flex items-center gap-2">
-        <GraduationCap className="h-5 w-5 text-primary" />
-        <h1 className="text-lg font-bold">Treinamento</h1>
+        <PlayCircle className="h-5 w-5 text-primary" />
+        <h1 className="text-lg font-bold">Aprenda a usar</h1>
+        <span className="hidden sm:inline text-sm text-muted-foreground">· vídeos que os buffets veem no menu</span>
       </div>
     }>
       {() => (
@@ -286,7 +280,7 @@ export default function HubTreinamento() {
               </Button>
               <Button onClick={openNewDialog}>
                 <Plus className="h-4 w-4 mr-2" />
-                Nova Aula
+                Novo vídeo
               </Button>
             </div>
           </div>
@@ -299,10 +293,10 @@ export default function HubTreinamento() {
           ) : filteredLessons.length === 0 ? (
             <div className="text-center py-20 text-muted-foreground">
               <Video className="h-12 w-12 mx-auto mb-3 opacity-40" />
-              <p>Nenhuma aula encontrada.</p>
+              <p>Nenhum vídeo ainda.</p>
               <Button variant="outline" className="mt-4" onClick={openNewDialog}>
                 <Plus className="h-4 w-4 mr-2" />
-                Criar primeira aula
+                Publicar o primeiro vídeo
               </Button>
             </div>
           ) : (
@@ -334,11 +328,9 @@ export default function HubTreinamento() {
                   <CardContent className="p-4 space-y-3">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        {lesson.category && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                            {lesson.category}
-                          </Badge>
-                        )}
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                          {lessonCategory(lesson.category)}
+                        </Badge>
                       </div>
                       <h3 className="font-semibold text-sm line-clamp-2">{lesson.title}</h3>
                       {lesson.description && (
@@ -382,7 +374,7 @@ export default function HubTreinamento() {
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogContent className="max-w-lg">
               <DialogHeader>
-                <DialogTitle>{editingLesson ? "Editar Aula" : "Nova Aula"}</DialogTitle>
+                <DialogTitle>{editingLesson ? "Editar vídeo" : "Novo vídeo"}</DialogTitle>
               </DialogHeader>
 
               <div className="space-y-4">
@@ -400,7 +392,7 @@ export default function HubTreinamento() {
                   <Textarea
                     value={formDescription}
                     onChange={(e) => setFormDescription(e.target.value)}
-                    placeholder="Descreva o conteúdo da aula..."
+                    placeholder="O que a pessoa aprende neste vídeo"
                     rows={3}
                   />
                 </div>
@@ -472,7 +464,7 @@ export default function HubTreinamento() {
                     checked={formPublished}
                     onCheckedChange={setFormPublished}
                   />
-                  <Label className="cursor-pointer">Publicar aula</Label>
+                  <Label className="cursor-pointer">Publicar (aparece para os buffets)</Label>
                 </div>
               </div>
 
@@ -492,9 +484,9 @@ export default function HubTreinamento() {
           <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Excluir aula?</AlertDialogTitle>
+                <AlertDialogTitle>Excluir vídeo?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Esta ação não pode ser desfeita. A aula será removida permanentemente.
+                  Esta ação não pode ser desfeita. O vídeo sai da página Aprenda a usar de todos os buffets.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
