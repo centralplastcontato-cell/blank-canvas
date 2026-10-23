@@ -234,7 +234,7 @@ export default function Campanhas() {
             </div>
           </header>
           <div className="flex-1 p-3 md:p-5 overflow-auto">
-          <div className="max-w-7xl mx-auto space-y-4">
+          <div className="max-w-7xl space-y-4">
           <div className="hidden md:block">
             <div className="relative rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-primary/[0.03] shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_80%_-20%,hsl(var(--primary)/0.06),transparent)]" />
