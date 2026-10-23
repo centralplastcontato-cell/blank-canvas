@@ -5,7 +5,8 @@ import {
   Users, UtensilsCrossed, GlassWater, Snowflake, Car, Sparkles, Sun, Moon, Baby, Briefcase,
   MessageCircle, FileText, MapPin, CalendarCheck, ChevronDown, Star, Clock, Check,
 } from "lucide-react";
-import fachada from "@/assets/fachada-unidade-1.jpg";
+// Fachada da unidade Trujillo (a unidade 1 não existe mais)
+import fachada from "@/assets/fachada-unidade-2.jpg";
 import logoCastelo from "@/assets/logo-castelo-transparent.png";
 import videoTrujillo from "@/assets/video-trujillo.mp4";
 import thumbTrujillo from "@/assets/thumb-trujillo.jpg";
