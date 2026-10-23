@@ -13,6 +13,8 @@ import { toast } from "@/hooks/use-toast";
 import { PackagePriceGrid, type PackagePriceGridHandle } from "./PackagePriceGrid";
 import { PriceGridConfigDialog } from "./PriceGridConfigDialog";
 import { useCompanyModules } from "@/hooks/useCompanyModules";
+import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
+import { cn } from "@/lib/utils";
 
 interface CompanyPackage {
   id: string;
@@ -64,7 +66,7 @@ function CurrencyInput({ value, onChange, placeholder }: { value: string; onChan
 }
 
 export function PackagesManager() {
-  const { currentCompany } = useCompany();
+  const { currentCompany, refreshCompanies } = useCompany();
   // Textos e opções da IA Conversacional só aparecem com o módulo ligado no Hub
   const { ia_conversacional: aiModule } = useCompanyModules();
   const [packages, setPackages] = useState<CompanyPackage[]>([]);
@@ -83,6 +85,7 @@ export function PackagesManager() {
   const [valorNoDia, setValorNoDia] = useState("");
   const [saving, setSaving] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<CompanyPackage | null>(null);
   const priceGridRef = useRef<PackagePriceGridHandle>(null);
 
   const fetchPackages = async () => {
@@ -160,6 +163,7 @@ export function PackagesManager() {
     payload.valor_adicional_no_dia = parseCurrency(valorNoDia);
 
     let targetId = editing?.id;
+    let failed: string | null = null;
 
     // Banco ainda sem a coluna "includes" (migration não rodada): salva o resto
     const missingIncludes = (err: { message?: string } | null) => !!err?.message && /includes|ai_quote/.test(err.message);
@@ -170,41 +174,66 @@ export function PackagesManager() {
         ({ error } = await supabase.from("company_packages").update(rest as any).eq("id", editing.id));
         toast({ title: "Parte do pacote não foi salva", description: "\"O que inclui\" e a opção da IA precisam da atualização do banco (SQL). O resto foi salvo." });
       }
+      if (error) failed = error.message;
     } else {
       let { data: created, error } = await supabase
         .from("company_packages")
-        .insert({ ...payload, company_id: currentCompany.id } as any)
+        .insert({ ...payload, company_id: currentCompany.id, sort_order: packages.length } as any)
         .select("*")
         .single();
       if (missingIncludes(error)) {
         const { includes: _i, ai_quote: _q, ...rest } = payload;
-        ({ data: created } = await supabase
+        ({ data: created, error } = await supabase
           .from("company_packages")
-          .insert({ ...rest, company_id: currentCompany.id } as any)
+          .insert({ ...rest, company_id: currentCompany.id, sort_order: packages.length } as any)
           .select("*")
           .single());
         toast({ title: "Parte do pacote não foi salva", description: "\"O que inclui\" e a opção da IA precisam da atualização do banco (SQL). O resto foi salvo." });
       }
-      if (created) {
-        targetId = (created as any).id;
-      }
+      if (error || !created) failed = error?.message || "não foi possível criar o pacote";
+      else targetId = (created as any).id;
     }
 
-    // Save price tiers
-    if (targetId && priceGridRef.current) {
-      await priceGridRef.current.saveTiers(targetId);
+    // Grade de preços (só depois do pacote salvo)
+    if (!failed && targetId && priceGridRef.current) {
+      const ok = await priceGridRef.current.saveTiers(targetId);
+      if (!ok) failed = "a grade de preços não foi gravada (a anterior foi mantida)";
     }
 
-    toast({ title: editing ? "Pacote atualizado!" : "Pacote criado!" });
     setSaving(false);
+    if (failed) {
+      // A janela fica aberta para tentar de novo sem perder o que foi digitado
+      toast({ title: "Não foi possível salvar", description: failed, variant: "destructive" });
+      if (targetId && !editing) fetchPackages();
+      return;
+    }
+    toast({ title: editing ? "Pacote atualizado!" : "Pacote criado!" });
     setDialogOpen(false);
     fetchPackages();
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from("company_packages").delete().eq("id", id);
+    const { error } = await supabase.from("company_packages").delete().eq("id", id);
+    setDeleteTarget(null);
+    if (error) {
+      toast({ title: "Não foi possível excluir", description: error.message, variant: "destructive" });
+      return;
+    }
     toast({ title: "Pacote excluído" });
     fetchPackages();
+  };
+
+  // Pausado = some da ficha da festa, do formulário do cliente e da IA, sem perder nada
+  const toggleActive = async (pkg: CompanyPackage) => {
+    const next = !pkg.is_active;
+    setPackages((prev) => prev.map((p) => (p.id === pkg.id ? { ...p, is_active: next } : p)));
+    const { error } = await supabase.from("company_packages").update({ is_active: next }).eq("id", pkg.id);
+    if (error) {
+      setPackages((prev) => prev.map((p) => (p.id === pkg.id ? { ...p, is_active: !next } : p)));
+      toast({ title: "Não foi possível mudar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: next ? `"${pkg.name}" ativo` : `"${pkg.name}" pausado`, description: next ? "Volta a aparecer nas festas e para a IA." : "Não aparece mais nas festas novas nem para a IA. Nada foi apagado." });
   };
 
   if (loading) {
@@ -243,7 +272,7 @@ export function PackagesManager() {
 
       <div className="grid gap-3 sm:grid-cols-2">
         {packages.map((pkg) => (
-          <Card key={pkg.id} className="group border-border/50 bg-gradient-to-br from-card to-muted/30 hover:border-primary/20 hover:shadow-lg transition-all duration-300">
+          <Card key={pkg.id} className={cn("group border-border/50 bg-gradient-to-br from-card to-muted/30 hover:border-primary/20 hover:shadow-lg transition-all duration-300", !pkg.is_active && "opacity-60")}>
             <CardContent className="p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -251,12 +280,14 @@ export function PackagesManager() {
                     <Package className="h-4 w-4 text-primary" />
                   </div>
                   <span className="font-semibold text-sm text-foreground">{pkg.name}</span>
+                  {!pkg.is_active && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Pausado</span>}
                 </div>
-                <div className="flex gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(pkg)}>
+                <div className="flex items-center gap-0.5">
+                  <Switch checked={pkg.is_active} onCheckedChange={() => toggleActive(pkg)} aria-label={pkg.is_active ? "Pausar pacote" : "Ativar pacote"} className="scale-75" />
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(pkg)} aria-label="Editar pacote">
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(pkg.id)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteTarget(pkg)} aria-label="Excluir pacote">
                     <Trash2 className="h-3.5 w-3.5 text-destructive" />
                   </Button>
                 </div>
@@ -448,10 +479,20 @@ export function PackagesManager() {
         onOpenChange={setConfigOpen}
         companyId={currentCompany?.id || ""}
         currentSettings={currentCompany?.settings as Record<string, unknown> | null}
-        onSaved={() => {
-          // Force re-render by refetching company — the context should handle this
-          window.location.reload();
-        }}
+        onSaved={() => { void refreshCompanies(); }}
+      />
+
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        title={`Excluir o pacote "${deleteTarget?.name ?? ""}"?`}
+        description={
+          <>
+            <p>A grade de preços dele também é apagada, e a IA para de passar valor desse pacote. Não dá para desfazer.</p>
+            <p>Se for só por um tempo (ex.: fora de época), use o botão de <strong>pausar</strong> no cartão: some das festas e da IA sem perder nada.</p>
+          </>
+        }
+        onConfirm={() => deleteTarget && handleDelete(deleteTarget.id)}
       />
     </div>
   );

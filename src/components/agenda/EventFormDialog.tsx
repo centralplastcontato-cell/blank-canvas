@@ -1759,7 +1759,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, initialData, uni
                   if (autoMatch) setSelectedContractModelId(autoMatch.id);
                 }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{EVENT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+                  <SelectContent>{EVENT_TYPES.filter((t) => !(t as { hidden?: boolean }).hidden || t.value === form.event_type).map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
 
