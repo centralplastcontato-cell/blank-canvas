@@ -39,6 +39,7 @@ import { aiUnitFor, aiUnits } from "../_shared/ai-units.ts";
 import { inSandbox, sandboxSleep } from "./ai-sandbox.ts";
 import { buildCandidateLink, candidateName, inviteCode, shortCandidateLink, withCandidateLink } from "../_shared/ai-candidate.ts";
 import { findPromotion, promoMentions, promoNote } from "../_shared/promo.ts";
+import { campaignPromptNote, loadCampaignContext } from "../_shared/campaign-context.ts";
 import { closedPeriodAt, closedPeriodsNote, formatClosedPeriod, isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
 import { dayWithArticle, nearestAlternativeDays, partyDateFreeNote, partyDateTakenMessage } from "../_shared/party-date-check.ts";
 import { birthdayFlavored, corporateCaptions, corporateLeadNote, corporatePromptBlock, mentionsCorporate } from "../_shared/corporate-event.ts";
@@ -268,6 +269,18 @@ export async function isAiTestPhoneFor(supabase: any, instance: AgentInstance, p
   if (!aiUnitFor(settings, instance.unit)) return false;
   if (!(await loadAiConversationalEnabled(supabase, instance.company_id))) return false;
   return isAiTestNumber(settings, phone);
+}
+
+/**
+ * A IA pode atender a resposta de uma campanha neste número? (IA e módulo
+ * ligados para a unidade; com o Modo de Teste, só o número de teste.)
+ */
+export async function campaignAiReady(supabase: any, instance: AgentInstance, phone: string): Promise<boolean> {
+  if (!instance.company_id || !instance.unit) return false;
+  const settings = await loadSettings(supabase, instance.company_id);
+  if (!settings?.enabled || !aiUnitFor(settings, instance.unit)) return false;
+  if (settings.test_mode_enabled && !isAiTestNumber(settings, phone)) return false;
+  return loadAiConversationalEnabled(supabase, instance.company_id);
 }
 
 const teamHoursOf = (settings: AiSettings): ParsedHours =>
@@ -570,6 +583,7 @@ interface PromptContext {
   recessNote: string | null; // recesso / dias fechados (Configurar IA)
   materialsNote: string | null; // fotos/vídeo/PDF saem logo depois da resposta deste turno
   promoNote: string | null; // promoção vigente do cadastro: quando e como oferecer
+  campaignNote?: string | null; // campanha que o cliente recebeu há poucos dias (ele está respondendo a ela)
   intentNote: string | null; // contato que talvez não queira orçamento (trabalho, fornecedor, cliente com festa)
   corporateNote?: string | null; // contato é (ou parece ser) uma empresa — confraternização
 }
@@ -598,7 +612,7 @@ function buildSystemPrompt(companyName: string, unit: string, settings: AiSettin
   const assistantName = String(settings.assistant_name || '').trim();
   return `Você é ${assistantName ? `a ${assistantName}, ` : ''}a assistente virtual de vendas do ${companyName} (buffet infantil), atendendo por um dos WhatsApps de atendimento ("${unit}" é só o nome interno deste número: nunca cite ao cliente nem chame de unidade). Hoje é ${today}.${assistantName ? ` SEU NOME é ${assistantName} (definido nas configurações): use sempre este nome, mesmo que as informações do buffet ou mensagens antigas da conversa citem outro.` : ''}
 
-${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}${ctx.houseNote ? `ATENÇÃO — REGRA DO BUFFET: ${ctx.houseNote}\n\n` : ''}${ctx.singleVenue ? `ESPAÇO ÚNICO: o ${companyName} tem UM único espaço (o endereço das informações do buffet). NÃO existe outra unidade ou filial. Se o cliente perguntar de outra unidade ("unidade 1", outro endereço, qual fica mais perto), responda com naturalidade que hoje o ${companyName} fica só nesse endereço e siga a conversa. Nunca diga "esta unidade", nunca dê a entender que existe outra e não passe para a equipe por isso.\n\n` : ''}${ctx.recessNote ? `ATENÇÃO — ${ctx.recessNote}\n\n` : ''}${ctx.intentNote ? `ATENÇÃO — QUEM É O CONTATO: ${ctx.intentNote}\n\n` : ''}${ctx.corporateNote ? `ATENÇÃO — ${ctx.corporateNote}\n\n` : ''}${ctx.promoNote ? `${ctx.promoNote}\n\n` : ''}${ctx.materialsNote ? `ATENÇÃO — MATERIAIS NESTE TURNO: ${ctx.materialsNote}\n\n` : ''}MENSAGENS DA EQUIPE: no histórico, o que começa com "[Equipe]" foi escrito por uma pessoa da equipe, não por você. Respeite o que ela combinou (valores, condições, horários, visitas): não contradiga nem repita; se o cliente pedir algo além do que ela combinou, passe para a equipe. Nunca escreva "[Equipe]" nas suas respostas.
+${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}${ctx.houseNote ? `ATENÇÃO — REGRA DO BUFFET: ${ctx.houseNote}\n\n` : ''}${ctx.singleVenue ? `ESPAÇO ÚNICO: o ${companyName} tem UM único espaço (o endereço das informações do buffet). NÃO existe outra unidade ou filial. Se o cliente perguntar de outra unidade ("unidade 1", outro endereço, qual fica mais perto), responda com naturalidade que hoje o ${companyName} fica só nesse endereço e siga a conversa. Nunca diga "esta unidade", nunca dê a entender que existe outra e não passe para a equipe por isso.\n\n` : ''}${ctx.recessNote ? `ATENÇÃO — ${ctx.recessNote}\n\n` : ''}${ctx.intentNote ? `ATENÇÃO — QUEM É O CONTATO: ${ctx.intentNote}\n\n` : ''}${ctx.corporateNote ? `ATENÇÃO — ${ctx.corporateNote}\n\n` : ''}${ctx.campaignNote ? `${ctx.campaignNote}\n\n` : ''}${ctx.promoNote ? `${ctx.promoNote}\n\n` : ''}${ctx.materialsNote ? `ATENÇÃO — MATERIAIS NESTE TURNO: ${ctx.materialsNote}\n\n` : ''}MENSAGENS DA EQUIPE: no histórico, o que começa com "[Equipe]" foi escrito por uma pessoa da equipe, não por você. Respeite o que ela combinou (valores, condições, horários, visitas): não contradiga nem repita; se o cliente pedir algo além do que ela combinou, passe para a equipe. Nunca escreva "[Equipe]" nas suas respostas.
 
 SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até AGENDAR UMA VISITA ao buffet. A visita é o passo que mais fecha festas.
 
@@ -2473,6 +2487,15 @@ export async function maybeHandleWithAiAgent(
         if (bd.tipo_evento === 'empresa') return corporateLeadNote(bd.empresa as string);
         if (mentionsCorporate(lastUserText)) return 'o cliente falou de empresa/confraternização: trate como CONFRATERNIZAÇÃO DE EMPRESAS — chame registrar_dados_festa com confraternizacao=true e siga o roteiro de empresa (sem aniversariante).';
         return null;
+      })(),
+      campaignNote: await (async () => {
+        try {
+          const camp = await loadCampaignContext(supabase, instance.company_id as string, phone, companyName, nowMs);
+          return camp ? campaignPromptNote(camp, nowMs) : null;
+        } catch (err) {
+          console.error('[AI Agent] Falha ao ler a campanha recebida:', err);
+          return null;
+        }
       })(),
       promoNote: (() => {
         // Promoção do cadastro ainda no prazo: oferecer depois dos valores, lembrar no máximo 1 vez

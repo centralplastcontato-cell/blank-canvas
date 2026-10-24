@@ -21,7 +21,8 @@ Deno.test("clearCampaignMark: tira a marca e guarda a resposta", () => {
   assertEquals(clearCampaignMark({ campaign_pending_reply: "c1" }), {});
 });
 
-Deno.test("campaignReplyNotice: áudio e modo suave", () => {
-  assertEquals(campaignReplyNotice("Ana", "Promo", false, "audio"), 'Ana mandou um áudio em resposta à campanha "Promo" e aguarda atendimento.');
-  assertEquals(campaignReplyNotice("Ana", "Promo", true, "text").endsWith("continua com ele."), true);
+Deno.test("campaignReplyNotice: áudio, modo suave e IA", () => {
+  assertEquals(campaignReplyNotice("Ana", "Promo", "team", "audio"), 'Ana mandou um áudio em resposta à campanha "Promo" e aguarda atendimento.');
+  assertEquals(campaignReplyNotice("Ana", "Promo", "soft", "text").endsWith("continua com ele."), true);
+  assertEquals(campaignReplyNotice("Ana", "Promo", "ai", "text").includes("A IA já está respondendo"), true);
 });

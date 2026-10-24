@@ -1,8 +1,8 @@
-import { campaignReplyNotice, campaignReplyState, clearCampaignMark } from "./campaign-reply.ts";
+import { campaignReplyNotice, campaignReplyState, clearCampaignMark, type CampaignReplyMode } from "./campaign-reply.ts";
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { detectAndPauseBotLoop, isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { normalizeJid, type NormalizedJid } from "../_shared/jid-normalizer.ts";
-import { isAiOnlyInstance, isAiTestPhoneFor, maybeHandleWithAiAgent } from "./ai-agent.ts";
+import { campaignAiReady, isAiOnlyInstance, isAiTestPhoneFor, maybeHandleWithAiAgent } from "./ai-agent.ts";
 import { AI_ACTOR, AI_ACTOR_HEADER } from "./ai-db-guard.ts";
 
 // Cliente próprio da IA: o cabeçalho x-celebrei-actor deixa o banco recusar
@@ -1525,10 +1525,12 @@ function setActiveProvider(provider: string | null | undefined, clientToken: str
 }
 
 // Resposta a uma campanha (texto, áudio ou foto). Marca vencida: limpa e
-// segue como conversa normal. Sem "soft": manda a resposta automática, passa a
-// conversa para a equipe (robô e IA param só agora, na resposta) e avisa.
+// segue como conversa normal. Com a IA ligada neste número, ela assume a
+// conversa e responde na hora, sabendo da campanha (stop = false: o fluxo
+// normal chama a IA logo depois). Sem a IA e sem "soft": manda a resposta
+// automática, passa a conversa para a equipe (robô para só agora) e avisa.
 // stop = o resto do atendimento automático não deve rodar.
-async function handleCampaignReply(supabase: any, instance: any, conv: any, type: string): Promise<{ stop: boolean; conv: any }> {
+async function handleCampaignReply(supabase: any, instance: any, conv: any, type: string, phone: string): Promise<{ stop: boolean; conv: any }> {
   const state = campaignReplyState(conv.bot_data as JsonRecord | null);
   if (!state) return { stop: false, conv };
   if (state.expired) {
@@ -1536,11 +1538,23 @@ async function handleCampaignReply(supabase: any, instance: any, conv: any, type
     await supabase.from('wapi_conversations').update({ bot_data: cleaned }).eq('id', conv.id);
     return { stop: false, conv: { ...conv, bot_data: cleaned } };
   }
-  console.log(`[Campaign Reply] ${type} da campanha ${state.campaignId}, conv ${conv.id}, soft=${state.soft}`);
+  let mode: CampaignReplyMode = state.soft ? 'soft' : 'team';
+  try {
+    const botSettings = await getBotSettings(supabase, instance.id);
+    // Modo de teste do robô: a IA também só fala com o número de teste
+    const botTestBlocks = !!(botSettings?.test_mode_enabled && botSettings?.test_mode_number) &&
+      !isSameTestPhone(phone, botSettings.test_mode_number);
+    if (!botTestBlocks && !(await isConversationPaused(supabase, conv.id)) && await campaignAiReady(aiAgentDb(), instance, phone)) {
+      mode = 'ai';
+    }
+  } catch (err) {
+    console.error('[Campaign Reply] Falha ao ver se a IA atende:', err);
+  }
+  console.log(`[Campaign Reply] ${type} da campanha ${state.campaignId}, conv ${conv.id}, modo=${mode}`);
   let next = conv;
   try {
     const { data: campaign } = await supabase.from('campaigns').select('id, name, auto_reply_message').eq('id', state.campaignId).maybeSingle();
-    if (!state.soft && campaign?.auto_reply_message && campaign.auto_reply_message.trim()) {
+    if (mode === 'team' && campaign?.auto_reply_message && campaign.auto_reply_message.trim()) {
       const replyText = campaign.auto_reply_message.trim();
       const sentId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, replyText);
       if (sentId) {
@@ -1557,13 +1571,18 @@ async function handleCampaignReply(supabase: any, instance: any, conv: any, type
       company_id: instance.company_id,
       type: 'campaign_reply',
       title: '📣 Resposta de campanha!',
-      message: campaignReplyNotice(state.leadName, campaign?.name || 'Promoção', state.soft, type),
+      message: campaignReplyNotice(state.leadName, campaign?.name || 'Promoção', mode, type),
       data: { campaign_id: state.campaignId, conversation_id: conv.id, lead_id: conv.lead_id, lead_name: state.leadName },
     }));
     if (notifications.length > 0) await supabase.from('notifications').insert(notifications);
     const cleaned = clearCampaignMark(conv.bot_data as JsonRecord | null, { campaignId: state.campaignId, leadName: state.leadName, at: new Date().toISOString() });
     const update: JsonRecord = { bot_data: cleaned };
-    if (!state.soft) {
+    if (mode === 'ai') {
+      // A IA assume a conversa (mesmo de quem já tinha passado pela equipe antes)
+      update.bot_data = { ...cleaned, ai_agent: 'on' };
+      update.bot_step = 'ai_agent';
+      update.bot_enabled = true;
+    } else if (mode === 'team') {
       update.bot_enabled = false;
       update.bot_step = 'human_takeover';
     }
@@ -1572,7 +1591,7 @@ async function handleCampaignReply(supabase: any, instance: any, conv: any, type
   } catch (campErr) {
     console.error('[Campaign Reply] Error:', campErr);
   }
-  return { stop: !state.soft, conv: next };
+  return { stop: mode === 'team', conv: next };
 }
 
 async function sendBotMessage(instanceId: string, instanceToken: string, remoteJid: string, message: string): Promise<string | null> {
@@ -6523,7 +6542,7 @@ async function processWebhookEvent(body: JsonRecord) {
             .single();
           if (freshConv) conv = freshConv;
           // Áudio/foto também é resposta à campanha (antes ficava sem aviso nenhum)
-          const campaignReply = await handleCampaignReply(supabase, instance, conv, type);
+          const campaignReply = await handleCampaignReply(supabase, instance, conv, type, phone);
           conv = campaignReply.conv;
           if (!campaignReply.stop && !(await isConversationPaused(supabase, conv.id))) {
             const aiBotSettings = await getBotSettings(supabase, instance.id);
@@ -6555,7 +6574,7 @@ async function processWebhookEvent(body: JsonRecord) {
           }
 
           // === RESPOSTA DE CAMPANHA (texto) ===
-          const campaignReply = await handleCampaignReply(supabase, instance, conv, 'text');
+          const campaignReply = await handleCampaignReply(supabase, instance, conv, 'text', phone);
           conv = campaignReply.conv;
           if (campaignReply.stop) break;
 
