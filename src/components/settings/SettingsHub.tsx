@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
-  Activity, Bell, Bot, Building2, Database, FileText, FolderOpen, Globe,
-  MessageSquare, MessagesSquare, Palette, PartyPopper, Send, Settings, Sparkles, Upload, UserCircle, Users, Wifi, Wand2,
+  Activity, Bell, Bot, Building2, Clock, Cpu, Database, FileText, FolderOpen, Globe,
+  MessageCircleHeart, MessageSquare, MessagesSquare, Palette, PartyPopper, Send, Settings, Sparkles, Store, Upload, UserCircle, Users, Wifi, Wand2,
 } from "lucide-react";
 import { HubLayout, type HubGroup, type HubTone } from "./HubLayout";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,7 +21,12 @@ import { ConnectionSection } from "@/components/whatsapp/settings/ConnectionSect
 import { NotificationsSection } from "@/components/whatsapp/settings/NotificationsSection";
 import { MessagesSection } from "@/components/whatsapp/settings/MessagesSection";
 import { SalesMaterialsSection } from "@/components/whatsapp/settings/SalesMaterialsSection";
-import { AiAgentSection } from "@/components/whatsapp/settings/AiAgentSection";
+import { AiOverviewSection } from "@/components/whatsapp/settings/ai/AiOverviewSection";
+import { AiScheduleSection } from "@/components/whatsapp/settings/ai/AiScheduleSection";
+import { AiBuffetInfoSection } from "@/components/whatsapp/settings/ai/AiBuffetInfoSection";
+import { AiFollowUpSection } from "@/components/whatsapp/settings/ai/AiFollowUpSection";
+import { AiTechSection } from "@/components/whatsapp/settings/ai/AiTechSection";
+import { confirmLeaveUnsaved } from "@/lib/unsavedChanges";
 import { AiTestSection } from "@/components/whatsapp/settings/AiTestSection";
 import { AutomationsSection } from "@/components/whatsapp/settings/AutomationsSection";
 import { DataImportSection } from "@/components/admin/DataImportSection";
@@ -91,6 +96,7 @@ export function SettingsHub({ userId, userEmail, isAdmin, isGestor, canManageUse
   const automationsOn = !!permissions.automations && (isAdmin || !!modules.automations);
   const messagesOn = !!permissions.messages && (isAdmin || !!modules.messages);
   const systemOn = isGestor || isAdmin || canManageUsers;
+  const aiOn = !!modules.ia_conversacional && automationsOn;
 
   const groups: Group[] = useMemo(() => [
     {
@@ -111,9 +117,13 @@ export function SettingsHub({ userId, userEmail, isAdmin, isGestor, canManageUse
     },
     {
       id: "ia", title: "Inteligência Artificial", icon: Sparkles, items: [
-        { id: "ia-config", title: "Configurar a IA", description: "Preços, horários, promoções e jeito de atender", icon: Wand2, visible: !!modules.ia_conversacional && automationsOn, render: () => <AiAgentSection /> },
+        { id: "ia-config", title: "Visão geral", description: "Ligar a IA, números e o que falta preencher", icon: Wand2, visible: aiOn, render: () => <AiOverviewSection /> },
+        { id: "ia-apresentacao", title: "Apresentação e horários", description: "Nome, visitas, equipe, festas e alertas", icon: Clock, visible: aiOn, render: () => <AiScheduleSection /> },
+        { id: "ia-buffet", title: "Sobre o buffet", description: "Estrutura, diferenciais, respostas rápidas e regras", icon: Store, visible: aiOn, render: () => <AiBuffetInfoSection /> },
+        { id: "ia-followup", title: "Acompanhamento", description: "Lembretes para quem parou de responder", icon: MessageCircleHeart, visible: aiOn, render: () => <AiFollowUpSection /> },
         { id: "materials", title: "Materiais", description: "Fotos, vídeo, PDF e avaliações que a IA envia", icon: FolderOpen, visible: messagesOn, render: () => <SalesMaterialsSection userId={userId} isAdmin={isAdmin} /> },
         { id: "ia-teste", title: "Testar e ensinar", description: "Conversar com a IA e ver o que ela passou para a equipe", icon: Sparkles, visible: companyAdmin && hasAi, render: () => <AiTestSection /> },
+        { id: "ia-tecnico", title: "Técnico (Celebrei)", description: "Modelo, consumo, número de teste e testes automáticos", icon: Cpu, visible: aiOn && isAdmin, render: () => <AiTechSection /> },
       ],
     },
     {
@@ -137,7 +147,7 @@ export function SettingsHub({ userId, userEmail, isAdmin, isGestor, canManageUse
       ],
     },
   ].map((g) => ({ ...g, items: g.items.filter((i) => i.visible) })).filter((g) => g.items.length > 0),
-  [permissions, modules, companyAdmin, hasAi, automationsOn, messagesOn, systemOn, showOperacoes, canManageUsers, userId, userEmail, isAdmin]);
+  [permissions, companyAdmin, hasAi, aiOn, automationsOn, messagesOn, systemOn, showOperacoes, canManageUsers, userId, userEmail, isAdmin]);
 
   const allItems = groups.flatMap((g) => g.items);
   const requested = searchParams.get("item") || LEGACY[searchParams.get("secao") || ""] || LEGACY[searchParams.get("tab") || ""] || null;
@@ -146,6 +156,7 @@ export function SettingsHub({ userId, userEmail, isAdmin, isGestor, canManageUse
   const active = current || (isMobile ? null : allItems[0] || null);
 
   const open = (id: string | null) => {
+    if (id !== active?.id && !confirmLeaveUnsaved()) return;
     const next = new URLSearchParams();
     if (id) next.set("item", id);
     setSearchParams(next, { replace: false });

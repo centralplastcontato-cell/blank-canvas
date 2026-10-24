@@ -72,3 +72,13 @@ export function parseBuffetInfo(text: string | null): Record<string, string> {
   Object.keys(values).forEach((k) => { values[k] = values[k].trim(); });
   return values;
 }
+
+// Campos que podem ficar em branco sem contar como "falta"
+export const OPTIONAL_BUFFET_FIELDS = new Set(["degustacao_como", "outros"]);
+
+/** Quantos campos importantes já estão preenchidos (Visão geral da IA) */
+export function buffetInfoProgress(extraInstructions: string | null): { filled: number; total: number } {
+  const values = parseBuffetInfo(extraInstructions);
+  const required = BUFFET_FIELDS.filter((f) => !OPTIONAL_BUFFET_FIELDS.has(f.key));
+  return { filled: required.filter((f) => (values[f.key] || "").trim()).length, total: required.length };
+}
