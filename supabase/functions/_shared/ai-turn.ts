@@ -9,6 +9,11 @@ export const AI_DEBOUNCE_MS = 16000;
 export const AI_DEBOUNCE_COMPLETE_MS = 5000;
 // Meio-termo (frase curta sem "?")
 export const AI_DEBOUNCE_MEDIUM_MS = 9000;
+// A mensagem do cliente leva 3 a 4 s para chegar ao sistema depois de enviada
+// (Silvana, Castelo, 24/10: "Qual valores" saiu 13:21:33 e só foi gravada
+// 13:21:36,4 — a resposta à mensagem anterior saiu 13:21:36,0). Antes de
+// enviar, a IA espera esse tempo e só então confere se chegou mensagem nova.
+export const AI_INBOUND_LAG_MS = 4500;
 
 const OPENERS = /^(oi+|ol[aá]|opa|e a[ií]|bom dia|boa tarde|boa noite|ent[aã]o|e|mas|tipo|assim|s[oó]|ok|okay|hum+|hm+|blz|beleza|certo|sim|n[aã]o|t[aá]|tudo bem|td bem)[\s!.,…]*$/i;
 
