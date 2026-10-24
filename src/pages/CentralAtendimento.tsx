@@ -139,6 +139,8 @@ export default function CentralAtendimento() {
   const [showFilters, setShowFilters] = useState(false);
   
   const [initialPhone, setInitialPhone] = useState<string | null>(null);
+  // Aviso que já sabe qual é a conversa: o chat abre direto por ela (sem procurar pelo telefone)
+  const [initialConversationId, setInitialConversationId] = useState<string | null>(null);
   const [initialDraft, setInitialDraft] = useState<string | null>(null);
   const [chatInstances, setChatInstances] = useState<{ id: string; unit: string | null; status: string | null; is_active: boolean }[]>([]);
   const [selectedChatUnit, setSelectedChatUnit] = useState<string | null>(() => {
@@ -195,6 +197,7 @@ export default function CentralAtendimento() {
       setSearchParams(searchParams, { replace: true });
     }
     setInitialPhone(null);
+    setInitialConversationId(null);
     setInitialDraft(null);
   };
 
@@ -1107,6 +1110,7 @@ export default function CentralAtendimento() {
         <AiHandoffAlertBanner
           userId={user.id}
           onOpenConversation={(conversationId, phone) => {
+            setInitialConversationId(conversationId || null);
             setInitialPhone(phone);
             setActiveTab("chat");
           }}
@@ -1117,6 +1121,7 @@ export default function CentralAtendimento() {
           canViewContact={canViewContact}
           userId={user.id} 
           onOpenConversation={(conversationId, phone) => {
+            setInitialConversationId(conversationId || null);
             setInitialPhone(phone);
             setActiveTab("chat");
           }}
@@ -1127,6 +1132,7 @@ export default function CentralAtendimento() {
           canViewContact={canViewContact}
           userId={user.id} 
           onOpenConversation={(conversationId, phone) => {
+            setInitialConversationId(conversationId || null);
             setInitialPhone(phone);
             setActiveTab("chat");
           }}
@@ -1140,6 +1146,7 @@ export default function CentralAtendimento() {
           canViewContact={canViewContact}
           userId={user.id} 
           onOpenConversation={(conversationId, phone) => {
+            setInitialConversationId(conversationId || null);
             setInitialPhone(phone);
             setActiveTab("chat");
           }}
@@ -1283,6 +1290,7 @@ export default function CentralAtendimento() {
                   userId={user.id} 
                   allowedUnits={canViewAll ? ['all'] : allowedUnits} 
                   initialPhone={initialPhone}
+                  initialConversationId={initialConversationId}
                   initialDraft={initialDraft}
                   onPhoneHandled={handlePhoneHandled}
                   externalSelectedUnit={selectedChatUnit}
@@ -1577,6 +1585,7 @@ export default function CentralAtendimento() {
           <AiHandoffAlertBanner
             userId={user.id}
             onOpenConversation={(conversationId, phone) => {
+              setInitialConversationId(conversationId || null);
               setInitialPhone(phone);
               setActiveTab("chat");
             }}
@@ -1587,6 +1596,7 @@ export default function CentralAtendimento() {
           canViewContact={canViewContact}
             userId={user.id} 
             onOpenConversation={(conversationId, phone) => {
+              setInitialConversationId(conversationId || null);
               setInitialPhone(phone);
               setActiveTab("chat");
             }}
@@ -1597,6 +1607,7 @@ export default function CentralAtendimento() {
           canViewContact={canViewContact}
             userId={user.id} 
             onOpenConversation={(conversationId, phone) => {
+              setInitialConversationId(conversationId || null);
               setInitialPhone(phone);
               setActiveTab("chat");
             }}
@@ -1610,6 +1621,7 @@ export default function CentralAtendimento() {
           canViewContact={canViewContact}
             userId={user.id} 
             onOpenConversation={(conversationId, phone) => {
+              setInitialConversationId(conversationId || null);
               setInitialPhone(phone);
               setActiveTab("chat");
             }}
@@ -1632,6 +1644,7 @@ export default function CentralAtendimento() {
                       userId={user.id} 
                       allowedUnits={canViewAll ? ['all'] : allowedUnits}
                       initialPhone={initialPhone}
+                  initialConversationId={initialConversationId}
                       initialDraft={initialDraft}
                       onPhoneHandled={handlePhoneHandled}
                       externalSelectedUnit={selectedChatUnit}

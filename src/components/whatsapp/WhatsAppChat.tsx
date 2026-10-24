@@ -450,6 +450,8 @@ interface WhatsAppChatProps {
   userId: string;
   allowedUnits: string[];
   initialPhone?: string | null;
+  /** Conversa já conhecida (aviso que abriu o chat): abre por ela, sem procurar pelo telefone */
+  initialConversationId?: string | null;
   initialDraft?: string | null;
   onPhoneHandled?: () => void;
   externalSelectedUnit?: string | null;
@@ -553,7 +555,7 @@ import { senderDot } from "@/lib/messageSender";
 import { ClientDataBar } from "./ClientDataBar";
 import { type ClientDataRequestRow, clientDataLabel, clientDataState, latestClientDataByLead } from "@/lib/clientDataRequest";
 
-export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded, onLeadClosedMobile, onUnreadCountChange, isVisible = true, onConversationOpenChange, onActiveUnitChange }: WhatsAppChatProps) {
+export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialConversationId, initialDraft, onPhoneHandled, externalSelectedUnit, onInstancesLoaded, onLeadClosedMobile, onUnreadCountChange, isVisible = true, onConversationOpenChange, onActiveUnitChange }: WhatsAppChatProps) {
   const { currentCompany } = useCompany();
   const { canViewAllInstances, allowedInstanceIds, isLoading: isLoadingInstancePerms } = useInstancePermissions(userId);
   const [instances, setInstances] = useState<WapiInstance[]>([]);
@@ -1600,6 +1602,8 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
   const [initialPhoneProcessed, setInitialPhoneProcessed] = useState(false);
   const initialPhoneRef = useRef(initialPhone);
   initialPhoneRef.current = initialPhone;
+  const initialConversationIdRef = useRef(initialConversationId);
+  initialConversationIdRef.current = initialConversationId;
 
   // Cada novo pedido de "abrir conversa por telefone" re-arma o processamento.
   // Sem isso, so o PRIMEIRO clique da sessao abria a conversa — os seguintes
@@ -2494,14 +2498,29 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
       const phoneVariants = getBrazilianPhoneVariants(selectPhone);
       const phoneFilter = phoneVariants.map(p => `contact_phone.ilike.%${p}%`).join(',');
 
-      const { data: quickMatch } = await supabase
-        .from("wapi_conversations")
-        .select(conversationColumns)
-        .in("instance_id", selectedUnitInstanceIds)
-        .or(phoneFilter)
-        .order("last_message_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // Aviso que já sabe a conversa: busca direta pelo id (instantânea); o
+      // telefone fica de reserva
+      const knownId = initialConversationIdRef.current;
+      const { data: byId } = knownId
+        ? await supabase.from("wapi_conversations").select(conversationColumns).eq("id", knownId).maybeSingle()
+        : { data: null };
+      if (isStale()) return;
+      const byIdInstance = byId ? (byId as { instance_id: string }).instance_id : null;
+      const byIdHere = !!byIdInstance && selectedUnitInstanceIds.includes(byIdInstance);
+      const byIdVisible = !!byIdInstance && instances.some(i => i.id === byIdInstance);
+
+      const { data: quickMatch } = byIdHere
+        ? { data: byId }
+        : byIdVisible
+        ? { data: null }
+        : await supabase
+          .from("wapi_conversations")
+          .select(conversationColumns)
+          .in("instance_id", selectedUnitInstanceIds)
+          .or(phoneFilter)
+          .order("last_message_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
       if (isStale()) return;
 
@@ -2511,14 +2530,16 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
         if (keepLoadedList) return;
       } else {
         // Nao esta na unidade atual — procura nos outros numeros da Central
-        const { data: crossInstanceConv } = await supabase
-          .from("wapi_conversations")
-          .select(conversationColumns)
-          .in("instance_id", instances.map((i) => i.id))
-          .or(phoneFilter)
-          .order("last_message_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        const { data: crossInstanceConv } = byIdVisible
+          ? { data: byId }
+          : await supabase
+            .from("wapi_conversations")
+            .select(conversationColumns)
+            .in("instance_id", instances.map((i) => i.id))
+            .or(phoneFilter)
+            .order("last_message_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
         if (isStale()) return;
 
