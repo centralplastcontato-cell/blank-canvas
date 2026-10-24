@@ -19,7 +19,11 @@ vi.mock("@/components/whatsapp/settings/ConnectionSection", () => ({ ConnectionS
 vi.mock("@/components/whatsapp/settings/NotificationsSection", () => ({ NotificationsSection: stub("notificacoes") }));
 vi.mock("@/components/whatsapp/settings/MessagesSection", () => ({ MessagesSection: stub("respostas") }));
 vi.mock("@/components/whatsapp/settings/SalesMaterialsSection", () => ({ SalesMaterialsSection: stub("materiais") }));
-vi.mock("@/components/whatsapp/settings/AiAgentSection", () => ({ AiAgentSection: stub("ia-config") }));
+vi.mock("@/components/whatsapp/settings/ai/AiOverviewSection", () => ({ AiOverviewSection: stub("ia-config") }));
+vi.mock("@/components/whatsapp/settings/ai/AiScheduleSection", () => ({ AiScheduleSection: stub("ia-apresentacao") }));
+vi.mock("@/components/whatsapp/settings/ai/AiBuffetInfoSection", () => ({ AiBuffetInfoSection: stub("ia-buffet") }));
+vi.mock("@/components/whatsapp/settings/ai/AiFollowUpSection", () => ({ AiFollowUpSection: stub("ia-followup") }));
+vi.mock("@/components/whatsapp/settings/ai/AiTechSection", () => ({ AiTechSection: stub("ia-tecnico") }));
 vi.mock("@/components/whatsapp/settings/AiTestSection", () => ({ AiTestSection: stub("ia-teste") }));
 vi.mock("@/components/whatsapp/settings/AutomationsSection", () => ({
   AutomationsSection: ({ tabs }: { tabs?: string[] }) => <div>automações {tabs?.join(",")}</div>,
@@ -41,7 +45,8 @@ describe("SettingsHub", () => {
     expect(screen.getByText("Mensagens e robô")).toBeTruthy();
     expect(screen.queryByText("Robô fixo")).toBeNull();
     expect(screen.queryByText("Importar dados")).toBeNull(); // só administrador
-    fireEvent.click(screen.getByText("Configurar a IA"));
+    expect(screen.queryByText("Técnico (Celebrei)")).toBeNull(); // só administrador
+    fireEvent.click(screen.getByText("Visão geral"));
     expect(screen.getByText("conteúdo ia-config")).toBeTruthy();
     fireEvent.click(screen.getByText("Configurações"));
     expect(screen.getByText("Mensagens automáticas", { selector: "span" })).toBeTruthy();
