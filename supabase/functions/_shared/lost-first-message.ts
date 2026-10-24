@@ -9,11 +9,11 @@
 // chega depois; a seguinte para o mesmo número chega (Leidiane, 13:00 x 13:33).
 //
 // Enquanto a Evolution não é atualizada: mensagem automática de texto que ficou
-// só "enviada" por 30 min é reenviada UMA vez — se o número do buffet entregou
+// só "enviada" por 15 min é reenviada UMA vez — se o número do buffet entregou
 // alguma outra mensagem depois dela (prova que ele está funcionando) e se a
 // conversa não andou (cliente não respondeu, nada mais foi enviado).
 
-export const LOST_RESEND_AFTER_MS = 30 * 60 * 1000;
+export const LOST_RESEND_AFTER_MS = 15 * 60 * 1000;
 export const LOST_RESEND_MAX_AGE_MS = 6 * 3600 * 1000;
 
 // Automações que escrevem para quem não está conversando agora

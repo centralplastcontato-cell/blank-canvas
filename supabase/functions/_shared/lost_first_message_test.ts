@@ -11,8 +11,9 @@ Deno.test("reativação só com um tique há 30+ min e o número entregando: ree
   assertEquals(shouldResendLost(msg(45), ok, now), true);
 });
 
-Deno.test("antes de 30 min ou depois de 6 h: não reenvia", () => {
-  assertEquals(shouldResendLost(msg(20), ok, now), false);
+Deno.test("antes de 15 min ou depois de 6 h: não reenvia", () => {
+  assertEquals(shouldResendLost(msg(10), ok, now), false);
+  assertEquals(shouldResendLost(msg(20), ok, now), true);
   assertEquals(shouldResendLost(msg(7 * 60), ok, now), false);
 });
 
