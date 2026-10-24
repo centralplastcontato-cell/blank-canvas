@@ -16,8 +16,7 @@ import {
   RotateCcw,
   Trash2,
   XCircle,
-  type LucideIcon,
-} from "lucide-react";
+  type LucideIcon, CalendarCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -167,6 +166,12 @@ export function CampaignCard({ campaign, state, result, nextSendAt, onOpen, onAc
             <MessageCircle className="w-3.5 h-3.5" />
             {result.replied} responderam ({percentOf(result.replied, campaign.sent_count)}%)
           </span>
+          {result.visited !== undefined && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 px-2.5 py-1 text-xs font-medium">
+              <CalendarCheck className="w-3.5 h-3.5" />
+              {result.visited} {result.visited === 1 ? "marcou visita" : "marcaram visita"}
+            </span>
+          )}
           <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/10 text-violet-700 dark:text-violet-400 px-2.5 py-1 text-xs font-medium">
             <PartyPopper className="w-3.5 h-3.5" />
             {result.closed} {result.closed === 1 ? "fechou festa" : "fecharam festa"}
