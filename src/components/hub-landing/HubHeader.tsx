@@ -65,13 +65,18 @@ export default function HubHeader({ onOpenWizard }: HubHeaderProps) {
         <a href="/comecar" className="hidden text-[15px] font-semibold text-[#0F1222] transition-colors [@media(hover:hover)]:hover:text-[#E0457A] sm:inline">
           Criar conta grátis
         </a>
+        <a
+          href="/comecar"
+          className="inline-flex items-center rounded-full bg-[#0F1222] px-3.5 py-2 text-[13px] font-semibold text-white sm:hidden"
+        >
+          Teste grátis
+        </a>
         <button
           type="button"
           onClick={onOpenWizard}
-          className="inline-flex items-center gap-1.5 rounded-full bg-[#0F1222] px-4 py-2.5 text-sm font-semibold text-white transition-all [@media(hover:hover)]:hover:bg-[#1B2036] sm:px-5"
+          className="hidden items-center gap-1.5 rounded-full bg-[#0F1222] px-5 py-2.5 text-sm font-semibold text-white transition-all [@media(hover:hover)]:hover:bg-[#1B2036] sm:inline-flex"
         >
-          <span className="sm:hidden">Agendar demo</span>
-          <span className="hidden sm:inline">Agendar demonstração</span>
+          Agendar demonstração
           <ArrowRight className="h-4 w-4" />
         </button>
         </div>
