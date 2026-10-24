@@ -48,6 +48,7 @@ import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-ma
 import { askedForName, nameFromAnswer } from "../_shared/name-answer.ts";
 import { falseMaterialClaims, hasMaterialClaim, hasSubstance, refersToMaterial, stripFalseMaterialClaims } from "../_shared/material-claims.ts";
 import { enforceHouseRules, houseRuleNote, houseRuleViolatingSentences, houseRuleViolations, parseHouseRules, topicsAsked, TOPIC_ASK } from "../_shared/house-rules.ts";
+import { resumeNote } from "../_shared/ai-resume.ts";
 
 type Json = Record<string, unknown>;
 
@@ -557,6 +558,8 @@ export async function isAiOnlyInstance(supabase: any, instance: AgentInstance): 
 }
 
 interface PromptContext {
+  // "Retomar com a IA agora": como continuar a conversa interrompida
+  resumeNote?: string | null;
   offers: Slot[];
   sentMaterialsText: string;
   teamHoursText: string;
@@ -612,7 +615,7 @@ function buildSystemPrompt(companyName: string, unit: string, settings: AiSettin
   const assistantName = String(settings.assistant_name || '').trim();
   return `Você é ${assistantName ? `a ${assistantName}, ` : ''}a assistente virtual de vendas do ${companyName} (buffet infantil), atendendo por um dos WhatsApps de atendimento ("${unit}" é só o nome interno deste número: nunca cite ao cliente nem chame de unidade). Hoje é ${today}.${assistantName ? ` SEU NOME é ${assistantName} (definido nas configurações): use sempre este nome, mesmo que as informações do buffet ou mensagens antigas da conversa citem outro.` : ''}
 
-${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}${ctx.houseNote ? `ATENÇÃO — REGRA DO BUFFET: ${ctx.houseNote}\n\n` : ''}${ctx.singleVenue ? `ESPAÇO ÚNICO: o ${companyName} tem UM único espaço (o endereço das informações do buffet). NÃO existe outra unidade ou filial. Se o cliente perguntar de outra unidade ("unidade 1", outro endereço, qual fica mais perto), responda com naturalidade que hoje o ${companyName} fica só nesse endereço e siga a conversa. Nunca diga "esta unidade", nunca dê a entender que existe outra e não passe para a equipe por isso.\n\n` : ''}${ctx.recessNote ? `ATENÇÃO — ${ctx.recessNote}\n\n` : ''}${ctx.intentNote ? `ATENÇÃO — QUEM É O CONTATO: ${ctx.intentNote}\n\n` : ''}${ctx.corporateNote ? `ATENÇÃO — ${ctx.corporateNote}\n\n` : ''}${ctx.campaignNote ? `${ctx.campaignNote}\n\n` : ''}${ctx.promoNote ? `${ctx.promoNote}\n\n` : ''}${ctx.materialsNote ? `ATENÇÃO — MATERIAIS NESTE TURNO: ${ctx.materialsNote}\n\n` : ''}MENSAGENS DA EQUIPE: no histórico, o que começa com "[Equipe]" foi escrito por uma pessoa da equipe, não por você. Respeite o que ela combinou (valores, condições, horários, visitas): não contradiga nem repita; se o cliente pedir algo além do que ela combinou, passe para a equipe. Nunca escreva "[Equipe]" nas suas respostas.
+${ctx.resumeNote ? `ATENÇÃO — RETOMADA: ${ctx.resumeNote}\n\n` : ''}${ctx.weekdayNote ? `ATENÇÃO — DIA DA SEMANA: ${ctx.weekdayNote} Na resposta, avise com gentileza e pergunte qual dia ele quer (antes de consultar datas ou valores).\n\n` : ''}${ctx.houseNote ? `ATENÇÃO — REGRA DO BUFFET: ${ctx.houseNote}\n\n` : ''}${ctx.singleVenue ? `ESPAÇO ÚNICO: o ${companyName} tem UM único espaço (o endereço das informações do buffet). NÃO existe outra unidade ou filial. Se o cliente perguntar de outra unidade ("unidade 1", outro endereço, qual fica mais perto), responda com naturalidade que hoje o ${companyName} fica só nesse endereço e siga a conversa. Nunca diga "esta unidade", nunca dê a entender que existe outra e não passe para a equipe por isso.\n\n` : ''}${ctx.recessNote ? `ATENÇÃO — ${ctx.recessNote}\n\n` : ''}${ctx.intentNote ? `ATENÇÃO — QUEM É O CONTATO: ${ctx.intentNote}\n\n` : ''}${ctx.corporateNote ? `ATENÇÃO — ${ctx.corporateNote}\n\n` : ''}${ctx.campaignNote ? `${ctx.campaignNote}\n\n` : ''}${ctx.promoNote ? `${ctx.promoNote}\n\n` : ''}${ctx.materialsNote ? `ATENÇÃO — MATERIAIS NESTE TURNO: ${ctx.materialsNote}\n\n` : ''}MENSAGENS DA EQUIPE: no histórico, o que começa com "[Equipe]" foi escrito por uma pessoa da equipe, não por você. Respeite o que ela combinou (valores, condições, horários, visitas): não contradiga nem repita; se o cliente pedir algo além do que ela combinou, passe para a equipe. Nunca escreva "[Equipe]" nas suas respostas.
 
 SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até AGENDAR UMA VISITA ao buffet. A visita é o passo que mais fecha festas.
 
@@ -2133,7 +2136,11 @@ export async function maybeHandleWithAiAgent(
   // Id (do provedor) da mensagem de texto que disparou esta execução — usado
   // para juntar mensagens seguidas numa resposta só
   incomingMessageId?: string | null,
+  // resume: a equipe clicou em "Retomar com a IA agora" — a IA volta para a
+  // conversa e escreve já, sem mensagem nova do cliente (ver _shared/ai-resume.ts)
+  opts: { resume?: boolean } = {},
 ): Promise<boolean> {
+  const resume = opts.resume === true;
   // Só leitura fora das tabelas liberadas (ver ai-db-guard.ts)
   supabase = guardAiDb(supabase);
   let settings: AiSettings | null = null;
@@ -2223,6 +2230,19 @@ export async function maybeHandleWithAiAgent(
       return true;
     }
 
+    // Retomada: a conversa volta para a IA (passagem e pausas encerradas)
+    if (resume) {
+      const bdResume = { ...(conv.bot_data || {}), ai_agent: 'on', ai_handoff: null, ai_returned_at: new Date().toISOString() } as Json;
+      await supabase.from('wapi_conversations').update({
+        bot_step: AI_STEP, bot_enabled: true, bot_data: bdResume,
+        bot_paused_until: null, bot_paused_reason: null, bot_paused_at: null,
+      }).eq('id', conv.id);
+      conv.bot_step = AI_STEP;
+      conv.bot_enabled = true;
+      conv.bot_data = bdResume;
+      console.log(`[AI Agent] Retomada pela equipe (conv ${conv.id})`);
+    }
+
     // Equipe assumiu (botão Inativo, mensagem humana ou transferência): IA fica
     // fora — exceto quando foi a IA que passou, a equipe está fora do horário e
     // ninguém da equipe escreveu ainda: aí ela segue tirando dúvidas.
@@ -2251,7 +2271,7 @@ export async function maybeHandleWithAiAgent(
 
     // O número de teste é sempre atendido pela IA (a conversa dele costuma
     // ser antiga, de antes da ativação, e cairia na regra de "só leads novos").
-    if (!afterHoursHandoff && !isAiTestPhone && !(await isEligible(supabase, settings, conv, phone, instance.company_id))) {
+    if (!resume && !afterHoursHandoff && !isAiTestPhone && !(await isEligible(supabase, settings, conv, phone, instance.company_id))) {
       console.log(`[AI Agent] Conversa ${conv.id} não elegível (ver motivo acima) — seguindo com o bot fixo`);
       return false;
     }
@@ -2379,7 +2399,10 @@ export async function maybeHandleWithAiAgent(
     conv.__firstReply = isFirstReply;
     conv.__corporateEnabled = settings.corporate_events_enabled === true;
     const { merged: mergedHistory, pendingUserMessages } = mergeConsecutiveTurns(chatMessages);
-    const lastUserText = [...mergedHistory].reverse().find((m) => m.role === 'user')?.content || '';
+    // Na retomada, a "mensagem" que dispara não é do cliente: vale a última dele
+    const lastUserText = resume
+      ? ([...ordered].reverse().find((m) => !m.from_me)?.content || '')
+      : [...mergedHistory].reverse().find((m) => m.role === 'user')?.content || '';
 
     let companyName = instance.unit || '';
     const { data: companyRow } = await supabase.from('companies').select('name').eq('id', instance.company_id).maybeSingle();
@@ -2403,7 +2426,8 @@ export async function maybeHandleWithAiAgent(
     let materialsNote: string | null = null;
     const bdNow = (conv.bot_data || {}) as Json;
     if (bdNow.mes && bdNow.convidados && !isWithinMaterialWindow(bdNow.ai_auto_materials_at) && !afterHoursHandoff) {
-      if (confirmsPartyInterest(lastUserText)) {
+      // Retomada: o cliente já tinha confirmado a festa (era a vez dos materiais)
+      if (resume || confirmsPartyInterest(lastUserText)) {
         console.log(`[AI Agent] Mês e convidados já conhecidos e materiais ainda não enviados — saem depois da resposta (conv ${conv.id})`);
         conv.__deferMaterials = true;
         // Data da festa do formulário: conferida agora; o aviso (livre ou
@@ -2447,7 +2471,15 @@ export async function maybeHandleWithAiAgent(
       .eq('company_id', instance.company_id).eq('is_active', true).eq('is_physical', true);
     const singleVenue = ((physicalUnits || []) as Array<{ name: string }>).filter((u) => !/trabalhe conosco/i.test(u?.name || '')).length <= 1;
     const askedTopics = topicsAsked(lastUserText);
+    const lastAny = ordered[ordered.length - 1];
     const systemPrompt = buildSystemPrompt(companyName, instance.unit, settings, today, {
+      resumeNote: resume
+        ? resumeNote({
+          gapMs: lastAny ? nowMs - Date.parse(lastAny.timestamp) : 0,
+          clientWaiting: !!lastAny && !lastAny.from_me,
+          materialsPending: !!conv.__deferMaterials,
+        })
+        : null,
       offers: pickTwoOffers(available),
       sentMaterialsText: sentList.length > 0 ? sentList.join(', ') : 'nenhum',
       teamHoursText: teamHoursMessage(settings, nowMs),

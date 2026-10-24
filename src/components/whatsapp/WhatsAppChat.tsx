@@ -3696,6 +3696,27 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     toast({ title: "Pronto", description: "A etiqueta Responder saiu desta conversa." });
   };
 
+  // "Retomar com a IA agora": a IA volta e escreve já, continuando de onde parou
+  const resumeWithAi = async (conv: Conversation) => {
+    if (!canToggleBot) {
+      toast({ title: "Sem permissão", description: "Você não tem permissão para ativar/desativar o bot.", variant: "destructive" });
+      return;
+    }
+    const { data, error } = await supabase.functions.invoke('ai-resume', { body: { conversation_id: conv.id } });
+    let msg: string | null = (data as { error?: string } | null)?.error ?? null;
+    if (error && !msg) {
+      try { msg = (await (error as { context?: Response }).context?.json())?.error || error.message; } catch { msg = error.message; }
+    }
+    if (msg) {
+      toast({ title: "A IA não retomou", description: msg, variant: "destructive" });
+      return;
+    }
+    const patch = { bot_enabled: true, bot_step: 'ai_agent' };
+    setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, ...patch } : c));
+    setSelectedConversation(prev => prev && prev.id === conv.id ? { ...prev, ...patch } : prev);
+    toast({ title: "A IA está retomando a conversa", description: "Ela escreve em instantes, continuando de onde parou." });
+  };
+
   const returnToBia = async (conv: Conversation) => {
     if (!canToggleBot) {
       toast({ title: "Sem permissão", description: "Você não tem permissão para ativar/desativar o bot.", variant: "destructive" });
@@ -5699,6 +5720,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         onTakeOverFromBia={takeOverFromBia}
                         onReturnToBia={returnToBia}
                         onDismissAiReply={dismissAiReply}
+                        onResumeWithAi={resumeWithAi}
                         onToggleFavorite={toggleFavorite}
                         onLeadNameChange={(newName) => {
                           setLinkedLead(prev => prev ? { ...prev, name: newName } : null);
@@ -6948,6 +6970,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         onTakeOverFromBia={takeOverFromBia}
                         onReturnToBia={returnToBia}
                         onDismissAiReply={dismissAiReply}
+                        onResumeWithAi={resumeWithAi}
                         onToggleFavorite={toggleFavorite}
                         onLeadNameChange={(newName) => {
                           setLinkedLead(prev => prev ? { ...prev, name: newName } : null);
