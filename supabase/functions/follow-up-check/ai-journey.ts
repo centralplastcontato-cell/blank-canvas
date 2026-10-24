@@ -442,6 +442,9 @@ export async function runAiJourney(
         const alternatives = party && ((party.exact && dateFree !== null && dateFree.length === 0) || (plan.action.kind === "reactivation" && !party.exact))
           ? await alternativeDates(supabase, settings, instance.company_id, party, todayYmd)
           : null;
+        // Conversa parou na apresentação: o cliente não disse o nome nem nada da festa
+        const atStart = plan.action.kind === "inactivity" && !bd.nome && !partyYmd && !bd.mes && !bd.convidados &&
+          !bd.aniversariante && sentMaterials.size === 0;
         const instruction = followUpInstruction({
           kind: plan.action.kind,
           stepNumber: plan.action.kind === "step" ? plan.action.index + 1 : undefined,
@@ -453,19 +456,21 @@ export async function runAiJourney(
           goal: plan.action.kind === "step" ? cfg.steps[plan.action.index].goal : undefined,
           silenceMs: nowMs - (plan.anchorMs as number),
           todayYmd,
-          clientName: bd.nome || conv.contact_name || lead?.name || null,
+          // Nome do perfil do WhatsApp não vale enquanto a pergunta do nome está sem resposta
+          clientName: atStart ? null : bd.nome || conv.contact_name || lead?.name || null,
           birthdayName: bd.aniversariante || null,
           corporate: bd.tipo_evento === "empresa" ? String(bd.empresa || "") : null,
           partyYmd,
           partyMonth: bd.mes || null,
           guests: bd.convidados || null,
           partyDateFree: dateFree,
-          promoLine: promo
+          promoLine: promo && !atStart
             ? `PROMOÇÃO EM VIGOR (pode citar uma vez, se combinar com o objetivo): ${promo.title} — vai até ${formatDateLong(promo.endYmd)} (${promoCountdown(promo)}); regras nas informações do buffet.${promo.partyYear ? ` Só para festas em ${promo.partyYear}.` : ""}`
             : null,
           valuesAlreadyGiven: previousAssistant.some((t) => /R\$/.test(t)),
           materialsSent: [...sentMaterials],
           withImage: !!imageUrl,
+          atStart,
         });
         const system = `Você é a assistente virtual do ${companyName} no WhatsApp, escrevendo uma mensagem de acompanhamento para um cliente que parou de responder. Português do Brasil, tom caloroso e natural, mensagens curtas como no WhatsApp, 1 a 3 emojis. Hoje é ${formatDateLong(todayYmd)} (${todayYmd}). Datas sempre por extenso ("sábado, 26 de dezembro").${settings.extra_instructions ? `\n\nINFORMAÇÕES DO BUFFET (fonte única de fatos; siga o jeito/personalidade descrito aqui):\n${settings.extra_instructions}` : ""}`;
         const session = createLlmSession({ model, system, history: mergeConsecutiveTurns(turns).merged, tools: [], openaiKey, anthropicKey });
@@ -492,7 +497,7 @@ export async function runAiJourney(
             is_test: isTest,
           });
           if (step.refused) break;
-          check = checkFollowUpText(step.text, { previousAssistantTexts: previousAssistant, sentMaterials, todayYmd });
+          check = checkFollowUpText(step.text, { previousAssistantTexts: previousAssistant, sentMaterials, todayYmd, allowRepeatQuestion: atStart });
           if (check.ok) break;
           console.warn(`[ai-journey] Texto recusado (conv ${conv.id}): ${check.problem}`);
           session.addUserNote(`Sua mensagem NÃO foi enviada: ${check.problem}. Escreva de novo, corrigida, só o texto para o cliente.`);

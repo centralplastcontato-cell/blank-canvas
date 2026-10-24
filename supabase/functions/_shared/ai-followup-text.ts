@@ -28,6 +28,7 @@ export interface FollowUpContext {
   materialsSent: MaterialKind[]; // confirmados pelo WhatsApp nesta conversa
   withImage?: boolean; // a mensagem vai como legenda de uma arte do buffet
   corporate?: string | null; // confraternização de empresa ("" = empresa sem nome)
+  atStart?: boolean; // conversa parou na apresentação: cliente ainda não disse o nome nem nada da festa
 }
 
 const MATERIAL_NAME: Record<MaterialKind, string> = { fotos: "as fotos do espaço", video: "o vídeo", pacotes: "o PDF dos pacotes" };
@@ -66,6 +67,8 @@ export function followUpInstruction(c: FollowUpContext): string {
     : ` AGENDA AGORA: ${formatDateLong(c.partyYmd)} JÁ FOI RESERVADA (se a conversa mostra que você já avisou, não repita a notícia). Não ofereça essa data. Se falar de datas, use só estas — são a agenda de agora (datas que você ofereceu antes podem ter sido reservadas e não valem mais).${altText || " Não achei outras datas livres perto: ofereça ver com a equipe."}`;
   const what = c.kind === "reactivation"
     ? `LEMBRETE ANTES DA FESTA: faltam cerca de ${c.daysBefore} dias para a festa e o cliente não responde há ${silenceText(c.silenceMs)}. Retome o contato com carinho (a festa está chegando), mostre a agenda real (abaixo) e convide para conhecer o espaço ou garantir a data com a equipe. Escreva UMA mensagem curta (2 a 5 frases + as linhas de datas, se houver), terminando com uma pergunta simples. Não diga que é um lembrete automático.`
+    : c.kind === "inactivity" && c.atStart
+    ? `O cliente parou de responder há ${silenceText(c.silenceMs)}, logo no começo: ele ainda não disse o nome nem contou nada da festa. Escreva UM lembrete bem curto (1 ou 2 frases), leve${c.reminderNumber === 2 ? ", em outro tom e sem repetir o 1º lembrete" : ""}: pergunte se ainda está por aí e peça o nome de novo, com outras palavras (ex.: "me conta seu nome pra eu te ajudar com a festa"). Não chame o cliente por nome nenhum. Não fale de promoção, valores, datas nem diferenciais do buffet e não convide para visita.`
     : c.kind === "inactivity" && c.reminderNumber === 2
     ? `O cliente parou de responder há ${silenceText(c.silenceMs)} e não respondeu nem ao seu 1º lembrete. Escreva UM 2º lembrete bem curto (1 ou 2 frases), em outro tom e sem repetir o 1º: leve e sem pressão — deixe claro que você fica por aqui quando ele puder e termine com uma pergunta simples.`
     : c.kind === "inactivity" && dateTaken
@@ -81,7 +84,7 @@ export function followUpInstruction(c: FollowUpContext): string {
     c.materialsSent.length > 0
       ? ` Materiais já enviados nesta conversa: ${c.materialsSent.map((k) => MATERIAL_NAME[k]).join(", ")}. Não cite os que não estão nesta lista.`
       : " Nenhum material (fotos, vídeo, PDF) foi enviado nesta conversa: não pergunte se ele viu nem diga que mandou.",
-    ` Regras: não se apresente de novo; não diga que é mensagem automática; não use menu de opções numeradas; não pressione; não invente escassez (nada de "últimas vagas" ou "datas esgotando" — só o que estiver escrito acima); não reserve nem prometa nada; não diga que mandou fotos, vídeo ou PDF se isso não aparece na conversa.`,
+    ` Regras: não se apresente de novo; não diga que é mensagem automática; não use menu de opções numeradas; não pressione; não invente escassez (nada de "últimas vagas" ou "datas esgotando" — só o que estiver escrito acima); não reserve nem prometa nada; não diga que mandou fotos, vídeo ou PDF se isso não aparece na conversa; não escreva como se respondesse a uma pergunta que o cliente não fez.`,
     c.valuesAlreadyGiven
       ? " Valores: só se precisar, e só os mesmos que você já passou nesta conversa."
       : " Valores: NÃO cite valores (o cliente não perguntou).",
@@ -129,7 +132,7 @@ export function repeatsLastQuestion(reminder: string, lastAssistant: string): bo
 
 export function checkFollowUpText(
   raw: string,
-  opts: { previousAssistantTexts: string[]; sentMaterials: Set<MaterialKind>; todayYmd: string },
+  opts: { previousAssistantTexts: string[]; sentMaterials: Set<MaterialKind>; todayYmd: string; allowRepeatQuestion?: boolean },
 ): FollowUpCheck {
   let text = String(raw || "").trim().replace(/^["“]|["”]$/g, "").trim();
   if (text.length < 8) return { ok: false, text, problem: "texto vazio" };
@@ -145,7 +148,8 @@ export function checkFollowUpText(
   if (unsent.length > 0) return { ok: false, text, problem: `falou de ${unsent.map((k) => MATERIAL_NAME[k]).join(" e ")}, que não foi enviado` };
   if (SCARCITY.test(text)) return { ok: false, text, problem: "escassez inventada (vagas/datas acabando)" };
   const lastAssistant = opts.previousAssistantTexts[opts.previousAssistantTexts.length - 1] || "";
-  if (repeatsLastQuestion(text, lastAssistant)) return { ok: false, text, problem: "repetiu a pergunta da sua última mensagem — pergunte outra coisa e traga algo novo" };
+  // Conversa parada na apresentação: pedir o nome de novo é justamente o lembrete
+  if (!opts.allowRepeatQuestion && repeatsLastQuestion(text, lastAssistant)) return { ok: false, text, problem: "repetiu a pergunta da sua última mensagem — pergunte outra coisa e traga algo novo" };
   text = airyParagraphs(moneyWithCents(markTodayTomorrow(fixWeekdays(text, opts.todayYmd), opts.todayYmd)));
   return { ok: true, text };
 }
