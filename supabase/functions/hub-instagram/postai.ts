@@ -15,11 +15,13 @@ export type PostPostai = {
 };
 
 export type NovoPost = {
-  formato: "feed" | "carrossel" | "story";
+  formato: "feed" | "carrossel" | "story" | "reels";
   horario: string;
   midias: string[];
   legenda?: string;
   hashtags?: string;
+  /** só reels: imagem de capa */
+  capa?: string;
   status: "agendado" | "aguardando_aprovacao";
   external_id: string;
 };

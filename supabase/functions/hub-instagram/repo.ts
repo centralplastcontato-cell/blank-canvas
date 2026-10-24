@@ -27,7 +27,7 @@ export type Item =
 export type Post = {
   id: string;
   vaga: string;
-  tipo: "foto" | "pergunta" | "carrossel";
+  tipo: "foto" | "pergunta" | "carrossel" | "reels";
   publico: "vendas" | "gestao";
   tema: string;
   cenario: string;

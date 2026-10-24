@@ -8,7 +8,8 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { repoSupabase, VagaOcupada } from "./repo.ts";
-import { ErroAcao, acaoNoPost, gravarConfig, listar, postDeTeste, rodada, type AcaoPost } from "./rodada.ts";
+import { ErroAcao, acaoNoPost, gravarConfig, listar, novoReels, postDeTeste, rodada, type AcaoPost } from "./rodada.ts";
+import { BALDE } from "./repo.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,6 +36,12 @@ Deno.serve(async (req) => {
     valor?: unknown;
     legenda?: string;
     hashtags?: string;
+    // vídeo (Reels) postado à mão
+    video?: string;
+    capa?: string;
+    horario?: string;
+    titulo?: string;
+    tipo?: string;
   };
   const repo = repoSupabase();
 
@@ -69,6 +76,17 @@ Deno.serve(async (req) => {
         return json({ ok: true, ...(await listar(repo)) });
       case "rodada":
         return json({ ok: true, log: await rodada(repo, "painel") });
+      case "reels_upload": {
+        // Link para o navegador subir o vídeo/capa direto no Storage (sem passar pela função)
+        const ext = { "video/mp4": "mp4", "video/quicktime": "mov", "image/jpeg": "jpg", "image/png": "png" }[String(corpo.tipo)];
+        if (!ext) return json({ error: "Use vídeo MP4/MOV ou capa JPG/PNG." }, 400);
+        const caminho = `reels/${crypto.randomUUID()}.${ext}`;
+        const { data, error } = await admin.storage.from(BALDE).createSignedUploadUrl(caminho);
+        if (error || !data) return json({ error: `Storage: ${error?.message || "sem link"}` }, 500);
+        return json({ ok: true, caminho, token: data.token, url: admin.storage.from(BALDE).getPublicUrl(caminho).data.publicUrl });
+      }
+      case "reels":
+        return json({ ok: true, ...(await novoReels(repo, corpo)) });
       case "teste":
         return json({ ok: true, ...(await postDeTeste(repo)) });
       case "config": {
