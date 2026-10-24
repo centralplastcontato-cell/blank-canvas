@@ -96,7 +96,7 @@ export function CampaignConfigStep({ draft, setDraft, companyName = "", companyI
             <div className="min-w-0">
               <Label className="text-sm font-semibold">Passar para a equipe quando responder</Label>
               <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                Quem responder em até 7 dias recebe a mensagem abaixo, o robô e a IA param naquela conversa e a equipe recebe um aviso. Desligado: o atendimento automático de sempre responde.
+                Com a IA ligada no número, ela responde na hora quem responder em até 7 dias, sabendo da campanha, e a equipe recebe um aviso. Sem a IA: quem responder recebe a mensagem abaixo, o robô para naquela conversa e a equipe é avisada. Desligado: o atendimento automático de sempre responde.
               </p>
             </div>
           </div>

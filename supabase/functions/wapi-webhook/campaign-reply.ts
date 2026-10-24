@@ -45,10 +45,17 @@ export function clearCampaignMark(botData: BotData | null | undefined, replied?:
   return out;
 }
 
+/**
+ * Quem atende a resposta: "ai" = a IA responde na hora; "soft" = o
+ * atendimento automático segue normal; "team" = passa para a equipe.
+ */
+export type CampaignReplyMode = "ai" | "soft" | "team";
+
 /** Texto do aviso para a equipe (áudio e foto também contam como resposta) */
-export function campaignReplyNotice(leadName: string, campaignName: string, soft: boolean, type: string): string {
+export function campaignReplyNotice(leadName: string, campaignName: string, mode: CampaignReplyMode, type: string): string {
   const what = type === "audio" ? "mandou um áudio em resposta à" : type === "image" ? "mandou uma foto em resposta à" : "respondeu à";
-  return soft
+  if (mode === "ai") return `${leadName} ${what} campanha "${campaignName}". A IA já está respondendo — acompanhe a conversa.`;
+  return mode === "soft"
     ? `${leadName} ${what} campanha "${campaignName}". O atendimento automático continua com ele.`
     : `${leadName} ${what} campanha "${campaignName}" e aguarda atendimento.`;
 }
