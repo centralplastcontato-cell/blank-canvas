@@ -40,6 +40,12 @@ export function setEvolutionCallGuard(fn: CallGuard | null): void {
 }
 
 export const HELD_PREFIX = "evolution_held:";
+// O monitor trava o número só enquanto checa (poucos segundos, a cada 5 min).
+// Quem chama nesse meio-tempo espera a checagem acabar em vez de falhar: a IA
+// tratava a falha como "não saiu" e passava a conversa para a equipe sem os
+// materiais (Juliana Siqueira, VENDAS 2, 24/10 07:55)
+export const MONITOR_HOLD_REASON = "monitor checando o número";
+export const monitorHoldWait = { totalMs: 20000, stepMs: 2000 };
 export function isHeldError(error: string | undefined | null): boolean {
   return String(error || "").startsWith(HELD_PREFIX);
 }
@@ -47,10 +53,16 @@ export function isHeldError(error: string | undefined | null): boolean {
 export async function evolutionRequest(token: string, path: string, method = "GET", body?: unknown, timeoutMs = 90000): Promise<EvolutionResult> {
   if (callGuard) {
     let reason: string | null = null;
-    try {
-      reason = await callGuard(token, path);
-    } catch (e) {
-      console.warn("[evolution] trava indisponível, seguindo:", e instanceof Error ? e.message : e);
+    const waitUntil = Date.now() + monitorHoldWait.totalMs;
+    for (;;) {
+      try {
+        reason = await callGuard(token, path);
+      } catch (e) {
+        console.warn("[evolution] trava indisponível, seguindo:", e instanceof Error ? e.message : e);
+        reason = null;
+      }
+      if (reason !== MONITOR_HOLD_REASON || Date.now() + monitorHoldWait.stepMs > waitUntil) break;
+      await new Promise((r) => setTimeout(r, monitorHoldWait.stepMs));
     }
     if (reason) {
       console.warn(`[evolution] ${method} ${path} segurado: ${reason}`);

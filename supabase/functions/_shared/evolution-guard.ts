@@ -6,7 +6,7 @@
 //   1) evento de conexão daquele número nos últimos 2 min → não chama nada
 //   2) uma chamada por vez por número (trava em provider_health.lock_until)
 
-import { setEvolutionCallGuard } from "./evolution.ts";
+import { MONITOR_HOLD_REASON, setEvolutionCallGuard } from "./evolution.ts";
 
 // deno-lint-ignore no-explicit-any
 type SB = any;
@@ -162,7 +162,7 @@ export async function evolutionHoldReason(supabase: SB, inst: { id: string; inst
     const secs = Math.max(0, Math.round((Date.parse(last.received_at) + EVENT_QUIET_MS - nowMs) / 1000));
     return `"${last.event_type}" há pouco — a Evolution está reconectando sozinha (libera em ${secs}s)`;
   }
-  if (lock?.lock_until && Date.parse(lock.lock_until) > nowMs) return "monitor checando o número";
+  if (lock?.lock_until && Date.parse(lock.lock_until) > nowMs) return MONITOR_HOLD_REASON;
   return null;
 }
 
