@@ -7958,7 +7958,10 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
           leadId={linkedLead.id}
           currentUserId={userId}
           leadUnit={linkedLead.unit}
-          onVisitRegistered={() => setVisitRefreshKey(k => k + 1)}
+          onVisitRegistered={(moved) => {
+            setVisitRefreshKey(k => k + 1);
+            if (moved) setLinkedLead(prev => prev ? { ...prev, status: 'em_contato' } as Lead : prev);
+          }}
           initialVisitType="visita"
         />
       )}

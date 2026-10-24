@@ -3,6 +3,7 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentCompanyId } from "@/lib/supabase-helpers";
+import { afterManualVisit } from "@/lib/visitLeadStatus";
 import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 
 
@@ -208,7 +209,8 @@ export function VisitFormDialog({
     if (error) {
       toast({ title: "Erro ao criar agendamento", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: isAtendimento ? "Atendimento agendado!" : "Visita criada!" });
+      const moved = await afterManualVisit(finalLeadId, visitType, "agendada", currentUserId);
+      toast({ title: isAtendimento ? "Atendimento agendado!" : "Visita criada!", description: moved ? 'Lead passou para "Visita".' : undefined });
       onOpenChange(false);
       resetForm();
       onCreated?.();

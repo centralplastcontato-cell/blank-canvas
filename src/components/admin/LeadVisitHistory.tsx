@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentCompanyId } from "@/lib/supabase-helpers";
+import { afterManualVisit } from "@/lib/visitLeadStatus";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -100,7 +101,8 @@ export function LeadVisitHistory({ leadId, currentUserId, leadUnit }: LeadVisitH
     if (error) {
       toast({ title: "Erro ao registrar visita", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Visita registrada!" });
+      const moved = await afterManualVisit(leadId, "visita", visitStatus, currentUserId);
+      toast({ title: "Visita registrada!", description: moved ? 'Lead passou para "Visita".' : undefined });
       setDialogOpen(false);
       resetForm();
       fetchVisits();

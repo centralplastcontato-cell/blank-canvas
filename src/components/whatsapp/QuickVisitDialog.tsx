@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentCompanyId } from "@/lib/supabase-helpers";
+import { afterManualVisit } from "@/lib/visitLeadStatus";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,7 +35,8 @@ interface QuickVisitDialogProps {
   leadId: string;
   currentUserId: string;
   leadUnit?: string | null;
-  onVisitRegistered?: () => void;
+  /** statusMoved: o lead passou para "Visita" */
+  onVisitRegistered?: (statusMoved: boolean) => void;
   initialVisitType?: "visita" | "atendimento";
 }
 
@@ -89,8 +91,9 @@ export function QuickVisitDialog({ open, onOpenChange, leadId, currentUserId, le
     if (error) {
       toast({ title: initialVisitType === "atendimento" ? "Erro ao agendar atendimento" : "Erro ao registrar visita", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: initialVisitType === "atendimento" ? "Atendimento agendado!" : "Visita registrada!" });
-      onVisitRegistered?.();
+      const moved = await afterManualVisit(leadId, initialVisitType, visitStatus, currentUserId);
+      toast({ title: initialVisitType === "atendimento" ? "Atendimento agendado!" : "Visita registrada!", description: moved ? 'Lead passou para "Visita".' : undefined });
+      onVisitRegistered?.(moved);
       onOpenChange(false);
       resetForm();
     }
