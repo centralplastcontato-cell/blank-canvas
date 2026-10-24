@@ -4,6 +4,7 @@ import { escreveTexto } from "./legenda.ts";
 import { hojeBrasilia, horarioBrasilia, horarioDeTeste, vagasProximas } from "./pauta.ts";
 import { ErroPostai, cancelaPostEStory, consultaPost, criaPost, idDoStory } from "./postai.ts";
 import { VagaOcupada, type Item, type Post, type Repo, type Status } from "./repo.ts";
+import { validaReels, type DadosReels } from "./reels.ts";
 
 const FOLGA_ENVIO_MS = 12 * 60e3; // o Postaí recusa horário no passado
 const TRAVA_ETAPA_MS = 4 * 60e3; // etapa que caiu no meio volta a ficar livre depois disso
@@ -185,7 +186,8 @@ export async function enviaAoPostai(repo: Repo, id: string, log: Registro[] = []
     const post = await enviaFeed(p, horario);
     await repo.atualiza(p.id, { status: "enviado", postai_id: post.id, motivo: null });
     log.push({ etapa: "envio", mensagem: `enviado ao Postaí: ${p.tema} (${horario})` });
-    if (!p.teste) {
+    // Reels não ganha cópia no Story (Story de vídeo vai até 60 s)
+    if (!p.teste && p.tipo !== "reels") {
       try {
         await criaPost({ formato: "story", horario, midias: [p.midias[0]], status: "agendado", external_id: idDoStory(p.id) });
       } catch (e) {
@@ -204,6 +206,18 @@ export async function enviaAoPostai(repo: Repo, id: string, log: Registro[] = []
 }
 
 function enviaFeed(p: Post, horario: string) {
+  if (p.tipo === "reels") {
+    return criaPost({
+      formato: "reels",
+      horario,
+      midias: [p.midias[0]],
+      ...(p.midias[1] ? { capa: p.midias[1] } : {}),
+      legenda: p.legenda,
+      hashtags: p.hashtags,
+      status: "agendado",
+      external_id: p.id,
+    });
+  }
   return criaPost({
     formato: p.tipo === "carrossel" ? "carrossel" : "feed",
     horario,
@@ -262,7 +276,8 @@ export async function manutencao(repo: Repo, log: Registro[] = [], agora = Date.
 async function enviaProntos(repo: Repo, cfg: Config, log: Registro[]) {
   const prontos = await repo.posts({ status: cfg.aprovacaoManual ? ["aprovado"] : ["aguardando", "aprovado"] });
   for (const p of prontos) {
-    if (cfg.pausado && !p.teste) continue;
+    // Vídeo postado à mão vai mesmo com a automação pausada
+    if (cfg.pausado && !p.teste && p.tipo !== "reels") continue;
     await enviaAoPostai(repo, p.id, log);
   }
 }
@@ -361,6 +376,37 @@ export async function postDeTeste(repo: Repo) {
   return { id: post.id, vaga: horarioBrasilia(vaga), envio: log[0]?.mensagem ?? null };
 }
 
+/** Vídeo (Reels) postado à mão no painel: já nasce aprovado e vai na hora ao Postaí, mesmo pausado. */
+export async function novoReels(repo: Repo, dados: DadosReels, agora = Date.now()) {
+  exigeChaves("POSTAI_API_KEY");
+  const r = validaReels(dados, agora + FOLGA_ENVIO_MS);
+  if ("erro" in r) throw new ErroAcao(r.erro);
+  let post: Post;
+  try {
+    post = await repo.insere({
+      id: crypto.randomUUID(),
+      vaga: r.vaga.toISOString(),
+      tipo: "reels",
+      publico: "vendas",
+      tema: "video",
+      cenario: "",
+      titulo: r.titulo,
+      legenda: r.legenda,
+      hashtags: r.hashtags,
+      plano: [],
+      midias: r.capa ? [r.video, r.capa] : [r.video],
+      status: "aprovado",
+      nota: null,
+      teste: false,
+    });
+  } catch (e) {
+    if (e instanceof VagaOcupada) throw new ErroAcao("Já tem um post nesse horário. Escolha outro (por exemplo, 5 minutos depois).", 409);
+    throw e;
+  }
+  const log = await enviaAoPostai(repo, post.id);
+  return { id: post.id, vaga: horarioBrasilia(r.vaga), envio: log[0]?.mensagem ?? null };
+}
+
 export type AcaoPost = "aprovar" | "recusar" | "refazer" | "editar" | "avancar";
 
 export async function acaoNoPost(repo: Repo, id: string, acao: AcaoPost, corpo: { legenda?: string; hashtags?: string } = {}) {
@@ -376,13 +422,14 @@ export async function acaoNoPost(repo: Repo, id: string, acao: AcaoPost, corpo: 
       const ok = await repo.atualiza(id, { status: "aprovado", postai_id: null, motivo: null }, { status: [post.status] });
       if (!ok) throw new ErroAcao("O post mudou enquanto você aprovava. Atualize a tela.", 409);
       const cfg = await lerConfig(repo);
-      if (cfg.pausado && !post.teste) return { resumo: "Aprovado. A automação está pausada: ele vai ao Postaí quando você despausar." };
+      if (cfg.pausado && !post.teste && post.tipo !== "reels") return { resumo: "Aprovado. A automação está pausada: ele vai ao Postaí quando você despausar." };
       const log = await enviaAoPostai(repo, id);
       return { resumo: log[0]?.mensagem ?? null };
     }
     case "recusar":
     case "refazer": {
       if (post.status === "publicado") throw new ErroAcao("Já foi publicado.", 409);
+      if (acao === "refazer" && post.tipo === "reels") throw new ErroAcao("Vídeo não tem “Gerar outro”: recuse e poste o vídeo de novo.");
       if (acao === "refazer") exigeChaves("OPENAI_API_KEY");
       if (post.postai_id) await cancelaPostEStory(post.postai_id, post.id);
       await repo.atualiza(id, {
@@ -396,7 +443,7 @@ export async function acaoNoPost(repo: Repo, id: string, acao: AcaoPost, corpo: 
         return { resumo: "O post saiu. O horário dele já está muito perto, então não gerei outro." };
       }
       try {
-        const novo = await novoPost(repo, { vaga: new Date(post.vaga), tipo: post.tipo, publico: post.publico, teste: post.teste });
+        const novo = await novoPost(repo, { vaga: new Date(post.vaga), tipo: post.tipo as TipoPost, publico: post.publico, teste: post.teste });
         const r = await avancaEtapa(repo, { id: novo.id });
         return { resumo: null, novo: { id: novo.id, feitas: r?.feitas ?? 0, total: novo.plano.length } };
       } catch (e) {
@@ -441,7 +488,7 @@ export async function listar(repo: Repo) {
       vaga: p.vaga,
       tipo: p.tipo,
       publico: p.publico,
-      tema: nomes.get(p.tema) || p.tema,
+      tema: nomes.get(p.tema) || (p.tipo === "reels" ? "Vídeo" : p.tema),
       titulo: p.titulo,
       legenda: p.legenda,
       hashtags: p.hashtags,

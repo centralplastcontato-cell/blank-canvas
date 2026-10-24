@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Clock,
   ExternalLink,
+  Film,
   FlaskConical,
   Loader2,
   Pencil,
@@ -20,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { mensagemDaFuncao } from "@/lib/edgeFunctionError";
+import { HubReelsDialog } from "./HubReelsDialog";
 
 // Painel do Instagram automático da Celebrei (Edge Function "hub-instagram"). Os posts são gerados
 // por IA, enviados ao Postaí e publicados no @hubcelebrei. Ver docs/INSTAGRAM.md.
@@ -59,7 +61,7 @@ const ROTULO_STATUS: Record<string, { texto: string; cor: string }> = {
   refazer: { texto: "Gerando outro", cor: "bg-muted text-muted-foreground" },
   perdido: { texto: "Perdeu o horário", cor: "bg-muted text-muted-foreground" },
 };
-const ROTULO_TIPO: Record<string, string> = { foto: "📷 Foto", pergunta: "❓ Pergunta", carrossel: "🖼️ Carrossel" };
+const ROTULO_TIPO: Record<string, string> = { foto: "📷 Foto", pergunta: "❓ Pergunta", carrossel: "🖼️ Carrossel", reels: "🎬 Reels" };
 const ROTULO_PUBLICO: Record<string, string> = { vendas: "Vendas", gestao: "Gestão" };
 
 const diaBrasilia = (iso: string) => new Date(new Date(iso).getTime() - 3 * 3600e3).toISOString().slice(0, 10);
@@ -97,6 +99,7 @@ export default function HubInstagramPanel() {
   const [zoom, setZoom] = useState<{ midias: string[]; i: number } | null>(null);
   const [diaAberto, setDiaAberto] = useState<string | null>(null);
   const [progresso, setProgresso] = useState<Record<string, string>>({});
+  const [reelsAberto, setReelsAberto] = useState(false);
 
   const carrega = useCallback(async () => {
     try {
@@ -216,6 +219,7 @@ export default function HubInstagramPanel() {
 
   return (
     <div className="max-w-4xl space-y-5">
+      <HubReelsDialog open={reelsAberto} onOpenChange={setReelsAberto} onDone={(m) => { setAviso(m); carrega(); }} />
       <Dialog open={!!zoom} onOpenChange={(v) => !v && setZoom(null)}>
         <DialogContent className="max-w-[min(92vw,560px)] p-3">
           <DialogTitle className="sr-only">Arte do post</DialogTitle>
@@ -286,6 +290,9 @@ export default function HubInstagramPanel() {
             {emUso("teste") ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FlaskConical className="mr-2 h-4 w-4" />}
             {emUso("teste") ? "Criando o teste… (1 a 2 min)" : "Post de teste (daqui 30 min)"}
           </Button>
+          <Button variant="outline" disabled={!env.postai} onClick={() => setReelsAberto(true)}>
+            <Film className="mr-2 h-4 w-4" /> Postar vídeo (Reels)
+          </Button>
           <Button variant="outline" disabled={ocupados.size > 0} onClick={() => acao({ acao: "rodada" }, "rodada")}>
             {emUso("rodada") ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
             {emUso("rodada") ? "Rodando… (até 3 min)" : "Rodar agora"}
@@ -355,7 +362,16 @@ export default function HubInstagramPanel() {
           ) : (
             <article key={p.id} className="space-y-3 rounded-2xl border border-border bg-card p-4">
               <div className="flex gap-2 overflow-x-auto">
-                {p.midias.map((m, i) => (
+                {p.tipo === "reels" ? (
+                  <a href={p.midias[0]} target="_blank" rel="noreferrer" className="relative shrink-0" aria-label="Ver o vídeo">
+                    {p.midias[1] ? (
+                      <img src={p.midias[1]} alt={`${p.titulo} — capa`} loading="lazy" className="h-48 w-[108px] rounded-lg object-cover" />
+                    ) : (
+                      <video src={p.midias[0]} muted preload="metadata" className="h-48 w-[108px] rounded-lg object-cover" />
+                    )}
+                    <span className="absolute inset-0 flex items-center justify-center text-3xl text-white drop-shadow">▶</span>
+                  </a>
+                ) : p.midias.map((m, i) => (
                   <button key={m} type="button" onClick={() => setZoom({ midias: p.midias, i })} className="shrink-0" aria-label={`Ampliar imagem ${i + 1}`}>
                     <img src={m} alt={`${p.tema} — imagem ${i + 1}`} loading="lazy" className="h-40 w-32 rounded-lg object-cover sm:h-48 sm:w-[154px]" />
                   </button>
@@ -446,10 +462,10 @@ export default function HubInstagramPanel() {
                 )}
                 {!["publicado", "recusado", "refazer", "perdido", "enviando"].includes(p.status) && (
                   <>
-                    <Button size="sm" variant="outline" disabled={cardOcupado(p.id) || !!progresso[p.id]} onClick={() => acao({ acao: "refazer", id: p.id }, `${p.id}:refazer`)}>
+                    {p.tipo !== "reels" && <Button size="sm" variant="outline" disabled={cardOcupado(p.id) || !!progresso[p.id]} onClick={() => acao({ acao: "refazer", id: p.id }, `${p.id}:refazer`)}>
                       {emUso(`${p.id}:refazer`) ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1 h-4 w-4" />}
                       {emUso(`${p.id}:refazer`) ? "Gerando o novo… (1 a 2 min)" : "Gerar outro"}
-                    </Button>
+                    </Button>}
                     <Button
                       size="sm"
                       variant="outline"
