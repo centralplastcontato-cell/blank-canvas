@@ -23,12 +23,18 @@ vi.mock("@/integrations/supabase/client", () => ({
 
 describe("WhatsAppConnect", () => {
   it("cria, mostra o QR e avisa quando conecta", async () => {
-    render(<WhatsAppConnect companyId="c" />);
+    const statuses: boolean[] = [];
+    const onConnected = vi.fn();
+    render(<WhatsAppConnect companyId="c" onConnected={onConnected} onStatusChange={(c) => statuses.push(c)} />);
     fireEvent.click(await screen.findByText("Conectar meu WhatsApp"));
     expect(await screen.findByAltText("QR Code do WhatsApp")).toHaveAttribute("src", "data:image/png;base64,AAA");
     expect(calls).toEqual(["state", "start", "qr"]);
     connected = true;
     await waitFor(() => expect(screen.getByText(/WhatsApp conectado: \(15\) 99999-0000/)).toBeInTheDocument(), { timeout: 7000 });
+    // O cadastro sabe que conectou (para ligar a IA ao concluir)
+    expect(onConnected).toHaveBeenCalledTimes(1);
+    expect(statuses[0]).toBe(false);
+    expect(statuses[statuses.length - 1]).toBe(true);
   }, 10000);
 
   it("no celular: gera o código de pareamento", async () => {

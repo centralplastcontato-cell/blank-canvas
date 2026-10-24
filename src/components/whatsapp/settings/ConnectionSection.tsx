@@ -70,8 +70,18 @@ const webhookUrl = WAPI_WEBHOOK_URL;
 export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
   const { unitOptions: UNITS, isLoading: isLoadingUnits } = useCompanyUnits();
   const { allowedUnits, canViewAll, isLoading: isLoadingPermissions } = useUnitPermissions(userId);
-  const { currentCompany } = useCompany();
+  const { currentCompany, refreshCompanies } = useCompany();
   const selfSignup = !!signupStatus(currentCompany?.settings);
+  // Cadastro pelo site concluído sem o WhatsApp: conectou agora, o buffet entra no ar sozinho
+  const activateSignupAfterConnect = async () => {
+    fetchInstances();
+    if (!currentCompany || signupStatus(currentCompany.settings) !== "aguardando_aprovacao") return;
+    const { data } = await supabase.functions.invoke("self-signup", { body: { action: "finish", company_id: currentCompany.id, agenda_ok: true } });
+    if ((data as { status?: string } | null)?.status === "aprovado") {
+      await refreshCompanies();
+      toast({ title: "Seu buffet está no ar! 🎉", description: "A IA já está atendendo o seu WhatsApp." });
+    }
+  };
   
   const [instances, setInstances] = useState<WapiInstance[]>([]);
   // Evolution Go: estado real consultado agora (não o status guardado no banco)
@@ -1124,7 +1134,7 @@ export function ConnectionSection({ userId, isAdmin }: ConnectionSectionProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             {filteredInstances.length === 0 && selfSignup && currentCompany ? (
-              <WhatsAppConnect companyId={currentCompany.id} onConnected={fetchInstances} />
+              <WhatsAppConnect companyId={currentCompany.id} onConnected={activateSignupAfterConnect} />
             ) : filteredInstances.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
                 Nenhuma instância configurada pelo administrador.

@@ -169,14 +169,29 @@ async function finish(supabase: SB, req: Request, body: Json): Promise<Response>
   const { data: company } = await supabase.from("companies").select("name, slug, settings").eq("id", companyId).maybeSingle();
   if (!company) return json({ error: "Empresa não encontrada." }, 404);
   const status = (company.settings as Json)?.signup?.status;
-  if (status !== "cadastro") return json({ ok: true, status });
-  await patchSignup(supabase, companyId, { status: "aguardando_aprovacao", submitted_at: new Date().toISOString() });
-  // O cartão do Hub mostra "Onboarding completo"
-  await supabase.from("company_onboarding").update({ status: "completo" }).eq("company_id", companyId);
+  if (status !== "cadastro" && status !== "aguardando_aprovacao") return json({ ok: true, status });
+  const firstTime = status === "cadastro";
+  if (firstTime) {
+    await patchSignup(supabase, companyId, { status: "aguardando_aprovacao", submitted_at: new Date().toISOString() });
+    // O cartão do Hub mostra "Onboarding completo"
+    await supabase.from("company_onboarding").update({ status: "completo" }).eq("company_id", companyId);
+  }
 
+  // WhatsApp já conectado: o buffet entra no ar sozinho (sem esperar a Celebrei).
+  // Sem número ainda: fica esperando; chamar de novo depois de conectar liga.
+  const inst = await signupInstance(supabase, companyId);
   const { count: busy } = await supabase.from("company_events").select("id", { count: "exact", head: true }).eq("company_id", companyId);
-  await sendOwnerAlert(supabase, `✅ *Celebrei — cadastro pronto para aprovar*\n\n*${company.name}* terminou o passo a passo (IA respondida, ${busy ?? 0} data(s) ocupada(s) na agenda).\n\n👉 Hub → Empresas: conecte o número de WhatsApp dele e clique em *Aprovar e ligar a IA*.`);
-  await notifyCelebreiAdmins(supabase, { type: "self_signup_ready", title: "Cadastro pronto para aprovar", message: `${company.name} terminou o passo a passo. Conecte o WhatsApp e aprove no Hub.`, company_id: companyId, data: { company_id: companyId } });
+  if (inst && inst.status === "connected") {
+    const err = await activateSignup(supabase, companyId, inst, null);
+    if (err) return json({ error: err }, 500);
+    await sendOwnerAlert(supabase, `🚀 *Celebrei — buffet no ar*\n\n*${company.name}* terminou o passo a passo e conectou o WhatsApp. A IA já foi ligada sozinha (${busy ?? 0} data(s) ocupada(s) na agenda).\n\n👉 Vale dar uma olhada em Hub → Empresas.`);
+    await notifyCelebreiAdmins(supabase, { type: "self_signup_live", title: "Buffet no ar", message: `${company.name} terminou o passo a passo, conectou o WhatsApp e a IA foi ligada.`, company_id: companyId, data: { company_id: companyId } });
+    return json({ ok: true, status: "aprovado", whatsapp_connected: true });
+  }
+  if (firstTime) {
+    await sendOwnerAlert(supabase, `✅ *Celebrei — cadastro concluído*\n\n*${company.name}* terminou o passo a passo (IA respondida, ${busy ?? 0} data(s) ocupada(s) na agenda), mas ainda não conectou o WhatsApp. A IA liga sozinha quando ele conectar.`);
+    await notifyCelebreiAdmins(supabase, { type: "self_signup_ready", title: "Cadastro concluído sem WhatsApp", message: `${company.name} terminou o passo a passo. A IA liga sozinha quando ele conectar o WhatsApp.`, company_id: companyId, data: { company_id: companyId } });
+  }
   return json({ ok: true, status: "aguardando_aprovacao" });
 }
 
@@ -291,13 +306,27 @@ async function approve(supabase: SB, req: Request, body: Json): Promise<Response
   const { data: company } = await supabase.from("companies").select("name").eq("id", companyId).maybeSingle();
   if (!company) return json({ error: "Empresa não encontrada." }, 404);
 
-  // A IA responde no número cuja unidade é a mesma da configuração dela
-  const { data: insts } = await supabase.from("wapi_instances").select("unit, status").eq("company_id", companyId).eq("is_active", true);
-  const inst = ((insts || []) as Json[]).find((i) => i.unit);
+  const inst = await signupInstance(supabase, companyId);
   if (!inst) return json({ error: "O buffet ainda não conectou o WhatsApp (ele conecta no fim do cadastro ou em Minha IA; a equipe também pode cadastrar em Hub → WhatsApp). Depois aprove." }, 400);
+  const err = await activateSignup(supabase, companyId, inst, userId);
+  if (err) return json({ error: err }, 500);
+  return json({ ok: true, whatsapp_connected: inst.status === "connected" });
+}
 
+/** Número do buffet (a IA responde no número cuja unidade é a mesma da configuração dela) */
+async function signupInstance(supabase: SB, companyId: string): Promise<Json | null> {
+  const { data: insts } = await supabase.from("wapi_instances").select("unit, status").eq("company_id", companyId).eq("is_active", true);
+  return ((insts || []) as Json[]).find((i) => i.unit) || null;
+}
+
+/**
+ * Liga o buffet: módulos, materiais e site no número conectado e a IA ligada.
+ * approvedBy null = ligado sozinho no fim do cadastro (número já conectado).
+ * Devolve o erro, ou null.
+ */
+async function activateSignup(supabase: SB, companyId: string, inst: Json, approvedBy: string | null): Promise<string | null> {
   await supabase.from("company_onboarding").update({ status: "completo" }).eq("company_id", companyId);
-  await patchSignup(supabase, companyId, { status: "aprovado", approved_at: new Date().toISOString(), approved_by: userId }, (s) => ({
+  await patchSignup(supabase, companyId, { status: "aprovado", approved_at: new Date().toISOString(), approved_by: approvedBy || "automatico" }, (s) => ({
     ...s,
     enabled_modules: { ...(s.enabled_modules || {}), ...SIGNUP_MODULES, ia_conversacional: true },
   }));
@@ -311,7 +340,7 @@ async function approve(supabase: SB, req: Request, body: Json): Promise<Response
   );
   const { error: aiErr } = await supabase.from("ai_agent_settings")
     .update({ enabled: true, unit: inst.unit, activated_at: new Date().toISOString() }).eq("company_id", companyId);
-  if (aiErr) return json({ error: `Aprovado, mas não consegui ligar a IA (${aiErr.message}). Ligue em Configurar IA.` }, 500);
+  if (aiErr) return `Aprovado, mas não consegui ligar a IA (${aiErr.message}). Ligue em Configurar IA.`;
 
   const { data: users } = await supabase.from("user_companies").select("user_id").eq("company_id", companyId);
   if (users && users.length) {
@@ -322,7 +351,7 @@ async function approve(supabase: SB, req: Request, body: Json): Promise<Response
       data: { company_id: companyId },
     })));
   }
-  return json({ ok: true, whatsapp_connected: inst.status === "connected" });
+  return null;
 }
 
 Deno.serve(async (req) => {
