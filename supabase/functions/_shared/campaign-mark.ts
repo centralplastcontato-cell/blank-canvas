@@ -1,6 +1,7 @@
 // Marca a conversa de quem recebeu a campanha, para o webhook reconhecer a resposta
 // (bot_data.campaign_pending_reply) e mandar a resposta automática + avisos.
-// Sem "soft", também desliga o robô daquela conversa (pause_bot_on_reply).
+// O robô/IA não é desligado no envio: só quando o cliente responde (e a marca
+// vale por poucos dias — ver wapi-webhook/campaign-reply.ts).
 // Usado pela campaign-mark-conversation (envio pela tela) e pela campaign-dispatch (servidor).
 
 // deno-lint-ignore-file no-explicit-any
@@ -28,11 +29,6 @@ export async function markConversationForCampaign(
     campaign_marked_at: new Date().toISOString(),
     campaign_soft: params.soft,
   };
-  const update: Record<string, unknown> = { bot_data: botData };
-  if (!params.soft) {
-    update.bot_enabled = false;
-    update.bot_step = "human_takeover";
-  }
-  await supabase.from("wapi_conversations").update(update).eq("id", conv.id);
+  await supabase.from("wapi_conversations").update({ bot_data: botData }).eq("id", conv.id);
   return { marked: true, conversationId: conv.id };
 }

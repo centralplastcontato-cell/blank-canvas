@@ -1,3 +1,4 @@
+import { campaignReplyNotice, campaignReplyState, clearCampaignMark } from "./campaign-reply.ts";
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { detectAndPauseBotLoop, isConversationPaused } from "../_shared/bot-loop-guard.ts";
 import { normalizeJid, type NormalizedJid } from "../_shared/jid-normalizer.ts";
@@ -1521,6 +1522,57 @@ let _activeClientToken: string | null = null;
 function setActiveProvider(provider: string | null | undefined, clientToken: string | null | undefined) {
   _activeProvider = (provider === 'zapi' || provider === 'evolution' ? provider : 'wapi');
   _activeClientToken = clientToken || null;
+}
+
+// Resposta a uma campanha (texto, áudio ou foto). Marca vencida: limpa e
+// segue como conversa normal. Sem "soft": manda a resposta automática, passa a
+// conversa para a equipe (robô e IA param só agora, na resposta) e avisa.
+// stop = o resto do atendimento automático não deve rodar.
+async function handleCampaignReply(supabase: any, instance: any, conv: any, type: string): Promise<{ stop: boolean; conv: any }> {
+  const state = campaignReplyState(conv.bot_data as JsonRecord | null);
+  if (!state) return { stop: false, conv };
+  if (state.expired) {
+    const cleaned = clearCampaignMark(conv.bot_data as JsonRecord | null);
+    await supabase.from('wapi_conversations').update({ bot_data: cleaned }).eq('id', conv.id);
+    return { stop: false, conv: { ...conv, bot_data: cleaned } };
+  }
+  console.log(`[Campaign Reply] ${type} da campanha ${state.campaignId}, conv ${conv.id}, soft=${state.soft}`);
+  let next = conv;
+  try {
+    const { data: campaign } = await supabase.from('campaigns').select('id, name, auto_reply_message').eq('id', state.campaignId).maybeSingle();
+    if (!state.soft && campaign?.auto_reply_message && campaign.auto_reply_message.trim()) {
+      const replyText = campaign.auto_reply_message.trim();
+      const sentId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, replyText);
+      if (sentId) {
+        await supabase.from('wapi_messages').upsert({
+          conversation_id: conv.id, message_id: sentId, from_me: true, message_type: 'text', company_id: instance.company_id,
+          content: replyText, status: 'sent', timestamp: new Date().toISOString(),
+          metadata: { source: 'campaign_auto_reply', campaign_id: state.campaignId },
+        }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
+      }
+    }
+    const { data: companyUsers } = await supabase.from('user_companies').select('user_id').eq('company_id', instance.company_id);
+    const notifications = (companyUsers || []).map((u: { user_id: string }) => ({
+      user_id: u.user_id,
+      company_id: instance.company_id,
+      type: 'campaign_reply',
+      title: '📣 Resposta de campanha!',
+      message: campaignReplyNotice(state.leadName, campaign?.name || 'Promoção', state.soft, type),
+      data: { campaign_id: state.campaignId, conversation_id: conv.id, lead_id: conv.lead_id, lead_name: state.leadName },
+    }));
+    if (notifications.length > 0) await supabase.from('notifications').insert(notifications);
+    const cleaned = clearCampaignMark(conv.bot_data as JsonRecord | null, { campaignId: state.campaignId, leadName: state.leadName, at: new Date().toISOString() });
+    const update: JsonRecord = { bot_data: cleaned };
+    if (!state.soft) {
+      update.bot_enabled = false;
+      update.bot_step = 'human_takeover';
+    }
+    await supabase.from('wapi_conversations').update(update).eq('id', conv.id);
+    next = { ...conv, ...update };
+  } catch (campErr) {
+    console.error('[Campaign Reply] Error:', campErr);
+  }
+  return { stop: !state.soft, conv: next };
 }
 
 async function sendBotMessage(instanceId: string, instanceToken: string, remoteJid: string, message: string): Promise<string | null> {
@@ -6470,8 +6522,10 @@ async function processWebhookEvent(body: JsonRecord) {
             .eq('id', conv.id)
             .single();
           if (freshConv) conv = freshConv;
-          const campaignPending = !!(conv.bot_data as JsonRecord | null)?.campaign_pending_reply;
-          if (!campaignPending && !(await isConversationPaused(supabase, conv.id))) {
+          // Áudio/foto também é resposta à campanha (antes ficava sem aviso nenhum)
+          const campaignReply = await handleCampaignReply(supabase, instance, conv, type);
+          conv = campaignReply.conv;
+          if (!campaignReply.stop && !(await isConversationPaused(supabase, conv.id))) {
             const aiBotSettings = await getBotSettings(supabase, instance.id);
             const mediaUrl = mediaPromise
               ? mediaPromise.then((r) => r?.url || url || null).catch(() => url || null)
@@ -6500,88 +6554,10 @@ async function processWebhookEvent(body: JsonRecord) {
             conv = freshConv;
           }
 
-          // === CAMPAIGN AUTO-REPLY: lead is responding to a campaign that pauses the bot ===
-          const campaignPendingId = (conv.bot_data as JsonRecord | null)?.campaign_pending_reply as string | undefined;
-          const campaignSoft = (conv.bot_data as JsonRecord | null)?.campaign_soft === true;
-          if (campaignPendingId) {
-            console.log(`[Campaign Auto-Reply] Lead replied to campaign ${campaignPendingId}, conv ${conv.id}, soft=${campaignSoft}`);
-            try {
-              const { data: campaign } = await supabase
-                .from('campaigns')
-                .select('id, name, auto_reply_message')
-                .eq('id', campaignPendingId)
-                .maybeSingle();
-
-              // Send the auto-reply message (only when not in soft mode)
-              if (!campaignSoft && campaign?.auto_reply_message && campaign.auto_reply_message.trim()) {
-                const replyText = campaign.auto_reply_message.trim();
-                const sentId = await sendBotMessage(instance.instance_id, instance.instance_token, conv.remote_jid, replyText);
-                if (sentId) {
-                  await supabase.from('wapi_messages').upsert({
-                    conversation_id: conv.id,
-                    message_id: sentId,
-                    from_me: true,
-                    message_type: 'text',
-                    company_id: instance.company_id,
-                    content: replyText,
-                    status: 'sent',
-                    timestamp: new Date().toISOString(),
-                    metadata: { source: 'campaign_auto_reply', campaign_id: campaignPendingId },
-                  }, { onConflict: 'conversation_id,message_id', ignoreDuplicates: true });
-                }
-              }
-
-              // Notify all users of the company that a campaign lead is awaiting human attention
-              const { data: companyUsers } = await supabase
-                .from('user_companies')
-                .select('user_id')
-                .eq('company_id', instance.company_id);
-
-              const leadName = ((conv.bot_data as JsonRecord | null)?.campaign_lead_name as string) || 'Lead';
-              const notifications = (companyUsers || []).map((u: { user_id: string }) => ({
-                user_id: u.user_id,
-                company_id: instance.company_id,
-                type: 'campaign_reply',
-                title: '📣 Resposta de campanha!',
-                message: `${leadName} respondeu à campanha "${campaign?.name || 'Promoção'}" e aguarda atendimento.`,
-                data: {
-                  campaign_id: campaignPendingId,
-                  conversation_id: conv.id,
-                  lead_id: conv.lead_id,
-                  lead_name: leadName,
-                },
-              }));
-              if (notifications.length > 0) {
-                await supabase.from('notifications').insert(notifications);
-              }
-
-              // Clear the pending flag (one-shot) but KEEP human_takeover so bot stays paused (only in non-soft mode)
-              const cleanedBotData = { ...(conv.bot_data as JsonRecord | null || {}) };
-              delete (cleanedBotData as JsonRecord).campaign_pending_reply;
-              delete (cleanedBotData as JsonRecord).campaign_lead_name;
-              delete (cleanedBotData as JsonRecord).campaign_marked_at;
-              delete (cleanedBotData as JsonRecord).campaign_soft;
-              (cleanedBotData as JsonRecord).campaign_replied_at = new Date().toISOString();
-              (cleanedBotData as JsonRecord).campaign_replied_id = campaignPendingId;
-              (cleanedBotData as JsonRecord).campaign_replied_name = leadName;
-
-              await supabase.from('wapi_conversations').update({
-                bot_data: cleanedBotData,
-              }).eq('id', conv.id);
-
-              // Refresh local conv to keep downstream bot processing consistent in soft mode
-              if (campaignSoft) {
-                conv = { ...conv, bot_data: cleanedBotData };
-              }
-            } catch (campErr) {
-              console.error('[Campaign Auto-Reply] Error:', campErr);
-            }
-            // In non-soft mode, skip standard bot processing entirely.
-            // In soft mode, continue normal bot flow.
-            if (!campaignSoft) {
-              break;
-            }
-          }
+          // === RESPOSTA DE CAMPANHA (texto) ===
+          const campaignReply = await handleCampaignReply(supabase, instance, conv, 'text');
+          conv = campaignReply.conv;
+          if (campaignReply.stop) break;
 
           // ── BOT LOOP GUARD: detect and silently pause bot↔bot ping-pong ──
           // O número de teste da IA (celular do dono) não passa pela trava, e o

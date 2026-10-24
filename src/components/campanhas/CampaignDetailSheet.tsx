@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPages } from "@/lib/fetchAllPages";
+
+const UNCONFIRMED_ERROR = "Envio não confirmado";
 import { campaignState } from "@/lib/campaignState";
 import { useCampaignResults, percentOf } from "@/hooks/useCampaignResults";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -78,21 +81,30 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
   const loadRecipients = async () => {
     if (!campaign) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("campaign_recipients")
-      .select("id, lead_name, phone, status, error_message, sent_at, variation_index")
-      .eq("campaign_id", campaign.id)
-      .order("lead_name");
-
-    if (error) {
+    try {
+      // O banco entrega no máximo 1000 por vez: busca em páginas
+      const rows = await fetchAllPages<Recipient>((a, b) =>
+        supabase
+          .from("campaign_recipients")
+          .select("id, lead_name, phone, status, error_message, sent_at, variation_index")
+          .eq("campaign_id", campaign.id)
+          .order("lead_name")
+          .order("id")
+          .range(a, b),
+      );
+      setRecipients(rows);
+    } catch (error) {
       console.error("Error loading recipients:", error);
+      setRecipients([]);
     }
-    setRecipients((data as Recipient[]) || []);
     setLoading(false);
   };
 
   const sentCount = recipients.filter(r => r.status === "sent").length;
   const errorCount = recipients.filter(r => r.status === "error").length;
+  // "Envio não confirmado": a mensagem pode ter saído; reenviar mandaria duas vezes
+  const unconfirmed = (r: Recipient) => (r.error_message || "").startsWith(UNCONFIRMED_ERROR);
+  const resendableCount = recipients.filter(r => r.status === "error" && !unconfirmed(r)).length;
   const pendingCount = recipients.filter(r => r.status === "pending").length;
 
   const handleResendErrors = async () => {
@@ -103,21 +115,25 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
         .from("campaign_recipients")
         .update({ status: "pending", error_message: null })
         .eq("campaign_id", campaign.id)
-        .eq("status", "error");
+        .eq("status", "error")
+        .or(`error_message.is.null,error_message.not.like.${UNCONFIRMED_ERROR}*`);
 
       if (error) throw error;
 
+      // Contadores pelo banco (a lista na tela pode não ter todo mundo)
+      const count = async (status?: string) => {
+        let q = supabase.from("campaign_recipients").select("id", { count: "exact", head: true }).eq("campaign_id", campaign.id);
+        if (status) q = q.eq("status", status);
+        const { count: n } = await q;
+        return n || 0;
+      };
+      const [total, sent, errors] = await Promise.all([count(), count("sent"), count("error")]);
       await supabase
         .from("campaigns")
-        .update({
-          status: "draft",
-          error_count: 0,
-          sent_count: sentCount,
-          total_recipients: recipients.length,
-        })
+        .update({ status: "draft", error_count: errors, sent_count: sent, total_recipients: total })
         .eq("id", campaign.id);
 
-      toast.success(`${errorCount} contato(s) preparados para reenvio`);
+      toast.success(`${resendableCount} contato(s) preparados para reenvio`);
       onOpenChange(false);
       onRefresh();
       onResend({ ...campaign, status: "draft" });
@@ -292,7 +308,7 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
               )}
             </>
           )}
-          {errorCount > 0 && (
+          {resendableCount > 0 && (
             <Button
               variant={campaign.status === "draft" ? "outline" : "default"}
               className="w-full"
@@ -300,8 +316,13 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
               disabled={resending}
             >
               {resending ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1.5" />}
-              Reenviar para erros ({errorCount})
+              Reenviar para erros ({resendableCount})
             </Button>
+          )}
+          {errorCount > resendableCount && (
+            <p className="text-[11px] text-muted-foreground text-center">
+              {errorCount - resendableCount} sem confirmação de envio não são reenviados (a mensagem pode ter chegado).
+            </p>
           )}
         </div>
       </SheetContent>

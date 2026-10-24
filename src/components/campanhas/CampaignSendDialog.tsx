@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,20 +8,10 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Loader2, Send, Megaphone, Smartphone, Sparkles, CalendarClock } from "lucide-react";
+import { Loader2, Send, Megaphone, CalendarClock } from "lucide-react";
 import { toast } from "sonner";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useInstancePermissions } from "@/hooks/useInstancePermissions";
 import { CAMPAIGN_DAILY_LIMIT, sendDays } from "@/lib/campaignAudience";
-
-interface InstanceOption {
-  id: string;
-  instance_id: string;
-  unit: string | null;
-  phone_number: string | null;
-}
+import { SendNumberPicker, useSendInstances, type SendMode } from "./CampaignSendNumber";
 
 interface CampaignSendDialogProps {
   open: boolean;
@@ -38,18 +28,20 @@ interface CampaignSendDialogProps {
 // campanha na fila, escolhendo por qual número sai. Pode fechar a tela depois.
 export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, onComplete }: CampaignSendDialogProps) {
   const [pendingCount, setPendingCount] = useState<number | null>(null);
-  const [instances, setInstances] = useState<InstanceOption[]>([]);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string>("");
-  const [sendMode, setSendMode] = useState<"single" | "smart">("smart");
+  const [sendMode, setSendMode] = useState<SendMode>("smart");
   const [saving, setSaving] = useState(false);
-  const { canViewAllInstances, allowedInstanceIds } = useInstancePermissions();
+  const loaded = useSendInstances(companyId, open);
+  const instances = useMemo(() => loaded || [], [loaded]);
 
   useEffect(() => {
-    if (!open) return;
-    loadPending();
-    loadInstances();
+    if (open) loadPending();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  useEffect(() => {
+    if (instances.length > 0 && !selectedInstanceId) setSelectedInstanceId(instances[0].instance_id);
+  }, [instances, selectedInstanceId]);
 
   const loadPending = async () => {
     setPendingCount(null);
@@ -59,24 +51,6 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
       .eq("campaign_id", campaign.id)
       .in("status", ["pending", "sending"]);
     setPendingCount(count || 0);
-  };
-
-  const loadInstances = async () => {
-    const { data } = await supabase
-      .from("wapi_instances")
-      .select("id, instance_id, unit, phone_number")
-      .eq("company_id", companyId)
-      .eq("status", "connected")
-      .order("unit", { ascending: true });
-    let list = (data as InstanceOption[]) || [];
-    if (!canViewAllInstances) {
-      const allowed = new Set(allowedInstanceIds);
-      list = list.filter((i) => allowed.has(i.id));
-    }
-    setInstances(list);
-    if (list.length > 0 && !selectedInstanceId) {
-      setSelectedInstanceId(list[0].instance_id);
-    }
   };
 
   const handleQueue = async () => {
@@ -140,75 +114,7 @@ export function CampaignSendDialog({ open, onOpenChange, campaign, companyId, on
           </div>
         ) : (
           <div className="space-y-4 py-2">
-            {instances.length > 1 && (
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Por qual número sai
-                </Label>
-                <RadioGroup value={sendMode} onValueChange={(v) => setSendMode(v as "single" | "smart")} className="space-y-2">
-                  <label
-                    htmlFor="mode-smart"
-                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${sendMode === "smart" ? "border-primary bg-primary/5" : "bg-card hover:bg-muted/30"}`}
-                  >
-                    <RadioGroupItem value="smart" id="mode-smart" className="mt-0.5" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 text-sm font-semibold">
-                        <Sparkles className="w-3.5 h-3.5 text-primary" />
-                        Disparo inteligente
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                        Cada pessoa recebe pelo número onde já conversou. Quem nunca conversou recebe pelo número escolhido abaixo.
-                      </p>
-                    </div>
-                  </label>
-                  <label
-                    htmlFor="mode-single"
-                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${sendMode === "single" ? "border-primary bg-primary/5" : "bg-card hover:bg-muted/30"}`}
-                  >
-                    <RadioGroupItem value="single" id="mode-single" className="mt-0.5" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 text-sm font-semibold">
-                        <Smartphone className="w-3.5 h-3.5 text-primary" />
-                        Tudo por um número
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                        Todas as mensagens saem pelo número escolhido abaixo.
-                      </p>
-                    </div>
-                  </label>
-                </RadioGroup>
-              </div>
-            )}
-            {instances.length > 1 && (
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <Smartphone className="w-3.5 h-3.5" />
-                  {sendMode === "smart" ? "Número para quem nunca conversou" : "Número"}
-                </Label>
-                <Select value={selectedInstanceId} onValueChange={setSelectedInstanceId}>
-                  <SelectTrigger className="w-full bg-card">
-                    <SelectValue placeholder="Escolha o número" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {instances.map((inst) => (
-                      <SelectItem key={inst.instance_id} value={inst.instance_id}>
-                        {inst.unit || "Sem unidade"}
-                        {inst.phone_number ? ` — ${inst.phone_number}` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            {instances.length === 1 && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 text-xs text-muted-foreground">
-                <Smartphone className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">
-                  Sai pelo número: <strong className="text-foreground">{instances[0].unit || "WhatsApp"}</strong>
-                  {instances[0].phone_number ? ` (${instances[0].phone_number})` : ""}
-                </span>
-              </div>
-            )}
+            <SendNumberPicker instances={instances} mode={sendMode} onModeChange={setSendMode} instanceId={selectedInstanceId} onInstanceChange={setSelectedInstanceId} />
 
             {pendingCount > 0 && (
               <div className="flex items-start gap-2.5 p-3 rounded-xl border border-primary/20 bg-primary/5 text-xs leading-relaxed text-foreground/80">
