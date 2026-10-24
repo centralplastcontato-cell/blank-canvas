@@ -45,7 +45,6 @@ export function CampaignEditDialog({ campaign, open, onOpenChange, onSaved }: Ca
   const [description, setDescription] = useState("");
   const [variations, setVariations] = useState<Variation[]>([]);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [delaySeconds, setDelaySeconds] = useState(60);
   const [pauseBotOnReply, setPauseBotOnReply] = useState(true);
   const [autoReplyMessage, setAutoReplyMessage] = useState("");
   const [saving, setSaving] = useState(false);
@@ -57,7 +56,6 @@ export function CampaignEditDialog({ campaign, open, onOpenChange, onSaved }: Ca
       const vs = Array.isArray(campaign.message_variations) ? campaign.message_variations : [];
       setVariations(vs.length ? vs : [{ tone: "neutro", text: "" }]);
       setImageUrl(campaign.image_url || null);
-      setDelaySeconds(campaign.delay_seconds || 60);
       setPauseBotOnReply(campaign.pause_bot_on_reply ?? true);
       setAutoReplyMessage(campaign.auto_reply_message || "");
     }
@@ -88,10 +86,6 @@ export function CampaignEditDialog({ campaign, open, onOpenChange, onSaved }: Ca
       toast.error("Adicione ao menos uma variação de mensagem");
       return;
     }
-    if (delaySeconds < 5 || delaySeconds > 600) {
-      toast.error("Intervalo deve estar entre 5 e 600 segundos");
-      return;
-    }
 
     setSaving(true);
     try {
@@ -102,7 +96,6 @@ export function CampaignEditDialog({ campaign, open, onOpenChange, onSaved }: Ca
           description: description.trim() || null,
           message_variations: cleanVariations,
           image_url: imageUrl,
-          delay_seconds: delaySeconds,
           pause_bot_on_reply: pauseBotOnReply,
           auto_reply_message: pauseBotOnReply ? (autoReplyMessage.trim() || null) : null,
         })
@@ -232,24 +225,9 @@ export function CampaignEditDialog({ campaign, open, onOpenChange, onSaved }: Ca
             )}
           </div>
 
-          <div className="space-y-2 max-w-xs">
-            <Label className="text-xs">Intervalo entre envios (segundos)</Label>
-            <Input
-              type="number"
-              min={5}
-              max={600}
-              value={delaySeconds}
-              onChange={(e) => setDelaySeconds(parseInt(e.target.value) || 60)}
-              className="bg-white"
-            />
-            <p className="text-[11px] text-muted-foreground">
-              Recomendado: 60-120s para parecer mais humano e evitar bloqueios.
-            </p>
-          </div>
-
           <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium">Pausar bot quando o lead responder</Label>
+              <Label className="text-xs font-medium">Passar para a equipe quando responder</Label>
               <Switch checked={pauseBotOnReply} onCheckedChange={setPauseBotOnReply} />
             </div>
             {pauseBotOnReply && (

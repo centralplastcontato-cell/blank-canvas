@@ -720,6 +720,7 @@ async function processNextStepReminder({
     .eq("instance_id", settings.instance_id)
     .eq("bot_step", "proximo_passo")
     .eq("last_message_from_me", true)
+    .is("bot_data->>campaign_pending_reply", null) // a última mensagem foi a campanha
     .not("remote_jid", "like", "%@g.us%")
     .lte("last_message_at", cutoffTime.toISOString())
     .gte("last_message_at", maxWindow.toISOString());
@@ -901,6 +902,7 @@ async function processFollowUp({
     .eq("instance_id", settings.instance_id)
     .eq("last_message_from_me", true)
     .not("lead_id", "is", null)
+    .is("bot_data->>campaign_pending_reply", null) // a última mensagem foi a campanha
     .not("remote_jid", "like", "%@g.us%")
     .gte("last_message_at", minTime.toISOString())
     .lte("last_message_at", maxTime.toISOString());
@@ -1405,6 +1407,8 @@ async function processBotInactiveFollowUp({
     .eq("instance_id", settings.instance_id)
     .eq("bot_enabled", true)
     .eq("last_message_from_me", true)
+    // Recebeu campanha e ainda não respondeu: a última mensagem é a campanha, não o robô
+    .is("bot_data->>campaign_pending_reply", null)
     .not("remote_jid", "like", "%@g.us%")
     .in("bot_step", activeBotSteps)
     .lte("last_message_at", cutoffTime.toISOString())
@@ -3879,6 +3883,7 @@ async function processStaleRemindedAlerts({
     .select("id, company_id, lead_id, contact_name, contact_phone, last_message_at, instance_id, remote_jid")
     .eq("bot_step", "proximo_passo_reminded")
     .eq("last_message_from_me", true)
+    .is("bot_data->>campaign_pending_reply", null) // a última mensagem foi a campanha
     .not("remote_jid", "like", "%@g.us%")
     .lte("last_message_at", cutoff);
 

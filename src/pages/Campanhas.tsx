@@ -354,7 +354,6 @@ export default function Campanhas() {
               } else {
                 setWizardOpen(false);
                 loadCampaigns();
-                setSendCampaign(campaign);
               }
             }}
           />

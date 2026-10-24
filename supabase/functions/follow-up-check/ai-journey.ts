@@ -314,6 +314,8 @@ export async function runAiJourney(
       .eq("bot_enabled", true)
       .eq("bot_data->>ai_agent", "on")
       .eq("last_message_from_me", true)
+      // Recebeu campanha e ainda não respondeu: a última mensagem é a campanha, não a IA
+      .is("bot_data->>campaign_pending_reply", null)
       .not("remote_jid", "like", "%@g.us%")
       .gte("last_message_at", cfg.since as string);
     // Conversas recentes + as paradas há mais tempo com lembrete antes da festa vencendo

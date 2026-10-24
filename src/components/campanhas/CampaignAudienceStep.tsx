@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { fetchAllPages } from "@/lib/fetchAllPages";
-import { phoneTail, prepareAudience, RECENT_CAMPAIGN_DAYS } from "@/lib/campaignAudience";
+import { phoneTail, prepareAudience, RECENT_CAMPAIGN_DAYS, ACTIVE_CHAT_DAYS } from "@/lib/campaignAudience";
 import type { CampaignDraft } from "./CampaignWizard";
 import { OptoutListDialog } from "./OptoutListDialog";
 
@@ -90,6 +90,9 @@ export function CampaignAudienceStep({ draft, setDraft, companyId, editingCampai
   const [recentTails, setRecentTails] = useState<Set<string>>(new Set());
   const [includeClosed, setIncludeClosed] = useState(false);
   const [includeRecent, setIncludeRecent] = useState(false);
+  const [includeChatting, setIncludeChatting] = useState(false);
+  const [chatTails, setChatTails] = useState<Set<string>>(new Set());
+  const [partyLeadIds, setPartyLeadIds] = useState<Set<string>>(new Set());
   const [optoutsOpen, setOptoutsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
@@ -141,9 +144,27 @@ export function CampaignAudienceStep({ draft, setDraft, companyId, editingCampai
         ),
         supabase.from("campaigns").select("id").eq("company_id", companyId),
         // Lista de quem pediu para sair (se ainda não existir no banco, segue sem ela)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (supabase as any).from("campaign_optouts").select("phone_tail").eq("company_id", companyId).limit(5000),
+        fetchAllPages<{ phone_tail: string }>((a, b) =>
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (supabase as any).from("campaign_optouts").select("phone_tail").eq("company_id", companyId).order("phone_tail").range(a, b),
+        ).catch(() => []),
       ]);
+
+      // Quem está conversando agora (no meio da negociação) e quem já tem festa marcada
+      const chatSince = new Date(Date.now() - ACTIVE_CHAT_DAYS * 24 * 60 * 60 * 1000).toISOString();
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+      const [chatRows, partyRows] = await Promise.all([
+        fetchAllPages<{ remote_jid: string }>((a, b) =>
+          supabase.from("wapi_conversations").select("remote_jid").eq("company_id", companyId)
+            .gte("last_message_at", chatSince).not("remote_jid", "like", "%@g.us").order("id").range(a, b),
+        ).catch(() => []),
+        fetchAllPages<{ lead_id: string | null }>((a, b) =>
+          supabase.from("company_events").select("lead_id").eq("company_id", companyId)
+            .gte("event_date", today).neq("status", "cancelado").not("lead_id", "is", null).order("id").range(a, b),
+        ).catch(() => []),
+      ]);
+      setChatTails(new Set(chatRows.map((c) => phoneTail(c.remote_jid.split("@")[0])).filter(Boolean)));
+      setPartyLeadIds(new Set(partyRows.map((e) => e.lead_id).filter(Boolean) as string[]));
 
       // Quem recebeu alguma campanha nos últimos dias (e, ao editar, quem já recebeu esta)
       const campaignIds = (campaignRows.data || []).map((c) => c.id);
@@ -167,7 +188,7 @@ export function CampaignAudienceStep({ draft, setDraft, companyId, editingCampai
       }
       setRecentTails(recent);
       setOptoutTails(
-        new Set(((optoutRows?.data || []) as { phone_tail: string }[]).map((o) => o.phone_tail)),
+        new Set((optoutRows as { phone_tail: string }[]).map((o) => o.phone_tail)),
       );
 
       const crmLeads: Lead[] = crmRows.map((l) => ({
@@ -213,10 +234,14 @@ export function CampaignAudienceStep({ draft, setDraft, companyId, editingCampai
       prepareAudience(leads, {
         optoutTails,
         recentTails,
-        includeClosed: includeClosed || filterStatuses.length > 0,
+        includeClosed,
         includeRecent,
+        chatTails,
+        includeChatting,
+        partyLeadIds,
+        chosenStatuses: filterStatuses,
       }),
-    [leads, optoutTails, recentTails, includeClosed, includeRecent, filterStatuses],
+    [leads, optoutTails, recentTails, includeClosed, includeRecent, chatTails, includeChatting, partyLeadIds, filterStatuses],
   );
 
   // Ao editar destinatários: marca de novo quem já estava na lista (pelo telefone)
@@ -297,7 +322,7 @@ export function CampaignAudienceStep({ draft, setDraft, companyId, editingCampai
 
   const allSelected = filtered.length > 0 && filtered.every((l) => selectedSet.has(l.id));
   const hiddenTotal =
-    pool.hidden.closed + pool.hidden.recent + pool.hidden.optout + pool.hidden.duplicate + pool.hidden.invalid;
+    pool.hidden.closed + pool.hidden.recent + pool.hidden.optout + pool.hidden.duplicate + pool.hidden.invalid + pool.hidden.chatting + pool.hidden.party;
   const hasActiveFilters = filterStatuses.length > 0 || filterMonth !== "all" || filterUnit !== "all" || filterSource !== "all" || filterPartyType !== "all" || search.trim() !== "";
 
   const toggleStatus = (value: string) => {
@@ -441,6 +466,8 @@ export function CampaignAudienceStep({ draft, setDraft, companyId, editingCampai
                 {say(hiddenTotal, "ficou", "ficaram")} de fora para proteger seu número
               </p>
               <ul className="mt-0.5 text-muted-foreground">
+                {pool.hidden.party > 0 && <li>{say(pool.hidden.party, "já tem festa marcada", "já têm festa marcada")} na agenda</li>}
+                {pool.hidden.chatting > 0 && <li>{say(pool.hidden.chatting, "está conversando", "estão conversando")} com vocês agora (últimos {ACTIVE_CHAT_DAYS} dias)</li>}
                 {pool.hidden.closed > 0 && <li>{say(pool.hidden.closed, "já fechou, perdeu ou não é cliente", "já fecharam, perderam ou não são clientes")}</li>}
                 {pool.hidden.recent > 0 && <li>{say(pool.hidden.recent, "recebeu", "receberam")} campanha nos últimos {RECENT_CAMPAIGN_DAYS} dias</li>}
                 {pool.hidden.optout > 0 && (
@@ -456,9 +483,15 @@ export function CampaignAudienceStep({ draft, setDraft, companyId, editingCampai
               </ul>
             </div>
           </div>
-          {(pool.hidden.closed > 0 || includeClosed || pool.hidden.recent > 0 || includeRecent) && (
+          {(pool.hidden.closed > 0 || includeClosed || pool.hidden.recent > 0 || includeRecent || pool.hidden.chatting > 0 || includeChatting) && (
             <div className="space-y-2 pl-6">
-              {(pool.hidden.closed > 0 || includeClosed) && filterStatuses.length === 0 && (
+              {(pool.hidden.chatting > 0 || includeChatting) && (
+                <label className="flex items-center justify-between gap-3 text-xs cursor-pointer">
+                  <span>Incluir quem está conversando agora</span>
+                  <Switch checked={includeChatting} onCheckedChange={setIncludeChatting} />
+                </label>
+              )}
+              {(pool.hidden.closed > 0 || includeClosed) && (
                 <label className="flex items-center justify-between gap-3 text-xs cursor-pointer">
                   <span>Mostrar fechados, perdidos e não clientes</span>
                   <Switch checked={includeClosed} onCheckedChange={setIncludeClosed} />

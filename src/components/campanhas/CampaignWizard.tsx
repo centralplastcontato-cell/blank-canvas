@@ -43,8 +43,10 @@ export interface CampaignDraft {
   leads: { id: string; name: string; whatsapp: string }[];
   /** Ao editar destinatários: telefones (finais) que já estavam na lista, para marcar de novo */
   preselectTails?: string[];
-  delaySeconds: number;
   pauseBotOnReply: boolean;
+  /** por qual número sai (escolhido no Revisar) */
+  sendMode: "single" | "smart";
+  sendInstanceId: string;
   autoReplyMessage: string;
   audienceFilters?: {
     statuses: string[];
@@ -65,7 +67,7 @@ const STEPS = [
 const STEP_DESCRIPTIONS = [
   "Escolha um nome para sua campanha, descreva o objetivo e gere as variações de mensagem com a IA. Você também pode anexar uma imagem ou gerar uma arte com IA.",
   "Filtre e selecione os leads que receberão a campanha. Use os filtros de status, unidade e mês para refinar sua lista.",
-  "Revise o resumo da campanha e confira a prévia da mensagem antes de criar. O envio sai sozinho, até 30 por dia, de segunda a sábado das 9h às 19h.",
+  "Revise o resumo, escolha por qual número sai e confira a prévia. Ao clicar em Começar envio, a campanha já entra na fila e sai sozinha, até 30 por dia, de segunda a sábado das 9h às 19h.",
 ];
 
 const EMPTY_DRAFT: CampaignDraft = {
@@ -76,8 +78,9 @@ const EMPTY_DRAFT: CampaignDraft = {
   imageUrl: null,
   selectedLeadIds: [],
   leads: [],
-  delaySeconds: 60,
   pauseBotOnReply: true,
+  sendMode: "smart",
+  sendInstanceId: "",
   autoReplyMessage: "Oi! Recebemos sua mensagem sobre a promoção 🎉\n\nUm atendente vai te responder em instantes 😊",
 };
 
@@ -147,6 +150,7 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
     try {
       const { data: user } = await supabase.auth.getUser();
       if (!user?.user?.id) throw new Error("Não autenticado");
+      if (!draft.sendInstanceId) throw new Error("Escolha por qual número a campanha sai (nenhum WhatsApp conectado?)");
 
       const selectedIds = new Set(draft.selectedLeadIds);
       const selectedLeads = uniqueByPhone(draft.leads.filter((l) => selectedIds.has(l.id)));
@@ -161,12 +165,12 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
           description: draft.description.trim() || null,
           message_variations: variations,
           image_url: draft.imageUrl,
-          delay_seconds: draft.delaySeconds,
+          // Criada parada; entra na fila depois que os destinatários estiverem gravados
           status: "draft",
           total_recipients: selectedLeads.length,
           pause_bot_on_reply: draft.pauseBotOnReply,
           auto_reply_message: draft.pauseBotOnReply ? (draft.autoReplyMessage.trim() || null) : null,
-          filters: draft.audienceFilters || null,
+          filters: { ...(draft.audienceFilters || {}), ...(draft.campaignType ? { campaign_type: draft.campaignType } : {}) },
         })
         .select()
         .single();
@@ -191,6 +195,21 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
 
       if (recipErr) throw recipErr;
 
+      // Já entra na fila: o servidor manda sozinho (campaign-dispatch)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: queueErr } = await (supabase as any)
+        .from("campaigns")
+        .update({
+          status: "sending",
+          server_send: true,
+          send_mode: draft.sendMode,
+          send_instance_id: draft.sendInstanceId,
+          started_at: new Date().toISOString(),
+          last_error: null,
+        })
+        .eq("id", campaign.id);
+      if (queueErr) throw queueErr;
+
       // Link image to campaign in gallery
       if (draft.imageUrl && campaign.id) {
         await (supabase as any)
@@ -201,7 +220,7 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
           .is("campaign_id", null);
       }
 
-      toast.success("Campanha criada!");
+      toast.success("Campanha na fila! Ela sai sozinha, até 30 por dia.");
       clearCampaignDraft(companyId);
       setRestored(false);
       setStep(0);
@@ -379,7 +398,7 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
             <CampaignAudienceStep draft={draft} setDraft={setDraft} companyId={companyId} editingCampaignId={editingCampaign?.id} />
           )}
           {!isEditingAudience && step === 2 && (
-            <CampaignConfigStep draft={draft} setDraft={setDraft} companyName={companyName} />
+            <CampaignConfigStep draft={draft} setDraft={setDraft} companyName={companyName} companyId={companyId} />
           )}
         </div>
 
@@ -408,9 +427,9 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
               <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           ) : (
-            <Button size="sm" onClick={handleCreate} disabled={saving}>
+            <Button size="sm" onClick={handleCreate} disabled={saving || !draft.sendInstanceId}>
               {saving && <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />}
-              Criar e Iniciar Envio
+              Começar envio
             </Button>
           )}
         </div>

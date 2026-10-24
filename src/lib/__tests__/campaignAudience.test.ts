@@ -95,3 +95,27 @@ describe("sendDays", () => {
     expect(sendDays(1200, 50)).toBe(24);
   });
 });
+
+describe("prepareAudience: festa marcada, conversa em andamento e filtro de situação", () => {
+  const base = { optoutTails: new Set<string>(), recentTails: new Set<string>(), includeClosed: false, includeRecent: false };
+  const leads = [
+    { id: "a", whatsapp: "15999990001", status: "novo", source: "crm" as const },
+    { id: "b", whatsapp: "15999990002", status: "orcamento_enviado", source: "crm" as const },
+    { id: "c", whatsapp: "15999990003", status: "perdido", source: "crm" as const },
+    { id: "d", whatsapp: "15999990004", status: "fechado", source: "crm" as const },
+  ];
+
+  it("quem tem festa marcada nunca entra; quem está conversando entra só se pedir", () => {
+    const opts = { ...base, partyLeadIds: new Set(["a"]), chatTails: new Set(["99990002"]) };
+    const r = prepareAudience(leads, opts);
+    expect(r.available.map((l) => l.id)).toEqual([]);
+    expect(r.hidden.party).toBe(1);
+    expect(r.hidden.chatting).toBe(1);
+    expect(prepareAudience(leads, { ...opts, includeChatting: true }).available.map((l) => l.id)).toEqual(["b"]);
+  });
+
+  it("escolher Perdido no filtro traz os perdidos, mas não os fechados", () => {
+    const r = prepareAudience(leads, { ...base, chosenStatuses: ["perdido"] });
+    expect(r.available.map((l) => l.id)).toEqual(["a", "b", "c"]);
+  });
+});

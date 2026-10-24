@@ -134,7 +134,8 @@ async function handleClaim(db: any, url: string, serviceKey: string, claim: Clai
   }
 
   const variations = Array.isArray(campaign.message_variations) ? campaign.message_variations : [];
-  const variation = variations[claim.variation_index ?? 0] || variations[0];
+  // Se apagaram variações depois de criar, o número antigo dá a volta (em vez de cair tudo na 1ª)
+  const variation = variations.length ? variations[Math.abs(claim.variation_index ?? 0) % variations.length] : undefined;
   const text = renderCampaignMessage(variation?.text || "", claim.lead_name || "", companyRow?.name || "");
   if (!text.trim() && !campaign.image_url) {
     await markError(db, recipientId, campaign.id, "Campanha sem mensagem");

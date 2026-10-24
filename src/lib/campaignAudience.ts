@@ -1,7 +1,8 @@
 // Quem entra no público de uma campanha.
-// Esconde sozinho: telefone inválido, quem pediu para sair, telefone repetido
-// e, a não ser que a pessoa peça, quem já fechou/perdeu/não é cliente e quem
-// recebeu campanha há pouco.
+// Esconde sozinho: telefone inválido, quem pediu para sair, telefone repetido,
+// quem já tem festa marcada na agenda e, a não ser que a pessoa peça, quem
+// já fechou/perdeu/não é cliente, quem está conversando agora e quem recebeu
+// campanha há pouco.
 
 /** Situações em que não faz sentido mandar promoção sem a pessoa escolher */
 export const CLOSED_LEAD_STATUSES = [
@@ -18,6 +19,9 @@ export const CAMPAIGN_DAILY_LIMIT = 30;
 
 /** Quem recebeu campanha há menos que isso fica de fora */
 export const RECENT_CAMPAIGN_DAYS = 15;
+
+/** Quem trocou mensagem há menos que isso está "conversando agora" (no meio da negociação) */
+export const ACTIVE_CHAT_DAYS = 3;
 
 /** Últimos 8 dígitos do telefone (igual ao banco). Vazio se não tiver 8 dígitos. */
 export function phoneTail(phone: string | null | undefined): string {
@@ -38,6 +42,10 @@ export interface AudienceHidden {
   duplicate: number;
   closed: number;
   recent: number;
+  /** conversou nos últimos dias (está negociando com a equipe ou a IA) */
+  chatting: number;
+  /** já tem festa marcada na agenda */
+  party: number;
 }
 
 export interface AudienceOptions {
@@ -45,14 +53,23 @@ export interface AudienceOptions {
   recentTails: Set<string>;
   includeClosed: boolean;
   includeRecent: boolean;
+  /** telefones com conversa nos últimos ACTIVE_CHAT_DAYS dias */
+  chatTails?: Set<string>;
+  includeChatting?: boolean;
+  /** leads com festa marcada (hoje em diante) — nunca recebem promoção */
+  partyLeadIds?: Set<string>;
+  /** situações que a pessoa escolheu no filtro: entram mesmo sendo "fechadas" */
+  chosenStatuses?: string[];
 }
 
 export function prepareAudience<T extends AudienceCandidate>(
   leads: T[],
   opts: AudienceOptions,
 ): { available: T[]; hidden: AudienceHidden } {
-  const hidden: AudienceHidden = { invalid: 0, optout: 0, duplicate: 0, closed: 0, recent: 0 };
+  const hidden: AudienceHidden = { invalid: 0, optout: 0, duplicate: 0, closed: 0, recent: 0, chatting: 0, party: 0 };
   const closed = new Set<string>(CLOSED_LEAD_STATUSES);
+  // Escolher "Perdido" no filtro traz só os perdidos, não todos os fechados
+  for (const st of opts.chosenStatuses || []) closed.delete(st);
 
   // Um por telefone: o do CRM vale mais que o da Base (tem situação de verdade)
   const ordered = [...leads].sort((a, b) => (a.source === b.source ? 0 : a.source === "crm" ? -1 : 1));
@@ -64,7 +81,9 @@ export function prepareAudience<T extends AudienceCandidate>(
     if (opts.optoutTails.has(tail)) { hidden.optout++; continue; }
     if (seen.has(tail)) { hidden.duplicate++; continue; }
     seen.add(tail);
+    if (opts.partyLeadIds?.has(lead.id)) { hidden.party++; continue; }
     if (!opts.includeClosed && closed.has(lead.status)) { hidden.closed++; continue; }
+    if (!opts.includeChatting && opts.chatTails?.has(tail)) { hidden.chatting++; continue; }
     if (!opts.includeRecent && opts.recentTails.has(tail)) { hidden.recent++; continue; }
     keep.add(lead.id);
   }

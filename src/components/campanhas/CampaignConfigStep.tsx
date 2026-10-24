@@ -2,7 +2,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Users, Clock, MessageSquare, ImageIcon, PauseCircle, CalendarDays } from "lucide-react";
+import { useEffect } from "react";
 import type { CampaignDraft } from "./CampaignWizard";
+import { SendNumberPicker, useSendInstances } from "./CampaignSendNumber";
 import { CAMPAIGN_DAILY_LIMIT, sendDays } from "@/lib/campaignAudience";
 import { previewMessage, usableVariations } from "@/lib/campaignMessages";
 
@@ -10,9 +12,18 @@ interface Props {
   draft: CampaignDraft;
   setDraft: React.Dispatch<React.SetStateAction<CampaignDraft>>;
   companyName?: string;
+  companyId: string;
 }
 
-export function CampaignConfigStep({ draft, setDraft, companyName = "" }: Props) {
+export function CampaignConfigStep({ draft, setDraft, companyName = "", companyId }: Props) {
+  const instances = useSendInstances(companyId);
+  // Primeiro número conectado já vem escolhido
+  useEffect(() => {
+    if (!instances || instances.length === 0) return;
+    if (!instances.some((i) => i.instance_id === draft.sendInstanceId)) {
+      setDraft((prev) => ({ ...prev, sendInstanceId: instances[0].instance_id, sendMode: instances.length > 1 ? prev.sendMode : "single" }));
+    }
+  }, [instances, draft.sendInstanceId, setDraft]);
   const total = draft.selectedLeadIds.length;
   const variations = usableVariations(draft.variations);
   // O servidor manda até 30 por dia, espalhadas entre 9h e 19h (segunda a sábado)
@@ -60,6 +71,21 @@ export function CampaignConfigStep({ draft, setDraft, companyName = "" }: Props)
         </span>
       </div>
 
+      {/* Por qual número sai */}
+      <div className="p-4 rounded-xl border bg-muted/10">
+        {instances === null ? (
+          <p className="text-xs text-muted-foreground">Carregando números…</p>
+        ) : (
+          <SendNumberPicker
+            instances={instances}
+            mode={draft.sendMode}
+            onModeChange={(m) => setDraft((prev) => ({ ...prev, sendMode: m }))}
+            instanceId={draft.sendInstanceId}
+            onInstanceChange={(id) => setDraft((prev) => ({ ...prev, sendInstanceId: id }))}
+          />
+        )}
+      </div>
+
       {/* Pause bot on reply */}
       <div className="space-y-3 p-4 rounded-xl border bg-muted/10">
         <div className="flex items-start justify-between gap-3">
@@ -68,9 +94,9 @@ export function CampaignConfigStep({ draft, setDraft, companyName = "" }: Props)
               <PauseCircle className="w-4 h-4 text-primary" />
             </div>
             <div className="min-w-0">
-              <Label className="text-sm font-semibold">Pausar bot quando o lead responder</Label>
+              <Label className="text-sm font-semibold">Passar para a equipe quando responder</Label>
               <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                O lead que responder a essa campanha não cai no bot inicial — fica aguardando atendimento humano.
+                Quem responder em até 7 dias recebe a mensagem abaixo, o robô e a IA param naquela conversa e a equipe recebe um aviso. Desligado: o atendimento automático de sempre responde.
               </p>
             </div>
           </div>
@@ -110,7 +136,7 @@ export function CampaignConfigStep({ draft, setDraft, companyName = "" }: Props)
       </div>
 
       <p className="text-[11px] text-muted-foreground/70 text-center pt-1">
-        Ao clicar em "Criar e Iniciar Envio", a campanha é salva e você escolhe por qual número ela sai.
+        Ao clicar em "Começar envio", a campanha entra na fila e sai sozinha. Dá para pausar a qualquer momento.
       </p>
     </div>
   );
