@@ -43,7 +43,7 @@ import { campaignPromptNote, loadCampaignContext } from "../_shared/campaign-con
 import { closedPeriodAt, closedPeriodsNote, formatClosedPeriod, isClosedDay, parseClosedPeriods } from "../_shared/closed-periods.ts";
 import { dayWithArticle, nearestAlternativeDays, partyDateFreeNote, partyDateTakenMessage } from "../_shared/party-date-check.ts";
 import { birthdayFlavored, corporateCaptions, corporateLeadNote, corporatePromptBlock, mentionsCorporate } from "../_shared/corporate-event.ts";
-import { asksPartnership, clientAffirms, clientAskedPrice, PRICE_ASK_WINDOW_MS, askPartyDayAfterMaterials, closingAfterMaterials, needsPartyDay, visitInviteAfterMaterials, confirmsPartyInterest, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
+import { AI_INBOUND_LAG_MS, asksPartnership, clientAffirms, clientAskedPrice, PRICE_ASK_WINDOW_MS, askPartyDayAfterMaterials, closingAfterMaterials, needsPartyDay, visitInviteAfterMaterials, confirmsPartyInterest, contactIntent, clientAsksVisit, clientDeclined, crossedWithLastReply, debounceMsFor, dropMaterialsBreak, mergeConsecutiveTurns, pickLatestIncoming, priceRequestPending, repliesSinceVisitInvite, smallestPackageGuests, splitAroundMaterials, stripVisitInvite, teamRepliedAfter } from "../_shared/ai-turn.ts";
 import { firstNameOrEmpty, sendQualificationMaterials } from "./qualification-materials.ts";
 import { askedForName, nameFromAnswer } from "../_shared/name-answer.ts";
 import { falseMaterialClaims, hasMaterialClaim, hasSubstance, refersToMaterial, stripFalseMaterialClaims } from "../_shared/material-claims.ts";
@@ -2762,8 +2762,11 @@ export async function maybeHandleWithAiAgent(
       // Chegou mensagem nova do cliente enquanto esta resposta era montada (ex.:
       // durante o envio dos materiais): descarta esta e deixa a execução da
       // mensagem mais nova responder tudo de uma vez. Confere no último
-      // instante, logo antes de enviar.
-      if (myMessageId && !conv.__handoffThisTurn) {
+      // instante, logo antes de enviar, depois de esperar a mensagem que ainda
+      // pode estar a caminho (no lugar do "digitando..." de 2 s).
+      const lateCheck = Boolean(myMessageId && !conv.__handoffThisTurn);
+      if (lateCheck) {
+        await sandboxSleep(AI_INBOUND_LAG_MS);
         const latestNow = await latestIncomingId(supabase, conv.id);
         if (latestNow && latestNow !== myMessageId) {
           console.log(`[AI Agent] Mensagem nova (${latestNow}) chegou durante a resposta — a mais nova responde por todas`);
@@ -2788,7 +2791,7 @@ export async function maybeHandleWithAiAgent(
         delivered = await sendViaWapiSend(supabase, 'send-image', instance, conv, { mediaUrl: introImage, caption: firstText });
         if (!delivered) console.warn(`[AI Agent] Arte de apresentação não saiu — vai só o texto (conv ${conv.id})`);
       }
-      if (!delivered) delivered = await sendViaWapiSend(supabase, 'send-text', instance, conv, { message: firstText, delayTyping: 2 });
+      if (!delivered) delivered = await sendViaWapiSend(supabase, 'send-text', instance, conv, lateCheck ? { message: firstText } : { message: firstText, delayTyping: 2 });
       console.log(`[AI Agent] Tempos (conv ${conv.id}): espera ${((tAfterWait - tStart) / 1000).toFixed(1)}s (alvo ${waitMs / 1000}s), preparo ${((tPrepared - tAfterWait) / 1000).toFixed(1)}s, modelo ${(modelMs / 1000).toFixed(1)}s, ferramentas ${(toolMs / 1000).toFixed(1)}s, envio ${((Date.now() - tSend) / 1000).toFixed(1)}s, total ${((Date.now() - tStart) / 1000).toFixed(1)}s`);
       if (!delivered) {
         console.error(`[AI Agent] Resposta da IA não foi entregue ao WhatsApp (conv ${conv.id})`);
