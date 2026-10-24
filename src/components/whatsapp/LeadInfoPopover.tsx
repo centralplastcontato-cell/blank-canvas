@@ -34,6 +34,7 @@ import { useCompanyUnits } from "@/hooks/useCompanyUnits";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { openAiHandoff } from "@/lib/aiConversation";
 import { LeadOriginBadge } from "@/components/admin/LeadOriginBadge";
 import { LeadReturnBadge } from "@/components/admin/LeadReturnBadge";
 
@@ -91,6 +92,8 @@ interface LeadInfoPopoverProps {
   onReactivateBot: (conv: Conversation) => void;
   onTakeOverFromBia?: (conv: Conversation) => void;
   onReturnToBia?: (conv: Conversation) => void;
+  /** Tira a etiqueta "Responder" sem mandar nada */
+  onDismissAiReply?: (conv: Conversation) => void;
   onToggleFavorite: (conv: Conversation) => void;
   onLeadNameChange: (newName: string) => void;
   onLeadObsChange?: (newObs: string) => void;
@@ -169,13 +172,17 @@ function PopoverSection({ title, children, className, icon: Icon }: { title?: st
 const isBiaConversation = (conv: Conversation) => (conv.bot_data as Record<string, unknown> | null | undefined)?.ai_agent === "on";
 
 // Quem está atendendo esta conversa da Bia, com assumir / devolver para a Bia
-function BiaControl({ conversation, onTakeOver, onReturn }: {
+function BiaControl({ conversation, onTakeOver, onReturn, onDismissReply }: {
   conversation: Conversation;
   onTakeOver: (conv: Conversation) => void;
   onReturn: (conv: Conversation) => void;
+  onDismissReply?: (conv: Conversation) => void;
 }) {
   const biaActive = conversation.bot_step === "ai_agent" && conversation.bot_enabled !== false;
+  // Etiqueta "Responder" aberta: dá para dispensar (freelancer, fornecedor, já resolvido)
+  const awaitingReply = !!onDismissReply && !!openAiHandoff(conversation);
   return (
+    <div className="space-y-1.5">
     <div className="flex items-center justify-between gap-2 px-1">
       <div className="flex items-center gap-2 min-w-0">
         <div className="p-1 rounded-md bg-violet-500/10">
@@ -210,6 +217,19 @@ function BiaControl({ conversation, onTakeOver, onReturn }: {
           Devolver para a IA
         </Button>
       )}
+    </div>
+    {awaitingReply && (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 w-full text-[11px] gap-1 rounded-lg font-medium text-muted-foreground"
+        onClick={() => onDismissReply?.(conversation)}
+        title="Tira a etiqueta Responder sem mandar nada ao cliente"
+      >
+        <Check className="w-3 h-3" />
+        Não precisa responder
+      </Button>
+    )}
     </div>
   );
 }
@@ -262,6 +282,7 @@ export function LeadInfoPopover({
   onReactivateBot,
   onTakeOverFromBia,
   onReturnToBia,
+  onDismissAiReply,
   onToggleFavorite,
   onLeadNameChange,
   onLeadObsChange,
@@ -978,7 +999,7 @@ export function LeadInfoPopover({
             <div className="px-4 pb-3 space-y-2">
               {/* Bot Toggle (conversa da IA: quem está atendendo + assumir/devolver) */}
               {isBiaConversation(selectedConversation) && onTakeOverFromBia && onReturnToBia ? (
-                <BiaControl conversation={selectedConversation} onTakeOver={onTakeOverFromBia} onReturn={onReturnToBia} />
+                <BiaControl conversation={selectedConversation} onTakeOver={onTakeOverFromBia} onReturn={onReturnToBia} onDismissReply={onDismissAiReply} />
               ) : (
                 <div className="flex items-center justify-between gap-2 px-1">
                   <div className="flex items-center gap-2">
@@ -1236,7 +1257,7 @@ export function LeadInfoPopover({
             {/* Ações */}
             <div className="p-4 pt-3 space-y-2">
               {isBiaConversation(selectedConversation) && onTakeOverFromBia && onReturnToBia ? (
-                <BiaControl conversation={selectedConversation} onTakeOver={onTakeOverFromBia} onReturn={onReturnToBia} />
+                <BiaControl conversation={selectedConversation} onTakeOver={onTakeOverFromBia} onReturn={onReturnToBia} onDismissReply={onDismissAiReply} />
               ) : (
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">Bot</span>
