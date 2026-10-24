@@ -53,14 +53,30 @@ export function teamRepliedSince(rows: OutgoingMessage[], sinceIso: string): boo
   });
 }
 
+// A etiqueta "Responder" some sozinha depois disso: passagem velha sem resposta
+// costuma ser assunto que não era festa (freelancer, fornecedor) e só acumulava
+export const AI_HANDOFF_EXPIRE_DAYS = 3;
+
 /** Passagem da IA ainda em aberto: quando foi e se o alerta de "sem resposta" já disparou */
-export function openAiHandoff(conv: AiConvLike): { at: string; late: boolean } | null {
+export function openAiHandoff(conv: AiConvLike, nowMs = Date.now()): { at: string; late: boolean } | null {
   if (aiConversationState(conv) !== "equipe") return null;
   const bd = (conv.bot_data && typeof conv.bot_data === "object" ? conv.bot_data : {}) as Record<string, unknown>;
   const h = (bd.ai_handoff && typeof bd.ai_handoff === "object" ? bd.ai_handoff : {}) as Record<string, unknown>;
   if (typeof h.at !== "string") return null;
   if (h.alerted_at === "respondido") return null; // a equipe respondeu antes do alerta
+  if (h.dismissed_at) return null; // "Não precisa responder"
+  if (nowMs - Date.parse(h.at) > AI_HANDOFF_EXPIRE_DAYS * 24 * 3600 * 1000) return null;
   return { at: h.at, late: typeof h.alerted_at === "string" && !Number.isNaN(Date.parse(h.alerted_at)) };
+}
+
+/**
+ * bot_data com a passagem marcada como "não precisa responder": some a etiqueta
+ * e o servidor não manda o alerta de "cliente sem resposta" (alerted_at preenchido)
+ */
+export function dismissAiHandoff(botData: unknown, nowIso = new Date().toISOString()): Record<string, unknown> {
+  const bd = (botData && typeof botData === "object" ? botData : {}) as Record<string, unknown>;
+  const h = (bd.ai_handoff && typeof bd.ai_handoff === "object" ? bd.ai_handoff : {}) as Record<string, unknown>;
+  return { ...bd, ai_handoff: { ...h, dismissed_at: nowIso, alerted_at: h.alerted_at || "respondido" } };
 }
 
 /** Prévia da última mensagem na lista: "[Reação] ❤️" vira "Você reagiu ❤️" / "Reagiu ❤️" */

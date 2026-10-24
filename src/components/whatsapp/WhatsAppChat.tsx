@@ -534,7 +534,7 @@ import { AiConversationBadge, NeedsReplyTag } from "@/components/whatsapp/AiConv
 import { useAwaitingTeamReply } from "@/hooks/useAwaitingTeamReply";
 import { MessageReactions } from "@/components/whatsapp/MessageReactions";
 import { groupReactions } from "@/lib/messageReactions";
-import { aiConversationState, friendlyLastMessage } from "@/lib/aiConversation";
+import { aiConversationState, dismissAiHandoff, friendlyLastMessage } from "@/lib/aiConversation";
 import { LeadInfoPopover } from "@/components/whatsapp/LeadInfoPopover";
 import { LeadDetailSheet } from "@/components/admin/LeadDetailSheet";
 import { ContactInfoSheet } from "@/components/whatsapp/ContactInfoSheet";
@@ -3683,6 +3683,19 @@ export function WhatsAppChat({ userId, allowedUnits, initialPhone, initialDraft,
     toast({ title: "Você assumiu a conversa", description: "A IA parou de responder e de mandar follow-ups para este cliente." });
   };
 
+  // "Não precisa responder": some a etiqueta Responder sem mandar nada ao cliente
+  const dismissAiReply = async (conv: Conversation) => {
+    const patch = { bot_data: dismissAiHandoff(conv.bot_data) };
+    const { error } = await supabase.from('wapi_conversations').update(patch as never).eq('id', conv.id);
+    if (error) {
+      toast({ title: "Não consegui salvar", description: error.message, variant: "destructive" });
+      return;
+    }
+    setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, ...patch } as Conversation : c));
+    setSelectedConversation(prev => prev && prev.id === conv.id ? { ...prev, ...patch } as Conversation : prev);
+    toast({ title: "Pronto", description: "A etiqueta Responder saiu desta conversa." });
+  };
+
   const returnToBia = async (conv: Conversation) => {
     if (!canToggleBot) {
       toast({ title: "Sem permissão", description: "Você não tem permissão para ativar/desativar o bot.", variant: "destructive" });
@@ -5685,6 +5698,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         onReactivateBot={reactivateBot}
                         onTakeOverFromBia={takeOverFromBia}
                         onReturnToBia={returnToBia}
+                        onDismissAiReply={dismissAiReply}
                         onToggleFavorite={toggleFavorite}
                         onLeadNameChange={(newName) => {
                           setLinkedLead(prev => prev ? { ...prev, name: newName } : null);
@@ -6933,6 +6947,7 @@ const hasCampaignReply = (conv: { bot_data?: Record<string, unknown> | null } | 
                         onReactivateBot={reactivateBot}
                         onTakeOverFromBia={takeOverFromBia}
                         onReturnToBia={returnToBia}
+                        onDismissAiReply={dismissAiReply}
                         onToggleFavorite={toggleFavorite}
                         onLeadNameChange={(newName) => {
                           setLinkedLead(prev => prev ? { ...prev, name: newName } : null);
