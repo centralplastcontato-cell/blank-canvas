@@ -1,6 +1,6 @@
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/assert_equals.ts";
 import { currentDownStreak, evolutionHoldReason, PAUSED_INSTANCE_ROW_IDS, streakNeedsAlert } from "./evolution-guard.ts";
-import { evolutionRequest, isHeldError, setEvolutionCallGuard } from "./evolution.ts";
+import { evolutionRequest, isHeldError, MONITOR_HOLD_REASON, monitorHoldWait, setEvolutionCallGuard } from "./evolution.ts";
 
 // Banco de mentira: último evento do número e trava do monitor
 function fakeDb(lastEvent: { event_type: string; received_at: string } | null, lockUntil: string | null) {
@@ -48,6 +48,35 @@ Deno.test("chamada segurada não vai para a Evolution e volta marcada", async ()
   const r = await evolutionRequest("token", "/send/text", "POST", { number: "x" });
   setEvolutionCallGuard(null);
   assertEquals([r.ok, r.held, isHeldError(r.error)], [false, true, true]);
+});
+
+Deno.test("monitor checando: espera a checagem acabar e segue; passou do limite, segura", async () => {
+  const saved = { ...monitorHoldWait };
+  monitorHoldWait.totalMs = 300;
+  monitorHoldWait.stepMs = 5;
+  const realFetch = globalThis.fetch;
+  let fetched = 0;
+  globalThis.fetch = (() => { fetched++; return Promise.resolve(new Response(JSON.stringify({ data: { Id: "x" } }), { status: 200 })); }) as typeof fetch;
+  try {
+    let calls = 0;
+    setEvolutionCallGuard(() => Promise.resolve(++calls < 3 ? MONITOR_HOLD_REASON : null));
+    const ok = await evolutionRequest("token", "/send/text", "POST", { number: "x" });
+    assertEquals([ok.held ?? false, calls, fetched], [false, 3, 1]);
+
+    setEvolutionCallGuard(() => Promise.resolve(MONITOR_HOLD_REASON));
+    const held = await evolutionRequest("token", "/send/text", "POST", { number: "x" });
+    assertEquals([held.ok, held.held, fetched], [false, true, 1]);
+
+    // Outros motivos (queda, número pausado) não esperam
+    let other = 0;
+    setEvolutionCallGuard(() => { other++; return Promise.resolve("número pausado"); });
+    await evolutionRequest("token", "/send/text", "POST", { number: "x" });
+    assertEquals(other, 1);
+  } finally {
+    setEvolutionCallGuard(null);
+    globalThis.fetch = realFetch;
+    Object.assign(monitorHoldWait, saved);
+  }
 });
 
 Deno.test("queda pelos eventos: LoggedOut avisa na hora; caindo e voltando só depois de 10 min", () => {
