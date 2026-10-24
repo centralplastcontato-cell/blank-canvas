@@ -45,6 +45,11 @@ export function prettyPackageName(name: string): string {
   return name.toLowerCase().split(/\s+/).map((w, i) => (i > 0 && LOWER_WORDS.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1))).join(" ");
 }
 
+/** Emoji do espaço nas mensagens: 🏰 para buffet "Castelo…", 🎈 para os demais */
+export function venueEmoji(companyName: string | null | undefined): string {
+  return (companyName || "").toLowerCase().includes("castelo") ? "🏰" : "🎈";
+}
+
 /** Emoji de cada pacote: 👑 premium, ⭐ super, 🏰 castelo, 🎉 os demais */
 export function packageEmoji(name: string): string {
   const n = name.toLowerCase();

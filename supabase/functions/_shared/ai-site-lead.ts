@@ -8,7 +8,7 @@
 
 import { loadAiConversationalEnabled } from "./ai-module.ts";
 import { aiUnitFor } from "./ai-units.ts";
-import { formatDateLong } from "./whatsapp-format.ts";
+import { formatDateLong, venueEmoji } from "./whatsapp-format.ts";
 
 export interface SiteLeadInfo {
   name?: string;
@@ -71,7 +71,7 @@ export function buildAiSiteWelcome(info: SiteLeadInfo, companyName: string, toda
   // Com o nome da assistente, ela se apresenta (a frase do site repetiria o buffet)
   const siteIntro = info.intro && !/^Recebemos seu pedido pelo site/i.test(info.intro) ? info.intro : "";
   const intro = name
-    ? `Eu sou a *${name}*, do *${companyName}* 🏰 ${siteIntro || "Recebi seu pedido de orçamento pelo site! ✨"}`
+    ? `Eu sou a *${name}*, do *${companyName}* ${venueEmoji(companyName)} ${siteIntro || "Recebi seu pedido de orçamento pelo site! ✨"}`
     : info.intro || `Recebemos seu pedido pelo site do *${companyName}*! ✨`;
   const ymd = siteLeadYmd(info, todayYmd);
   const month = info.month ? parseSiteMonth(info.month, todayYmd) : null;

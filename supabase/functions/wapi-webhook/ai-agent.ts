@@ -32,7 +32,7 @@ import {
 import { allowedMoneyValues, formatBRL, holidayName, isHolidayEveYmd, isHolidayYmd, localHolidaysFrom, moneyValuesIn, type PackageQuote, type PartyDay, quotePackages, weekdayYmd } from "../_shared/package-pricing.ts";
 import { addDaysYmd, type FreeDay, type FreeSlot, freePartySlots, monthFromText, monthRange, parsePartySlots, pickPartyDates, weekdayOf } from "../_shared/party-availability.ts";
 import { waitForMediaAck } from "../_shared/media-ack.ts";
-import { airyParagraphs, spaceHighlightList, fixWeekdays, hoursForWhatsApp, markTodayTomorrow, moneyWithCents, weekdayMismatches, formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName } from "../_shared/whatsapp-format.ts";
+import { airyParagraphs, spaceHighlightList, fixWeekdays, hoursForWhatsApp, markTodayTomorrow, moneyWithCents, weekdayMismatches, formatBRLShort, formatDateLong, formatDayHeader, formatSlotLabel, formatSlotRange, packageEmoji, prettyPackageName, venueEmoji } from "../_shared/whatsapp-format.ts";
 import { guardAiDb } from "./ai-db-guard.ts";
 import { loadAiConversationalEnabled } from "../_shared/ai-module.ts";
 import { aiUnitFor, aiUnits } from "../_shared/ai-units.ts";
@@ -127,7 +127,7 @@ export interface AgentMedia {
 const AI_STEP = 'ai_agent';
 
 /** "Como posso te ajudar?": as opções uma por linha, cada uma com um emoji (fica mais bonito que tudo numa frase) */
-const helpOptionsFormat = (corporate = false) => `Mostre as opções em linhas separadas, uma por linha, cada uma começando com um emoji (sem números e sem hífen), depois de uma linha em branco, e NÃO repita a pergunta depois da lista. Exemplo:\n"Me conta, como posso te ajudar? 😊\n\n🎈 Orçamento para uma festa\n${corporate ? '🏢 Confraternização de empresa\n' : ''}🏰 Já tenho festa marcada\n💬 Outro assunto"`;
+const helpOptionsFormat = (corporate = false) => `Mostre as opções em linhas separadas, uma por linha, cada uma começando com um emoji (sem números e sem hífen), depois de uma linha em branco, e NÃO repita a pergunta depois da lista. Exemplo:\n"Me conta, como posso te ajudar? 😊\n\n🎈 Orçamento para uma festa\n${corporate ? '🏢 Confraternização de empresa\n' : ''}📅 Já tenho festa marcada\n💬 Outro assunto"`;
 
 // Arte de apresentação da Bia (só link https do nosso storage ou outro https)
 function introImageUrl(settings: AiSettings): string | null {
@@ -604,7 +604,7 @@ SEU OBJETIVO PRINCIPAL: conduzir a conversa de forma simpática e natural até A
 
 COMO CONVERSAR:
 - Português brasileiro, tom caloroso, animado e humano, mensagens CURTAS (2 a 4 frases; a de valores pode ter um bloco curto por pacote).
-- Use 3 a 4 emojis por mensagem, variados e combinando com o assunto (🎉 🥳 🎈 🏰 😍 ✨ 🎂 💜…), de preferência no fim das frases, sem repetir sempre os mesmos. Se as informações do buffet trouxerem instruções de estilo/personalidade, elas valem mais do que esta.
+- Use 3 a 4 emojis por mensagem, variados e combinando com o assunto (🎉 🥳 🎈 🎊 😍 ✨ 🎂 💜…), de preferência no fim das frases, sem repetir sempre os mesmos. Se as informações do buffet trouxerem instruções de estilo/personalidade, elas valem mais do que esta.
 - FORMATO LEVE NO WHATSAPP: nunca um bloco de texto corrido. No máximo 2 frases curtas por parágrafo, com uma linha em branco entre os parágrafos, e a pergunta final sozinha no último parágrafo. Formato:
   "Claro! 😊 [resposta direta, numa frase] 🍝
 
@@ -645,18 +645,18 @@ FORMATAÇÃO NO WHATSAPP:
 ${ctx.packagesText
     ? `- Mensagem de valores: comece com entusiasmo e mostre o VALOR ANTES DO PREÇO — o que o pacote entrega e, embaixo, o preço (siga o "COMO PASSAR" da ferramenta consultar_valor_pacote). Termine com o próximo passo (garantir a data ou visita — respeitando a regra do CONVITE PARA VISITA), sem perguntar se ele quer saber o que muda entre os pacotes. Formato:
   "Aaah, que demais, [nome]! 🥳 Para 60 convidados no sábado, 26 de dezembro, todos os pacotes têm [o que é comum a todos, do cadastro] ✨
-  🏰 *[Pacote 1]* — [4 ou 5 itens principais]
+  🎉 *[Pacote 1]* — [4 ou 5 itens principais]
   👉 R$ [valor da ferramenta]
   ⭐ *[Pacote 2]* — tudo do [Pacote 1] + [o que ele tem a mais]
   👉 R$ [valor da ferramenta]
   E o melhor: esse dia ainda tem os dois horários livres, almoço (13h) ou noite (19h) 🎉
   Quer vir conhecer o espaço ou prefere já ver a melhor data? 😍"
 `
-    : `- Mensagem de valores: comece com entusiasmo, use as linhas prontas da ferramenta (um pacote por linha, com o emoji: 🏰 Castelo, ⭐ Super Castelo, 👑 Castelo Premium) e termine com uma pergunta que puxe o próximo passo. Exemplo:
+    : `- Mensagem de valores: comece com entusiasmo, use as linhas prontas da ferramenta (um pacote por linha, cada um com o emoji que a ferramenta já traz) e termine com uma pergunta que puxe o próximo passo. Exemplo:
   "Aaah, que demais, [nome]! 🥳 Olha os valores para 60 convidados no sábado, 26 de dezembro:
-  🏰 *Castelo* — R$ 6.890,00
-  ⭐ *Super Castelo* — R$ 8.530,00
-  👑 *Castelo Premium* — R$ 9.670,00
+  🎉 *[Pacote 1]* — R$ [valor da ferramenta]
+  ⭐ *[Pacote 2]* — R$ [valor da ferramenta]
+  👑 *[Pacote 3]* — R$ [valor da ferramenta]
   E o melhor: esse dia ainda tem os dois horários livres, almoço (13h) ou noite (19h) 🎉
   Quer que eu te conte o que cada pacote tem? 😍"
 `}
@@ -687,7 +687,7 @@ DATAS DA FESTA (agenda):
 - Datas futuras (inclusive no ano que vem): consulte a agenda normalmente (consultar_datas_livres com o mês e o ano) e mostre o que está disponível — NUNCA diga que "ainda não dá para reservar" ou que a agenda não abriu. A reserva é feita com contrato e sinal pela equipe.
 - Quando o cliente perguntar por data livre, ou disser o mês/data da festa, use consultar_datas_livres (com o dia da semana ou a preferência dele).
 - Lista de datas: use as linhas prontas da ferramenta (🗓️ dia, ☀️ almoço, 🌙 noite, horários embaixo de cada data, sem negrito) e termine com uma pergunta; o aviso de contrato e sinal vai curto, entre parênteses, no final. Exemplo:
-  "Aaah, [nome]! Olha as datas que ainda tenho em dezembro 🎉🏰
+  "Aaah, [nome]! Olha as datas que ainda tenho em dezembro 🎉🎈
   🗓️ Terça, 1 de dezembro
   ☀️ Almoço (13h às 17h)
   🌙 Noite (19h às 23h)
@@ -702,12 +702,12 @@ DATAS DA FESTA (agenda):
 ${ctx.packagesText
     ? `O QUE CADA PACOTE INCLUI (cadastro do buffet — use para explicar e comparar os pacotes; só cite o que está aqui; valores NUNCA daqui, só de consultar_valor_pacote):\n${ctx.packagesText}\n` +
       `COMO MOSTRAR O QUE O PACOTE INCLUI: nunca um parágrafo corrido. Agrupe em linhas curtas, cada uma começando com um emoji e o nome do grupo em negrito (só os grupos que existirem no cadastro), e termine com uma pergunta. Exemplo:\n` +
-      `  "No *Super Castelo* vem tudo isso, [nome] 🥳\n` +
-      `  🍿 *Comidinhas:* pipoca, algodão-doce, 10 tipos de salgados, mini hot-dog, crepe e batata frita\n` +
-      `  🍰 *Doces:* 3 tipos de doces, mini churros e o bolo\n` +
-      `  🥤 *Bebidas:* refrigerante, 2 sabores de suco, suco de laranja e água\n` +
-      `  🎠 *Diversão:* brinquedos com monitores e a equipe da festa\n` +
-      `  🏰 *Estrutura:* salão climatizado, Wi-Fi, fraldário, área VIP e convite virtual\n` +
+      `  "No *[nome do pacote]* vem tudo isso, [nome] 🥳\n` +
+      `  🍿 *Comidinhas:* [o que o cadastro diz]\n` +
+      `  🍰 *Doces:* [o que o cadastro diz]\n` +
+      `  🥤 *Bebidas:* [o que o cadastro diz]\n` +
+      `  🎠 *Diversão:* [o que o cadastro diz]\n` +
+      `  🏠 *Estrutura:* [o que o cadastro diz]\n` +
       `  Qual desses combina mais com a festa? 😍"\n` +
       `Para COMPARAR pacotes, mostre só o que muda (o que um tem a mais que o outro), no mesmo formato, sem repetir o que é igual.\n` +
       `PERGUNTA DO FIM (depois de explicar ou comparar pacotes): simples e que leve a conversa para frente — qual pacote combina mais com a festa, ou, se ainda não marcou visita, o convite com 2 horários. NUNCA ofereça mostrar "o que um pacote tem a menos" nem fique oferecendo mais comparações em sequência.\n\n`
@@ -747,8 +747,8 @@ const TOOLS: ToolDef[] = [
         convidados: { type: 'string', description: 'Número de convidados, ex.: 80' },
         confraternizacao: { type: 'boolean', description: 'true quando o evento é de EMPRESA (confraternização, fim de ano da equipe, colaboradores) e não aniversário' },
         empresa: { type: 'string', description: 'Nome da empresa, se for confraternização e o cliente disse' },
-        legenda_fotos: { type: 'string', description: 'Mensagem que vai ANTES das fotos e precisa ENCANTAR (não só "olha onde vai ser a festa"): 2 frases curtas — chame pelo nome, cite o aniversariante se souber (só nomes que o cliente disse — nunca invente) e desperte a imaginação do dia da festa (o castelo todinho deles, a criançada brincando, a carinha de quem faz aniversário chegando). 2–3 emojis. Ex.: "Aaah, [nome], olha só o castelo que vai ser todinho de vocês no dia da festa! 😍🏰 Já imaginou a carinha de [aniversariante] chegando e vendo tudo isso preparado? ✨"' },
-        legenda_video: { type: 'string', description: 'Legenda curta e animada do vídeo, diferente da das fotos, mostrando a festa acontecendo. Ex.: "E agora olha o Castelo em dia de festa: brinquedos, monitores e muita diversão 🎬🎉"' },
+        legenda_fotos: { type: 'string', description: 'Mensagem que vai ANTES das fotos e precisa ENCANTAR (não só "olha onde vai ser a festa"): 2 frases curtas — chame pelo nome, cite o aniversariante se souber (só nomes que o cliente disse — nunca invente) e desperte a imaginação do dia da festa (o espaço todinho deles, a criançada brincando, a carinha de quem faz aniversário chegando). Use o nome do buffet, nunca o de outro lugar. 2–3 emojis. Ex.: "Aaah, [nome], olha só o espaço que vai ser todinho de vocês no dia da festa! 😍🎈 Já imaginou a carinha de [aniversariante] chegando e vendo tudo isso preparado? ✨"' },
+        legenda_video: { type: 'string', description: 'Legenda curta e animada do vídeo, diferente da das fotos, mostrando a festa acontecendo. Ex.: "E agora olha o [nome do buffet] em dia de festa: brinquedos, monitores e muita diversão 🎬🎉"' },
         legenda_pdf: { type: 'string', description: 'Mensagem curta que vai ANTES do PDF de pacotes, com a quantidade de convidados. Ex.: "E aqui estão os nossos pacotes pra 80 convidados 📋✨". Sem valores. Se o cliente falou em menos convidados que o menor pacote, não cite o número dele.' },
       },
     },
@@ -1816,7 +1816,7 @@ async function materialTexts(
   return {
     photosIntro: clean(args.legenda_fotos)
       // "do Murilo" / "da Lívia" depende do gênero, que não sabemos: frase neutra
-      || `${nome ? `Aaah, ${nome}, olha` : 'Olha'} só o castelo que vai ser todinho de vocês no dia da festa! 😍🏰 Já imaginou ${child ? `a carinha de ${child}` : 'a criançada'} chegando e vendo tudo isso preparado? ✨`,
+      || `${nome ? `Aaah, ${nome}, olha` : 'Olha'} só o espaço que vai ser todinho de vocês no dia da festa! 😍${venueEmoji(companyName)} Já imaginou ${child ? `a carinha de ${child}` : 'a criançada'} chegando e vendo tudo isso preparado? ✨`,
     videoCaption: clean(args.legenda_video) || `E agora olha o ${companyName} em dia de festa: brinquedos, monitores e muita diversão 🎬🎉`,
     pdfIntro: belowMin
       ? `E aqui estão os nossos pacotes, a partir de ${minGuests} convidados 📋✨`

@@ -121,7 +121,7 @@ export async function sendQualificationMaterials(
     const sendPromoVideo = settings?.auto_send_promo_video !== false;
     const sendPdf = settings?.auto_send_pdf !== false;
     const messageDelay = (settings?.message_delay_seconds || 5) * 1000;
-    const photosIntro = settings?.auto_send_photos_intro || '✨ Conheça nosso espaço incrível! 🏰🎉';
+    const photosIntro = settings?.auto_send_photos_intro || '✨ Conheça nosso espaço incrível! 🎈🎉';
     const pdfIntro = settings?.auto_send_pdf_intro || '📋 Oi {nome}! Segue o pacote completo para {convidados} no {empresa}. Qualquer dúvida é só chamar! 💜';
 
     await delay(pacing ? pacing.startMs : messageDelay);

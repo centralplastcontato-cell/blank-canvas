@@ -157,7 +157,7 @@ interface BotQuestion {
 }
 
 const DEFAULT_QUESTIONS = [
-  { step: 'nome', question_text: 'Para começar, me conta: qual é o seu nome? 👑', confirmation_text: 'Muito prazer, {nome}! 👑✨', sort_order: 1 },
+  { step: 'nome', question_text: 'Para começar, me conta: qual é o seu nome? 😊', confirmation_text: 'Muito prazer, {nome}! 🥰✨', sort_order: 1 },
   { step: 'tipo', question_text: 'Você já é nosso cliente ou gostaria de receber um orçamento? 😊\n\n1️⃣ Já sou cliente\n2️⃣ Quero um orçamento', confirmation_text: null, sort_order: 2 },
   { step: 'mes', question_text: 'Que legal! 🎉 E pra qual mês você tá pensando em fazer essa festa incrível?\n\n📅 Ex: Fevereiro, Março, Abril...', confirmation_text: '{mes}, ótima escolha! 🎊', sort_order: 3 },
   { step: 'dia', question_text: 'Maravilha! Tem preferência de dia da semana? 🗓️\n\n• Segunda a Quinta\n• Sexta\n• Sábado\n• Domingo', confirmation_text: 'Anotado!', sort_order: 4 },
@@ -245,7 +245,7 @@ function SortableQuestionItem({ question, index, getStepLabel, updateQuestion }:
             <Input
               value={question.confirmation_text || ""}
               onChange={(e) => updateQuestion(index, 'confirmation_text', e.target.value || null)}
-              placeholder={`Ex: Muito prazer, {${question.step}}! 👑`}
+              placeholder={`Ex: Muito prazer, {${question.step}}! 🥰`}
               className="text-base"
             />
           </div>
@@ -1299,7 +1299,7 @@ export function AutomationsSection({ tabs, hideAi = false }: { tabs?: string[]; 
                       Mensagem enviada quando o lead diz que já é cliente. O bot para e transfere para a equipe. Use {`{nome}`} para incluir o nome.
                     </p>
                     <Textarea
-                      value={botSettings?.transfer_message || "Entendido, {nome}! 🏰\n\nVou transferir sua conversa para nossa equipe comercial que vai te ajudar com sua festa.\n\nAguarde um momento, por favor! 👑"}
+                      value={botSettings?.transfer_message || "Entendido, {nome}! 😊\n\nVou transferir sua conversa para nossa equipe comercial que vai te ajudar com sua festa.\n\nAguarde um momento, por favor! 💜"}
                       onChange={(e) => setBotSettings(prev => prev ? { ...prev, transfer_message: e.target.value } : null)}
                       onBlur={() => botSettings && updateBotSettings({ transfer_message: botSettings.transfer_message })}
                       className="min-h-[100px] text-base"
@@ -1337,11 +1337,11 @@ export function AutomationsSection({ tabs, hideAi = false }: { tabs?: string[]; 
                       Mensagem enviada ao finalizar a qualificação de quem quer orçamento. Use {`{nome}`}, {`{mes}`}, {`{dia}`} e {`{convidados}`} para incluir as respostas.
                     </p>
                     <Textarea
-                      value={botSettings?.completion_message || "Perfeito, {nome}! 🏰✨\n\nAnotei tudo aqui:\n\n📅 Mês: {mes}\n🗓️ Dia: {dia}\n👥 Convidados: {convidados}\n\nNossa equipe vai entrar em contato em breve! 👑🎉"}
+                      value={botSettings?.completion_message || "Perfeito, {nome}! 🎉✨\n\nAnotei tudo aqui:\n\n📅 Mês: {mes}\n🗓️ Dia: {dia}\n👥 Convidados: {convidados}\n\nNossa equipe vai entrar em contato em breve! 💜🎉"}
                       onChange={(e) => setBotSettings(prev => prev ? { ...prev, completion_message: e.target.value } : null)}
                       onBlur={() => botSettings && updateBotSettings({ completion_message: botSettings.completion_message })}
                       className="min-h-[120px] text-base"
-                      placeholder="Perfeito, {nome}! 🏰✨..."
+                      placeholder="Perfeito, {nome}! 🎉✨..."
                     />
                   </div>
 
@@ -1367,7 +1367,7 @@ export function AutomationsSection({ tabs, hideAi = false }: { tabs?: string[]; 
                       <div>
                         <Label className="text-xs font-medium text-amber-700 dark:text-amber-400">Resposta: Agendar Visita (1)</Label>
                         <Textarea
-                          value={botSettings?.next_step_visit_response || "Ótima escolha! 🏰✨\n\nNossa equipe vai entrar em contato para agendar sua visita!\n\nAguarde um momento que já vamos te chamar! 👑"}
+                          value={botSettings?.next_step_visit_response || "Ótima escolha! 🎉✨\n\nNossa equipe vai entrar em contato para agendar sua visita!\n\nAguarde um momento que já vamos te chamar! 💜"}
                           onChange={(e) => setBotSettings(prev => prev ? { ...prev, next_step_visit_response: e.target.value } : null)}
                           onBlur={() => botSettings && updateBotSettings({ next_step_visit_response: botSettings.next_step_visit_response })}
                           className="min-h-[120px] text-sm mt-1"
@@ -1376,7 +1376,7 @@ export function AutomationsSection({ tabs, hideAi = false }: { tabs?: string[]; 
                       <div>
                         <Label className="text-xs font-medium text-amber-700 dark:text-amber-400">Resposta: Tirar Dúvidas (2)</Label>
                         <Textarea
-                          value={botSettings?.next_step_questions_response || "Claro! 💬\n\nPode mandar sua dúvida aqui que nossa equipe vai te responder rapidinho!\n\nEstamos à disposição! 👑"}
+                          value={botSettings?.next_step_questions_response || "Claro! 💬\n\nPode mandar sua dúvida aqui que nossa equipe vai te responder rapidinho!\n\nEstamos à disposição! 💜"}
                           onChange={(e) => setBotSettings(prev => prev ? { ...prev, next_step_questions_response: e.target.value } : null)}
                           onBlur={() => botSettings && updateBotSettings({ next_step_questions_response: botSettings.next_step_questions_response })}
                           className="min-h-[120px] text-sm mt-1"
@@ -1385,7 +1385,7 @@ export function AutomationsSection({ tabs, hideAi = false }: { tabs?: string[]; 
                       <div>
                         <Label className="text-xs font-medium text-amber-700 dark:text-amber-400">Resposta: Analisar com Calma (3)</Label>
                         <Textarea
-                          value={botSettings?.next_step_analyze_response || "Sem problemas! 📋\n\nVou enviar nossos materiais para você analisar com calma. Quando estiver pronto, é só chamar aqui!\n\nEstamos à disposição! 👑✨"}
+                          value={botSettings?.next_step_analyze_response || "Sem problemas! 📋\n\nVou enviar nossos materiais para você analisar com calma. Quando estiver pronto, é só chamar aqui!\n\nEstamos à disposição! 💜✨"}
                           onChange={(e) => setBotSettings(prev => prev ? { ...prev, next_step_analyze_response: e.target.value } : null)}
                           onBlur={() => botSettings && updateBotSettings({ next_step_analyze_response: botSettings.next_step_analyze_response })}
                           className="min-h-[120px] text-sm mt-1"
@@ -1404,7 +1404,7 @@ export function AutomationsSection({ tabs, hideAi = false }: { tabs?: string[]; 
                       Mensagem automática enviada quando um lead que veio pela Landing Page (já qualificado) envia a primeira mensagem. Use {`{nome}`}, {`{mes}`}, {`{dia}`} e {`{convidados}`}.
                     </p>
                     <Textarea
-                      value={botSettings?.qualified_lead_message || "Olá, {nome}! 👋\n\nRecebemos seu interesse pelo site e já temos seus dados aqui:\n\n📅 Mês: {mes}\n🗓️ Dia: {dia}\n👥 Convidados: {convidados}\n\nNossa equipe vai te responder em breve! 🏰✨"}
+                      value={botSettings?.qualified_lead_message || "Olá, {nome}! 👋\n\nRecebemos seu interesse pelo site e já temos seus dados aqui:\n\n📅 Mês: {mes}\n🗓️ Dia: {dia}\n👥 Convidados: {convidados}\n\nNossa equipe vai te responder em breve! 🎉✨"}
                       onChange={(e) => setBotSettings(prev => prev ? { ...prev, qualified_lead_message: e.target.value } : null)}
                       onBlur={() => botSettings && updateBotSettings({ qualified_lead_message: botSettings.qualified_lead_message })}
                       className="min-h-[120px] text-base"
@@ -1508,7 +1508,7 @@ export function AutomationsSection({ tabs, hideAi = false }: { tabs?: string[]; 
                           <div className="space-y-2">
                             <Label className="text-xs font-medium">Mensagem antes das fotos</Label>
                             <Input
-                              value={botSettings?.auto_send_photos_intro || "✨ Conheça nosso espaço incrível! 🏰🎉"}
+                              value={botSettings?.auto_send_photos_intro || "✨ Conheça nosso espaço incrível! 🎈🎉"}
                               onChange={(e) => setBotSettings(prev => prev ? { ...prev, auto_send_photos_intro: e.target.value } : null)}
                               onBlur={() => botSettings && updateBotSettings({ auto_send_photos_intro: botSettings.auto_send_photos_intro } as Partial<BotSettings>)}
                               className="text-sm"

@@ -169,8 +169,8 @@ export function SalesMaterialsMenu({
     // Fallback defaults if not found in database
     const defaults: Record<string, string> = {
       video: `🎬 Veja como é incrível o nosso espaço! ✨ ${publicName} te espera para uma festa inesquecível! 🎉`,
-      video_promo: "🎭🎉 PROMOÇÃO ESPECIAL DE CARNAVAL! 🎊✨ Aproveite condições imperdíveis para garantir a festa dos sonhos do seu filho! Entre em contato agora e confira! 🏰💜",
-      photo_collection: `✨ Espaço incrível para festas inesquecíveis! Venha conhecer o ${publicName} e encante-se com a estrutura completa para a diversão da criançada! 🎉🏰`
+      video_promo: "🎭🎉 PROMOÇÃO ESPECIAL DE CARNAVAL! 🎊✨ Aproveite condições imperdíveis para garantir a festa dos sonhos do seu filho! Entre em contato agora e confira! 🎈💜",
+      photo_collection: `✨ Espaço incrível para festas inesquecíveis! Venha conhecer o ${publicName} e encante-se com a estrutura completa para a diversão da criançada! 🎉🎈`
     };
     
     return defaults[captionType] || defaults.video;

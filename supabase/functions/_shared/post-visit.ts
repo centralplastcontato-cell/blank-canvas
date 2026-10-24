@@ -3,7 +3,7 @@
 // para quem não compareceu, um convite para remarcar com 2 horários livres.
 // Regras puras — quem consulta o banco e envia é o follow-up-check.
 
-import { formatDateLong } from "./whatsapp-format.ts";
+import { formatDateLong, venueEmoji } from "./whatsapp-format.ts";
 
 export const POST_VISIT_HOUR = 10; // a partir das 10h
 export const POST_VISIT_SECOND_DAYS = 3;
@@ -72,7 +72,7 @@ export function postVisitMessage(step: PostVisitStep, c: PostVisitContext): stri
     return `${hi} Sentimos sua falta ${when === "ontem" ? "ontem" : "na visita"} 😊 Imagino que surgiu algum imprevisto.\n\n${invite}`;
   }
   if (step === "first") {
-    const liked = child ? `Espero que ${child} tenha gostado do espaço 🏰💜` : "Espero que vocês tenham gostado do espaço 🏰💜";
+    const liked = child ? `Espero que ${child} tenha gostado do espaço ${venueEmoji(c.companyName)}💜` : `Espero que vocês tenham gostado do espaço ${venueEmoji(c.companyName)}💜`;
     const opening = `${hi} 😊 Foi um prazer receber vocês ${when} aqui no ${c.companyName}! ${liked}`;
     if (c.partyYmd && c.partyFree === true) {
       return `${opening}\n\nO ${formatDateLong(c.partyYmd)}, ainda está livre na agenda ✅ Ficou alguma dúvida que eu possa te ajudar?`;
