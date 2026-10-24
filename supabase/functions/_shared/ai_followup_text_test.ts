@@ -71,3 +71,20 @@ Deno.test("lembrete não repete a pergunta da última mensagem", () => {
   const r = checkFollowUpText("Ana, o que você achou do espaço para a festinha? 🥳", { previousAssistantTexts: ["Olha as fotos", last], sentMaterials: new Set(), todayYmd: "2026-10-08" });
   assertEquals(r.ok, false);
 });
+
+Deno.test("lembrete com a conversa parada na apresentação: pede o nome de novo, sem nome do perfil nem promoção", () => {
+  const base = { kind: "inactivity" as const, reminderNumber: 1, silenceMs: 20 * 60000, todayYmd: "2026-10-24", valuesAlreadyGiven: false, materialsSent: [] as Array<"fotos" | "video" | "pacotes"> };
+  const start = followUpInstruction({ ...base, atStart: true });
+  assertEquals(start.includes("logo no começo"), true);
+  assertEquals(start.includes("peça o nome de novo"), true);
+  assertEquals(start.includes("Não chame o cliente por nome nenhum"), true);
+  assertEquals(start.includes("traga algo NOVO"), false);
+  assertEquals(followUpInstruction({ ...base, atStart: true, reminderNumber: 2 }).includes("sem repetir o 1º lembrete"), true);
+  // Regra geral: não responder pergunta que ninguém fez
+  assertEquals(followUpInstruction(base).includes("não escreva como se respondesse a uma pergunta que o cliente não fez"), true);
+  // Pedir o nome de novo passa na conferência quando a conversa parou na apresentação
+  const last = { previousAssistantTexts: ["Oi! Eu sou a Ana 😊 Qual é o seu nome e o nome do aniversariante? ✨"], sentMaterials: new Set<"fotos" | "video" | "pacotes">(), todayYmd: "2026-10-24" };
+  const again = "Oi! Ainda está por aí? 😊 Me conta qual é o seu nome e o nome do aniversariante? 🎉";
+  assertEquals(checkFollowUpText(again, last).ok, false);
+  assertEquals(checkFollowUpText(again, { ...last, allowRepeatQuestion: true }).ok, true);
+});
