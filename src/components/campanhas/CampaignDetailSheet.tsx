@@ -4,7 +4,7 @@ import { fetchAllPages } from "@/lib/fetchAllPages";
 
 const UNCONFIRMED_ERROR = "Envio não confirmado";
 import { campaignState } from "@/lib/campaignState";
-import { useCampaignResults, percentOf } from "@/hooks/useCampaignResults";
+import { useCampaignResults, percentOf, bestVariation, type CampaignResult, type VariationResult } from "@/hooks/useCampaignResults";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -191,22 +191,9 @@ export function CampaignDetailSheet({ campaign, open, onOpenChange, companyId, o
           <MetricCard label="Pendentes" value={pendingCount} icon={Clock} color="text-yellow-600" />
         </div>
 
-        {/* Resultado: quem respondeu e quem fechou festa depois de receber */}
+        {/* Resultado: enviadas → responderam → marcaram visita → fecharam festa */}
         {result && sentTotal > 0 && (
-          <div className="grid grid-cols-2 gap-2 px-4 sm:px-6 py-3 border-b border-border bg-muted/20">
-            <div className="rounded-xl bg-card border border-border p-2.5">
-              <p className="text-lg font-bold text-blue-600 leading-tight">
-                {result.replied} <span className="text-xs font-medium text-muted-foreground">({percentOf(result.replied, sentTotal)}%)</span>
-              </p>
-              <p className="text-[11px] text-muted-foreground leading-snug">responderam em até 3 dias</p>
-            </div>
-            <div className="rounded-xl bg-card border border-border p-2.5">
-              <p className="text-lg font-bold text-violet-600 leading-tight">
-                {result.closed} <span className="text-xs font-medium text-muted-foreground">({percentOf(result.closed, sentTotal)}%)</span>
-              </p>
-              <p className="text-[11px] text-muted-foreground leading-snug">fecharam festa em até 45 dias</p>
-            </div>
-          </div>
+          <CampaignFunnel result={result} sentTotal={sentTotal} variations={campaign.message_variations} />
         )}
 
         {/* Preview + Recipient list */}
@@ -458,6 +445,71 @@ function RecipientRow({ recipient, formatPhone, messageVariations }: { recipient
         <SIcon className={`w-3.5 h-3.5 ${s.cls}`} />
         <span className={`text-[10px] font-medium ${s.cls}`}>{s.label}</span>
       </div>
+    </div>
+  );
+}
+
+
+// Funil da campanha e qual mensagem trouxe mais respostas
+function CampaignFunnel({ result, sentTotal, variations }: { result: CampaignResult; sentTotal: number; variations: unknown }) {
+  const sent = result.sent || sentTotal;
+  const steps = [
+    { label: "responderam", hint: "em até 3 dias", value: result.replied, color: "text-blue-600" },
+    ...(result.visited !== undefined ? [{ label: "marcaram visita", hint: "em até 30 dias", value: result.visited, color: "text-amber-600" }] : []),
+    { label: "fecharam festa", hint: "em até 45 dias", value: result.closed, color: "text-violet-600" },
+  ];
+  const list: Array<string | { tone?: string }> = Array.isArray(variations) ? variations : [];
+  // Junta pelo número da mensagem (se apagaram mensagens, o número antigo dá a volta)
+  const byMsg = new Map<number, VariationResult>();
+  for (const v of result.variations || []) {
+    const i = list.length ? v.index % list.length : v.index;
+    const cur = byMsg.get(i) || { index: i, sent: 0, replied: 0 };
+    byMsg.set(i, { index: i, sent: cur.sent + v.sent, replied: cur.replied + v.replied });
+  }
+  const perMsg = [...byMsg.values()].sort((a, b) => a.index - b.index);
+  const best = bestVariation(perMsg);
+  const toneOf = (i: number) => {
+    const v = list[i];
+    return v && typeof v === "object" && v.tone ? String(v.tone) : null;
+  };
+
+  return (
+    <div className="px-4 sm:px-6 py-3 border-b border-border bg-muted/20 space-y-3">
+      <div className={`grid gap-2 ${steps.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
+        {steps.map((st) => (
+          <div key={st.label} className="rounded-xl bg-card border border-border p-2.5">
+            <p className={`text-lg font-bold leading-tight ${st.color}`}>
+              {st.value} <span className="text-xs font-medium text-muted-foreground">({percentOf(st.value, sent)}%)</span>
+            </p>
+            <p className="text-[11px] text-muted-foreground leading-snug">{st.label} {st.hint}</p>
+          </div>
+        ))}
+      </div>
+      {perMsg.length > 1 && (
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Qual mensagem trouxe mais respostas</p>
+          {perMsg.map((v) => {
+            const pct = percentOf(v.replied, v.sent);
+            const isBest = best === v.index;
+            return (
+              <div key={v.index} className="flex items-center gap-2 text-xs">
+                <span className="w-24 shrink-0 truncate" title={toneOf(v.index) || undefined}>Mensagem {v.index + 1}</span>
+                <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                  <div className={`h-full rounded-full ${isBest ? "bg-emerald-500" : "bg-blue-500/60"}`} style={{ width: `${pct}%` }} />
+                </div>
+                <span className="w-28 shrink-0 text-right tabular-nums text-muted-foreground">
+                  {v.replied} de {v.sent} ({pct}%){isBest ? " 🏆" : ""}
+                </span>
+              </div>
+            );
+          })}
+          <p className="text-[10px] text-muted-foreground">
+            {best !== null
+              ? `A mensagem ${best + 1} foi a que mais trouxe respostas: use ela de modelo nas próximas campanhas.`
+              : "Para apontar a melhor, cada mensagem precisa de pelo menos 10 envios."}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

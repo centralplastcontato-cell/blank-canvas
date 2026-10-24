@@ -43,7 +43,9 @@ Regras:
 - Mantenha as mensagens entre 2-5 linhas cada
 - Use emojis moderadamente
 - NÃO use markdown, apenas texto simples com quebras de linha
-- As mensagens devem parecer naturais como se fossem escritas por uma pessoa`;
+- As mensagens devem parecer naturais como se fossem escritas por uma pessoa
+- Use SOMENTE as condições escritas no contexto. NUNCA invente desconto, porcentagem, preço, brinde, prazo, número de vagas ou datas que não estejam no contexto
+- Se o contexto listar datas, use exatamente essas datas (pode citar só algumas)`;
 
     const response = await fetch(
       "https://api.openai.com/v1/chat/completions",

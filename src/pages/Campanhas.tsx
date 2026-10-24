@@ -34,7 +34,7 @@ import { toast } from "sonner";
 import { useCampaignSender } from "@/contexts/CampaignSenderContext";
 import { campaignState, reactivatedStatus } from "@/lib/campaignState";
 import { useQuery } from "@tanstack/react-query";
-import { useCampaignResults } from "@/hooks/useCampaignResults";
+import { useCampaignResults, percentOf, type CampaignResult } from "@/hooks/useCampaignResults";
 
 interface Campaign {
   id: string;
@@ -294,6 +294,8 @@ export default function Campanhas() {
                   <p className="text-sm text-muted-foreground/70 mt-1">Clique em "Nova Campanha" para começar</p>
                 </div>
               ) : (
+                <>
+                <CampaignTotals campaigns={campaigns} results={results} />
                 <div className="grid gap-3 lg:grid-cols-2">
                   {campaigns.map((campaign) => {
                     const sendingHere = sender.isSending && sender.activeCampaignId === campaign.id;
@@ -318,6 +320,7 @@ export default function Campanhas() {
                     );
                   })}
                 </div>
+                </>
               )}
             </TabsContent>
 
@@ -439,5 +442,47 @@ export default function Campanhas() {
         </main>
       </div>
     </SidebarProvider>
+  );
+}
+
+
+// Resultado somado de todas as campanhas
+function CampaignTotals({ campaigns, results }: { campaigns: Campaign[]; results?: Record<string, CampaignResult> }) {
+  if (!results) return null;
+  let sent = 0, replied = 0, visited = 0, closed = 0;
+  let hasVisits = false;
+  for (const c of campaigns) {
+    const r = results[c.id];
+    sent += r?.sent ?? c.sent_count ?? 0;
+    if (!r) continue;
+    replied += r.replied;
+    closed += r.closed;
+    if (r.visited !== undefined) { hasVisits = true; visited += r.visited; }
+  }
+  if (sent === 0) return null;
+  const items = [
+    { label: "enviadas", value: sent, pct: null as number | null, color: "text-foreground" },
+    { label: "responderam", value: replied, pct: percentOf(replied, sent), color: "text-blue-600" },
+    ...(hasVisits ? [{ label: "marcaram visita", value: visited, pct: percentOf(visited, sent), color: "text-amber-600" }] : []),
+    { label: "fecharam festa", value: closed, pct: percentOf(closed, sent), color: "text-violet-600" },
+  ];
+  return (
+    <div className="mb-4 rounded-3xl border border-border/70 bg-card p-4 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2.5">Resultado de todas as campanhas</p>
+      <div className={`grid gap-2 grid-cols-2 ${items.length === 4 ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
+        {items.map((it) => (
+          <div key={it.label} className="rounded-2xl bg-muted/30 px-3 py-2">
+            <p className={`text-xl font-bold leading-tight tabular-nums ${it.color}`}>
+              {it.value.toLocaleString("pt-BR")}
+              {it.pct !== null && <span className="text-xs font-medium text-muted-foreground"> ({it.pct}%)</span>}
+            </p>
+            <p className="text-[11px] text-muted-foreground">{it.label}</p>
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] text-muted-foreground mt-2">
+        Conta quem respondeu em até 3 dias{hasVisits ? ", marcou visita em até 30" : ""} e fechou festa em até 45 dias depois de receber.
+      </p>
+    </div>
   );
 }

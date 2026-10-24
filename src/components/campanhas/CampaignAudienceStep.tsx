@@ -6,12 +6,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Loader2, Users, Filter, UserCheck, UserX, X, Database, ShieldCheck } from "lucide-react";
+import { Search, Loader2, Users, Filter, UserCheck, UserX, X, Database, ShieldCheck, Sparkles } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { fetchAllPages } from "@/lib/fetchAllPages";
 import { phoneTail, prepareAudience, RECENT_CAMPAIGN_DAYS, ACTIVE_CHAT_DAYS } from "@/lib/campaignAudience";
+import { ANO_QUE_VEM_FROM_DAYS, ANO_QUE_VEM_TO_DAYS, SUMIU_MIN_DAYS, getPreset, presetMatches } from "@/lib/campaignPresets";
 import type { CampaignDraft } from "./CampaignWizard";
 import { OptoutListDialog } from "./OptoutListDialog";
 
@@ -81,6 +82,7 @@ interface Lead {
   unit: string | null;
   source: "crm" | "base";
   partyType: string | null;
+  createdAt: string | null;
 }
 
 export function CampaignAudienceStep({ draft, setDraft, companyId, editingCampaignId }: Props) {
@@ -101,6 +103,11 @@ export function CampaignAudienceStep({ draft, setDraft, companyId, editingCampai
   const [filterUnit, setFilterUnit] = useState("all");
   const [filterSource, setFilterSource] = useState("all");
   const [filterPartyType, setFilterPartyType] = useState("all");
+  // Campanha pronta: o público dela vem filtrado e marcado (dá para ver todos os leads)
+  const preset = getPreset(draft.presetId);
+  const [presetOn, setPresetOn] = useState(!!preset);
+  const [pastPartyLeadIds, setPastPartyLeadIds] = useState<Set<string>>(new Set());
+  const [quietSinceTails, setQuietSinceTails] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadAllLeads();
@@ -124,10 +131,10 @@ export function CampaignAudienceStep({ draft, setDraft, companyId, editingCampai
 
       // Todos os leads (o banco entrega no máximo 1000 por vez, então busca em páginas)
       const [crmRows, baseRows, campaignRows, optoutRows] = await Promise.all([
-        fetchAllPages<{ id: string; name: string; whatsapp: string; month: string | null; status: string; unit: string | null }>((a, b) =>
+        fetchAllPages<{ id: string; name: string; whatsapp: string; month: string | null; status: string; unit: string | null; created_at: string | null }>((a, b) =>
           supabase
             .from("campaign_leads")
-            .select("id, name, whatsapp, month, status, unit")
+            .select("id, name, whatsapp, month, status, unit, created_at")
             .eq("company_id", companyId)
             .order("name")
             .order("id")
@@ -151,20 +158,35 @@ export function CampaignAudienceStep({ draft, setDraft, companyId, editingCampai
       ]);
 
       // Quem está conversando agora (no meio da negociação) e quem já tem festa marcada
-      const chatSince = new Date(Date.now() - ACTIVE_CHAT_DAYS * 24 * 60 * 60 * 1000).toISOString();
-      const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-      const [chatRows, partyRows] = await Promise.all([
-        fetchAllPages<{ remote_jid: string }>((a, b) =>
-          supabase.from("wapi_conversations").select("remote_jid").eq("company_id", companyId)
-            .gte("last_message_at", chatSince).not("remote_jid", "like", "%@g.us").order("id").range(a, b),
+      const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+      const chatSince = daysAgo(ACTIVE_CHAT_DAYS).toISOString();
+      const ymd = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+      const today = ymd(new Date());
+      const [chatRows, partyRows, pastRows] = await Promise.all([
+        // Conversas dos últimos dias (a mais longa das janelas: "sumiu" precisa de 7)
+        fetchAllPages<{ remote_jid: string; last_message_at: string | null }>((a, b) =>
+          supabase.from("wapi_conversations").select("remote_jid, last_message_at").eq("company_id", companyId)
+            .gte("last_message_at", daysAgo(Math.max(ACTIVE_CHAT_DAYS, SUMIU_MIN_DAYS)).toISOString())
+            .not("remote_jid", "like", "%@g.us").order("id").range(a, b),
         ).catch(() => []),
         fetchAllPages<{ lead_id: string | null }>((a, b) =>
           supabase.from("company_events").select("lead_id").eq("company_id", companyId)
             .gte("event_date", today).neq("status", "cancelado").not("lead_id", "is", null).order("id").range(a, b),
         ).catch(() => []),
+        // Festas de ~1 ano atrás ("Festa do ano que vem")
+        draft.presetId === "ano_que_vem"
+          ? fetchAllPages<{ lead_id: string | null }>((a, b) =>
+              supabase.from("company_events").select("lead_id").eq("company_id", companyId)
+                .gte("event_date", ymd(daysAgo(ANO_QUE_VEM_FROM_DAYS))).lte("event_date", ymd(daysAgo(ANO_QUE_VEM_TO_DAYS)))
+                .neq("status", "cancelado").not("lead_id", "is", null).order("id").range(a, b),
+            ).catch(() => [])
+          : Promise.resolve([] as { lead_id: string | null }[]),
       ]);
-      setChatTails(new Set(chatRows.map((c) => phoneTail(c.remote_jid.split("@")[0])).filter(Boolean)));
+      const tailOf = (c: { remote_jid: string }) => phoneTail(c.remote_jid.split("@")[0]);
+      setChatTails(new Set(chatRows.filter((c) => (c.last_message_at || "") >= chatSince).map(tailOf).filter(Boolean)));
+      setQuietSinceTails(new Set(chatRows.map(tailOf).filter(Boolean)));
       setPartyLeadIds(new Set(partyRows.map((e) => e.lead_id).filter(Boolean) as string[]));
+      setPastPartyLeadIds(new Set(pastRows.map((e) => e.lead_id).filter(Boolean) as string[]));
 
       // Quem recebeu alguma campanha nos últimos dias (e, ao editar, quem já recebeu esta)
       const campaignIds = (campaignRows.data || []).map((c) => c.id);
@@ -200,6 +222,7 @@ export function CampaignAudienceStep({ draft, setDraft, companyId, editingCampai
         unit: l.unit,
         source: "crm" as const,
         partyType: null,
+        createdAt: l.created_at,
       }));
 
       const baseLeads: Lead[] = baseRows.map((l) => ({
@@ -211,6 +234,7 @@ export function CampaignAudienceStep({ draft, setDraft, companyId, editingCampai
         unit: null,
         source: "base" as const,
         partyType: l.party_type || null,
+        createdAt: null,
       }));
 
       const allLeads = [...crmLeads, ...baseLeads];
@@ -239,10 +263,17 @@ export function CampaignAudienceStep({ draft, setDraft, companyId, editingCampai
         chatTails,
         includeChatting,
         partyLeadIds,
-        chosenStatuses: filterStatuses,
+        chosenStatuses: presetOn && preset ? [...filterStatuses, ...preset.allowStatuses] : filterStatuses,
       }),
-    [leads, optoutTails, recentTails, includeClosed, includeRecent, chatTails, includeChatting, partyLeadIds, filterStatuses],
+    [leads, optoutTails, recentTails, includeClosed, includeRecent, chatTails, includeChatting, partyLeadIds, filterStatuses, presetOn, preset],
   );
+
+  const presetCtx = useMemo(
+    () => ({ month: draft.presetMonth, pastPartyLeadIds, recentChatTails: quietSinceTails }),
+    [draft.presetMonth, pastPartyLeadIds, quietSinceTails],
+  );
+  const inPreset = (l: Lead) =>
+    !preset || !presetOn || presetMatches(preset.id, { ...l, tail: phoneTail(l.whatsapp) }, presetCtx);
 
   // Ao editar destinatários: marca de novo quem já estava na lista (pelo telefone)
   useEffect(() => {
@@ -267,6 +298,7 @@ export function CampaignAudienceStep({ draft, setDraft, companyId, editingCampai
 
   const filtered = useMemo(() => {
     return pool.available.filter((l) => {
+      if (!inPreset(l)) return false;
       if (filterSource !== "all" && l.source !== filterSource) return false;
       if (filterStatuses.length > 0 && !filterStatuses.includes(l.status)) return false;
       if (filterMonth !== "all" && l.month !== filterMonth) return false;
@@ -278,7 +310,14 @@ export function CampaignAudienceStep({ draft, setDraft, companyId, editingCampai
       }
       return true;
     });
-  }, [pool, filterStatuses, filterMonth, filterUnit, filterSource, filterPartyType, search]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pool, filterStatuses, filterMonth, filterUnit, filterSource, filterPartyType, search, presetOn, presetCtx]);
+
+  // Campanha pronta: na primeira vez, já marca todo o público dela
+  useEffect(() => {
+    if (loading || !preset || !presetOn || draft.presetSelected || draft.preselectTails) return;
+    setDraft((prev) => ({ ...prev, presetSelected: true, selectedLeadIds: filtered.map((l) => l.id) }));
+  }, [loading, preset, presetOn, draft.presetSelected, draft.preselectTails, filtered, setDraft]);
 
   // Persist active filter snapshot in the draft so the detail sheet can show it later.
   useEffect(() => {
@@ -444,6 +483,31 @@ export function CampaignAudienceStep({ draft, setDraft, companyId, editingCampai
           </Select>
         </div>
       </div>
+
+      {preset && (
+        <div className="flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs">
+          <Sparkles className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+          <div className="min-w-0 flex-1 leading-relaxed">
+            {presetOn ? (
+              <>
+                <p className="font-semibold text-foreground">
+                  Público da campanha pronta "{preset.title}"{draft.presetMonth ? ` (${draft.presetMonth})` : ""}
+                </p>
+                <p className="text-muted-foreground">
+                  {loading ? "Procurando quem se encaixa..." : filtered.length > 0
+                    ? `${say(filtered.length, "pessoa se encaixa", "pessoas se encaixam")} e já ${filtered.length === 1 ? "está marcada" : "estão marcadas"}. Desmarque quem não quiser.`
+                    : "Ninguém se encaixa agora. Veja todos os leads para escolher à mão."}
+                </p>
+              </>
+            ) : (
+              <p className="text-muted-foreground">Mostrando todos os leads.</p>
+            )}
+          </div>
+          <button type="button" className="font-semibold text-primary underline shrink-0" onClick={() => setPresetOn((v) => !v)}>
+            {presetOn ? "Ver todos" : "Voltar ao público pronto"}
+          </button>
+        </div>
+      )}
 
       {/* Busca */}
       <div className="relative">

@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { CampaignContextStep } from "./CampaignContextStep";
 import { CampaignAudienceStep } from "./CampaignAudienceStep";
 import { CampaignConfigStep } from "./CampaignConfigStep";
+import { CampaignPresetPicker, type PresetPick } from "./CampaignPresetPicker";
+import { presetGoal, presetName, type CampaignPresetId } from "@/lib/campaignPresets";
 import { ChevronLeft, ChevronRight, Loader2, Megaphone, Check, Info, ChevronDown, Users } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
@@ -48,6 +50,12 @@ export interface CampaignDraft {
   sendMode: "single" | "smart";
   sendInstanceId: string;
   autoReplyMessage: string;
+  /** campanha pronta escolhida (público e objetivo já preparados) */
+  presetId?: CampaignPresetId;
+  /** mês da campanha "Datas livres" */
+  presetMonth?: string;
+  /** o público pronto já foi marcado uma vez (depois a pessoa ajusta à mão) */
+  presetSelected?: boolean;
   audienceFilters?: {
     statuses: string[];
     month: string;
@@ -91,6 +99,8 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
   const [draft, setDraft] = useState<CampaignDraft>(EMPTY_DRAFT);
   // Abriu continuando um rascunho guardado neste aparelho
   const [restored, setRestored] = useState(false);
+  // Primeira tela: campanhas prontas ou criar do zero
+  const [picking, setPicking] = useState(false);
 
   // Quando entra em modo edição de audiência, pré-carrega destinatários atuais (status=pending) como pré-selecionados.
   useEffect(() => {
@@ -119,10 +129,12 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
         setDraft({ ...EMPTY_DRAFT, ...saved.draft, leads: [] });
         setStep(Math.min(Math.max(saved.step, 0), 2));
         setRestored(true);
+        setPicking(false);
       } else {
         setStep(0);
         setDraft(EMPTY_DRAFT);
         setRestored(false);
+        setPicking(true);
       }
     }
   }, [open, isEditingAudience, editingCampaign?.id]);
@@ -138,6 +150,21 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
     setDraft(EMPTY_DRAFT);
     setStep(0);
     setRestored(false);
+    setPicking(true);
+  };
+
+  const pickPreset = ({ preset, month, freeDates }: PresetPick) => {
+    const ctx = { month, freeDates };
+    setDraft({
+      ...EMPTY_DRAFT,
+      name: presetName(preset.id, ctx),
+      campaignType: preset.title,
+      description: presetGoal(preset.id, ctx),
+      presetId: preset.id,
+      presetMonth: month,
+    });
+    setStep(0);
+    setPicking(false);
   };
 
   const canAdvanceStep0 = draft.name.trim() && usableVariations(draft.variations).length >= 1;
@@ -170,7 +197,11 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
           total_recipients: selectedLeads.length,
           pause_bot_on_reply: draft.pauseBotOnReply,
           auto_reply_message: draft.pauseBotOnReply ? (draft.autoReplyMessage.trim() || null) : null,
-          filters: { ...(draft.audienceFilters || {}), ...(draft.campaignType ? { campaign_type: draft.campaignType } : {}) },
+          filters: {
+            ...(draft.audienceFilters || {}),
+            ...(draft.campaignType ? { campaign_type: draft.campaignType } : {}),
+            ...(draft.presetId ? { preset: draft.presetId, ...(draft.presetMonth ? { preset_month: draft.presetMonth } : {}) } : {}),
+          },
         })
         .select()
         .single();
@@ -328,7 +359,7 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
           </DialogHeader>
 
           {/* Step indicators - escondidos no modo edição */}
-          {!isEditingAudience && (
+          {!isEditingAudience && !picking && (
             <div className="flex items-center gap-1.5 sm:gap-2 pb-4">
               {STEPS.map((s, i) => (
                 <div key={i} className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
@@ -367,7 +398,7 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
             </div>
           )}
 
-          {!isEditingAudience && (
+          {!isEditingAudience && !picking && (
             <Collapsible>
               <CollapsibleTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors pb-2 cursor-pointer">
                 <Info className="w-3.5 h-3.5 shrink-0" />
@@ -391,7 +422,10 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
 
         {/* Content area */}
         <div className="flex-1 overflow-y-auto min-h-0 px-5 pb-2">
-          {!isEditingAudience && step === 0 && (
+          {!isEditingAudience && picking && (
+            <CampaignPresetPicker companyId={companyId} onPick={pickPreset} onBlank={() => setPicking(false)} />
+          )}
+          {!isEditingAudience && !picking && step === 0 && (
             <CampaignContextStep draft={draft} setDraft={setDraft} companyName={companyName} />
           )}
           {step === 1 && (
@@ -405,14 +439,16 @@ export function CampaignWizard({ open, onOpenChange, companyId, companyName, onC
         {/* Footer */}
         <div className="flex justify-between items-center px-5 py-3.5 border-t bg-muted/30 shrink-0">
           <Button variant="ghost" size="sm" onClick={() => {
-            if (isEditingAudience) { onOpenChange(false); return; }
-            step > 0 ? setStep(step - 1) : onOpenChange(false);
+            if (isEditingAudience || picking) { onOpenChange(false); return; }
+            if (step > 0) { setStep(step - 1); return; }
+            // Do 1º passo volta para as campanhas prontas ("Criar do zero" segue com o que já foi escrito)
+            setPicking(true);
           }}>
             <ChevronLeft className="w-4 h-4 mr-1" />
-            {isEditingAudience ? "Cancelar" : (step === 0 ? "Cancelar" : "Voltar")}
+            {isEditingAudience || picking ? "Cancelar" : "Voltar"}
           </Button>
 
-          {isEditingAudience ? (
+          {picking ? null : isEditingAudience ? (
             <Button size="sm" onClick={handleSaveAudience} disabled={saving || !canAdvanceStep1}>
               {saving && <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />}
               Salvar destinatários ({draft.selectedLeadIds.length})
