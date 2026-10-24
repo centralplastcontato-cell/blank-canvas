@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, ArrowRight, BadgeDollarSign, CalendarDays, CheckCircle2, Clock, FolderOpen, Globe, ImagePlus, Loader2, PartyPopper, Sparkles, Store, Trash2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, ArrowRight, BadgeDollarSign, CalendarDays, CheckCircle2, Clock, FolderOpen, Globe, ImagePlus, Loader2, MessageCircle, PartyPopper, Sparkles, Store, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { serializeBuffetInfo } from "@/lib/aiBuffetFields";
 import { serializeTeamHours, serializeVisitHours } from "@/lib/businessHours";
@@ -36,6 +36,8 @@ const STEPS = [
   { id: "site", title: "Seu site", icon: Globe },
   { id: "materiais", title: "Fotos, vídeo e PDF", icon: FolderOpen },
   { id: "valores", title: "Valores", icon: BadgeDollarSign },
+  // O número conectado aqui deixa o buffet no ar sozinho ao concluir (a IA liga na hora)
+  { id: "whatsapp", title: "WhatsApp", icon: MessageCircle },
   { id: "fim", title: "Concluir", icon: PartyPopper },
 ] as const;
 
@@ -82,6 +84,7 @@ export default function SetupBuffet() {
   const unit: string = signup?.unit || currentCompany?.name || "";
 
   const [step, setStep] = useState(0);
+  const [waConnected, setWaConnected] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -178,6 +181,16 @@ export default function SetupBuffet() {
       </div>
     );
   }
+  // Concluiu sem o WhatsApp e conectou agora: o buffet entra no ar sozinho
+  const activateAfterConnect = async () => {
+    try {
+      const r = await invokeFn("self-signup", { action: "finish", company_id: companyId, agenda_ok: true });
+      await refreshCompanies();
+      if (r?.status === "aprovado") toast({ title: "Seu buffet está no ar! 🎉", description: "A IA já está atendendo o seu WhatsApp." });
+    } catch (e) {
+      toast({ title: "Conectou, mas não consegui ligar a IA", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    }
+  };
   if (status === "aguardando_aprovacao" || status === "aprovado") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#FFF9F3] p-6">
@@ -191,14 +204,14 @@ export default function SetupBuffet() {
               </>
             ) : (
               <>
-                <p className="text-lg font-semibold">Cadastro enviado!</p>
-                <p className="text-sm text-muted-foreground">Agora conecte o WhatsApp do buffet. Depois a equipe Celebrei confere tudo e liga a IA (normalmente em até 1 dia útil). Avisamos você quando estiver no ar.</p>
+                <p className="text-lg font-semibold">Cadastro concluído!</p>
+                <p className="text-sm text-muted-foreground">Agora conecte o WhatsApp do buffet: assim que conectar, a IA liga sozinha e começa a atender.</p>
               </>
             )}
             {companyId && (
               <div className="space-y-2 rounded-lg border p-3 text-left">
                 <p className="text-sm font-medium">WhatsApp do buffet</p>
-                <WhatsAppConnect companyId={companyId} defaultPhone={whatsapp} />
+                <WhatsAppConnect companyId={companyId} defaultPhone={whatsapp} onConnected={status === "aguardando_aprovacao" ? activateAfterConnect : undefined} />
               </div>
             )}
             <div className="flex flex-col gap-2">
@@ -302,9 +315,11 @@ export default function SetupBuffet() {
   const finish = async () => {
     setSaving(true);
     try {
-      await invokeFn("self-signup", { action: "finish", company_id: companyId, agenda_ok: agendaOk });
+      const r = await invokeFn("self-signup", { action: "finish", company_id: companyId, agenda_ok: agendaOk });
       await refreshCompanies();
-      toast({ title: "Cadastro enviado! 🎉" });
+      toast(r?.status === "aprovado"
+        ? { title: "Seu buffet está no ar! 🎉", description: "A IA já está atendendo o seu WhatsApp." }
+        : { title: "Cadastro concluído! 🎉", description: "Conecte o WhatsApp: a IA liga sozinha assim que conectar." });
     } catch (e) {
       toast({ title: "Não consegui concluir", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
     } finally {
@@ -614,6 +629,23 @@ export default function SetupBuffet() {
 
             {STEPS[step].id === "valores" && <PricesQuickSetup ref={pricesRef} companyId={companyId} />}
 
+            {STEPS[step].id === "whatsapp" && (
+              <>
+                <div className="space-y-1">
+                  <p className="font-medium">Conecte o WhatsApp do buffet</p>
+                  <p className="text-sm text-muted-foreground">
+                    É o número que a IA vai atender. Leva 1 minuto: abra o WhatsApp no celular do buffet, toque em
+                    <span className="font-medium text-foreground"> Aparelhos conectados → Conectar um aparelho</span> e leia o QR Code.
+                    Assim que concluir o cadastro, a IA já começa a atender.
+                  </p>
+                </div>
+                <WhatsAppConnect companyId={companyId} defaultPhone={whatsapp} onStatusChange={setWaConnected} />
+                {!waConnected && (
+                  <p className="text-xs text-muted-foreground">Se preferir, continue e conecte depois — a IA liga sozinha quando o número for conectado.</p>
+                )}
+              </>
+            )}
+
             {STEPS[step].id === "fim" && (
               <>
                 <p className="font-medium">Quase lá!</p>
@@ -622,6 +654,11 @@ export default function SetupBuffet() {
                   <li className="flex gap-2"><CheckCircle2 className="h-4 w-4 text-green-600" /> Respostas da IA</li>
                   <li className="flex gap-2"><CheckCircle2 className="h-4 w-4 text-green-600" /> {busy.length} data(s) ocupada(s) marcada(s)</li>
                   <li className="flex gap-2"><CheckCircle2 className="h-4 w-4 text-green-600" /> Site em rascunho</li>
+                  <li className="flex gap-2">
+                    {waConnected
+                      ? <><CheckCircle2 className="h-4 w-4 text-green-600" /> WhatsApp conectado — a IA começa a atender ao concluir</>
+                      : <><AlertCircle className="h-4 w-4 text-amber-600" /> WhatsApp ainda não conectado — a IA liga sozinha quando conectar</>}
+                  </li>
                 </ul>
                 <label className="flex items-start gap-3 rounded-lg border p-3 text-sm">
                   <Checkbox checked={agendaOk} onCheckedChange={(v) => setAgendaOk(v === true)} className="mt-0.5" />
@@ -632,7 +669,6 @@ export default function SetupBuffet() {
                   <p className="text-xs text-muted-foreground">Converse com ela como se fosse um cliente. Se algo sair errado, volte nos passos e ajuste antes de enviar.</p>
                   <Button type="button" size="sm" variant="outline" onClick={() => setTestOpen(true)}><Sparkles className="mr-2 h-4 w-4" /> Testar a minha IA</Button>
                 </div>
-                <p className="text-sm text-muted-foreground">Depois de enviar, você conecta o WhatsApp do buffet (leva 1 minuto) e a equipe Celebrei liga a IA.</p>
                 <AiTestChat open={testOpen} onOpenChange={setTestOpen} companyId={companyId} />
               </>
             )}
@@ -642,7 +678,7 @@ export default function SetupBuffet() {
         <div className="flex justify-between gap-2">
           <Button variant="ghost" disabled={step === 0 || saving} onClick={() => setStep((s) => s - 1)}><ArrowLeft className="mr-2 h-4 w-4" /> Voltar</Button>
           {STEPS[step].id === "fim" ? (
-            <Button onClick={finish} disabled={!agendaOk || saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Enviar cadastro</Button>
+            <Button onClick={finish} disabled={!agendaOk || saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {waConnected ? "Concluir e ligar a IA" : "Concluir cadastro"}</Button>
           ) : (
             <Button onClick={next} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Continuar <ArrowRight className="ml-2 h-4 w-4" /></Button>
           )}
